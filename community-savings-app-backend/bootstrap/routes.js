@@ -10,21 +10,23 @@
  *   backend/bootstrap/routes.js
  *
  * Purpose:
- *   Enterprise production-grade route bootstrap adapter.
+ *   Enterprise production-grade route bootstrap / composition adapter.
  *
  * Responsibilities:
  *   - Register the application routing lifecycle with bootstrap.
- *   - Keep route mounting out of bootstrap/index.js and server.js.
- *   - Mount the canonical Express application routes in a deterministic phase.
- *   - Support modular route registration.
- *   - Prevent duplicate route mounting.
- *   - Validate the application/router contract.
- *   - Integrate readiness and observability.
- *   - Support graceful route shutdown where applicable.
- *   - Preserve existing route implementations.
- *   - Provide route bootstrap diagnostics.
+ *   - Resolve the canonical Express application.
+ *   - Resolve the authoritative application configuration.
+ *   - Bind authentication configuration before loading route modules.
+ *   - Load the canonical route registry deterministically.
+ *   - Mount existing routes without replacing their implementation.
+ *   - Prevent duplicate initialization / mounting.
+ *   - Support multiple legacy route registration contracts.
+ *   - Integrate readiness.
+ *   - Integrate observability without making startup dependent on telemetry.
+ *   - Provide deterministic route diagnostics.
+ *   - Support graceful shutdown semantics.
  *
- * Architectural position:
+ * Architecture:
  *
  *   environment
  *       ↓
@@ -38,9 +40,11 @@
  *       ↓
  *   resilience
  *       ↓
- *   database / Redis / event-bus / queue
+ *   infrastructure
  *       ↓
  *   middleware
+ *       ↓
+ *   authentication configuration binding
  *       ↓
  *   routes
  *       ↓
@@ -48,19 +52,19 @@
  *
  * IMPORTANT:
  *
- *   This module is a ROUTE COMPOSITION ADAPTER.
+ *   This module is a COMPOSITION ADAPTER.
  *
  *   It does NOT:
  *     - implement business logic
  *     - implement controllers
- *     - implement finance operations
+ *     - implement financial operations
  *     - implement ledger operations
  *     - implement authentication logic
  *     - implement database queries
  *     - implement queue processing
- *     - replace existing route files
+ *     - replace existing route modules
  *
- * Existing routes remain authoritative.
+ * Existing route implementations remain authoritative.
  *
  * =============================================================================
  */
@@ -72,7 +76,7 @@ const {
 
 /**
  * -----------------------------------------------------------------------------
- * Optional dependencies
+ * Optional readiness dependency
  * -----------------------------------------------------------------------------
  */
 
@@ -86,6 +90,12 @@ try {
   readinessModule = null;
 }
 
+/**
+ * -----------------------------------------------------------------------------
+ * Optional observability dependency
+ * -----------------------------------------------------------------------------
+ */
+
 let observabilityModule = null;
 
 try {
@@ -98,8 +108,41 @@ try {
 
 /**
  * -----------------------------------------------------------------------------
- * Constants
+ * Authentication composition dependency
  * -----------------------------------------------------------------------------
+ *
+ * IMPORTANT:
+ *
+ * This import is intentionally safe because the enhanced auth middleware no
+ * longer performs module-load-time JWT secret validation.
+ *
+ * The resolved bootstrap configuration is explicitly bound before the route
+ * registry is loaded.
+ * -----------------------------------------------------------------------------
+ */
+
+let authModule = null;
+
+try {
+  // eslint-disable-next-line global-require
+  authModule =
+    require('../middleware/auth');
+} catch (error) {
+  /**
+   * Keep route bootstrap load-safe.
+   *
+   * If authentication middleware itself becomes unavailable, the actual route
+   * phase will surface a deterministic dependency error.
+   */
+  authModule = {
+    __loadError: error,
+  };
+}
+
+/**
+ * =============================================================================
+ * CONSTANTS
+ * =============================================================================
  */
 
 const COMPONENT =
@@ -108,13 +151,16 @@ const COMPONENT =
 const SERVICE_NAME =
   process.env.SERVICE_NAME ||
   process.env.OTEL_SERVICE_NAME ||
-  'titech-backend';
+  'titech-community-capital-backend';
 
 const DEFAULT_PRIORITY =
   100;
 
 const DEFAULT_TIMEOUT_MS =
   30_000;
+
+const DEFAULT_READINESS_TIMEOUT_MS =
+  5_000;
 
 const DEFAULT_DEPENDENCIES =
   Object.freeze([
@@ -130,25 +176,6 @@ const DEFAULT_HEALTH_PREFIX =
 const DEFAULT_METRICS_PATH =
   '/metrics';
 
-/**
- * -----------------------------------------------------------------------------
- * Candidate Route Modules
- * -----------------------------------------------------------------------------
- *
- * These are compatibility paths for the current migration.
- *
- * The preferred long-term contract is:
- *
- *   backend/routes/index.js
- *
- * or a bootstrap-aware route registry exporting:
- *
- *   registerRoutes(app, context)
- *
- * Existing route implementations are not required to change immediately.
- * -----------------------------------------------------------------------------
- */
-
 const ROUTE_MODULE_CANDIDATES =
   Object.freeze([
     '../routes',
@@ -157,10 +184,18 @@ const ROUTE_MODULE_CANDIDATES =
     '../api',
   ]);
 
+const ROUTE_REGISTRATION_METHODS =
+  Object.freeze([
+    'registerRoutes',
+    'mountRoutes',
+    'configureRoutes',
+    'initializeRoutes',
+  ]);
+
 /**
- * -----------------------------------------------------------------------------
- * Error
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * ERROR
+ * =============================================================================
  */
 
 class RoutesBootstrapError extends Error {
@@ -198,9 +233,9 @@ class RoutesBootstrapError extends Error {
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Internal State
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * INTERNAL STATE
+ * =============================================================================
  */
 
 let application =
@@ -248,11 +283,49 @@ let mountedAt =
 let stoppedAt =
   null;
 
+let authenticationConfigured =
+  false;
+
 /**
- * -----------------------------------------------------------------------------
- * Utility Helpers
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * UTILITY HELPERS
+ * =============================================================================
  */
+
+function isObjectLike(
+  value,
+) {
+  return (
+    value !== null &&
+    typeof value === 'object'
+  );
+}
+
+function isFunction(
+  value,
+) {
+  return typeof value === 'function';
+}
+
+function normalizeString(
+  value,
+  fallback = null,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return fallback;
+  }
+
+  const normalized =
+    String(value).trim();
+
+  return (
+    normalized ||
+    fallback
+  );
+}
 
 function moduleExists(
   modulePath,
@@ -280,13 +353,160 @@ function unwrapModule(
 ) {
   if (
     value &&
-    value.default
+    value.default &&
+    Object.keys(value).length === 1
   ) {
     return value.default;
   }
 
   return value;
 }
+
+function getContextConfiguration(
+  context = {},
+) {
+  return (
+    context?.configuration ??
+    context?.config ??
+    context?.servicesContext?.config ??
+    context?.serviceContext?.config ??
+    null
+  );
+}
+
+function getContextEnvironment(
+  context = {},
+) {
+  return (
+    context?.environment ??
+    context?.configuration?.environment ??
+    context?.config?.environment ??
+    null
+  );
+}
+
+function getContextLogger(
+  context = {},
+) {
+  return (
+    context?.logger ??
+    context?.servicesContext?.logger ??
+    context?.serviceContext?.logger ??
+    null
+  );
+}
+
+function getContextApplication(
+  context = {},
+) {
+  return (
+    context?.app ??
+    context?.application ??
+    null
+  );
+}
+
+/**
+ * =============================================================================
+ * SAFE ERROR DIAGNOSTICS
+ * =============================================================================
+ *
+ * Authentication tokens, JWT secrets, cookies and request headers are never
+ * included here.
+ */
+
+function serializeSafeError(
+  error,
+) {
+  if (!error) {
+    return null;
+  }
+
+  return {
+    name:
+      error.name ||
+      'Error',
+
+    code:
+      error.code ||
+      null,
+
+    message:
+      error.message ||
+      'Unknown error',
+
+    phase:
+      error.phase ||
+      null,
+  };
+}
+
+/**
+ * =============================================================================
+ * OBSERVABILITY
+ * =============================================================================
+ */
+
+function emitObservabilityEvent(
+  event,
+  payload = {},
+) {
+  try {
+    const enriched =
+      {
+        component:
+          COMPONENT,
+
+        service:
+          SERVICE_NAME,
+
+        event,
+
+        ...payload,
+      };
+
+    if (
+      observabilityModule
+        ?.observability
+        ?.emitEvent &&
+      isFunction(
+        observabilityModule
+          .observability
+          .emitEvent,
+      )
+    ) {
+      return observabilityModule
+        .observability
+        .emitEvent(
+          event,
+          enriched,
+        );
+    }
+
+    if (
+      isFunction(
+        observabilityModule?.emitEvent,
+      )
+    ) {
+      return observabilityModule.emitEvent(
+        event,
+        enriched,
+      );
+    }
+  } catch {
+    /*
+     * Observability must never block application startup/shutdown.
+     */
+  }
+
+  return null;
+}
+
+/**
+ * =============================================================================
+ * ROUTE MODULE RESOLUTION
+ * =============================================================================
+ */
 
 function resolveRouteModule() {
   if (
@@ -317,10 +537,29 @@ function resolveRouteModule() {
       const loaded =
         require(candidate);
 
-      routeModule =
+      const normalized =
         unwrapModule(
           loaded,
         );
+
+      if (
+        !normalized
+      ) {
+        throw new RoutesBootstrapError(
+          'TITech route module resolved to an empty export.',
+          {
+            code:
+              'ROUTES_MODULE_EMPTY',
+
+            details: {
+              candidate,
+            },
+          },
+        );
+      }
+
+      routeModule =
+        normalized;
 
       routeModulePath =
         candidate;
@@ -333,11 +572,23 @@ function resolveRouteModule() {
           routeModulePath,
       };
     } catch (error) {
+      /*
+       * IMPORTANT:
+       *
+       * Preserve the original error as cause.
+       *
+       * This prevents the old "Failed to load route module" diagnostic
+       * black-box problem where the useful dependency exception was lost.
+       */
+
       throw new RoutesBootstrapError(
         'Failed to load the TITech route module.',
         {
           code:
             'ROUTES_MODULE_LOAD_FAILED',
+
+          phase:
+            'routes',
 
           cause:
             error,
@@ -360,9 +611,9 @@ function resolveRouteModule() {
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Route Contract Discovery
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * ROUTE CONTRACT DISCOVERY
+ * =============================================================================
  */
 
 function findRegistrationFunction(
@@ -374,35 +625,61 @@ function findRegistrationFunction(
     return null;
   }
 
-  const methods = [
-    'registerRoutes',
-    'mountRoutes',
-    'configureRoutes',
-    'initializeRoutes',
-  ];
-
   for (
-    const method of methods
+    const method of
+      ROUTE_REGISTRATION_METHODS
   ) {
     if (
-      typeof candidate[
-        method
-      ] ===
-      'function'
+      isFunction(
+        candidate[method],
+      )
     ) {
       return {
         name:
           method,
 
         fn:
-          candidate[
-            method
-          ].bind(candidate),
+          candidate[method].bind(
+            candidate,
+          ),
       };
     }
   }
 
   return null;
+}
+
+function isExpressRouterLike(
+  candidate,
+) {
+  if (
+    !candidate
+  ) {
+    return false;
+  }
+
+  if (
+    typeof candidate !==
+    'function'
+  ) {
+    return (
+      isFunction(
+        candidate.use,
+      ) ||
+      Array.isArray(
+        candidate.stack,
+      )
+    );
+  }
+
+  return (
+    isFunction(
+      candidate.use,
+    ) ||
+    Array.isArray(
+      candidate.stack,
+    )
+  );
 }
 
 function findRouter(
@@ -414,25 +691,18 @@ function findRouter(
     return null;
   }
 
-  /**
-   * Direct Express Router/function export.
+  /*
+   * Direct router export.
    */
   if (
-    typeof candidate ===
-      'function' &&
-    (
-      candidate.name ===
-        'router' ||
-      candidate.name ===
-        'routes' ||
-      candidate.stack ||
-      candidate.use
+    isExpressRouterLike(
+      candidate,
     )
   ) {
     return candidate;
   }
 
-  /**
+  /*
    * Common named exports.
    */
   const candidates = [
@@ -444,15 +714,12 @@ function findRouter(
   ];
 
   for (
-    const item of candidates
+    const item of
+      candidates
   ) {
     if (
-      typeof item ===
-        'function' ||
-      (
-        item &&
-        typeof item.use ===
-          'function'
+      isExpressRouterLike(
+        item,
       )
     ) {
       return item;
@@ -463,9 +730,9 @@ function findRouter(
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Validation
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * VALIDATION
+ * =============================================================================
  */
 
 function assertApplication(
@@ -473,14 +740,18 @@ function assertApplication(
 ) {
   if (
     !value ||
-    typeof value.use !==
-      'function'
+    !isFunction(
+      value.use,
+    )
   ) {
     throw new RoutesBootstrapError(
       'A valid Express-compatible application instance is required.',
       {
         code:
           'ROUTES_APPLICATION_INVALID',
+
+        phase:
+          'routes',
       },
     );
   }
@@ -497,6 +768,9 @@ function assertRouteContract(
       {
         code:
           'ROUTES_IMPLEMENTATION_UNAVAILABLE',
+
+        phase:
+          'routes',
       },
     );
   }
@@ -511,17 +785,24 @@ function assertRouteContract(
       value,
     );
 
+  const callable =
+    isFunction(
+      value,
+    );
+
   if (
     !registration &&
     !resolvedRouter &&
-    typeof value !==
-      'function'
+    !callable
   ) {
     throw new RoutesBootstrapError(
       'TITech route module does not expose a supported registration or router contract.',
       {
         code:
           'ROUTES_IMPLEMENTATION_INVALID',
+
+        phase:
+          'routes',
 
         details: {
           supportedContracts: [
@@ -530,6 +811,7 @@ function assertRouteContract(
             'configureRoutes(app, context)',
             'initializeRoutes(app, context)',
             'Express Router export',
+            'Callable route module(app, context)',
           ],
         },
       },
@@ -538,18 +820,15 @@ function assertRouteContract(
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Route Count
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * ROUTE COUNT
+ * =============================================================================
  */
 
 function inspectRouteCount(
   target,
 ) {
   try {
-    /**
-     * Express application stack.
-     */
     if (
       Array.isArray(
         target?.router?.stack,
@@ -566,9 +845,6 @@ function inspectRouteCount(
       return target._router.stack.length;
     }
 
-    /**
-     * Express Router stack.
-     */
     if (
       Array.isArray(
         target?.stack,
@@ -577,16 +853,18 @@ function inspectRouteCount(
       return target.stack.length;
     }
   } catch {
-    // Diagnostics only.
+    /*
+     * Diagnostics only.
+     */
   }
 
   return 0;
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Configuration
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * ROUTE CONFIGURATION
+ * =============================================================================
  */
 
 function resolveRouteConfiguration(
@@ -594,27 +872,33 @@ function resolveRouteConfiguration(
   options = {},
 ) {
   const config =
-    context.config ||
-    {};
+    getContextConfiguration(
+      context,
+    ) || {};
 
   const environment =
-    context.environment ||
-    {};
+    getContextEnvironment(
+      context,
+    ) || {};
 
   const routeConfig =
     config.routes ||
     config.routing ||
     {};
 
-  return {
+  const nodeEnv =
+    normalizeString(
+      process.env.NODE_ENV,
+      'development',
+    );
+
+  return Object.freeze({
     enabled:
-      options.enabled !==
-        undefined
+      options.enabled !== undefined
         ? Boolean(
             options.enabled,
           )
-        : routeConfig.enabled !==
-              undefined
+        : routeConfig.enabled !== undefined
           ? Boolean(
               routeConfig.enabled,
             )
@@ -639,23 +923,166 @@ function resolveRouteConfiguration(
       DEFAULT_METRICS_PATH,
 
     versionPrefix:
-      options.versionPrefix ||
-      routeConfig.versionPrefix ||
-      process.env.API_VERSION_PREFIX ||
+      options.versionPrefix ??
+      routeConfig.versionPrefix ??
+      process.env.API_VERSION_PREFIX ??
       '',
 
     environment:
       environment?.runtime?.nodeEnv ||
+      environment?.app?.nodeEnv ||
       environment?.app?.environment ||
-      process.env.NODE_ENV ||
-      'development',
-  };
+      nodeEnv,
+  });
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Readiness Integration
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * AUTHENTICATION CONFIGURATION BINDING
+ * =============================================================================
+ *
+ * This is the critical fix for the route startup failure discovered in:
+ *
+ *   routes/index.js
+ *       ↓
+ *   ../middleware/auth
+ *       ↓
+ *   JWT configuration
+ *
+ * The authoritative configuration is already available from bootstrap.
+ *
+ * We bind it into the auth module BEFORE require('../routes') is executed.
+ *
+ * The enhanced auth middleware still remains lazy and safe when imported
+ * independently.
+ * =============================================================================
+ */
+
+function bindAuthenticationConfiguration(
+  context = {},
+) {
+  if (
+    authenticationConfigured
+  ) {
+    return true;
+  }
+
+  if (
+    !authModule
+  ) {
+    throw new RoutesBootstrapError(
+      'TITech authentication middleware is unavailable.',
+      {
+        code:
+          'ROUTES_AUTH_MODULE_UNAVAILABLE',
+
+        phase:
+          'routes',
+
+        cause:
+          authModule?.__loadError ||
+          null,
+      },
+    );
+  }
+
+  const configuration =
+    getContextConfiguration(
+      context,
+    );
+
+  if (
+    !configuration
+  ) {
+    throw new RoutesBootstrapError(
+      'TITech application configuration is unavailable while composing authentication.',
+      {
+        code:
+          'ROUTES_AUTH_CONFIGURATION_UNAVAILABLE',
+
+        phase:
+          'routes',
+      },
+    );
+  }
+
+  if (
+    !isFunction(
+      authModule.configureAuth,
+    )
+  ) {
+    /*
+     * Backward compatibility:
+     *
+     * The enhanced auth middleware makes configuration injection available,
+     * but older auth modules can still be used if they resolve configuration
+     * themselves.
+     *
+     * Do not silently mark the module configured in the modern path unless it
+     * actually supports the contract.
+     */
+    authenticationConfigured =
+      false;
+
+    return false;
+  }
+
+  try {
+    authModule.configureAuth({
+      configuration,
+      config:
+        configuration,
+
+      environment:
+        getContextEnvironment(
+          context,
+        ),
+
+      logger:
+        getContextLogger(
+          context,
+        ),
+    });
+
+    authenticationConfigured =
+      true;
+
+    emitObservabilityEvent(
+      'authentication.configuration.bound',
+      {
+        configured:
+          true,
+
+        /*
+         * No secret values.
+         */
+        component:
+          COMPONENT,
+      },
+    );
+
+    return true;
+  } catch (error) {
+    throw new RoutesBootstrapError(
+      'Failed to bind TITech authentication configuration during route composition.',
+      {
+        code:
+          'ROUTES_AUTH_CONFIGURATION_BIND_FAILED',
+
+        phase:
+          'routes',
+
+        cause:
+          error,
+      },
+    );
+  }
+}
+
+/**
+ * =============================================================================
+ * READINESS
+ * =============================================================================
  */
 
 function registerReadinessDependency(
@@ -668,22 +1095,22 @@ function registerReadinessDependency(
     return null;
   }
 
-  const {
-    register,
-    has,
-  } =
-    readinessModule;
+  const register =
+    readinessModule.register;
+
+  const has =
+    readinessModule.has;
 
   if (
-    typeof register !==
-    'function'
+    !isFunction(
+      register,
+    )
   ) {
     return null;
   }
 
   if (
-    typeof has ===
-      'function' &&
+    isFunction(has) &&
     has(COMPONENT)
   ) {
     return null;
@@ -734,11 +1161,16 @@ function registerReadinessDependency(
 
           implementation:
             routeModulePath,
+
+          authenticationConfigured,
         }),
 
       timeoutMs:
-        options.readinessTimeoutMs ||
-        5_000,
+        Number.isInteger(
+          options.readinessTimeoutMs,
+        )
+          ? options.readinessTimeoutMs
+          : DEFAULT_READINESS_TIMEOUT_MS,
 
       metadata: {
         component:
@@ -752,72 +1184,24 @@ function registerReadinessDependency(
     lastError =
       error;
 
+    emitObservabilityEvent(
+      'routes.readiness_registration_failed',
+      {
+        error:
+          serializeSafeError(
+            error,
+          ),
+      },
+    );
+
     return null;
   }
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Observability
- * -----------------------------------------------------------------------------
- */
-
-function emitObservabilityEvent(
-  event,
-  payload = {},
-) {
-  try {
-    if (
-      observabilityModule
-        ?.observability
-        ?.emitEvent
-    ) {
-      return observabilityModule
-        .observability
-        .emitEvent(
-          event,
-          {
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-
-            ...payload,
-          },
-        );
-    }
-
-    if (
-      typeof observabilityModule?.emitEvent ===
-      'function'
-    ) {
-      return observabilityModule.emitEvent(
-        event,
-        {
-          component:
-            COMPONENT,
-
-          service:
-            SERVICE_NAME,
-
-          ...payload,
-        },
-      );
-    }
-  } catch {
-    /**
-     * Observability must never prevent route registration.
-     */
-  }
-
-  return null;
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Explicit Application Registration
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * APPLICATION INJECTION
+ * =============================================================================
  */
 
 function setApplication(
@@ -835,6 +1219,9 @@ function setApplication(
       {
         code:
           'ROUTES_APPLICATION_LOCKED',
+
+        phase:
+          'routes',
       },
     );
   }
@@ -846,9 +1233,9 @@ function setApplication(
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Explicit Route Module Registration
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * ROUTE MODULE INJECTION
+ * =============================================================================
  */
 
 function setRouteModule(
@@ -863,6 +1250,9 @@ function setRouteModule(
       {
         code:
           'ROUTES_MODULE_LOCKED',
+
+        phase:
+          'routes',
       },
     );
   }
@@ -884,9 +1274,9 @@ function setRouteModule(
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Mount Route Module
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * ROUTE MOUNTING
+ * =============================================================================
  */
 
 async function mountRoutes(
@@ -896,6 +1286,16 @@ async function mountRoutes(
 ) {
   assertApplication(
     app,
+  );
+
+  /*
+   * Bind the authoritative authentication configuration BEFORE loading the
+   * route registry.
+   *
+   * This is the important composition-order guarantee.
+   */
+  bindAuthenticationConfiguration(
+    context,
   );
 
   const resolved =
@@ -920,6 +1320,9 @@ async function mountRoutes(
       {
         code:
           'ROUTES_MODULE_NOT_FOUND',
+
+        phase:
+          'routes',
 
         details: {
           candidates:
@@ -957,6 +1360,37 @@ async function mountRoutes(
     };
   }
 
+  const routeContext =
+    Object.freeze({
+      ...context,
+
+      configuration:
+        getContextConfiguration(
+          context,
+        ),
+
+      config:
+        getContextConfiguration(
+          context,
+        ),
+
+      environment:
+        getContextEnvironment(
+          context,
+        ),
+
+      logger:
+        getContextLogger(
+          context,
+        ),
+
+      routes:
+        routeConfig,
+
+      application:
+        app,
+    });
+
   const registration =
     findRegistrationFunction(
       module,
@@ -964,9 +1398,7 @@ async function mountRoutes(
 
   /**
    * ---------------------------------------------------------------------------
-   * Preferred contract:
-   *
-   *   registerRoutes(app, context)
+   * Preferred registration contract
    * ---------------------------------------------------------------------------
    */
 
@@ -976,13 +1408,7 @@ async function mountRoutes(
     const result =
       await registration.fn(
         app,
-        {
-          ...context,
-
-          routes: {
-            ...routeConfig,
-          },
-        },
+        routeContext,
       );
 
     router =
@@ -991,8 +1417,13 @@ async function mountRoutes(
       );
 
     routeCount =
-      inspectRouteCount(
-        app,
+      Math.max(
+        inspectRouteCount(
+          app,
+        ),
+        inspectRouteCount(
+          result,
+        ),
       );
 
     return {
@@ -1008,15 +1439,15 @@ async function mountRoutes(
       path:
         resolved.path,
 
+      routeCount,
+
       result,
     };
   }
 
   /**
    * ---------------------------------------------------------------------------
-   * Direct Router contract
-   *
-   *   module === express.Router()
+   * Direct Express Router contract
    * ---------------------------------------------------------------------------
    */
 
@@ -1067,28 +1498,19 @@ async function mountRoutes(
 
   /**
    * ---------------------------------------------------------------------------
-   * Callable route registration
+   * Callable route module contract
    * ---------------------------------------------------------------------------
-   *
-   * Supports:
-   *
-   *   module(app, context)
    */
 
   if (
-    typeof module ===
-    'function'
+    isFunction(
+      module,
+    )
   ) {
     const result =
       await module(
         app,
-        {
-          ...context,
-
-          routes: {
-            ...routeConfig,
-          },
-        },
+        routeContext,
       );
 
     router =
@@ -1097,8 +1519,13 @@ async function mountRoutes(
       );
 
     routeCount =
-      inspectRouteCount(
-        app,
+      Math.max(
+        inspectRouteCount(
+          app,
+        ),
+        inspectRouteCount(
+          result,
+        ),
       );
 
     return {
@@ -1114,6 +1541,8 @@ async function mountRoutes(
       path:
         resolved.path,
 
+      routeCount,
+
       result,
     };
   }
@@ -1123,27 +1552,31 @@ async function mountRoutes(
     {
       code:
         'ROUTES_MOUNT_CONTRACT_FAILED',
+
+      phase:
+        'routes',
     },
   );
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Registration
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * HOOK REGISTRATION
+ * =============================================================================
  */
 
 function registerRoutesHooks(
   context = {},
   options = {},
 ) {
-  /**
-   * ---------------------------------------------------------------------------
-   * Duplicate protection
-   * ---------------------------------------------------------------------------
+  /*
+   * Duplicate protection.
    */
-
   if (
+    hooks &&
+    isFunction(
+      hooks.has,
+    ) &&
     hooks.has(
       COMPONENT,
     )
@@ -1152,48 +1585,73 @@ function registerRoutesHooks(
       true;
 
     registrationResult =
-      hooks.get(
-        COMPONENT,
-      );
+      isFunction(
+        hooks.get,
+      )
+        ? hooks.get(
+            COMPONENT,
+          )
+        : null;
 
     return registrationResult;
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Application resolution
-   * ---------------------------------------------------------------------------
-   */
-
-  const app =
-    options.app ||
-    context.app ||
-    application;
+  const contextApp =
+    getContextApplication(
+      context,
+    );
 
   if (
-    app
+    options.app
   ) {
     setApplication(
-      app,
+      options.app,
+    );
+  } else if (
+    contextApp
+  ) {
+    setApplication(
+      contextApp,
     );
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Readiness registration
-   * ---------------------------------------------------------------------------
+  /*
+   * Bind authentication immediately when configuration is already available.
+   *
+   * If the route hook is registered earlier than configuration resolution,
+   * mountRoutes() repeats the binding safely.
    */
+  if (
+    getContextConfiguration(
+      context,
+    )
+  ) {
+    bindAuthenticationConfiguration(
+      context,
+    );
+  }
 
   registerReadinessDependency(
     context,
     options,
   );
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Lifecycle registration
-   * ---------------------------------------------------------------------------
-   */
+  if (
+    !isFunction(
+      lifecycle,
+    )
+  ) {
+    throw new RoutesBootstrapError(
+      'TITech bootstrap lifecycle registrar is unavailable.',
+      {
+        code:
+          'ROUTES_LIFECYCLE_UNAVAILABLE',
+
+        phase:
+          'routes',
+      },
+    );
+  }
 
   registrationResult =
     lifecycle(
@@ -1241,6 +1699,7 @@ function registerRoutesHooks(
             SERVICE_NAME,
 
           implementation:
+            routeModulePath ||
             'backend/routes',
         },
 
@@ -1268,7 +1727,9 @@ function registerRoutesHooks(
 
                   const targetApp =
                     options.app ||
-                    runtimeContext.app ||
+                    getContextApplication(
+                      runtimeContext,
+                    ) ||
                     application;
 
                   assertApplication(
@@ -1277,6 +1738,14 @@ function registerRoutesHooks(
 
                   application =
                     targetApp;
+
+                  /*
+                   * The definitive auth configuration bind occurs immediately
+                   * before route loading.
+                   */
+                  bindAuthenticationConfiguration(
+                    runtimeContext,
+                  );
 
                   const result =
                     await mountRoutes(
@@ -1309,10 +1778,20 @@ function registerRoutesHooks(
                   lastError =
                     null;
 
+                  routeCount =
+                    Math.max(
+                      routeCount,
+                      result.routeCount ||
+                        0,
+                      inspectRouteCount(
+                        targetApp,
+                      ),
+                    );
+
                   if (
-                    runtimeContext &&
-                    typeof runtimeContext ===
-                      'object'
+                    isObjectLike(
+                      runtimeContext,
+                    )
                   ) {
                     runtimeContext.routes =
                       {
@@ -1329,6 +1808,8 @@ function registerRoutesHooks(
 
                         modulePath:
                           routeModulePath,
+
+                        authenticationConfigured,
                       };
                   }
 
@@ -1339,6 +1820,8 @@ function registerRoutesHooks(
 
                       modulePath:
                         routeModulePath,
+
+                      authenticationConfigured,
                     },
                   );
 
@@ -1356,16 +1839,13 @@ function registerRoutesHooks(
                   emitObservabilityEvent(
                     'routes.mount_failed',
                     {
-                      error: {
-                        name:
-                          error?.name,
+                      error:
+                        serializeSafeError(
+                          error,
+                        ),
 
-                        code:
-                          error?.code,
-
-                        message:
-                          error?.message,
-                      },
+                      modulePath:
+                        routeModulePath,
                     },
                   );
 
@@ -1412,45 +1892,38 @@ function registerRoutesHooks(
          */
 
         health:
-          async () => {
-            return {
-              status:
-                failed
-                  ? 'unhealthy'
-                  : stopped
-                    ? 'stopped'
-                    : mounted
-                      ? 'healthy'
-                      : 'not_ready',
+          async () => ({
+            status:
+              failed
+                ? 'unhealthy'
+                : stopped
+                  ? 'stopped'
+                  : mounted
+                    ? 'healthy'
+                    : 'not_ready',
 
-              ready:
-                mounted &&
-                !failed &&
-                !stopped,
+            ready:
+              mounted &&
+              !failed &&
+              !stopped,
 
-              component:
-                COMPONENT,
+            component:
+              COMPONENT,
 
-              service:
-                SERVICE_NAME,
+            service:
+              SERVICE_NAME,
 
-              routeCount,
+            routeCount,
 
-              modulePath:
-                routeModulePath,
-            };
-          },
+            modulePath:
+              routeModulePath,
+
+            authenticationConfigured,
+          }),
 
         /**
          * ---------------------------------------------------------------------
          * STOP
-         * ---------------------------------------------------------------------
-         *
-         * Express routes generally do not have a teardown phase.
-         *
-         * This hook therefore marks routing unavailable and releases internal
-         * bootstrap references without mutating the Express stack. The HTTP
-         * server shutdown is responsible for preventing further traffic.
          * ---------------------------------------------------------------------
          */
 
@@ -1484,9 +1957,9 @@ function registerRoutesHooks(
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Canonical Bootstrap Contract
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * BOOTSTRAP COMPATIBILITY
+ * =============================================================================
  */
 
 function registerBootstrapHooks(
@@ -1500,9 +1973,9 @@ function registerBootstrapHooks(
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Explicit Initialization
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * EXPLICIT INITIALIZATION
+ * =============================================================================
  */
 
 async function initialize(
@@ -1519,10 +1992,13 @@ async function initialize(
   }
 
   if (
-    context?.app
+    context?.app ||
+    context?.application
   ) {
     setApplication(
-      context.app,
+      getContextApplication(
+        context,
+      ),
     );
   }
 
@@ -1545,6 +2021,8 @@ async function initialize(
       router,
 
       routeCount,
+
+      authenticationConfigured,
     };
   }
 
@@ -1554,6 +2032,14 @@ async function initialize(
     return startPromise;
   }
 
+  /*
+   * Configuration may be available here even when route hooks have not been
+   * registered. Bind it before require('../routes').
+   */
+  bindAuthenticationConfiguration(
+    context,
+  );
+
   startPromise =
     mountRoutes(
       target,
@@ -1562,6 +2048,16 @@ async function initialize(
 
         app:
           target,
+
+        configuration:
+          getContextConfiguration(
+            context,
+          ),
+
+        config:
+          getContextConfiguration(
+            context,
+          ),
       },
       options,
     )
@@ -1585,6 +2081,28 @@ async function initialize(
               ? new Date()
               : null;
 
+          routeCount =
+            Math.max(
+              routeCount,
+              result.routeCount ||
+                0,
+              inspectRouteCount(
+                target,
+              ),
+            );
+
+          emitObservabilityEvent(
+            'routes.initialized',
+            {
+              routeCount,
+
+              modulePath:
+                routeModulePath,
+
+              authenticationConfigured,
+            },
+          );
+
           return {
             app:
               target,
@@ -1592,6 +2110,8 @@ async function initialize(
             router,
 
             routeCount,
+
+            authenticationConfigured,
 
             ...result,
           };
@@ -1608,8 +2128,15 @@ async function initialize(
           lastError =
             error;
 
-          startPromise =
-            null;
+          emitObservabilityEvent(
+            'routes.initialization_failed',
+            {
+              error:
+                serializeSafeError(
+                  error,
+                ),
+            },
+          );
 
           throw wrapError(
             error,
@@ -1620,13 +2147,25 @@ async function initialize(
         },
       );
 
-  return startPromise;
+  try {
+    return await startPromise;
+  } finally {
+    /*
+     * A successful initialization must not retain a resolved promise forever.
+     */
+    if (
+      !failed
+    ) {
+      startPromise =
+        null;
+    }
+  }
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Explicit Shutdown
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * SHUTDOWN
+ * =============================================================================
  */
 
 async function shutdown() {
@@ -1654,6 +2193,13 @@ async function shutdown() {
         stoppedAt =
           new Date();
 
+        emitObservabilityEvent(
+          'routes.shutdown',
+          {
+            routeCount,
+          },
+        );
+
         return true;
       } catch (error) {
         failed =
@@ -1671,6 +2217,9 @@ async function shutdown() {
           'shutdown',
           'TITech routes shutdown failed.',
         );
+      } finally {
+        stopPromise =
+          null;
       }
     })();
 
@@ -1682,9 +2231,9 @@ async function stop() {
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Runtime Access
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * RUNTIME ACCESS
+ * =============================================================================
  */
 
 function getApplication() {
@@ -1729,23 +2278,16 @@ function getState() {
     modulePath:
       routeModulePath,
 
+    authenticationConfigured,
+
     mountedAt,
 
     stoppedAt,
 
     lastError:
-      lastError
-        ? {
-            name:
-              lastError.name,
-
-            code:
-              lastError.code,
-
-            message:
-              lastError.message,
-          }
-        : null,
+      serializeSafeError(
+        lastError,
+      ),
   });
 }
 
@@ -1774,9 +2316,9 @@ function isReady() {
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Diagnostics
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * DIAGNOSTICS
+ * =============================================================================
  */
 
 function snapshot() {
@@ -1803,9 +2345,7 @@ function snapshot() {
     modulePath:
       routeModulePath,
 
-    mountedAt,
-
-    stoppedAt,
+    authenticationConfigured,
 
     applicationAvailable:
       Boolean(
@@ -1817,28 +2357,23 @@ function snapshot() {
         router,
       ),
 
+    mountedAt,
+
+    stoppedAt,
+
     lastError:
-      lastError
-        ? {
-            name:
-              lastError.name,
-
-            code:
-              lastError.code,
-
-            message:
-              lastError.message,
-          }
-        : null,
+      serializeSafeError(
+        lastError,
+      ),
   });
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Reset
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * RESET
+ * =============================================================================
  *
- * Testing/process-isolation only.
+ * Intended for tests / process-isolated bootstrap resets.
  */
 
 function reset() {
@@ -1850,6 +2385,9 @@ function reset() {
       {
         code:
           'ROUTES_RESET_NOT_ALLOWED',
+
+        phase:
+          'routes',
       },
     );
   }
@@ -1899,13 +2437,16 @@ function reset() {
   stoppedAt =
     null;
 
+  authenticationConfigured =
+    false;
+
   return true;
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Error Wrapper
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * ERROR WRAPPER
+ * =============================================================================
  */
 
 function wrapError(
@@ -1935,14 +2476,14 @@ function wrapError(
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Export
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * EXPORTS
+ * =============================================================================
  */
 
 module.exports =
   Object.freeze({
-    /**
+    /*
      * Registration.
      */
     registerRoutesHooks,
@@ -1952,8 +2493,8 @@ module.exports =
     bootstrap:
       registerBootstrapHooks,
 
-    /**
-     * Application/route injection.
+    /*
+     * Application / route injection.
      */
     setApplication,
 
@@ -1961,7 +2502,7 @@ module.exports =
 
     mountRoutes,
 
-    /**
+    /*
      * Explicit lifecycle.
      */
     initialize,
@@ -1973,7 +2514,7 @@ module.exports =
 
     stop,
 
-    /**
+    /*
      * Runtime access.
      */
     getApplication,
@@ -1984,7 +2525,7 @@ module.exports =
 
     getRouteCount,
 
-    /**
+    /*
      * State.
      */
     getState,
@@ -2001,12 +2542,19 @@ module.exports =
 
     isReady,
 
-    /**
-     * Test support.
+    /*
+     * Testing/process reset.
      */
     reset,
 
-    /**
+    /*
+     * Diagnostics/configuration.
+     */
+    resolveRouteConfiguration,
+
+    bindAuthenticationConfiguration,
+
+    /*
      * Constants/errors.
      */
     RoutesBootstrapError,

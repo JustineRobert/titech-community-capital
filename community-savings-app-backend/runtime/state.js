@@ -1,40 +1,52 @@
 "use strict";
 
 /**
- * ============================================================================
+ * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
- * ============================================================================
+ * TITech Community Capital Operating System
+ * =============================================================================
  *
  * File:
  *   backend/runtime/state.js
  *
  * Purpose:
- *   Central process-local runtime lifecycle state.
+ *   Enterprise process-local runtime lifecycle state and transition registry.
  *
- * Architectural Role:
- *   This module contains STATE and STATE TRANSITIONS only.
+ * Architectural Role
+ * -----------------------------------------------------------------------------
  *
- * IMPORTANT:
- *   This module MUST NOT:
+ * This module owns:
+ *   - runtime state;
+ *   - lifecycle state transitions;
+ *   - bootstrap phase bookkeeping;
+ *   - service state bookkeeping;
+ *   - readiness state;
+ *   - health/liveness state;
+ *   - process-local operational metrics.
  *
- *   - connect to MongoDB
- *   - connect to Redis
- *   - initialize queues
- *   - initialize WebSocket
- *   - configure middleware
- *   - register routes
- *   - create HTTP servers
- *   - initialize loggers
- *   - initialize observability
+ * This module MUST NOT:
+ *   - connect to MongoDB;
+ *   - connect to Redis;
+ *   - initialize queues;
+ *   - initialize WebSocket infrastructure;
+ *   - configure middleware;
+ *   - register routes;
+ *   - create HTTP servers;
+ *   - initialize loggers;
+ *   - initialize observability providers;
+ *   - read secrets;
+ *   - perform network I/O;
+ *   - mutate Express application state.
  *
- *   Bootstrap components mutate this state through the exported lifecycle
- *   functions.
+ * Bootstrap components mutate runtime state through the exported transition
+ * functions.
  *
- * ============================================================================
+ * =============================================================================
  *
- * Canonical Bootstrap Pipeline
- * ============================================================================
+ * Canonical TITech Bootstrap Lifecycle
+ * =============================================================================
+ *
+ * Normal startup:
  *
  *   environment
  *        ↓
@@ -44,9 +56,13 @@
  *        ↓
  *   observability
  *        ↓
+ *   readiness
+ *        ↓
  *   resilience
  *        ↓
- *   database
+ *   infrastructure
+ *        ↓
+ *   services
  *        ↓
  *   middleware
  *        ↓
@@ -54,1992 +70,3092 @@
  *        ↓
  *   server
  *        ↓
- *       READY
- *        ↓
- *   SHUTTING_DOWN
- *        ↓
- *      STOPPED
+ *   ready
  *
- * ============================================================================
+ * Normal shutdown:
+ *
+ *   ready
+ *      ↓
+ *   shutting_down
+ *      ↓
+ *   stopped
+ *
+ * Partial-startup failure:
+ *
+ *   any startup phase
+ *      ↓
+ *   failed
+ *      ↓
+ *   shutting_down
+ *      ↓
+ *   stopped
+ *
+ * IMPORTANT
+ * -----------------------------------------------------------------------------
+ *
+ * A failed startup does NOT need to reach `server` or `ready` before cleanup.
+ *
+ * This is the primary correction for the runtime-state errors:
+ *
+ *   "Application cannot begin shutdown before the startup pipeline reaches
+ *    the server/ready lifecycle."
+ *
+ * and:
+ *
+ *   "Application must enter shutting_down before stopped."
+ *
+ * =============================================================================
  *
  * Design Principles
- * ============================================================================
+ * =============================================================================
  *
- *   ✓ Process-local state only.
- *   ✓ Explicit lifecycle transitions.
- *   ✓ Bootstrap order is deterministic.
- *   ✓ Service state is independent from bootstrap phase.
- *   ✓ Health is distinct from "started".
- *   ✓ Readiness is distinct from health.
- *   ✓ Request counters cannot become negative.
- *   ✓ WebSocket counters cannot become negative.
- *   ✓ Failure information is sanitized.
- *   ✓ Consumers receive snapshots, not mutable internal references.
- *   ✓ Reset support is available for tests.
+ * ✓ Process-local state only.
+ * ✓ BootstrapContext remains the canonical lifecycle authority.
+ * ✓ runtime/state.js is a compatibility/read-model authority for legacy
+ *   consumers and operational telemetry.
+ * ✓ Explicit lifecycle transitions.
+ * ✓ Deterministic bootstrap ordering.
+ * ✓ Bootstrap phase is distinct from service state.
+ * ✓ Started is distinct from healthy.
+ * ✓ Healthy is distinct from ready.
+ * ✓ Readiness exposes explicit blockers.
+ * ✓ Service state is independently observable.
+ * ✓ Runtime state never initializes infrastructure.
+ * ✓ Runtime state never owns application dependencies.
+ * ✓ Failure information is sanitized.
+ * ✓ Secrets and credentials are never retained.
+ * ✓ Consumers receive snapshots rather than mutable state where possible.
+ * ✓ Metrics never become negative.
+ * ✓ Duplicate lifecycle operations are idempotent where safe.
+ * ✓ Partial-startup shutdown is explicitly supported.
+ * ✓ Failed startup cannot be incorrectly marked ready.
+ * ✓ Failed startup cannot be incorrectly marked started.
+ * ✓ Successful infrastructure/server phases cannot be completed after an
+ *   authoritative application failure.
+ * ✓ Phase and service timings are captured.
+ * ✓ Runtime generation distinguishes startup attempts.
+ * ✓ Reset support exists for deterministic testing.
  *
- * ============================================================================
+ * =============================================================================
  */
 
-// =============================================================================
-// Bootstrap Phases
-// =============================================================================
+/* =============================================================================
+ * BOOTSTRAP PHASES
+ * =============================================================================
+ */
 
-const BOOTSTRAP_PHASES =
-    Object.freeze({
+const BOOTSTRAP_PHASES = Object.freeze({
+  ENVIRONMENT:
+    "environment",
 
-        ENVIRONMENT:
-            "environment",
+  CONFIGURATION:
+    "configuration",
 
-        CONFIGURATION:
-            "configuration",
+  LOGGER:
+    "logger",
 
-        LOGGER:
-            "logger",
+  OBSERVABILITY:
+    "observability",
 
-        OBSERVABILITY:
-            "observability",
+  READINESS:
+    "readiness",
 
-        RESILIENCE:
-            "resilience",
+  RESILIENCE:
+    "resilience",
 
-        DATABASE:
-            "database",
+  INFRASTRUCTURE:
+    "infrastructure",
 
-        MIDDLEWARE:
-            "middleware",
+  SERVICES:
+    "services",
 
-        ROUTES:
-            "routes",
+  MIDDLEWARE:
+    "middleware",
 
-        SERVER:
-            "server",
+  ROUTES:
+    "routes",
 
-        READY:
-            "ready",
+  SERVER:
+    "server",
 
-        SHUTTING_DOWN:
-            "shutting_down",
+  READY:
+    "ready",
 
-        STOPPED:
-            "stopped"
+  SHUTTING_DOWN:
+    "shutting_down",
 
-    });
+  STOPPED:
+    "stopped",
+});
 
-// =============================================================================
-// Bootstrap Phase Order
-// =============================================================================
-//
-// This is the canonical startup sequence.
-//
-// =============================================================================
+/* =============================================================================
+ * CANONICAL STARTUP PHASE ORDER
+ * =============================================================================
+ */
 
-const BOOTSTRAP_PHASE_ORDER =
+const BOOTSTRAP_PHASE_ORDER = Object.freeze([
+  BOOTSTRAP_PHASES.ENVIRONMENT,
+  BOOTSTRAP_PHASES.CONFIGURATION,
+  BOOTSTRAP_PHASES.LOGGER,
+  BOOTSTRAP_PHASES.OBSERVABILITY,
+  BOOTSTRAP_PHASES.READINESS,
+  BOOTSTRAP_PHASES.RESILIENCE,
+  BOOTSTRAP_PHASES.INFRASTRUCTURE,
+  BOOTSTRAP_PHASES.SERVICES,
+  BOOTSTRAP_PHASES.MIDDLEWARE,
+  BOOTSTRAP_PHASES.ROUTES,
+  BOOTSTRAP_PHASES.SERVER,
+]);
+
+/* =============================================================================
+ * BOOTSTRAP LIFECYCLE STATES
+ * =============================================================================
+ */
+
+const BOOTSTRAP_LIFECYCLE_STATES = Object.freeze({
+  NOT_STARTED:
+    "not_started",
+
+  STARTING:
+    "starting",
+
+  RUNNING:
+    "running",
+
+  COMPLETED:
+    "completed",
+
+  FAILED:
+    "failed",
+
+  SHUTTING_DOWN:
+    "shutting_down",
+
+  STOPPED:
+    "stopped",
+});
+
+/* =============================================================================
+ * LOGICAL SERVICES
+ * =============================================================================
+ */
+
+const SERVICES = Object.freeze({
+  LOGGER:
+    "logger",
+
+  OBSERVABILITY:
+    "observability",
+
+  READINESS:
+    "readiness",
+
+  RESILIENCE:
+    "resilience",
+
+  DATABASE:
+    "database",
+
+  REDIS:
+    "redis",
+
+  QUEUES:
+    "queues",
+
+  WEBSOCKET:
+    "websocket",
+
+  INFRASTRUCTURE:
+    "infrastructure",
+
+  SERVICES:
+    "services",
+
+  MIDDLEWARE:
+    "middleware",
+
+  ROUTES:
+    "routes",
+
+  SERVER:
+    "server",
+
+  METRICS:
+    "metrics",
+
+  DOCUMENTATION:
+    "documentation",
+});
+
+/* =============================================================================
+ * SERVICE STATES
+ * =============================================================================
+ */
+
+const SERVICE_STATES = Object.freeze({
+  STOPPED:
+    "stopped",
+
+  STARTING:
+    "starting",
+
+  READY:
+    "ready",
+
+  DEGRADED:
+    "degraded",
+
+  STOPPING:
+    "stopping",
+
+  FAILED:
+    "failed",
+});
+
+/* =============================================================================
+ * NORMAL BOOTSTRAP TRANSITIONS
+ * =============================================================================
+ *
+ * Normal startup remains strictly ordered.
+ *
+ * Shutdown is handled separately because failure cleanup may legitimately
+ * originate from any startup phase.
+ * =============================================================================
+ */
+
+const BOOTSTRAP_TRANSITIONS = Object.freeze({
+  [BOOTSTRAP_PHASES.ENVIRONMENT]:
     Object.freeze([
+      BOOTSTRAP_PHASES.CONFIGURATION,
+    ]),
+
+  [BOOTSTRAP_PHASES.CONFIGURATION]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.LOGGER,
+    ]),
+
+  [BOOTSTRAP_PHASES.LOGGER]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.OBSERVABILITY,
+    ]),
+
+  [BOOTSTRAP_PHASES.OBSERVABILITY]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.READINESS,
+    ]),
+
+  [BOOTSTRAP_PHASES.READINESS]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.RESILIENCE,
+    ]),
+
+  [BOOTSTRAP_PHASES.RESILIENCE]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.INFRASTRUCTURE,
+    ]),
+
+  [BOOTSTRAP_PHASES.INFRASTRUCTURE]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.SERVICES,
+    ]),
+
+  [BOOTSTRAP_PHASES.SERVICES]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.MIDDLEWARE,
+    ]),
+
+  [BOOTSTRAP_PHASES.MIDDLEWARE]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.ROUTES,
+    ]),
+
+  [BOOTSTRAP_PHASES.ROUTES]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.SERVER,
+    ]),
+
+  [BOOTSTRAP_PHASES.SERVER]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.READY,
+    ]),
+
+  [BOOTSTRAP_PHASES.READY]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.SHUTTING_DOWN,
+    ]),
+
+  [BOOTSTRAP_PHASES.SHUTTING_DOWN]:
+    Object.freeze([
+      BOOTSTRAP_PHASES.STOPPED,
+    ]),
+
+  [BOOTSTRAP_PHASES.STOPPED]:
+    Object.freeze([]),
+});
+
+/* =============================================================================
+ * FAILURE / SHUTDOWN TRANSITION POLICY
+ * =============================================================================
+ *
+ * These are NOT ordinary startup transitions.
+ *
+ * A fatal startup failure can happen while the current phase is:
+ *
+ *   environment
+ *   configuration
+ *   logger
+ *   observability
+ *   readiness
+ *   resilience
+ *   infrastructure
+ *   services
+ *   middleware
+ *   routes
+ *   server
+ *
+ * Cleanup must be legal from any of those states.
+ * =============================================================================
+ */
+
+const SHUTDOWN_ELIGIBLE_PHASES = Object.freeze([
+  BOOTSTRAP_PHASES.ENVIRONMENT,
+  BOOTSTRAP_PHASES.CONFIGURATION,
+  BOOTSTRAP_PHASES.LOGGER,
+  BOOTSTRAP_PHASES.OBSERVABILITY,
+  BOOTSTRAP_PHASES.READINESS,
+  BOOTSTRAP_PHASES.RESILIENCE,
+  BOOTSTRAP_PHASES.INFRASTRUCTURE,
+  BOOTSTRAP_PHASES.SERVICES,
+  BOOTSTRAP_PHASES.MIDDLEWARE,
+  BOOTSTRAP_PHASES.ROUTES,
+  BOOTSTRAP_PHASES.SERVER,
+  BOOTSTRAP_PHASES.READY,
+]);
 
-        BOOTSTRAP_PHASES.ENVIRONMENT,
+/* =============================================================================
+ * PHASE → SERVICE MAPPING
+ * =============================================================================
+ */
 
-        BOOTSTRAP_PHASES.CONFIGURATION,
+const PHASE_SERVICE_MAP = Object.freeze({
+  [BOOTSTRAP_PHASES.LOGGER]:
+    SERVICES.LOGGER,
 
-        BOOTSTRAP_PHASES.LOGGER,
+  [BOOTSTRAP_PHASES.OBSERVABILITY]:
+    SERVICES.OBSERVABILITY,
 
-        BOOTSTRAP_PHASES.OBSERVABILITY,
+  [BOOTSTRAP_PHASES.READINESS]:
+    SERVICES.READINESS,
 
-        BOOTSTRAP_PHASES.RESILIENCE,
+  [BOOTSTRAP_PHASES.RESILIENCE]:
+    SERVICES.RESILIENCE,
 
-        BOOTSTRAP_PHASES.DATABASE,
+  [BOOTSTRAP_PHASES.INFRASTRUCTURE]:
+    SERVICES.INFRASTRUCTURE,
 
-        BOOTSTRAP_PHASES.MIDDLEWARE,
+  [BOOTSTRAP_PHASES.SERVICES]:
+    SERVICES.SERVICES,
 
-        BOOTSTRAP_PHASES.ROUTES,
+  [BOOTSTRAP_PHASES.MIDDLEWARE]:
+    SERVICES.MIDDLEWARE,
 
-        BOOTSTRAP_PHASES.SERVER
+  [BOOTSTRAP_PHASES.ROUTES]:
+    SERVICES.ROUTES,
 
-    ]);
+  [BOOTSTRAP_PHASES.SERVER]:
+    SERVICES.SERVER,
+});
 
-// =============================================================================
-// Service Names
-// =============================================================================
-
-const SERVICES =
-    Object.freeze({
-
-        LOGGER:
-            "logger",
-
-        OBSERVABILITY:
-            "observability",
-
-        RESILIENCE:
-            "resilience",
-
-        DATABASE:
-            "database",
-
-        REDIS:
-            "redis",
-
-        QUEUES:
-            "queues",
-
-        WEBSOCKET:
-            "websocket",
-
-        MIDDLEWARE:
-            "middleware",
-
-        ROUTES:
-            "routes",
-
-        SERVER:
-            "server",
-
-        METRICS:
-            "metrics",
-
-        DOCUMENTATION:
-            "documentation"
-
-    });
-
-// =============================================================================
-// Service States
-// =============================================================================
-
-const SERVICE_STATES =
-    Object.freeze({
-
-        STOPPED:
-            "stopped",
-
-        STARTING:
-            "starting",
-
-        READY:
-            "ready",
-
-        DEGRADED:
-            "degraded",
-
-        STOPPING:
-            "stopping",
-
-        FAILED:
-            "failed"
-
-    });
-
-// =============================================================================
-// Bootstrap Transition Map
-// =============================================================================
-//
-// Each startup phase can transition only to the next canonical phase.
-//
-// READY is entered only after SERVER is complete.
-//
-// Shutdown may begin only from READY.
-//
-// =============================================================================
-
-const BOOTSTRAP_TRANSITIONS =
-    Object.freeze({
-
-        [BOOTSTRAP_PHASES.ENVIRONMENT]: [
-
-            BOOTSTRAP_PHASES.CONFIGURATION
-
-        ],
-
-        [BOOTSTRAP_PHASES.CONFIGURATION]: [
-
-            BOOTSTRAP_PHASES.LOGGER
-
-        ],
-
-        [BOOTSTRAP_PHASES.LOGGER]: [
-
-            BOOTSTRAP_PHASES.OBSERVABILITY
-
-        ],
-
-        [BOOTSTRAP_PHASES.OBSERVABILITY]: [
-
-            BOOTSTRAP_PHASES.RESILIENCE
-
-        ],
-
-        [BOOTSTRAP_PHASES.RESILIENCE]: [
-
-            BOOTSTRAP_PHASES.DATABASE
-
-        ],
-
-        [BOOTSTRAP_PHASES.DATABASE]: [
-
-            BOOTSTRAP_PHASES.MIDDLEWARE
-
-        ],
-
-        [BOOTSTRAP_PHASES.MIDDLEWARE]: [
-
-            BOOTSTRAP_PHASES.ROUTES
-
-        ],
-
-        [BOOTSTRAP_PHASES.ROUTES]: [
-
-            BOOTSTRAP_PHASES.SERVER
-
-        ],
-
-        [BOOTSTRAP_PHASES.SERVER]: [
-
-            BOOTSTRAP_PHASES.READY
-
-        ],
-
-        [BOOTSTRAP_PHASES.READY]: [
-
-            BOOTSTRAP_PHASES.SHUTTING_DOWN
-
-        ],
-
-        [BOOTSTRAP_PHASES.SHUTTING_DOWN]: [
-
-            BOOTSTRAP_PHASES.STOPPED
-
-        ],
-
-        [BOOTSTRAP_PHASES.STOPPED]: []
-
-    });
-
-// =============================================================================
-// Initial Service State
-// =============================================================================
+/* =============================================================================
+ * INITIAL STATE FACTORIES
+ * =============================================================================
+ */
 
 function createInitialServices() {
+  const services = {};
 
-    return {
+  Object.values(SERVICES).forEach(
+    (service) => {
+      services[service] = false;
+    },
+  );
 
-        [SERVICES.LOGGER]:
-            false,
-
-        [SERVICES.OBSERVABILITY]:
-            false,
-
-        [SERVICES.RESILIENCE]:
-            false,
-
-        [SERVICES.DATABASE]:
-            false,
-
-        [SERVICES.REDIS]:
-            false,
-
-        [SERVICES.QUEUES]:
-            false,
-
-        [SERVICES.WEBSOCKET]:
-            false,
-
-        [SERVICES.MIDDLEWARE]:
-            false,
-
-        [SERVICES.ROUTES]:
-            false,
-
-        [SERVICES.SERVER]:
-            false,
-
-        [SERVICES.METRICS]:
-            false,
-
-        [SERVICES.DOCUMENTATION]:
-            false
-
-    };
-
+  return services;
 }
-
-// =============================================================================
-// Initial Service Lifecycle State
-// =============================================================================
 
 function createInitialServiceStates() {
+  const states = {};
 
-    return {
+  Object.values(SERVICES).forEach(
+    (service) => {
+      states[service] =
+        SERVICE_STATES.STOPPED;
+    },
+  );
 
-        [SERVICES.LOGGER]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.OBSERVABILITY]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.RESILIENCE]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.DATABASE]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.REDIS]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.QUEUES]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.WEBSOCKET]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.MIDDLEWARE]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.ROUTES]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.SERVER]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.METRICS]:
-            SERVICE_STATES.STOPPED,
-
-        [SERVICES.DOCUMENTATION]:
-            SERVICE_STATES.STOPPED
-
-    };
-
+  return states;
 }
 
-// =============================================================================
-// Internal Application State
-// =============================================================================
-//
-// This object MUST NOT be exported for mutation by consumers.
-//
-// It is exported for backward compatibility only.
-// Consumers should use getApplicationState().
-//
-// =============================================================================
+function createInitialPhaseTimings() {
+  const timings = {};
+
+  BOOTSTRAP_PHASE_ORDER.forEach(
+    (phase) => {
+      timings[phase] = {
+        startedAt:
+          null,
+
+        completedAt:
+          null,
+
+        durationMs:
+          null,
+      };
+    },
+  );
+
+  return timings;
+}
+
+function createInitialServiceTimings() {
+  const timings = {};
+
+  Object.values(SERVICES).forEach(
+    (service) => {
+      timings[service] = {
+        startedAt:
+          null,
+
+        readyAt:
+          null,
+
+        stoppedAt:
+          null,
+
+        durationMs:
+          null,
+      };
+    },
+  );
+
+  return timings;
+}
+
+function createInitialReadiness() {
+  return {
+    ready:
+      false,
+
+    blockers:
+      [],
+
+    checks:
+      {},
+
+    lastEvaluation:
+      null,
+  };
+}
+
+/* =============================================================================
+ * RUNTIME GENERATION
+ * =============================================================================
+ */
+
+function createRuntimeGeneration() {
+  return [
+    Date.now().toString(36),
+
+    Math.random()
+      .toString(36)
+      .slice(2, 10),
+  ].join("-");
+}
+
+/* =============================================================================
+ * INTERNAL APPLICATION STATE
+ * =============================================================================
+ */
 
 const applicationState = {
+  runtimeGeneration:
+    createRuntimeGeneration(),
 
-    // -------------------------------------------------------------------------
-    // Process lifecycle
-    // -------------------------------------------------------------------------
+  processId:
+    process.pid,
 
-    initialized:
-        false,
+  nodeVersion:
+    process.version,
 
-    starting:
-        false,
+  initialized:
+    false,
 
-    started:
-        false,
+  starting:
+    false,
 
-    healthy:
-        false,
+  started:
+    false,
 
-    ready:
-        false,
+  healthy:
+    false,
 
-    shuttingDown:
-        false,
+  ready:
+    false,
 
-    stopped:
-        false,
+  shuttingDown:
+    false,
 
-    terminated:
-        false,
+  stopped:
+    false,
 
-    failed:
-        false,
+  terminated:
+    false,
 
-    // -------------------------------------------------------------------------
-    // Bootstrap lifecycle
-    // -------------------------------------------------------------------------
+  failed:
+    false,
 
-    bootstrapPhase:
-        null,
+  bootstrapLifecycle:
+    BOOTSTRAP_LIFECYCLE_STATES.NOT_STARTED,
 
-    completedPhases: [],
+  bootstrapPhase:
+    null,
 
-    // -------------------------------------------------------------------------
-    // Timestamps
-    // -------------------------------------------------------------------------
+  completedPhases:
+    [],
 
-    startedAt:
-        null,
+  phaseTimings:
+    createInitialPhaseTimings(),
 
-    readyAt:
-        null,
+  startedAt:
+    null,
 
-    shutdownStartedAt:
-        null,
+  readyAt:
+    null,
 
-    stoppedAt:
-        null,
+  shutdownStartedAt:
+    null,
 
-    lastHealthCheck:
-        null,
+  stoppedAt:
+    null,
 
-    // -------------------------------------------------------------------------
-    // Failure
-    // -------------------------------------------------------------------------
+  lastHealthCheck:
+    null,
 
-    failure:
-        null,
+  startupDurationMs:
+    null,
 
-    // -------------------------------------------------------------------------
-    // Runtime metrics
-    // -------------------------------------------------------------------------
+  shutdownDurationMs:
+    null,
 
-    requestCount:
-        0,
+  failure:
+    null,
 
-    activeRequests:
-        0,
+  readiness:
+    createInitialReadiness(),
 
-    websocketConnections:
-        0,
+  requestCount:
+    0,
 
-    // -------------------------------------------------------------------------
-    // Services
-    // -------------------------------------------------------------------------
+  activeRequests:
+    0,
 
-    services:
-        createInitialServices(),
+  websocketConnections:
+    0,
 
-    serviceStates:
-        createInitialServiceStates()
+  services:
+    createInitialServices(),
 
+  serviceStates:
+    createInitialServiceStates(),
+
+  serviceTimings:
+    createInitialServiceTimings(),
 };
 
-// =============================================================================
-// Utility
-// =============================================================================
+/* =============================================================================
+ * UTILITY
+ * =============================================================================
+ */
 
 function now() {
-
-    return new Date();
-
+  return new Date();
 }
 
-// =============================================================================
-// Phase Validation
-// =============================================================================
+function timestamp() {
+  return now().toISOString();
+}
+
+/* =============================================================================
+ * VALIDATION
+ * =============================================================================
+ */
 
 function assertValidPhase(
-    phase
+  phase,
 ) {
-
-    if (
-        !Object.values(
-            BOOTSTRAP_PHASES
-        ).includes(
-            phase
-        )
-    ) {
-
-        throw new Error(
-            `Unknown bootstrap phase: ${phase}`
-        );
-
-    }
-
+  if (
+    !Object.values(
+      BOOTSTRAP_PHASES,
+    ).includes(phase)
+  ) {
+    throw new Error(
+      `Unknown bootstrap phase: ${phase}`,
+    );
+  }
 }
 
 function assertValidService(
-    service
+  service,
 ) {
-
-    if (
-        !Object.values(
-            SERVICES
-        ).includes(
-            service
-        )
-    ) {
-
-        throw new Error(
-            `Unknown service: ${service}`
-        );
-
-    }
-
+  if (
+    !Object.values(
+      SERVICES,
+    ).includes(service)
+  ) {
+    throw new Error(
+      `Unknown service: ${service}`,
+    );
+  }
 }
 
 function assertValidServiceState(
-    state
+  state,
 ) {
-
-    if (
-        !Object.values(
-            SERVICE_STATES
-        ).includes(
-            state
-        )
-    ) {
-
-        throw new Error(
-            `Unknown service state: ${state}`
-        );
-
-    }
-
+  if (
+    !Object.values(
+      SERVICE_STATES,
+    ).includes(state)
+  ) {
+    throw new Error(
+      `Unknown service state: ${state}`,
+    );
+  }
 }
 
-// =============================================================================
-// Bootstrap Phase Transition
-// =============================================================================
+/* =============================================================================
+ * SAFE ERROR NORMALIZATION
+ * =============================================================================
+ */
+
+function normalizeError(
+  error,
+) {
+  if (!error) {
+    return {
+      message:
+        "Unknown runtime error",
+
+      code:
+        null,
+
+      name:
+        "Error",
+    };
+  }
+
+  let message;
+
+  if (
+    typeof error.message ===
+    "string"
+  ) {
+    message =
+      error.message;
+  } else if (
+    typeof error ===
+    "string"
+  ) {
+    message =
+      error;
+  } else {
+    try {
+      message =
+        JSON.stringify(error);
+    } catch {
+      message =
+        "Unserializable runtime error";
+    }
+  }
+
+  return {
+    message:
+      String(message).slice(
+        0,
+        1000,
+      ),
+
+    code:
+      typeof error.code ===
+      "string"
+        ? error.code.slice(
+            0,
+            100,
+          )
+        : null,
+
+    name:
+      typeof error.name ===
+      "string"
+        ? error.name.slice(
+            0,
+            100,
+          )
+        : "Error",
+  };
+}
+
+/* =============================================================================
+ * EVENT HELPER
+ * =============================================================================
+ */
+
+function emit(
+  events,
+  eventName,
+  payload,
+) {
+  try {
+    events?.emit?.(
+      eventName,
+      payload,
+    );
+  } catch {
+    // Runtime bookkeeping must never fail because an optional emitter failed.
+  }
+}
+
+/* =============================================================================
+ * LOGGING HELPERS
+ * ============================================================================= */
+
+function logInfo(
+  logger,
+  payload,
+) {
+  try {
+    logger?.info?.(
+      payload,
+    );
+  } catch {
+    // Logging must never become lifecycle-fatal.
+  }
+}
+
+function logError(
+  logger,
+  payload,
+) {
+  try {
+    logger?.error?.(
+      payload,
+    );
+  } catch {
+    // Logging must never become lifecycle-fatal.
+  }
+}
+
+/* =============================================================================
+ * PHASE TRANSITION
+ * =============================================================================
+ *
+ * Normal phase progression remains strict.
+ *
+ * Shutdown is intentionally NOT handled through the normal phase transition
+ * graph when application startup has failed.
+ * =============================================================================
+ */
 
 function updateBootstrapPhase(
-    phase,
-    events,
-    logger
+  phase,
+  events,
+  logger,
+  options = {},
 ) {
+  assertValidPhase(
+    phase,
+  );
 
-    assertValidPhase(
-        phase
-    );
+  const currentPhase =
+    applicationState.bootstrapPhase;
 
-    const currentPhase =
-        applicationState.bootstrapPhase;
+  const failureCleanup =
+    options.failureCleanup === true;
 
-    /*
-     * Initial transition.
-     *
-     * The first valid phase must be ENVIRONMENT.
-     */
+  /* ---------------------------------------------------------------------------
+   * Idempotent transition
+   * ------------------------------------------------------------------------- */
+
+  if (
+    currentPhase ===
+    phase
+  ) {
+    return false;
+  }
+
+  /* ---------------------------------------------------------------------------
+   * Special shutdown transition
+   *
+   * This is the key partial-startup fix.
+   * ------------------------------------------------------------------------- */
+
+  if (
+    phase ===
+    BOOTSTRAP_PHASES.SHUTTING_DOWN
+  ) {
+    const allowed =
+      (
+        SHUTDOWN_ELIGIBLE_PHASES.includes(
+          currentPhase,
+        ) ||
+        applicationState.failed ===
+          true ||
+        failureCleanup
+      );
+
+    if (!allowed) {
+      throw new Error(
+        `Invalid bootstrap shutdown transition from "${currentPhase}".`,
+      );
+    }
+  } else if (
+    phase ===
+    BOOTSTRAP_PHASES.STOPPED
+  ) {
+    if (
+      currentPhase !==
+      BOOTSTRAP_PHASES.SHUTTING_DOWN
+    ) {
+      throw new Error(
+        "Application must enter shutting_down before stopped.",
+      );
+    }
+  } else {
+    /* -----------------------------------------------------------------------
+     * Normal startup transition.
+     * --------------------------------------------------------------------- */
 
     if (
-        currentPhase === null
+      currentPhase ===
+      null
     ) {
+      if (
+        phase !==
+        BOOTSTRAP_PHASES.ENVIRONMENT
+      ) {
+        throw new Error(
+          "Bootstrap must begin with the environment phase.",
+        );
+      }
+    } else {
+      const allowedTransitions =
+        BOOTSTRAP_TRANSITIONS[
+          currentPhase
+        ] || [];
 
-        if (
-            phase !==
-            BOOTSTRAP_PHASES.ENVIRONMENT
-        ) {
-
-            throw new Error(
-                "Bootstrap must begin with the environment phase."
-            );
-
-        }
-
-    } else if (
-        currentPhase !==
-        phase
-    ) {
-
-        const allowedTransitions =
-            BOOTSTRAP_TRANSITIONS[
-                currentPhase
-            ] || [];
-
-        if (
-            !allowedTransitions.includes(
-                phase
-            )
-        ) {
-
-            throw new Error(
-
-                `Invalid bootstrap transition: ` +
-                `${currentPhase} -> ${phase}`
-
-            );
-
-        }
-
+      if (
+        !allowedTransitions.includes(
+          phase,
+        )
+      ) {
+        throw new Error(
+          "Invalid bootstrap transition: " +
+            `${currentPhase} -> ${phase}`,
+        );
+      }
     }
+  }
 
-    applicationState.bootstrapPhase =
-        phase;
+  applicationState.bootstrapPhase =
+    phase;
 
-    const timestamp =
-        now();
+  const currentTimestamp =
+    now();
 
-    events?.emit?.(
-        "bootstrap.phase.changed",
-        {
+  /**
+   * Record timing only for actual startup phases.
+   */
+  if (
+    Object.prototype.hasOwnProperty.call(
+      applicationState.phaseTimings,
+      phase,
+    )
+  ) {
+    applicationState.phaseTimings[
+      phase
+    ].startedAt =
+      currentTimestamp;
+  }
 
-            previousPhase:
-                currentPhase,
+  emit(
+    events,
+    "bootstrap.phase.changed",
+    {
+      previousPhase:
+        currentPhase,
 
-            phase,
+      phase,
 
-            timestamp:
-                timestamp.toISOString()
+      timestamp:
+        currentTimestamp.toISOString(),
 
-        }
-    );
+      failureCleanup,
 
-    logger?.info?.({
+      runtimeGeneration:
+        applicationState.runtimeGeneration,
+    },
+  );
 
-        section:
-            "bootstrap",
+  logInfo(
+    logger,
+    {
+      section:
+        "bootstrap",
 
-        previousPhase:
-            currentPhase,
+      event:
+        "phase_changed",
 
-        phase
+      previousPhase:
+        currentPhase,
 
-    });
+      phase,
 
+      failureCleanup,
+
+      runtimeGeneration:
+        applicationState.runtimeGeneration,
+    },
+  );
+
+  return true;
 }
 
-// =============================================================================
-// Phase Started
-// =============================================================================
+/* =============================================================================
+ * PHASE STARTED
+ * =============================================================================
+ */
 
 function markPhaseStarted(
+  phase,
+  events,
+  logger,
+) {
+  assertValidPhase(
+    phase,
+  );
+
+  if (
+    phase ===
+      BOOTSTRAP_PHASES.READY ||
+    phase ===
+      BOOTSTRAP_PHASES.SHUTTING_DOWN ||
+    phase ===
+      BOOTSTRAP_PHASES.STOPPED
+  ) {
+    throw new Error(
+      `Lifecycle state cannot be started as a bootstrap phase: ${phase}`,
+    );
+  }
+
+  if (
+    applicationState.shuttingDown ||
+    applicationState.stopped ||
+    applicationState.terminated
+  ) {
+    throw new Error(
+      `Cannot start bootstrap phase "${phase}" after shutdown has begun.`,
+    );
+  }
+
+  if (
+    applicationState.failed
+  ) {
+    throw new Error(
+      `Cannot start bootstrap phase "${phase}" after application failure.`,
+    );
+  }
+
+  updateBootstrapPhase(
     phase,
     events,
-    logger
-) {
+    logger,
+  );
 
-    assertValidPhase(
-        phase
+  applicationState.starting =
+    true;
+
+  applicationState.bootstrapLifecycle =
+    BOOTSTRAP_LIFECYCLE_STATES.RUNNING;
+
+  const service =
+    PHASE_SERVICE_MAP[
+      phase
+    ];
+
+  if (service) {
+    markServiceStarting(
+      service,
+      events,
+      logger,
     );
-
-    /*
-     * READY, SHUTTING_DOWN and STOPPED are lifecycle states rather than
-     * bootstrap work phases and cannot be started through this function.
-     */
-
-    if (
-        phase ===
-            BOOTSTRAP_PHASES.READY ||
-        phase ===
-            BOOTSTRAP_PHASES.SHUTTING_DOWN ||
-        phase ===
-            BOOTSTRAP_PHASES.STOPPED
-    ) {
-
-        throw new Error(
-            `Lifecycle state cannot be started as a bootstrap phase: ${phase}`
-        );
-
-    }
-
-    updateBootstrapPhase(
-        phase,
-        events,
-        logger
-    );
-
-    applicationState.starting =
-        true;
-
+  }
 }
 
-// =============================================================================
-// Phase Completed
-// =============================================================================
+/* =============================================================================
+ * PHASE COMPLETED
+ * =============================================================================
+ */
 
 function markPhaseCompleted(
+  phase,
+  events,
+  logger,
+) {
+  assertValidPhase(
     phase,
-    events,
-    logger
-) {
+  );
 
-    assertValidPhase(
-        phase
+  if (
+    !BOOTSTRAP_PHASE_ORDER.includes(
+      phase,
+    )
+  ) {
+    throw new Error(
+      `Invalid bootstrap completion phase: ${phase}`,
     );
+  }
 
-    /*
-     * Only actual bootstrap phases may be completed.
-     */
+  /**
+   * CRITICAL:
+   *
+   * Once application failure is authoritative, a startup phase cannot later be
+   * marked successful. This prevents:
+   *
+   *   database hook failed
+   *        ↓
+   *   infrastructure phase completed
+   *
+   * which was visible in the previous log.
+   */
+  if (
+    applicationState.failed
+  ) {
+    throw new Error(
+      `Cannot complete bootstrap phase "${phase}" after application failure.`,
+    );
+  }
 
-    if (
-        !BOOTSTRAP_PHASE_ORDER.includes(
-            phase
-        )
-    ) {
-
-        throw new Error(
-            `Invalid bootstrap completion phase: ${phase}`
-        );
-
-    }
-
-    /*
-     * A phase cannot be completed without becoming the current phase.
-     */
-
-    if (
-        applicationState.bootstrapPhase !==
-        phase
-    ) {
-
-        updateBootstrapPhase(
-            phase,
-            events,
-            logger
-        );
-
-    }
-
-    if (
-        !applicationState.completedPhases.includes(
-            phase
-        )
-    ) {
-
-        applicationState.completedPhases.push(
-            phase
-        );
-
-    }
-
-    const service =
-        phaseToService(
-            phase
-        );
-
-    if (
-        service
-    ) {
-
-        setServiceState(
-
-            service,
-
-            SERVICE_STATES.READY,
-
-            events,
-
-            logger
-
-        );
-
-    }
-
-}
-
-// =============================================================================
-// Phase → Service Mapping
-// =============================================================================
-
-function phaseToService(
+  if (
+    applicationState.bootstrapPhase !==
     phase
-) {
+  ) {
+    throw new Error(
+      `Cannot complete bootstrap phase "${phase}" because current phase is "${applicationState.bootstrapPhase}".`,
+    );
+  }
 
-    switch (
-        phase
+  if (
+    !applicationState.completedPhases.includes(
+      phase,
+    )
+  ) {
+    applicationState.completedPhases.push(
+      phase,
+    );
+  }
+
+  const completedAt =
+    now();
+
+  const timing =
+    applicationState.phaseTimings[
+      phase
+    ];
+
+  if (timing) {
+    timing.completedAt =
+      completedAt;
+
+    if (
+      timing.startedAt
     ) {
-
-        case BOOTSTRAP_PHASES.LOGGER:
-
-            return SERVICES.LOGGER;
-
-        case BOOTSTRAP_PHASES.OBSERVABILITY:
-
-            return SERVICES.OBSERVABILITY;
-
-        case BOOTSTRAP_PHASES.RESILIENCE:
-
-            return SERVICES.RESILIENCE;
-
-        case BOOTSTRAP_PHASES.DATABASE:
-
-            return SERVICES.DATABASE;
-
-        case BOOTSTRAP_PHASES.MIDDLEWARE:
-
-            return SERVICES.MIDDLEWARE;
-
-        case BOOTSTRAP_PHASES.ROUTES:
-
-            return SERVICES.ROUTES;
-
-        case BOOTSTRAP_PHASES.SERVER:
-
-            return SERVICES.SERVER;
-
-        default:
-
-            return null;
-
+      timing.durationMs =
+        Math.max(
+          0,
+          completedAt.getTime() -
+            timing.startedAt.getTime(),
+        );
     }
+  }
 
+  const service =
+    PHASE_SERVICE_MAP[
+      phase
+    ];
+
+  if (service) {
+    setServiceState(
+      service,
+      SERVICE_STATES.READY,
+      events,
+      logger,
+    );
+  }
+
+  emit(
+    events,
+    "bootstrap.phase.completed",
+    {
+      phase,
+
+      timestamp:
+        completedAt.toISOString(),
+
+      durationMs:
+        timing?.durationMs ??
+        null,
+    },
+  );
+
+  logInfo(
+    logger,
+    {
+      section:
+        "bootstrap",
+
+      event:
+        "phase_completed",
+
+      phase,
+
+      durationMs:
+        timing?.durationMs ??
+        null,
+    },
+  );
 }
 
-// =============================================================================
-// Application Starting
-// =============================================================================
+/* =============================================================================
+ * APPLICATION STARTING
+ * =============================================================================
+ */
 
 function markStarting(
-    events,
-    logger
+  events,
+  logger,
 ) {
+  if (
+    applicationState.started &&
+    applicationState.ready
+  ) {
+    return false;
+  }
 
-    if (
-        applicationState.terminated ||
-        applicationState.stopped
-    ) {
-
-        throw new Error(
-            "A stopped application cannot be started without resetting runtime state."
-        );
-
-    }
-
-    applicationState.initialized =
-        true;
-
-    applicationState.starting =
-        true;
-
-    applicationState.started =
-        false;
-
-    applicationState.ready =
-        false;
-
-    applicationState.healthy =
-        false;
-
-    applicationState.shuttingDown =
-        false;
-
-    applicationState.stopped =
-        false;
-
-    applicationState.terminated =
-        false;
-
-    applicationState.failed =
-        false;
-
-    applicationState.failure =
-        null;
-
-    const timestamp =
-        now();
-
-    applicationState.startedAt =
-        timestamp;
-
-    events?.emit?.(
-        "application.starting",
-        {
-            timestamp
-        }
+  if (
+    applicationState.terminated ||
+    applicationState.stopped
+  ) {
+    throw new Error(
+      "A stopped application cannot be started without resetting runtime state.",
     );
+  }
 
-    logger?.info?.({
+  if (
+    applicationState.failed
+  ) {
+    throw new Error(
+      "A failed application cannot be restarted without resetting runtime state.",
+    );
+  }
 
-        section:
-            "runtime",
+  if (
+    applicationState.starting
+  ) {
+    return false;
+  }
 
-        state:
-            "starting"
+  applicationState.initialized =
+    true;
 
-    });
+  applicationState.starting =
+    true;
 
+  applicationState.started =
+    false;
+
+  applicationState.ready =
+    false;
+
+  applicationState.healthy =
+    false;
+
+  applicationState.shuttingDown =
+    false;
+
+  applicationState.stopped =
+    false;
+
+  applicationState.terminated =
+    false;
+
+  applicationState.failed =
+    false;
+
+  applicationState.failure =
+    null;
+
+  applicationState.bootstrapLifecycle =
+    BOOTSTRAP_LIFECYCLE_STATES.STARTING;
+
+  const startedAt =
+    now();
+
+  applicationState.startedAt =
+    startedAt;
+
+  applicationState.readyAt =
+    null;
+
+  applicationState.shutdownStartedAt =
+    null;
+
+  applicationState.stoppedAt =
+    null;
+
+  applicationState.startupDurationMs =
+    null;
+
+  applicationState.shutdownDurationMs =
+    null;
+
+  emit(
+    events,
+    "application.starting",
+    {
+      timestamp:
+        startedAt.toISOString(),
+
+      runtimeGeneration:
+        applicationState.runtimeGeneration,
+    },
+  );
+
+  logInfo(
+    logger,
+    {
+      section:
+        "runtime",
+
+      event:
+        "application_starting",
+
+      runtimeGeneration:
+        applicationState.runtimeGeneration,
+    },
+  );
+
+  return true;
 }
 
-// =============================================================================
-// Application Started
-// =============================================================================
-//
-// "Started" means the HTTP server/bootstrap process has completed the startup
-// pipeline. Readiness is still explicitly controlled by markApplicationReady.
-//
-// =============================================================================
+/* =============================================================================
+ * APPLICATION STARTED
+ * =============================================================================
+ */
 
 function markApplicationStarted(
-    events,
-    logger
+  events,
+  logger,
 ) {
+  if (
+    applicationState.started
+  ) {
+    return false;
+  }
 
-    if (
-        applicationState.started
-    ) {
-
-        return;
-
-    }
-
-    if (
-        applicationState.failed
-    ) {
-
-        throw new Error(
-            "A failed application cannot be marked started."
-        );
-
-    }
-
-    applicationState.initialized =
-        true;
-
-    applicationState.starting =
-        false;
-
-    applicationState.started =
-        true;
-
-    applicationState.ready =
-        false;
-
-    applicationState.healthy =
-        true;
-
-    events?.emit?.(
-        "application.started",
-        {
-
-            timestamp:
-                now()
-
-        }
+  if (
+    applicationState.failed
+  ) {
+    throw new Error(
+      "A failed application cannot be marked started.",
     );
+  }
 
-    logger?.info?.({
+  if (
+    applicationState.shuttingDown ||
+    applicationState.stopped ||
+    applicationState.terminated
+  ) {
+    throw new Error(
+      "Cannot mark an inactive application as started.",
+    );
+  }
 
-        section:
-            "runtime",
+  if (
+    applicationState.bootstrapPhase !==
+    BOOTSTRAP_PHASES.SERVER
+  ) {
+    throw new Error(
+      "Application cannot be marked started before the server bootstrap phase.",
+    );
+  }
 
-        state:
-            "started"
+  if (
+    !applicationState.completedPhases.includes(
+      BOOTSTRAP_PHASES.SERVER,
+    )
+  ) {
+    throw new Error(
+      "Application cannot be marked started before the server phase is completed.",
+    );
+  }
 
-    });
+  const startedAt =
+    now();
 
+  applicationState.initialized =
+    true;
+
+  applicationState.starting =
+    false;
+
+  applicationState.started =
+    true;
+
+  applicationState.ready =
+    false;
+
+  applicationState.healthy =
+    true;
+
+  applicationState.bootstrapLifecycle =
+    BOOTSTRAP_LIFECYCLE_STATES.COMPLETED;
+
+  if (
+    applicationState.startedAt
+  ) {
+    applicationState.startupDurationMs =
+      Math.max(
+        0,
+        startedAt.getTime() -
+          applicationState.startedAt.getTime(),
+      );
+  }
+
+  emit(
+    events,
+    "application.started",
+    {
+      timestamp:
+        startedAt.toISOString(),
+
+      startupDurationMs:
+        applicationState.startupDurationMs,
+
+      runtimeGeneration:
+        applicationState.runtimeGeneration,
+    },
+  );
+
+  logInfo(
+    logger,
+    {
+      section:
+        "runtime",
+
+      event:
+        "application_started",
+
+      startupDurationMs:
+        applicationState.startupDurationMs,
+    },
+  );
+
+  return true;
 }
 
-// =============================================================================
-// Application Ready
-// =============================================================================
+/* =============================================================================
+ * READINESS EVALUATION
+ * =============================================================================
+ */
+
+function setReadinessState(
+  ready,
+  blockers = [],
+  checks = {},
+  events,
+  logger,
+) {
+  const normalizedBlockers =
+    Array.isArray(blockers)
+      ? blockers
+          .filter(Boolean)
+          .map(
+            (value) =>
+              String(value).slice(
+                0,
+                500,
+              ),
+          )
+      : [];
+
+  const normalizedChecks =
+    checks &&
+    typeof checks ===
+      "object"
+      ? {
+          ...checks,
+        }
+      : {};
+
+  const nextReady =
+    Boolean(ready) &&
+    normalizedBlockers.length ===
+      0 &&
+    applicationState.failed !==
+      true &&
+    applicationState.shuttingDown !==
+      true &&
+    applicationState.terminated !==
+      true;
+
+  const previousReady =
+    applicationState.ready;
+
+  const evaluationTimestamp =
+    now();
+
+  applicationState.readiness = {
+    ready:
+      nextReady,
+
+    blockers:
+      normalizedBlockers,
+
+    checks:
+      normalizedChecks,
+
+    lastEvaluation:
+      evaluationTimestamp,
+  };
+
+  applicationState.ready =
+    nextReady;
+
+  if (!nextReady) {
+    applicationState.healthy =
+      false;
+  }
+
+  emit(
+    events,
+    "application.readiness.changed",
+    {
+      previousReady,
+
+      ready:
+        nextReady,
+
+      blockers:
+        [
+          ...normalizedBlockers,
+        ],
+
+      timestamp:
+        evaluationTimestamp.toISOString(),
+    },
+  );
+
+  if (
+    previousReady !==
+    nextReady
+  ) {
+    logInfo(
+      logger,
+      {
+        section:
+          "readiness",
+
+        event:
+          "readiness_changed",
+
+        ready:
+          nextReady,
+
+        blockers:
+          [
+            ...normalizedBlockers,
+          ],
+      },
+    );
+  }
+
+  return nextReady;
+}
+
+/* =============================================================================
+ * APPLICATION READY
+ * =============================================================================
+ */
 
 function markApplicationReady(
-    events,
-    logger
+  events,
+  logger,
 ) {
+  if (
+    applicationState.terminated ||
+    applicationState.shuttingDown ||
+    applicationState.failed
+  ) {
+    throw new Error(
+      "Cannot mark a terminated, failed, or shutting-down application as ready.",
+    );
+  }
 
-    if (
-        applicationState.terminated ||
-        applicationState.shuttingDown ||
-        applicationState.failed
-    ) {
+  if (
+    applicationState.bootstrapPhase !==
+    BOOTSTRAP_PHASES.SERVER
+  ) {
+    throw new Error(
+      "Application cannot become ready before the server bootstrap phase is complete.",
+    );
+  }
 
-        throw new Error(
-            "Cannot mark a terminated, failed, or shutting-down application as ready."
-        );
+  if (
+    !applicationState.completedPhases.includes(
+      BOOTSTRAP_PHASES.SERVER,
+    )
+  ) {
+    throw new Error(
+      "Application cannot become ready before the server phase is completed.",
+    );
+  }
 
-    }
-
-    if (
-        applicationState.bootstrapPhase !==
-        BOOTSTRAP_PHASES.SERVER
-    ) {
-
-        throw new Error(
-            "Application cannot become ready before the server bootstrap phase is complete."
-        );
-
-    }
-
-    const timestamp =
-        now();
-
-    /*
-     * Ensure SERVER is part of the completed startup phases.
-     */
-
-    if (
+  const incompletePhases =
+    BOOTSTRAP_PHASE_ORDER.filter(
+      (phase) =>
         !applicationState.completedPhases.includes(
-            BOOTSTRAP_PHASES.SERVER
-        )
-    ) {
-
-        throw new Error(
-            "Application cannot become ready before the server phase is completed."
-        );
-
-    }
-
-    applicationState.initialized =
-        true;
-
-    applicationState.starting =
-        false;
-
-    applicationState.started =
-        true;
-
-    applicationState.ready =
-        true;
-
-    applicationState.healthy =
-        true;
-
-    applicationState.readyAt =
-        timestamp;
-
-    applicationState.lastHealthCheck =
-        timestamp;
-
-    updateBootstrapPhase(
-        BOOTSTRAP_PHASES.READY,
-        events,
-        logger
+          phase,
+        ),
     );
 
-    events?.emit?.(
-        "application.ready",
-        {
-
-            timestamp:
-                timestamp.toISOString()
-
-        }
+  if (
+    incompletePhases.length >
+    0
+  ) {
+    throw new Error(
+      "Application cannot become ready because the following " +
+        "bootstrap phases are incomplete: " +
+        incompletePhases.join(
+          ", ",
+        ),
     );
+  }
 
-    logger?.info?.({
+  const readyAt =
+    now();
 
-        section:
-            "runtime",
+  applicationState.initialized =
+    true;
 
-        state:
-            "ready"
+  applicationState.starting =
+    false;
 
-    });
+  applicationState.started =
+    true;
 
+  applicationState.ready =
+    true;
+
+  applicationState.healthy =
+    true;
+
+  applicationState.readyAt =
+    readyAt;
+
+  applicationState.lastHealthCheck =
+    readyAt;
+
+  applicationState.readiness = {
+    ready:
+      true,
+
+    blockers:
+      [],
+
+    checks:
+      applicationState.readiness.checks,
+
+    lastEvaluation:
+      readyAt,
+  };
+
+  updateBootstrapPhase(
+    BOOTSTRAP_PHASES.READY,
+    events,
+    logger,
+  );
+
+  emit(
+    events,
+    "application.ready",
+    {
+      timestamp:
+        readyAt.toISOString(),
+
+      startupDurationMs:
+        applicationState.startupDurationMs,
+
+      runtimeGeneration:
+        applicationState.runtimeGeneration,
+    },
+  );
+
+  logInfo(
+    logger,
+    {
+      section:
+        "runtime",
+
+      event:
+        "application_ready",
+
+      startupDurationMs:
+        applicationState.startupDurationMs,
+    },
+  );
+
+  return true;
 }
 
-// =============================================================================
-// Health Check
-// =============================================================================
+/* =============================================================================
+ * HEALTH CHECK
+ * =============================================================================
+ */
 
 function markHealthCheck(
-    healthy,
-    events,
-    logger
+  healthy,
+  events,
+  logger,
 ) {
-
-    const nextHealthState =
-        Boolean(
-            healthy
-        );
-
-    const previousHealthState =
-        applicationState.healthy;
-
-    applicationState.healthy =
-        nextHealthState;
-
-    applicationState.lastHealthCheck =
-        now();
-
-    events?.emit?.(
-        "application.health.changed",
-        {
-
-            previousHealthy:
-                previousHealthState,
-
-            healthy:
-                nextHealthState,
-
-            timestamp:
-                applicationState
-                    .lastHealthCheck
-                    .toISOString()
-
-        }
+  const nextHealthState =
+    Boolean(
+      healthy,
     );
 
-    if (
-        previousHealthState !==
-        nextHealthState
-    ) {
+  const previousHealthState =
+    applicationState.healthy;
 
-        logger?.info?.({
+  applicationState.healthy =
+    nextHealthState;
 
-            section:
-                "health",
+  applicationState.lastHealthCheck =
+    now();
 
-            healthy:
-                nextHealthState
+  if (!nextHealthState) {
+    applicationState.ready =
+      false;
 
-        });
+    applicationState.readiness.ready =
+      false;
+  }
 
-    }
+  emit(
+    events,
+    "application.health.changed",
+    {
+      previousHealthy:
+        previousHealthState,
 
+      healthy:
+        nextHealthState,
+
+      timestamp:
+        applicationState.lastHealthCheck.toISOString(),
+    },
+  );
+
+  if (
+    previousHealthState !==
+    nextHealthState
+  ) {
+    logInfo(
+      logger,
+      {
+        section:
+          "health",
+
+        event:
+          "health_changed",
+
+        healthy:
+          nextHealthState,
+      },
+    );
+  }
 }
 
-// =============================================================================
-// Application Shutdown
-// =============================================================================
+/* =============================================================================
+ * APPLICATION SHUTDOWN
+ * =============================================================================
+ *
+ * Supports BOTH:
+ *
+ *   1. normal shutdown:
+ *        ready/server → shutting_down
+ *
+ *   2. partial-startup failure:
+ *        any startup phase / failed → shutting_down
+ *
+ * This is the primary fix for the reported runtime/state.js errors.
+ * =============================================================================
+ */
 
 function markApplicationShutdown(
-    events,
-    logger
+  events,
+  logger,
+  options = {},
 ) {
+  if (
+    applicationState.terminated ||
+    applicationState.stopped
+  ) {
+    return false;
+  }
 
-    if (
-        applicationState.terminated ||
-        applicationState.stopped
-    ) {
+  if (
+    applicationState.shuttingDown
+  ) {
+    return false;
+  }
 
-        return;
+  const failureCleanup =
+    options.failureCleanup ===
+    true ||
+    applicationState.failed ===
+    true ||
+    options.reason ===
+      "startup_failure";
 
-    }
+  const currentPhase =
+    applicationState.bootstrapPhase;
 
-    if (
-        applicationState.shuttingDown
-    ) {
+  const startupLifecycleState =
+    applicationState.bootstrapLifecycle;
 
-        return;
-
-    }
-
-    const timestamp =
-        now();
-
-    applicationState.shuttingDown =
-        true;
-
-    applicationState.ready =
-        false;
-
-    applicationState.healthy =
-        false;
-
-    applicationState.shutdownStartedAt =
-        timestamp;
-
-    updateBootstrapPhase(
-        BOOTSTRAP_PHASES.SHUTTING_DOWN,
-        events,
-        logger
+  const shutdownAllowed =
+    failureCleanup ||
+    SHUTDOWN_ELIGIBLE_PHASES.includes(
+      currentPhase,
     );
 
-    events?.emit?.(
-        "application.shutdown",
-        {
-
-            timestamp:
-                timestamp.toISOString()
-
-        }
+  if (!shutdownAllowed) {
+    throw new Error(
+      "Application cannot begin shutdown from the current lifecycle state. " +
+        `phase="${String(
+          currentPhase,
+        )}", ` +
+        `lifecycle="${String(
+          startupLifecycleState,
+        )}".`,
     );
+  }
 
-    logger?.info?.({
+  const shutdownStartedAt =
+    now();
 
-        section:
-            "runtime",
+  applicationState.shuttingDown =
+    true;
 
-        state:
-            "shutting_down"
+  applicationState.ready =
+    false;
 
-    });
+  applicationState.healthy =
+    false;
 
+  applicationState.starting =
+    false;
+
+  applicationState.shutdownStartedAt =
+    shutdownStartedAt;
+
+  applicationState.bootstrapLifecycle =
+    BOOTSTRAP_LIFECYCLE_STATES.SHUTTING_DOWN;
+
+  applicationState.readiness.ready =
+    false;
+
+  if (
+    failureCleanup &&
+    !applicationState.failed
+  ) {
+    applicationState.failed =
+      true;
+  }
+
+  updateBootstrapPhase(
+    BOOTSTRAP_PHASES.SHUTTING_DOWN,
+    events,
+    logger,
+    {
+      failureCleanup,
+    },
+  );
+
+  emit(
+    events,
+    "application.shutdown",
+    {
+      timestamp:
+        shutdownStartedAt.toISOString(),
+
+      reason:
+        options.reason ??
+        (
+          failureCleanup
+            ? "startup_failure"
+            : "shutdown"
+        ),
+
+      failureCleanup,
+
+      runtimeGeneration:
+        applicationState.runtimeGeneration,
+    },
+  );
+
+  logInfo(
+    logger,
+    {
+      section:
+        "runtime",
+
+      event:
+        "application_shutting_down",
+
+      reason:
+        options.reason ??
+        (
+          failureCleanup
+            ? "startup_failure"
+            : "shutdown"
+        ),
+
+      failureCleanup,
+
+      phaseBeforeShutdown:
+        currentPhase,
+    },
+  );
+
+  return true;
 }
 
-// =============================================================================
-// Application Stopped
-// =============================================================================
+/**
+ * Explicit alias for partial-startup cleanup.
+ *
+ * Useful for bootstrap/app.js and future lifecycle coordinators.
+ */
+function markApplicationShutdownAfterFailure(
+  events,
+  logger,
+  options = {},
+) {
+  return markApplicationShutdown(
+    events,
+    logger,
+    {
+      ...options,
+
+      failureCleanup:
+        true,
+
+      reason:
+        options.reason ??
+        "startup_failure",
+    },
+  );
+}
+
+/* =============================================================================
+ * APPLICATION STOPPED
+ * =============================================================================
+ */
 
 function markApplicationStopped(
-    events,
-    logger
+  events,
+  logger,
 ) {
+  if (
+    applicationState.stopped ||
+    applicationState.terminated
+  ) {
+    return false;
+  }
 
-    if (
-        applicationState.stopped ||
-        applicationState.terminated
-    ) {
-
-        return;
-
-    }
-
-    if (
-        applicationState.shuttingDown !==
-        true
-    ) {
-
-        throw new Error(
-            "Application must enter shutting_down before stopped."
-        );
-
-    }
-
-    const timestamp =
-        now();
-
-    applicationState.started =
-        false;
-
-    applicationState.starting =
-        false;
-
-    applicationState.ready =
-        false;
-
-    applicationState.healthy =
-        false;
-
-    applicationState.shuttingDown =
-        false;
-
-    applicationState.stopped =
-        true;
-
-    applicationState.terminated =
-        true;
-
-    applicationState.stoppedAt =
-        timestamp;
-
-    updateBootstrapPhase(
-        BOOTSTRAP_PHASES.STOPPED,
-        events,
-        logger
+  if (
+    applicationState.shuttingDown !==
+    true
+  ) {
+    throw new Error(
+      "Application must enter shutting_down before stopped.",
     );
+  }
 
-    events?.emit?.(
-        "application.stopped",
-        {
+  const stoppedAt =
+    now();
 
-            timestamp:
-                timestamp.toISOString()
+  applicationState.started =
+    false;
 
-        }
-    );
+  applicationState.starting =
+    false;
 
-    logger?.info?.({
+  applicationState.ready =
+    false;
 
-        section:
-            "runtime",
+  applicationState.healthy =
+    false;
 
-        state:
-            "stopped"
+  applicationState.shuttingDown =
+    false;
 
-    });
+  applicationState.stopped =
+    true;
 
+  applicationState.terminated =
+    true;
+
+  applicationState.stoppedAt =
+    stoppedAt;
+
+  applicationState.bootstrapLifecycle =
+    BOOTSTRAP_LIFECYCLE_STATES.STOPPED;
+
+  applicationState.readiness.ready =
+    false;
+
+  if (
+    applicationState.shutdownStartedAt
+  ) {
+    applicationState.shutdownDurationMs =
+      Math.max(
+        0,
+        stoppedAt.getTime() -
+          applicationState.shutdownStartedAt.getTime(),
+      );
+  }
+
+  updateBootstrapPhase(
+    BOOTSTRAP_PHASES.STOPPED,
+    events,
+    logger,
+  );
+
+  emit(
+    events,
+    "application.stopped",
+    {
+      timestamp:
+        stoppedAt.toISOString(),
+
+      shutdownDurationMs:
+        applicationState.shutdownDurationMs,
+
+      runtimeGeneration:
+        applicationState.runtimeGeneration,
+    },
+  );
+
+  logInfo(
+    logger,
+    {
+      section:
+        "runtime",
+
+      event:
+        "application_stopped",
+
+      shutdownDurationMs:
+        applicationState.shutdownDurationMs,
+    },
+  );
+
+  return true;
 }
 
-// =============================================================================
-// Service State
-// =============================================================================
+/* =============================================================================
+ * SERVICE STATE
+ * =============================================================================
+ */
 
 function setServiceState(
-    service,
-    state,
-    events,
-    logger
+  service,
+  state,
+  events,
+  logger,
 ) {
+  assertValidService(
+    service,
+  );
 
-    assertValidService(
-        service
-    );
+  assertValidServiceState(
+    state,
+  );
 
-    assertValidServiceState(
-        state
-    );
-
-    const previousState =
-        applicationState.serviceStates[
-            service
-        ];
-
+  const previousState =
     applicationState.serviceStates[
-        service
-    ] =
-        state;
+      service
+    ];
 
-    applicationState.services[
-        service
-    ] =
-        state ===
-        SERVICE_STATES.READY;
+  if (
+    previousState ===
+    state
+  ) {
+    return false;
+  }
 
-    const timestamp =
-        now();
+  applicationState.serviceStates[
+    service
+  ] = state;
 
-    events?.emit?.(
-        "service.state.changed",
-        {
+  applicationState.services[
+    service
+  ] =
+    state ===
+    SERVICE_STATES.READY;
 
-            service,
+  const serviceTimestamp =
+    now();
 
-            previousState,
+  const timing =
+    applicationState.serviceTimings[
+      service
+    ];
 
-            state,
+  if (
+    state ===
+    SERVICE_STATES.STARTING
+  ) {
+    timing.startedAt =
+      serviceTimestamp;
 
-            timestamp:
-                timestamp.toISOString()
+    timing.readyAt =
+      null;
 
-        }
-    );
+    timing.stoppedAt =
+      null;
 
-    logger?.info?.({
+    timing.durationMs =
+      null;
+  }
 
-        section:
-            "service",
+  if (
+    state ===
+    SERVICE_STATES.READY
+  ) {
+    timing.readyAt =
+      serviceTimestamp;
 
-        service,
+    if (
+      timing.startedAt
+    ) {
+      timing.durationMs =
+        Math.max(
+          0,
+          serviceTimestamp.getTime() -
+            timing.startedAt.getTime(),
+        );
+    }
+  }
 
-        previousState,
+  if (
+    state ===
+      SERVICE_STATES.STOPPING ||
+    state ===
+      SERVICE_STATES.STOPPED
+  ) {
+    timing.stoppedAt =
+      serviceTimestamp;
+  }
 
-        state
+  emit(
+    events,
+    "service.state.changed",
+    {
+      service,
 
-    });
+      previousState,
 
+      state,
+
+      timestamp:
+        serviceTimestamp.toISOString(),
+
+      durationMs:
+        timing?.durationMs ??
+        null,
+    },
+  );
+
+  logInfo(
+    logger,
+    {
+      section:
+        "service",
+
+      event:
+        "service_state_changed",
+
+      service,
+
+      previousState,
+
+      state,
+
+      durationMs:
+        timing?.durationMs ??
+        null,
+    },
+  );
+
+  return true;
 }
 
-// =============================================================================
-// Service Starting
-// =============================================================================
+/* =============================================================================
+ * SERVICE LIFECYCLE HELPERS
+ * =============================================================================
+ */
 
 function markServiceStarting(
-    service,
-    events,
-    logger
+  service,
+  events,
+  logger,
 ) {
-
-    setServiceState(
-
-        service,
-
-        SERVICE_STATES.STARTING,
-
-        events,
-
-        logger
-
-    );
-
+  return setServiceState(
+    service,
+    SERVICE_STATES.STARTING,
+    events,
+    logger,
+  );
 }
-
-// =============================================================================
-// Service Ready
-// =============================================================================
 
 function markServiceReady(
-    service,
-    events,
-    logger
+  service,
+  events,
+  logger,
 ) {
-
-    setServiceState(
-
-        service,
-
-        SERVICE_STATES.READY,
-
-        events,
-
-        logger
-
-    );
-
+  return setServiceState(
+    service,
+    SERVICE_STATES.READY,
+    events,
+    logger,
+  );
 }
-
-// =============================================================================
-// Service Degraded
-// =============================================================================
 
 function markServiceDegraded(
-    service,
-    events,
-    logger
+  service,
+  events,
+  logger,
 ) {
-
-    setServiceState(
-
-        service,
-
-        SERVICE_STATES.DEGRADED,
-
-        events,
-
-        logger
-
-    );
-
+  return setServiceState(
+    service,
+    SERVICE_STATES.DEGRADED,
+    events,
+    logger,
+  );
 }
 
-// =============================================================================
-// Service Failed
-// =============================================================================
+function markServiceStopping(
+  service,
+  events,
+  logger,
+) {
+  return setServiceState(
+    service,
+    SERVICE_STATES.STOPPING,
+    events,
+    logger,
+  );
+}
+
+function markServiceStopped(
+  service,
+  events,
+  logger,
+) {
+  return setServiceState(
+    service,
+    SERVICE_STATES.STOPPED,
+    events,
+    logger,
+  );
+}
 
 function markServiceFailed(
-    service,
-    error,
-    events,
-    logger
+  service,
+  error,
+  events,
+  logger,
 ) {
+  assertValidService(
+    service,
+  );
 
-    setServiceState(
+  const normalizedError =
+    normalizeError(error);
 
-        service,
+  setServiceState(
+    service,
+    SERVICE_STATES.FAILED,
+    events,
+    logger,
+  );
 
-        SERVICE_STATES.FAILED,
+  emit(
+    events,
+    "service.failed",
+    {
+      service,
 
-        events,
+      error:
+        normalizedError,
 
-        logger
+      timestamp:
+        timestamp(),
+    },
+  );
 
-    );
+  logError(
+    logger,
+    {
+      section:
+        "service",
 
-    events?.emit?.(
-        "service.failed",
-        {
+      event:
+        "service_failed",
 
-            service,
+      service,
 
-            error: {
-
-                message:
-                    error?.message ||
-                    String(error)
-
-            },
-
-            timestamp:
-                now().toISOString()
-
-        }
-    );
-
+      error:
+        normalizedError,
+    },
+  );
 }
 
-// =============================================================================
-// Request Metrics
-// =============================================================================
+/* =============================================================================
+ * REQUEST METRICS
+ * =============================================================================
+ */
 
 function incrementActiveRequests() {
+  applicationState.requestCount =
+    Math.max(
+      0,
+      applicationState.requestCount +
+        1,
+    );
 
-    applicationState.requestCount +=
-        1;
-
-    applicationState.activeRequests +=
-        1;
-
+  applicationState.activeRequests =
+    Math.max(
+      0,
+      applicationState.activeRequests +
+        1,
+    );
 }
 
 function decrementActiveRequests() {
-
-    applicationState.activeRequests =
-        Math.max(
-
-            0,
-
-            applicationState.activeRequests -
-                1
-
-        );
-
+  applicationState.activeRequests =
+    Math.max(
+      0,
+      applicationState.activeRequests -
+        1,
+    );
 }
 
-// =============================================================================
-// WebSocket Metrics
-// =============================================================================
+/* =============================================================================
+ * WEBSOCKET METRICS
+ * =============================================================================
+ */
 
 function incrementSocketConnections() {
-
-    applicationState.websocketConnections +=
-        1;
-
+  applicationState.websocketConnections =
+    Math.max(
+      0,
+      applicationState.websocketConnections +
+        1,
+    );
 }
 
 function decrementSocketConnections() {
-
-    applicationState.websocketConnections =
-        Math.max(
-
-            0,
-
-            applicationState.websocketConnections -
-                1
-
-        );
-
+  applicationState.websocketConnections =
+    Math.max(
+      0,
+      applicationState.websocketConnections -
+        1,
+    );
 }
 
-// =============================================================================
-// Uptime
-// =============================================================================
+/* =============================================================================
+ * UPTIME
+ * =============================================================================
+ */
 
 function getUptime() {
-
-    return process.uptime();
-
+  return process.uptime();
 }
 
-// =============================================================================
-// Readiness
-// =============================================================================
+/* =============================================================================
+ * READINESS
+ * =============================================================================
+ */
 
 function isReady() {
-
-    return (
-
-        applicationState.started ===
-            true &&
-
-        applicationState.ready ===
-            true &&
-
-        applicationState.healthy ===
-            true &&
-
-        applicationState.shuttingDown ===
-            false &&
-
-        applicationState.failed ===
-            false
-
-    );
-
+  return (
+    applicationState.started ===
+      true &&
+    applicationState.ready ===
+      true &&
+    applicationState.healthy ===
+      true &&
+    applicationState.shuttingDown ===
+      false &&
+    applicationState.failed ===
+      false &&
+    applicationState.terminated ===
+      false
+  );
 }
 
-// =============================================================================
-// Liveness
-// =============================================================================
+/* =============================================================================
+ * LIVENESS
+ * =============================================================================
+ */
 
 function isLive() {
-
-    return (
-        applicationState.terminated !==
-        true
-    );
-
+  return (
+    applicationState.terminated !==
+    true
+  );
 }
 
-// =============================================================================
-// Health Snapshot
-// =============================================================================
+/* =============================================================================
+ * HEALTH STATE
+ * =============================================================================
+ */
 
 function getHealthState() {
+  return {
+    live:
+      isLive(),
 
-    return {
+    ready:
+      isReady(),
 
-        live:
-            isLive(),
+    healthy:
+      applicationState.healthy,
 
-        ready:
-            isReady(),
+    started:
+      applicationState.started,
 
-        healthy:
-            applicationState.healthy,
+    starting:
+      applicationState.starting,
 
-        started:
-            applicationState.started,
+    failed:
+      applicationState.failed,
 
-        starting:
-            applicationState.starting,
+    shuttingDown:
+      applicationState.shuttingDown,
 
-        failed:
-            applicationState.failed,
+    stopped:
+      applicationState.stopped,
 
-        shuttingDown:
-            applicationState.shuttingDown,
+    terminated:
+      applicationState.terminated,
 
-        stopped:
-            applicationState.stopped,
+    phase:
+      applicationState.bootstrapPhase,
 
-        phase:
-            applicationState.bootstrapPhase,
+    bootstrapLifecycle:
+      applicationState.bootstrapLifecycle,
 
-        lastHealthCheck:
-            applicationState
-                .lastHealthCheck
-                ?.toISOString() ||
-            null
+    readiness: {
+      ready:
+        applicationState.readiness.ready,
 
-    };
-
-}
-
-// =============================================================================
-// Failure Handling
-// =============================================================================
-//
-// Only safe diagnostic information is retained.
-//
-// Do not persist stack traces, tokens, credentials, request bodies, or secrets
-// in the global runtime state.
-// =============================================================================
-
-function markFailed(
-    error,
-    events,
-    logger
-) {
-
-    const timestamp =
-        now();
-
-    applicationState.failed =
-        true;
-
-    applicationState.starting =
-        false;
-
-    applicationState.started =
-        false;
-
-    applicationState.ready =
-        false;
-
-    applicationState.healthy =
-        false;
-
-    applicationState.failure = {
-
-        message:
-            error?.message ||
-            String(error),
-
-        code:
-            error?.code ||
-            null,
-
-        phase:
-            applicationState.bootstrapPhase,
-
-        at:
-            timestamp.toISOString()
-
-    };
-
-    events?.emit?.(
-        "application.failed",
-        {
-
-            message:
-                applicationState.failure.message,
-
-            code:
-                applicationState.failure.code,
-
-            phase:
-                applicationState.failure.phase,
-
-            timestamp:
-                applicationState.failure.at
-
-        }
-    );
-
-    logger?.error?.({
-
-        section:
-            "runtime",
-
-        state:
-            "failed",
-
-        message:
-            applicationState.failure.message,
-
-        code:
-            applicationState.failure.code,
-
-        phase:
-            applicationState.failure.phase
-
-    });
-
-}
-
-// =============================================================================
-// Safe Application State Snapshot
-// =============================================================================
-
-function getApplicationState() {
-
-    return {
-
-        initialized:
-            applicationState.initialized,
-
-        starting:
-            applicationState.starting,
-
-        started:
-            applicationState.started,
-
-        healthy:
-            applicationState.healthy,
-
-        ready:
-            applicationState.ready,
-
-        shuttingDown:
-            applicationState.shuttingDown,
-
-        stopped:
-            applicationState.stopped,
-
-        terminated:
-            applicationState.terminated,
-
-        failed:
-            applicationState.failed,
-
-        bootstrapPhase:
-            applicationState.bootstrapPhase,
-
-        completedPhases: [
-
-            ...applicationState.completedPhases
-
+      blockers:
+        [
+          ...applicationState
+            .readiness
+            .blockers,
         ],
 
+      checks: {
+        ...applicationState
+          .readiness
+          .checks,
+      },
+
+      lastEvaluation:
+        applicationState
+          .readiness
+          .lastEvaluation
+          ?.toISOString() ||
+        null,
+    },
+
+    lastHealthCheck:
+      applicationState
+        .lastHealthCheck
+        ?.toISOString() ||
+      null,
+  };
+}
+
+/* =============================================================================
+ * FAILURE HANDLING
+ * ============================================================================= */
+
+function markFailed(
+  error,
+  events,
+  logger,
+  options = {},
+) {
+  const normalizedError =
+    normalizeError(error);
+
+  const failedAt =
+    now();
+
+  applicationState.failed =
+    true;
+
+  applicationState.starting =
+    false;
+
+  applicationState.started =
+    false;
+
+  applicationState.ready =
+    false;
+
+  applicationState.healthy =
+    false;
+
+  applicationState.readiness.ready =
+    false;
+
+  applicationState.bootstrapLifecycle =
+    BOOTSTRAP_LIFECYCLE_STATES.FAILED;
+
+  applicationState.failure = {
+    message:
+      normalizedError.message,
+
+    code:
+      normalizedError.code,
+
+    name:
+      normalizedError.name,
+
+    phase:
+      options.phase ??
+      applicationState.bootstrapPhase,
+
+    at:
+      failedAt.toISOString(),
+  };
+
+  /**
+   * Failure should make the associated logical service failed where one is
+   * mapped to the current phase.
+   */
+  const currentService =
+    PHASE_SERVICE_MAP[
+      applicationState.bootstrapPhase
+    ];
+
+  if (
+    currentService &&
+    applicationState.serviceStates[
+      currentService
+    ] !==
+      SERVICE_STATES.FAILED
+  ) {
+    setServiceState(
+      currentService,
+      SERVICE_STATES.FAILED,
+      events,
+      logger,
+    );
+  }
+
+  emit(
+    events,
+    "application.failed",
+    {
+      message:
+        applicationState.failure.message,
+
+      code:
+        applicationState.failure.code,
+
+      name:
+        applicationState.failure.name,
+
+      phase:
+        applicationState.failure.phase,
+
+      timestamp:
+        applicationState.failure.at,
+
+      reason:
+        options.reason ??
+        null,
+    },
+  );
+
+  logError(
+    logger,
+    {
+      section:
+        "runtime",
+
+      event:
+        "application_failed",
+
+      message:
+        applicationState.failure.message,
+
+      code:
+        applicationState.failure.code,
+
+      name:
+        applicationState.failure.name,
+
+      phase:
+        applicationState.failure.phase,
+
+      reason:
+        options.reason ??
+        null,
+    },
+  );
+
+  return true;
+}
+
+/* =============================================================================
+ * PHASE SNAPSHOT
+ * =============================================================================
+ */
+
+function getPhaseTimingsSnapshot() {
+  const result = {};
+
+  Object.entries(
+    applicationState.phaseTimings,
+  ).forEach(
+    ([phase, timing]) => {
+      result[phase] = {
         startedAt:
-            applicationState
-                .startedAt
-                ?.toISOString() ||
-            null,
+          timing.startedAt
+            ?.toISOString() ||
+          null,
+
+        completedAt:
+          timing.completedAt
+            ?.toISOString() ||
+          null,
+
+        durationMs:
+          timing.durationMs,
+      };
+    },
+  );
+
+  return result;
+}
+
+/* =============================================================================
+ * SERVICE SNAPSHOT
+ * =============================================================================
+ */
+
+function getServiceTimingsSnapshot() {
+  const result = {};
+
+  Object.entries(
+    applicationState.serviceTimings,
+  ).forEach(
+    ([service, timing]) => {
+      result[service] = {
+        startedAt:
+          timing.startedAt
+            ?.toISOString() ||
+          null,
 
         readyAt:
-            applicationState
-                .readyAt
-                ?.toISOString() ||
-            null,
-
-        shutdownStartedAt:
-            applicationState
-                .shutdownStartedAt
-                ?.toISOString() ||
-            null,
+          timing.readyAt
+            ?.toISOString() ||
+          null,
 
         stoppedAt:
-            applicationState
-                .stoppedAt
-                ?.toISOString() ||
-            null,
+          timing.stoppedAt
+            ?.toISOString() ||
+          null,
 
-        lastHealthCheck:
-            applicationState
-                .lastHealthCheck
-                ?.toISOString() ||
-            null,
+        durationMs:
+          timing.durationMs,
+      };
+    },
+  );
 
-        uptime:
-            getUptime(),
-
-        totalRequests:
-            applicationState.requestCount,
-
-        activeRequests:
-            applicationState.activeRequests,
-
-        websocketConnections:
-            applicationState.websocketConnections,
-
-        services: {
-
-            ...applicationState.services
-
-        },
-
-        serviceStates: {
-
-            ...applicationState.serviceStates
-
-        },
-
-        health:
-            getHealthState(),
-
-        failure:
-            applicationState.failure
-                ? {
-                    ...applicationState.failure
-                }
-                : null
-
-    };
-
+  return result;
 }
 
-// =============================================================================
-// Reset Runtime State
-// =============================================================================
-//
-// Intended primarily for tests.
-//
-// =============================================================================
+/* =============================================================================
+ * SAFE APPLICATION STATE SNAPSHOT
+ * =============================================================================
+ */
+
+function getApplicationState() {
+  const snapshot = {
+    runtimeGeneration:
+      applicationState.runtimeGeneration,
+
+    processId:
+      applicationState.processId,
+
+    nodeVersion:
+      applicationState.nodeVersion,
+
+    initialized:
+      applicationState.initialized,
+
+    starting:
+      applicationState.starting,
+
+    started:
+      applicationState.started,
+
+    healthy:
+      applicationState.healthy,
+
+    ready:
+      applicationState.ready,
+
+    shuttingDown:
+      applicationState.shuttingDown,
+
+    stopped:
+      applicationState.stopped,
+
+    terminated:
+      applicationState.terminated,
+
+    failed:
+      applicationState.failed,
+
+    bootstrapLifecycle:
+      applicationState.bootstrapLifecycle,
+
+    bootstrapPhase:
+      applicationState.bootstrapPhase,
+
+    completedPhases:
+      [
+        ...applicationState.completedPhases,
+      ],
+
+    phaseTimings:
+      getPhaseTimingsSnapshot(),
+
+    startedAt:
+      applicationState
+        .startedAt
+        ?.toISOString() ||
+      null,
+
+    readyAt:
+      applicationState
+        .readyAt
+        ?.toISOString() ||
+      null,
+
+    shutdownStartedAt:
+      applicationState
+        .shutdownStartedAt
+        ?.toISOString() ||
+      null,
+
+    stoppedAt:
+      applicationState
+        .stoppedAt
+        ?.toISOString() ||
+      null,
+
+    lastHealthCheck:
+      applicationState
+        .lastHealthCheck
+        ?.toISOString() ||
+      null,
+
+    startupDurationMs:
+      applicationState
+        .startupDurationMs,
+
+    shutdownDurationMs:
+      applicationState
+        .shutdownDurationMs,
+
+    uptime:
+      getUptime(),
+
+    totalRequests:
+      applicationState
+        .requestCount,
+
+    activeRequests:
+      applicationState
+        .activeRequests,
+
+    websocketConnections:
+      applicationState
+        .websocketConnections,
+
+    services: {
+      ...applicationState.services,
+    },
+
+    serviceStates: {
+      ...applicationState.serviceStates,
+    },
+
+    serviceTimings:
+      getServiceTimingsSnapshot(),
+
+    readiness: {
+      ready:
+        applicationState
+          .readiness
+          .ready,
+
+      blockers:
+        [
+          ...applicationState
+            .readiness
+            .blockers,
+        ],
+
+      checks: {
+        ...applicationState
+          .readiness
+          .checks,
+      },
+
+      lastEvaluation:
+        applicationState
+          .readiness
+          .lastEvaluation
+          ?.toISOString() ||
+        null,
+    },
+
+    health:
+      getHealthState(),
+
+    failure:
+      applicationState.failure
+        ? {
+            ...applicationState.failure,
+          }
+        : null,
+  };
+
+  Object.freeze(
+    snapshot.completedPhases,
+  );
+
+  Object.freeze(
+    snapshot.services,
+  );
+
+  Object.freeze(
+    snapshot.serviceStates,
+  );
+
+  Object.freeze(
+    snapshot.readiness.blockers,
+  );
+
+  Object.freeze(
+    snapshot.readiness.checks,
+  );
+
+  Object.freeze(
+    snapshot.readiness,
+  );
+
+  Object.freeze(
+    snapshot.health,
+  );
+
+  Object.freeze(
+    snapshot,
+  );
+
+  return snapshot;
+}
+
+/* =============================================================================
+ * RUNTIME SUMMARY
+ * =============================================================================
+ */
+
+function getRuntimeSummary() {
+  return {
+    runtimeGeneration:
+      applicationState.runtimeGeneration,
+
+    lifecycle:
+      applicationState.bootstrapLifecycle,
+
+    phase:
+      applicationState.bootstrapPhase,
+
+    live:
+      isLive(),
+
+    started:
+      applicationState.started,
+
+    healthy:
+      applicationState.healthy,
+
+    ready:
+      isReady(),
+
+    failed:
+      applicationState.failed,
+
+    shuttingDown:
+      applicationState.shuttingDown,
+
+    stopped:
+      applicationState.stopped,
+
+    terminated:
+      applicationState.terminated,
+
+    uptime:
+      getUptime(),
+
+    startupDurationMs:
+      applicationState.startupDurationMs,
+
+    shutdownDurationMs:
+      applicationState.shutdownDurationMs,
+
+    activeRequests:
+      applicationState.activeRequests,
+
+    websocketConnections:
+      applicationState.websocketConnections,
+  };
+}
+
+/* =============================================================================
+ * RESET RUNTIME STATE
+ * =============================================================================
+ */
 
 function resetApplicationState() {
+  applicationState.runtimeGeneration =
+    createRuntimeGeneration();
 
-    applicationState.initialized =
-        false;
+  applicationState.processId =
+    process.pid;
 
-    applicationState.starting =
-        false;
+  applicationState.nodeVersion =
+    process.version;
 
-    applicationState.started =
-        false;
+  applicationState.initialized =
+    false;
 
-    applicationState.healthy =
-        false;
+  applicationState.starting =
+    false;
 
-    applicationState.ready =
-        false;
+  applicationState.started =
+    false;
 
-    applicationState.shuttingDown =
-        false;
+  applicationState.healthy =
+    false;
 
-    applicationState.stopped =
-        false;
+  applicationState.ready =
+    false;
 
-    applicationState.terminated =
-        false;
+  applicationState.shuttingDown =
+    false;
 
-    applicationState.failed =
-        false;
+  applicationState.stopped =
+    false;
 
-    applicationState.bootstrapPhase =
-        null;
+  applicationState.terminated =
+    false;
 
-    applicationState.completedPhases =
-        [];
+  applicationState.failed =
+    false;
 
-    applicationState.startedAt =
-        null;
+  applicationState.bootstrapLifecycle =
+    BOOTSTRAP_LIFECYCLE_STATES.NOT_STARTED;
 
-    applicationState.readyAt =
-        null;
+  applicationState.bootstrapPhase =
+    null;
 
-    applicationState.shutdownStartedAt =
-        null;
+  applicationState.completedPhases =
+    [];
 
-    applicationState.stoppedAt =
-        null;
+  applicationState.phaseTimings =
+    createInitialPhaseTimings();
 
-    applicationState.lastHealthCheck =
-        null;
+  applicationState.startedAt =
+    null;
 
-    applicationState.failure =
-        null;
+  applicationState.readyAt =
+    null;
 
-    applicationState.requestCount =
-        0;
+  applicationState.shutdownStartedAt =
+    null;
 
-    applicationState.activeRequests =
-        0;
+  applicationState.stoppedAt =
+    null;
 
-    applicationState.websocketConnections =
-        0;
+  applicationState.lastHealthCheck =
+    null;
 
-    applicationState.services =
-        createInitialServices();
+  applicationState.startupDurationMs =
+    null;
 
-    applicationState.serviceStates =
-        createInitialServiceStates();
+  applicationState.shutdownDurationMs =
+    null;
 
+  applicationState.failure =
+    null;
+
+  applicationState.readiness =
+    createInitialReadiness();
+
+  applicationState.requestCount =
+    0;
+
+  applicationState.activeRequests =
+    0;
+
+  applicationState.websocketConnections =
+    0;
+
+  applicationState.services =
+    createInitialServices();
+
+  applicationState.serviceStates =
+    createInitialServiceStates();
+
+  applicationState.serviceTimings =
+    createInitialServiceTimings();
+
+  return getApplicationState();
 }
 
-// =============================================================================
-// Public API
-// =============================================================================
+/* =============================================================================
+ * PUBLIC API
+ * =============================================================================
+ */
 
 module.exports = {
+  /* Constants */
+  BOOTSTRAP_PHASES,
 
-    // -------------------------------------------------------------------------
-    // Constants
-    // -------------------------------------------------------------------------
+  BOOTSTRAP_PHASE_ORDER,
 
-    BOOTSTRAP_PHASES,
+  BOOTSTRAP_TRANSITIONS,
 
-    BOOTSTRAP_PHASE_ORDER,
+  SHUTDOWN_ELIGIBLE_PHASES,
 
-    BOOTSTRAP_TRANSITIONS,
+  BOOTSTRAP_LIFECYCLE_STATES,
 
-    SERVICES,
+  SERVICES,
 
-    SERVICE_STATES,
+  SERVICE_STATES,
 
-    // -------------------------------------------------------------------------
-    // Backward-compatible internal state export
-    // -------------------------------------------------------------------------
-    //
-    // Prefer getApplicationState() for consumers.
-    //
-    // -------------------------------------------------------------------------
+  PHASE_SERVICE_MAP,
 
-    applicationState,
+  /* Backward-compatible state export */
+  applicationState,
 
-    // -------------------------------------------------------------------------
-    // Bootstrap lifecycle
-    // -------------------------------------------------------------------------
+  /* Bootstrap lifecycle */
+  updateBootstrapPhase,
 
-    updateBootstrapPhase,
+  markPhaseStarted,
 
-    markPhaseStarted,
+  markPhaseCompleted,
 
-    markPhaseCompleted,
+  /* Application lifecycle */
+  markStarting,
 
-    // -------------------------------------------------------------------------
-    // Application lifecycle
-    // -------------------------------------------------------------------------
+  markApplicationStarted,
 
-    markStarting,
+  markApplicationReady,
 
-    markApplicationStarted,
+  markApplicationShutdown,
 
-    markApplicationReady,
+  markApplicationShutdownAfterFailure,
 
-    markApplicationShutdown,
+  markApplicationStopped,
 
-    markApplicationStopped,
+  markFailed,
 
-    markFailed,
+  /* Readiness / health / liveness */
+  setReadinessState,
 
-    // -------------------------------------------------------------------------
-    // Health/readiness/liveness
-    // -------------------------------------------------------------------------
+  markHealthCheck,
 
-    markHealthCheck,
+  isReady,
 
-    isReady,
+  isLive,
 
-    isLive,
+  getHealthState,
 
-    getHealthState,
+  /* Services */
+  setServiceState,
 
-    // -------------------------------------------------------------------------
-    // Services
-    // -------------------------------------------------------------------------
+  markServiceStarting,
 
-    setServiceState,
+  markServiceReady,
 
-    markServiceStarting,
+  markServiceDegraded,
 
-    markServiceReady,
+  markServiceStopping,
 
-    markServiceDegraded,
+  markServiceStopped,
 
-    markServiceFailed,
+  markServiceFailed,
 
-    // -------------------------------------------------------------------------
-    // Metrics
-    // -------------------------------------------------------------------------
+  /* Metrics */
+  incrementActiveRequests,
 
-    incrementActiveRequests,
+  decrementActiveRequests,
 
-    decrementActiveRequests,
+  incrementSocketConnections,
 
-    incrementSocketConnections,
+  decrementSocketConnections,
 
-    decrementSocketConnections,
+  getUptime,
 
-    getUptime,
+  /* State inspection */
+  getApplicationState,
 
-    // -------------------------------------------------------------------------
-    // State inspection/testing
-    // -------------------------------------------------------------------------
+  getRuntimeSummary,
 
-    getApplicationState,
-
-    resetApplicationState
-
+  /* Testing */
+  resetApplicationState,
 };

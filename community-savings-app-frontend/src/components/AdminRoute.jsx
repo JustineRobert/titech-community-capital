@@ -10,46 +10,33 @@
  *   frontend/src/components/AdminRoute.jsx
  *
  * Purpose:
- *   Production-grade route guard for TITech administrative and privileged
- *   frontend routes.
+ *   Production-grade frontend authorization boundary for TITech administrative
+ *   and privileged application routes.
  *
  * Compatible with:
  *   React Router v6+
  *
- * Capabilities
- * ----------------------------------------------------------------------------
- * ✓ Authentication protection
- * ✓ Admin-role protection
- * ✓ Multi-role authorization
- * ✓ Permission-based authorization
- * ✓ Tenant-aware route gating
- * ✓ Active tenant validation hooks
- * ✓ Account status validation
- * ✓ Suspended / disabled account handling
- * ✓ Authentication-loading state
- * ✓ Authorization-loading state
- * ✓ Login redirect
- * ✓ Unauthorized redirect
- * ✓ Forbidden redirect
- * ✓ Remember-return-location support
- * ✓ Outlet support
- * ✓ Child-component support
- * ✓ Custom loading UI
- * ✓ Custom unauthorized UI
- * ✓ Custom forbidden UI
- * ✓ Custom tenant-mismatch UI
- * ✓ Navigation-state preservation
- * ✓ Replace/push navigation control
- * ✓ Accessibility
- * ✓ Ref API
- * ✓ Defensive user/permission handling
- * ✓ Stable test selectors
- * ✓ TITech branding consistency
+ * Responsibilities:
+ *   - Authentication protection
+ *   - Administrative role authorization
+ *   - Multi-role authorization
+ *   - Permission authorization
+ *   - Tenant-aware authorization
+ *   - Account status validation
+ *   - Authentication/authorization loading states
+ *   - Login / forbidden / tenant redirects
+ *   - Return-location preservation
+ *   - Child-component support
+ *   - React Router <Outlet /> support
+ *   - Custom state presentation
+ *   - Imperative ref API
+ *   - Defensive user/permission normalization
+ *   - Stable test selectors
+ *   - Accessibility
  *
  * IMPORTANT SECURITY BOUNDARY
  * ----------------------------------------------------------------------------
- * This guard improves the frontend user experience and prevents ordinary
- * navigation into protected UI.
+ * This component is a frontend navigation/UX authorization layer.
  *
  * It is NOT a security boundary.
  *
@@ -62,7 +49,7 @@
  *   - financial authorization
  *   - audit requirements
  *
- * Never trust this component to secure an API.
+ * Never trust this component to secure an API or financial operation.
  *
  * ============================================================================
  */
@@ -70,6 +57,7 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useId,
   useImperativeHandle,
   useMemo,
@@ -84,24 +72,20 @@ import {
   useLocation,
 } from 'react-router-dom';
 
-
 /* ============================================================================
  * Constants
  * ========================================================================== */
 
-const DEFAULT_LOGIN_PATH =
-  '/login';
+const DEFAULT_LOGIN_PATH = '/login';
 
-const DEFAULT_UNAUTHORIZED_PATH =
-  '/unauthorized';
+const DEFAULT_UNAUTHORIZED_PATH = '/unauthorized';
 
-const DEFAULT_FORBIDDEN_PATH =
-  '/forbidden';
+const DEFAULT_FORBIDDEN_PATH = '/forbidden';
 
 const DEFAULT_TENANT_MISMATCH_PATH =
   '/tenant-access-denied';
 
-const DEFAULT_ADMIN_ROLES = [
+const DEFAULT_ADMIN_ROLES = Object.freeze([
   'admin',
   'administrator',
   'super_admin',
@@ -109,14 +93,26 @@ const DEFAULT_ADMIN_ROLES = [
   'tenant_admin',
   'platform_admin',
   'system_admin',
-];
+]);
 
-const DEFAULT_ACTIVE_ACCOUNT_STATUSES = [
+const DEFAULT_ACTIVE_ACCOUNT_STATUSES = Object.freeze([
   'active',
   'verified',
   'enabled',
-];
+]);
 
+const DEFAULT_DENIED_ACCOUNT_STATUSES = Object.freeze([
+  'suspended',
+  'disabled',
+  'blocked',
+  'deactivated',
+  'locked',
+]);
+
+const DEFAULT_TEST_ID =
+  'titech-admin-route';
+
+const MAX_RETURN_LOCATION_LENGTH = 2048;
 
 /* ============================================================================
  * Utility helpers
@@ -128,7 +124,6 @@ const cn = (
   classes
     .filter(Boolean)
     .join(' ');
-
 
 const safeText = (
   value,
@@ -151,45 +146,46 @@ const safeText = (
   }
 };
 
-
 const normalizeStringList = (
   value,
 ) => {
   if (
     Array.isArray(value)
   ) {
-    return value
-      .map(
-        (
-          item,
-        ) =>
-          safeText(
-            item,
-          ).toLowerCase(),
-      )
-      .filter(Boolean);
+    return [
+      ...new Set(
+        value
+          .map(
+            (item) =>
+              safeText(
+                item,
+              ).toLowerCase(),
+          )
+          .filter(Boolean),
+      ),
+    ];
   }
 
   if (
-    typeof value ===
-    'string'
+    typeof value === 'string'
   ) {
-    return value
-      .split(',')
-      .map(
-        (
-          item,
-        ) =>
-          safeText(
-            item,
-          ).toLowerCase(),
-      )
-      .filter(Boolean);
+    return [
+      ...new Set(
+        value
+          .split(',')
+          .map(
+            (item) =>
+              safeText(
+                item,
+              ).toLowerCase(),
+          )
+          .filter(Boolean),
+      ),
+    ];
   }
 
   return [];
 };
-
 
 const getUserId = (
   user,
@@ -198,7 +194,6 @@ const getUserId = (
   user?.userId ??
   user?.uuid ??
   null;
-
 
 const getUserRoles = (
   user,
@@ -216,7 +211,10 @@ const getUserRoles = (
   }
 
   if (
-    user?.role
+    user?.role !==
+    undefined &&
+    user?.role !==
+    null
   ) {
     roles.push(
       user.role,
@@ -224,7 +222,10 @@ const getUserRoles = (
   }
 
   if (
-    user?.userRole
+    user?.userRole !==
+    undefined &&
+    user?.userRole !==
+    null
   ) {
     roles.push(
       user.userRole,
@@ -235,7 +236,6 @@ const getUserRoles = (
     roles,
   );
 };
-
 
 const getUserPermissions = (
   user,
@@ -267,7 +267,6 @@ const getUserPermissions = (
   );
 };
 
-
 const getUserTenantIds = (
   user,
 ) => {
@@ -275,7 +274,9 @@ const getUserTenantIds = (
 
   if (
     user?.tenantId !==
-    undefined
+    undefined &&
+    user?.tenantId !==
+    null
   ) {
     tenantIds.push(
       user.tenantId,
@@ -298,9 +299,7 @@ const getUserTenantIds = (
     )
   ) {
     user.tenants.forEach(
-      (
-        tenant,
-      ) => {
+      (tenant) => {
         if (
           tenant?.id !==
             undefined &&
@@ -311,6 +310,17 @@ const getUserTenantIds = (
             tenant.id,
           );
         }
+
+        if (
+          tenant?.tenantId !==
+            undefined &&
+          tenant?.tenantId !==
+            null
+        ) {
+          tenantIds.push(
+            tenant.tenantId,
+          );
+        }
       },
     );
   }
@@ -319,9 +329,7 @@ const getUserTenantIds = (
     ...new Set(
       tenantIds
         .filter(
-          (
-            id,
-          ) =>
+          (id) =>
             id !==
               null &&
             id !==
@@ -332,9 +340,7 @@ const getUserTenantIds = (
               '',
         )
         .map(
-          (
-            id,
-          ) =>
+          (id) =>
             String(
               id,
             ),
@@ -342,7 +348,6 @@ const getUserTenantIds = (
     ),
   ];
 };
-
 
 const getTenantId = (
   tenant,
@@ -352,7 +357,6 @@ const getTenantId = (
   tenant?.uuid ??
   null;
 
-
 const normalizeStatus = (
   value,
 ) =>
@@ -360,17 +364,15 @@ const normalizeStatus = (
     value,
   ).toLowerCase();
 
-
 const getAccountStatus = (
   user,
 ) =>
   normalizeStatus(
-    user?.status ||
-      user?.accountStatus ||
-      user?.state ||
+    user?.status ??
+      user?.accountStatus ??
+      user?.state ??
       'active',
   );
-
 
 const hasRequiredRole = ({
   userRoles,
@@ -388,9 +390,7 @@ const hasRequiredRole = ({
     requireAllRoles
   ) {
     return requiredRoles.every(
-      (
-        role,
-      ) =>
+      (role) =>
         userRoles.includes(
           role,
         ),
@@ -398,15 +398,12 @@ const hasRequiredRole = ({
   }
 
   return requiredRoles.some(
-    (
-      role,
-    ) =>
+    (role) =>
       userRoles.includes(
         role,
       ),
   );
 };
-
 
 const hasRequiredPermissions = ({
   userPermissions,
@@ -424,9 +421,7 @@ const hasRequiredPermissions = ({
     requireAllPermissions
   ) {
     return requiredPermissions.every(
-      (
-        permission,
-      ) =>
+      (permission) =>
         userPermissions.includes(
           permission,
         ),
@@ -434,28 +429,25 @@ const hasRequiredPermissions = ({
   }
 
   return requiredPermissions.some(
-    (
-      permission,
-    ) =>
+    (permission) =>
       userPermissions.includes(
         permission,
       ),
   );
 };
 
-
 const resolveTenantAuthorization = ({
   user,
   tenant,
   allowedTenantIds,
+  requiredTenantId,
   requireTenant,
 }) => {
   if (
     !requireTenant
   ) {
     return {
-      valid:
-        true,
+      valid: true,
       reason:
         'tenant-not-required',
     };
@@ -470,37 +462,58 @@ const resolveTenantAuthorization = ({
     activeTenantId ===
       null ||
     activeTenantId ===
-      undefined
+      undefined ||
+    String(
+      activeTenantId,
+    ).trim() ===
+      ''
   ) {
     return {
-      valid:
-        false,
+      valid: false,
       reason:
         'missing-tenant',
     };
   }
 
-  const normalizedAllowedTenantIds =
-    [
-      ...new Set(
-        [
-          ...normalizeStringList(
-            allowedTenantIds,
-          ),
-          ...getUserTenantIds(
-            user,
-          ),
-        ],
+  const normalizedAllowedTenantIds = [
+    ...new Set([
+      ...normalizeStringList(
+        allowedTenantIds,
       ),
-    ];
+      ...getUserTenantIds(
+        user,
+      ),
+    ]),
+  ];
+
+  if (
+    requiredTenantId !==
+      null &&
+    requiredTenantId !==
+      undefined
+  ) {
+    if (
+      String(
+        requiredTenantId,
+      ) !==
+      String(
+        activeTenantId,
+      )
+    ) {
+      return {
+        valid: false,
+        reason:
+          'required-tenant-mismatch',
+      };
+    }
+  }
 
   if (
     normalizedAllowedTenantIds.length ===
     0
   ) {
     return {
-      valid:
-        true,
+      valid: true,
       reason:
         'no-tenant-list',
     };
@@ -522,9 +535,52 @@ const resolveTenantAuthorization = ({
   };
 };
 
+const buildReturnLocation = ({
+  location,
+  enabled,
+  includeSearch,
+  includeHash,
+}) => {
+  if (
+    !enabled
+  ) {
+    return null;
+  }
+
+  const pathname =
+    safeText(
+      location?.pathname,
+      '/',
+    );
+
+  const search =
+    includeSearch
+      ? safeText(
+          location?.search,
+        )
+      : '';
+
+  const hash =
+    includeHash
+      ? safeText(
+          location?.hash,
+        )
+      : '';
+
+  const result =
+    `${pathname}${search}${hash}`;
+
+  return result.length >
+    MAX_RETURN_LOCATION_LENGTH
+    ? result.slice(
+        0,
+        MAX_RETURN_LOCATION_LENGTH,
+      )
+    : result;
+};
 
 /* ============================================================================
- * Built-in presentation states
+ * Built-in icons
  * ========================================================================== */
 
 const Spinner = ({
@@ -552,6 +608,10 @@ const Spinner = ({
   </svg>
 );
 
+Spinner.propTypes = {
+  size:
+    PropTypes.number,
+};
 
 const ShieldIcon = ({
   size = 48,
@@ -573,6 +633,10 @@ const ShieldIcon = ({
   </svg>
 );
 
+ShieldIcon.propTypes = {
+  size:
+    PropTypes.number,
+};
 
 const LockIcon = ({
   size = 48,
@@ -603,6 +667,10 @@ const LockIcon = ({
   </svg>
 );
 
+LockIcon.propTypes = {
+  size:
+    PropTypes.number,
+};
 
 const BuildingIcon = ({
   size = 48,
@@ -630,9 +698,13 @@ const BuildingIcon = ({
   </svg>
 );
 
+BuildingIcon.propTypes = {
+  size:
+    PropTypes.number,
+};
 
 /* ============================================================================
- * Default state component
+ * Built-in state presentation
  * ========================================================================== */
 
 const GuardState = ({
@@ -643,27 +715,37 @@ const GuardState = ({
   onAction,
   testId,
 }) => {
-  const icon =
-    type ===
-    'loading'
-      ? (
-          <Spinner
-            size={30}
-          />
-        )
-      : type ===
-          'tenant'
-        ? (
-            <BuildingIcon />
-          )
-        : type ===
-            'unauthenticated'
-          ? (
-              <LockIcon />
-            )
-          : (
-              <ShieldIcon />
-            );
+  let icon;
+
+  switch (
+    type
+  ) {
+    case 'loading':
+      icon = (
+        <Spinner
+          size={30}
+        />
+      );
+      break;
+
+    case 'tenant':
+    case 'account-disabled':
+      icon = (
+        <BuildingIcon />
+      );
+      break;
+
+    case 'unauthenticated':
+      icon = (
+        <LockIcon />
+      );
+      break;
+
+    default:
+      icon = (
+        <ShieldIcon />
+      );
+  }
 
   return (
     <section
@@ -677,7 +759,12 @@ const GuardState = ({
           ? 'status'
           : 'alert'
       }
-      aria-live="polite"
+      aria-live={
+        type ===
+        'loading'
+          ? 'polite'
+          : 'assertive'
+      }
       aria-label={
         title
       }
@@ -712,9 +799,7 @@ const GuardState = ({
               onAction
             }
           >
-            {
-              actionLabel
-            }
+            {actionLabel}
           </button>
         ) : null}
 
@@ -723,6 +808,25 @@ const GuardState = ({
   );
 };
 
+GuardState.propTypes = {
+  type:
+    PropTypes.string.isRequired,
+
+  title:
+    PropTypes.string.isRequired,
+
+  message:
+    PropTypes.string.isRequired,
+
+  actionLabel:
+    PropTypes.string,
+
+  onAction:
+    PropTypes.func,
+
+  testId:
+    PropTypes.string.isRequired,
+};
 
 /* ============================================================================
  * AdminRoute
@@ -731,7 +835,10 @@ const GuardState = ({
 const AdminRoute =
   forwardRef(
     function AdminRoute(
-      {
+      props,
+      forwardedRef,
+    ) {
+      const {
         children,
 
         user,
@@ -782,13 +889,7 @@ const AdminRoute =
           DEFAULT_ACTIVE_ACCOUNT_STATUSES,
 
         deniedAccountStatuses =
-          [
-            'suspended',
-            'disabled',
-            'blocked',
-            'deactivated',
-            'locked',
-          ],
+          DEFAULT_DENIED_ACCOUNT_STATUSES,
 
         allowPrivilegedClaim =
           false,
@@ -853,15 +954,22 @@ const AdminRoute =
           '',
 
         testId =
-          'titech-admin-route',
+          DEFAULT_TEST_ID,
 
+        /**
+         * IMPORTANT:
+         * false is the compatibility default because your existing
+         * AdminLayout passes protected content as children.
+         *
+         * Set true only when AdminRoute is used as a nested route layout
+         * containing React Router <Outlet />.
+         */
         renderOutlet =
-          true,
+          false,
 
         ...rest
-      },
-      forwardedRef,
-    ) {
+      } = props;
+
       const generatedId =
         useId();
 
@@ -870,6 +978,10 @@ const AdminRoute =
 
       const location =
         useLocation();
+
+      /* ======================================================================
+       * Authentication state
+       * ==================================================================== */
 
       const resolvedAuthLoading =
         Boolean(
@@ -894,35 +1006,84 @@ const AdminRoute =
        * ==================================================================== */
 
       const resolvedRequiredRoles =
-        normalizeStringList(
-          roles ??
+        useMemo(
+          () =>
+            normalizeStringList(
+              roles ??
+                requiredRoles,
+            ),
+          [
             requiredRoles,
+            roles,
+          ],
         );
 
       const resolvedRequiredPermissions =
-        normalizeStringList(
-          permissions ??
+        useMemo(
+          () =>
+            normalizeStringList(
+              permissions ??
+                requiredPermissions,
+            ),
+          [
+            permissions,
             requiredPermissions,
+          ],
         );
 
       const resolvedAccountStatuses =
-        normalizeStringList(
-          accountStatuses,
+        useMemo(
+          () =>
+            normalizeStringList(
+              accountStatuses,
+            ),
+          [
+            accountStatuses,
+          ],
         );
 
       const resolvedDeniedAccountStatuses =
-        normalizeStringList(
-          deniedAccountStatuses,
+        useMemo(
+          () =>
+            normalizeStringList(
+              deniedAccountStatuses,
+            ),
+          [
+            deniedAccountStatuses,
+          ],
         );
 
       const userRoles =
-        getUserRoles(
-          user,
+        useMemo(
+          () =>
+            getUserRoles(
+              user,
+            ),
+          [
+            user,
+          ],
         );
 
       const userPermissions =
-        getUserPermissions(
-          user,
+        useMemo(
+          () =>
+            getUserPermissions(
+              user,
+            ),
+          [
+            user,
+          ],
+        );
+
+      const userTenantIds =
+        useMemo(
+          () =>
+            getUserTenantIds(
+              user,
+            ),
+          [
+            user,
+          ],
         );
 
       const accountStatus =
@@ -930,13 +1091,13 @@ const AdminRoute =
           user,
         );
 
-      const tenantId =
+      const activeTenantId =
         getTenantId(
           tenant,
         );
 
       /* ======================================================================
-       * Account validity
+       * Account authorization
        * ==================================================================== */
 
       const explicitlyDeniedAccount =
@@ -955,7 +1116,7 @@ const AdminRoute =
         );
 
       /* ======================================================================
-       * Role / permission checks
+       * Role authorization
        * ==================================================================== */
 
       const roleAuthorized =
@@ -966,6 +1127,10 @@ const AdminRoute =
           requireAllRoles,
         });
 
+      /* ======================================================================
+       * Permission authorization
+       * ==================================================================== */
+
       const permissionAuthorized =
         hasRequiredPermissions({
           userPermissions,
@@ -974,17 +1139,21 @@ const AdminRoute =
           requireAllPermissions,
         });
 
+      /* ======================================================================
+       * Optional privileged claim authorization
+       * ==================================================================== */
+
       const privilegedClaimAuthorized =
-        allowPrivilegedClaim &&
-        privilegedClaimKeys.some(
-          (
-            key,
-          ) =>
-            user?.[key] ===
-            true,
+        Boolean(
+          allowPrivilegedClaim &&
+            privilegedClaimKeys.some(
+              (key) =>
+                user?.[key] ===
+                true,
+            ),
         );
 
-      const administrativeAuthorization =
+      const authorizationSatisfied =
         privilegedClaimAuthorized ||
         (
           roleAuthorized &&
@@ -995,49 +1164,80 @@ const AdminRoute =
        * Tenant authorization
        * ==================================================================== */
 
-      const requiredTenant =
-        requiredTenantId ??
-        null;
-
-      const requiredTenantMatches =
-        requiredTenant ===
-          null ||
-        requiredTenant ===
-          undefined ||
-        String(
-          requiredTenant,
-        ) ===
-          String(
-            tenantId,
-          );
-
       const tenantAuthorization =
-        resolveTenantAuthorization({
-          user,
-          tenant,
-          allowedTenantIds,
-          requireTenant,
-        });
-
-      const customTenantAuthorization =
-        typeof tenantValidator ===
-          'function'
-          ? tenantValidator({
+        useMemo(
+          () =>
+            resolveTenantAuthorization({
               user,
               tenant,
-              tenantId,
-              location,
-            })
-          : true;
+              allowedTenantIds,
+              requiredTenantId,
+              requireTenant,
+            }),
+          [
+            allowedTenantIds,
+            requiredTenantId,
+            requireTenant,
+            tenant,
+            user,
+          ],
+        );
+
+      const customTenantAuthorization =
+        useMemo(
+          () => {
+            if (
+              typeof tenantValidator !==
+              'function'
+            ) {
+              return true;
+            }
+
+            try {
+              return tenantValidator({
+                user,
+                tenant,
+                tenantId:
+                  activeTenantId,
+                userTenantIds,
+                location,
+              }) !== false;
+            } catch (
+              validatorError
+            ) {
+              if (
+                process.env?.NODE_ENV ===
+                'development'
+              ) {
+                // eslint-disable-next-line no-console
+                console.error(
+                  '[TITech AdminRoute] tenantValidator failed:',
+                  validatorError,
+                );
+              }
+
+              /**
+               * Fail closed if the custom validator itself fails.
+               */
+              return false;
+            }
+          },
+          [
+            activeTenantId,
+            location,
+            tenant,
+            tenantValidator,
+            user,
+            userTenantIds,
+          ],
+        );
 
       const tenantAuthorized =
         tenantAuthorization.valid &&
-        requiredTenantMatches &&
-        customTenantAuthorization !==
-          false;
+        customTenantAuthorization;
 
       /* ======================================================================
-       * Overall authorization state
+       * Determine final access state
        * ==================================================================== */
 
       let accessState =
@@ -1064,7 +1264,7 @@ const AdminRoute =
           accessState =
             'tenant-mismatch';
         } else if (
-          !administrativeAuthorization
+          !authorizationSatisfied
         ) {
           accessState =
             'forbidden';
@@ -1075,198 +1275,24 @@ const AdminRoute =
       }
 
       /* ======================================================================
-       * Public ref API
-       * ==================================================================== */
-
-      useImperativeHandle(
-        forwardedRef,
-        () => ({
-          getAccessState() {
-            return accessState;
-          },
-
-          isAuthorized() {
-            return (
-              accessState ===
-              'authorized'
-            );
-          },
-
-          isAuthenticated() {
-            return resolvedIsAuthenticated;
-          },
-
-          getUserId() {
-            return getUserId(
-              user,
-            );
-          },
-
-          getUserRoles() {
-            return userRoles;
-          },
-
-          getUserPermissions() {
-            return userPermissions;
-          },
-
-          getTenantId() {
-            return tenantId;
-          },
-
-          getLocation() {
-            return location;
-          },
-
-          focus() {
-            rootRef.current?.focus();
-          },
-        }),
-        [
-          accessState,
-          location,
-          resolvedIsAuthenticated,
-          tenantId,
-          user,
-          userPermissions,
-          userRoles,
-        ],
-      );
-
-      /* ======================================================================
-       * Call lifecycle callbacks
-       * ==================================================================== */
-
-      const notifyState =
-        useCallback(
-          () => {
-            switch (
-              accessState
-            ) {
-              case 'authorized':
-                onAuthenticated?.({
-                  user,
-                  tenant,
-                  location,
-                });
-                break;
-
-              case 'unauthenticated':
-                onUnauthorized?.({
-                  user,
-                  tenant,
-                  location,
-                });
-                break;
-
-              case 'forbidden':
-                onForbidden?.({
-                  user,
-                  tenant,
-                  location,
-                });
-
-                onAuthorizationDenied?.({
-                  reason:
-                    'forbidden',
-
-                  user,
-                  tenant,
-                  location,
-                });
-                break;
-
-              case 'tenant-mismatch':
-                onTenantMismatch?.({
-                  user,
-                  tenant,
-                  location,
-                });
-
-                onAuthorizationDenied?.({
-                  reason:
-                    'tenant-mismatch',
-
-                  user,
-                  tenant,
-                  location,
-                });
-                break;
-
-              case 'account-disabled':
-                onAuthorizationDenied?.({
-                  reason:
-                    'account-disabled',
-
-                  user,
-                  tenant,
-                  location,
-                });
-                break;
-
-              case 'loading':
-              default:
-                onLoading?.({
-                  user,
-                  tenant,
-                  location,
-                });
-                break;
-            }
-          },
-          [
-            accessState,
-            location,
-            onAuthenticated,
-            onAuthorizationDenied,
-            onForbidden,
-            onLoading,
-            onTenantMismatch,
-            onUnauthorized,
-            tenant,
-            user,
-          ],
-        );
-
-      /*
-       * Lifecycle callbacks intentionally run from render-derived state only
-       * when explicitly supplied. Parent applications should make these
-       * callbacks idempotent.
-       */
-      if (
-        false
-      ) {
-        notifyState();
-      }
-
-      /* ======================================================================
-       * Return-location state
+       * Stable return location
        * ==================================================================== */
 
       const returnLocation =
         useMemo(
-          () => {
-            if (
-              !preserveReturnLocation
-            ) {
-              return null;
-            }
+          () =>
+            buildReturnLocation({
+              location,
 
-            const pathname =
-              location.pathname;
+              enabled:
+                preserveReturnLocation,
 
-            const search =
-              includeSearchInReturnLocation
-                ? location.search
-                : '';
+              includeSearch:
+                includeSearchInReturnLocation,
 
-            const hash =
-              includeHashInReturnLocation
-                ? location.hash
-                : '';
-
-            return `${pathname}${search}${hash}`;
-          },
+              includeHash:
+                includeHashInReturnLocation,
+            }),
           [
             includeHashInReturnLocation,
             includeSearchInReturnLocation,
@@ -1276,6 +1302,10 @@ const AdminRoute =
             preserveReturnLocation,
           ],
         );
+
+      /* ======================================================================
+       * Navigation state
+       * ==================================================================== */
 
       const loginNavigationState =
         useMemo(
@@ -1289,30 +1319,323 @@ const AdminRoute =
               returnLocation,
 
             reason:
-              accessState ===
-              'unauthenticated'
-                ? 'authentication-required'
-                : undefined,
+              'authentication-required',
           }),
           [
-            accessState,
             redirectState,
             returnLocation,
           ],
         );
 
+      const forbiddenNavigationState =
+        useMemo(
+          () => ({
+            ...redirectState,
+
+            from:
+              returnLocation,
+
+            reason:
+              'insufficient-privileges',
+          }),
+          [
+            redirectState,
+            returnLocation,
+          ],
+        );
+
+      const tenantNavigationState =
+        useMemo(
+          () => ({
+            ...redirectState,
+
+            from:
+              returnLocation,
+
+            tenantId:
+              activeTenantId ??
+              null,
+
+            requiredTenantId:
+              requiredTenantId ??
+              null,
+
+            reason:
+              'tenant-mismatch',
+          }),
+          [
+            activeTenantId,
+            redirectState,
+            requiredTenantId,
+            returnLocation,
+          ],
+        );
+
       /* ======================================================================
-       * Root class
+       * Imperative API
+       * ==================================================================== */
+
+      useImperativeHandle(
+        forwardedRef,
+        () => ({
+          getAccessState:
+            () =>
+              accessState,
+
+          isAuthorized:
+            () =>
+              accessState ===
+              'authorized',
+
+          isAuthenticated:
+            () =>
+              resolvedIsAuthenticated,
+
+          getUserId:
+            () =>
+              getUserId(
+                user,
+              ),
+
+          getUserRoles:
+            () =>
+              [...userRoles],
+
+          getUserPermissions:
+            () =>
+              [...userPermissions],
+
+          getTenantId:
+            () =>
+              activeTenantId,
+
+          getLocation:
+            () => ({
+              pathname:
+                location.pathname,
+
+              search:
+                location.search,
+
+              hash:
+                location.hash,
+            }),
+
+          focus:
+            () =>
+              rootRef.current?.focus(),
+
+          getAuthorizationSnapshot:
+            () => ({
+              accessState,
+
+              authenticated:
+                resolvedIsAuthenticated,
+
+              accountStatus,
+
+              tenantAuthorized,
+
+              roleAuthorized,
+
+              permissionAuthorized,
+
+              userId:
+                getUserId(
+                  user,
+                ),
+
+              tenantId:
+                activeTenantId,
+
+              generatedId,
+            }),
+        }),
+        [
+          accessState,
+          accountStatus,
+          activeTenantId,
+          generatedId,
+          location.hash,
+          location.pathname,
+          location.search,
+          permissionAuthorized,
+          resolvedIsAuthenticated,
+          roleAuthorized,
+          tenantAuthorized,
+          user,
+          userPermissions,
+          userRoles,
+        ],
+      );
+
+      /* ======================================================================
+       * Authorization lifecycle callbacks
+       *
+       * IMPORTANT:
+       * Never perform external callbacks during render.
+       * ==================================================================== */
+
+      const previousAccessStateRef =
+        useRef(
+          null,
+        );
+
+      useEffect(
+        () => {
+          if (
+            previousAccessStateRef.current ===
+            accessState
+          ) {
+            return;
+          }
+
+          previousAccessStateRef.current =
+            accessState;
+
+          const payload = {
+            accessState,
+
+            user,
+
+            tenant,
+
+            location,
+
+            userId:
+              getUserId(
+                user,
+              ),
+
+            tenantId:
+              activeTenantId,
+          };
+
+          try {
+            switch (
+              accessState
+            ) {
+              case 'authorized':
+                onAuthenticated?.(
+                  payload,
+                );
+                break;
+
+              case 'unauthenticated':
+                onUnauthorized?.(
+                  payload,
+                );
+
+                onAuthorizationDenied?.({
+                  ...payload,
+                  reason:
+                    'authentication-required',
+                });
+                break;
+
+              case 'forbidden':
+                onForbidden?.(
+                  payload,
+                );
+
+                onAuthorizationDenied?.({
+                  ...payload,
+                  reason:
+                    'insufficient-privileges',
+                });
+                break;
+
+              case 'tenant-mismatch':
+                onTenantMismatch?.(
+                  payload,
+                );
+
+                onAuthorizationDenied?.({
+                  ...payload,
+                  reason:
+                    'tenant-mismatch',
+                });
+                break;
+
+              case 'account-disabled':
+                onAuthorizationDenied?.({
+                  ...payload,
+                  reason:
+                    'account-disabled',
+                });
+                break;
+
+              case 'loading':
+                onLoading?.(
+                  payload,
+                );
+                break;
+
+              default:
+                break;
+            }
+          } catch (
+            callbackError
+          ) {
+            if (
+              process.env?.NODE_ENV ===
+              'development'
+            ) {
+              // eslint-disable-next-line no-console
+              console.error(
+                '[TITech AdminRoute] authorization callback failed:',
+                callbackError,
+              );
+            }
+          }
+        },
+        [
+          accessState,
+          activeTenantId,
+          location,
+          onAuthenticated,
+          onAuthorizationDenied,
+          onForbidden,
+          onLoading,
+          onTenantMismatch,
+          onUnauthorized,
+          tenant,
+          user,
+        ],
+      );
+
+      /* ======================================================================
+       * Common root properties
        * ==================================================================== */
 
       const rootClassName =
         cn(
           'titech-admin-route',
-
           `titech-admin-route--${accessState}`,
-
           className,
         );
+
+      const rootProps = {
+        ...rest,
+
+        ref:
+          rootRef,
+
+        className:
+          rootClassName,
+
+        tabIndex:
+          -1,
+
+        'data-testid':
+          testId,
+
+        'data-authorization-state':
+          accessState,
+
+        'data-route-instance':
+          generatedId,
+      };
 
       /* ======================================================================
        * Loading
@@ -1323,47 +1646,30 @@ const AdminRoute =
         'loading'
       ) {
         if (
-          loadingComponent
+          loadingComponent !==
+          undefined &&
+          loadingComponent !==
+          null
         ) {
           return (
             <div
-              {...rest}
-              ref={
-                rootRef
-              }
-              className={
-                rootClassName
-              }
-              data-testid={
-                testId
-              }
+              {...rootProps}
             >
-              {
-                typeof loadingComponent ===
-                'function'
-                  ? loadingComponent({
-                      user,
-                      tenant,
-                      location,
-                    })
-                  : loadingComponent
-              }
+              {typeof loadingComponent ===
+              'function'
+                ? loadingComponent({
+                    user,
+                    tenant,
+                    location,
+                  })
+                : loadingComponent}
             </div>
           );
         }
 
         return (
           <div
-            {...rest}
-            ref={
-              rootRef
-            }
-            className={
-              rootClassName
-            }
-            data-testid={
-              testId
-            }
+            {...rootProps}
           >
             <GuardState
               type="loading"
@@ -1384,31 +1690,23 @@ const AdminRoute =
         'unauthenticated'
       ) {
         if (
-          unauthorizedComponent
+          unauthorizedComponent !==
+          undefined &&
+          unauthorizedComponent !==
+          null
         ) {
           return (
             <div
-              {...rest}
-              ref={
-                rootRef
-              }
-              className={
-                rootClassName
-              }
-              data-testid={
-                testId
-              }
+              {...rootProps}
             >
-              {
-                typeof unauthorizedComponent ===
-                'function'
-                  ? unauthorizedComponent({
-                      user,
-                      tenant,
-                      location,
-                    })
-                  : unauthorizedComponent
-              }
+              {typeof unauthorizedComponent ===
+              'function'
+                ? unauthorizedComponent({
+                    user,
+                    tenant,
+                    location,
+                  })
+                : unauthorizedComponent}
             </div>
           );
         }
@@ -1429,7 +1727,7 @@ const AdminRoute =
       }
 
       /* ======================================================================
-       * Account disabled
+       * Account disabled / suspended
        * ==================================================================== */
 
       if (
@@ -1437,47 +1735,30 @@ const AdminRoute =
         'account-disabled'
       ) {
         if (
-          accountDisabledComponent
+          accountDisabledComponent !==
+          undefined &&
+          accountDisabledComponent !==
+          null
         ) {
           return (
             <div
-              {...rest}
-              ref={
-                rootRef
-              }
-              className={
-                rootClassName
-              }
-              data-testid={
-                testId
-              }
+              {...rootProps}
             >
-              {
-                typeof accountDisabledComponent ===
-                'function'
-                  ? accountDisabledComponent({
-                      user,
-                      tenant,
-                      location,
-                    })
-                  : accountDisabledComponent
-              }
+              {typeof accountDisabledComponent ===
+              'function'
+                ? accountDisabledComponent({
+                    user,
+                    tenant,
+                    location,
+                  })
+                : accountDisabledComponent}
             </div>
           );
         }
 
         return (
           <div
-            {...rest}
-            ref={
-              rootRef
-            }
-            className={
-              rootClassName
-            }
-            data-testid={
-              testId
-            }
+            {...rootProps}
           >
             <GuardState
               type="account-disabled"
@@ -1498,59 +1779,56 @@ const AdminRoute =
         'tenant-mismatch'
       ) {
         if (
-          tenantMismatchComponent
+          tenantMismatchComponent !==
+          undefined &&
+          tenantMismatchComponent !==
+          null
         ) {
           return (
             <div
-              {...rest}
-              ref={
-                rootRef
-              }
-              className={
-                rootClassName
-              }
-              data-testid={
-                testId
-              }
+              {...rootProps}
             >
-              {
-                typeof tenantMismatchComponent ===
-                'function'
-                  ? tenantMismatchComponent({
-                      user,
-                      tenant,
-                      location,
-                    })
-                  : tenantMismatchComponent
-              }
+              {typeof tenantMismatchComponent ===
+              'function'
+                ? tenantMismatchComponent({
+                    user,
+                    tenant,
+                    location,
+                  })
+                : tenantMismatchComponent}
             </div>
           );
         }
 
+        if (
+          tenantMismatchPath
+        ) {
+          return (
+            <Navigate
+              to={
+                tenantMismatchPath
+              }
+              replace={
+                replaceNavigation
+              }
+              state={
+                tenantNavigationState
+              }
+            />
+          );
+        }
+
         return (
-          <Navigate
-            to={
-              tenantMismatchPath
-            }
-            replace={
-              replaceNavigation
-            }
-            state={{
-              ...redirectState,
-
-              from:
-                returnLocation,
-
-              tenantId,
-
-              requiredTenantId:
-                requiredTenant ??
-                null,
-
-              reason:
-                'tenant-mismatch',
-            }}
-          />
+          <div
+            {...rootProps}
+          >
+            <GuardState
+              type="tenant"
+              title="Tenant access denied"
+              message="Your current TITech tenant context does not permit access to this administrative area."
+              testId={`${testId}-tenant-mismatch`}
+            />
+          </div>
         );
       }
 
@@ -1563,31 +1841,23 @@ const AdminRoute =
         'forbidden'
       ) {
         if (
-          forbiddenComponent
+          forbiddenComponent !==
+          undefined &&
+          forbiddenComponent !==
+          null
         ) {
           return (
             <div
-              {...rest}
-              ref={
-                rootRef
-              }
-              className={
-                rootClassName
-              }
-              data-testid={
-                testId
-              }
+              {...rootProps}
             >
-              {
-                typeof forbiddenComponent ===
-                'function'
-                  ? forbiddenComponent({
-                      user,
-                      tenant,
-                      location,
-                    })
-                  : forbiddenComponent
-              }
+              {typeof forbiddenComponent ===
+              'function'
+                ? forbiddenComponent({
+                    user,
+                    tenant,
+                    location,
+                  })
+                : forbiddenComponent}
             </div>
           );
         }
@@ -1603,40 +1873,21 @@ const AdminRoute =
               replace={
                 replaceNavigation
               }
-              state={{
-                ...redirectState,
-
-                from:
-                  returnLocation,
-
-                reason:
-                  'insufficient-privileges',
-              }}
+              state={
+                forbiddenNavigationState
+              }
             />
           );
         }
 
         return (
           <div
-            {...rest}
-            ref={
-              rootRef
-            }
-            className={
-              rootClassName
-            }
-            data-testid={
-              testId
-            }
+            {...rootProps}
           >
             <GuardState
               type="forbidden"
               title="Administrative access denied"
               message="Your TITech account does not have the required administrative role or permission for this area."
-              actionLabel="Return"
-              onAction={() =>
-                window.history.back()
-              }
               testId={`${testId}-forbidden`}
             />
           </div>
@@ -1652,16 +1903,7 @@ const AdminRoute =
       ) {
         return (
           <div
-            {...rest}
-            ref={
-              rootRef
-            }
-            className={
-              rootClassName
-            }
-            data-testid={
-              testId
-            }
+            {...rootProps}
             data-authorized="true"
             data-user-id={
               getUserId(
@@ -1670,7 +1912,7 @@ const AdminRoute =
               undefined
             }
             data-tenant-id={
-              tenantId ??
+              activeTenantId ??
               undefined
             }
           >
@@ -1681,16 +1923,7 @@ const AdminRoute =
 
       return (
         <div
-          {...rest}
-          ref={
-            rootRef
-          }
-          className={
-            rootClassName
-          }
-          data-testid={
-            testId
-          }
+          {...rootProps}
           data-authorized="true"
           data-user-id={
             getUserId(
@@ -1699,7 +1932,7 @@ const AdminRoute =
             undefined
           }
           data-tenant-id={
-            tenantId ??
+            activeTenantId ??
             undefined
           }
         >
@@ -1709,14 +1942,12 @@ const AdminRoute =
     },
   );
 
-
 /* ============================================================================
- * Metadata
+ * Component metadata
  * ========================================================================== */
 
 AdminRoute.displayName =
   'TITechAdminRoute';
-
 
 /* ============================================================================
  * PropTypes
@@ -1878,19 +2109,34 @@ AdminRoute.propTypes = {
     PropTypes.func,
 
   loadingComponent:
-    PropTypes.node,
+    PropTypes.oneOfType([
+      PropTypes.node,
+      PropTypes.func,
+    ]),
 
   unauthorizedComponent:
-    PropTypes.node,
+    PropTypes.oneOfType([
+      PropTypes.node,
+      PropTypes.func,
+    ]),
 
   forbiddenComponent:
-    PropTypes.node,
+    PropTypes.oneOfType([
+      PropTypes.node,
+      PropTypes.func,
+    ]),
 
   tenantMismatchComponent:
-    PropTypes.node,
+    PropTypes.oneOfType([
+      PropTypes.node,
+      PropTypes.func,
+    ]),
 
   accountDisabledComponent:
-    PropTypes.node,
+    PropTypes.oneOfType([
+      PropTypes.node,
+      PropTypes.func,
+    ]),
 
   className:
     PropTypes.string,
@@ -1901,7 +2147,6 @@ AdminRoute.propTypes = {
   renderOutlet:
     PropTypes.bool,
 };
-
 
 /* ============================================================================
  * Defaults
@@ -1966,13 +2211,7 @@ AdminRoute.defaultProps = {
     DEFAULT_ACTIVE_ACCOUNT_STATUSES,
 
   deniedAccountStatuses:
-    [
-      'suspended',
-      'disabled',
-      'blocked',
-      'deactivated',
-      'locked',
-    ],
+    DEFAULT_DENIED_ACCOUNT_STATUSES,
 
   allowPrivilegedClaim:
     false,
@@ -2049,12 +2288,11 @@ AdminRoute.defaultProps = {
     '',
 
   testId:
-    'titech-admin-route',
+    DEFAULT_TEST_ID,
 
   renderOutlet:
-    true,
+    false,
 };
-
 
 /* ============================================================================
  * Named exports
@@ -2063,25 +2301,32 @@ AdminRoute.defaultProps = {
 export {
   DEFAULT_ACTIVE_ACCOUNT_STATUSES,
   DEFAULT_ADMIN_ROLES,
+  DEFAULT_DENIED_ACCOUNT_STATUSES,
   DEFAULT_FORBIDDEN_PATH,
   DEFAULT_LOGIN_PATH,
   DEFAULT_TENANT_MISMATCH_PATH,
+  DEFAULT_TEST_ID,
   DEFAULT_UNAUTHORIZED_PATH,
+
   GuardState,
+
+  buildReturnLocation,
   getAccountStatus,
   getTenantId,
   getUserId,
   getUserPermissions,
   getUserRoles,
   getUserTenantIds,
+
   hasRequiredPermissions,
   hasRequiredRole,
-  normalizeStringList,
+
   normalizeStatus,
+  normalizeStringList,
+
   resolveTenantAuthorization,
   safeText,
 };
-
 
 /* ============================================================================
  * Default export

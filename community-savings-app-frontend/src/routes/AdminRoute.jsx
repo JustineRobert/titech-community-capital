@@ -1,56 +1,136 @@
-// ============================================================================
-// TITech Community Capital
-// Enterprise Admin Route
-// File: src/routes/AdminRoute.jsx
-// Production Grade
-// ============================================================================
+'use strict';
+
+/**
+ * ============================================================================
+ * TITech Community Capital LTD
+ * TITech Community Capital Operating System
+ * ============================================================================
+ *
+ * File:
+ *   frontend/src/routes/AdminRoute.jsx
+ *
+ * Purpose:
+ *   Canonical administrative authentication and authorization boundary.
+ *
+ * Responsibilities:
+ *   - Verify authentication
+ *   - Verify administrative role
+ *   - Verify tenant context when required
+ *   - Verify permissions when configured
+ *   - Verify feature flags when configured
+ *   - Preserve intended navigation location
+ *   - Expose reusable authorization helpers
+ *   - Support nested React Router <Outlet /> routes
+ *   - Support children-based composition
+ *
+ * Non-responsibilities:
+ *   - Authentication implementation
+ *   - Token refresh
+ *   - API communication
+ *   - Financial authorization inside backend services
+ *   - Ledger/business-rule authorization
+ *   - Database access
+ *
+ * IMPORTANT SECURITY PRINCIPLE:
+ *
+ *   Frontend authorization is a UX/security boundary, not the authoritative
+ *   financial authorization boundary.
+ *
+ *   Every privileged TITech operation must still be authorized by the backend.
+ *
+ * ============================================================================
+ */
 
 import React, {
   memo,
+  useCallback,
   useEffect,
-  useMemo,
-} from "react";
+} from 'react';
 
 import {
   Navigate,
   Outlet,
   useLocation,
-} from "react-router-dom";
+} from 'react-router-dom';
 
 import {
-  ShieldAlert,
   Loader2,
   Lock,
-} from "lucide-react";
+  ShieldAlert,
+} from 'lucide-react';
 
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from '../context/AuthContext';
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const DEFAULT_ADMIN_ROLES = [
-  "admin",
-  "ADMIN",
-  "super_admin",
-  "SUPER_ADMIN",
-];
+const DEFAULT_ADMIN_ROLES = Object.freeze([
+  'admin',
+  'super_admin',
+]);
+
+const LAST_ADMIN_ROUTE_KEY =
+  'titech:last-admin-route';
+
+const DEFAULT_REDIRECT_PATH =
+  '/login';
 
 // ============================================================================
-// Loading Component
+// Role normalization
+// ============================================================================
+
+function normalizeRole(role) {
+  if (typeof role !== 'string') {
+    return null;
+  }
+
+  return role
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeRoles(roles) {
+  if (!Array.isArray(roles)) {
+    return new Set(
+      DEFAULT_ADMIN_ROLES
+    );
+  }
+
+  return new Set(
+    roles
+      .filter(
+        (role) =>
+          typeof role === 'string'
+      )
+      .map(normalizeRole)
+      .filter(Boolean)
+  );
+}
+
+// ============================================================================
+// Loading component
 // ============================================================================
 
 function RouteLoader() {
   return (
-    <div className="route-loader-page">
-      <div className="route-loader-card">
+    <div
+      className="route-loader-page"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div
+        className="route-loader-card"
+      >
         <Loader2
           size={36}
+          aria-hidden="true"
           className="spin"
         />
 
         <p>
-          Verifying access...
+          Verifying access…
         </p>
       </div>
     </div>
@@ -58,24 +138,268 @@ function RouteLoader() {
 }
 
 // ============================================================================
-// Unauthorized Component
+// Unauthorized component
 // ============================================================================
 
 function Unauthorized({
-  title = "Access Denied",
-  message = "You do not have permission to access this area.",
+  title = 'Access Denied',
+  message =
+    'You do not have permission to access this area.',
+  icon = 'lock',
 }) {
+  const Icon =
+    icon === 'shield'
+      ? ShieldAlert
+      : Lock;
+
   return (
-    <div className="route-unauthorized-page">
-      <div className="route-unauthorized-card">
-        <Lock size={48} />
+    <div
+      className="route-unauthorized-page"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div
+        className="route-unauthorized-card"
+      >
+        <Icon
+          size={48}
+          aria-hidden="true"
+        />
 
-        <h2>{title}</h2>
+        <h2>
+          {title}
+        </h2>
 
-        <p>{message}</p>
+        <p>
+          {message}
+        </p>
       </div>
     </div>
   );
+}
+
+// ============================================================================
+// Authorization decision helper
+// ============================================================================
+//
+// Centralizes authorization logic so AdminRoute and useAdminAuthorization
+// evaluate permissions consistently.
+// ============================================================================
+
+function evaluateAuthorization({
+  user,
+  userPermissions,
+  tenant,
+  hasPermission,
+  hasFeature,
+  roles,
+  permissions,
+  featureFlag,
+  requireTenant,
+}) {
+  const normalizedAllowedRoles =
+    normalizeRoles(roles);
+
+  const normalizedUserRole =
+    normalizeRole(user?.role);
+
+  // --------------------------------------------------------------------------
+  // Authentication
+  // --------------------------------------------------------------------------
+
+  if (!user) {
+    return {
+      allowed: false,
+      reason: 'unauthenticated',
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // Tenant
+  // --------------------------------------------------------------------------
+
+  if (
+    requireTenant &&
+    !tenant
+  ) {
+    return {
+      allowed: false,
+      reason: 'tenant_required',
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // Role
+  // --------------------------------------------------------------------------
+
+  if (
+    !normalizedAllowedRoles.has(
+      normalizedUserRole
+    )
+  ) {
+    return {
+      allowed: false,
+      reason: 'role_denied',
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // Permissions
+  // --------------------------------------------------------------------------
+
+  const requiredPermissions =
+    Array.isArray(permissions)
+      ? permissions.filter(
+          Boolean
+        )
+      : [];
+
+  if (
+    requiredPermissions.length > 0
+  ) {
+    const hasRequiredPermissions =
+      requiredPermissions.every(
+        (permission) => {
+          if (
+            typeof hasPermission ===
+            'function'
+          ) {
+            return Boolean(
+              hasPermission(
+                permission
+              )
+            );
+          }
+
+          return Array.isArray(
+            userPermissions
+          )
+            ? userPermissions.includes(
+                permission
+              )
+            : false;
+        }
+      );
+
+    if (
+      !hasRequiredPermissions
+    ) {
+      return {
+        allowed: false,
+        reason:
+          'permission_denied',
+      };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Feature flag
+  // --------------------------------------------------------------------------
+
+  if (featureFlag) {
+    /*
+     * Fail closed when feature capability is unavailable.
+     *
+     * This prevents accidentally exposing an administrative feature merely
+     * because the AuthContext does not yet expose hasFeature().
+     */
+    if (
+      typeof hasFeature !==
+      'function'
+    ) {
+      return {
+        allowed: false,
+        reason:
+          'feature_unavailable',
+      };
+    }
+
+    if (
+      !hasFeature(featureFlag)
+    ) {
+      return {
+        allowed: false,
+        reason:
+          'feature_disabled',
+      };
+    }
+  }
+
+  return {
+    allowed: true,
+    reason: null,
+  };
+}
+
+// ============================================================================
+// Unauthorized response resolver
+// ============================================================================
+
+function renderUnauthorized(
+  reason,
+  customComponent
+) {
+  if (customComponent) {
+    return customComponent;
+  }
+
+  switch (reason) {
+    case 'tenant_required':
+      return (
+        <Unauthorized
+          icon="shield"
+          title="Tenant Required"
+          message={
+            'No tenant context is available for your account.'
+          }
+        />
+      );
+
+    case 'permission_denied':
+      return (
+        <Unauthorized
+          icon="shield"
+          title="Insufficient Permissions"
+          message={
+            'Your administrator account lacks the required permissions.'
+          }
+        />
+      );
+
+    case 'feature_disabled':
+      return (
+        <Unauthorized
+          icon="shield"
+          title="Feature Disabled"
+          message={
+            'This feature is not enabled for your tenant.'
+          }
+        />
+      );
+
+    case 'feature_unavailable':
+      return (
+        <Unauthorized
+          icon="shield"
+          title="Feature Unavailable"
+          message={
+            'The required feature authorization capability is unavailable.'
+          }
+        />
+      );
+
+    case 'role_denied':
+    default:
+      return (
+        <Unauthorized
+          icon="lock"
+          title="Administrator Access Required"
+          message={
+            'Administrator privileges are required to access this area.'
+          }
+        />
+      );
+  }
 }
 
 // ============================================================================
@@ -88,26 +412,109 @@ function AdminRoute({
   permissions = [],
   featureFlag = null,
   requireTenant = false,
-  redirectTo = "/login",
-  unauthorizedComponent,
+  redirectTo = DEFAULT_REDIRECT_PATH,
+  unauthorizedComponent = null,
 }) {
   const location =
     useLocation();
 
+  const auth =
+    useAuth() || {};
+
   const {
-    user,
-    loading,
+    user = null,
+    loading = false,
     isAuthenticated,
     permissions:
       userPermissions = [],
-    tenant,
+    tenant = null,
     hasPermission,
     hasFeature,
-  } = useAuth();
+  } = auth;
 
-  // ===========================================================================
+  // --------------------------------------------------------------------------
+  // Authentication state
+  // --------------------------------------------------------------------------
+
+  const authenticated =
+    typeof isAuthenticated ===
+    'boolean'
+      ? isAuthenticated
+      : Boolean(user);
+
+  // --------------------------------------------------------------------------
+  // Authorization decision
+  // --------------------------------------------------------------------------
+  //
+  // This is calculated on every render rather than conditionally invoking
+  // hooks. That keeps hook ordering deterministic.
+  // --------------------------------------------------------------------------
+
+  const authorization =
+    !loading &&
+    authenticated &&
+    user
+      ? evaluateAuthorization({
+          user,
+          userPermissions,
+          tenant,
+          hasPermission,
+          hasFeature,
+          roles,
+          permissions,
+          featureFlag,
+          requireTenant,
+        })
+      : {
+          allowed: false,
+          reason: 'loading',
+        };
+
+  // --------------------------------------------------------------------------
+  // Admin route diagnostics
+  // --------------------------------------------------------------------------
+  //
+  // IMPORTANT:
+  // This is diagnostic convenience only. It has no authorization effect.
+  //
+  // The stored route is not used to grant access.
+  // --------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (
+      !authenticated ||
+      !user ||
+      !authorization.allowed
+    ) {
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(
+        LAST_ADMIN_ROUTE_KEY,
+        location.pathname
+      );
+    } catch {
+      /*
+       * Storage may be unavailable in private/restricted browser contexts.
+       * Authorization must continue normally.
+       */
+    }
+  }, [
+    loading,
+    authenticated,
+    user,
+    authorization.allowed,
+    location.pathname,
+  ]);
+
+  // --------------------------------------------------------------------------
   // Loading
-  // ===========================================================================
+  // --------------------------------------------------------------------------
 
   if (loading) {
     return (
@@ -115,12 +522,12 @@ function AdminRoute({
     );
   }
 
-  // ===========================================================================
+  // --------------------------------------------------------------------------
   // Authentication
-  // ===========================================================================
+  // --------------------------------------------------------------------------
 
   if (
-    !isAuthenticated ||
+    !authenticated ||
     !user
   ) {
     return (
@@ -128,195 +535,134 @@ function AdminRoute({
         to={redirectTo}
         replace
         state={{
-          from:
-            location,
+          from: {
+            pathname:
+              location.pathname,
+            search:
+              location.search,
+            hash:
+              location.hash,
+          },
         }}
       />
     );
   }
 
-  // ===========================================================================
-  // Tenant Validation
-  // ===========================================================================
+  // --------------------------------------------------------------------------
+  // Authorization
+  // --------------------------------------------------------------------------
 
   if (
-    requireTenant &&
-    !tenant
+    !authorization.allowed
   ) {
-    return (
-      unauthorizedComponent || (
-        <Unauthorized
-          title="Tenant Required"
-          message="No tenant context is available for your account."
-        />
-      )
+    return renderUnauthorized(
+      authorization.reason,
+      unauthorizedComponent
     );
   }
 
-  // ===========================================================================
-  // Role Validation
-  // ===========================================================================
-
-  const roleAllowed =
-    roles.includes(
-      user?.role
-    );
-
-  if (!roleAllowed) {
-    return (
-      unauthorizedComponent || (
-        <Unauthorized
-          message="Administrator privileges are required."
-        />
-      )
-    );
-  }
-
-  // ===========================================================================
-  // Permission Validation
-  // ===========================================================================
+  // --------------------------------------------------------------------------
+  // Render protected content
+  // --------------------------------------------------------------------------
 
   if (
-    permissions.length >
-    0
+    children !== undefined &&
+    children !== null
   ) {
-    const allowed =
-      permissions.every(
-        (
-          permission
-        ) => {
-          if (
-            typeof hasPermission ===
-            "function"
-          ) {
-            return hasPermission(
-              permission
-            );
-          }
-
-          return userPermissions.includes(
-            permission
-          );
-        }
-      );
-
-    if (!allowed) {
-      return (
-        unauthorizedComponent || (
-          <Unauthorized
-            title="Insufficient Permissions"
-            message="Your administrator account lacks the required permissions."
-          />
-        )
-      );
-    }
+    return children;
   }
 
-  // ===========================================================================
-  // Feature Flag Validation
-  // ===========================================================================
-
-  if (
-    featureFlag
-  ) {
-    const enabled =
-      typeof hasFeature ===
-      "function"
-        ? hasFeature(
-            featureFlag
-          )
-        : true;
-
-    if (!enabled) {
-      return (
-        unauthorizedComponent || (
-          <Unauthorized
-            title="Feature Disabled"
-            message="This feature is not enabled for your tenant."
-          />
-        )
-      );
-    }
-  }
-
-  // ===========================================================================
-  // Diagnostics & Audit Hook
-  // ===========================================================================
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(
-        "lastAdminRoute",
-        location.pathname
-      );
-    } catch {
-      // Ignore storage failures.
-    }
-  }, [location.pathname]);
-
-  // ===========================================================================
-  // Render
-  // ===========================================================================
-
-  const content =
-    useMemo(() => {
-      if (children) {
-        return children;
-      }
-
-      return <Outlet />;
-    }, [children]);
-
-  return content;
+  return (
+    <Outlet />
+  );
 }
 
 // ============================================================================
-// Authorization Hook
+// Authorization hook
 // ============================================================================
 
 export function useAdminAuthorization() {
+  const auth =
+    useAuth() || {};
+
   const {
-    user,
+    user = null,
     permissions = [],
-    tenant,
+    tenant = null,
     hasPermission,
     hasFeature,
-  } = useAuth();
+  } = auth;
 
-  const isAdmin =
-    DEFAULT_ADMIN_ROLES.includes(
+  const normalizedRole =
+    normalizeRole(
       user?.role
     );
 
-  const can =
-    (permission) => {
-      if (
-        typeof hasPermission ===
-        "function"
-      ) {
-        return hasPermission(
-          permission
-        );
-      }
+  const isAdmin =
+    normalizeRoles(
+      DEFAULT_ADMIN_ROLES
+    ).has(
+      normalizedRole
+    );
 
-      return permissions.includes(
-        permission
-      );
-    };
+  const can =
+    useCallback(
+      (permission) => {
+        if (
+          !permission
+        ) {
+          return false;
+        }
+
+        if (
+          typeof hasPermission ===
+          'function'
+        ) {
+          return Boolean(
+            hasPermission(
+              permission
+            )
+          );
+        }
+
+        return (
+          Array.isArray(
+            permissions
+          ) &&
+          permissions.includes(
+            permission
+          )
+        );
+      },
+      [
+        hasPermission,
+        permissions,
+      ]
+    );
 
   const featureEnabled =
-    (flag) => {
-      if (
-        typeof hasFeature ===
-        "function"
-      ) {
-        return hasFeature(
-          flag
-        );
-      }
+    useCallback(
+      (flag) => {
+        if (!flag) {
+          return false;
+        }
 
-      return true;
-    };
+        /*
+         * Fail closed when feature authorization is unavailable.
+         */
+        if (
+          typeof hasFeature !==
+          'function'
+        ) {
+          return false;
+        }
+
+        return Boolean(
+          hasFeature(flag)
+        );
+      },
+      [hasFeature]
+    );
 
   return {
     user,
@@ -335,8 +681,19 @@ export function withAdminRoute(
   Component,
   options = {}
 ) {
-  const Wrapped =
-    (props) => (
+  if (
+    typeof Component !==
+    'function'
+  ) {
+    throw new TypeError(
+      'withAdminRoute requires a valid React component.'
+    );
+  }
+
+  function WrappedComponent(
+    props
+  ) {
+    return (
       <AdminRoute
         {...options}
       >
@@ -345,15 +702,16 @@ export function withAdminRoute(
         />
       </AdminRoute>
     );
+  }
 
-  Wrapped.displayName =
+  WrappedComponent.displayName =
     `withAdminRoute(${
       Component.displayName ||
       Component.name ||
-      "Component"
+      'Component'
     })`;
 
-  return Wrapped;
+  return WrappedComponent;
 }
 
 // ============================================================================

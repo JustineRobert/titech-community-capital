@@ -10,46 +10,40 @@
  *   frontend/src/components/ErrorBoundary.jsx
  *
  * Purpose:
- *   Production-grade React error boundary for isolating UI failures and
- *   preventing a single component failure from crashing the entire TITech
- *   application.
+ *   Production-grade React error boundary for isolating UI failures while
+ *   preserving application availability, observability, accessibility, and
+ *   controlled recovery.
  *
- * Features
+ * Design goals:
+ *   - Isolate render/lifecycle failures
+ *   - Recover safely without corrupting application state
+ *   - Support controlled retry and hard reload
+ *   - Support route/context-driven reset
+ *   - Support custom fallback rendering
+ *   - Prevent sensitive information from reaching production UI
+ *   - Provide stable error correlation identifiers
+ *   - Provide optional telemetry integration
+ *   - Support imperative ref operations
+ *   - Work correctly with lazy-loaded React modules
+ *   - Remain framework-light and architecture-compatible
+ *
+ * SECURITY / PRIVACY BOUNDARY
  * ----------------------------------------------------------------------------
- * ✓ React render error isolation
- * ✓ Lifecycle error isolation
- * ✓ Recover / retry support
- * ✓ Reset key support
- * ✓ Reset on route/context change
- * ✓ Custom fallback support
- * ✓ Default enterprise fallback UI
- * ✓ Development diagnostics
- * ✓ Production-safe error messaging
- * ✓ Error metadata
- * ✓ Error event callback
- * ✓ Telemetry hook
- * ✓ Error ID generation
- * ✓ Retry counter
- * ✓ Retry limit
- * ✓ Retry delay
- * ✓ Auto reset support
- * ✓ Reload support
- * ✓ Navigate-home support
- * ✓ Children support
- * ✓ Ref API
- * ✓ Accessible alert state
- * ✓ Screen-reader announcement
- * ✓ Stable test selectors
- * ✓ TITech branding consistency
+ * Never expose:
+ *   - JWTs
+ *   - refresh tokens
+ *   - passwords
+ *   - financial records
+ *   - KYC documents
+ *   - tenant secrets
+ *   - authorization headers
+ *   - backend credentials
+ *   - payment data
+ *   - complete request payloads
+ *   - raw production stack traces
  *
- * IMPORTANT SECURITY / PRIVACY BOUNDARY
- * ----------------------------------------------------------------------------
- * Do not expose sensitive application data, authentication tokens, financial
- * records, tenant secrets, stack traces, or backend credentials in production
- * error UI.
- *
- * Error details should be transmitted only through an approved TITech
- * telemetry/observability pipeline.
+ * Error telemetry should be routed through an approved TITech observability
+ * pipeline and should itself enforce redaction before transmission.
  *
  * ============================================================================
  */
@@ -57,10 +51,10 @@
 import React, {
   Component,
   createRef,
+  forwardRef,
 } from 'react';
 
 import PropTypes from 'prop-types';
-
 
 /* ============================================================================
  * Constants
@@ -70,39 +64,59 @@ const DEFAULT_RETRY_LIMIT = 2;
 
 const DEFAULT_RETRY_DELAY = 0;
 
-const DEFAULT_ERROR_ID_PREFIX =
-  'TITech-ERR';
+const DEFAULT_ERROR_ID_PREFIX = 'TITech-ERR';
 
-const DEFAULT_TEST_ID =
-  'titech-error-boundary';
+const DEFAULT_TEST_ID = 'titech-error-boundary';
 
-const DEFAULT_TITLE =
-  'Something went wrong';
+const DEFAULT_TITLE = 'Something went wrong';
 
 const DEFAULT_MESSAGE =
   'TITech encountered an unexpected application error.';
 
-const DEFAULT_RETRY_LABEL =
-  'Try again';
+const DEFAULT_RETRY_LABEL = 'Try again';
 
-const DEFAULT_HOME_LABEL =
-  'Return to dashboard';
+const DEFAULT_HOME_LABEL = 'Return to dashboard';
 
-const DEFAULT_RELOAD_LABEL =
-  'Reload application';
+const DEFAULT_RELOAD_LABEL = 'Reload application';
 
+const DEFAULT_HOME_PATH = '/dashboard';
+
+const MAX_SAFE_RETRY_LIMIT = 10;
+
+const MAX_SAFE_RETRY_DELAY = 30000;
+
+/**
+ * Browser error types that commonly indicate stale deployed JavaScript
+ * chunks after a frontend deployment.
+ */
+const CHUNK_LOAD_ERROR_PATTERNS = Object.freeze([
+  /ChunkLoadError/i,
+  /Loading chunk [\d]+ failed/i,
+  /Failed to fetch dynamically imported module/i,
+  /Importing a module script failed/i,
+  /error loading dynamically imported module/i,
+]);
+
+/* ============================================================================
+ * Environment helpers
+ * ========================================================================== */
+
+const isDevelopment =
+  typeof process !== 'undefined' &&
+  process?.env?.NODE_ENV === 'development';
+
+const isProduction =
+  typeof process !== 'undefined' &&
+  process?.env?.NODE_ENV === 'production';
 
 /* ============================================================================
  * Utility helpers
  * ========================================================================== */
 
-const cn = (
-  ...classes
-) =>
+const cn = (...classes) =>
   classes
     .filter(Boolean)
     .join(' ');
-
 
 const safeText = (
   value,
@@ -116,27 +130,105 @@ const safeText = (
   }
 
   try {
-    return (
-      String(value).trim() ||
-      fallback
-    );
+    const text = String(value).trim();
+
+    return text || fallback;
   } catch {
     return fallback;
   }
 };
 
+const clampNumber = (
+  value,
+  {
+    min,
+    max,
+    fallback,
+  },
+) => {
+  const numeric = Number(value);
 
-const isDevelopment =
-  typeof process !==
-    'undefined' &&
-  process?.env?.NODE_ENV ===
-    'development';
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
 
+  return Math.min(
+    max,
+    Math.max(
+      min,
+      numeric,
+    ),
+  );
+};
+
+const normalizeRetryLimit = (
+  value,
+) =>
+  Math.floor(
+    clampNumber(
+      value,
+      {
+        min: 0,
+        max: MAX_SAFE_RETRY_LIMIT,
+        fallback: DEFAULT_RETRY_LIMIT,
+      },
+    ),
+  );
+
+const normalizeRetryDelay = (
+  value,
+) =>
+  clampNumber(
+    value,
+    {
+      min: 0,
+      max: MAX_SAFE_RETRY_DELAY,
+      fallback: DEFAULT_RETRY_DELAY,
+    },
+  );
+
+const safeJsonClone = (
+  value,
+) => {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(
+      JSON.stringify(value),
+    );
+  } catch {
+    return null;
+  }
+};
 
 const createErrorId = (
-  prefix =
-    DEFAULT_ERROR_ID_PREFIX,
+  prefix = DEFAULT_ERROR_ID_PREFIX,
 ) => {
+  const normalizedPrefix =
+    safeText(
+      prefix,
+      DEFAULT_ERROR_ID_PREFIX,
+    );
+
+  /**
+   * Prefer cryptographically stronger UUID generation when available.
+   */
+  try {
+    if (
+      typeof crypto !== 'undefined' &&
+      typeof crypto.randomUUID === 'function'
+    ) {
+      return `${normalizedPrefix}-${crypto.randomUUID()}`;
+    }
+  } catch {
+    // Fall through to portable generation.
+  }
+
   const timestamp =
     Date.now()
       .toString(36)
@@ -147,104 +239,240 @@ const createErrorId = (
       .toString(36)
       .slice(
         2,
-        8,
+        10,
       )
       .toUpperCase();
 
-  return `${safeText(
-    prefix,
-    DEFAULT_ERROR_ID_PREFIX,
-  )}-${timestamp}-${random}`;
+  return `${normalizedPrefix}-${timestamp}-${random}`;
 };
 
+const isErrorLike = (
+  value,
+) =>
+  Boolean(
+    value &&
+    (
+      value instanceof Error ||
+      typeof value === 'object'
+    ),
+  );
 
 const serializeError = (
   error,
+  {
+    includeStack = false,
+  } = {},
 ) => {
   if (!error) {
     return {
-      name:
-        'UnknownError',
-
-      message:
-        'Unknown application error',
+      name: 'UnknownError',
+      message: 'Unknown application error',
     };
   }
 
-  return {
-    name:
-      safeText(
-        error.name,
-        'Error',
-      ),
+  const serialized = {
+    name: safeText(
+      error.name,
+      'Error',
+    ),
 
-    message:
-      safeText(
-        error.message,
-        'Unknown application error',
-      ),
-
-    stack:
-      safeText(
-        error.stack,
-      ),
+    message: safeText(
+      error.message,
+      'Unknown application error',
+    ),
   };
-};
 
+  if (
+    includeStack &&
+    error.stack
+  ) {
+    serialized.stack = safeText(
+      error.stack,
+    );
+  }
+
+  return serialized;
+};
 
 const getLocationSnapshot = () => {
   if (
-    typeof window ===
-    'undefined'
+    typeof window === 'undefined'
   ) {
     return null;
   }
 
   return {
     pathname:
-      window.location?.pathname ||
-      '',
+      safeText(
+        window.location?.pathname,
+      ),
 
     search:
-      window.location?.search ||
-      '',
+      safeText(
+        window.location?.search,
+      ),
 
     hash:
-      window.location?.hash ||
-      '',
+      safeText(
+        window.location?.hash,
+      ),
   };
 };
 
-
 const getEnvironmentSnapshot = () => ({
-  userAgent:
-    typeof navigator !==
-    'undefined'
-      ? safeText(
-          navigator.userAgent,
-        )
-      : '',
-
-  language:
-    typeof navigator !==
-    'undefined'
-      ? safeText(
-          navigator.language,
-        )
-      : '',
-
   online:
-    typeof navigator !==
-    'undefined'
+    typeof navigator !== 'undefined'
       ? Boolean(
           navigator.onLine,
         )
       : true,
 
+  language:
+    typeof navigator !== 'undefined'
+      ? safeText(
+          navigator.language,
+        )
+      : '',
+
+  platform:
+    typeof navigator !== 'undefined'
+      ? safeText(
+          navigator.platform,
+        )
+      : '',
+
   timestamp:
     new Date().toISOString(),
 });
 
+const sanitizeContext = (
+  context,
+) => {
+  if (
+    context === null ||
+    context === undefined
+  ) {
+    return null;
+  }
+
+  if (
+    typeof context === 'string'
+  ) {
+    return safeText(
+      context,
+    );
+  }
+
+  if (
+    typeof context !== 'object'
+  ) {
+    return null;
+  }
+
+  try {
+    /**
+     * Deliberately restrict context serialization.
+     */
+    const candidate = {};
+
+    Object.keys(context)
+      .slice(0, 20)
+      .forEach(
+        (key) => {
+          if (
+            !key ||
+            typeof key !== 'string'
+          ) {
+            return;
+          }
+
+          const lowerKey =
+            key.toLowerCase();
+
+          const blocked =
+            lowerKey.includes('token') ||
+            lowerKey.includes('secret') ||
+            lowerKey.includes('password') ||
+            lowerKey.includes('authorization') ||
+            lowerKey.includes('cookie') ||
+            lowerKey.includes('credential');
+
+          if (blocked) {
+            return;
+          }
+
+          const value =
+            context[key];
+
+          if (
+            value === null ||
+            typeof value ===
+              'string' ||
+            typeof value ===
+              'number' ||
+            typeof value ===
+              'boolean'
+          ) {
+            candidate[key] =
+              value;
+          }
+        },
+      );
+
+    return candidate;
+  } catch {
+    return null;
+  }
+};
+
+const sanitizeTenant = (
+  tenant,
+) => {
+  if (
+    !tenant ||
+    typeof tenant !==
+      'object'
+  ) {
+    return null;
+  }
+
+  const tenantId =
+    tenant.id ??
+    tenant.tenantId ??
+    null;
+
+  /**
+   * Keep tenant correlation deliberately narrow.
+   */
+  return tenantId === null ||
+    tenantId === undefined
+    ? null
+    : {
+        id: safeText(
+          tenantId,
+        ),
+      };
+};
+
+const isChunkLoadError = (
+  error,
+) => {
+  const message =
+    safeText(
+      error?.message,
+    );
+
+  const name =
+    safeText(
+      error?.name,
+    );
+
+  return CHUNK_LOAD_ERROR_PATTERNS.some(
+    (pattern) =>
+      pattern.test(message) ||
+      pattern.test(name),
+  );
+};
 
 /* ============================================================================
  * Icons
@@ -270,6 +498,13 @@ const Icon = ({
   </svg>
 );
 
+Icon.propTypes = {
+  children:
+    PropTypes.node.isRequired,
+
+  size:
+    PropTypes.number,
+};
 
 const AlertIcon = ({
   size = 48,
@@ -281,6 +516,10 @@ const AlertIcon = ({
   </Icon>
 );
 
+AlertIcon.propTypes = {
+  size:
+    PropTypes.number,
+};
 
 const RefreshIcon = ({
   size = 17,
@@ -293,6 +532,10 @@ const RefreshIcon = ({
   </Icon>
 );
 
+RefreshIcon.propTypes = {
+  size:
+    PropTypes.number,
+};
 
 const HomeIcon = ({
   size = 17,
@@ -304,6 +547,10 @@ const HomeIcon = ({
   </Icon>
 );
 
+HomeIcon.propTypes = {
+  size:
+    PropTypes.number,
+};
 
 const ReloadIcon = ({
   size = 17,
@@ -314,23 +561,22 @@ const ReloadIcon = ({
   </Icon>
 );
 
+ReloadIcon.propTypes = {
+  size:
+    PropTypes.number,
+};
 
 /* ============================================================================
  * Default fallback presentation
  * ========================================================================== */
 
 class DefaultErrorFallback extends React.PureComponent {
-  handleRetry = async () => {
+  handleRetry = () => {
     const {
       onRetry,
     } = this.props;
 
-    if (
-      typeof onRetry ===
-      'function'
-    ) {
-      await onRetry();
-    }
+    onRetry?.();
   };
 
   handleHome = () => {
@@ -366,6 +612,7 @@ class DefaultErrorFallback extends React.PureComponent {
       retrying,
       className,
       testId,
+      isChunkError,
     } = this.props;
 
     return (
@@ -378,9 +625,7 @@ class DefaultErrorFallback extends React.PureComponent {
         aria-live="assertive"
         aria-labelledby="titech-error-boundary-title"
         aria-describedby="titech-error-boundary-message"
-        data-testid={
-          testId
-        }
+        data-testid={testId}
       >
         <div className="titech-error-boundary__content">
 
@@ -395,30 +640,29 @@ class DefaultErrorFallback extends React.PureComponent {
             id="titech-error-boundary-title"
             className="titech-error-boundary__title"
           >
-            {
-              title
-            }
+            {title}
           </h1>
 
           <p
             id="titech-error-boundary-message"
             className="titech-error-boundary__message"
           >
-            {
-              message
-            }
+            {message}
           </p>
+
+          {isChunkError ? (
+            <p className="titech-error-boundary__message">
+              A newer version of TITech may have been
+              deployed. Reloading the application may
+              resolve this problem.
+            </p>
+          ) : null}
 
           {showErrorId &&
           errorId ? (
             <p className="titech-error-boundary__error-id">
-              Reference:
-              {' '}
-              <code>
-                {
-                  errorId
-                }
-              </code>
+              Reference:{' '}
+              <code>{errorId}</code>
             </p>
           ) : null}
 
@@ -431,30 +675,20 @@ class DefaultErrorFallback extends React.PureComponent {
 
               <div className="titech-error-boundary__details-body">
                 <div>
-                  <strong>
-                    Name:
-                  </strong>{' '}
-                  {
-                    error?.name ||
-                    'Error'
-                  }
+                  <strong>Name:</strong>{' '}
+                  {error?.name ||
+                    'Error'}
                 </div>
 
                 <div>
-                  <strong>
-                    Message:
-                  </strong>{' '}
-                  {
-                    error?.message ||
-                    'Unknown error'
-                  }
+                  <strong>Message:</strong>{' '}
+                  {error?.message ||
+                    'Unknown error'}
                 </div>
 
                 {error?.stack ? (
                   <pre>
-                    {
-                      error.stack
-                    }
+                    {error.stack}
                   </pre>
                 ) : null}
               </div>
@@ -470,9 +704,7 @@ class DefaultErrorFallback extends React.PureComponent {
                 onClick={
                   this.handleRetry
                 }
-                disabled={
-                  retrying
-                }
+                disabled={retrying}
                 aria-busy={
                   retrying
                     ? 'true'
@@ -505,9 +737,7 @@ class DefaultErrorFallback extends React.PureComponent {
                 <HomeIcon />
 
                 <span>
-                  {
-                    homeLabel
-                  }
+                  {homeLabel}
                 </span>
               </button>
             ) : null}
@@ -527,9 +757,7 @@ class DefaultErrorFallback extends React.PureComponent {
                 <ReloadIcon />
 
                 <span>
-                  {
-                    reloadLabel
-                  }
+                  {reloadLabel}
                 </span>
               </button>
             ) : null}
@@ -541,43 +769,110 @@ class DefaultErrorFallback extends React.PureComponent {
   }
 }
 
+DefaultErrorFallback.propTypes = {
+  title:
+    PropTypes.string.isRequired,
+
+  message:
+    PropTypes.string.isRequired,
+
+  errorId:
+    PropTypes.string,
+
+  retryLabel:
+    PropTypes.string.isRequired,
+
+  homeLabel:
+    PropTypes.string.isRequired,
+
+  reloadLabel:
+    PropTypes.string.isRequired,
+
+  canRetry:
+    PropTypes.bool.isRequired,
+
+  showHome:
+    PropTypes.bool.isRequired,
+
+  showReload:
+    PropTypes.bool.isRequired,
+
+  showErrorId:
+    PropTypes.bool.isRequired,
+
+  showDetails:
+    PropTypes.bool.isRequired,
+
+  error:
+    PropTypes.shape({
+      name:
+        PropTypes.string,
+
+      message:
+        PropTypes.string,
+
+      stack:
+        PropTypes.string,
+    }),
+
+  retrying:
+    PropTypes.bool.isRequired,
+
+  className:
+    PropTypes.string.isRequired,
+
+  testId:
+    PropTypes.string.isRequired,
+
+  onRetry:
+    PropTypes.func.isRequired,
+
+  onHome:
+    PropTypes.func.isRequired,
+
+  onReload:
+    PropTypes.func.isRequired,
+
+  isChunkError:
+    PropTypes.bool.isRequired,
+};
 
 /* ============================================================================
- * ErrorBoundary
+ * Internal ErrorBoundary
  * ========================================================================== */
 
-class ErrorBoundary extends Component {
+class ErrorBoundaryController extends Component {
   constructor(
     props,
   ) {
-    super(
-      props,
-    );
+    super(props);
 
     this.state = {
-      hasError:
-        false,
+      hasError: false,
 
-      error:
+      error: null,
+
+      errorInfo: null,
+
+      errorId: null,
+
+      retryCount: 0,
+
+      retrying: false,
+
+      lastResetKey: props.resetKey,
+
+      lastLocationKey:
+        props.locationKey ??
         null,
-
-      errorInfo:
-        null,
-
-      errorId:
-        null,
-
-      retryCount:
-        0,
-
-      retrying:
-        false,
     };
 
     this.rootRef =
       createRef();
-  }
 
+    this.hasAnnouncedError =
+      false;
+  }
 
   /* ==========================================================================
    * React error capture
@@ -587,35 +882,43 @@ class ErrorBoundary extends Component {
     error,
   ) {
     return {
-      hasError:
-        true,
+      hasError: true,
 
       error,
 
-      errorInfo:
-        null,
+      errorInfo: null,
 
       errorId:
         createErrorId(),
     };
   }
 
-
   componentDidCatch(
     error,
     errorInfo,
   ) {
+    const errorId =
+      this.state.errorId ||
+      createErrorId();
+
     const serialized =
       serializeError(
+        error,
+        {
+          includeStack:
+            isDevelopment,
+        },
+      );
+
+    const chunkError =
+      isChunkLoadError(
         error,
       );
 
     const payload = {
-      error:
-        serialized,
+      errorId,
 
-      errorId:
-        this.state.errorId,
+      error: serialized,
 
       componentStack:
         safeText(
@@ -632,31 +935,30 @@ class ErrorBoundary extends Component {
         getEnvironmentSnapshot(),
 
       context:
-        this.props.context ||
-        null,
+        sanitizeContext(
+          this.props.context,
+        ),
 
       tenant:
-        this.props.tenant
-          ? {
-              id:
-                this.props
-                  .tenant
-                  ?.id ??
-                this.props
-                  .tenant
-                  ?.tenantId ??
-                null,
-            }
-          : null,
+        sanitizeTenant(
+          this.props.tenant,
+        ),
+
+      metadata:
+        sanitizeContext(
+          this.props.metadata,
+        ),
+
+      isChunkLoadError:
+        chunkError,
     };
 
     this.setState({
       errorInfo,
+
+      errorId,
     });
 
-    /**
-     * Console diagnostics are intentionally restricted to development.
-     */
     if (
       isDevelopment
     ) {
@@ -668,7 +970,7 @@ class ErrorBoundary extends Component {
     }
 
     /**
-     * Parent callback.
+     * Parent-level error callback.
      */
     try {
       this.props.onError?.(
@@ -689,10 +991,7 @@ class ErrorBoundary extends Component {
     }
 
     /**
-     * Enterprise telemetry integration.
-     *
-     * The host application can connect this to Sentry, OpenTelemetry,
-     * Datadog, a TITech observability gateway, or another approved service.
+     * Telemetry callback.
      */
     try {
       this.props.onTelemetry?.(
@@ -711,184 +1010,358 @@ class ErrorBoundary extends Component {
         );
       }
     }
+
+    /**
+     * Optional browser-side error event hook.
+     */
+    try {
+      this.props.onCapturedError?.(
+        error,
+        errorInfo,
+      );
+    } catch (
+      captureCallbackError
+    ) {
+      if (
+        isDevelopment
+      ) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[TITech ErrorBoundary] onCapturedError callback failed:',
+          captureCallbackError,
+        );
+      }
+    }
+
+    this.deferFocus();
   }
 
-
   /* ==========================================================================
-   * Reset lifecycle
+   * Lifecycle / reset handling
    * ======================================================================== */
+
+  componentDidMount() {
+    this.deferFocus();
+
+    this.installConnectivityListeners();
+  }
 
   componentDidUpdate(
     previousProps,
+    previousState,
   ) {
     const {
       resetKey,
+      resetOnLocationChange,
+      locationKey,
     } = this.props;
 
+    /**
+     * Explicit reset-key driven recovery.
+     */
     if (
       resetKey !==
       previousProps.resetKey
     ) {
-      this.resetError();
+      this.resetError({
+        resetRetryCount:
+          true,
+
+        invokeCallback:
+          true,
+      });
+
+      return;
     }
 
+    /**
+     * Route/context driven recovery.
+     *
+     * The parent should pass a stable `locationKey`, ideally pathname+search.
+     * This avoids reaching into global browser state and works with routers.
+     */
     if (
-      this.props.resetOnLocationChange &&
-      typeof window !==
-        'undefined'
+      resetOnLocationChange &&
+      locationKey !==
+        previousProps.locationKey
     ) {
-      const previousLocation =
-        previousProps.__locationPath;
+      this.resetError({
+        resetRetryCount:
+          true,
 
-      const currentLocation =
-        window.location?.pathname;
+        invokeCallback:
+          true,
+      });
 
-      if (
-        previousLocation &&
-        currentLocation &&
-        previousLocation !==
-          currentLocation
-      ) {
-        this.resetError();
-      }
+      return;
+    }
+
+    /**
+     * Focus the fallback after entering the error state.
+     */
+    if (
+      this.state.hasError &&
+      !previousState.hasError
+    ) {
+      this.deferFocus();
     }
   }
 
+  componentWillUnmount() {
+    this.removeConnectivityListeners();
+
+    if (
+      this.retryTimer
+    ) {
+      clearTimeout(
+        this.retryTimer,
+      );
+    }
+  }
+
+  /* ==========================================================================
+   * Accessibility / focus
+   * ======================================================================== */
+
+  deferFocus = () => {
+    if (
+      typeof window ===
+      'undefined'
+    ) {
+      return;
+    }
+
+    window.requestAnimationFrame?.(
+      () => {
+        this.rootRef.current?.focus();
+      },
+    );
+  };
+
+  /* ==========================================================================
+   * Connectivity
+   * ======================================================================== */
+
+  installConnectivityListeners = () => {
+    if (
+      typeof window ===
+      'undefined'
+    ) {
+      return;
+    }
+
+    window.addEventListener(
+      'online',
+      this.handleOnline,
+    );
+  };
+
+  removeConnectivityListeners = () => {
+    if (
+      typeof window ===
+      'undefined'
+    ) {
+      return;
+    }
+
+    window.removeEventListener(
+      'online',
+      this.handleOnline,
+    );
+  };
+
+  handleOnline = () => {
+    if (
+      !this.state.hasError
+    ) {
+      return;
+    }
+
+    if (
+      this.props.autoRecoverOnOnline
+    ) {
+      this.handleRetry();
+    }
+  };
 
   /* ==========================================================================
    * Reset
    * ======================================================================== */
 
-  resetError = () => {
+  resetError = ({
+    resetRetryCount = true,
+    invokeCallback = true,
+  } = {}) => {
     if (
       this.state.retrying
     ) {
-      return;
+      return false;
     }
 
-    this.setState({
-      hasError:
-        false,
+    this.setState(
+      (previousState) => ({
+        hasError: false,
 
-      error:
-        null,
+        error: null,
 
-      errorInfo:
-        null,
+        errorInfo: null,
 
-      errorId:
-        null,
+        errorId: null,
 
-      retrying:
-        false,
-    });
+        retrying: false,
 
-    this.props.onReset?.();
+        retryCount:
+          resetRetryCount
+            ? 0
+            : previousState.retryCount,
+      }),
+      () => {
+        if (
+          invokeCallback
+        ) {
+          try {
+            this.props.onReset?.();
+          } catch (
+            resetCallbackError
+          ) {
+            if (
+              isDevelopment
+            ) {
+              // eslint-disable-next-line no-console
+              console.error(
+                '[TITech ErrorBoundary] onReset callback failed:',
+                resetCallbackError,
+              );
+            }
+          }
+        }
+
+        this.deferFocus();
+      },
+    );
+
+    return true;
   };
-
 
   /* ==========================================================================
    * Retry
    * ======================================================================== */
 
   handleRetry = async () => {
-    const {
-      retryLimit =
-        DEFAULT_RETRY_LIMIT,
-
-      retryDelay =
-        DEFAULT_RETRY_DELAY,
-
-      onRetry,
-    } = this.props;
-
     if (
       this.state.retrying
     ) {
-      return;
+      return false;
     }
+
+    const retryLimit =
+      normalizeRetryLimit(
+        this.props.retryLimit,
+      );
+
+    const retryDelay =
+      normalizeRetryDelay(
+        this.props.retryDelay,
+      );
 
     if (
       this.state.retryCount >=
       retryLimit
     ) {
-      return;
+      return false;
     }
 
+    const nextRetryCount =
+      this.state.retryCount + 1;
+
+    const currentError =
+      this.state.error;
+
+    const currentErrorId =
+      this.state.errorId;
+
     this.setState({
-      retrying:
-        true,
+      retrying: true,
     });
 
     try {
-      const delay =
-        Math.max(
-          0,
-          Number(
-            retryDelay,
-          ) ||
-            0,
-        );
-
       if (
-        delay > 0
+        retryDelay > 0
       ) {
         await new Promise(
-          (
-            resolve,
-          ) =>
-            setTimeout(
-              resolve,
-              delay,
-            ),
+          (resolve) => {
+            this.retryTimer =
+              setTimeout(
+                resolve,
+                retryDelay,
+              );
+          },
         );
       }
 
-      await onRetry?.({
+      await this.props.onRetry?.({
         error:
-          this.state.error,
+          serializeError(
+            currentError,
+            {
+              includeStack:
+                isDevelopment,
+            },
+          ),
 
         errorId:
-          this.state.errorId,
+          currentErrorId,
 
         retryCount:
-          this.state.retryCount +
-          1,
+          nextRetryCount,
       });
 
       this.setState({
-        hasError:
-          false,
+        hasError: false,
 
-        error:
-          null,
+        error: null,
 
-        errorInfo:
-          null,
+        errorInfo: null,
 
-        errorId:
-          null,
+        errorId: null,
 
-        retrying:
-          false,
+        retrying: false,
 
         retryCount:
-          this.state.retryCount +
-          1,
+          nextRetryCount,
       });
+
+      try {
+        this.props.onRecovered?.({
+          errorId:
+            currentErrorId,
+
+          retryCount:
+            nextRetryCount,
+        });
+      } catch (
+        recoveryCallbackError
+      ) {
+        if (
+          isDevelopment
+        ) {
+          // eslint-disable-next-line no-console
+          console.error(
+            '[TITech ErrorBoundary] onRecovered callback failed:',
+            recoveryCallbackError,
+          );
+        }
+      }
+
+      return true;
     } catch (
       retryError
     ) {
-      /**
-       * Keep the original boundary active if retry itself fails.
-       */
       this.setState({
-        retrying:
-          false,
+        retrying: false,
 
         retryCount:
-          this.state.retryCount +
-          1,
+          nextRetryCount,
       });
 
       if (
@@ -901,16 +1374,36 @@ class ErrorBoundary extends Component {
         );
       }
 
-      this.props.onRetryError?.(
-        retryError,
-        {
-          errorId:
-            this.state.errorId,
-        },
-      );
+      try {
+        this.props.onRetryError?.(
+          retryError,
+          {
+            errorId:
+              currentErrorId,
+
+            retryCount:
+              nextRetryCount,
+          },
+        );
+      } catch (
+        retryErrorCallbackError
+      ) {
+        if (
+          isDevelopment
+        ) {
+          // eslint-disable-next-line no-console
+          console.error(
+            '[TITech ErrorBoundary] onRetryError callback failed:',
+            retryErrorCallbackError,
+          );
+        }
+      }
+
+      return false;
+    } finally {
+      this.retryTimer = null;
     }
   };
-
 
   /* ==========================================================================
    * Navigation
@@ -919,72 +1412,106 @@ class ErrorBoundary extends Component {
   handleHome = () => {
     const {
       homePath =
-        '/dashboard',
+        DEFAULT_HOME_PATH,
 
       onHome,
     } = this.props;
 
-    if (
-      typeof onHome ===
-      'function'
-    ) {
-      onHome();
-      return;
-    }
+    try {
+      if (
+        typeof onHome ===
+        'function'
+      ) {
+        onHome();
+        return;
+      }
 
-    if (
-      typeof window !==
-        'undefined' &&
-      homePath
+      if (
+        typeof window !==
+          'undefined' &&
+        homePath
+      ) {
+        /**
+         * assign() intentionally performs a full navigation, making this
+         * useful when the application state itself may be compromised.
+         */
+        window.location.assign(
+          homePath,
+        );
+      }
+    } catch (
+      navigationError
     ) {
-      window.location.assign(
-        homePath,
-      );
+      if (
+        isDevelopment
+      ) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[TITech ErrorBoundary] home navigation failed:',
+          navigationError,
+        );
+      }
     }
   };
-
 
   handleReload = () => {
     const {
       onReload,
     } = this.props;
 
-    if (
-      typeof onReload ===
-      'function'
-    ) {
-      onReload();
-      return;
-    }
-
-    if (
-      typeof window !==
-      'undefined' &&
-      typeof window.location
-        ?.reload ===
+    try {
+      if (
+        typeof onReload ===
         'function'
+      ) {
+        onReload();
+        return;
+      }
+
+      if (
+        typeof window !==
+          'undefined' &&
+        typeof window.location
+          ?.reload ===
+          'function'
+      ) {
+        window.location.reload();
+      }
+    } catch (
+      reloadError
     ) {
-      window.location.reload();
+      if (
+        isDevelopment
+      ) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[TITech ErrorBoundary] reload failed:',
+          reloadError,
+        );
+      }
     }
   };
 
-
   /* ==========================================================================
-   * Public ref API
+   * Imperative ref API
    * ======================================================================== */
 
   getImperativeHandle = () => ({
     reset:
-      this.resetError,
+      () =>
+        this.resetError(),
 
     retry:
-      this.handleRetry,
+      () =>
+        this.handleRetry(),
 
     reload:
-      this.handleReload,
+      () =>
+        this.handleReload(),
 
     goHome:
-      this.handleHome,
+      () =>
+        this.handleHome(),
 
     hasError:
       () =>
@@ -1007,7 +1534,6 @@ class ErrorBoundary extends Component {
         this.rootRef.current?.focus(),
   });
 
-
   /* ==========================================================================
    * Render
    * ======================================================================== */
@@ -1015,9 +1541,7 @@ class ErrorBoundary extends Component {
   render() {
     const {
       children,
-
       fallback,
-
       fallbackComponent,
 
       title =
@@ -1035,11 +1559,9 @@ class ErrorBoundary extends Component {
       reloadLabel =
         DEFAULT_RELOAD_LABEL,
 
-      showHome =
-        true,
+      showHome = true,
 
-      showReload =
-        false,
+      showReload = false,
 
       showErrorId =
         isDevelopment,
@@ -1047,11 +1569,7 @@ class ErrorBoundary extends Component {
       showDetails =
         isDevelopment,
 
-      retryLimit =
-        DEFAULT_RETRY_LIMIT,
-
-      className =
-        '',
+      className = '',
 
       testId =
         DEFAULT_TEST_ID,
@@ -1063,11 +1581,24 @@ class ErrorBoundary extends Component {
       return children;
     }
 
+    const errorPayload =
+      serializeError(
+        this.state.error,
+        {
+          includeStack:
+            isDevelopment,
+        },
+      );
+
+    const canRetry =
+      this.state.retryCount <
+      normalizeRetryLimit(
+        this.props.retryLimit,
+      );
+
     const fallbackProps = {
       error:
-        serializeError(
-          this.state.error,
-        ),
+        errorPayload,
 
       errorInfo:
         this.state.errorInfo,
@@ -1081,9 +1612,7 @@ class ErrorBoundary extends Component {
       retrying:
         this.state.retrying,
 
-      canRetry:
-        this.state.retryCount <
-        retryLimit,
+      canRetry,
 
       onRetry:
         this.handleRetry,
@@ -1115,10 +1644,15 @@ class ErrorBoundary extends Component {
       className,
 
       testId,
+
+      isChunkError:
+        isChunkLoadError(
+          this.state.error,
+        ),
     };
 
     /**
-     * Function-based custom fallback.
+     * Function-based fallback.
      */
     if (
       typeof fallbackComponent ===
@@ -1130,7 +1664,7 @@ class ErrorBoundary extends Component {
     }
 
     /**
-     * React-node fallback.
+     * Function or React node fallback.
      */
     if (
       fallback !==
@@ -1155,9 +1689,11 @@ class ErrorBoundary extends Component {
         ref={
           this.rootRef
         }
-        tabIndex={
-          -1
-        }
+        tabIndex={-1}
+        style={{
+          outline: 'none',
+        }}
+        data-testid={`${testId}-container`}
       >
         <DefaultErrorFallback
           {...fallbackProps}
@@ -1167,15 +1703,13 @@ class ErrorBoundary extends Component {
   }
 }
 
-
 /* ============================================================================
  * PropTypes
  * ========================================================================== */
 
-ErrorBoundary.propTypes = {
+ErrorBoundaryController.propTypes = {
   children:
-    PropTypes.node
-      .isRequired,
+    PropTypes.node.isRequired,
 
   fallback:
     PropTypes.oneOfType([
@@ -1229,10 +1763,19 @@ ErrorBoundary.propTypes = {
   resetOnLocationChange:
     PropTypes.bool,
 
+  locationKey:
+    PropTypes.string,
+
+  autoRecoverOnOnline:
+    PropTypes.bool,
+
   onError:
     PropTypes.func,
 
   onTelemetry:
+    PropTypes.func,
+
+  onCapturedError:
     PropTypes.func,
 
   onReset:
@@ -1242,6 +1785,9 @@ ErrorBoundary.propTypes = {
     PropTypes.func,
 
   onRetryError:
+    PropTypes.func,
+
+  onRecovered:
     PropTypes.func,
 
   onHome:
@@ -1258,6 +1804,9 @@ ErrorBoundary.propTypes = {
       PropTypes.string,
       PropTypes.object,
     ]),
+
+  metadata:
+    PropTypes.object,
 
   tenant:
     PropTypes.shape({
@@ -1279,12 +1828,152 @@ ErrorBoundary.propTypes = {
 
   testId:
     PropTypes.string,
+
+  /**
+   * Internal callback supplied by the forwarded ref wrapper.
+   */
+  forwardedRef:
+    PropTypes.object,
 };
 
-
 /* ============================================================================
- * Defaults
+ * ErrorBoundary with imperative ref support
  * ========================================================================== */
+
+const ErrorBoundary = forwardRef(
+  (props, ref) => (
+    <ErrorBoundaryController
+      {...props}
+      ref={ref}
+    />
+  ),
+);
+
+ErrorBoundary.displayName =
+  'TITechErrorBoundary';
+
+ErrorBoundary.propTypes = {
+  children:
+    PropTypes.node.isRequired,
+
+  fallback:
+    PropTypes.oneOfType([
+      PropTypes.node,
+      PropTypes.func,
+    ]),
+
+  fallbackComponent:
+    PropTypes.func,
+
+  title:
+    PropTypes.string,
+
+  message:
+    PropTypes.string,
+
+  retryLabel:
+    PropTypes.string,
+
+  homeLabel:
+    PropTypes.string,
+
+  reloadLabel:
+    PropTypes.string,
+
+  showHome:
+    PropTypes.bool,
+
+  showReload:
+    PropTypes.bool,
+
+  showErrorId:
+    PropTypes.bool,
+
+  showDetails:
+    PropTypes.bool,
+
+  retryLimit:
+    PropTypes.number,
+
+  retryDelay:
+    PropTypes.number,
+
+  resetKey:
+    PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number,
+      PropTypes.bool,
+    ]),
+
+  resetOnLocationChange:
+    PropTypes.bool,
+
+  locationKey:
+    PropTypes.string,
+
+  autoRecoverOnOnline:
+    PropTypes.bool,
+
+  onError:
+    PropTypes.func,
+
+  onTelemetry:
+    PropTypes.func,
+
+  onCapturedError:
+    PropTypes.func,
+
+  onReset:
+    PropTypes.func,
+
+  onRetry:
+    PropTypes.func,
+
+  onRetryError:
+    PropTypes.func,
+
+  onRecovered:
+    PropTypes.func,
+
+  onHome:
+    PropTypes.func,
+
+  onReload:
+    PropTypes.func,
+
+  homePath:
+    PropTypes.string,
+
+  context:
+    PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.object,
+    ]),
+
+  metadata:
+    PropTypes.object,
+
+  tenant:
+    PropTypes.shape({
+      id:
+        PropTypes.oneOfType([
+          PropTypes.string,
+          PropTypes.number,
+        ]),
+      
+      tenantId:
+        PropTypes.oneOfType([
+          PropTypes.string,
+          PropTypes.number,
+        ]),
+    }),
+
+  className:
+    PropTypes.string,
+
+  testId:
+    PropTypes.string,
+};
 
 ErrorBoundary.defaultProps = {
   fallback:
@@ -1332,10 +2021,19 @@ ErrorBoundary.defaultProps = {
   resetOnLocationChange:
     false,
 
+  locationKey:
+    undefined,
+
+  autoRecoverOnOnline:
+    false,
+
   onError:
     undefined,
 
   onTelemetry:
+    undefined,
+
+  onCapturedError:
     undefined,
 
   onReset:
@@ -1347,6 +2045,9 @@ ErrorBoundary.defaultProps = {
   onRetryError:
     undefined,
 
+  onRecovered:
+    undefined,
+
   onHome:
     undefined,
 
@@ -1354,9 +2055,12 @@ ErrorBoundary.defaultProps = {
     undefined,
 
   homePath:
-    '/dashboard',
+    DEFAULT_HOME_PATH,
 
   context:
+    undefined,
+
+  metadata:
     undefined,
 
   tenant:
@@ -1369,7 +2073,6 @@ ErrorBoundary.defaultProps = {
     DEFAULT_TEST_ID,
 };
 
-
 /* ============================================================================
  * Named exports
  * ========================================================================== */
@@ -1377,6 +2080,7 @@ ErrorBoundary.defaultProps = {
 export {
   DEFAULT_ERROR_ID_PREFIX,
   DEFAULT_HOME_LABEL,
+  DEFAULT_HOME_PATH,
   DEFAULT_MESSAGE,
   DEFAULT_RELOAD_LABEL,
   DEFAULT_RETRY_DELAY,
@@ -1385,13 +2089,18 @@ export {
   DEFAULT_TEST_ID,
   DEFAULT_TITLE,
   DefaultErrorFallback,
+  ErrorBoundaryController,
+  CHUNK_LOAD_ERROR_PATTERNS,
+  clampNumber,
   createErrorId,
   getEnvironmentSnapshot,
   getLocationSnapshot,
+  isChunkLoadError,
   safeText,
+  sanitizeContext,
+  sanitizeTenant,
   serializeError,
 };
-
 
 /* ============================================================================
  * Default export

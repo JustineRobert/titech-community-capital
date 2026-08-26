@@ -3,7 +3,7 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * TITech Community Capital Operating System
  * =============================================================================
  *
  * File:
@@ -15,53 +15,75 @@
  * Responsibilities:
  *   - Initialize the application logger before infrastructure startup.
  *   - Provide structured JSON logging in production.
- *   - Support human-readable development logs.
- *   - Redact secrets and sensitive financial/security fields.
- *   - Support request/correlation/trace context via AsyncLocalStorage.
+ *   - Provide human-readable development logging when pino-pretty exists.
+ *   - Redact sensitive security, authentication and financial credentials.
+ *   - Provide AsyncLocalStorage request/correlation context.
  *   - Provide child loggers.
- *   - Provide audit/security/financial logging helpers.
- *   - Expose a stable logger API to the whole application.
- *   - Integrate with bootstrap/hooks lifecycle.
+ *   - Provide audit/security/financial/performance helpers.
+ *   - Provide a stable logger API.
+ *   - Integrate with the canonical bootstrap lifecycle.
  *   - Flush logs during graceful shutdown.
- *   - Prevent duplicate logger initialization.
- *   - Never expose secrets through logger diagnostics.
+ *   - Prevent duplicate initialization.
+ *   - Never expose secrets through diagnostics.
  *
  * Architectural position:
  *
- *   environment.js
+ *   environment
  *       ↓
- *   config/index.js
+ *   configuration
  *       ↓
- *   logger.js
+ *   logger
  *       ↓
  *   observability
  *       ↓
  *   resilience
  *       ↓
- *   database / Redis / queue / event-bus
+ *   infrastructure
+ *       ↓
+ *   services
  *       ↓
  *   middleware
  *       ↓
- *   routes / services
+ *   routes
+ *       ↓
+ *   server
+ *       ↓
+ *   runtime
  *
  * IMPORTANT:
  *
- *   This module does NOT:
- *     - perform business logic
- *     - write financial records
- *     - persist audit records itself
- *     - send notifications
- *     - connect to a database
- *     - connect to Redis
- *     - manage queues
+ *   This module MUST NOT:
+ *
+ *     - execute business logic;
+ *     - write financial records;
+ *     - persist audit records;
+ *     - connect to MongoDB;
+ *     - connect to Redis;
+ *     - initialize queues;
+ *     - create HTTP servers;
+ *     - terminate the process;
+ *     - call process.exit();
  *
  *   It provides logging infrastructure only.
  *
- * Recommended dependencies:
+ * Dependency policy:
+ *
+ *   logger.js intentionally does NOT eagerly require hooks.js.
+ *
+ *   Bootstrap hook dependencies are loaded lazily through
+ *   registerBootstrapHooks().
+ *
+ *   This prevents:
+ *
+ *       logger → hooks → logger
+ *
+ *   circular initialization hazards.
+ *
+ * Recommended packages:
  *
  *   npm install pino
  *
- * Optional development formatter:
+ * Optional:
  *
  *   npm install -D pino-pretty
  *
@@ -71,75 +93,28 @@
 const {
   AsyncLocalStorage,
 } = require('node:async_hooks');
+
 const crypto = require('node:crypto');
 const os = require('node:os');
 
 const pino = require('pino');
 
-const {
-  startup,
-  shutdown: registerShutdownHook,
-  hooks,
-} = require('./hooks');
-
-/**
- * -----------------------------------------------------------------------------
+/* =============================================================================
  * Constants
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
 const LOGGER_NAME =
-  'titech-acfos';
+  'titech-community-capital';
 
 const DEFAULT_LEVEL =
   'info';
 
-const DEFAULT_REDACT_PATHS =
-  Object.freeze([
-    'password',
-    'passcode',
-    'pin',
-    'otp',
-    'token',
-    'accessToken',
-    'refreshToken',
-    'id_token',
-    'access_token',
-    'refresh_token',
-    'authorization',
-    'cookie',
-    'set-cookie',
+const DEFAULT_VERSION =
+  '0.0.0';
 
-    'req.headers.authorization',
-    'req.headers.cookie',
-    'request.headers.authorization',
-    'request.headers.cookie',
-
-    'headers.authorization',
-    'headers.cookie',
-
-    'jwt',
-    'jwtSecret',
-    'secret',
-    'apiKey',
-    'api_key',
-    'clientSecret',
-    'client_secret',
-
-    'encryptionKey',
-    'encryption_key',
-
-    'privateKey',
-    'private_key',
-
-    'cardNumber',
-    'card_number',
-    'cvv',
-    'cvc',
-
-    'accountPassword',
-    'account_password',
-  ]);
+const DEFAULT_ENVIRONMENT =
+  'development';
 
 const LOG_LEVELS =
   Object.freeze([
@@ -152,26 +127,98 @@ const LOG_LEVELS =
     'silent',
   ]);
 
+const DEFAULT_REDACT_PATHS =
+  Object.freeze([
+    'password',
+    'passwd',
+    'passcode',
+    'pin',
+    'otp',
+    'token',
+
+    'accessToken',
+    'refreshToken',
+
+    'id_token',
+    'access_token',
+    'refresh_token',
+
+    'authorization',
+    'cookie',
+    'set-cookie',
+
+    'req.headers.authorization',
+    'req.headers.cookie',
+
+    'request.headers.authorization',
+    'request.headers.cookie',
+
+    'headers.authorization',
+    'headers.cookie',
+
+    'jwt',
+    'jwtSecret',
+
+    'secret',
+    'apiKey',
+    'api_key',
+
+    'clientSecret',
+    'client_secret',
+
+    'encryptionKey',
+    'encryption_key',
+
+    'privateKey',
+    'private_key',
+
+    'cardNumber',
+    'card_number',
+
+    'cvv',
+    'cvc',
+
+    'accountPassword',
+    'account_password',
+
+    'mongoUri',
+    'mongoURI',
+    'mongodbUri',
+
+    'databaseUrl',
+    'databaseURL',
+
+    'redisUrl',
+    'redisURL',
+
+    'connectionString',
+  ]);
+
 const DEFAULT_CONTEXT_FIELDS =
   Object.freeze([
     'requestId',
     'correlationId',
     'traceId',
     'spanId',
+
     'userId',
     'actorId',
     'sessionId',
+
     'tenantId',
     'organizationId',
+
     'service',
     'component',
     'operation',
+
+    'requestMethod',
+    'requestPath',
   ]);
 
-/**
- * -----------------------------------------------------------------------------
- * State
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * Runtime State
+ * =============================================================================
  */
 
 let loggerInstance = null;
@@ -182,33 +229,21 @@ let initialized = false;
 
 let initializationPromise = null;
 
-let shutdownRegistered = false;
-
 let configurationSnapshot = null;
 
 let initializationError = null;
 
+let shutdownRegistered = false;
+
 /**
- * Per-async-operation context.
- *
- * Middleware can do:
- *
- *   logger.runWithContext(
- *     {
- *       requestId,
- *       correlationId,
- *       userId
- *     },
- *     () => next()
- *   );
+ * Async request/application context.
  */
 const asyncContext =
   new AsyncLocalStorage();
 
-/**
- * -----------------------------------------------------------------------------
+/* =============================================================================
  * Errors
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
 class LoggerBootstrapError extends Error {
@@ -241,10 +276,9 @@ class LoggerBootstrapError extends Error {
   }
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Utility Functions
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * Safe Utility Functions
+ * =============================================================================
  */
 
 function normalizeLevel(
@@ -252,7 +286,7 @@ function normalizeLevel(
 ) {
   const level =
     String(
-      value ||
+      value ??
         DEFAULT_LEVEL,
     )
       .trim()
@@ -262,7 +296,7 @@ function normalizeLevel(
     !LOG_LEVELS.includes(level)
   ) {
     throw new LoggerBootstrapError(
-      `Unsupported LOG_LEVEL "${level}".`,
+      `Unsupported TITech LOG_LEVEL "${level}".`,
       {
         code:
           'LOGGER_INVALID_LEVEL',
@@ -283,18 +317,15 @@ function normalizeBoolean(
   fallback,
 ) {
   if (
-    value ===
-      undefined ||
-    value ===
-      null ||
+    value === undefined ||
+    value === null ||
     value === ''
   ) {
     return fallback;
   }
 
   if (
-    typeof value ===
-    'boolean'
+    typeof value === 'boolean'
   ) {
     return value;
   }
@@ -316,19 +347,23 @@ function normalizePositiveInteger(
   value,
   fallback,
 ) {
-  const result =
-    value === undefined
+  const normalized =
+    value === undefined ||
+    value === null ||
+    value === ''
       ? fallback
       : Number(value);
 
   if (
-    !Number.isInteger(result) ||
-    result <= 0
+    !Number.isInteger(
+      normalized,
+    ) ||
+    normalized <= 0
   ) {
     return fallback;
   }
 
-  return result;
+  return normalized;
 }
 
 function normalizeList(
@@ -336,10 +371,8 @@ function normalizeList(
   fallback = [],
 ) {
   if (
-    value ===
-      undefined ||
-    value ===
-      null ||
+    value === undefined ||
+    value === null ||
     value === ''
   ) {
     return [
@@ -374,8 +407,7 @@ function isPlainObject(
 ) {
   if (
     value === null ||
-    typeof value !==
-      'object'
+    typeof value !== 'object'
   ) {
     return false;
   }
@@ -402,7 +434,7 @@ function mergeContext(
   ) {
     if (
       source &&
-      isPlainObject(source)
+      typeof source === 'object'
     ) {
       Object.assign(
         result,
@@ -421,8 +453,7 @@ function sanitizeContext(
 
   if (
     !context ||
-    typeof context !==
-      'object'
+    typeof context !== 'object'
   ) {
     return output;
   }
@@ -432,10 +463,8 @@ function sanitizeContext(
       DEFAULT_CONTEXT_FIELDS
   ) {
     if (
-      context[field] !==
-        undefined &&
-      context[field] !==
-        null
+      context[field] !== undefined &&
+      context[field] !== null
     ) {
       output[field] =
         context[field];
@@ -456,23 +485,15 @@ function createRequestId() {
   return crypto.randomUUID();
 }
 
-function createChildBindings(
-  bindings,
-) {
-  return mergeContext(
-    sanitizeContext(
-      getCurrentContext(),
-    ),
-    bindings,
-  );
-}
+/* =============================================================================
+ * Error Serialization
+ * =============================================================================
+ */
 
 function serializeError(
   error,
 ) {
-  if (
-    !error
-  ) {
+  if (!error) {
     return null;
   }
 
@@ -493,11 +514,11 @@ function serializeError(
       code:
         error.code,
 
-      stack:
-        error.stack,
-
       statusCode:
         error.statusCode,
+
+      stack:
+        error.stack,
 
       cause:
         error.cause
@@ -508,21 +529,23 @@ function serializeError(
     };
   }
 
-  return error;
+  if (
+    typeof error === 'object'
+  ) {
+    return redactObject(
+      error,
+    );
+  }
+
+  return {
+    message:
+      String(error),
+  };
 }
 
-/**
- * -----------------------------------------------------------------------------
+/* =============================================================================
  * Sensitive Data Redaction
- * -----------------------------------------------------------------------------
- *
- * Pino performs structural redaction.
- *
- * The application may additionally call:
- *
- *   logger.redactObject(...)
- *
- * before logging dynamically constructed data.
+ * =============================================================================
  */
 
 function redactObject(
@@ -530,32 +553,29 @@ function redactObject(
   sensitiveKeys = DEFAULT_REDACT_PATHS,
 ) {
   if (
-    value ===
-      null ||
-    value ===
-      undefined
+    value === null ||
+    value === undefined
   ) {
     return value;
   }
 
   const sensitive =
     new Set(
-      sensitiveKeys.map(
-        key =>
-          key
-            .split('.')
-            .pop()
-            .toLowerCase(),
-      ),
+      sensitiveKeys
+        .map(
+          key =>
+            String(key)
+              .split('.')
+              .pop()
+              .toLowerCase(),
+        ),
     );
 
   const redact =
     current => {
       if (
-        current ===
-          null ||
-        current ===
-          undefined
+        current === null ||
+        current === undefined
       ) {
         return current;
       }
@@ -570,8 +590,15 @@ function redactObject(
       }
 
       if (
-        typeof current !==
-        'object'
+        current instanceof Error
+      ) {
+        return serializeError(
+          current,
+        );
+      }
+
+      if (
+        typeof current !== 'object'
       ) {
         return current;
       }
@@ -607,12 +634,9 @@ function redactObject(
   return redact(value);
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Configuration Resolution
- * -----------------------------------------------------------------------------
- *
- * Supports the environment/config shapes already established in this project.
+/* =============================================================================
+ * Configuration
+ * =============================================================================
  */
 
 function resolveConfiguration(
@@ -628,6 +652,13 @@ function resolveConfiguration(
     config?.logger ||
     {};
 
+  const nodeEnvironment =
+    environment?.runtime?.nodeEnv ||
+    environment?.app?.nodeEnv ||
+    environment?.app?.environment ||
+    process.env.NODE_ENV ||
+    DEFAULT_ENVIRONMENT;
+
   const level =
     normalizeLevel(
       configLogging.level ??
@@ -641,12 +672,8 @@ function resolveConfiguration(
       configLogging.pretty ??
         environmentLogging.pretty ??
         process.env.LOG_PRETTY,
-      Boolean(
-        environment?.runtime
-          ?.isDevelopment ??
-          process.env.NODE_ENV ===
-            'development',
-      ),
+      nodeEnvironment ===
+        'development',
     );
 
   const enabled =
@@ -683,21 +710,13 @@ function resolveConfiguration(
     config?.app?.name ||
     environment?.app?.name ||
     process.env.APP_NAME ||
-    LOGGER_NAME;
+    'TITech Community Capital';
 
   const version =
     config?.app?.version ||
     environment?.app?.version ||
     process.env.APP_VERSION ||
-    '0.0.0';
-
-  const nodeEnvironment =
-    environment?.runtime
-      ?.nodeEnv ||
-    environment?.app?.nodeEnv ||
-    environment?.app?.environment ||
-    process.env.NODE_ENV ||
-    'development';
+    DEFAULT_VERSION;
 
   const deployment =
     config?.deployment ||
@@ -705,7 +724,7 @@ function resolveConfiguration(
     {};
 
   const metadata =
-    {
+    Object.freeze({
       service:
         serviceName,
 
@@ -749,12 +768,15 @@ function resolveConfiguration(
 
       containerId:
         deployment.containerId,
-    };
+    });
 
   return Object.freeze({
     enabled,
 
-    level,
+    level:
+      enabled
+        ? level
+        : 'silent',
 
     pretty,
 
@@ -774,10 +796,7 @@ function resolveConfiguration(
     environment:
       nodeEnvironment,
 
-    metadata:
-      Object.freeze(
-        metadata,
-      ),
+    metadata,
 
     timestamp:
       process.env.LOG_TIMESTAMP !==
@@ -803,26 +822,22 @@ function resolveConfiguration(
   });
 }
 
-/**
- * -----------------------------------------------------------------------------
+/* =============================================================================
  * Pino Serializers
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
 function serializeRequest(
   request,
 ) {
-  if (
-    !request
-  ) {
+  if (!request) {
     return request;
   }
 
   return {
     id:
       request.id ||
-      request.idempotencyKey ||
-      undefined,
+      request.idempotencyKey,
 
     method:
       request.method,
@@ -832,8 +847,9 @@ function serializeRequest(
       request.url,
 
     userAgent:
-      request.headers
-        ?.['user-agent'],
+      request.headers?.[
+        'user-agent'
+      ],
 
     remoteAddress:
       request.ip ||
@@ -852,9 +868,7 @@ function serializeRequest(
 function serializeResponse(
   response,
 ) {
-  if (
-    !response
-  ) {
+  if (!response) {
     return response;
   }
 
@@ -863,7 +877,8 @@ function serializeResponse(
       response.statusCode,
 
     headers:
-      response.getHeaders
+      typeof response.getHeaders ===
+      'function'
         ? redactObject(
             response.getHeaders(),
           )
@@ -871,31 +886,24 @@ function serializeResponse(
   };
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Logger Destination
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * Destination
+ * =============================================================================
  */
 
 function createDestination(
   options,
 ) {
   if (
-    options.pretty !==
-    true
+    options.pretty !== true
   ) {
     return undefined;
   }
 
-  /**
-   * pino-pretty is intentionally optional.
-   *
-   * Production remains pure JSON.
-   */
-  let PrettyTransport;
+  let prettyModule;
 
   try {
-    PrettyTransport =
+    prettyModule =
       require.resolve(
         'pino-pretty',
       );
@@ -905,10 +913,12 @@ function createDestination(
 
   return pino.transport({
     target:
-      PrettyTransport,
+      prettyModule,
 
     options: {
-      colorize: true,
+      colorize:
+        process.env.LOG_COLOR !==
+        'false',
 
       translateTime:
         'SYS:standard',
@@ -916,15 +926,18 @@ function createDestination(
       ignore:
         'pid,hostname',
 
-      singleLine: true,
+      singleLine:
+        normalizeBoolean(
+          process.env.LOG_SINGLE_LINE,
+          true,
+        ),
     },
   });
 }
 
-/**
- * -----------------------------------------------------------------------------
+/* =============================================================================
  * Logger Factory
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
 function createLogger(
@@ -936,19 +949,6 @@ function createLogger(
       options.config,
     );
 
-  if (
-    !resolved.enabled
-  ) {
-    /**
-     * Disabled logging should still preserve a complete logger interface.
-     *
-     * pino silent mode avoids expensive output while keeping application code
-     * unchanged.
-     */
-    resolved.level =
-      'silent';
-  }
-
   const redaction =
     resolved.redactSecrets
       ? {
@@ -958,14 +958,10 @@ function createLogger(
           censor:
             '[REDACTED]',
 
-          remove: false,
+          remove:
+            false,
         }
       : undefined;
-
-  const baseBindings =
-    {
-      ...resolved.metadata,
-    };
 
   const destination =
     createDestination(
@@ -982,7 +978,7 @@ function createLogger(
           resolved.level,
 
         base:
-          baseBindings,
+          resolved.metadata,
 
         timestamp:
           resolved.timestamp
@@ -1016,7 +1012,8 @@ function createLogger(
             serializeResponse,
         },
 
-        redact,
+        redact:
+          redaction,
       },
 
       destination,
@@ -1025,22 +1022,9 @@ function createLogger(
   return logger;
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Context-Aware Logger Wrapper
- * -----------------------------------------------------------------------------
- *
- * This ensures every log line can automatically inherit:
- *
- *   requestId
- *   correlationId
- *   traceId
- *   spanId
- *   userId
- *   tenantId
- *   operation
- *
- * without manually adding them to every logging call.
+/* =============================================================================
+ * Context-Aware Logger
+ * =============================================================================
  */
 
 function createContextAwareLogger(
@@ -1060,7 +1044,13 @@ function createContextAwareLogger(
       return logger.bindings();
     },
 
-    isLevelEnabled(level) {
+    get levelVal() {
+      return logger.levelVal;
+    },
+
+    isLevelEnabled(
+      level,
+    ) {
       return logger.isLevelEnabled(
         level,
       );
@@ -1070,14 +1060,16 @@ function createContextAwareLogger(
       bindings = {},
       options = {},
     ) {
-      const merged =
-        createChildBindings(
-          bindings,
-        );
-
       return createContextAwareLogger(
         logger.child(
-          merged,
+          mergeContext(
+            sanitizeContext(
+              getCurrentContext(),
+            ),
+            sanitizeContext(
+              bindings,
+            ),
+          ),
           options,
         ),
       );
@@ -1086,14 +1078,16 @@ function createContextAwareLogger(
     withContext(
       bindings = {},
     ) {
-      const merged =
-        createChildBindings(
-          bindings,
-        );
-
       return createContextAwareLogger(
         logger.child(
-          merged,
+          mergeContext(
+            sanitizeContext(
+              getCurrentContext(),
+            ),
+            sanitizeContext(
+              bindings,
+            ),
+          ),
         ),
       );
     },
@@ -1107,13 +1101,18 @@ function createContextAwareLogger(
         'function'
       ) {
         throw new TypeError(
-          'runWithContext callback must be a function.',
+          'TITech logger.runWithContext callback must be a function.',
         );
       }
 
       const merged =
-        createChildBindings(
-          bindings,
+        mergeContext(
+          sanitizeContext(
+            getCurrentContext(),
+          ),
+          sanitizeContext(
+            bindings,
+          ),
         );
 
       return asyncContext.run(
@@ -1131,15 +1130,14 @@ function createContextAwareLogger(
     requestContext(
       bindings = {},
     ) {
-      return {
-        ...sanitizeContext(
+      return mergeContext(
+        sanitizeContext(
           getCurrentContext(),
         ),
-
-        ...sanitizeContext(
+        sanitizeContext(
           bindings,
         ),
-      };
+      );
     },
 
     redactObject,
@@ -1148,9 +1146,7 @@ function createContextAwareLogger(
       ...args
     ) {
       return logger.fatal(
-        createChildBindings(
-          {},
-        ),
+        createContextBindings(),
         ...args,
       );
     },
@@ -1159,9 +1155,7 @@ function createContextAwareLogger(
       ...args
     ) {
       return logger.error(
-        createChildBindings(
-          {},
-        ),
+        createContextBindings(),
         ...args,
       );
     },
@@ -1170,9 +1164,7 @@ function createContextAwareLogger(
       ...args
     ) {
       return logger.warn(
-        createChildBindings(
-          {},
-        ),
+        createContextBindings(),
         ...args,
       );
     },
@@ -1181,9 +1173,7 @@ function createContextAwareLogger(
       ...args
     ) {
       return logger.info(
-        createChildBindings(
-          {},
-        ),
+        createContextBindings(),
         ...args,
       );
     },
@@ -1192,9 +1182,7 @@ function createContextAwareLogger(
       ...args
     ) {
       return logger.debug(
-        createChildBindings(
-          {},
-        ),
+        createContextBindings(),
         ...args,
       );
     },
@@ -1203,9 +1191,7 @@ function createContextAwareLogger(
       ...args
     ) {
       return logger.trace(
-        createChildBindings(
-          {},
-        ),
+        createContextBindings(),
         ...args,
       );
     },
@@ -1226,87 +1212,59 @@ function createContextAwareLogger(
       );
     },
 
-    levelVal:
-      () => logger.levelVal,
-
-    version:
-      () => logger.version,
-
-    /**
-     * Semantic logging helpers.
-     */
     audit(
       payload = {},
-      message =
-        'Audit event',
+      message = 'Audit event',
     ) {
       return logger.info(
         {
           eventType:
             'audit',
 
-          ...createChildBindings(
-            {},
-          ),
+          ...createContextBindings(),
 
           ...redactObject(
             payload,
           ),
         },
-
         message,
       );
     },
 
     security(
       payload = {},
-      message =
-        'Security event',
+      message = 'Security event',
     ) {
       return logger.warn(
         {
           eventType:
             'security',
 
-          ...createChildBindings(
-            {},
-          ),
+          ...createContextBindings(),
 
           ...redactObject(
             payload,
           ),
         },
-
         message,
       );
     },
 
     financial(
       payload = {},
-      message =
-        'Financial event',
+      message = 'Financial event',
     ) {
-      /**
-       * Never log secrets/payment credentials.
-       *
-       * Amounts and transaction references may be logged depending on the
-       * application's data-classification policy, but sensitive credentials are
-       * structurally redacted.
-       */
       return logger.info(
         {
           eventType:
             'financial',
 
-          ...createChildBindings(
-            {},
-          ),
+          ...createContextBindings(),
 
           ...redactObject(
             payload,
           ),
         },
-
         message,
       );
     },
@@ -1321,46 +1279,43 @@ function createContextAwareLogger(
           eventType:
             'performance',
 
-          ...createChildBindings(
-            {},
+          ...createContextBindings(),
+
+          ...redactObject(
+            payload,
           ),
-
-          ...payload,
         },
-
         message,
       );
     },
 
-    /**
-     * Expose the underlying Pino logger for integrations that explicitly
-     * require it.
-     */
     raw:
       logger,
-  };
 
-  /**
-   * Pino APIs that are not explicitly wrapped above.
-   *
-   * This keeps compatibility with common Pino methods while ensuring context
-   * is still applied for standard log levels.
-   */
-  facade.log =
-    (...args) =>
-      facade.info(
+    log(
+      ...args
+    ) {
+      return logger.info(
+        createContextBindings(),
         ...args,
       );
+    },
+  };
 
   return Object.freeze(
     facade,
   );
 }
 
-/**
- * -----------------------------------------------------------------------------
+function createContextBindings() {
+  return sanitizeContext(
+    getCurrentContext(),
+  );
+}
+
+/* =============================================================================
  * Initialization
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
 async function initializeLogger(
@@ -1382,6 +1337,12 @@ async function initializeLogger(
   initializationPromise =
     (async () => {
       try {
+        const resolved =
+          resolveConfiguration(
+            options.environment,
+            options.config,
+          );
+
         const logger =
           createLogger(
             options,
@@ -1396,10 +1357,7 @@ async function initializeLogger(
           );
 
         configurationSnapshot =
-          resolveConfiguration(
-            options.environment,
-            options.config,
-          );
+          resolved;
 
         initialized =
           true;
@@ -1417,7 +1375,7 @@ async function initializeLogger(
           LoggerBootstrapError
             ? error
             : new LoggerBootstrapError(
-                'Logger initialization failed.',
+                'TITech logger initialization failed.',
                 {
                   code:
                     'LOGGER_INITIALIZATION_FAILED',
@@ -1433,28 +1391,53 @@ async function initializeLogger(
   try {
     return await initializationPromise;
   } finally {
-    if (
-      !initialized
-    ) {
+    if (!initialized) {
       initializationPromise =
         null;
     }
   }
 }
 
-/**
- * -----------------------------------------------------------------------------
+/* =============================================================================
  * Bootstrap Hook Registration
- * -----------------------------------------------------------------------------
+ * =============================================================================
  *
- * This module intentionally registers the canonical "logger" lifecycle hook.
- * bootstrap/index.js can therefore use it as the dependency anchor for
- * observability, resilience, database, and other infrastructure.
+ * IMPORTANT:
+ *
+ * hooks.js is intentionally required lazily.
+ *
+ * This prevents logger.js from participating in the initial module dependency
+ * cycle.
+ * =============================================================================
  */
+
+function getHooksModule() {
+  try {
+    return require('./hooks');
+  } catch (error) {
+    throw new LoggerBootstrapError(
+      'Unable to load TITech bootstrap lifecycle hooks.',
+      {
+        code:
+          'LOGGER_HOOKS_LOAD_FAILED',
+
+        cause:
+          error,
+      },
+    );
+  }
+}
 
 function registerBootstrapHooks(
   context = {},
 ) {
+  const {
+    startup,
+    registerShutdownHook,
+    hooks,
+  } =
+    getHooksModule();
+
   if (
     hooks.has('logger')
   ) {
@@ -1477,17 +1460,13 @@ function registerBootstrapHooks(
           });
 
         /**
-         * Expose the initialized logger to the shared application context.
+         * DO NOT mutate hookContext here.
+         *
+         * BootstrapHookRegistry intentionally provides immutable hook context.
+         *
+         * The returned logger is consumed by the canonical bootstrap
+         * composition root.
          */
-        if (
-          hookContext &&
-          typeof hookContext ===
-            'object'
-        ) {
-          hookContext.logger =
-            logger;
-        }
-
         return logger;
       },
       {
@@ -1501,6 +1480,9 @@ function registerBootstrapHooks(
         critical:
           true,
 
+        fatal:
+          true,
+
         metadata: {
           component:
             'logger',
@@ -1511,9 +1493,6 @@ function registerBootstrapHooks(
       },
     );
 
-  /**
-   * Register shutdown once.
-   */
   if (
     !shutdownRegistered
   ) {
@@ -1532,6 +1511,9 @@ function registerBootstrapHooks(
 
         critical:
           false,
+
+        fatal:
+          false,
       },
     );
 
@@ -1542,11 +1524,102 @@ function registerBootstrapHooks(
   return registered;
 }
 
-/**
- * -----------------------------------------------------------------------------
+/* =============================================================================
  * Logger Access
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
+
+function createFallbackLogger() {
+  try {
+    return pino({
+      name:
+        LOGGER_NAME,
+
+      level:
+        process.env.LOG_LEVEL ||
+        DEFAULT_LEVEL,
+
+      base: {
+        service:
+          LOGGER_NAME,
+
+        application:
+          'TITech Community Capital',
+
+        environment:
+          process.env.NODE_ENV ||
+          DEFAULT_ENVIRONMENT,
+      },
+
+      timestamp:
+        pino.stdTimeFunctions
+          .isoTime,
+    });
+  } catch {
+    /**
+     * This path should only be reached if Pino itself is unavailable or
+     * catastrophically misconfigured.
+     *
+     * The returned object keeps the application from failing merely because
+     * diagnostics are unavailable.
+     */
+    return {
+      fatal:
+        console.error.bind(
+          console,
+        ),
+
+      error:
+        console.error.bind(
+          console,
+        ),
+
+      warn:
+        console.warn.bind(
+          console,
+        ),
+
+      info:
+        console.info.bind(
+          console,
+        ),
+
+      debug:
+        console.debug.bind(
+          console,
+        ),
+
+      trace:
+        console.debug.bind(
+          console,
+        ),
+
+      silent() {},
+
+      flush(callback) {
+        callback?.();
+      },
+
+      child() {
+        return this;
+      },
+
+      bindings() {
+        return {};
+      },
+
+      isLevelEnabled() {
+        return true;
+      },
+
+      level:
+        DEFAULT_LEVEL,
+
+      levelVal:
+        30,
+    };
+  }
+}
 
 function getLogger() {
   if (
@@ -1555,32 +1628,17 @@ function getLogger() {
     return loggerInstance;
   }
 
-  /**
-   * A safe fallback is deliberately initialized lazily for code paths that
-   * import the logger before bootstrap has completed.
-   */
   if (
     !rootLogger
   ) {
     rootLogger =
-      pino({
-        name:
-          LOGGER_NAME,
-
-        level:
-          'info',
-
-        base: {
-          service:
-            LOGGER_NAME,
-        },
-      });
-
-    loggerInstance =
-      createContextAwareLogger(
-        rootLogger,
-      );
+      createFallbackLogger();
   }
+
+  loggerInstance =
+    createContextAwareLogger(
+      rootLogger,
+    );
 
   return loggerInstance;
 }
@@ -1589,10 +1647,9 @@ function getRootLogger() {
   return rootLogger;
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Convenience Logger Methods
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * Convenience Logging API
+ * =============================================================================
  */
 
 function fatal(
@@ -1643,10 +1700,9 @@ function trace(
   );
 }
 
-/**
- * -----------------------------------------------------------------------------
+/* =============================================================================
  * Context API
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
 function runWithContext(
@@ -1671,24 +1727,24 @@ function getContext() {
   return getLogger().getContext();
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Request Context Helper
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * Request Context
+ * =============================================================================
  */
 
 function createRequestContext(
   input = {},
 ) {
-  return {
-    requestId:
-      input.requestId ||
-      createRequestId(),
+  const requestId =
+    input.requestId ||
+    createRequestId();
+
+  return Object.freeze({
+    requestId,
 
     correlationId:
       input.correlationId ||
-      input.requestId ||
-      createRequestId(),
+      requestId,
 
     traceId:
       input.traceId,
@@ -1701,6 +1757,9 @@ function createRequestContext(
 
     actorId:
       input.actorId,
+
+    sessionId:
+      input.sessionId,
 
     tenantId:
       input.tenantId,
@@ -1719,143 +1778,12 @@ function createRequestContext(
 
     component:
       input.component,
-  };
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Flush
- * -----------------------------------------------------------------------------
- */
-
-async function flush() {
-  if (
-    !rootLogger
-  ) {
-    return;
-  }
-
-  await new Promise(
-    resolve => {
-      try {
-        rootLogger.flush(
-          () => resolve(),
-        );
-      } catch {
-        resolve();
-      }
-    },
-  );
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Shutdown
- * -----------------------------------------------------------------------------
- */
-
-async function shutdown() {
-  await flush();
-
-  loggerInstance =
-    null;
-
-  rootLogger =
-    null;
-
-  initialized =
-    false;
-
-  initializationPromise =
-    null;
-
-  configurationSnapshot =
-    null;
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Diagnostics
- * -----------------------------------------------------------------------------
- *
- * No secrets are returned.
- */
-
-function snapshot() {
-  const configuration =
-    configurationSnapshot;
-
-  return Object.freeze({
-    initialized,
-
-    available:
-      Boolean(
-        loggerInstance,
-      ),
-
-    level:
-      configuration?.level ||
-      'info',
-
-    enabled:
-      configuration?.enabled ??
-      true,
-
-    pretty:
-      configuration?.pretty ??
-      false,
-
-    redactSecrets:
-      configuration?.redactSecrets ??
-      true,
-
-    serviceName:
-      configuration?.serviceName ||
-      LOGGER_NAME,
-
-    applicationName:
-      configuration?.applicationName ||
-      LOGGER_NAME,
-
-    environment:
-      configuration?.environment ||
-      'unknown',
-
-    version:
-      configuration?.version ||
-      '0.0.0',
-
-    pid:
-      process.pid,
-
-    hostname:
-      os.hostname(),
-
-    initializationFailed:
-      Boolean(
-        initializationError,
-      ),
-
-    initializationError:
-      initializationError
-        ? {
-            name:
-              initializationError.name,
-
-            code:
-              initializationError.code,
-
-            message:
-              initializationError.message,
-          }
-        : null,
   });
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Semantic Logging Exports
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * Semantic Logging
+ * =============================================================================
  */
 
 function audit(
@@ -1898,75 +1826,256 @@ function performance(
   );
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Default Bootstrap Contract
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * Flush
+ * =============================================================================
+ */
+
+async function flush() {
+  const logger =
+    rootLogger;
+
+  if (!logger) {
+    return;
+  }
+
+  await new Promise(
+    resolve => {
+      let settled = false;
+
+      const complete =
+        () => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          resolve();
+        };
+
+      try {
+        if (
+          typeof logger.flush !==
+          'function'
+        ) {
+          complete();
+          return;
+        }
+
+        logger.flush(
+          complete,
+        );
+      } catch {
+        complete();
+      }
+    },
+  );
+}
+
+/* =============================================================================
+ * Shutdown
+ * =============================================================================
+ */
+
+async function shutdown() {
+  await flush();
+
+  loggerInstance =
+    null;
+
+  rootLogger =
+    null;
+
+  initialized =
+    false;
+
+  initializationPromise =
+    null;
+
+  configurationSnapshot =
+    null;
+
+  initializationError =
+    null;
+
+  /**
+   * This flag deliberately remains true.
+   *
+   * Bootstrap hook registration is process-scoped and should not repeatedly
+   * register the same shutdown hook.
+   */
+}
+
+/* =============================================================================
+ * Diagnostics
+ * =============================================================================
+ */
+
+function snapshot() {
+  const configuration =
+    configurationSnapshot;
+
+  return Object.freeze({
+    initialized,
+
+    available:
+      Boolean(
+        loggerInstance,
+      ),
+
+    level:
+      configuration?.level ||
+      DEFAULT_LEVEL,
+
+    enabled:
+      configuration?.enabled ??
+      true,
+
+    pretty:
+      configuration?.pretty ??
+      false,
+
+    redactSecrets:
+      configuration?.redactSecrets ??
+      true,
+
+    serviceName:
+      configuration?.serviceName ||
+      LOGGER_NAME,
+
+    applicationName:
+      configuration?.applicationName ||
+      'TITech Community Capital',
+
+    environment:
+      configuration?.environment ||
+      'unknown',
+
+    version:
+      configuration?.version ||
+      DEFAULT_VERSION,
+
+    pid:
+      process.pid,
+
+    hostname:
+      os.hostname(),
+
+    initializationFailed:
+      Boolean(
+        initializationError,
+      ),
+
+    initializationError:
+      initializationError
+        ? {
+            name:
+              initializationError.name,
+
+            code:
+              initializationError.code,
+
+            message:
+              initializationError.message,
+          }
+        : null,
+  });
+}
+
+/* =============================================================================
+ * Public API
+ * =============================================================================
  */
 
 module.exports =
   Object.freeze({
-    /**
-     * Core logger.
-     */
+    /* -------------------------------------------------------------------------
+     * Core logger
+     * ----------------------------------------------------------------------- */
+
     logger:
       getLogger(),
 
     getLogger,
+
     getRootLogger,
 
-    /**
-     * Initialization/lifecycle.
-     */
+    /* -------------------------------------------------------------------------
+     * Initialization / Lifecycle
+     * ----------------------------------------------------------------------- */
+
     initialize:
       initializeLogger,
+
+    initializeLogger,
 
     registerBootstrapHooks,
 
     shutdown,
+
     flush,
 
-    /**
-     * Context.
-     */
+    /* -------------------------------------------------------------------------
+     * Context
+     * ----------------------------------------------------------------------- */
+
     runWithContext,
+
     withContext,
+
     getContext,
+
     createRequestContext,
 
-    /**
-     * Semantic helpers.
-     */
+    /* -------------------------------------------------------------------------
+     * Semantic logging
+     * ----------------------------------------------------------------------- */
+
     audit,
+
     security,
+
     financial,
+
     performance,
 
-    /**
-     * Standard log levels.
-     */
+    /* -------------------------------------------------------------------------
+     * Standard levels
+     * ----------------------------------------------------------------------- */
+
     fatal,
+
     error,
+
     warn,
+
     info,
+
     debug,
+
     trace,
 
-    /**
-     * Security utility.
-     */
+    /* -------------------------------------------------------------------------
+     * Security
+     * ----------------------------------------------------------------------- */
+
     redactObject,
 
-    /**
-     * Diagnostics.
-     */
+    /* -------------------------------------------------------------------------
+     * Diagnostics
+     * ----------------------------------------------------------------------- */
+
     snapshot,
 
-    /**
-     * Errors/constants.
-     */
+    /* -------------------------------------------------------------------------
+     * Constants / errors
+     * ----------------------------------------------------------------------- */
+
     LoggerBootstrapError,
+
     LOGGER_NAME,
 
     DEFAULT_REDACT_PATHS,
+
+    LOG_LEVELS,
   });

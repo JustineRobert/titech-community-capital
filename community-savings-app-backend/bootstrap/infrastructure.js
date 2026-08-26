@@ -1,33 +1,20 @@
-'use strict';
+"use strict";
 
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * Enterprise Infrastructure Bootstrap / Lifecycle Orchestrator
  * =============================================================================
  *
  * File:
  *   backend/bootstrap/infrastructure.js
  *
  * Purpose:
- *   Enterprise-grade infrastructure lifecycle composition.
+ *   Canonical enterprise infrastructure composition adapter for TITech
+ *   Community Capital.
  *
- * Responsibilities:
- *   - Register infrastructure startup/shutdown hooks.
- *   - Keep infrastructure initialization out of app.js.
- *   - Enforce deterministic dependency ordering.
- *   - Support MongoDB / database lifecycle.
- *   - Support Redis lifecycle.
- *   - Support queue / worker lifecycle.
- *   - Support event-bus lifecycle.
- *   - Support resilience subsystem lifecycle.
- *   - Support Socket.IO lifecycle.
- *   - Support API Gateway / integration lifecycle.
- *   - Avoid duplicate hook registration.
- *   - Provide graceful degradation for optional infrastructure.
- *   - Preserve existing infrastructure implementations.
- *
- * Architectural position:
+ * Architecture
+ * -----------------------------------------------------------------------------
  *
  *   environment
  *       ↓
@@ -37,17 +24,19 @@
  *       ↓
  *   observability
  *       ↓
+ *   readiness
+ *       ↓
  *   resilience
  *       ↓
- *   database
+ *   infrastructure
+ *       ├── database
+ *       ├── redis
+ *       ├── eventBus
+ *       ├── queue
+ *       ├── socketIO
+ *       └── apiGateway
  *       ↓
- *   redis
- *       ↓
- *   event-bus
- *       ↓
- *   queue
- *       ↓
- *   socket.io / gateway
+ *   services
  *       ↓
  *   middleware
  *       ↓
@@ -55,223 +44,384 @@
  *       ↓
  *   HTTP server
  *
- * IMPORTANT:
+ * Responsibilities
+ * -----------------------------------------------------------------------------
+ * ✓ Infrastructure lifecycle composition
+ * ✓ Explicit adapter registration
+ * ✓ Configuration-driven adapter resolution
+ * ✓ Repository adapter discovery
+ * ✓ Deterministic dependency registration
+ * ✓ Database / MongoDB lifecycle
+ * ✓ Redis lifecycle
+ * ✓ Queue / worker lifecycle
+ * ✓ Event-bus lifecycle
+ * ✓ Resilience lifecycle
+ * ✓ Socket.IO lifecycle
+ * ✓ API Gateway lifecycle
+ * ✓ Duplicate-registration protection
+ * ✓ Optional infrastructure graceful degradation
+ * ✓ Critical infrastructure fail-fast semantics
+ * ✓ Runtime initialization contract for bootstrap/app.js
+ * ✓ Runtime shutdown contract
+ * ✓ Partial-startup cleanup
+ * ✓ Failed-start rollback bookkeeping
+ * ✓ Started-state verification
+ * ✓ Infrastructure diagnostics
+ * ✓ Health/readiness-aware lifecycle context
+ * ✓ Mutable execution context for runtime handles
+ * ✓ Immutable infrastructure metadata namespace
+ * ✓ Canonical BootstrapContext preservation
+ * ✓ CommonJS export compatibility
+ * ✓ No business logic
  *
- *   This file is an ORCHESTRATION ADAPTER.
+ * IMPORTANT
+ * -----------------------------------------------------------------------------
+ * This module is an ORCHESTRATION ADAPTER.
  *
- *   It does NOT implement:
- *     - database queries
- *     - Redis commands
- *     - queue business logic
- *     - financial transaction logic
- *     - ledger logic
- *     - event handlers
- *     - HTTP routes
- *     - Socket.IO event handlers
- *     - API Gateway business rules
+ * It does NOT implement:
+ *   - database queries
+ *   - Redis commands
+ *   - financial transaction logic
+ *   - ledger logic
+ *   - queue business logic
+ *   - event handlers
+ *   - HTTP route logic
+ *   - Socket.IO event handlers
+ *   - gateway business rules
  *
- *   Existing infrastructure code remains authoritative.
+ * Existing infrastructure implementations remain authoritative.
+ *
+ * Lifecycle authority
+ * -----------------------------------------------------------------------------
+ *
+ * BootstrapContext
+ *   → canonical application lifecycle authority
+ *
+ * runtime/state.js
+ *   → compatibility/read-model only
+ *
+ * This module NEVER assigns a foreign object to:
+ *
+ *   context.state
  *
  * =============================================================================
  */
 
-const path = require('node:path');
+const path = require("node:path");
 
-/**
- * -----------------------------------------------------------------------------
- * Hook Engine
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * HOOK ENGINE
+ * =============================================================================
  */
 
 const {
   hooks,
   startup,
   lifecycle,
-} = require('./hooks');
+} = require("./hooks");
 
-/**
- * -----------------------------------------------------------------------------
- * Infrastructure Definitions
- * -----------------------------------------------------------------------------
- *
- * Each subsystem can expose one of several compatible lifecycle APIs.
- *
- * Supported startup names:
- *
- *   initialize
- *   init
- *   connect
- *   start
- *   bootstrap
- *
- * Supported shutdown names:
- *
- *   shutdown
- *   close
- *   disconnect
- *   stop
- *   destroy
- *
- * This lets infrastructure.js wrap existing production modules without
- * requiring an immediate rewrite of those modules.
+/* =============================================================================
+ * INFRASTRUCTURE MODULE DEFINITIONS
+ * =============================================================================
  */
 
 const INFRASTRUCTURE_MODULES = Object.freeze({
   database: Object.freeze([
-    '../database',
-    '../db',
-    '../database/index',
-    '../db/index',
-    '../infrastructure/database',
+    "../database",
+    "../db",
+    "../database/index",
+    "../db/index",
+    "../config/database",
+    "../config/db",
+    "../services/database",
+    "../services/db",
+    "../infrastructure/database",
+    "../infrastructure/mongodb",
+    "../infrastructure/db",
+    "../lib/database",
+    "../lib/mongodb",
   ]),
 
   redis: Object.freeze([
-    '../redis',
-    '../redis/index',
-    '../infrastructure/redis',
-    '../cache/redis',
+    "../redis",
+    "../redis/index",
+    "../config/redis",
+    "../config/cache",
+    "../services/redis",
+    "../services/cache",
+    "../infrastructure/redis",
+    "../infrastructure/cache",
+    "../cache/redis",
+    "../cache",
+    "../lib/redis",
+    "../lib/cache",
   ]),
 
   resilience: Object.freeze([
-    '../middleware/resilience',
-    '../resilience',
-    '../infrastructure/resilience',
+    "../middleware/resilience",
+    "../resilience",
+    "../resilience/index",
+    "../config/resilience",
+    "../infrastructure/resilience",
+    "../services/resilience",
   ]),
 
   eventBus: Object.freeze([
-    '../event-bus',
-    '../eventBus',
-    '../events',
-    '../infrastructure/event-bus',
+    "../event-bus",
+    "../eventBus",
+    "../event-bus/index",
+    "../eventBus/index",
+    "../events",
+    "../config/event-bus",
+    "../config/eventBus",
+    "../services/event-bus",
+    "../services/eventBus",
+    "../infrastructure/event-bus",
+    "../infrastructure/eventBus",
   ]),
 
   queue: Object.freeze([
-    '../queue',
-    '../queues',
-    '../job-queue',
-    '../infrastructure/queue',
+    "../queue",
+    "../queues",
+    "../job-queue",
+    "../jobQueue",
+    "../queue/index",
+    "../queues/index",
+    "../config/queue",
+    "../config/jobs",
+    "../services/queue",
+    "../services/queues",
+    "../services/job-queue",
+    "../infrastructure/queue",
+    "../infrastructure/jobs",
   ]),
 
   socketIO: Object.freeze([
-    '../socket',
-    '../socket.io',
-    '../socketIO',
-    '../realtime',
-    '../infrastructure/socket',
+    "../socket",
+    "../socket.io",
+    "../socketIO",
+    "../socket/index",
+    "../socket.io/index",
+    "../socketIO/index",
+    "../realtime",
+    "../config/socket",
+    "../config/socketIO",
+    "../services/socket",
+    "../services/realtime",
+    "../infrastructure/socket",
+    "../infrastructure/socket.io",
+    "../infrastructure/realtime",
   ]),
 
   apiGateway: Object.freeze([
-    '../api-gateway',
-    '../apiGateway',
-    '../gateway',
-    '../infrastructure/api-gateway',
+    "../api-gateway",
+    "../apiGateway",
+    "../gateway",
+    "../api-gateway/index",
+    "../apiGateway/index",
+    "../gateway/index",
+    "../config/api-gateway",
+    "../config/apiGateway",
+    "../config/gateway",
+    "../services/api-gateway",
+    "../services/apiGateway",
+    "../services/gateway",
+    "../infrastructure/api-gateway",
+    "../infrastructure/apiGateway",
+    "../infrastructure/gateway",
   ]),
 });
 
-/**
- * -----------------------------------------------------------------------------
- * Dependency Graph
- * -----------------------------------------------------------------------------
- *
- * These are lifecycle dependencies, not runtime implementation imports.
+/* =============================================================================
+ * LIFECYCLE DEPENDENCIES
+ * =============================================================================
  */
 
 const DEPENDENCIES = Object.freeze({
-  resilience: [
-    'observability',
-  ],
+  resilience: Object.freeze([
+    "observability",
+  ]),
 
-  database: [
-    'resilience',
-  ],
+  database: Object.freeze([
+    "resilience",
+  ]),
 
-  redis: [
-    'database',
-  ],
+  redis: Object.freeze([
+    "database",
+  ]),
 
-  eventBus: [
-    'redis',
-  ],
+  eventBus: Object.freeze([
+    "redis",
+  ]),
 
-  queue: [
-    'redis',
-    'eventBus',
-  ],
+  queue: Object.freeze([
+    "redis",
+    "eventBus",
+  ]),
 
-  socketIO: [
-    'eventBus',
-  ],
+  socketIO: Object.freeze([
+    "eventBus",
+  ]),
 
-  apiGateway: [
-    'eventBus',
-    'resilience',
-  ],
+  apiGateway: Object.freeze([
+    "eventBus",
+    "resilience",
+  ]),
 });
 
-/**
- * -----------------------------------------------------------------------------
- * Priority Ordering
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * PRIORITIES
+ * =============================================================================
  */
 
 const PRIORITIES = Object.freeze({
   resilience: -500,
-
   database: -400,
-
   redis: -300,
-
   eventBus: -200,
-
   queue: -100,
-
   socketIO: 0,
-
   apiGateway: 100,
 });
 
-/**
- * -----------------------------------------------------------------------------
- * Enabled Infrastructure Environment Flags
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * FEATURE FLAGS
+ * =============================================================================
  */
 
 const ENABLE_FLAGS = Object.freeze({
-  database: 'MONGODB_ENABLED',
-  redis: 'REDIS_ENABLED',
-  resilience: 'RESILIENCE_ENABLED',
-  eventBus: 'EVENT_BUS_ENABLED',
-  queue: 'QUEUE_ENABLED',
-  socketIO: 'SOCKET_IO_ENABLED',
-  apiGateway: 'API_GATEWAY_ENABLED',
+  database: "MONGODB_ENABLED",
+  redis: "REDIS_ENABLED",
+  resilience: "RESILIENCE_ENABLED",
+  eventBus: "EVENT_BUS_ENABLED",
+  queue: "QUEUE_ENABLED",
+  socketIO: "SOCKET_IO_ENABLED",
+  apiGateway: "API_GATEWAY_ENABLED",
 });
 
-/**
- * -----------------------------------------------------------------------------
- * Utility Functions
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * DEFAULT ENABLEMENT
+ * =============================================================================
  */
 
-function isObject(value) {
+const DEFAULT_ENABLED = Object.freeze({
+  database: true,
+  redis: true,
+  resilience: true,
+  eventBus: true,
+  queue: true,
+  socketIO: false,
+  apiGateway: false,
+});
+
+/* =============================================================================
+ * SUBSYSTEM ORDER
+ * =============================================================================
+ */
+
+const SUBSYSTEM_ORDER = Object.freeze([
+  "resilience",
+  "database",
+  "redis",
+  "eventBus",
+  "queue",
+  "socketIO",
+  "apiGateway",
+]);
+
+/* =============================================================================
+ * LIFECYCLE METHOD NAMES
+ * =============================================================================
+ */
+
+const START_METHODS = Object.freeze([
+  "initialize",
+  "init",
+  "connect",
+  "start",
+  "bootstrap",
+  "open",
+]);
+
+const STOP_METHODS = Object.freeze([
+  "shutdown",
+  "close",
+  "disconnect",
+  "stop",
+  "destroy",
+  "dispose",
+]);
+
+/* =============================================================================
+ * CONFIGURATION MODULE KEYS
+ * =============================================================================
+ */
+
+const CONFIGURATION_MODULE_KEYS = Object.freeze([
+  "module",
+  "adapter",
+  "implementation",
+  "path",
+  "modulePath",
+  "require",
+]);
+
+/* =============================================================================
+ * INTERNAL STATE
+ * =============================================================================
+ */
+
+const registrationState = new Map();
+
+let initialized = false;
+let initializing = false;
+let shuttingDown = false;
+
+let initializationPromise = null;
+let shutdownPromise = null;
+
+let initializationContext = null;
+let initializationResult = null;
+
+let startupAttempted = false;
+
+/* =============================================================================
+ * UTILITY HELPERS
+ * =============================================================================
+ */
+
+function isFunction(value) {
+  return typeof value === "function";
+}
+
+function isObjectLike(value) {
   return (
     value !== null &&
-    typeof value === 'object'
+    typeof value === "object"
   );
 }
 
-function isFunction(value) {
-  return typeof value === 'function';
+function isModuleResolutionError(error) {
+  return Boolean(
+    error &&
+      (
+        error.code === "MODULE_NOT_FOUND" ||
+        error.code === "ERR_MODULE_NOT_FOUND"
+      ),
+  );
+}
+
+function getNowIso() {
+  return new Date().toISOString();
 }
 
 function moduleExists(modulePath) {
   try {
     require.resolve(modulePath);
+
     return true;
   } catch (error) {
-    if (
-      error &&
-      error.code === 'MODULE_NOT_FOUND'
-    ) {
+    if (isModuleResolutionError(error)) {
       return false;
     }
 
@@ -288,6 +438,7 @@ function resolveModule(paths) {
     return {
       modulePath,
       module: require(modulePath),
+      source: "repository",
     };
   }
 
@@ -297,6 +448,7 @@ function resolveModule(paths) {
 function unwrapModule(moduleValue) {
   if (
     moduleValue &&
+    moduleValue.__esModule &&
     moduleValue.default
   ) {
     return moduleValue.default;
@@ -305,35 +457,246 @@ function unwrapModule(moduleValue) {
   return moduleValue;
 }
 
-function getCandidateMethods(
+function uniqueCandidates(candidates) {
+  const result = [];
+  const seen = new Set();
+
+  for (const candidate of candidates) {
+    if (!candidate || seen.has(candidate)) {
+      continue;
+    }
+
+    seen.add(candidate);
+    result.push(candidate);
+  }
+
+  return result;
+}
+
+function parseBooleanFlag(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return null;
+  }
+
+  const normalized = String(value)
+    .trim()
+    .toLowerCase();
+
+  if (
+    [
+      "true",
+      "1",
+      "yes",
+      "on",
+      "enabled",
+    ].includes(normalized)
+  ) {
+    return true;
+  }
+
+  if (
+    [
+      "false",
+      "0",
+      "no",
+      "off",
+      "disabled",
+    ].includes(normalized)
+  ) {
+    return false;
+  }
+
+  return null;
+}
+
+/* =============================================================================
+ * CONFIGURATION MODULE RESOLUTION
+ * =============================================================================
+ */
+
+function getSubsystemConfiguration(
+  context,
+  subsystem,
+) {
+  const config =
+    context?.configuration ??
+    context?.config ??
+    null;
+
+  if (!config) {
+    return null;
+  }
+
+  return (
+    config?.infrastructure?.[subsystem] ??
+    config?.[subsystem] ??
+    null
+  );
+}
+
+function getConfiguredAdapterDefinition(
+  context,
+  subsystem,
+) {
+  const configuration =
+    getSubsystemConfiguration(
+      context,
+      subsystem,
+    );
+
+  if (!configuration) {
+    return null;
+  }
+
+  if (
+    isFunction(configuration) ||
+    (
+      isObjectLike(configuration) &&
+      (
+        isFunction(configuration.initialize) ||
+        isFunction(configuration.start) ||
+        isFunction(configuration.connect)
+      )
+    )
+  ) {
+    return {
+      value: configuration,
+      source: "configuration-object",
+    };
+  }
+
+  for (
+    const key of CONFIGURATION_MODULE_KEYS
+  ) {
+    const candidate =
+      configuration?.[key];
+
+    if (
+      candidate === undefined ||
+      candidate === null
+    ) {
+      continue;
+    }
+
+    return {
+      value: candidate,
+      source: `configuration.${key}`,
+    };
+  }
+
+  return null;
+}
+
+function resolveConfiguredAdapter(
+  context,
+  subsystem,
+) {
+  const definition =
+    getConfiguredAdapterDefinition(
+      context,
+      subsystem,
+    );
+
+  if (!definition) {
+    return null;
+  }
+
+  if (
+    typeof definition.value !== "string"
+  ) {
+    return {
+      modulePath: `configured:${subsystem}`,
+      module: definition.value,
+      source: definition.source,
+    };
+  }
+
+  const configuredPath =
+    definition.value.trim();
+
+  if (!configuredPath) {
+    return null;
+  }
+
+  const backendRoot =
+    path.resolve(
+      __dirname,
+      "..",
+    );
+
+  const absolutePath =
+    path.isAbsolute(configuredPath)
+      ? configuredPath
+      : path.resolve(
+          backendRoot,
+          configuredPath,
+        );
+
+  if (!moduleExists(absolutePath)) {
+    throw new Error(
+      `TITech configured ${subsystem} infrastructure adapter "${configuredPath}" could not be resolved from "${backendRoot}".`,
+    );
+  }
+
+  return {
+    modulePath: absolutePath,
+    module: require(absolutePath),
+    source: definition.source,
+  };
+}
+
+function resolveInfrastructureModule(
+  context,
+  subsystem,
+) {
+  const configured =
+    resolveConfiguredAdapter(
+      context,
+      subsystem,
+    );
+
+  if (configured) {
+    return configured;
+  }
+
+  return resolveModule(
+    INFRASTRUCTURE_MODULES[subsystem] ??
+    [],
+  );
+}
+
+/* =============================================================================
+ * LIFECYCLE METHOD DISCOVERY
+ * =============================================================================
+ */
+
+function getCandidateMethod(
   target,
   names,
 ) {
   if (!target) {
-    return [];
+    return null;
   }
 
-  const candidates = [];
-
   for (const name of names) {
-    if (
-      isFunction(target[name])
-    ) {
-      candidates.push({
+    if (isFunction(target[name])) {
+      return {
+        target,
         name,
         fn: target[name],
-      });
+      };
     }
   }
 
-  return candidates;
+  return null;
 }
-
-/**
- * -----------------------------------------------------------------------------
- * Lifecycle Method Discovery
- * -----------------------------------------------------------------------------
- */
 
 function resolveLifecycleMethods(
   loadedModule,
@@ -342,74 +705,47 @@ function resolveLifecycleMethods(
     return null;
   }
 
+  const rawModule =
+    loadedModule.module ??
+    loadedModule;
+
   const exported =
-    unwrapModule(
-      loadedModule.module,
-    );
+    unwrapModule(rawModule);
 
-  /**
-   * Some modules expose:
-   *
-   *   { service: {...} }
-   *
-   * while others directly export their lifecycle methods.
-   *
-   * Search a small set of common service containers.
-   */
-
-  const candidates = [
-    exported,
-    exported?.service,
-    exported?.client,
-    exported?.manager,
-    exported?.instance,
-    exported?.default,
-  ].filter(Boolean);
+  const candidates =
+    uniqueCandidates([
+      exported,
+      exported?.service,
+      exported?.client,
+      exported?.manager,
+      exported?.instance,
+      exported?.infrastructure,
+      exported?.default,
+      exported?.default?.service,
+      exported?.default?.client,
+      exported?.default?.manager,
+      exported?.default?.instance,
+      exported?.default?.infrastructure,
+    ]);
 
   let start = null;
   let stop = null;
 
   for (const candidate of candidates) {
     if (!start) {
-      const methods =
-        getCandidateMethods(
+      start =
+        getCandidateMethod(
           candidate,
-          [
-            'initialize',
-            'init',
-            'connect',
-            'start',
-            'bootstrap',
-          ],
+          START_METHODS,
         );
-
-      if (methods.length > 0) {
-        start = {
-          target: candidate,
-          ...methods[0],
-        };
-      }
     }
 
     if (!stop) {
-      const methods =
-        getCandidateMethods(
+      stop =
+        getCandidateMethod(
           candidate,
-          [
-            'shutdown',
-            'close',
-            'disconnect',
-            'stop',
-            'destroy',
-          ],
+          STOP_METHODS,
         );
-
-      if (methods.length > 0) {
-        stop = {
-          target: candidate,
-          ...methods[0],
-        };
-      }
     }
 
     if (start && stop) {
@@ -424,189 +760,460 @@ function resolveLifecycleMethods(
   };
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Lifecycle Invocation
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * LIFECYCLE INVOCATION
+ * =============================================================================
  */
 
 async function invokeLifecycleMethod(
-  lifecycle,
+  lifecycleMethod,
   context,
 ) {
-  if (!lifecycle) {
+  if (!lifecycleMethod) {
     return undefined;
   }
 
-  return lifecycle.fn.call(
-    lifecycle.target,
+  if (!isFunction(lifecycleMethod.fn)) {
+    throw new TypeError(
+      "TITech infrastructure lifecycle method is not callable.",
+    );
+  }
+
+  return lifecycleMethod.fn.call(
+    lifecycleMethod.target,
     context,
   );
 }
 
-/**
+/* =============================================================================
+ * INFRASTRUCTURE EXECUTION CONTEXT
+ * =============================================================================
+ *
+ * IMPORTANT DESIGN
  * -----------------------------------------------------------------------------
- * Infrastructure Context
- * -----------------------------------------------------------------------------
+ *
+ * This function intentionally creates TWO layers:
+ *
+ * 1. `infrastructure`
+ *    Immutable read-mostly metadata and shared references.
+ *
+ * 2. returned execution context
+ *    Mutable lifecycle execution state.
+ *
+ * The BootstrapContext itself is retained by reference under:
+ *
+ *   executionContext.bootstrapContext
+ *   executionContext.infrastructure.bootstrapContext
+ *
+ * Neither layer replaces:
+ *
+ *   bootstrapContext.state
+ *
+ * with infrastructure runtime state.
+ *
+ * Runtime handles are intentionally kept on the mutable execution context:
+ *
+ *   executionContext.database
+ *   executionContext.redis
+ *   executionContext.queue
+ *   executionContext.eventBus
+ *   executionContext.socketIO
+ *   executionContext.apiGateway
+ *
+ * The immutable namespace does NOT contain those mutable handles.
+ * =============================================================================
  */
 
 function createInfrastructureContext(
   context,
 ) {
-  return Object.freeze({
-    ...context,
+  const configuration =
+    context?.configuration ??
+    context?.config ??
+    null;
 
-    infrastructure: Object.freeze({
-      rootDirectory:
-        path.resolve(
-          __dirname,
-          '..',
-          '..',
-        ),
+  /**
+   * ---------------------------------------------------------------------------
+   * Immutable infrastructure metadata
+   * ---------------------------------------------------------------------------
+   */
+  const infrastructure = {
+    rootDirectory:
+      path.resolve(
+        __dirname,
+        "..",
+      ),
 
-      environment:
-        context?.environment,
+    environment:
+      context?.environment ??
+      null,
 
-      config:
-        context?.config,
+    configuration,
 
-      hooks:
-        context?.hooks,
-    }),
-  });
+    config:
+      configuration,
+
+    logger:
+      context?.logger ??
+      null,
+
+    observability:
+      context?.observability ??
+      null,
+
+    readiness:
+      context?.readiness ??
+      null,
+
+    resilience:
+      context?.resilience ??
+      null,
+
+    hooks:
+      context?.hooks ??
+      hooks ??
+      null,
+
+    /**
+     * Canonical lifecycle authority.
+     *
+     * Retained by reference.
+     *
+     * NEVER:
+     *
+     *   infrastructure.bootstrapContext.state = ...
+     *
+     * Infrastructure code must use the BootstrapContext lifecycle API instead.
+     */
+    bootstrapContext:
+      context ??
+      null,
+  };
+
+  Object.freeze(infrastructure);
+
+  /**
+   * ---------------------------------------------------------------------------
+   * Mutable execution context
+   * ---------------------------------------------------------------------------
+   *
+   * Existing infrastructure adapters may safely attach runtime resources.
+   */
+  return {
+    bootstrapContext:
+      context ??
+      null,
+
+    environment:
+      context?.environment ??
+      null,
+
+    configuration,
+
+    config:
+      configuration,
+
+    logger:
+      context?.logger ??
+      null,
+
+    observability:
+      context?.observability ??
+      null,
+
+    readiness:
+      context?.readiness ??
+      null,
+
+    resilience:
+      context?.resilience ??
+      null,
+
+    infrastructure,
+  };
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Feature Enablement
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * LIFECYCLE CONTEXT ENRICHMENT
+ * =============================================================================
  *
- * Configuration has priority.
- * Environment flags are a fallback.
+ * This helper guarantees that every lifecycle callback receives the SAME
+ * mutable execution-context instance for a subsystem startup/shutdown cycle.
+ *
+ * We avoid:
+ *
+ *   { ...executionContext, ...hookContext }
+ *
+ * as the primary context because spreading creates a new object and therefore
+ * prevents runtime handles attached by one callback from becoming authoritative
+ * on the shared infrastructure execution context.
+ *
+ * Hook-specific metadata is attached under `hook` rather than replacing the
+ * shared execution context.
+ * =============================================================================
+ */
+
+function createLifecycleExecutionContext(
+  executionContext,
+  hookContext,
+) {
+  if (
+    !executionContext ||
+    typeof executionContext !== "object"
+  ) {
+    throw new TypeError(
+      "TITech infrastructure execution context must be an object.",
+    );
+  }
+
+  executionContext.hook =
+    hookContext ?? null;
+
+  return executionContext;
+}
+
+/* =============================================================================
+ * ENABLEMENT / CRITICALITY
+ * =============================================================================
  */
 
 function readEnabledFlag(
   context,
   subsystem,
 ) {
-  const environment =
-    context?.environment;
-
   const config =
-    context?.config;
+    context?.configuration ??
+    context?.config ??
+    null;
 
-  /**
-   * Search possible config locations.
-   */
+  const environment =
+    context?.environment ??
+    null;
 
   const configCandidates = [
     config?.infrastructure?.[
       subsystem
     ]?.enabled,
 
+    config?.infrastructure?.enabled?.[
+      subsystem
+    ],
+
     config?.[subsystem]?.enabled,
 
-    config?.database?.[
+    config?.services?.[
       subsystem
     ]?.enabled,
 
-    config?.redis?.enabled,
-    config?.queue?.enabled,
+    subsystem === "database"
+      ? config?.database?.enabled
+      : undefined,
+
+    subsystem === "redis"
+      ? config?.redis?.enabled
+      : undefined,
+
+    subsystem === "queue"
+      ? config?.queue?.enabled
+      : undefined,
+
+    subsystem === "resilience"
+      ? config?.resilience?.enabled
+      : undefined,
+
+    subsystem === "eventBus"
+      ? config?.eventBus?.enabled
+      : undefined,
+
+    subsystem === "socketIO"
+      ? config?.socketIO?.enabled
+      : undefined,
+
+    subsystem === "apiGateway"
+      ? config?.apiGateway?.enabled
+      : undefined,
+  ];
+
+  for (const candidate of configCandidates) {
+    const parsed =
+      parseBooleanFlag(candidate);
+
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+
+  const environmentCandidates = [
+    environment?.[subsystem]?.enabled,
+
+    environment?.infrastructure?.[
+      subsystem
+    ]?.enabled,
+
+    environment?.infrastructure?.enabled?.[
+      subsystem
+    ],
+
+    process.env[
+      ENABLE_FLAGS[subsystem]
+    ],
   ];
 
   for (
-    const candidate of configCandidates
+    const candidate of
+      environmentCandidates
   ) {
-    if (
-      typeof candidate ===
-      'boolean'
-    ) {
-      return candidate;
+    const parsed =
+      parseBooleanFlag(candidate);
+
+    if (parsed !== null) {
+      return parsed;
     }
   }
 
-  const envKey =
-    ENABLE_FLAGS[subsystem];
-
-  if (
-    envKey &&
-    environment
-  ) {
-    const value =
-      environment?.[
-        subsystem
-      ]?.enabled;
-
-    if (
-      typeof value ===
-      'boolean'
-    ) {
-      return value;
-    }
-  }
-
-  const environmentValue =
-    process.env[envKey];
-
-  if (
-    environmentValue ===
-      undefined ||
-    environmentValue ===
-      null
-  ) {
-    /**
-     * Infrastructure defaults:
-     *
-     * Core systems:
-     *   database -> enabled
-     *   redis -> enabled
-     *   resilience -> enabled
-     *
-     * Optional systems:
-     *   eventBus -> enabled
-     *   queue -> enabled
-     *   socketIO -> disabled unless configured
-     *   apiGateway -> disabled unless configured
-     */
-    return [
-      'database',
-      'redis',
-      'resilience',
-      'eventBus',
-      'queue',
-    ].includes(
-      subsystem,
-    );
-  }
-
-  return [
-    'true',
-    '1',
-    'yes',
-    'on',
-    'enabled',
-  ].includes(
-    String(
-      environmentValue,
-    )
-      .trim()
-      .toLowerCase(),
+  return Boolean(
+    DEFAULT_ENABLED[subsystem],
   );
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Registration State
- * -----------------------------------------------------------------------------
+function isCriticalSubsystem(
+  subsystem,
+  context,
+) {
+  const config =
+    context?.configuration ??
+    context?.config ??
+    null;
+
+  const configuredCritical =
+    parseBooleanFlag(
+      config?.infrastructure?.[
+        subsystem
+      ]?.critical,
+    );
+
+  if (configuredCritical !== null) {
+    return configuredCritical;
+  }
+
+  return [
+    "database",
+    "redis",
+    "resilience",
+  ].includes(subsystem);
+}
+
+/* =============================================================================
+ * REGISTRATION STATE
+ * =============================================================================
  */
 
-const registrationState =
-  new Map();
+function getRegistration(
+  subsystem,
+) {
+  return registrationState.get(
+    subsystem,
+  );
+}
 
-/**
- * -----------------------------------------------------------------------------
- * Register One Infrastructure Component
- * -----------------------------------------------------------------------------
+function setRegistration(
+  subsystem,
+  value,
+) {
+  const registration =
+    Object.freeze({
+      subsystem,
+      ...value,
+      updatedAt:
+        getNowIso(),
+    });
+
+  registrationState.set(
+    subsystem,
+    registration,
+  );
+
+  return registration;
+}
+
+function markRegistrationFailure(
+  subsystem,
+  error,
+) {
+  const current =
+    getRegistration(
+      subsystem,
+    );
+
+  return setRegistration(
+    subsystem,
+    {
+      ...(current ?? {}),
+
+      enabled:
+        current?.enabled ??
+        true,
+
+      available:
+        current?.available ??
+        false,
+
+      registered:
+        current?.registered ??
+        false,
+
+      started: false,
+
+      state: "failed",
+
+      lastError: {
+        name:
+          error?.name,
+
+        code:
+          error?.code,
+
+        message:
+          error?.message,
+      },
+
+      failedAt:
+        getNowIso(),
+    },
+  );
+}
+
+function markRegistrationStopped(
+  subsystem,
+) {
+  const current =
+    getRegistration(
+      subsystem,
+    );
+
+  if (!current) {
+    return;
+  }
+
+  setRegistration(
+    subsystem,
+    {
+      ...current,
+
+      started: false,
+
+      state:
+        "stopped",
+
+      stoppedAt:
+        getNowIso(),
+    },
+  );
+}
+
+/* =============================================================================
+ * REGISTER ONE INFRASTRUCTURE COMPONENT
+ * =============================================================================
  */
 
 function registerInfrastructureComponent(
@@ -614,14 +1221,26 @@ function registerInfrastructureComponent(
   context,
 ) {
   const existing =
-    registrationState.get(
+    getRegistration(
       subsystem,
     );
 
   if (
-    existing
+    existing &&
+    existing.state !== "failed"
   ) {
     return existing;
+  }
+
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      INFRASTRUCTURE_MODULES,
+      subsystem,
+    )
+  ) {
+    throw new Error(
+      `Unknown TITech infrastructure subsystem "${subsystem}".`,
+    );
   }
 
   const enabled =
@@ -630,120 +1249,143 @@ function registerInfrastructureComponent(
       subsystem,
     );
 
-  const modulePaths =
-    INFRASTRUCTURE_MODULES[
-      subsystem
-    ];
-
-  if (
-    !modulePaths
-  ) {
-    throw new Error(
-      `Unknown infrastructure subsystem "${subsystem}".`,
+  const critical =
+    isCriticalSubsystem(
+      subsystem,
+      context,
     );
-  }
 
-  /**
-   * Disabled subsystem.
-   */
   if (!enabled) {
-    const disabled =
-      Object.freeze({
-        subsystem,
+    return setRegistration(
+      subsystem,
+      {
         enabled: false,
         available: false,
         registered: false,
-        reason: 'disabled',
-      });
-
-    registrationState.set(
-      subsystem,
-      disabled,
+        started: false,
+        state: "disabled",
+        critical,
+        reason: "disabled",
+      },
     );
-
-    return disabled;
   }
 
-  const loaded =
-    resolveModule(
-      modulePaths,
-    );
+  let loaded;
 
-  /**
-   * Enabled but implementation not installed.
-   *
-   * We intentionally treat optional infrastructure as unavailable rather than
-   * silently inventing an implementation.
-   *
-   * Core infrastructure should normally have explicit availability checks in
-   * deployment/CI.
-   */
-  if (!loaded) {
-    const unavailable =
-      Object.freeze({
+  try {
+    loaded =
+      resolveInfrastructureModule(
+        context,
         subsystem,
+      );
+  } catch (error) {
+    return markRegistrationFailure(
+      subsystem,
+      error,
+    );
+  }
+
+  if (!loaded) {
+    return setRegistration(
+      subsystem,
+      {
         enabled: true,
         available: false,
         registered: false,
-        reason: 'module-not-found',
-      });
-
-    registrationState.set(
-      subsystem,
-      unavailable,
+        started: false,
+        state: "unavailable",
+        critical,
+        reason:
+          "module-not-found",
+      },
     );
-
-    return unavailable;
   }
 
-  const lifecycle =
+  const resolvedLifecycle =
     resolveLifecycleMethods(
       loaded,
     );
 
   if (
-    !lifecycle?.start &&
-    !lifecycle?.stop
+    !resolvedLifecycle?.start
   ) {
-    const noLifecycle =
-      Object.freeze({
-        subsystem,
+    return setRegistration(
+      subsystem,
+      {
         enabled: true,
         available: true,
         registered: false,
+        started: false,
+        state: "invalid",
+        critical,
         reason:
-          'no-lifecycle-methods',
+          "startup-lifecycle-method-missing",
         modulePath:
           loaded.modulePath,
-      });
-
-    registrationState.set(
-      subsystem,
-      noLifecycle,
+        resolutionSource:
+          loaded.source ??
+          "unknown",
+        startupMethod:
+          null,
+        shutdownMethod:
+          resolvedLifecycle?.stop?.name ??
+          null,
+      },
     );
-
-    return noLifecycle;
   }
 
-  const infrastructureContext =
+  /**
+   * ONE shared mutable execution context for this infrastructure subsystem.
+   */
+  const executionContext =
     createInfrastructureContext(
       context,
     );
 
   const dependencies =
-    DEPENDENCIES[subsystem] || [];
+    DEPENDENCIES[subsystem] ??
+    [];
 
   const priority =
-    PRIORITIES[subsystem] ?? 0;
+    PRIORITIES[subsystem] ??
+    0;
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Register Lifecycle Hook
-   * ---------------------------------------------------------------------------
-   */
+  const metadata =
+    Object.freeze({
+      subsystem,
+
+      modulePath:
+        loaded.modulePath,
+
+      resolutionSource:
+        loaded.source ??
+        "unknown",
+
+      startupMethod:
+        resolvedLifecycle
+          .start.name,
+
+      shutdownMethod:
+        resolvedLifecycle
+          .stop?.name ??
+        null,
+
+      dependencies: [
+        ...dependencies,
+      ],
+
+      priority,
+
+      critical,
+    });
 
   if (
-    !hooks.has(subsystem)
+    hooks &&
+    typeof hooks.has ===
+      "function" &&
+    !hooks.has(
+      subsystem,
+    )
   ) {
     lifecycle(
       subsystem,
@@ -752,105 +1394,196 @@ function registerInfrastructureComponent(
 
         dependencies,
 
-        critical:
-          [
-            'database',
-            'redis',
-            'resilience',
-          ].includes(
-            subsystem,
-          ),
+        critical,
+
+        metadata,
 
         start:
           async hookContext => {
-            /**
-             * Prevent accidental double initialization when the existing
-             * subsystem itself has already been started elsewhere.
-             *
-             * The subsystem remains responsible for its own idempotency.
-             */
-            const result =
-              await invokeLifecycleMethod(
-                lifecycle.start,
+            createLifecycleExecutionContext(
+              executionContext,
+              hookContext,
+            );
+
+            setRegistration(
+              subsystem,
+              {
+                enabled: true,
+                available: true,
+                registered: true,
+                started: false,
+                state: "starting",
+                critical,
+                modulePath:
+                  loaded.modulePath,
+                resolutionSource:
+                  loaded.source ??
+                  "unknown",
+                startupMethod:
+                  resolvedLifecycle
+                    .start.name,
+                shutdownMethod:
+                  resolvedLifecycle
+                    .stop?.name ??
+                  null,
+                dependencies: [
+                  ...dependencies,
+                ],
+                priority,
+              },
+            );
+
+            try {
+              const result =
+                await invokeLifecycleMethod(
+                  resolvedLifecycle.start,
+                  executionContext,
+                );
+
+              /**
+               * Runtime handles belong to the mutable execution context.
+               *
+               * Examples:
+               *
+               *   executionContext.database
+               *   executionContext.redis
+               *   executionContext.queue
+               *
+               * No runtime handle is copied into the immutable infrastructure
+               * namespace.
+               */
+              setRegistration(
+                subsystem,
                 {
-                  ...infrastructureContext,
-                  ...hookContext,
+                  enabled: true,
+                  available: true,
+                  registered: true,
+                  started: true,
+                  state: "started",
+                  critical,
+                  modulePath:
+                    loaded.modulePath,
+                  resolutionSource:
+                    loaded.source ??
+                    "unknown",
+                  startupMethod:
+                    resolvedLifecycle
+                      .start.name,
+                  shutdownMethod:
+                    resolvedLifecycle
+                      .stop?.name ??
+                    null,
+                  dependencies: [
+                    ...dependencies,
+                  ],
+                  priority,
+                  lastStartResult:
+                    result,
+                  startedAt:
+                    getNowIso(),
                 },
               );
 
-            /**
-             * Save resource instance when a startup method returns one.
-             */
-            if (
-              result !== undefined
-            ) {
-              context[subsystem] =
-                result;
-            }
+              return result;
+            } catch (error) {
+              markRegistrationFailure(
+                subsystem,
+                error,
+              );
 
-            return result;
+              throw error;
+            }
           },
 
         stop:
           async hookContext => {
-            return invokeLifecycleMethod(
-              lifecycle.stop,
-              {
-                ...infrastructureContext,
-                ...hookContext,
-              },
+            createLifecycleExecutionContext(
+              executionContext,
+              hookContext,
             );
+
+            const current =
+              getRegistration(
+                subsystem,
+              );
+
+            if (
+              !current ||
+              !current.started
+            ) {
+              markRegistrationStopped(
+                subsystem,
+              );
+
+              return undefined;
+            }
+
+            try {
+              const result =
+                await invokeLifecycleMethod(
+                  resolvedLifecycle.stop,
+                  executionContext,
+                );
+
+              markRegistrationStopped(
+                subsystem,
+              );
+
+              return result;
+            } catch (error) {
+              markRegistrationFailure(
+                subsystem,
+                error,
+              );
+
+              throw error;
+            }
           },
-
-        metadata: {
-          subsystem,
-
-          modulePath:
-            loaded.modulePath,
-
-          startupMethod:
-            lifecycle.start?.name ||
-            null,
-
-          shutdownMethod:
-            lifecycle.stop?.name ||
-            null,
-
-          module:
-            loaded.modulePath,
-        },
       },
     );
   }
 
-  const registered =
-    Object.freeze({
-      subsystem,
+  return setRegistration(
+    subsystem,
+    {
       enabled: true,
       available: true,
       registered: true,
+      started: false,
+      state: "registered",
+      critical,
       modulePath:
         loaded.modulePath,
+      resolutionSource:
+        loaded.source ??
+        "unknown",
       startupMethod:
-        lifecycle.start?.name ||
-        null,
+        resolvedLifecycle
+          .start.name,
       shutdownMethod:
-        lifecycle.stop?.name ||
+        resolvedLifecycle
+          .stop?.name ??
         null,
-    });
-
-  registrationState.set(
-    subsystem,
-    registered,
+      dependencies: [
+        ...dependencies,
+      ],
+      priority,
+      reason:
+        hooks &&
+        typeof hooks.has ===
+          "function" &&
+        hooks.has(
+          subsystem,
+        )
+          ? "already-registered"
+          : undefined,
+    },
   );
-
-  return registered;
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Register All Infrastructure
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * REGISTER ALL INFRASTRUCTURE
+ * =============================================================================
  */
 
 function registerInfrastructure(
@@ -861,21 +1594,9 @@ function registerInfrastructure(
 
   const results = {};
 
-  /**
-   * Ordered intentionally for clarity.
-   *
-   * Actual dependency ordering is still enforced by hooks.js.
-   */
   for (
-    const subsystem of [
-      'resilience',
-      'database',
-      'redis',
-      'eventBus',
-      'queue',
-      'socketIO',
-      'apiGateway',
-    ]
+    const subsystem of
+      SUBSYSTEM_ORDER
   ) {
     results[subsystem] =
       registerInfrastructureComponent(
@@ -886,16 +1607,309 @@ function registerInfrastructure(
 
   return Object.freeze({
     ...results,
+
+    initialized:
+      false,
+
+    registeredAt:
+      getNowIso(),
   });
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Explicit Adapters
- * -----------------------------------------------------------------------------
- *
- * These functions allow the bootstrap root to explicitly register infrastructure
- * modules that do not follow automatic module discovery.
+/* =============================================================================
+ * PROVIDED INFRASTRUCTURE REGISTRATION
+ * =============================================================================
+ */
+
+function registerProvidedInfrastructure(
+  subsystem,
+  moduleValue,
+  context = {},
+  options = {},
+) {
+  if (!moduleValue) {
+    throw new TypeError(
+      `Cannot register TITech infrastructure "${subsystem}" without a module.`,
+    );
+  }
+
+  const existing =
+    getRegistration(
+      subsystem,
+    );
+
+  if (
+    existing &&
+    existing.state !== "failed"
+  ) {
+    return existing;
+  }
+
+  const exported =
+    unwrapModule(
+      moduleValue,
+    );
+
+  const explicitStart =
+    isFunction(options.start)
+      ? {
+          target: exported,
+          name:
+            "explicit-start",
+          fn: options.start,
+        }
+      : null;
+
+  const explicitStop =
+    isFunction(options.stop)
+      ? {
+          target: exported,
+          name:
+            "explicit-stop",
+          fn: options.stop,
+        }
+      : null;
+
+  const automatic =
+    resolveLifecycleMethods({
+      modulePath:
+        options.modulePath ??
+        `provided:${subsystem}`,
+
+      module:
+        exported,
+    });
+
+  const resolvedStart =
+    explicitStart ??
+    automatic?.start ??
+    null;
+
+  const resolvedStop =
+    explicitStop ??
+    automatic?.stop ??
+    null;
+
+  if (!resolvedStart) {
+    throw new TypeError(
+      `TITech infrastructure "${subsystem}" does not expose a supported startup lifecycle method.`,
+    );
+  }
+
+  const executionContext =
+    createInfrastructureContext(
+      context,
+    );
+
+  const critical =
+    options.critical ??
+    isCriticalSubsystem(
+      subsystem,
+      context,
+    );
+
+  const dependencies =
+    Array.isArray(
+      options.dependencies,
+    )
+      ? [
+          ...options.dependencies,
+        ]
+      : DEPENDENCIES[
+          subsystem
+        ] ?? [];
+
+  const priority =
+    options.priority ??
+    PRIORITIES[subsystem] ??
+    0;
+
+  const modulePath =
+    options.modulePath ??
+    `provided:${subsystem}`;
+
+  if (
+    hooks &&
+    typeof hooks.has ===
+      "function" &&
+    !hooks.has(
+      subsystem,
+    )
+  ) {
+    lifecycle(
+      subsystem,
+      {
+        priority,
+        dependencies,
+        critical,
+
+        metadata: {
+          subsystem,
+          explicit: true,
+          critical,
+          priority,
+          dependencies: [
+            ...dependencies,
+          ],
+          modulePath,
+        },
+
+        start:
+          async hookContext => {
+            createLifecycleExecutionContext(
+              executionContext,
+              hookContext,
+            );
+
+            setRegistration(
+              subsystem,
+              {
+                enabled: true,
+                available: true,
+                registered: true,
+                started: false,
+                state: "starting",
+                explicit: true,
+                critical,
+                modulePath,
+                resolutionSource:
+                  "explicit",
+                startupMethod:
+                  resolvedStart.name,
+                shutdownMethod:
+                  resolvedStop?.name ??
+                  null,
+                dependencies: [
+                  ...dependencies,
+                ],
+                priority,
+              },
+            );
+
+            try {
+              const result =
+                await invokeLifecycleMethod(
+                  resolvedStart,
+                  executionContext,
+                );
+
+              setRegistration(
+                subsystem,
+                {
+                  enabled: true,
+                  available: true,
+                  registered: true,
+                  started: true,
+                  state: "started",
+                  explicit: true,
+                  critical,
+                  modulePath,
+                  resolutionSource:
+                    "explicit",
+                  startupMethod:
+                    resolvedStart.name,
+                  shutdownMethod:
+                    resolvedStop?.name ??
+                    null,
+                  dependencies: [
+                    ...dependencies,
+                  ],
+                  priority,
+                  lastStartResult:
+                    result,
+                  startedAt:
+                    getNowIso(),
+                },
+              );
+
+              return result;
+            } catch (error) {
+              markRegistrationFailure(
+                subsystem,
+                error,
+              );
+
+              throw error;
+            }
+          },
+
+        stop:
+          async hookContext => {
+            createLifecycleExecutionContext(
+              executionContext,
+              hookContext,
+            );
+
+            const current =
+              getRegistration(
+                subsystem,
+              );
+
+            if (
+              !current ||
+              !current.started
+            ) {
+              markRegistrationStopped(
+                subsystem,
+              );
+
+              return undefined;
+            }
+
+            try {
+              const result =
+                await invokeLifecycleMethod(
+                  resolvedStop,
+                  executionContext,
+                );
+
+              markRegistrationStopped(
+                subsystem,
+              );
+
+              return result;
+            } catch (error) {
+              markRegistrationFailure(
+                subsystem,
+                error,
+              );
+
+              throw error;
+            }
+          },
+      },
+    );
+  }
+
+  return setRegistration(
+    subsystem,
+    {
+      enabled: true,
+      available: true,
+      registered: true,
+      started: false,
+      state: "registered",
+      explicit: true,
+      critical,
+      modulePath,
+      resolutionSource:
+        "explicit",
+      startupMethod:
+        resolvedStart.name,
+      shutdownMethod:
+        resolvedStop?.name ??
+        null,
+      dependencies: [
+        ...dependencies,
+      ],
+      priority,
+    },
+  );
+}
+
+/* =============================================================================
+ * EXPLICIT ADAPTERS
+ * =============================================================================
  */
 
 function registerDatabase(
@@ -904,7 +1918,7 @@ function registerDatabase(
   options = {},
 ) {
   return registerProvidedInfrastructure(
-    'database',
+    "database",
     moduleValue,
     context,
     options,
@@ -917,7 +1931,7 @@ function registerRedis(
   options = {},
 ) {
   return registerProvidedInfrastructure(
-    'redis',
+    "redis",
     moduleValue,
     context,
     options,
@@ -930,7 +1944,7 @@ function registerQueue(
   options = {},
 ) {
   return registerProvidedInfrastructure(
-    'queue',
+    "queue",
     moduleValue,
     context,
     options,
@@ -943,7 +1957,7 @@ function registerEventBus(
   options = {},
 ) {
   return registerProvidedInfrastructure(
-    'eventBus',
+    "eventBus",
     moduleValue,
     context,
     options,
@@ -956,7 +1970,7 @@ function registerResilience(
   options = {},
 ) {
   return registerProvidedInfrastructure(
-    'resilience',
+    "resilience",
     moduleValue,
     context,
     options,
@@ -969,7 +1983,7 @@ function registerSocketIO(
   options = {},
 ) {
   return registerProvidedInfrastructure(
-    'socketIO',
+    "socketIO",
     moduleValue,
     context,
     options,
@@ -982,185 +1996,149 @@ function registerApiGateway(
   options = {},
 ) {
   return registerProvidedInfrastructure(
-    'apiGateway',
+    "apiGateway",
     moduleValue,
     context,
     options,
   );
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Explicit Provided Infrastructure Registration
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * HOOK ENGINE STARTUP RESOLUTION
+ * =============================================================================
  */
 
-function registerProvidedInfrastructure(
-  subsystem,
-  moduleValue,
+function resolveHookStartupExecutor() {
+  if (typeof startup === "function") {
+    return {
+      target: null,
+      method: "startup",
+      execute: startup,
+    };
+  }
+
+  const candidates = [
+    [startup, "run"],
+    [startup, "execute"],
+    [startup, "start"],
+    [startup, "initialize"],
+    [hooks, "run"],
+    [hooks, "execute"],
+    [hooks, "start"],
+    [hooks, "initialize"],
+  ];
+
+  for (
+    const [target, method] of
+      candidates
+  ) {
+    if (
+      target &&
+      isFunction(target[method])
+    ) {
+      return {
+        target,
+        method,
+        execute:
+          target[method],
+      };
+    }
+  }
+
+  return null;
+}
+
+function resolveHookShutdownExecutor() {
+  const candidates = [
+    [startup, "shutdown"],
+    [startup, "stop"],
+    [startup, "close"],
+    [startup, "destroy"],
+    [hooks, "shutdown"],
+    [hooks, "stop"],
+    [hooks, "close"],
+    [hooks, "destroy"],
+  ];
+
+  for (
+    const [target, method] of
+      candidates
+  ) {
+    if (
+      target &&
+      isFunction(target[method])
+    ) {
+      return {
+        target,
+        method,
+        execute:
+          target[method],
+      };
+    }
+  }
+
+  return null;
+}
+
+/* =============================================================================
+ * EXECUTE REGISTERED INFRASTRUCTURE
+ * =============================================================================
+ */
+
+async function executeRegisteredInfrastructure(
   context = {},
-  options = {},
 ) {
-  if (
-    !moduleValue
-  ) {
-    throw new TypeError(
-      `Cannot register "${subsystem}" infrastructure without a module.`,
-    );
-  }
-
-  if (
-    registrationState.has(
-      subsystem,
-    )
-  ) {
-    return registrationState.get(
-      subsystem,
-    );
-  }
-
-  const exported =
-    unwrapModule(
-      moduleValue,
-    );
-
-  const resolved = {
-    exported,
-
-    start:
-      options.start
-        ? {
-            target:
-              exported,
-            fn:
-              options.start,
-          }
-        : null,
-
-    stop:
-      options.stop
-        ? {
-            target:
-              exported,
-            fn:
-              options.stop,
-          }
-        : null,
-  };
-
-  /**
-   * Auto-detect lifecycle methods when explicit functions aren't provided.
-   */
-
-  const auto =
-    resolveLifecycleMethods({
-      modulePath:
-        options.modulePath ||
-        `provided:${subsystem}`,
-
-      module:
-        exported,
-    });
-
-  resolved.start =
-    resolved.start ||
-    auto.start;
-
-  resolved.stop =
-    resolved.stop ||
-    auto.stop;
-
-  if (
-    !resolved.start &&
-    !resolved.stop
-  ) {
-    throw new TypeError(
-      `Infrastructure "${subsystem}" does not expose a lifecycle API.`,
-    );
-  }
-
-  const infrastructureContext =
+  const executionContext =
     createInfrastructureContext(
       context,
     );
 
-  if (
-    !hooks.has(subsystem)
-  ) {
-    lifecycle(
-      subsystem,
-      {
-        priority:
-          options.priority ??
-          PRIORITIES[subsystem] ??
-          0,
+  const executor =
+    resolveHookStartupExecutor();
 
-        dependencies:
-          options.dependencies ??
-          DEPENDENCIES[subsystem] ??
-          [],
-
-        critical:
-          options.critical ??
-          [
-            'database',
-            'redis',
-            'resilience',
-          ].includes(
-            subsystem,
-          ),
-
-        start:
-          async hookContext => {
-            return invokeLifecycleMethod(
-              resolved.start,
-              {
-                ...infrastructureContext,
-                ...hookContext,
-              },
-            );
-          },
-
-        stop:
-          async hookContext => {
-            return invokeLifecycleMethod(
-              resolved.stop,
-              {
-                ...infrastructureContext,
-                ...hookContext,
-              },
-            );
-          },
-
-        metadata: {
-          subsystem,
-          explicit: true,
-        },
-      },
+  if (!executor) {
+    throw new Error(
+      "TITech infrastructure hook startup engine is unavailable.",
     );
   }
 
-  const registered =
-    Object.freeze({
-      subsystem,
-      enabled: true,
-      available: true,
-      registered: true,
-      explicit: true,
-    });
-
-  registrationState.set(
-    subsystem,
-    registered,
+  return executor.execute.call(
+    executor.target,
+    executionContext,
   );
-
-  return registered;
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Infrastructure Diagnostics
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * EXECUTE INFRASTRUCTURE SHUTDOWN
+ * =============================================================================
+ */
+
+async function executeRegisteredInfrastructureShutdown(
+  context = {},
+) {
+  const executionContext =
+    createInfrastructureContext(
+      context,
+    );
+
+  const executor =
+    resolveHookShutdownExecutor();
+
+  if (!executor) {
+    throw new Error(
+      "TITech infrastructure hook shutdown engine is unavailable.",
+    );
+  }
+
+  return executor.execute.call(
+    executor.target,
+    executionContext,
+  );
+}
+
+/* =============================================================================
+ * REGISTRATION VALIDATION
+ * =============================================================================
  */
 
 function getInfrastructureStatus() {
@@ -1182,15 +2160,598 @@ function getInfrastructureStatus() {
   );
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Infrastructure Readiness
- * -----------------------------------------------------------------------------
- *
- * This only describes registered infrastructure.
- *
- * Actual runtime health should be exposed by the health/observability layer.
+function getCriticalUnavailableSubsystems() {
+  return Object.values(
+    getInfrastructureStatus(),
+  )
+    .filter(
+      entry =>
+        entry.enabled &&
+        entry.critical &&
+        (
+          !entry.available ||
+          !entry.registered
+        ),
+    )
+    .map(
+      entry =>
+        entry.subsystem,
+    );
+}
+
+function getCriticalNotStartedSubsystems() {
+  return Object.values(
+    getInfrastructureStatus(),
+  )
+    .filter(
+      entry =>
+        entry.enabled &&
+        entry.critical &&
+        (
+          !entry.available ||
+          !entry.registered ||
+          !entry.started
+        ),
+    )
+    .map(
+      entry =>
+        entry.subsystem,
+    );
+}
+
+function validateRegistrationsBeforeStart() {
+  const invalid =
+    Object.values(
+      getInfrastructureStatus(),
+    )
+      .filter(
+        entry =>
+          entry.enabled &&
+          entry.critical &&
+          (
+            !entry.available ||
+            !entry.registered
+          ),
+      );
+
+  if (!invalid.length) {
+    return true;
+  }
+
+  const details =
+    invalid
+      .map(
+        entry =>
+          `${entry.subsystem} (${
+            entry.reason ||
+            "unavailable"
+          })`,
+      )
+      .join(", ");
+
+  throw new Error(
+    `TITech critical infrastructure is unavailable: ${details}.`,
+  );
+}
+
+function validateStartedInfrastructure() {
+  const notStarted =
+    getCriticalNotStartedSubsystems();
+
+  if (!notStarted.length) {
+    return true;
+  }
+
+  throw new Error(
+    "TITech critical infrastructure startup did not complete for: " +
+      `${notStarted.join(", ")}.`,
+  );
+}
+
+/* =============================================================================
+ * PARTIAL STARTUP CLEANUP
+ * =============================================================================
  */
+
+async function cleanupPartialInfrastructure(
+  context,
+  originalError,
+) {
+  const activeSubsystems =
+    Object.values(
+      getInfrastructureStatus(),
+    )
+      .filter(
+        entry =>
+          entry.enabled &&
+          entry.started,
+      )
+      .map(
+        entry =>
+          entry.subsystem,
+      );
+
+  if (!activeSubsystems.length) {
+    return Object.freeze({
+      attempted: false,
+      cleaned: true,
+      activeSubsystems: [],
+    });
+  }
+
+  try {
+    await executeRegisteredInfrastructureShutdown(
+      {
+        ...(isObjectLike(context)
+          ? context
+          : {}),
+
+        reason:
+          "infrastructure_startup_failure",
+
+        startupError:
+          originalError,
+
+        partialStartup: true,
+      },
+    );
+
+    for (
+      const subsystem of
+        activeSubsystems
+    ) {
+      markRegistrationStopped(
+        subsystem,
+      );
+    }
+
+    return Object.freeze({
+      attempted: true,
+      cleaned: true,
+      activeSubsystems,
+    });
+  } catch (cleanupError) {
+    for (
+      const subsystem of
+        activeSubsystems
+    ) {
+      const current =
+        getRegistration(
+          subsystem,
+        );
+
+      if (current?.started) {
+        markRegistrationFailure(
+          subsystem,
+          cleanupError,
+        );
+      }
+    }
+
+    return Object.freeze({
+      attempted: true,
+      cleaned: false,
+      activeSubsystems,
+
+      error: {
+        name:
+          cleanupError?.name,
+
+        code:
+          cleanupError?.code,
+
+        message:
+          cleanupError?.message,
+      },
+    });
+  }
+}
+
+/* =============================================================================
+ * INITIALIZATION RESULT
+ * =============================================================================
+ */
+
+function buildInitializationResult(
+  context,
+  startupResult,
+) {
+  const status =
+    getInfrastructureStatus();
+
+  const criticalUnavailable =
+    getCriticalUnavailableSubsystems();
+
+  const criticalNotStarted =
+    getCriticalNotStartedSubsystems();
+
+  return Object.freeze({
+    ok:
+      criticalUnavailable.length === 0 &&
+      criticalNotStarted.length === 0,
+
+    initialized: true,
+
+    service:
+      "titech-community-capital-backend",
+
+    application:
+      "TITech Community Capital",
+
+    state:
+      "initialized",
+
+    subsystems:
+      status,
+
+    criticalUnavailable,
+
+    criticalNotStarted,
+
+    startupResult,
+
+    context: {
+      bootstrapContext:
+        context,
+    },
+
+    timestamp:
+      getNowIso(),
+  });
+}
+
+/* =============================================================================
+ * INITIALIZE INFRASTRUCTURE
+ * =============================================================================
+ */
+
+async function initializeInfrastructure(
+  context = {},
+) {
+  if (initialized) {
+    return (
+      initializationResult ||
+      Object.freeze({
+        ok: true,
+        initialized: true,
+        idempotent: true,
+        subsystems:
+          getInfrastructureStatus(),
+        timestamp:
+          getNowIso(),
+      })
+    );
+  }
+
+  if (initializationPromise) {
+    return initializationPromise;
+  }
+
+  if (shuttingDown) {
+    throw new Error(
+      "TITech infrastructure cannot initialize while shutdown is in progress.",
+    );
+  }
+
+  initializationPromise =
+    (async () => {
+      initializing = true;
+      startupAttempted = false;
+
+      const effectiveContext =
+        context || {};
+
+      initializationContext =
+        effectiveContext;
+
+      try {
+        registerInfrastructure(
+          effectiveContext,
+        );
+
+        validateRegistrationsBeforeStart();
+
+        startupAttempted = true;
+
+        const startupResult =
+          await executeRegisteredInfrastructure(
+            effectiveContext,
+          );
+
+        validateStartedInfrastructure();
+
+        initialized = true;
+
+        initializationResult =
+          buildInitializationResult(
+            effectiveContext,
+            startupResult,
+          );
+
+        if (
+          !initializationResult.ok
+        ) {
+          throw new Error(
+            "TITech infrastructure initialization completed with an invalid readiness state.",
+          );
+        }
+
+        return initializationResult;
+      } catch (error) {
+        initialized = false;
+        initializationResult = null;
+
+        if (startupAttempted) {
+          const cleanupResult =
+            await cleanupPartialInfrastructure(
+              effectiveContext,
+              error,
+            );
+
+          if (
+            error &&
+            typeof error ===
+              "object"
+          ) {
+            try {
+              error.infrastructureCleanup =
+                cleanupResult;
+            } catch {
+              // Diagnostic attachment is advisory only.
+            }
+          }
+        }
+
+        throw error;
+      } finally {
+        initializing = false;
+        startupAttempted = false;
+      }
+    })();
+
+  try {
+    return await initializationPromise;
+  } finally {
+    initializationPromise = null;
+  }
+}
+
+/* =============================================================================
+ * BOOTSTRAP / START ALIASES
+ * =============================================================================
+ */
+
+const bootstrapInfrastructure =
+  initializeInfrastructure;
+
+const startInfrastructure =
+  initializeInfrastructure;
+
+/* =============================================================================
+ * SHUTDOWN INFRASTRUCTURE
+ * =============================================================================
+ */
+
+async function shutdownInfrastructure(
+  context =
+    initializationContext ||
+    {},
+  options = {},
+) {
+  if (shutdownPromise) {
+    return shutdownPromise;
+  }
+
+  if (shuttingDown) {
+    return Object.freeze({
+      ok: true,
+      shutdown: false,
+      idempotent: true,
+      reason:
+        "shutdown-already-in-progress",
+    });
+  }
+
+  shutdownPromise =
+    (async () => {
+      shuttingDown = true;
+
+      const effectiveContext = {
+        ...(isObjectLike(context)
+          ? context
+          : {}),
+
+        ...(isObjectLike(options)
+          ? options
+          : {}),
+      };
+
+      try {
+        const activeSubsystems =
+          Object.values(
+            getInfrastructureStatus(),
+          )
+            .filter(
+              entry =>
+                entry.enabled &&
+                entry.started,
+            )
+            .map(
+              entry =>
+                entry.subsystem,
+            );
+
+        if (!activeSubsystems.length) {
+          initialized = false;
+          initializationResult = null;
+
+          return Object.freeze({
+            ok: true,
+            initialized: false,
+            shutdown: true,
+            idempotent: true,
+            reason:
+              "no-active-infrastructure",
+            subsystems:
+              getInfrastructureStatus(),
+            timestamp:
+              getNowIso(),
+          });
+        }
+
+        const shutdownResult =
+          await executeRegisteredInfrastructureShutdown(
+            effectiveContext,
+          );
+
+        for (
+          const [
+            subsystem,
+            registration,
+          ] of registrationState
+        ) {
+          if (registration) {
+            setRegistration(
+              subsystem,
+              {
+                ...registration,
+                started: false,
+                state: "stopped",
+                stoppedAt:
+                  getNowIso(),
+              },
+            );
+          }
+        }
+
+        initialized = false;
+        initializationResult = null;
+
+        return Object.freeze({
+          ok: true,
+          initialized: false,
+          shutdown: true,
+          shutdownResult,
+          activeSubsystems,
+          subsystems:
+            getInfrastructureStatus(),
+          timestamp:
+            getNowIso(),
+        });
+      } catch (error) {
+        for (
+          const [
+            subsystem,
+            registration,
+          ] of registrationState
+        ) {
+          if (
+            registration?.started
+          ) {
+            markRegistrationFailure(
+              subsystem,
+              error,
+            );
+          }
+        }
+
+        throw error;
+      } finally {
+        shuttingDown = false;
+        initializationContext = null;
+      }
+    })();
+
+  try {
+    return await shutdownPromise;
+  } finally {
+    shutdownPromise = null;
+  }
+}
+
+/* =============================================================================
+ * SHUTDOWN ALIASES
+ * =============================================================================
+ */
+
+const stopInfrastructure =
+  shutdownInfrastructure;
+
+const closeInfrastructure =
+  shutdownInfrastructure;
+
+/* =============================================================================
+ * BOOTSTRAP HOOK REGISTRATION
+ * =============================================================================
+ */
+
+function registerBootstrapHooks(
+  context = {},
+) {
+  return registerInfrastructure(
+    context,
+  );
+}
+
+/* =============================================================================
+ * DIAGNOSTICS
+ * =============================================================================
+ */
+
+function getInfrastructureSummary() {
+  const status =
+    getInfrastructureStatus();
+
+  const values =
+    Object.values(status);
+
+  return Object.freeze({
+    initialized,
+
+    initializing,
+
+    shuttingDown,
+
+    registered:
+      values.filter(
+        value =>
+          value.registered,
+      ).length,
+
+    available:
+      values.filter(
+        value =>
+          value.available,
+      ).length,
+
+    started:
+      values.filter(
+        value =>
+          value.started,
+      ).length,
+
+    enabled:
+      values.filter(
+        value =>
+          value.enabled,
+      ).length,
+
+    failed:
+      values.filter(
+        value =>
+          value.state === "failed",
+      ).length,
+
+    criticalUnavailable:
+      getCriticalUnavailableSubsystems(),
+
+    criticalNotStarted:
+      getCriticalNotStartedSubsystems(),
+
+    ready:
+      isInfrastructureReady(),
+  });
+}
 
 function isInfrastructureRegistered(
   subsystem,
@@ -1205,94 +2766,204 @@ function isInfrastructureRegistered(
 function isInfrastructureAvailable(
   subsystem,
 ) {
-  const status =
+  return Boolean(
     registrationState.get(
       subsystem,
-    );
+    )?.available,
+  );
+}
 
-  if (!status) {
+function isInfrastructureStarted(
+  subsystem,
+) {
+  return Boolean(
+    registrationState.get(
+      subsystem,
+    )?.started,
+  );
+}
+
+function isInfrastructureReady() {
+  if (!initialized) {
     return false;
   }
 
-  return Boolean(
-    status.available,
+  const status =
+    getInfrastructureStatus();
+
+  return !Object.values(status).some(
+    entry =>
+      entry.enabled &&
+      entry.critical &&
+      (
+        !entry.available ||
+        !entry.registered ||
+        !entry.started
+      ),
   );
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Reset
- * -----------------------------------------------------------------------------
- *
- * Intended for automated tests only.
- *
- * Production callers should not reset infrastructure registration.
+/* =============================================================================
+ * RESET — TEST SUPPORT
+ * =============================================================================
  */
 
 function resetInfrastructureRegistry() {
+  if (
+    initialized ||
+    initializing ||
+    shuttingDown
+  ) {
+    throw new Error(
+      "TITech infrastructure registry cannot be reset while active.",
+    );
+  }
+
   registrationState.clear();
+
+  initializationPromise = null;
+  shutdownPromise = null;
+  initializationContext = null;
+  initializationResult = null;
+
+  initialized = false;
+  startupAttempted = false;
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Bootstrap Registration Contract
- * -----------------------------------------------------------------------------
- *
- * bootstrap/index.js can simply call:
- *
- *   registerBootstrapHooks(context)
- *
- * This keeps infrastructure composition isolated from application startup.
+/* =============================================================================
+ * DEVELOPMENT COMPOSITION SELF-CHECK
+ * =============================================================================
  */
 
-function registerBootstrapHooks(
-  context = {},
-) {
-  return registerInfrastructure(
-    context,
-  );
+function validateExportContract() {
+  const requiredFunctions = [
+    "initialize",
+    "bootstrap",
+    "start",
+    "shutdown",
+    "stop",
+    "close",
+    "registerInfrastructure",
+    "registerBootstrapHooks",
+  ];
+
+  for (
+    const name of
+      requiredFunctions
+  ) {
+    if (
+      !isFunction(
+        module.exports[name],
+      )
+    ) {
+      throw new Error(
+        `TITech infrastructure export contract is invalid: "${name}" must be callable.`,
+      );
+    }
+  }
+
+  return true;
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Export
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * PUBLIC EXPORT
+ * =============================================================================
  */
 
 module.exports = Object.freeze({
-  /**
-   * Main registration API.
-   */
-  registerInfrastructure,
+  /* Primary lifecycle API */
+  initialize:
+    initializeInfrastructure,
+
+  initializeInfrastructure,
+
+  bootstrap:
+    bootstrapInfrastructure,
+
+  bootstrapInfrastructure,
+
+  start:
+    startInfrastructure,
+
+  startInfrastructure,
+
+  shutdown:
+    shutdownInfrastructure,
+
+  shutdownInfrastructure,
+
+  stop:
+    stopInfrastructure,
+
+  stopInfrastructure,
+
+  close:
+    closeInfrastructure,
+
+  closeInfrastructure,
+
+  /* Hook / composition registration */
   registerBootstrapHooks,
 
-  /**
-   * Explicit adapters.
-   */
+  registerInfrastructure,
+
+  /* Explicit infrastructure adapters */
   registerDatabase,
+
   registerRedis,
+
   registerQueue,
+
   registerEventBus,
+
   registerResilience,
+
   registerSocketIO,
+
   registerApiGateway,
 
-  /**
-   * Diagnostics.
-   */
+  /* Diagnostics */
   getInfrastructureStatus,
+
+  getInfrastructureSummary,
+
   isInfrastructureRegistered,
+
   isInfrastructureAvailable,
 
-  /**
-   * Test support.
-   */
+  isInfrastructureStarted,
+
+  isInfrastructureReady,
+
+  /* Test support */
   resetInfrastructureRegistry,
 
-  /**
-   * Metadata.
-   */
+  /* Metadata */
   INFRASTRUCTURE_MODULES,
+
   DEPENDENCIES,
+
   PRIORITIES,
+
+  ENABLE_FLAGS,
+
+  DEFAULT_ENABLED,
+
+  SUBSYSTEM_ORDER,
+
+  START_METHODS,
+
+  STOP_METHODS,
 });
+
+/* =============================================================================
+ * DEVELOPMENT SELF-CHECK
+ * =============================================================================
+ */
+
+if (
+  process.env.NODE_ENV !==
+  "production"
+) {
+  validateExportContract();
+}

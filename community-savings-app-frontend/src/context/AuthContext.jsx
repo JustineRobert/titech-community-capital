@@ -7,39 +7,51 @@
 //
 // Production Grade
 // Secure JWT | HttpOnly Refresh Cookie | Multi-Tenant
-// Single-Flight Refresh | Socket | Session Bootstrap
+// Single-Flight Refresh | Socket Lifecycle | Session Bootstrap
 // Offline Awareness | Cross-Tab Session Events
-// React StrictMode Safe | Session Recovery | Defensive Cleanup
+// React StrictMode Safe | Session Generation Protection
+// Defensive Async Cleanup | Session Recovery
 //
-// IMPORTANT SECURITY MODEL
+// ============================================================================
+//
+// SECURITY MODEL
+// ============================================================================
 //
 // Access Token:
-//   - Memory only
-//   - Never persisted to localStorage/sessionStorage
+//   - Memory only.
+//   - Never persisted to localStorage.
+//   - Never persisted to sessionStorage.
 //
 // Refresh Token:
-//   - Managed exclusively by backend
-//   - Expected in HttpOnly + Secure + SameSite cookie
-//   - Never exposed to JavaScript
+//   - Managed exclusively by backend.
+//   - Expected in HttpOnly + Secure + SameSite cookie.
+//   - Never exposed to JavaScript.
 //
 // Axios:
-//   - Centralized in ../services/api
-//   - Do NOT create another Axios instance here
+//   - Centralized in ../services/api.
+//   - This context MUST NOT create another Axios instance.
 //
 // AUTHORITY MODEL
+// ============================================================================
 //
 // Backend:
-//   - Authoritative for authentication
-//   - Authoritative for authorization
-//   - Authoritative for tenant access
+//   - Authoritative for authentication.
+//   - Authoritative for authorization.
+//   - Authoritative for tenant access.
+//   - Authoritative for session validity.
 //
 // Frontend:
-//   - Maintains short-lived access-token state
-//   - Schedules proactive refresh
-//   - Hydrates current user
-//   - Manages realtime connection lifecycle
-//   - Provides UI/session state
+//   - Holds short-lived access-token state in memory.
+//   - Schedules proactive refresh.
+//   - Hydrates the authenticated user.
+//   - Synchronizes backend-confirmed tenant read-model state.
+//   - Manages realtime connection lifecycle.
+//   - Provides UI/session state.
+//   - NEVER makes authorization decisions based solely on decoded JWT claims.
+//
 // ============================================================================
+
+"use strict";
 
 import React, {
   createContext,
@@ -93,6 +105,9 @@ const AUTH_ME_ENDPOINT =
 const REFRESH_RETRY_COOLDOWN_MS =
   5000;
 
+const AUTH_BOOTSTRAP_TIMEOUT_MS =
+  30000;
+
 // ============================================================================
 // Context
 // ============================================================================
@@ -104,11 +119,16 @@ const AuthContext =
 // JWT Helpers
 // ============================================================================
 //
-// These helpers are used ONLY for client-side refresh scheduling.
+// IMPORTANT:
+// These functions are ONLY for client-side scheduling.
 //
-// They are NOT authorization mechanisms.
+// They are NOT:
+//   - authorization checks
+//   - permission checks
+//   - tenant-access checks
+//   - security validation
 //
-// Backend authorization remains authoritative.
+// The backend remains authoritative.
 // ============================================================================
 
 function parseJwt(token) {
@@ -190,10 +210,63 @@ function getRefreshDelay(token) {
       1000;
 
   return Math.max(
-    refreshAt -
-      Date.now(),
+    refreshAt - Date.now(),
     0
   );
+}
+
+// ============================================================================
+// Error Helpers
+// ============================================================================
+
+function getErrorStatus(error) {
+  return (
+    error?.response?.status ??
+    error?.status ??
+    error?.statusCode ??
+    null
+  );
+}
+
+function isAuthenticationError(error) {
+  const status =
+    getErrorStatus(error);
+
+  return (
+    status === 401 ||
+    status === 403
+  );
+}
+
+function isNetworkError(error) {
+  if (!error) {
+    return false;
+  }
+
+  if (
+    error?.code ===
+    "ERR_NETWORK"
+  ) {
+    return true;
+  }
+
+  if (
+    error?.code ===
+    "ECONNABORTED"
+  ) {
+    return true;
+  }
+
+  if (
+    error?.message &&
+    /network|offline|timeout|fetch failed/i.test(
+      error.message
+    )
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 // ============================================================================
@@ -216,12 +289,13 @@ function normalizeUser(response) {
   }
 
   return (
-    response.data?.user ||
-    response.data?.profile ||
-    response.user ||
-    response.profile ||
-    response.data ||
-    response
+    response?.data?.user ||
+    response?.data?.profile ||
+    response?.user ||
+    response?.profile ||
+    response?.data ||
+    response ||
+    null
   );
 }
 
@@ -257,7 +331,9 @@ function devLog(
       console[level] ||
       console.info;
 
-    if (metadata !== undefined) {
+    if (
+      metadata !== undefined
+    ) {
       logger(
         message,
         metadata
@@ -266,8 +342,51 @@ function devLog(
       logger(message);
     }
   } catch {
-    // Logging must never affect authentication.
+    // Authentication must never depend on logging.
   }
+}
+
+// ============================================================================
+// Safe Timeout
+// ============================================================================
+
+function withTimeout(
+  promise,
+  timeoutMs,
+  message
+) {
+  let timeoutId = null;
+
+  const timeoutPromise =
+    new Promise(
+      (_, reject) => {
+        timeoutId =
+          setTimeout(() => {
+            const error =
+              new Error(
+                message
+              );
+
+            error.code =
+              "AUTH_TIMEOUT";
+
+            reject(error);
+          }, timeoutMs);
+      }
+    );
+
+  return Promise.race([
+    promise,
+    timeoutPromise,
+  ]).finally(() => {
+    if (
+      timeoutId !== null
+    ) {
+      clearTimeout(
+        timeoutId
+      );
+    }
+  });
 }
 
 // ============================================================================
@@ -282,6 +401,18 @@ export function AuthProvider({
   // ========================================================================
 
   const [user, setUser] =
+    useState(null);
+
+  /**
+   * Tenant identity is session state, not authorization state.
+   *
+   * IMPORTANT:
+   * - Do not initialize this from persisted client storage.
+   * - The authenticated backend response is authoritative.
+   * - A tenant is only exposed after the current backend-authenticated
+   *   session establishes it.
+   */
+  const [tenantId, setTenantId] =
     useState(null);
 
   const [token, setTokenState] =
@@ -300,18 +431,37 @@ export function AuthProvider({
   const [refreshing, setRefreshing] =
     useState(false);
 
-  const [socketConnected, setSocketConnected] =
-    useState(false);
+  const [
+    socketConnected,
+    setSocketConnected,
+  ] = useState(false);
 
   const [authError, setAuthError] =
     useState(null);
 
   // ========================================================================
-  // Refs
+  // Lifecycle Refs
   // ========================================================================
 
   const mountedRef =
     useRef(false);
+
+  /**
+   * Every authentication lifecycle receives a monotonically increasing
+   * generation.
+   *
+   * Any async operation that started under an older generation is forbidden
+   * from mutating the current authentication state.
+   *
+   * This protects against:
+   *
+   *   login -> logout -> old refresh completes
+   *   logout -> old /me completes
+   *   StrictMode mount -> cleanup -> remount
+   *   network recovery -> manual logout
+   */
+  const sessionGenerationRef =
+    useRef(0);
 
   const refreshTimerRef =
     useRef(null);
@@ -322,20 +472,54 @@ export function AuthProvider({
   const logoutPromiseRef =
     useRef(null);
 
+  const bootstrapPromiseRef =
+    useRef(null);
+
+  const bootstrapGenerationRef =
+    useRef(null);
+
   const socketConnectedRef =
+    useRef(false);
+
+  const socketListenersAttachedRef =
     useRef(false);
 
   const lastRefreshFailureRef =
     useRef(0);
 
-  const bootstrapPromiseRef =
-    useRef(null);
-
   const channelRef =
     useRef(null);
 
+  const userRef =
+    useRef(null);
+
+  const loadingRef =
+    useRef(true);
+
+  const onlineRef =
+    useRef(online);
+
   // ========================================================================
-  // Mounted State Helper
+  // Keep Refs Synchronized
+  // ========================================================================
+
+  useEffect(() => {
+    userRef.current =
+      user;
+  }, [user]);
+
+  useEffect(() => {
+    loadingRef.current =
+      loading;
+  }, [loading]);
+
+  useEffect(() => {
+    onlineRef.current =
+      online;
+  }, [online]);
+
+  // ========================================================================
+  // Mounted / Generation Helpers
   // ========================================================================
 
   const isMounted =
@@ -345,19 +529,48 @@ export function AuthProvider({
       []
     );
 
+  const getSessionGeneration =
+    useCallback(
+      () =>
+        sessionGenerationRef.current,
+      []
+    );
+
+  const isSessionCurrent =
+    useCallback(
+      generation =>
+        mountedRef.current &&
+        sessionGenerationRef.current ===
+          generation,
+      []
+    );
+
+  const invalidateSession =
+    useCallback(() => {
+      sessionGenerationRef.current +=
+        1;
+
+      return sessionGenerationRef.current;
+    }, []);
+
   // ========================================================================
-  // Token State
-  // ========================================================================
-  //
-  // Centralized through services/api.js.
-  //
-  // No localStorage.
-  // No sessionStorage.
+  // Access Token State
   // ========================================================================
 
   const updateAccessToken =
     useCallback(
-      accessToken => {
+      (
+        accessToken,
+        generation = null
+      ) => {
+        if (
+          generation !== null &&
+          sessionGenerationRef.current !==
+            generation
+        ) {
+          return false;
+        }
+
         if (
           !accessToken
         ) {
@@ -366,10 +579,12 @@ export function AuthProvider({
           if (
             mountedRef.current
           ) {
-            setTokenState(null);
+            setTokenState(
+              null
+            );
           }
 
-          return;
+          return true;
         }
 
         setToken(
@@ -383,6 +598,8 @@ export function AuthProvider({
             accessToken
           );
         }
+
+        return true;
       },
       []
     );
@@ -397,21 +614,47 @@ export function AuthProvider({
         response,
         profile
       ) => {
-        const tenantId =
+        const resolvedTenantId =
           extractTenantId(
             response,
             profile
           );
 
-        if (tenantId) {
-          setTenant(
-            tenantId
-          );
+        /**
+         * SECURITY:
+         * Tenant access is backend-authoritative.
+         *
+         * Do not fall back to a previously persisted tenant here. A cached
+         * tenant can belong to a different authenticated identity and must
+         * never become authoritative for the current session.
+         */
+        if (
+          typeof resolvedTenantId !== "string" ||
+          !resolvedTenantId.trim()
+        ) {
+          clearTenant();
 
-          return tenantId;
+          if (mountedRef.current) {
+            setTenantId(null);
+          }
+
+          return null;
         }
 
-        return getTenant();
+        const normalizedTenantId =
+          resolvedTenantId.trim();
+
+        setTenant(
+          normalizedTenantId
+        );
+
+        if (mountedRef.current) {
+          setTenantId(
+            normalizedTenantId
+          );
+        }
+
+        return normalizedTenantId;
       },
       []
     );
@@ -441,19 +684,112 @@ export function AuthProvider({
   const setSocketConnectionState =
     useCallback(
       connected => {
-        socketConnectedRef.current =
+        const normalized =
           Boolean(connected);
+
+        socketConnectedRef.current =
+          normalized;
 
         if (
           mountedRef.current
         ) {
           setSocketConnected(
-            Boolean(connected)
+            normalized
           );
         }
       },
       []
     );
+
+  // ========================================================================
+  // Socket Event Lifecycle
+  // ========================================================================
+
+  const attachSocketListeners =
+    useCallback(() => {
+      if (
+        !socket ||
+        typeof socket.on !==
+          "function" ||
+        socketListenersAttachedRef.current
+      ) {
+        return;
+      }
+
+      const handleConnect =
+        () => {
+          setSocketConnectionState(
+            true
+          );
+        };
+
+      const handleDisconnect =
+        () => {
+          setSocketConnectionState(
+            false
+          );
+        };
+
+      const handleConnectError =
+        error => {
+          setSocketConnectionState(
+            false
+          );
+
+          devLog(
+            "warn",
+            "[AUTH] Socket connection error",
+            error
+          );
+        };
+
+      socket.on(
+        "connect",
+        handleConnect
+      );
+
+      socket.on(
+        "disconnect",
+        handleDisconnect
+      );
+
+      socket.on(
+        "connect_error",
+        handleConnectError
+      );
+
+      socketListenersAttachedRef.current =
+        true;
+  }, [
+    setSocketConnectionState,
+  ]);
+
+  const detachSocketListeners =
+    useCallback(() => {
+      if (
+        !socket ||
+        typeof socket.off !==
+          "function" ||
+        !socketListenersAttachedRef.current
+      ) {
+        return;
+      }
+
+      socket.off(
+        "connect"
+      );
+
+      socket.off(
+        "disconnect"
+      );
+
+      socket.off(
+        "connect_error"
+      );
+
+      socketListenersAttachedRef.current =
+        false;
+  }, []);
 
   // ========================================================================
   // Socket Connection
@@ -477,25 +813,37 @@ export function AuthProvider({
         return false;
       }
 
-      if (
-        socketConnectedRef.current
-      ) {
-        return true;
-      }
+      attachSocketListeners();
 
       try {
-        connectSocket();
+        const result =
+          connectSocket();
 
-        setSocketConnectionState(
-          true
-        );
+        /**
+         * Do NOT optimistically mark the socket connected unless the socket
+         * service explicitly tells us it is already connected.
+         */
+        if (
+          socket?.connected === true
+        ) {
+          setSocketConnectionState(
+            true
+          );
+        } else {
+          setSocketConnectionState(
+            false
+          );
+        }
 
         devLog(
           "info",
           "[AUTH] Socket connection requested"
         );
 
-        return true;
+        return (
+          result ??
+          true
+        );
       } catch (error) {
         setSocketConnectionState(
           false
@@ -510,6 +858,7 @@ export function AuthProvider({
         return false;
       }
     }, [
+      attachSocketListeners,
       setSocketConnectionState,
     ]);
 
@@ -543,12 +892,15 @@ export function AuthProvider({
     ]);
 
   // ========================================================================
-  // User Session Hydration
+  // User Hydration
   // ========================================================================
 
   const hydrateUser =
     useCallback(
-      async () => {
+      async ({
+        generation = sessionGenerationRef.current,
+        suppressError = false,
+      } = {}) => {
         const currentToken =
           getToken();
 
@@ -561,33 +913,63 @@ export function AuthProvider({
           return null;
         }
 
-        const response =
-          await apiGet(
-            AUTH_ME_ENDPOINT
-          );
+        try {
+          const response =
+            await apiGet(
+              AUTH_ME_ENDPOINT
+            );
 
-        const profile =
-          normalizeUser(
-            response
-          );
+          if (
+            !isSessionCurrent(
+              generation
+            )
+          ) {
+            return null;
+          }
 
-        if (
-          profile &&
-          mountedRef.current
-        ) {
-          setUser(
+          const profile =
+            normalizeUser(
+              response
+            );
+
+          if (!profile) {
+            throw new Error(
+              "Authenticated session returned an invalid user profile."
+            );
+          }
+
+          synchronizeTenant(
+            response,
             profile
           );
+
+          if (
+            mountedRef.current
+          ) {
+            setUser(
+              profile
+            );
+          }
+
+          return profile;
+        } catch (error) {
+          if (
+            !suppressError &&
+            mountedRef.current &&
+            isSessionCurrent(
+              generation
+            )
+          ) {
+            setAuthError(
+              error
+            );
+          }
+
+          throw error;
         }
-
-        synchronizeTenant(
-          response,
-          profile
-        );
-
-        return profile;
       },
       [
+        isSessionCurrent,
         synchronizeTenant,
       ]
     );
@@ -598,11 +980,18 @@ export function AuthProvider({
 
   const scheduleRefresh =
     useCallback(
-      accessToken => {
+      (
+        accessToken,
+        generation =
+          sessionGenerationRef.current
+      ) => {
         clearRefreshTimer();
 
         if (
-          !accessToken
+          !accessToken ||
+          !isSessionCurrent(
+            generation
+          )
         ) {
           return;
         }
@@ -619,26 +1008,33 @@ export function AuthProvider({
         }
 
         refreshTimerRef.current =
-          setTimeout(
-            () => {
-              refreshSession({
-                reason:
-                  "scheduled",
-              }).catch(
-                error => {
-                  devLog(
-                    "warn",
-                    "[AUTH] Scheduled refresh failed",
-                    error
-                  );
-                }
-              );
-            },
-            delay
-          );
+          setTimeout(() => {
+            if (
+              !isSessionCurrent(
+                generation
+              )
+            ) {
+              return;
+            }
+
+            refreshSession({
+              reason:
+                "scheduled",
+              generation,
+            }).catch(
+              error => {
+                devLog(
+                  "warn",
+                  "[AUTH] Scheduled refresh failed",
+                  error
+                );
+              }
+            );
+          }, delay);
       },
       [
         clearRefreshTimer,
+        isSessionCurrent,
       ]
     );
 
@@ -646,18 +1042,14 @@ export function AuthProvider({
   // Refresh Session
   // ========================================================================
   //
-  // Context-level single-flight protection.
+  // Context-level single-flight.
   //
-  // api.js may also implement single-flight refresh. This second boundary
-  // protects against concurrent callers originating specifically from the
-  // authentication context, such as:
+  // services/api.js remains the HTTP-layer authority and may itself protect
+  // refresh calls. This boundary protects authentication-context callers.
   //
-  //   - refresh timer
-  //   - network recovery
-  //   - bootstrap
-  //   - manual refresh
-  //
-  // The refresh token remains HttpOnly and is never accessed here.
+  // IMPORTANT:
+  // A refresh that started before logout is not allowed to resurrect the
+  // authenticated session.
   // ========================================================================
 
   const refreshSession =
@@ -665,7 +1057,19 @@ export function AuthProvider({
       async ({
         reason = "manual",
         suppressErrorState = false,
+        generation =
+          sessionGenerationRef.current,
       } = {}) => {
+        if (
+          !isSessionCurrent(
+            generation
+          )
+        ) {
+          throw new Error(
+            "Authentication session is no longer current."
+          );
+        }
+
         if (
           refreshPromiseRef.current
         ) {
@@ -685,7 +1089,7 @@ export function AuthProvider({
           );
         }
 
-        const refreshOperation =
+        const operation =
           (async () => {
             if (
               mountedRef.current
@@ -712,12 +1116,25 @@ export function AuthProvider({
                 );
               }
 
+              /**
+               * Critical stale-operation protection.
+               */
+              if (
+                !isSessionCurrent(
+                  generation
+                )
+              ) {
+                return null;
+              }
+
               updateAccessToken(
-                newToken
+                newToken,
+                generation
               );
 
               scheduleRefresh(
-                newToken
+                newToken,
+                generation
               );
 
               if (
@@ -743,13 +1160,27 @@ export function AuthProvider({
 
               clearRefreshTimer();
 
-              updateAccessToken(
-                null
-              );
+              /**
+               * Only destroy the token when the operation still belongs to
+               * the current session.
+               */
+              if (
+                isSessionCurrent(
+                  generation
+                )
+              ) {
+                updateAccessToken(
+                  null,
+                  generation
+                );
+              }
 
               if (
                 !suppressErrorState &&
-                mountedRef.current
+                mountedRef.current &&
+                isSessionCurrent(
+                  generation
+                )
               ) {
                 setAuthError(
                   error
@@ -769,14 +1200,14 @@ export function AuthProvider({
           })();
 
         refreshPromiseRef.current =
-          refreshOperation;
+          operation;
 
         try {
-          return await refreshOperation;
+          return await operation;
         } finally {
           if (
             refreshPromiseRef.current ===
-            refreshOperation
+            operation
           ) {
             refreshPromiseRef.current =
               null;
@@ -785,9 +1216,47 @@ export function AuthProvider({
       },
       [
         clearRefreshTimer,
+        isSessionCurrent,
         scheduleRefresh,
         updateAccessToken,
       ]
+    );
+
+  // ========================================================================
+  // Broadcast Channel
+  // ========================================================================
+
+  const broadcastAuthEvent =
+    useCallback(
+      (
+        type,
+        metadata = {}
+      ) => {
+        try {
+          const channel =
+            channelRef.current;
+
+          if (
+            !channel
+          ) {
+            return;
+          }
+
+          channel.postMessage({
+            type,
+            timestamp:
+              Date.now(),
+            ...metadata,
+          });
+        } catch (error) {
+          devLog(
+            "warn",
+            "[AUTH] BroadcastChannel event failed",
+            error
+          );
+        }
+      },
+      []
     );
 
   // ========================================================================
@@ -820,6 +1289,36 @@ export function AuthProvider({
           );
         }
 
+        /**
+         * New authentication lifecycle.
+         *
+         * Any previous asynchronous authentication operation becomes stale.
+         */
+        const generation =
+          invalidateSession();
+
+        clearRefreshTimer();
+
+        refreshPromiseRef.current =
+          null;
+
+        /**
+         * A new login/registration lifecycle must not temporarily expose the
+         * previous user's token, tenant or realtime connection.
+         */
+        updateAccessToken(
+          null,
+          generation
+        );
+
+        clearTenant();
+        disconnectUserSocket();
+
+        if (mountedRef.current) {
+          setUser(null);
+          setTenantId(null);
+        }
+
         setAuthError(
           null
         );
@@ -832,6 +1331,14 @@ export function AuthProvider({
             deviceInfo,
             ...options,
           });
+
+        if (
+          !mountedRef.current ||
+          sessionGenerationRef.current !==
+            generation
+        ) {
+          return null;
+        }
 
         const accessToken =
           extractAccessToken(
@@ -851,17 +1358,20 @@ export function AuthProvider({
             response
           );
 
-        updateAccessToken(
-          accessToken
-        );
-
-        if (
-          mountedRef.current
-        ) {
-          setUser(
-            profile
+        if (!profile) {
+          throw new Error(
+            "Login succeeded but no authenticated user profile was returned."
           );
         }
+
+        updateAccessToken(
+          accessToken,
+          generation
+        );
+
+        setUser(
+          profile
+        );
 
         synchronizeTenant(
           response,
@@ -869,18 +1379,19 @@ export function AuthProvider({
         );
 
         scheduleRefresh(
-          accessToken
+          accessToken,
+          generation
         );
 
         connectUserSocket();
 
-        if (
-          mountedRef.current
-        ) {
-          setAuthError(
-            null
-          );
-        }
+        setAuthError(
+          null
+        );
+
+        broadcastAuthEvent(
+          "AUTH_LOGIN"
+        );
 
         toast.success(
           "Login successful"
@@ -894,7 +1405,11 @@ export function AuthProvider({
         return profile;
       },
       [
+        broadcastAuthEvent,
+        clearRefreshTimer,
         connectUserSocket,
+        disconnectUserSocket,
+        invalidateSession,
         scheduleRefresh,
         synchronizeTenant,
         updateAccessToken,
@@ -928,11 +1443,48 @@ export function AuthProvider({
                 name,
               };
 
+        const generation =
+          invalidateSession();
+
+        clearRefreshTimer();
+
+        refreshPromiseRef.current =
+          null;
+
+        /**
+         * A new login/registration lifecycle must not temporarily expose the
+         * previous user's token, tenant or realtime connection.
+         */
+        updateAccessToken(
+          null,
+          generation
+        );
+
+        clearTenant();
+        disconnectUserSocket();
+
+        if (mountedRef.current) {
+          setUser(null);
+          setTenantId(null);
+        }
+
+        setAuthError(
+          null
+        );
+
         const response =
           await apiRegister(
             payload,
             options
           );
+
+        if (
+          !mountedRef.current ||
+          sessionGenerationRef.current !==
+            generation
+        ) {
+          return null;
+        }
 
         const accessToken =
           extractAccessToken(
@@ -952,17 +1504,20 @@ export function AuthProvider({
             response
           );
 
-        updateAccessToken(
-          accessToken
-        );
-
-        if (
-          mountedRef.current
-        ) {
-          setUser(
-            profile
+        if (!profile) {
+          throw new Error(
+            "Registration succeeded but no authenticated user profile was returned."
           );
         }
+
+        updateAccessToken(
+          accessToken,
+          generation
+        );
+
+        setUser(
+          profile
+        );
 
         synchronizeTenant(
           response,
@@ -970,18 +1525,19 @@ export function AuthProvider({
         );
 
         scheduleRefresh(
-          accessToken
+          accessToken,
+          generation
         );
 
         connectUserSocket();
 
-        if (
-          mountedRef.current
-        ) {
-          setAuthError(
-            null
-          );
-        }
+        setAuthError(
+          null
+        );
+
+        broadcastAuthEvent(
+          "AUTH_LOGIN"
+        );
 
         toast.success(
           "Registration successful"
@@ -995,49 +1551,15 @@ export function AuthProvider({
         return profile;
       },
       [
+        broadcastAuthEvent,
+        clearRefreshTimer,
         connectUserSocket,
+        disconnectUserSocket,
+        invalidateSession,
         scheduleRefresh,
         synchronizeTenant,
         updateAccessToken,
       ]
-    );
-
-  // ========================================================================
-  // Cross-Tab Broadcast
-  // ========================================================================
-
-  const broadcastAuthEvent =
-    useCallback(
-      type => {
-        try {
-          if (
-            typeof BroadcastChannel ===
-            "undefined"
-          ) {
-            return;
-          }
-
-          const channel =
-            new BroadcastChannel(
-              AUTH_CHANNEL_NAME
-            );
-
-          channel.postMessage({
-            type,
-            timestamp:
-              Date.now(),
-          });
-
-          channel.close();
-        } catch (error) {
-          devLog(
-            "warn",
-            "[AUTH] BroadcastChannel event failed",
-            error
-          );
-        }
-      },
-      []
     );
 
   // ========================================================================
@@ -1056,16 +1578,22 @@ export function AuthProvider({
           return logoutPromiseRef.current;
         }
 
+        /**
+         * Invalidate FIRST.
+         *
+         * This is intentionally before the backend request.
+         *
+         * Any refresh, hydration or recovery operation currently in flight
+         * is immediately considered stale and cannot restore authentication.
+         */
+        const generation =
+          invalidateSession();
+
+        clearRefreshTimer();
+
         const operation =
           (async () => {
             try {
-              // ------------------------------------------------------------
-              // Backend logout.
-              //
-              // Failure is intentionally non-fatal. Local authentication
-              // state must still be destroyed.
-              // ------------------------------------------------------------
-
               try {
                 await apiLogout();
               } catch (error) {
@@ -1076,39 +1604,30 @@ export function AuthProvider({
                 );
               }
 
-              // ------------------------------------------------------------
-              // Cancel scheduled refresh.
-              // ------------------------------------------------------------
-
-              clearRefreshTimer();
-
-              // ------------------------------------------------------------
-              // Cancel any pending refresh reference.
-              //
-              // The underlying HTTP request may still complete, but the
-              // resulting token cannot be accepted after local logout.
-              // ------------------------------------------------------------
-
+              /**
+               * Do not merely null the promise while a previous refresh is
+               * executing. Generation invalidation above is what prevents
+               * that operation from writing its result.
+               */
               refreshPromiseRef.current =
                 null;
 
-              // ------------------------------------------------------------
-              // Disconnect realtime session.
-              // ------------------------------------------------------------
-
               disconnectUserSocket();
 
-              // ------------------------------------------------------------
-              // Clear authentication.
-              // ------------------------------------------------------------
-
               updateAccessToken(
-                null
+                null,
+                generation
               );
+
+              clearTenant();
 
               if (
                 mountedRef.current
               ) {
+                setTenantId(
+                  null
+                );
+
                 setUser(
                   null
                 );
@@ -1116,15 +1635,11 @@ export function AuthProvider({
                 setAuthError(
                   null
                 );
+
+                setRefreshing(
+                  false
+                );
               }
-
-              clearTenant();
-
-              // ------------------------------------------------------------
-              // Notify other browser contexts.
-              //
-              // No token or sensitive session data is transmitted.
-              // ------------------------------------------------------------
 
               broadcastAuthEvent(
                 "AUTH_LOGOUT"
@@ -1159,6 +1674,7 @@ export function AuthProvider({
         broadcastAuthEvent,
         clearRefreshTimer,
         disconnectUserSocket,
+        invalidateSession,
         updateAccessToken,
       ]
     );
@@ -1184,18 +1700,32 @@ export function AuthProvider({
   // Session Bootstrap
   // ========================================================================
   //
-  // StrictMode-safe:
+  // Bootstrap is deliberately generation-aware.
   //
-  // No permanent "initialized" flag is used. React may mount/unmount/re-run
-  // effects during development without permanently preventing authentication
-  // initialization.
+  // React StrictMode can execute:
+  //
+  //   mount
+  //   cleanup
+  //   mount
+  //
+  // The first lifecycle is allowed to become stale without preventing the
+  // second lifecycle from establishing the session.
   // ========================================================================
 
   const initializeAuthentication =
     useCallback(
-      async signal => {
+      async () => {
+        const generation =
+          sessionGenerationRef.current;
+
+        /**
+         * Only reuse a bootstrap operation when it belongs to the current
+         * authentication generation.
+         */
         if (
-          bootstrapPromiseRef.current
+          bootstrapPromiseRef.current &&
+          bootstrapGenerationRef.current ===
+            generation
         ) {
           return bootstrapPromiseRef.current;
         }
@@ -1203,15 +1733,19 @@ export function AuthProvider({
         const operation =
           (async () => {
             try {
-              setAuthError(
-                null
-              );
+              if (
+                mountedRef.current
+              ) {
+                setAuthError(
+                  null
+                );
+              }
 
               let currentToken =
                 getToken();
 
               // ============================================================
-              // Existing in-memory access token.
+              // Existing memory-only access token
               // ============================================================
 
               if (
@@ -1222,26 +1756,34 @@ export function AuthProvider({
               ) {
                 try {
                   const profile =
-                    await hydrateUser();
+                    await hydrateUser({
+                      generation,
+                    });
 
                   if (
-                    signal.cancelled ||
-                    !mountedRef.current
+                    !isSessionCurrent(
+                      generation
+                    )
                   ) {
                     return;
                   }
 
-                  setUser(
+                  if (
                     profile
-                  );
+                  ) {
+                    setUser(
+                      profile
+                    );
 
-                  scheduleRefresh(
-                    currentToken
-                  );
+                    scheduleRefresh(
+                      currentToken,
+                      generation
+                    );
 
-                  connectUserSocket();
+                    connectUserSocket();
 
-                  return;
+                    return;
+                  }
                 } catch (error) {
                   devLog(
                     "warn",
@@ -1249,39 +1791,69 @@ export function AuthProvider({
                     error
                   );
 
-                  updateAccessToken(
-                    null
-                  );
+                  if (
+                    isSessionCurrent(
+                      generation
+                    )
+                  ) {
+                    updateAccessToken(
+                      null,
+                      generation
+                    );
+                  }
                 }
               }
 
               // ============================================================
-              // Restore session from HttpOnly refresh cookie.
+              // Restore from HttpOnly refresh cookie
               // ============================================================
 
-              currentToken =
+              if (
+                !onlineRef.current
+              ) {
+                devLog(
+                  "info",
+                  "[AUTH] Bootstrap deferred because application is offline"
+                );
+
+                return;
+              }
+
+              const refreshedToken =
                 await refreshSession({
                   reason:
                     "bootstrap",
                   suppressErrorState:
                     true,
+                  generation,
                 });
 
               if (
-                signal.cancelled ||
-                !mountedRef.current
+                !refreshedToken ||
+                !isSessionCurrent(
+                  generation
+                )
               ) {
                 return;
               }
 
               const profile =
-                await hydrateUser();
+                await hydrateUser({
+                  generation,
+                });
 
               if (
-                signal.cancelled ||
-                !mountedRef.current
+                !isSessionCurrent(
+                  generation
+                )
               ) {
                 return;
+              }
+
+              if (!profile) {
+                throw new Error(
+                  "Authenticated refresh completed without a valid user profile."
+                );
               }
 
               setUser(
@@ -1289,47 +1861,109 @@ export function AuthProvider({
               );
 
               scheduleRefresh(
-                currentToken
+                refreshedToken,
+                generation
               );
 
               connectUserSocket();
             } catch (error) {
               if (
-                signal.cancelled
+                !isSessionCurrent(
+                  generation
+                )
               ) {
                 return;
               }
 
-              devLog(
-                "info",
-                "[AUTH] No active authenticated session"
-              );
+              /**
+               * Network failure is not equivalent to logout.
+               *
+               * When offline, preserve any currently valid local session
+               * state rather than destroying it.
+               */
+              if (
+                isNetworkError(error) ||
+                !onlineRef.current
+              ) {
+                devLog(
+                  "info",
+                  "[AUTH] Authentication bootstrap deferred due to network state"
+                );
 
-              updateAccessToken(
-                null
-              );
+                return;
+              }
 
+              /**
+               * 401/403 during session restoration means there is no valid
+               * backend-authenticated session.
+               */
+              if (
+                isAuthenticationError(
+                  error
+                ) ||
+                !getToken()
+              ) {
+                updateAccessToken(
+                  null,
+                  generation
+                );
+
+                clearTenant();
+
+                disconnectUserSocket();
+
+                if (
+                  mountedRef.current
+                ) {
+                  setTenantId(
+                    null
+                  );
+
+                  setUser(
+                    null
+                  );
+
+                  setAuthError(
+                    null
+                  );
+                }
+
+                return;
+              }
+
+              /**
+               * Unknown bootstrap failures should be surfaced to the
+               * application instead of silently pretending everything is
+               * unauthenticated.
+               */
               if (
                 mountedRef.current
               ) {
-                setUser(
-                  null
-                );
-
                 setAuthError(
-                  null
+                  error
                 );
               }
 
-              disconnectUserSocket();
+              devLog(
+                "error",
+                "[AUTH] Authentication bootstrap failed",
+                error
+              );
             }
           })();
 
         bootstrapPromiseRef.current =
           operation;
 
+        bootstrapGenerationRef.current =
+          generation;
+
         try {
-          await operation;
+          await withTimeout(
+            operation,
+            AUTH_BOOTSTRAP_TIMEOUT_MS,
+            "Authentication bootstrap timed out."
+          );
         } finally {
           if (
             bootstrapPromiseRef.current ===
@@ -1337,52 +1971,105 @@ export function AuthProvider({
           ) {
             bootstrapPromiseRef.current =
               null;
+
+            bootstrapGenerationRef.current =
+              null;
           }
         }
       },
       [
+        clearTenant,
         connectUserSocket,
         disconnectUserSocket,
         hydrateUser,
+        isSessionCurrent,
         refreshSession,
         scheduleRefresh,
         updateAccessToken,
       ]
     );
 
+  // ========================================================================
+  // Initial Authentication Lifecycle
+  // ========================================================================
+
   useEffect(() => {
+    /**
+     * Treat every provider effect lifecycle as a new authentication operation
+     * boundary. This prevents async work from the previous StrictMode effect
+     * pass from mutating state after the provider is remounted.
+     */
+    const lifecycleGeneration =
+      invalidateSession();
+
     mountedRef.current =
       true;
 
-    const controller = {
-      cancelled: false,
-    };
+    loadingRef.current =
+      true;
 
     setLoading(
       true
     );
 
-    initializeAuthentication(
-      controller
-    ).finally(() => {
-      if (
-        !controller.cancelled &&
-        mountedRef.current
-      ) {
-        setLoading(
-          false
+    initializeAuthentication()
+      .catch(error => {
+        if (
+          mountedRef.current &&
+          sessionGenerationRef.current ===
+            lifecycleGeneration
+        ) {
+          setAuthError(
+            error
+          );
+        }
+
+        devLog(
+          "error",
+          "[AUTH] Authentication initialization failed",
+          error
         );
-      }
-    });
+      })
+      .finally(() => {
+        if (
+          mountedRef.current &&
+          sessionGenerationRef.current ===
+            lifecycleGeneration
+        ) {
+          loadingRef.current =
+            false;
+
+          setLoading(
+            false
+          );
+        }
+      });
 
     return () => {
-      controller.cancelled =
-        true;
-
       mountedRef.current =
         false;
 
+      /**
+       * Invalidate every async operation associated with this provider
+       * lifecycle before allowing a remount/reinitialization.
+       *
+       * This is intentionally separate from the business-level login/logout
+       * invalidation: it protects React lifecycle boundaries as well.
+       */
+      sessionGenerationRef.current +=
+        1;
+
       clearRefreshTimer();
+
+      /**
+       * Do not allow a stale refresh promise from the previous lifecycle to
+       * become the single-flight promise for a newly mounted provider.
+       *
+       * The stale operation itself remains harmless because its generation is
+       * no longer current.
+       */
+      refreshPromiseRef.current =
+        null;
 
       disconnectUserSocket();
     };
@@ -1390,6 +2077,7 @@ export function AuthProvider({
     clearRefreshTimer,
     disconnectUserSocket,
     initializeAuthentication,
+    invalidateSession,
   ]);
 
   // ========================================================================
@@ -1399,16 +2087,24 @@ export function AuthProvider({
   useEffect(() => {
     const unsubscribe =
       onNetworkStateChange(
-        ({ online: nextOnline }) => {
-          if (
-            !mountedRef.current
-          ) {
-            return;
-          }
+        ({
+          online:
+            nextOnline,
+        }) => {
+          onlineRef.current =
+            Boolean(
+              nextOnline
+            );
 
-          setOnline(
-            nextOnline
-          );
+          if (
+            mountedRef.current
+          ) {
+            setOnline(
+              Boolean(
+                nextOnline
+              )
+            );
+          }
 
           devLog(
             "info",
@@ -1419,53 +2115,57 @@ export function AuthProvider({
             }
           );
 
-          // --------------------------------------------------------------
-          // Offline.
-          //
-          // Do not destroy authentication merely because connectivity is
-          // temporarily unavailable.
-          // --------------------------------------------------------------
-
           if (
             !nextOnline
           ) {
             return;
           }
 
-          // --------------------------------------------------------------
-          // Connectivity restored.
-          //
-          // Only attempt recovery when the application currently has no
-          // authenticated user and initialization has completed.
-          // --------------------------------------------------------------
-
+          /**
+           * If we already have an authenticated session, do not unnecessarily
+           * refresh simply because the network came back.
+           */
           if (
-            user ||
-            loading ||
+            userRef.current ||
+            loadingRef.current ||
             refreshPromiseRef.current
           ) {
             return;
           }
+
+          const generation =
+            sessionGenerationRef.current;
 
           refreshSession({
             reason:
               "network-recovery",
             suppressErrorState:
               true,
+            generation,
           })
             .then(
               async newToken => {
                 if (
-                  !mountedRef.current
+                  !newToken ||
+                  !isSessionCurrent(
+                    generation
+                  )
                 ) {
                   return;
                 }
 
                 const profile =
-                  await hydrateUser();
+                  await hydrateUser({
+                    generation,
+                    suppressError:
+                      true,
+                  });
 
                 if (
-                  !mountedRef.current
+                  !profile ||
+                  !isSessionCurrent(
+                    generation
+                  )
                 ) {
                   return;
                 }
@@ -1475,17 +2175,22 @@ export function AuthProvider({
                 );
 
                 scheduleRefresh(
-                  newToken
+                  newToken,
+                  generation
                 );
 
                 connectUserSocket();
               }
             )
-            .catch(
-              () => {
-                // No active authenticated session is acceptable.
-              }
-            );
+            .catch(error => {
+              devLog(
+                "info",
+                "[AUTH] Network recovery did not restore an authenticated session",
+                {
+                  error,
+                }
+              );
+            });
         }
       );
 
@@ -1500,14 +2205,13 @@ export function AuthProvider({
   }, [
     connectUserSocket,
     hydrateUser,
-    loading,
+    isSessionCurrent,
     refreshSession,
     scheduleRefresh,
-    user,
   ]);
 
   // ========================================================================
-  // Cross-Tab Authentication Events
+  // Cross-Tab Authentication Channel
   // ========================================================================
 
   useEffect(() => {
@@ -1541,41 +2245,135 @@ export function AuthProvider({
     const handleMessage =
       event => {
         const type =
-          event.data?.type;
+          event?.data?.type;
+
+        // ================================================================
+        // Cross-tab logout
+        // ================================================================
 
         if (
-          type !==
+          type ===
           "AUTH_LOGOUT"
         ) {
+          devLog(
+            "info",
+            "[AUTH] Received cross-tab logout event"
+          );
+
+          invalidateSession();
+
+          clearRefreshTimer();
+
+          refreshPromiseRef.current =
+            null;
+
+          disconnectUserSocket();
+
+          updateAccessToken(
+            null
+          );
+
+          clearTenant();
+
+          if (
+            mountedRef.current
+          ) {
+            setTenantId(
+              null
+            );
+
+            setUser(
+              null
+            );
+
+            setAuthError(
+              null
+            );
+
+            setRefreshing(
+              false
+            );
+          }
+
           return;
         }
 
-        devLog(
-          "info",
-          "[AUTH] Received cross-tab logout event"
-        );
-
-        clearRefreshTimer();
-
-        disconnectUserSocket();
-
-        updateAccessToken(
-          null
-        );
+        // ================================================================
+        // Cross-tab login/session establishment
+        //
+        // The access token is NEVER transmitted through BroadcastChannel.
+        //
+        // The receiving tab instead uses the backend-controlled HttpOnly
+        // refresh cookie to establish its own in-memory token.
+        // ================================================================
 
         if (
-          mountedRef.current
+          type ===
+          "AUTH_LOGIN"
         ) {
-          setUser(
-            null
-          );
+          if (
+            !mountedRef.current ||
+            loadingRef.current ||
+            userRef.current ||
+            refreshPromiseRef.current ||
+            !onlineRef.current
+          ) {
+            return;
+          }
 
-          setAuthError(
-            null
-          );
+          const generation =
+            sessionGenerationRef.current;
+
+          refreshSession({
+            reason:
+              "cross-tab-login",
+            suppressErrorState:
+              true,
+            generation,
+          })
+            .then(
+              async newToken => {
+                if (
+                  !newToken ||
+                  !isSessionCurrent(
+                    generation
+                  )
+                ) {
+                  return;
+                }
+
+                const profile =
+                  await hydrateUser({
+                    generation,
+                    suppressError:
+                      true,
+                  });
+
+                if (
+                  !profile ||
+                  !isSessionCurrent(
+                    generation
+                  )
+                ) {
+                  return;
+                }
+
+                setUser(
+                  profile
+                );
+
+                scheduleRefresh(
+                  newToken,
+                  generation
+                );
+
+                connectUserSocket();
+              }
+            )
+            .catch(() => {
+              // The other tab may not have established a session yet.
+            });
         }
-
-        clearTenant();
       };
 
     channel.addEventListener(
@@ -1592,7 +2390,7 @@ export function AuthProvider({
       try {
         channel.close();
       } catch {
-        // Ignore channel cleanup failures.
+        // Defensive cleanup.
       }
 
       if (
@@ -1605,18 +2403,42 @@ export function AuthProvider({
     };
   }, [
     clearRefreshTimer,
+    connectUserSocket,
     disconnectUserSocket,
+    hydrateUser,
+    invalidateSession,
+    isSessionCurrent,
+    refreshSession,
+    scheduleRefresh,
     updateAccessToken,
+  ]);
+
+  // ========================================================================
+  // Socket Listener Lifecycle
+  // ========================================================================
+
+  useEffect(() => {
+    attachSocketListeners();
+
+    return () => {
+      /**
+       * Do not destroy the socket merely because this effect reruns.
+       *
+       * Provider lifecycle owns actual socket disconnect behavior.
+       */
+    };
+  }, [
+    attachSocketListeners,
   ]);
 
   // ========================================================================
   // Token Synchronization
   // ========================================================================
   //
-  // api.js remains authoritative for the actual HTTP token.
+  // services/api.js remains authoritative for the actual access token.
   //
-  // This effect allows AuthContext to observe an in-memory token replacement
-  // performed by the API client.
+  // This context observes the memory-only token and synchronizes its own
+  // derived React state.
   // ========================================================================
 
   useEffect(() => {
@@ -1631,9 +2453,15 @@ export function AuthProvider({
         currentToken
       );
 
-      scheduleRefresh(
-        currentToken
-      );
+      if (
+        !isTokenExpired(
+          currentToken
+        )
+      ) {
+        scheduleRefresh(
+          currentToken
+        );
+      }
 
       return;
     }
@@ -1642,16 +2470,22 @@ export function AuthProvider({
       !currentToken &&
       token
     ) {
-      setTokenState(
-        null
-      );
-
       clearRefreshTimer();
+
+      clearTenant();
 
       if (
         mountedRef.current
       ) {
+        setTokenState(
+          null
+        );
+
         setUser(
+          null
+        );
+
+        setTenantId(
           null
         );
       }
@@ -1666,108 +2500,138 @@ export function AuthProvider({
   ]);
 
   // ========================================================================
+  // Provider Cleanup
+  // ========================================================================
+
+  useEffect(() => {
+    return () => {
+      clearRefreshTimer();
+
+      detachSocketListeners();
+
+      try {
+        channelRef.current?.close();
+      } catch {
+        // Defensive cleanup.
+      }
+
+      channelRef.current =
+        null;
+    };
+  }, [
+    clearRefreshTimer,
+    detachSocketListeners,
+  ]);
+
+  // ========================================================================
   // Context Value
   // ========================================================================
 
   const value =
-    useMemo(
-      () => {
-        const tenantId =
-          getTenant();
+    useMemo(() => {
+      const authenticated =
+        Boolean(
+          user &&
+          token &&
+          !isTokenExpired(
+            token
+          )
+        );
 
-        const authenticated =
-          Boolean(
-            user &&
-            token &&
-            !isTokenExpired(
-              token
-            )
-          );
+      return {
+        // --------------------------------------------------------------
+        // Identity
+        // --------------------------------------------------------------
 
-        return {
-          // ------------------------------------------------------------
-          // Identity
-          // ------------------------------------------------------------
+        user,
 
-          user,
+        /**
+         * Compatibility:
+         * The access token remains memory-only.
+         *
+         * Consumers should prefer getAccessToken() and should never persist
+         * this value.
+         */
+        token,
 
-          token,
+        authenticated,
 
+        // --------------------------------------------------------------
+        // Application readiness
+        // --------------------------------------------------------------
+
+        loading,
+
+        authReady:
+          !loading,
+
+        online,
+
+        // --------------------------------------------------------------
+        // Session state
+        // --------------------------------------------------------------
+
+        refreshing,
+
+        authError,
+
+        sessionActive:
           authenticated,
 
-          loading,
+        // --------------------------------------------------------------
+        // Authentication
+        // --------------------------------------------------------------
 
-          online,
-
-          // ------------------------------------------------------------
-          // Session state
-          // ------------------------------------------------------------
-
-          refreshing,
-
-          authError,
-
-          authReady:
-            !loading,
-
-          sessionActive:
-            authenticated,
-
-          // ------------------------------------------------------------
-          // Authentication
-          // ------------------------------------------------------------
-
-          login,
-
-          register,
-
-          logout,
-
-          refreshToken:
-            refreshSession,
-
-          // ------------------------------------------------------------
-          // Tenant
-          // ------------------------------------------------------------
-
-          tenantId,
-
-          // ------------------------------------------------------------
-          // Socket
-          // ------------------------------------------------------------
-
-          socketConnected,
-
-          connectSocket:
-            connectUserSocket,
-
-          disconnectSocket:
-            disconnectUserSocket,
-
-          // ------------------------------------------------------------
-          // Token utilities
-          // ------------------------------------------------------------
-
-          getAccessToken:
-            getToken,
-        };
-      },
-      [
-        user,
-        token,
-        loading,
-        online,
-        refreshing,
-        authError,
         login,
+
         register,
+
         logout,
-        refreshSession,
+
+        refreshToken:
+          refreshSession,
+
+        // --------------------------------------------------------------
+        // Tenant
+        // --------------------------------------------------------------
+
+        tenantId,
+
+        // --------------------------------------------------------------
+        // Socket
+        // --------------------------------------------------------------
+
         socketConnected,
-        connectUserSocket,
-        disconnectUserSocket,
-      ]
-    );
+
+        connectSocket:
+          connectUserSocket,
+
+        disconnectSocket:
+          disconnectUserSocket,
+
+        // --------------------------------------------------------------
+        // Token access
+        // --------------------------------------------------------------
+
+        getAccessToken:
+          getToken,
+      };
+    }, [
+      user,
+      token,
+      loading,
+      online,
+      refreshing,
+      authError,
+      login,
+      register,
+      logout,
+      refreshSession,
+      tenantId,
+      socketConnected,
+      connectUserSocket,
+      disconnectUserSocket,
+    ]);
 
   // ========================================================================
   // Render

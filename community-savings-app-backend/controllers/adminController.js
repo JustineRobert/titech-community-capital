@@ -1,816 +1,3369 @@
+'use strict';
+
 /**
- * adminController.js
+ * =============================================================================
+ * TITech Community Capital LTD
+ * Enterprise Administrative Controller
+ * =============================================================================
  *
- * Production-grade admin dashboard
- * User management, loan oversight, risk analysis, system metrics
+ * File:
+ *   backend/controllers/adminController.js
+ *
+ * Responsibilities:
+ *   - Administrative authorization
+ *   - Tenant isolation
+ *   - Request validation
+ *   - Pagination normalization
+ *   - Safe financial reporting
+ *   - User administration
+ *   - Loan/risk oversight
+ *   - Group oversight
+ *   - Audit read access
+ *   - System health reporting
+ *
+ * Architectural rules:
+ *   - Controllers do not implement financial business logic.
+ *   - Controllers do not perform cross-tenant access implicitly.
+ *   - Financial values are never converted to JavaScript floating point.
+ *   - LoanAudit is used only for loan-domain audit evidence.
+ *   - Generic administrative events belong to the generic audit subsystem.
+ *   - Sensitive user fields are never returned.
+ *   - Search input is escaped before MongoDB regex use.
+ *   - Pagination is bounded.
+ *
+ * =============================================================================
  */
 
-const mongoose = require('mongoose');
-const User = require('../models/User');
-const Group = require('../models/Group');
-const Loan = require('../models/Loan');
-const Contribution = require('../models/Contribution');
-const LoanAudit = require('../models/LoanAudit');
-const asyncHandler = require('../utils/asyncHandler');
+const mongoose =
+    require('mongoose');
 
-/**
- * Admin authorization middleware
- */
-exports.requireAdmin = asyncHandler(async (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Admin access required',
-    });
-  }
-  next();
-});
+const User =
+    require('../models/User');
 
-/**
- * Get system dashboard metrics
- * GET /api/admin/dashboard
- */
-exports.getDashboardMetrics = asyncHandler(async (req, res) => {
-  const [
-    totalUsers,
-    verifiedUsers,
-    totalGroups,
-    activeGroups,
-    totalContributions,
-    totalLoans,
-    disbursedLoans,
-    repaidLoans,
-    defaultedLoans,
-    pendingLoans,
-  ] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ isVerified: true }),
-    Group.countDocuments(),
-    Group.countDocuments({ status: 'active' }),
-    Contribution.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }]),
-    Loan.countDocuments(),
-    Loan.countDocuments({ status: 'disbursed' }),
-    Loan.countDocuments({ status: 'repaid' }),
-    Loan.countDocuments({ status: 'defaulted' }),
-    Loan.countDocuments({ status: 'pending' }),
-  ]);
+const Group =
+    require('../models/Group');
 
-  const totalContributionsAmount = totalContributions[0]?.total || 0;
-  const disbursedLoansAmount = await Loan.aggregate([
-    { $match: { status: 'disbursed' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
+const Loan =
+    require('../models/Loan');
 
-  const defaultRate = totalLoans > 0 ? ((defaultedLoans / totalLoans) * 100).toFixed(2) : 0;
+const Contribution =
+    require('../models/Contribution');
 
-  res.json({
-    success: true,
-    data: {
-      users: {
-        total: totalUsers,
-        verified: verifiedUsers,
-        unverified: totalUsers - verifiedUsers,
-      },
-      groups: {
-        total: totalGroups,
-        active: activeGroups,
-      },
-      contributions: {
-        total: totalContributionsAmount,
-        count: (await Contribution.countDocuments()) || 0,
-      },
-      loans: {
-        total: totalLoans,
-        disbursed: disbursedLoans,
-        disbursedAmount: disbursedLoansAmount[0]?.total || 0,
-        repaid: repaidLoans,
-        defaulted: defaultedLoans,
-        pending: pendingLoans,
-        defaultRate: `${defaultRate}%`,
-      },
-      timestamp: new Date(),
-    },
-  });
-});
+const LoanAudit =
+    require('../models/LoanAudit');
 
-/**
- * Get user management list
- * GET /api/admin/users?status=all&skip=0&limit=20
- */
-exports.getUsers = asyncHandler(async (req, res) => {
-  const { status = 'all', skip = 0, limit = 20, search = '' } = req.query;
+const LoanRepaymentSchedule =
+    require('../models/LoanRepaymentSchedule');
 
-  const query = {};
+const asyncHandler =
+    require('../utils/asyncHandler');
 
-  if (status === 'verified') {
-    query.isVerified = true;
-  } else if (status === 'unverified') {
-    query.isVerified = false;
-  } else if (status === 'suspended') {
-    query.status = 'suspended';
-  }
+const logger =
+    require('../utils/logger');
 
-  // Search by name or email
-  if (search) {
-    query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
+// =============================================================================
+// Constants
+// =============================================================================
+
+const COMPONENT =
+    'admin-controller';
+
+const DEFAULT_PAGE =
+    1;
+
+const DEFAULT_LIMIT =
+    20;
+
+const MAX_LIMIT =
+    100;
+
+const DEFAULT_AUDIT_LIMIT =
+    50;
+
+const MAX_AUDIT_LIMIT =
+    100;
+
+const DEFAULT_ANALYTICS_PERIOD =
+    '30d';
+
+const ADMIN_ROLES =
+    Object.freeze([
+        'ADMIN',
+        'SUPER_ADMIN'
+    ]);
+
+const SUPPORTED_PERIODS =
+    Object.freeze([
+        '7d',
+        '30d',
+        '90d',
+        'all'
+    ]);
+
+// =============================================================================
+// Generic Helpers
+// =============================================================================
+
+function normalizeString(
+    value
+) {
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return null;
+    }
+
+    const normalized =
+        String(value).trim();
+
+    return normalized ||
+        null;
+}
+
+function escapeRegex(
+    value
+) {
+    return String(value)
+        .replace(
+            /[.*+?^${}()|[\]\\]/g,
+            '\\$&'
+        );
+}
+
+function normalizePositiveInteger(
+    value,
+    fallback,
+    maximum
+) {
+    const parsed =
+        Number.parseInt(
+            value,
+            10
+        );
+
+    if (
+        !Number.isInteger(
+            parsed
+        ) ||
+        parsed < 1
+    ) {
+        return fallback;
+    }
+
+    return Math.min(
+        parsed,
+        maximum
+    );
+}
+
+function resolvePagination(
+    query,
+    {
+        defaultLimit = DEFAULT_LIMIT,
+        maxLimit = MAX_LIMIT
+    } = {}
+) {
+    const page =
+        normalizePositiveInteger(
+            query?.page,
+            DEFAULT_PAGE,
+            Number.MAX_SAFE_INTEGER
+        );
+
+    const limit =
+        normalizePositiveInteger(
+            query?.limit,
+            defaultLimit,
+            maxLimit
+        );
+
+    const skip =
+        (
+            page - 1
+        ) * limit;
+
+    return {
+        page,
+        limit,
+        skip
+    };
+}
+
+function isValidObjectId(
+    value
+) {
+    return mongoose.Types.ObjectId.isValid(
+        value
+    );
+}
+
+function requireObjectId(
+    value,
+    field
+) {
+    const normalized =
+        normalizeString(
+            value
+        );
+
+    if (
+        !normalized ||
+        !isValidObjectId(
+            normalized
+        )
+    ) {
+        const error =
+            new Error(
+                `${field} must be a valid identifier.`
+            );
+
+        error.statusCode =
+            422;
+
+        error.code =
+            `ADMIN_INVALID_${field.toUpperCase()}`;
+
+        throw error;
+    }
+
+    return normalized;
+}
+
+// =============================================================================
+// Authentication / Authorization
+// =============================================================================
+
+function resolveUser(
+    req
+) {
+    return (
+        req?.user ||
+        req?.auth?.user ||
+        null
+    );
+}
+
+function resolveRoles(
+    user
+) {
+    const roles = [];
+
+    if (
+        Array.isArray(
+            user?.roles
+        )
+    ) {
+        roles.push(
+            ...user.roles
+        );
+    }
+
+    if (
+        typeof user?.role ===
+        'string'
+    ) {
+        roles.push(
+            user.role
+        );
+    }
+
+    return [
+        ...new Set(
+            roles
+                .map(role =>
+                    String(role)
+                        .trim()
+                        .toUpperCase()
+                )
+                .filter(Boolean)
+        )
     ];
-  }
+}
 
-  const [users, total] = await Promise.all([
-    User.find(query)
-      .select('name email phone role isVerified status createdAt')
-      .skip(parseInt(skip))
-      .limit(parseInt(limit))
-      .sort({ createdAt: -1 }),
-    User.countDocuments(query),
-  ]);
+function requireAdminUser(
+    req
+) {
+    const user =
+        resolveUser(
+            req
+        );
 
-  res.json({
-    success: true,
-    count: users.length,
-    total,
-    skip: parseInt(skip),
-    limit: parseInt(limit),
-    data: users,
-  });
-});
+    if (
+        !user
+    ) {
+        const error =
+            new Error(
+                'Authentication required.'
+            );
 
-/**
- * Get single user details with activity
- * GET /api/admin/users/:userId
- */
-exports.getUserDetails = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
+        error.statusCode =
+            401;
 
-  const user = await User.findById(userId).select(
-    '-password -resetPasswordToken -verificationToken'
-  );
+        error.code =
+            'ADMIN_AUTHENTICATION_REQUIRED';
 
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found',
-    });
-  }
+        throw error;
+    }
 
-  // Get user activity
-  const [groups, loans, contributions, auditLog] = await Promise.all([
-    Group.find({ members: userId }).select('name status createdAt'),
-    Loan.find({ user: userId }).select('group amount status createdAt'),
-    Contribution.find({ user: userId }).select('group amount createdAt'),
-    LoanAudit.find({ user: userId }).limit(10).sort({ createdAt: -1 }),
-  ]);
+    const roles =
+        resolveRoles(
+            user
+        );
 
-  res.json({
-    success: true,
-    data: {
-      user,
-      activity: {
-        groups: groups.length,
-        loans: loans.length,
-        contributions: contributions.length,
-      },
-      recentActivity: auditLog,
-    },
-  });
-});
+    if (
+        !ADMIN_ROLES.some(
+            role =>
+                roles.includes(
+                    role
+                )
+        )
+    ) {
+        const error =
+            new Error(
+                'Admin access required.'
+            );
 
-/**
- * Verify user account
- * PUT /api/admin/users/:userId/verify
- */
-exports.verifyUser = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
+        error.statusCode =
+            403;
 
-  const user = await User.findById(userId);
+        error.code =
+            'ADMIN_AUTHORIZATION_REQUIRED';
 
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found',
-    });
-  }
+        throw error;
+    }
 
-  if (user.isVerified) {
-    return res.status(400).json({
-      success: false,
-      message: 'User is already verified',
-    });
-  }
+    return user;
+}
 
-  user.isVerified = true;
-  user.verificationToken = null;
-  user.verificationTokenExpires = null;
-  await user.save();
+// =============================================================================
+// Tenant Isolation
+// =============================================================================
 
-  // Audit
-  await LoanAudit.logAction({
-    action: 'user_verified',
-    user: user._id,
-    actor: req.user._id,
-    actorRole: 'admin',
-    description: `User ${user.email} manually verified by admin`,
-    status: 'success',
-  });
+function resolveTenantId(
+    req
+) {
+    const tenantId =
+        normalizeString(
+            req?.tenant_id ||
+            req?.tenantId ||
+            req?.tenant?.id ||
+            req?.tenant?._id ||
+            req?.auth?.tenantId ||
+            req?.user?.tenantId ||
+            req?.user?.tenant?.id ||
+            req?.context?.tenantId
+        );
 
-  res.json({
-    success: true,
-    message: 'User verified successfully',
-    data: user,
-  });
-});
+    if (
+        !tenantId
+    ) {
+        const error =
+            new Error(
+                'Authenticated tenant context is required.'
+            );
+
+        error.statusCode =
+            400;
+
+        error.code =
+            'ADMIN_TENANT_CONTEXT_REQUIRED';
+
+        throw error;
+    }
+
+    return tenantId;
+}
 
 /**
- * Suspend user account
- * PUT /api/admin/users/:userId/suspend
- * Body: { reason }
+ * SUPER_ADMIN may explicitly request another tenant.
+ *
+ * Normal ADMIN users are always locked to their authenticated tenant.
  */
-exports.suspendUser = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-  const { reason } = req.body;
+function resolveEffectiveTenantId(
+    req,
+    user
+) {
+    const authenticatedTenantId =
+        resolveTenantId(
+            req
+        );
 
-  if (!reason) {
-    return res.status(400).json({
-      success: false,
-      message: 'Suspension reason is required',
-    });
-  }
+    const requestedTenantId =
+        normalizeString(
+            req.query?.tenantId
+        );
 
-  const user = await User.findById(userId);
+    if (
+        !requestedTenantId
+    ) {
+        return authenticatedTenantId;
+    }
 
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found',
-    });
-  }
+    const isSuperAdmin =
+        resolveRoles(
+            user
+        ).includes(
+            'SUPER_ADMIN'
+        );
 
-  user.status = 'suspended';
-  user.suspensionReason = reason;
-  user.suspendedAt = new Date();
-  await user.save();
+    if (
+        !isSuperAdmin &&
+        requestedTenantId !==
+        authenticatedTenantId
+    ) {
+        const error =
+            new Error(
+                'Cross-tenant administration is forbidden.'
+            );
 
-  // Audit
-  await LoanAudit.logAction({
-    action: 'user_suspended',
-    user: user._id,
-    actor: req.user._id,
-    actorRole: 'admin',
-    description: `User suspended: ${reason}`,
-    status: 'success',
-  });
+        error.statusCode =
+            403;
 
-  res.json({
-    success: true,
-    message: 'User suspended successfully',
-    data: user,
-  });
-});
+        error.code =
+            'ADMIN_CROSS_TENANT_ACCESS_FORBIDDEN';
 
-/**
- * Activate suspended user
- * PUT /api/admin/users/:userId/activate
- */
-exports.activateUser = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
+        throw error;
+    }
 
-  const user = await User.findById(userId);
+    return requestedTenantId;
+}
 
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found',
-    });
-  }
+// =============================================================================
+// Safe Financial Formatting
+// =============================================================================
 
-  if (user.status !== 'suspended') {
-    return res.status(400).json({
-      success: false,
-      message: 'User is not suspended',
-    });
-  }
+function decimalToString(
+    value
+) {
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return '0';
+    }
 
-  user.status = 'active';
-  user.suspensionReason = null;
-  user.suspendedAt = null;
-  await user.save();
+    return String(
+        value
+    );
+}
 
-  // Audit
-  await LoanAudit.logAction({
-    action: 'user_activated',
-    user: user._id,
-    actor: req.user._id,
-    actorRole: 'admin',
-    description: 'User account reactivated',
-    status: 'success',
-  });
+function decimalToNumberUnsafe(
+    value
+) {
+    /**
+     * Deliberately NOT used for financial values.
+     *
+     * Kept here only as an architectural guard/documentation point.
+     */
+    return Number(
+        value
+    );
+}
 
-  res.json({
-    success: true,
-    message: 'User activated successfully',
-    data: user,
-  });
-});
+// =============================================================================
+// Date Helpers
+// =============================================================================
 
-/**
- * Get loan risk overview
- * GET /api/admin/loan-risk
- */
-exports.getLoanRiskOverview = asyncHandler(async (req, res) => {
-  // At-risk loans: overdue payments
-  const atRiskLoans = await Loan.aggregate([
+function resolveAnalyticsStartDate(
+    period
+) {
+    const now =
+        new Date();
+
+    switch (
+        period
+    ) {
+        case '7d':
+            return new Date(
+                now.getTime() -
+                (
+                    7 *
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                )
+            );
+
+        case '30d':
+            return new Date(
+                now.getTime() -
+                (
+                    30 *
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                )
+            );
+
+        case '90d':
+            return new Date(
+                now.getTime() -
+                (
+                    90 *
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                )
+            );
+
+        case 'all':
+            return new Date(
+                '2000-01-01T00:00:00.000Z'
+            );
+
+        default:
+            return new Date(
+                now.getTime() -
+                (
+                    30 *
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                )
+            );
+    }
+}
+
+function resolvePeriod(
+    value
+) {
+    const period =
+        normalizeString(
+            value
+        ) ||
+        DEFAULT_ANALYTICS_PERIOD;
+
+    if (
+        !SUPPORTED_PERIODS.includes(
+            period
+        )
+    ) {
+        const error =
+            new Error(
+                'Unsupported analytics period.'
+            );
+
+        error.statusCode =
+            422;
+
+        error.code =
+            'ADMIN_INVALID_ANALYTICS_PERIOD';
+
+        throw error;
+    }
+
+    return period;
+}
+
+// =============================================================================
+// Response Helpers
+// =============================================================================
+
+function buildMeta(
+    req,
+    tenantId,
+    startedAt,
+    additional = {}
+) {
+    return {
+        requestId:
+            normalizeString(
+                req?.headers?.[
+                    'x-request-id'
+                ]
+            ),
+
+        correlationId:
+            normalizeString(
+                req?.headers?.[
+                    'x-correlation-id'
+                ]
+            ),
+
+        tenantId,
+
+        executionTimeMs:
+            Date.now() -
+            startedAt,
+
+        ...additional
+    };
+}
+
+function success(
+    res,
+    data,
     {
-      $lookup: {
-        from: 'loanrepaymentschedules',
-        localField: '_id',
-        foreignField: 'loan',
-        as: 'schedule',
-      },
-    },
-    {
-      $match: {
-        status: 'disbursed',
-        'schedule.status': { $in: ['overdue', 'default'] },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        count: { $sum: 1 },
-        totalAmount: { $sum: '$amount' },
-      },
-    },
-  ]);
+        message = 'Success',
+        statusCode = 200,
+        meta = {}
+    } = {}
+) {
+    return res
+        .status(
+            statusCode
+        )
+        .json({
+            success:
+                true,
 
-  // Loans approaching maturity
-  const approachingMaturity = await Loan.countDocuments({
-    status: 'disbursed',
-    repaymentDate: {
-      $gte: new Date(),
-      $lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-  });
+            message,
 
-  // Default analysis
-  const defaultAnalysis = await Loan.aggregate([
-    { $match: { status: 'defaulted' } },
-    {
-      $group: {
-        _id: null,
-        count: { $sum: 1 },
-        totalAmount: { $sum: '$amount' },
-        avgAmount: { $avg: '$amount' },
-      },
-    },
-  ]);
+            timestamp:
+                new Date().toISOString(),
 
-  res.json({
-    success: true,
-    data: {
-      atRisk: atRiskLoans[0] || { count: 0, totalAmount: 0 },
-      approachingMaturity,
-      defaultAnalysis: defaultAnalysis[0] || {
-        count: 0,
-        totalAmount: 0,
-        avgAmount: 0,
-      },
-    },
-  });
-});
+            meta,
 
-/**
- * Get group oversight
- * GET /api/admin/groups?skip=0&limit=20
- */
-exports.getGroupOversight = asyncHandler(async (req, res) => {
-  const { skip = 0, limit = 20 } = req.query;
+            data
+        });
+}
 
-  const groups = await Group.aggregate([
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'members',
-        foreignField: '_id',
-        as: 'memberDetails',
-      },
-    },
-    {
-      $lookup: {
-        from: 'loans',
-        localField: '_id',
-        foreignField: 'group',
-        as: 'loans',
-      },
-    },
-    {
-      $lookup: {
-        from: 'contributions',
-        localField: '_id',
-        foreignField: 'group',
-        as: 'contributions',
-      },
-    },
-    {
-      $project: {
-        name: 1,
-        description: 1,
-        status: 1,
-        memberCount: { $size: '$memberDetails' },
-        totalContributions: { $sum: '$contributions.amount' },
-        loanCount: { $size: '$loans' },
-        activeLoanCount: {
-          $size: {
-            $filter: {
-              input: '$loans',
-              as: 'loan',
-              cond: { $eq: ['$$loan.status', 'disbursed'] },
-            },
-          },
-        },
-        createdAt: 1,
-      },
-    },
-    { $sort: { createdAt: -1 } },
-    { $skip: parseInt(skip) },
-    { $limit: parseInt(limit) },
-  ]);
+// =============================================================================
+// Admin Authorization Middleware
+// =============================================================================
 
-  const total = await Group.countDocuments();
+exports.requireAdmin =
+    asyncHandler(
+        async (
+            req,
+            res,
+            next
+        ) => {
+            requireAdminUser(
+                req
+            );
 
-  res.json({
-    success: true,
-    count: groups.length,
-    total,
-    skip: parseInt(skip),
-    limit: parseInt(limit),
-    data: groups,
-  });
-});
+            resolveTenantId(
+                req
+            );
 
-/**
- * Get audit trail
- * GET /api/admin/audit-log?action=&skip=0&limit=50
- */
-exports.getAuditLog = asyncHandler(async (req, res) => {
-  const { action, skip = 0, limit = 50 } = req.query;
+            return next();
+        }
+    );
 
-  const query = {};
-  if (action) {
-    query.action = action;
-  }
+// =============================================================================
+// Dashboard Metrics
+// =============================================================================
 
-  const [logs, total] = await Promise.all([
-    LoanAudit.find(query)
-      .populate('actor', 'name email role')
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 })
-      .skip(parseInt(skip))
-      .limit(parseInt(limit)),
-    LoanAudit.countDocuments(query),
-  ]);
+exports.getDashboardMetrics =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
 
-  res.json({
-    success: true,
-    count: logs.length,
-    total,
-    skip: parseInt(skip),
-    limit: parseInt(limit),
-    data: logs,
-  });
-});
+            const user =
+                requireAdminUser(
+                    req
+                );
 
-/**
- * Get detailed loan analytics
- * GET /api/admin/analytics/loans
- */
-exports.getLoanAnalytics = asyncHandler(async (req, res) => {
-  const { period = '30d' } = req.query;
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    user
+                );
 
-  // Calculate date range based on period
-  const now = new Date();
-  let startDate;
+            const tenantMatch = {
+                tenantId
+            };
 
-  switch (period) {
-    case '7d':
-      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '30d':
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      break;
-    case '90d':
-      startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      break;
-    case 'all':
-      startDate = new Date('2000-01-01');
-      break;
-    default:
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  }
+            const [
+                totalUsers,
+                verifiedUsers,
+                totalGroups,
+                activeGroups,
+                contributionCount,
+                contributionTotals,
+                totalLoans,
+                disbursedLoans,
+                repaidLoans,
+                defaultedLoans,
+                pendingLoans,
+                disbursedTotals
+            ] =
+                await Promise.all([
+                    User.countDocuments(
+                        tenantMatch
+                    ),
 
-  const statusStats = await Loan.aggregate([
-    { $match: { createdAt: { $gte: startDate } } },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        totalAmount: { $sum: '$amount' },
-        averageAmount: { $avg: '$amount' },
-      },
-    },
-  ]);
+                    User.countDocuments({
+                        ...tenantMatch,
+                        isVerified:
+                            true
+                    }),
 
-  // Loan creation trend (daily)
-  const trendData = await Loan.aggregate([
-    { $match: { createdAt: { $gte: startDate } } },
-    {
-      $group: {
-        _id: {
-          $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
-        },
-        count: { $sum: 1 },
-        amount: { $sum: '$amount' },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
+                    Group.countDocuments(
+                        tenantMatch
+                    ),
 
-  // Default analysis
-  const repaymentData = await require('../models/LoanRepaymentSchedule').aggregate([
-    { $match: { createdAt: { $gte: startDate } } },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        totalAmount: { $sum: '$totalAmount' },
-      },
-    },
-  ]);
+                    Group.countDocuments({
+                        ...tenantMatch,
+                        status:
+                            'active'
+                    }),
 
-  res.json({
-    success: true,
-    data: {
-      period,
-      statusDistribution: statusStats,
-      creationTrend: trendData,
-      repaymentStatus: repaymentData,
-      summary: {
-        totalLoansInPeriod: statusStats.reduce((sum, s) => sum + s.count, 0),
-        totalAmountInPeriod: statusStats.reduce((sum, s) => sum + s.totalAmount, 0),
-      },
-    },
-  });
-});
+                    Contribution.countDocuments(
+                        tenantMatch
+                    ),
 
-/**
- * Get user engagement metrics
- * GET /api/admin/analytics/users
- */
-exports.getUserAnalytics = asyncHandler(async (req, res) => {
-  // Most active users (by contribution count)
-  const activeUsers = await User.aggregate([
-    {
-      $lookup: {
-        from: 'contributions',
-        localField: '_id',
-        foreignField: 'user',
-        as: 'userContributions',
-      },
-    },
-    {
-      $lookup: {
-        from: 'loans',
-        localField: '_id',
-        foreignField: 'user',
-        as: 'userLoans',
-      },
-    },
-    {
-      $project: {
-        name: 1,
-        email: 1,
-        phone: 1,
-        isVerified: 1,
-        role: 1,
-        contributionCount: { $size: '$userContributions' },
-        totalContributed: { $sum: '$userContributions.amount' },
-        loanCount: { $size: '$userLoans' },
-        createdAt: 1,
-      },
-    },
-    { $sort: { totalContributed: -1 } },
-    { $limit: 20 },
-  ]);
+                    Contribution.aggregate([
+                        {
+                            $match:
+                                tenantMatch
+                        },
+                        {
+                            $group: {
+                                _id:
+                                    null,
+                                total:
+                                    {
+                                        $sum:
+                                            '$amount'
+                                    }
+                            }
+                        }
+                    ]),
 
-  // Verification status
-  const verificationStats = await User.aggregate([
-    {
-      $group: {
-        _id: '$isVerified',
-        count: { $sum: 1 },
-      },
-    },
-  ]);
+                    Loan.countDocuments(
+                        tenantMatch
+                    ),
 
-  // Role distribution
-  const roleStats = await User.aggregate([
-    {
-      $group: {
-        _id: '$role',
-        count: { $sum: 1 },
-      },
-    },
-  ]);
+                    Loan.countDocuments({
+                        ...tenantMatch,
+                        status:
+                            'disbursed'
+                    }),
 
-  res.json({
-    success: true,
-    data: {
-      topUsers: activeUsers,
-      verification: verificationStats,
-      roleDistribution: roleStats,
-    },
-  });
-});
+                    Loan.countDocuments({
+                        ...tenantMatch,
+                        status:
+                            'repaid'
+                    }),
 
-/**
- * Get system health status
- * GET /api/admin/system/health
- */
-exports.getSystemHealth = asyncHandler(async (req, res) => {
-  const start = Date.now();
+                    Loan.countDocuments({
+                        ...tenantMatch,
+                        status:
+                            'defaulted'
+                    }),
 
-  try {
-    // Database connectivity test
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+                    Loan.countDocuments({
+                        ...tenantMatch,
+                        status:
+                            'pending'
+                    }),
 
-    // Query performance (measure response time)
-    const userCount = await User.countDocuments();
-    const queryTime = Date.now() - start;
+                    Loan.aggregate([
+                        {
+                            $match: {
+                                ...tenantMatch,
+                                status:
+                                    'disbursed'
+                            }
+                        },
+                        {
+                            $group: {
+                                _id:
+                                    null,
+                                total:
+                                    {
+                                        $sum:
+                                            '$amount'
+                                    }
+                            }
+                        }
+                    ])
+                ]);
 
-    // Check for overdue loans/payments
-    const now = new Date();
-    const overdueCount = await require('../models/LoanRepaymentSchedule').countDocuments({
-      'installments.dueDate': { $lt: now },
-      'installments.paid': false,
-    });
+            const contributionAmount =
+                contributionTotals[0]?.total;
 
-    res.json({
-      success: true,
-      data: {
-        database: {
-          status: dbStatus,
-          connected: dbStatus === 'connected',
-        },
-        performance: {
-          queryTime: `${queryTime}ms`,
-          status: queryTime < 100 ? 'healthy' : queryTime < 500 ? 'acceptable' : 'slow',
-        },
-        data: {
-          totalUsers: userCount,
-          overdueLoans: overdueCount,
-          timestamp: new Date(),
-        },
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'System health check failed',
-      error: error.message,
-    });
-  }
-});
+            const disbursedAmount =
+                disbursedTotals[0]?.total;
 
-/**
- * Get payment analytics
- * GET /api/admin/analytics/payments
- */
-exports.getPaymentAnalytics = asyncHandler(async (req, res) => {
-  const LoanRepaymentSchedule = require('../models/LoanRepaymentSchedule');
+            const defaultRate =
+                totalLoans > 0
+                    ? (
+                        (
+                            defaultedLoans /
+                            totalLoans
+                        ) *
+                        100
+                    ).toFixed(
+                        2
+                    )
+                    : '0.00';
 
-  // Payment status summary
-  const paymentStats = await LoanRepaymentSchedule.aggregate([
-    {
-      $facet: {
-        byStatus: [
-          {
-            $group: {
-              _id: '$status',
-              count: { $sum: 1 },
-              totalAmount: { $sum: '$totalAmount' },
-            },
-          },
-        ],
-        installmentAnalysis: [
-          { $unwind: '$installments' },
-          {
-            $group: {
-              _id: '$installments.paid',
-              count: { $sum: 1 },
-              totalAmount: { $sum: '$installments.amount' },
-            },
-          },
-        ],
-        collectionRate: [
-          {
-            $group: {
-              _id: null,
-              totalSchedules: { $sum: 1 },
-              totalAmount: { $sum: '$totalAmount' },
-              totalPaid: { $sum: '$totalPaid' },
-            },
-          },
-        ],
-      },
-    },
-  ]);
+            return success(
+                res,
+                {
+                    users: {
+                        total:
+                            totalUsers,
 
-  const collectionRate = paymentStats[0]?.collectionRate[0];
-  const percentPaid = collectionRate
-    ? ((collectionRate.totalPaid / collectionRate.totalAmount) * 100).toFixed(2)
-    : 0;
+                        verified:
+                            verifiedUsers,
 
-  res.json({
-    success: true,
-    data: {
-      scheduleStatus: paymentStats[0]?.byStatus || [],
-      installmentStatus: paymentStats[0]?.installmentAnalysis || [],
-      collectionMetrics: {
-        totalSchedules: collectionRate?.totalSchedules || 0,
-        totalAmount: collectionRate?.totalAmount || 0,
-        totalPaid: collectionRate?.totalPaid || 0,
-        collectionRate: `${percentPaid}%`,
-      },
-    },
-  });
-});
+                        unverified:
+                            totalUsers -
+                            verifiedUsers
+                    },
 
-/**
- * Generate compliance report
- * GET /api/admin/reports/compliance
- */
-exports.getComplianceReport = asyncHandler(async (req, res) => {
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                    groups: {
+                        total:
+                            totalGroups,
 
-  // High-risk loans (overdue)
-  const riskyLoans = await require('../models/LoanRepaymentSchedule')
-    .find({
-      $expr: {
-        $gt: [
-          {
-            $size: {
-              $filter: {
-                input: '$installments',
-                as: 'inst',
-                cond: {
-                  $and: [{ $lt: ['$$inst.dueDate', now] }, { $eq: ['$$inst.paid', false] }],
+                        active:
+                            activeGroups
+                    },
+
+                    contributions: {
+                        count:
+                            contributionCount,
+
+                        total:
+                            decimalToString(
+                                contributionAmount
+                            )
+                    },
+
+                    loans: {
+                        total:
+                            totalLoans,
+
+                        disbursed:
+                            disbursedLoans,
+
+                        disbursedAmount:
+                            decimalToString(
+                                disbursedAmount
+                            ),
+
+                        repaid:
+                            repaidLoans,
+
+                        defaulted:
+                            defaultedLoans,
+
+                        pending:
+                            pendingLoans,
+
+                        defaultRate:
+                            `${defaultRate}%`
+                    }
                 },
-              },
-            },
-          },
-          0,
-        ],
-      },
-    })
-    .populate('loan');
+                {
+                    message:
+                        'Admin dashboard metrics retrieved.',
 
-  // Recent defaults
-  const recentDefaults = await require('../models/LoanAudit')
-    .find({
-      action: 'loan_defaulted',
-      createdAt: { $gte: thirtyDaysAgo },
-    })
-    .populate('loan')
-    .populate('user');
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
 
-  // Verification compliance
-  const unverifiedUsers = await User.countDocuments({ isVerified: false });
-  const totalUsers = await User.countDocuments();
-  const verificationRate = ((totalUsers - unverifiedUsers) / totalUsers) * 100;
+// =============================================================================
+// User Management
+// =============================================================================
 
-  res.json({
-    success: true,
-    data: {
-      riskAssessment: {
-        highRiskLoans: riskyLoans.length,
-        recentDefaults: recentDefaults.length,
-        overallRiskScore: (riskyLoans.length + recentDefaults.length) * 10, // Simple scoring
-      },
-      compliance: {
-        userVerificationRate: `${verificationRate.toFixed(2)}%`,
-        verifiedUsers: totalUsers - unverifiedUsers,
-        unverifiedUsers,
-        totalUsers,
-      },
-      recentIssues: {
-        overdueLoans: riskyLoans,
-        defaults: recentDefaults.slice(0, 10),
-      },
-      timestamp: new Date(),
-    },
-  });
-});
+exports.getUsers =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
 
-module.exports = exports;
+            const user =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    user
+                );
+
+            const {
+                page,
+                limit,
+                skip
+            } =
+                resolvePagination(
+                    req.query
+                );
+
+            const status =
+                normalizeString(
+                    req.query?.status
+                ) ||
+                'all';
+
+            const search =
+                normalizeString(
+                    req.query?.search
+                );
+
+            const query = {
+                tenantId
+            };
+
+            if (
+                status ===
+                'verified'
+            ) {
+                query.isVerified =
+                    true;
+            } else if (
+                status ===
+                'unverified'
+            ) {
+                query.isVerified =
+                    false;
+            } else if (
+                status ===
+                'suspended'
+            ) {
+                query.status =
+                    'suspended';
+            }
+
+            if (
+                search
+            ) {
+                const safeSearch =
+                    escapeRegex(
+                        search
+                    );
+
+                query.$or = [
+                    {
+                        name: {
+                            $regex:
+                                safeSearch,
+                            $options:
+                                'i'
+                        }
+                    },
+                    {
+                        email: {
+                            $regex:
+                                safeSearch,
+                            $options:
+                                'i'
+                        }
+                    }
+                ];
+            }
+
+            const [
+                users,
+                total
+            ] =
+                await Promise.all([
+                    User.find(
+                        query
+                    )
+                        .select(
+                            [
+                                'name',
+                                'email',
+                                'phone',
+                                'role',
+                                'roles',
+                                'isVerified',
+                                'status',
+                                'createdAt',
+                                'tenantId'
+                            ].join(' ')
+                        )
+                        .sort({
+                            createdAt:
+                                -1
+                        })
+                        .skip(
+                            skip
+                        )
+                        .limit(
+                            limit
+                        )
+                        .lean(),
+
+                    User.countDocuments(
+                        query
+                    )
+                ]);
+
+            return success(
+                res,
+                users,
+                {
+                    message:
+                        'Users retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt,
+                            {
+                                page,
+                                limit,
+                                total,
+                                count:
+                                    users.length,
+                                status,
+                                search:
+                                    search ||
+                                    null
+                            }
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// User Details
+// =============================================================================
+
+exports.getUserDetails =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const userId =
+                requireObjectId(
+                    req.params.userId,
+                    'userId'
+                );
+
+            const user =
+                await User.findOne({
+                    _id:
+                        userId,
+
+                    tenantId
+                })
+                    .select(
+                        '-password ' +
+                        '-resetPasswordToken ' +
+                        '-verificationToken ' +
+                        '-verificationTokenExpires'
+                    )
+                    .lean();
+
+            if (
+                !user
+            ) {
+                return res
+                    .status(
+                        404
+                    )
+                    .json({
+                        success:
+                            false,
+                        message:
+                            'User not found.'
+                    });
+            }
+
+            const [
+                groups,
+                loans,
+                contributions,
+                recentActivity
+            ] =
+                await Promise.all([
+                    Group.find({
+                        tenantId,
+                        members:
+                            userId
+                    })
+                        .select(
+                            'name status createdAt'
+                        )
+                        .sort({
+                            createdAt:
+                                -1
+                        })
+                        .limit(
+                            25
+                        )
+                        .lean(),
+
+                    Loan.find({
+                        tenantId,
+                        user:
+                            userId
+                    })
+                        .select(
+                            'group amount status createdAt'
+                        )
+                        .sort({
+                            createdAt:
+                                -1
+                        })
+                        .limit(
+                            25
+                        )
+                        .lean(),
+
+                    Contribution.find({
+                        tenantId,
+                        user:
+                            userId
+                    })
+                        .select(
+                            'group amount createdAt'
+                        )
+                        .sort({
+                            createdAt:
+                                -1
+                        })
+                        .limit(
+                            25
+                        )
+                        .lean(),
+
+                    /**
+                     * LoanAudit is loan-specific and requires loan/member
+                     * context. Query it by tenant/member rather than treating
+                     * it as a generic application audit store.
+                     */
+                    LoanAudit.find({
+                        tenantId,
+                        memberId:
+                            userId
+                    })
+                        .sort({
+                            createdAt:
+                                -1
+                        })
+                        .limit(
+                            10
+                        )
+                        .lean()
+                ]);
+
+            return success(
+                res,
+                {
+                    user,
+
+                    activity: {
+                        groups:
+                            groups.length,
+
+                        loans:
+                            loans.length,
+
+                        contributions:
+                            contributions.length
+                    },
+
+                    recentActivity
+                },
+                {
+                    message:
+                        'User details retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Verify User
+// =============================================================================
+
+exports.verifyUser =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const userId =
+                requireObjectId(
+                    req.params.userId,
+                    'userId'
+                );
+
+            const user =
+                await User.findOne({
+                    _id:
+                        userId,
+
+                    tenantId
+                });
+
+            if (
+                !user
+            ) {
+                return res
+                    .status(
+                        404
+                    )
+                    .json({
+                        success:
+                            false,
+                        message:
+                            'User not found.'
+                    });
+            }
+
+            if (
+                user.isVerified
+            ) {
+                return res
+                    .status(
+                        409
+                    )
+                    .json({
+                        success:
+                            false,
+                        message:
+                            'User is already verified.'
+                    });
+            }
+
+            user.isVerified =
+                true;
+
+            user.verificationToken =
+                null;
+
+            user.verificationTokenExpires =
+                null;
+
+            await user.save();
+
+            /**
+             * IMPORTANT:
+             * Do not call LoanAudit.logAction().
+             *
+             * The current LoanAudit model is a loan-specific immutable audit
+             * chain with required loan/member fields.
+             *
+             * Generic user-administration audit should be delegated to the
+             * platform's generic audit service/middleware.
+             */
+
+            return success(
+                res,
+                {
+                    userId:
+                        String(
+                            user._id
+                        ),
+
+                    verified:
+                        true
+                },
+                {
+                    message:
+                        'User verified successfully.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Suspend User
+// =============================================================================
+
+exports.suspendUser =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const userId =
+                requireObjectId(
+                    req.params.userId,
+                    'userId'
+                );
+
+            const reason =
+                normalizeString(
+                    req.body?.reason
+                );
+
+            if (
+                !reason
+            ) {
+                return res
+                    .status(
+                        422
+                    )
+                    .json({
+                        success:
+                            false,
+                        message:
+                            'Suspension reason is required.'
+                    });
+            }
+
+            if (
+                String(
+                    admin._id ||
+                    admin.id
+                ) ===
+                String(
+                    userId
+                )
+            ) {
+                return res
+                    .status(
+                        409
+                    )
+                    .json({
+                        success:
+                            false,
+                        message:
+                            'An administrator cannot suspend their own account.'
+                    });
+            }
+
+            const user =
+                await User.findOne({
+                    _id:
+                        userId,
+                    tenantId
+                });
+
+            if (
+                !user
+            ) {
+                return res
+                    .status(
+                        404
+                    )
+                    .json({
+                        success:
+                            false,
+                        message:
+                            'User not found.'
+                    });
+            }
+
+            user.status =
+                'suspended';
+
+            user.suspensionReason =
+                reason;
+
+            user.suspendedAt =
+                new Date();
+
+            await user.save();
+
+            return success(
+                res,
+                {
+                    userId:
+                        String(
+                            user._id
+                        ),
+
+                    status:
+                        'suspended'
+                },
+                {
+                    message:
+                        'User suspended successfully.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Activate User
+// =============================================================================
+
+exports.activateUser =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const userId =
+                requireObjectId(
+                    req.params.userId,
+                    'userId'
+                );
+
+            const user =
+                await User.findOne({
+                    _id:
+                        userId,
+                    tenantId
+                });
+
+            if (
+                !user
+            ) {
+                return res
+                    .status(
+                        404
+                    )
+                    .json({
+                        success:
+                            false,
+                        message:
+                            'User not found.'
+                    });
+            }
+
+            if (
+                user.status !==
+                'suspended'
+            ) {
+                return res
+                    .status(
+                        409
+                    )
+                    .json({
+                        success:
+                            false,
+                        message:
+                            'User is not suspended.'
+                    });
+            }
+
+            user.status =
+                'active';
+
+            user.suspensionReason =
+                null;
+
+            user.suspendedAt =
+                null;
+
+            await user.save();
+
+            return success(
+                res,
+                {
+                    userId:
+                        String(
+                            user._id
+                        ),
+
+                    status:
+                        'active'
+                },
+                {
+                    message:
+                        'User activated successfully.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Loan Risk Overview
+// =============================================================================
+
+exports.getLoanRiskOverview =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const now =
+                new Date();
+
+            const maturityWindow =
+                new Date(
+                    now.getTime() +
+                    (
+                        30 *
+                        24 *
+                        60 *
+                        60 *
+                        1000
+                    )
+                );
+
+            const [
+                atRiskLoans,
+                approachingMaturity,
+                defaultAnalysis
+            ] =
+                await Promise.all([
+                    Loan.aggregate([
+                        {
+                            $match: {
+                                tenantId,
+                                status:
+                                    'disbursed'
+                            }
+                        },
+
+                        {
+                            $lookup: {
+                                from:
+                                    'loanrepaymentschedules',
+
+                                let: {
+                                    loanId:
+                                        '$_id'
+                                },
+
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    {
+                                                        $eq: [
+                                                            '$loan',
+                                                            '$$loanId'
+                                                        ]
+                                                    },
+                                                    {
+                                                        $in: [
+                                                            '$status',
+                                                            [
+                                                                'overdue',
+                                                                'default'
+                                                            ]
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+
+                                    {
+                                        $limit:
+                                            1
+                                    }
+                                ],
+
+                                as:
+                                    'riskSchedule'
+                            }
+                        },
+
+                        {
+                            $match: {
+                                'riskSchedule.0':
+                                    {
+                                        $exists:
+                                            true
+                                    }
+                            }
+                        },
+
+                        {
+                            $group: {
+                                _id:
+                                    null,
+
+                                count: {
+                                    $sum:
+                                        1
+                                },
+
+                                totalAmount: {
+                                    $sum:
+                                        '$amount'
+                                }
+                            }
+                        }
+                    ]),
+
+                    Loan.countDocuments({
+                        tenantId,
+
+                        status:
+                            'disbursed',
+
+                        repaymentDate: {
+                            $gte:
+                                now,
+
+                            $lte:
+                                maturityWindow
+                        }
+                    }),
+
+                    Loan.aggregate([
+                        {
+                            $match: {
+                                tenantId,
+                                status:
+                                    'defaulted'
+                            }
+                        },
+
+                        {
+                            $group: {
+                                _id:
+                                    null,
+
+                                count: {
+                                    $sum:
+                                        1
+                                },
+
+                                totalAmount: {
+                                    $sum:
+                                        '$amount'
+                                },
+
+                                averageAmount: {
+                                    $avg:
+                                        '$amount'
+                                }
+                            }
+                        }
+                    ])
+                ]);
+
+            const risk =
+                atRiskLoans[0] ||
+                {
+                    count:
+                        0,
+                    totalAmount:
+                        '0'
+                };
+
+            const defaults =
+                defaultAnalysis[0] ||
+                {
+                    count:
+                        0,
+                    totalAmount:
+                        '0',
+                    averageAmount:
+                        '0'
+                };
+
+            return success(
+                res,
+                {
+                    atRisk: {
+                        count:
+                            Number(
+                                risk.count ||
+                                0
+                            ),
+
+                        totalAmount:
+                            decimalToString(
+                                risk.totalAmount
+                            )
+                    },
+
+                    approachingMaturity,
+
+                    defaultAnalysis: {
+                        count:
+                            Number(
+                                defaults.count ||
+                                0
+                            ),
+
+                        totalAmount:
+                            decimalToString(
+                                defaults.totalAmount
+                            ),
+
+                        averageAmount:
+                            decimalToString(
+                                defaults.averageAmount
+                            )
+                    }
+                },
+                {
+                    message:
+                        'Loan risk overview retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Group Oversight
+// =============================================================================
+
+exports.getGroupOversight =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const {
+                page,
+                limit,
+                skip
+            } =
+                resolvePagination(
+                    req.query
+                );
+
+            const [
+                groups,
+                total
+            ] =
+                await Promise.all([
+                    Group.aggregate([
+                        {
+                            $match: {
+                                tenantId
+                            }
+                        },
+
+                        {
+                            $lookup: {
+                                from:
+                                    'loans',
+
+                                let: {
+                                    groupId:
+                                        '$_id'
+                                },
+
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    {
+                                                        $eq: [
+                                                            '$group',
+                                                            '$$groupId'
+                                                        ]
+                                                    },
+                                                    {
+                                                        $eq: [
+                                                            '$tenantId',
+                                                            tenantId
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+
+                                    {
+                                        $project: {
+                                            status:
+                                                1
+                                        }
+                                    }
+                                ],
+
+                                as:
+                                    'loans'
+                            }
+                        },
+
+                        {
+                            $lookup: {
+                                from:
+                                    'contributions',
+
+                                let: {
+                                    groupId:
+                                        '$_id'
+                                },
+
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    {
+                                                        $eq: [
+                                                            '$group',
+                                                            '$$groupId'
+                                                        ]
+                                                    },
+                                                    {
+                                                        $eq: [
+                                                            '$tenantId',
+                                                            tenantId
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+
+                                    {
+                                        $group: {
+                                            _id:
+                                                null,
+
+                                            total:
+                                                {
+                                                    $sum:
+                                                        '$amount'
+                                                }
+                                        }
+                                    }
+                                ],
+
+                                as:
+                                    'contributionTotals'
+                            }
+                        },
+
+                        {
+                            $project: {
+                                name:
+                                    1,
+
+                                description:
+                                    1,
+
+                                status:
+                                    1,
+
+                                memberCount:
+                                    {
+                                        $size:
+                                            {
+                                                $ifNull: [
+                                                    '$members',
+                                                    []
+                                                ]
+                                            }
+                                    },
+
+                                totalContributions:
+                                    {
+                                        $ifNull: [
+                                            {
+                                                $arrayElemAt: [
+                                                    '$contributionTotals.total',
+                                                    0
+                                                ]
+                                            },
+                                            '0'
+                                        ]
+                                    },
+
+                                loanCount:
+                                    {
+                                        $size:
+                                            '$loans'
+                                    },
+
+                                activeLoanCount:
+                                    {
+                                        $size:
+                                            {
+                                                $filter: {
+                                                    input:
+                                                        '$loans',
+
+                                                    as:
+                                                        'loan',
+
+                                                    cond: {
+                                                        $eq: [
+                                                            '$$loan.status',
+                                                            'disbursed'
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                    },
+
+                                createdAt:
+                                    1
+                            }
+                        },
+
+                        {
+                            $sort: {
+                                createdAt:
+                                    -1
+                            }
+                        },
+
+                        {
+                            $skip:
+                                skip
+                        },
+
+                        {
+                            $limit:
+                                limit
+                        }
+                    ]),
+
+                    Group.countDocuments({
+                        tenantId
+                    })
+                ]);
+
+            return success(
+                res,
+                groups.map(
+                    group => ({
+                        ...group,
+
+                        totalContributions:
+                            decimalToString(
+                                group.totalContributions
+                            )
+                    })
+                ),
+                {
+                    message:
+                        'Group oversight retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt,
+                            {
+                                page,
+                                limit,
+                                total,
+                                count:
+                                    groups.length
+                            }
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Audit Trail
+// =============================================================================
+
+exports.getAuditLog =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const limit =
+                normalizePositiveInteger(
+                    req.query?.limit,
+                    DEFAULT_AUDIT_LIMIT,
+                    MAX_AUDIT_LIMIT
+                );
+
+            const page =
+                normalizePositiveInteger(
+                    req.query?.page,
+                    1,
+                    Number.MAX_SAFE_INTEGER
+                );
+
+            const skip =
+                (
+                    page -
+                    1
+                ) *
+                limit;
+
+            const eventType =
+                normalizeString(
+                    req.query?.eventType
+                );
+
+            const actorId =
+                normalizeString(
+                    req.query?.actorId
+                );
+
+            const filter = {
+                tenantId
+            };
+
+            if (
+                eventType
+            ) {
+                filter.eventType =
+                    eventType;
+            }
+
+            if (
+                actorId
+            ) {
+                if (
+                    !isValidObjectId(
+                        actorId
+                    )
+                ) {
+                    return res
+                        .status(
+                            422
+                        )
+                        .json({
+                            success:
+                                false,
+                            message:
+                                'Invalid actorId.'
+                        });
+                }
+
+                filter.actorId =
+                    actorId;
+            }
+
+            const [
+                logs,
+                total
+            ] =
+                await Promise.all([
+                    LoanAudit.find(
+                        filter
+                    )
+                        .sort({
+                            createdAt:
+                                -1,
+
+                            _id:
+                                -1
+                        })
+                        .skip(
+                            skip
+                        )
+                        .limit(
+                            limit
+                        )
+                        .lean(),
+
+                    LoanAudit.countDocuments(
+                        filter
+                    )
+                ]);
+
+            return success(
+                res,
+                logs,
+                {
+                    message:
+                        'Audit trail retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt,
+                            {
+                                page,
+                                limit,
+                                total,
+                                count:
+                                    logs.length,
+                                eventType:
+                                    eventType ||
+                                    null
+                            }
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Loan Analytics
+// =============================================================================
+
+exports.getLoanAnalytics =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const period =
+                resolvePeriod(
+                    req.query?.period
+                );
+
+            const startDate =
+                resolveAnalyticsStartDate(
+                    period
+                );
+
+            const match = {
+                tenantId,
+
+                createdAt: {
+                    $gte:
+                        startDate
+                }
+            };
+
+            const [
+                statusStats,
+                trendData,
+                repaymentData
+            ] =
+                await Promise.all([
+                    Loan.aggregate([
+                        {
+                            $match:
+                                match
+                        },
+
+                        {
+                            $group: {
+                                _id:
+                                    '$status',
+
+                                count:
+                                    {
+                                        $sum:
+                                            1
+                                    },
+
+                                totalAmount:
+                                    {
+                                        $sum:
+                                            '$amount'
+                                    },
+
+                                averageAmount:
+                                    {
+                                        $avg:
+                                            '$amount'
+                                    }
+                            }
+                        },
+
+                        {
+                            $sort: {
+                                _id:
+                                    1
+                            }
+                        }
+                    ]),
+
+                    Loan.aggregate([
+                        {
+                            $match:
+                                match
+                        },
+
+                        {
+                            $group: {
+                                _id: {
+                                    $dateToString: {
+                                        format:
+                                            '%Y-%m-%d',
+
+                                        date:
+                                            '$createdAt',
+
+                                        timezone:
+                                            'UTC'
+                                    }
+                                },
+
+                                count:
+                                    {
+                                        $sum:
+                                            1
+                                    },
+
+                                amount:
+                                    {
+                                        $sum:
+                                            '$amount'
+                                    }
+                            }
+                        },
+
+                        {
+                            $sort: {
+                                _id:
+                                    1
+                            }
+                        }
+                    ]),
+
+                    LoanRepaymentSchedule.aggregate([
+                        {
+                            $match: {
+                                tenantId,
+
+                                createdAt: {
+                                    $gte:
+                                        startDate
+                                }
+                            }
+                        },
+
+                        {
+                            $group: {
+                                _id:
+                                    '$status',
+
+                                count:
+                                    {
+                                        $sum:
+                                            1
+                                    },
+
+                                totalAmount:
+                                    {
+                                        $sum:
+                                            '$totalAmount'
+                                    }
+                            }
+                        },
+
+                        {
+                            $sort: {
+                                _id:
+                                    1
+                            }
+                        }
+                    ])
+                ]);
+
+            let totalLoansInPeriod =
+                0;
+
+            const statusDistribution =
+                statusStats.map(
+                    entry => {
+                        totalLoansInPeriod +=
+                            Number(
+                                entry.count ||
+                                0
+                            );
+
+                        return {
+                            status:
+                                entry._id ||
+                                'UNKNOWN',
+
+                            count:
+                                Number(
+                                    entry.count ||
+                                    0
+                                ),
+
+                            totalAmount:
+                                decimalToString(
+                                    entry.totalAmount
+                                ),
+
+                            averageAmount:
+                                decimalToString(
+                                    entry.averageAmount
+                                )
+                        };
+                    }
+                );
+
+            const creationTrend =
+                trendData.map(
+                    entry => ({
+                        date:
+                            entry._id,
+
+                        count:
+                            Number(
+                                entry.count ||
+                                0
+                            ),
+
+                        amount:
+                            decimalToString(
+                                entry.amount
+                            )
+                    })
+                );
+
+            const repaymentStatus =
+                repaymentData.map(
+                    entry => ({
+                        status:
+                            entry._id ||
+                            'UNKNOWN',
+
+                        count:
+                            Number(
+                                entry.count ||
+                                0
+                            ),
+
+                        totalAmount:
+                            decimalToString(
+                                entry.totalAmount
+                            )
+                    })
+                );
+
+            return success(
+                res,
+                {
+                    period,
+
+                    statusDistribution,
+
+                    creationTrend,
+
+                    repaymentStatus,
+
+                    summary: {
+                        totalLoansInPeriod
+                    }
+                },
+                {
+                    message:
+                        'Loan analytics retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// User Analytics
+// =============================================================================
+
+exports.getUserAnalytics =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const [
+                activeUsers,
+                verificationStats,
+                roleStats
+            ] =
+                await Promise.all([
+                    User.aggregate([
+                        {
+                            $match: {
+                                tenantId
+                            }
+                        },
+
+                        {
+                            $lookup: {
+                                from:
+                                    'contributions',
+
+                                let: {
+                                    userId:
+                                        '$_id'
+                                },
+
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    {
+                                                        $eq: [
+                                                            '$user',
+                                                            '$$userId'
+                                                        ]
+                                                    },
+                                                    {
+                                                        $eq: [
+                                                            '$tenantId',
+                                                            tenantId
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+
+                                    {
+                                        $group: {
+                                            _id:
+                                                null,
+
+                                            count:
+                                                {
+                                                    $sum:
+                                                        1
+                                                },
+
+                                            total:
+                                                {
+                                                    $sum:
+                                                        '$amount'
+                                                }
+                                        }
+                                    }
+                                ],
+
+                                as:
+                                    'contributionStats'
+                            }
+                        },
+
+                        {
+                            $lookup: {
+                                from:
+                                    'loans',
+
+                                let: {
+                                    userId:
+                                        '$_id'
+                                },
+
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    {
+                                                        $eq: [
+                                                            '$user',
+                                                            '$$userId'
+                                                        ]
+                                                    },
+                                                    {
+                                                        $eq: [
+                                                            '$tenantId',
+                                                            tenantId
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+
+                                    {
+                                        $count:
+                                            'count'
+                                    }
+                                ],
+
+                                as:
+                                    'loanStats'
+                            }
+                        },
+
+                        {
+                            $project: {
+                                name:
+                                    1,
+
+                                email:
+                                    1,
+
+                                phone:
+                                    1,
+
+                                isVerified:
+                                    1,
+
+                                role:
+                                    1,
+
+                                contributionCount:
+                                    {
+                                        $ifNull: [
+                                            {
+                                                $arrayElemAt: [
+                                                    '$contributionStats.count',
+                                                    0
+                                                ]
+                                            },
+                                            0
+                                        ]
+                                    },
+
+                                totalContributed:
+                                    {
+                                        $ifNull: [
+                                            {
+                                                $arrayElemAt: [
+                                                    '$contributionStats.total',
+                                                    0
+                                                ]
+                                            },
+                                            '0'
+                                        ]
+                                    },
+
+                                loanCount:
+                                    {
+                                        $ifNull: [
+                                            {
+                                                $arrayElemAt: [
+                                                    '$loanStats.count',
+                                                    0
+                                                ]
+                                            },
+                                            0
+                                        ]
+                                    },
+
+                                createdAt:
+                                    1
+                            }
+                        },
+
+                        {
+                            $sort: {
+                                totalContributed:
+                                    -1
+                            }
+                        },
+
+                        {
+                            $limit:
+                                20
+                        }
+                    ]),
+
+                    User.aggregate([
+                        {
+                            $match: {
+                                tenantId
+                            }
+                        },
+
+                        {
+                            $group: {
+                                _id:
+                                    '$isVerified',
+
+                                count:
+                                    {
+                                        $sum:
+                                            1
+                                    }
+                            }
+                        }
+                    ]),
+
+                    User.aggregate([
+                        {
+                            $match: {
+                                tenantId
+                            }
+                        },
+
+                        {
+                            $group: {
+                                _id:
+                                    '$role',
+
+                                count:
+                                    {
+                                        $sum:
+                                            1
+                                    }
+                            }
+                        },
+
+                        {
+                            $sort: {
+                                count:
+                                    -1
+                            }
+                        }
+                    ])
+                ]);
+
+            const formattedUsers =
+                activeUsers.map(
+                    user => ({
+                        ...user,
+
+                        totalContributed:
+                            decimalToString(
+                                user.totalContributed
+                            ),
+
+                        contributionCount:
+                            Number(
+                                user.contributionCount ||
+                                0
+                            ),
+
+                        loanCount:
+                            Number(
+                                user.loanCount ||
+                                0
+                            )
+                    })
+                );
+
+            return success(
+                res,
+                {
+                    topUsers:
+                        formattedUsers,
+
+                    verification:
+                        verificationStats,
+
+                    roleDistribution:
+                        roleStats
+                },
+                {
+                    message:
+                        'User analytics retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// System Health
+// =============================================================================
+
+exports.getSystemHealth =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            requireAdminUser(
+                req
+            );
+
+            const tenantId =
+                resolveTenantId(
+                    req
+                );
+
+            const dbReady =
+                mongoose.connection.readyState ===
+                1;
+
+            if (
+                !dbReady
+            ) {
+                return res
+                    .status(
+                        503
+                    )
+                    .json({
+                        success:
+                            false,
+
+                        message:
+                            'Database service is unavailable.',
+
+                        data: {
+                            database: {
+                                status:
+                                    'disconnected',
+
+                                connected:
+                                    false
+                            }
+                        }
+                    });
+            }
+
+            const queryStartedAt =
+                Date.now();
+
+            const totalUsers =
+                await User.countDocuments({
+                    tenantId
+                });
+
+            const queryTime =
+                Date.now() -
+                queryStartedAt;
+
+            const overdueCount =
+                await LoanRepaymentSchedule.countDocuments({
+                    tenantId,
+
+                    'installments.dueDate':
+                        {
+                            $lt:
+                                new Date()
+                        },
+
+                    'installments.paid':
+                        false
+                });
+
+            let performanceStatus =
+                'slow';
+
+            if (
+                queryTime <
+                100
+            ) {
+                performanceStatus =
+                    'healthy';
+            } else if (
+                queryTime <
+                500
+            ) {
+                performanceStatus =
+                    'acceptable';
+            }
+
+            return success(
+                res,
+                {
+                    database: {
+                        status:
+                            'connected',
+
+                        connected:
+                            true
+                    },
+
+                    performance: {
+                        queryTimeMs:
+                            queryTime,
+
+                        status:
+                            performanceStatus
+                    },
+
+                    data: {
+                        totalUsers,
+
+                        overdueLoans:
+                            overdueCount,
+
+                        timestamp:
+                            new Date()
+                    }
+                },
+                {
+                    message:
+                        'System health retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Payment Analytics
+// =============================================================================
+
+exports.getPaymentAnalytics =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const [
+                result
+            ] =
+                await LoanRepaymentSchedule.aggregate([
+                    {
+                        $match: {
+                            tenantId
+                        }
+                    },
+
+                    {
+                        $facet: {
+                            byStatus: [
+                                {
+                                    $group: {
+                                        _id:
+                                            '$status',
+
+                                        count:
+                                            {
+                                                $sum:
+                                                    1
+                                            },
+
+                                        totalAmount:
+                                            {
+                                                $sum:
+                                                    '$totalAmount'
+                                            }
+                                    }
+                                }
+                            ],
+
+                            installmentAnalysis: [
+                                {
+                                    $unwind:
+                                        '$installments'
+                                },
+
+                                {
+                                    $group: {
+                                        _id:
+                                            '$installments.paid',
+
+                                        count:
+                                            {
+                                                $sum:
+                                                    1
+                                            },
+
+                                        totalAmount:
+                                            {
+                                                $sum:
+                                                    '$installments.amount'
+                                            }
+                                    }
+                                }
+                            ],
+
+                            collectionRate: [
+                                {
+                                    $group: {
+                                        _id:
+                                            null,
+
+                                        totalSchedules:
+                                            {
+                                                $sum:
+                                                    1
+                                            },
+
+                                        totalAmount:
+                                            {
+                                                $sum:
+                                                    '$totalAmount'
+                                            },
+
+                                        totalPaid:
+                                            {
+                                                $sum:
+                                                    '$totalPaid'
+                                            }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]);
+
+            const collection =
+                result?.collectionRate?.[0] ||
+                null;
+
+            /**
+             * Do not calculate percentages with binary floating-point money.
+             *
+             * totalPaid and totalAmount are kept exact. A dedicated decimal
+             * service can calculate the percentage if exact percentage
+             * arithmetic is required.
+             */
+            const totalAmount =
+                decimalToString(
+                    collection?.totalAmount
+                );
+
+            const totalPaid =
+                decimalToString(
+                    collection?.totalPaid
+                );
+
+            return success(
+                res,
+                {
+                    scheduleStatus:
+                        (
+                            result?.byStatus ||
+                            []
+                        ).map(
+                            entry => ({
+                                status:
+                                    entry._id,
+
+                                count:
+                                    Number(
+                                        entry.count ||
+                                        0
+                                    ),
+
+                                totalAmount:
+                                    decimalToString(
+                                        entry.totalAmount
+                                    )
+                            })
+                        ),
+
+                    installmentStatus:
+                        (
+                            result?.installmentAnalysis ||
+                            []
+                        ).map(
+                            entry => ({
+                                paid:
+                                    Boolean(
+                                        entry._id
+                                    ),
+
+                                count:
+                                    Number(
+                                        entry.count ||
+                                        0
+                                    ),
+
+                                totalAmount:
+                                    decimalToString(
+                                        entry.totalAmount
+                                    )
+                            })
+                        ),
+
+                    collectionMetrics: {
+                        totalSchedules:
+                            Number(
+                                collection?.totalSchedules ||
+                                0
+                            ),
+
+                        totalAmount,
+
+                        totalPaid,
+
+                        collectionRate:
+                            null
+                    }
+                },
+                {
+                    message:
+                        'Payment analytics retrieved.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+// =============================================================================
+// Compliance Report
+// =============================================================================
+
+exports.getComplianceReport =
+    asyncHandler(
+        async (
+            req,
+            res
+        ) => {
+            const startedAt =
+                Date.now();
+
+            const admin =
+                requireAdminUser(
+                    req
+                );
+
+            const tenantId =
+                resolveEffectiveTenantId(
+                    req,
+                    admin
+                );
+
+            const now =
+                new Date();
+
+            const thirtyDaysAgo =
+                new Date(
+                    now.getTime() -
+                    (
+                        30 *
+                        24 *
+                        60 *
+                        60 *
+                        1000
+                    )
+                );
+
+            const [
+                riskyLoans,
+                recentDefaults,
+                unverifiedUsers,
+                totalUsers
+            ] =
+                await Promise.all([
+                    LoanRepaymentSchedule.find({
+                        tenantId,
+
+                        $expr: {
+                            $gt: [
+                                {
+                                    $size: {
+                                        $filter: {
+                                            input:
+                                                '$installments',
+
+                                            as:
+                                                'inst',
+
+                                            cond: {
+                                                $and: [
+                                                    {
+                                                        $lt: [
+                                                            '$$inst.dueDate',
+                                                            now
+                                                        ]
+                                                    },
+
+                                                    {
+                                                        $eq: [
+                                                            '$$inst.paid',
+                                                            false
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
+
+                                0
+                            ]
+                        }
+                    })
+                        .select(
+                            'loan status installments createdAt'
+                        )
+                        .populate(
+                            'loan'
+                        )
+                        .limit(
+                            100
+                        )
+                        .lean(),
+
+                    LoanAudit.find({
+                        tenantId,
+
+                        eventType:
+                            'LOAN_DEFAULTED',
+
+                        createdAt: {
+                            $gte:
+                                thirtyDaysAgo
+                        }
+                    })
+                        .sort({
+                            createdAt:
+                                -1
+                        })
+                        .limit(
+                            50
+                        )
+                        .lean(),
+
+                    User.countDocuments({
+                        tenantId,
+
+                        isVerified:
+                            false
+                    }),
+
+                    User.countDocuments({
+                        tenantId
+                    })
+                ]);
+
+            const verifiedUsers =
+                totalUsers -
+                unverifiedUsers;
+
+            const verificationRate =
+                totalUsers > 0
+                    ? (
+                        (
+                            verifiedUsers /
+                            totalUsers
+                        ) *
+                        100
+                    ).toFixed(
+                        2
+                    )
+                    : '0.00';
+
+            /**
+             * This is deliberately a bounded operational score, not a financial
+             * or regulatory risk model.
+             */
+            const operationalRiskScore =
+                Math.min(
+                    100,
+                    (
+                        riskyLoans.length +
+                        recentDefaults.length
+                    ) *
+                    10
+                );
+
+            return success(
+                res,
+                {
+                    riskAssessment: {
+                        highRiskLoans:
+                            riskyLoans.length,
+
+                        recentDefaults:
+                            recentDefaults.length,
+
+                        operationalRiskScore
+                    },
+
+                    compliance: {
+                        userVerificationRate:
+                            `${verificationRate}%`,
+
+                        verifiedUsers,
+
+                        unverifiedUsers,
+
+                        totalUsers
+                    },
+
+                    recentIssues: {
+                        overdueLoans:
+                            riskyLoans,
+
+                        defaults:
+                            recentDefaults
+                    },
+
+                    timestamp:
+                        new Date()
+                },
+                {
+                    message:
+                        'Compliance report generated.',
+
+                    meta:
+                        buildMeta(
+                            req,
+                            tenantId,
+                            startedAt
+                        )
+                }
+            );
+        }
+    );
+
+module.exports =
+    exports;

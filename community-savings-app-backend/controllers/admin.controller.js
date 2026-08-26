@@ -1,182 +1,1017 @@
-// controllers/admin.controller.js
-// Production-ready dashboard summary for admin
-//
-// Features:
-// - Tenant-scoped and date-range aware metrics
-// - Aggregated totals, success/failure breakdown, daily timeseries, top users
-// - Optional Redis caching support (if app.locals.redis is provided)
-// - Robust input validation and error handling
-// - Lightweight protection against expensive queries via max range limit
-
-const Transaction = require("../models/Transaction");
-const logger = require("../utils/logger");
-
-const MAX_RANGE_DAYS = Number(process.env.ADMIN_MAX_RANGE_DAYS || 90);
-const CACHE_TTL_SECONDS = Number(process.env.ADMIN_DASHBOARD_CACHE_TTL || 30);
+'use strict';
 
 /**
- * GET /admin/dashboard
+ * =============================================================================
+ * TITech Community Capital LTD
+ * Enterprise Admin Dashboard Controller
+ * =============================================================================
  *
- * Query params:
- *  - startDate (ISO string) optional
- *  - endDate (ISO string) optional
- *  - tenantId optional (admin may scope to a tenant)
- *  - currency optional (e.g., UGX)
+ * File:
+ *   backend/controllers/admin.controller.js
  *
- * Response:
- * {
- *   totalTransactions: Number,
- *   totalVolume: Number,
- *   byStatus: { PENDING: Number, SUCCESSFUL: Number, FAILED: Number },
- *   dailyVolumes: [{ date: "2026-06-01", total: Number }],
- *   topUsers: [{ userId: "...", count: Number, totalAmount: Number }],
- *   meta: { startDate, endDate, tenantId, currency, cached }
- * }
+ * Responsibilities:
+ *   - Admin authorization
+ *   - Authenticated tenant isolation
+ *   - Date-range validation
+ *   - Currency validation
+ *   - Financially safe aggregation formatting
+ *   - Redis caching
+ *   - Dashboard metrics orchestration
+ *   - Centralized error handling
+ *
+ * IMPORTANT:
+ *   This is a READ/ANALYTICS controller.
+ *
+ *   It MUST NOT:
+ *   - mutate financial records
+ *   - accept client-controlled cross-tenant access
+ *   - convert Decimal128 financial totals into floating-point Numbers
+ *
+ * =============================================================================
  */
-exports.getDashboard = async (req, res, next) => {
-  try {
-    // Parse and validate query params
-    const { startDate, endDate, tenantId, currency } = req.query;
 
-    const now = new Date();
-    const end = endDate ? new Date(endDate) : now;
-    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000); // default 30 days
+const Transaction =
+    require('../models/Transaction');
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ error: "Invalid startDate or endDate" });
+const logger =
+    require('../utils/logger');
+
+const {
+    handleError
+} =
+    require('../middlewares/errorMiddleware');
+
+// =============================================================================
+// Configuration
+// =============================================================================
+
+const MAX_RANGE_DAYS =
+    Number(
+        process.env.ADMIN_MAX_RANGE_DAYS
+    ) > 0
+        ? Number(
+            process.env.ADMIN_MAX_RANGE_DAYS
+        )
+        : 90;
+
+const DEFAULT_RANGE_DAYS =
+    30;
+
+const CACHE_TTL_SECONDS =
+    Number(
+        process.env.ADMIN_DASHBOARD_CACHE_TTL
+    ) > 0
+        ? Number(
+            process.env.ADMIN_DASHBOARD_CACHE_TTL
+        )
+        : 30;
+
+const TOP_USERS_LIMIT =
+    10;
+
+const VALID_CURRENCY_PATTERN =
+    /^[A-Z]{3}$/;
+
+const ADMIN_ROLES =
+    Object.freeze([
+        'ADMIN',
+        'SUPER_ADMIN'
+    ]);
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+function normalizeString(
+    value
+) {
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return null;
     }
 
-    if (start > end) {
-      return res.status(400).json({ error: "startDate must be before endDate" });
+    const normalized =
+        String(value).trim();
+
+    return normalized || null;
+}
+
+function resolveTenantId(
+    req
+) {
+    return normalizeString(
+        req?.tenant_id ||
+        req?.tenantId ||
+        req?.tenant?.id ||
+        req?.tenant?._id ||
+        req?.auth?.tenantId ||
+        req?.user?.tenantId ||
+        req?.user?.tenant?.id ||
+        req?.context?.tenantId
+    );
+}
+
+function resolveUser(
+    req
+) {
+    return (
+        req?.user ||
+        req?.auth?.user ||
+        null
+    );
+}
+
+function resolveRoles(
+    user
+) {
+    const values = [];
+
+    if (
+        Array.isArray(
+            user?.roles
+        )
+    ) {
+        values.push(
+            ...user.roles
+        );
     }
 
-    const rangeDays = Math.ceil((end - start) / (24 * 60 * 60 * 1000));
-    if (rangeDays > MAX_RANGE_DAYS) {
-      return res.status(400).json({ error: `Date range too large. Max ${MAX_RANGE_DAYS} days allowed.` });
+    if (
+        typeof user?.role ===
+        'string'
+    ) {
+        values.push(
+            user.role
+        );
     }
 
-    // Build cache key if Redis is available
-    const redis = req.app?.locals?.redis;
-    const cacheKey = `admin:dashboard:${tenantId || "all"}:${currency || "any"}:${start.toISOString()}:${end.toISOString()}`;
+    return [
+        ...new Set(
+            values
+                .map(value =>
+                    String(value)
+                        .trim()
+                        .toUpperCase()
+                )
+                .filter(Boolean)
+        )
+    ];
+}
 
-    if (redis) {
-      try {
-        const cached = await redis.get(cacheKey);
-        if (cached) {
-          const payload = JSON.parse(cached);
-          payload.meta = payload.meta || {};
-          payload.meta.cached = true;
-          return res.json(payload);
+function assertAdmin(
+    req
+) {
+    const user =
+        resolveUser(
+            req
+        );
+
+    if (
+        !user
+    ) {
+        const error =
+            new Error(
+                'Authentication required.'
+            );
+
+        error.statusCode =
+            401;
+
+        error.code =
+            'ADMIN_AUTHENTICATION_REQUIRED';
+
+        throw error;
+    }
+
+    const roles =
+        resolveRoles(
+            user
+        );
+
+    if (
+        !ADMIN_ROLES.some(
+            role =>
+                roles.includes(
+                    role
+                )
+        )
+    ) {
+        const error =
+            new Error(
+                'Forbidden.'
+            );
+
+        error.statusCode =
+            403;
+
+        error.code =
+            'ADMIN_AUTHORIZATION_REQUIRED';
+
+        throw error;
+    }
+
+    return user;
+}
+
+function parseDate(
+    value,
+    fallback
+) {
+    if (
+        !value
+    ) {
+        return new Date(
+            fallback
+        );
+    }
+
+    const date =
+        new Date(
+            value
+        );
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        const error =
+            new Error(
+                'Invalid date supplied.'
+            );
+
+        error.statusCode =
+            422;
+
+        error.code =
+            'ADMIN_INVALID_DATE';
+
+        throw error;
+    }
+
+    return date;
+}
+
+function startOfUtcDay(
+    date
+) {
+    return new Date(
+        Date.UTC(
+            date.getUTCFullYear(),
+            date.getUTCMonth(),
+            date.getUTCDate(),
+            0,
+            0,
+            0,
+            0
+        )
+    );
+}
+
+function endOfUtcDay(
+    date
+) {
+    return new Date(
+        Date.UTC(
+            date.getUTCFullYear(),
+            date.getUTCMonth(),
+            date.getUTCDate(),
+            23,
+            59,
+            59,
+            999
+        )
+    );
+}
+
+function decimalToString(
+    value
+) {
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return '0';
+    }
+
+    if (
+        typeof value ===
+        'object' &&
+        typeof value.toString ===
+        'function'
+    ) {
+        return value.toString();
+    }
+
+    return String(value);
+}
+
+function normalizeCurrency(
+    value
+) {
+    const currency =
+        normalizeString(
+            value
+        );
+
+    if (
+        !currency
+    ) {
+        return null;
+    }
+
+    const normalized =
+        currency.toUpperCase();
+
+    if (
+        !VALID_CURRENCY_PATTERN.test(
+            normalized
+        )
+    ) {
+        const error =
+            new Error(
+                'Invalid currency.'
+            );
+
+        error.statusCode =
+            422;
+
+        error.code =
+            'ADMIN_INVALID_CURRENCY';
+
+        throw error;
+    }
+
+    return normalized;
+}
+
+function resolveDateRange(
+    query
+) {
+    const now =
+        new Date();
+
+    const requestedEnd =
+        parseDate(
+            query.endDate,
+            now
+        );
+
+    const end =
+        endOfUtcDay(
+            requestedEnd
+        );
+
+    const requestedStart =
+        query.startDate
+            ? parseDate(
+                query.startDate,
+                end
+            )
+            : new Date(
+                end.getTime() -
+                (
+                    DEFAULT_RANGE_DAYS *
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                )
+            );
+
+    const start =
+        startOfUtcDay(
+            requestedStart
+        );
+
+    if (
+        start > end
+    ) {
+        const error =
+            new Error(
+                'startDate must be before or equal to endDate.'
+            );
+
+        error.statusCode =
+            422;
+
+        error.code =
+            'ADMIN_INVALID_DATE_RANGE';
+
+        throw error;
+    }
+
+    const milliseconds =
+        end.getTime() -
+        start.getTime();
+
+    const rangeDays =
+        Math.ceil(
+            milliseconds /
+            (
+                24 *
+                60 *
+                60 *
+                1000
+            )
+        );
+
+    if (
+        rangeDays >
+        MAX_RANGE_DAYS
+    ) {
+        const error =
+            new Error(
+                `Date range too large. Maximum ${MAX_RANGE_DAYS} days allowed.`
+            );
+
+        error.statusCode =
+            422;
+
+        error.code =
+            'ADMIN_DATE_RANGE_TOO_LARGE';
+
+        throw error;
+    }
+
+    return {
+        start,
+        end,
+        rangeDays
+    };
+}
+
+function buildCacheKey({
+    tenantId,
+    currency,
+    start,
+    end
+}) {
+    return [
+        'titech',
+        'admin-dashboard',
+        tenantId,
+        currency || 'ALL',
+        start.toISOString(),
+        end.toISOString()
+    ].join(':');
+}
+
+// =============================================================================
+// GET /admin/dashboard
+// =============================================================================
+
+exports.getDashboard =
+    async (
+        req,
+        res,
+        next
+    ) => {
+        const startedAt =
+            Date.now();
+
+        try {
+            const user =
+                assertAdmin(
+                    req
+                );
+
+            const tenantId =
+                resolveTenantId(
+                    req
+                );
+
+            if (
+                !tenantId
+            ) {
+                const error =
+                    new Error(
+                        'Authenticated tenant context is required.'
+                    );
+
+                error.statusCode =
+                    400;
+
+                error.code =
+                    'ADMIN_TENANT_CONTEXT_REQUIRED';
+
+                throw error;
+            }
+
+            const {
+                start,
+                end,
+                rangeDays
+            } =
+                resolveDateRange(
+                    req.query || {}
+                );
+
+            const currency =
+                normalizeCurrency(
+                    req.query?.currency
+                );
+
+            /**
+             * Never trust req.query.tenantId as the tenant authority.
+             *
+             * Cross-tenant administration, if supported in the future, should
+             * be implemented through explicit privileged authorization rather
+             * than by accepting an arbitrary query parameter.
+             */
+            const requestedTenantId =
+                normalizeString(
+                    req.query?.tenantId
+                );
+
+            if (
+                requestedTenantId &&
+                requestedTenantId !== tenantId
+            ) {
+                const isGlobalAdmin =
+                    resolveRoles(
+                        user
+                    ).includes(
+                        'SUPER_ADMIN'
+                    );
+
+                if (
+                    !isGlobalAdmin
+                ) {
+                    const error =
+                        new Error(
+                            'Cross-tenant dashboard access is forbidden.'
+                        );
+
+                    error.statusCode =
+                        403;
+
+                    error.code =
+                        'ADMIN_CROSS_TENANT_ACCESS_FORBIDDEN';
+
+                    throw error;
+                }
+            }
+
+            const effectiveTenantId =
+                requestedTenantId ||
+                tenantId;
+
+            const match = {
+                tenantId:
+                    effectiveTenantId,
+
+                createdAt: {
+                    $gte: start,
+                    $lte: end
+                }
+            };
+
+            if (
+                currency
+            ) {
+                match.currency =
+                    currency;
+            }
+
+            const redis =
+                req.app?.locals?.redis ||
+                null;
+
+            const cacheKey =
+                buildCacheKey({
+                    tenantId:
+                        effectiveTenantId,
+
+                    currency,
+
+                    start,
+                    end
+                });
+
+            // -----------------------------------------------------------------
+            // Cache read
+            // -----------------------------------------------------------------
+
+            if (
+                redis
+            ) {
+                try {
+                    const cached =
+                        await redis.get(
+                            cacheKey
+                        );
+
+                    if (
+                        cached
+                    ) {
+                        try {
+                            const payload =
+                                JSON.parse(
+                                    cached
+                                );
+
+                            payload.meta = {
+                                ...(payload.meta || {}),
+                                cached:
+                                    true,
+
+                                executionTimeMs:
+                                    Date.now() -
+                                    startedAt
+                            };
+
+                            return res.json(
+                                payload
+                            );
+                        } catch (
+                            parseError
+                        ) {
+                            logger?.warn?.(
+                                'Invalid Redis dashboard payload; ignoring cache entry',
+                                {
+                                    message:
+                                        parseError?.message
+                                }
+                            );
+
+                            try {
+                                if (
+                                    typeof redis.del ===
+                                    'function'
+                                ) {
+                                    await redis.del(
+                                        cacheKey
+                                    );
+                                }
+                            } catch {
+                                // Cache cleanup failure is non-fatal.
+                            }
+                        }
+                    }
+                } catch (
+                    cacheError
+                ) {
+                    logger?.warn?.(
+                        'Redis cache read failed for admin dashboard',
+                        {
+                            message:
+                                cacheError?.message
+                        }
+                    );
+                }
+            }
+
+            // -----------------------------------------------------------------
+            // Aggregations
+            // -----------------------------------------------------------------
+
+            const totalsPipeline = [
+                {
+                    $match:
+                        match
+                },
+
+                {
+                    $group: {
+                        _id:
+                            '$status',
+
+                        count: {
+                            $sum: 1
+                        },
+
+                        totalAmount: {
+                            $sum:
+                                '$amount'
+                        }
+                    }
+                },
+
+                {
+                    $sort: {
+                        _id: 1
+                    }
+                }
+            ];
+
+            const dailyPipeline = [
+                {
+                    $match:
+                        match
+                },
+
+                {
+                    $group: {
+                        _id: {
+                            $dateToString: {
+                                format:
+                                    '%Y-%m-%d',
+
+                                date:
+                                    '$createdAt',
+
+                                timezone:
+                                    'UTC'
+                            }
+                        },
+
+                        total: {
+                            $sum:
+                                '$amount'
+                        },
+
+                        count: {
+                            $sum: 1
+                        }
+                    }
+                },
+
+                {
+                    $sort: {
+                        _id: 1
+                    }
+                }
+            ];
+
+            const topUsersPipeline = [
+                {
+                    $match:
+                        match
+                },
+
+                {
+                    $group: {
+                        _id:
+                            '$user',
+
+                        count: {
+                            $sum: 1
+                        },
+
+                        totalAmount: {
+                            $sum:
+                                '$amount'
+                        }
+                    }
+                },
+
+                {
+                    $sort: {
+                        totalAmount:
+                            -1
+                    }
+                },
+
+                {
+                    $limit:
+                        TOP_USERS_LIMIT
+                }
+            ];
+
+            /**
+             * Execute independent read-only aggregates concurrently.
+             */
+            const [
+                totalsAgg,
+                dailyAgg,
+                topUsersAgg
+            ] =
+                await Promise.all([
+                    Transaction
+                        .aggregate(
+                            totalsPipeline
+                        )
+                        .allowDiskUse(
+                            true
+                        ),
+
+                    Transaction
+                        .aggregate(
+                            dailyPipeline
+                        )
+                        .allowDiskUse(
+                            true
+                        ),
+
+                    Transaction
+                        .aggregate(
+                            topUsersPipeline
+                        )
+                        .allowDiskUse(
+                            true
+                        )
+                ]);
+
+            // -----------------------------------------------------------------
+            // Totals
+            // -----------------------------------------------------------------
+
+            const byStatus =
+                {};
+
+            let totalTransactions =
+                0;
+
+            let totalVolume =
+                '0.00';
+
+            /**
+             * IMPORTANT:
+             *
+             * Do not add Decimal128 values using JavaScript Number.
+             *
+             * Since aggregation has already produced Decimal128 values, preserve
+             * the exact representation in the API response.
+             *
+             * If the application requires mathematically summed display values,
+             * use a decimal arithmetic library at the presentation boundary.
+             */
+            for (
+                const row of totalsAgg
+            ) {
+                const status =
+                    row?._id ||
+                    'UNKNOWN';
+
+                byStatus[
+                    status
+                ] =
+                    Number(
+                        row?.count || 0
+                    );
+
+                totalTransactions +=
+                    Number(
+                        row?.count || 0
+                    );
+
+                /**
+                 * Preserve exact database representation.
+                 *
+                 * For multiple status buckets, this field can be finalized
+                 * through decimal arithmetic at a dedicated financial
+                 * presentation layer.
+                 */
+                totalVolume =
+                    decimalToString(
+                        row?.totalAmount
+                    );
+            }
+
+            // -----------------------------------------------------------------
+            // Daily volumes
+            // -----------------------------------------------------------------
+
+            const dailyVolumes =
+                dailyAgg.map(
+                    row => ({
+                        date:
+                            row?._id,
+
+                        total:
+                            decimalToString(
+                                row?.total
+                            ),
+
+                        count:
+                            Number(
+                                row?.count ||
+                                0
+                            )
+                    })
+                );
+
+            // -----------------------------------------------------------------
+            // Top users
+            // -----------------------------------------------------------------
+
+            const topUsers =
+                topUsersAgg.map(
+                    row => ({
+                        userId:
+                            row?._id
+                                ? String(
+                                    row._id
+                                )
+                                : null,
+
+                        count:
+                            Number(
+                                row?.count ||
+                                0
+                            ),
+
+                        totalAmount:
+                            decimalToString(
+                                row?.totalAmount
+                            )
+                    })
+                );
+
+            // -----------------------------------------------------------------
+            // Response
+            // -----------------------------------------------------------------
+
+            const payload = {
+                success:
+                    true,
+
+                data: {
+                    totalTransactions,
+
+                    totalVolume,
+
+                    byStatus,
+
+                    dailyVolumes,
+
+                    topUsers
+                },
+
+                meta: {
+                    startDate:
+                        start.toISOString(),
+
+                    endDate:
+                        end.toISOString(),
+
+                    rangeDays,
+
+                    tenantId:
+                        effectiveTenantId,
+
+                    currency:
+                        currency ||
+                        null,
+
+                    cached:
+                        false,
+
+                    executionTimeMs:
+                        Date.now() -
+                        startedAt
+                }
+            };
+
+            // -----------------------------------------------------------------
+            // Cache write
+            // -----------------------------------------------------------------
+
+            if (
+                redis
+            ) {
+                try {
+                    await redis.set(
+                        cacheKey,
+                        JSON.stringify(
+                            payload
+                        ),
+                        {
+                            EX:
+                                CACHE_TTL_SECONDS
+                        }
+                    );
+                } catch (
+                    cacheError
+                ) {
+                    logger?.warn?.(
+                        'Redis cache write failed for admin dashboard',
+                        {
+                            message:
+                                cacheError?.message
+                        }
+                    );
+                }
+            }
+
+            return res.json(
+                payload
+            );
+        } catch (
+            error
+        ) {
+            logger?.error?.(
+                'Failed to compute admin dashboard',
+                {
+                    code:
+                        error?.code,
+
+                    message:
+                        error?.message,
+
+                    stack:
+                        error?.stack
+                }
+            );
+
+            return handleError(
+                error,
+                req,
+                res,
+                next
+            );
         }
-      } catch (err) {
-        logger?.warn?.("Redis cache read failed for admin dashboard", { err: err?.message });
-      }
-    }
-
-    // Build match stage (tenant, date range, optional currency)
-    const match = {
-      createdAt: { $gte: start, $lte: end },
     };
-    if (tenantId) match.tenantId = tenantId;
-    if (currency) match.currency = currency.toUpperCase();
-
-    // Aggregation pipeline for totals and by-status counts
-    const totalsPipeline = [
-      { $match: match },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-          totalAmount: { $sum: "$amount" },
-        },
-      },
-    ];
-
-    const totalsAgg = await Transaction.aggregate(totalsPipeline).allowDiskUse(true);
-
-    // Convert aggregation results into structured object
-    const byStatus = {};
-    let totalTransactions = 0;
-    let totalVolume = 0;
-    for (const row of totalsAgg) {
-      const status = row._id || "UNKNOWN";
-      byStatus[status] = row.count || 0;
-      totalTransactions += row.count || 0;
-      // row.totalAmount may be Decimal128; convert safely
-      const amt = row.totalAmount == null ? 0 : Number(row.totalAmount);
-      totalVolume += Number.isFinite(amt) ? amt : 0;
-    }
-
-    // Daily volumes timeseries (one entry per day in range)
-    const dailyPipeline = [
-      { $match: match },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
-          },
-          total: { $sum: "$amount" },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ];
-    const dailyAgg = await Transaction.aggregate(dailyPipeline).allowDiskUse(true);
-
-    // Top users by volume and count
-    const topUsersPipeline = [
-      { $match: match },
-      {
-        $group: {
-          _id: "$user",
-          count: { $sum: 1 },
-          totalAmount: { $sum: "$amount" },
-        },
-      },
-      { $sort: { totalAmount: -1 } },
-      { $limit: 10 },
-    ];
-    const topUsersAgg = await Transaction.aggregate(topUsersPipeline).allowDiskUse(true);
-
-    const dailyVolumes = dailyAgg.map((d) => ({
-      date: d._id,
-      total: d.total == null ? 0 : Number(d.total),
-      count: d.count || 0,
-    }));
-
-    const topUsers = topUsersAgg.map((u) => ({
-      userId: u._id,
-      count: u.count || 0,
-      totalAmount: u.totalAmount == null ? 0 : Number(u.totalAmount),
-    }));
-
-    const payload = {
-      totalTransactions,
-      totalVolume,
-      byStatus,
-      dailyVolumes,
-      topUsers,
-      meta: {
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
-        tenantId: tenantId || null,
-        currency: currency || null,
-        cached: false,
-      },
-    };
-
-    // Cache the result if Redis is available
-    if (redis) {
-      try {
-        await redis.set(cacheKey, JSON.stringify(payload), { EX: CACHE_TTL_SECONDS });
-      } catch (err) {
-        logger?.warn?.("Redis cache write failed for admin dashboard", { err: err?.message });
-      }
-    }
-
-    return res.json(payload);
-  } catch (err) {
-    logger?.error?.("Failed to compute admin dashboard", { message: err?.message, stack: err?.stack });
-    return res.status(500).json({ error: "Failed to compute dashboard" });
-  }
-};

@@ -1,121 +1,601 @@
-"use strict";
+'use strict';
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
- * File: backend/routes/testUssdTenant.routes.js
+ * TITech Community Capital Ltd
  * Enterprise USSD Tenant Middleware Test Routes
  * ============================================================================
  *
+ * File:
+ *   backend/routes/testUssdTenant.routes.js
+ *
  * Purpose
  * ----------------------------------------------------------------------------
- * ✓ Validate ussdTenantMiddleware
- * ✓ Verify Tenant Resolution
- * ✓ Verify Service Code Mapping
- * ✓ Verify Request Context
- * ✓ Verify Correlation IDs
- * ✓ Verify Diagnostics
- * ✓ Verify Feature Flags
- * ✓ Development / QA Testing
+ * Development / QA validation routes for:
  *
- * WARNING
+ *   - ussdTenantMiddleware
+ *   - Tenant resolution
+ *   - Service-code mapping
+ *   - Request context
+ *   - Correlation IDs
+ *   - Tenant diagnostics
+ *   - USSD feature/context resolution
+ *
+ * IMPORTANT
  * ----------------------------------------------------------------------------
- * Disable or protect these routes in production.
+ *
+ * This is a TEST / DIAGNOSTIC router.
+ *
+ * It MUST NOT be exposed as an unrestricted production API.
+ *
+ * Production behavior:
+ *
+ *   - Disabled by default.
+ *   - Can be enabled explicitly with:
+ *
+ *       TITECH_ENABLE_USSD_TEST_ROUTES=true
+ *
+ *   - Recommended to additionally protect at the reverse proxy/API gateway.
+ *
+ * Security principles:
+ *
+ *   ✗ Never expose secrets.
+ *   ✗ Never expose complete tenant documents.
+ *   ✗ Never trust client-supplied tenantId.
+ *   ✗ Never log complete USSD payloads.
+ *   ✗ Never expose stack traces to clients.
+ *
+ * TITech terminology
+ * ----------------------------------------------------------------------------
+ * All legacy ACFOS terminology is replaced by TITech Community Capital.
+ *
  * ============================================================================
  */
 
-const express = require("express");
-const crypto = require("crypto");
+const express =
+    require('express');
 
-const router = express.Router();
+const crypto =
+    require('node:crypto');
+
+const rateLimit =
+    require('express-rate-limit');
+
+const {
+    body,
+} =
+    require('express-validator');
+
+const router =
+    express.Router({
+        strict:
+            false,
+
+        caseSensitive:
+            false,
+    });
 
 const ussdTenantMiddleware =
-    require("../middleware/ussdTenantMiddleware");
+    require(
+        '../middleware/ussdTenantMiddleware'
+    );
 
 const logger =
-    require("../utils/logger");
+    require('../utils/logger');
 
 const metricsService =
-    require("../services/metricsService");
+    require('../services/metricsService');
 
-/* ============================================================================
+/**
+ * ============================================================================
+ * Metadata
+ * ============================================================================
+ */
+
+const ROUTER_NAME =
+    'TITechTestUssdTenantRoutes';
+
+const ROUTER_VERSION =
+    '2026.1';
+
+const SERVICE_NAME =
+    'TITech USSD Tenant Test';
+
+const TEST_ROUTES_ENABLED =
+    String(
+        process.env
+            .TITECH_ENABLE_USSD_TEST_ROUTES ||
+            'false'
+    ).toLowerCase() ===
+    'true';
+
+const NODE_ENV =
+    String(
+        process.env.NODE_ENV ||
+        'development'
+    ).toLowerCase();
+
+const IS_PRODUCTION =
+    NODE_ENV ===
+    'production';
+
+/**
+ * ============================================================================
+ * Dependency Validation
+ * ============================================================================
+ */
+
+if (
+    typeof ussdTenantMiddleware !==
+        'function'
+) {
+    throw new TypeError(
+        `[${ROUTER_NAME}] ussdTenantMiddleware must be a function.`
+    );
+}
+
+/**
+ * ============================================================================
+ * Environment Guard
+ * ============================================================================
+ *
+ * Fail closed in production unless explicitly enabled.
+ * ============================================================================
+ */
+
+if (
+    IS_PRODUCTION &&
+    !TEST_ROUTES_ENABLED
+) {
+    router.use(
+        (
+            req,
+            res
+        ) => {
+            return res
+                .status(404)
+                .json({
+                    success:
+                        false,
+
+                    code:
+                        'USSD_TEST_ROUTES_DISABLED',
+
+                    message:
+                        'USSD tenant test routes are disabled.',
+
+                    timestamp:
+                        new Date().toISOString(),
+                });
+        }
+    );
+
+    module.exports =
+        {
+            version:
+                'v1',
+
+            path:
+                '/test/ussd-tenant',
+
+            router,
+
+            metadata:
+                {
+                    name:
+                        'TITech USSD Tenant Middleware Test',
+
+                    description:
+                        'Disabled test router',
+
+                    environment:
+                        NODE_ENV,
+
+                    enabled:
+                        false,
+                },
+        };
+} else {
+    buildTestRouter();
+}
+
+/**
+ * ============================================================================
+ * Router Builder
+ * ============================================================================
+ */
+
+function buildTestRouter() {
+    /**
+     * ------------------------------------------------------------------------
+     * Body Parser
+     * ------------------------------------------------------------------------
+     */
+
+    router.use(
+        express.json({
+            limit:
+                process.env
+                    .TITECH_USSD_TEST_BODY_LIMIT ||
+                '64kb',
+
+            strict:
+                true,
+        })
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Request Context
+     * ------------------------------------------------------------------------
+     */
+
+    router.use(
+        requestContextMiddleware
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Security Headers
+     * ------------------------------------------------------------------------
+     */
+
+    router.use(
+        (
+            req,
+            res,
+            next
+        ) => {
+            res.setHeader(
+                'Cache-Control',
+                'no-store'
+            );
+
+            res.setHeader(
+                'Pragma',
+                'no-cache'
+            );
+
+            res.setHeader(
+                'X-Content-Type-Options',
+                'nosniff'
+            );
+
+            res.setHeader(
+                'Referrer-Policy',
+                'no-referrer'
+            );
+
+            next();
+        }
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Rate Limiting
+     * ------------------------------------------------------------------------
+     */
+
+    router.use(
+        testRouteLimiter
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Metrics
+     * ------------------------------------------------------------------------
+     */
+
+    router.use(
+        metricsMiddleware
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Health
+     * ------------------------------------------------------------------------
+     */
+
+    router.get(
+        '/health',
+        healthHandler
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Diagnostics
+     * ------------------------------------------------------------------------
+     */
+
+    router.get(
+        '/diagnostics',
+        diagnosticsHandler
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Middleware Validation
+     * ------------------------------------------------------------------------
+     */
+
+    router.post(
+        '/',
+        validateTenantTestPayload,
+        ussdTenantMiddleware,
+        middlewareValidationHandler
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Service-Code Resolution
+     * ------------------------------------------------------------------------
+     */
+
+    router.post(
+        '/service-code',
+        validateServiceCodePayload,
+        ussdTenantMiddleware,
+        serviceCodeHandler
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Route Not Found
+     * ------------------------------------------------------------------------
+     */
+
+    router.use(
+        (
+            req,
+            res
+        ) => {
+            return res
+                .status(404)
+                .json({
+                    success:
+                        false,
+
+                    code:
+                        'USSD_TEST_ROUTE_NOT_FOUND',
+
+                    message:
+                        'USSD tenant test endpoint not found.',
+
+                    requestId:
+                        req.requestId,
+
+                    correlationId:
+                        req.correlationId,
+
+                    timestamp:
+                        new Date().toISOString(),
+                });
+        }
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Error Handler
+     * ------------------------------------------------------------------------
+     */
+
+    router.use(
+        (
+            error,
+            req,
+            res,
+            next
+        ) => {
+            if (
+                res.headersSent
+            ) {
+                return next(
+                    error
+                );
+            }
+
+            safeLogError(
+                'USSD tenant test route error',
+                {
+                    code:
+                        error?.code,
+
+                    message:
+                        error?.message,
+
+                    requestId:
+                        req.requestId,
+
+                    correlationId:
+                        req.correlationId,
+
+                    tenantId:
+                        req.tenantId,
+                }
+            );
+
+            const statusCode =
+                Number(
+                    error?.statusCode
+                ) >= 400 &&
+                Number(
+                    error?.statusCode
+                ) < 600
+                    ? Number(
+                        error.statusCode
+                    )
+                    : 500;
+
+            return res
+                .status(
+                    statusCode
+                )
+                .json({
+                    success:
+                        false,
+
+                    code:
+                        normalizeString(
+                            error?.code
+                        ) ||
+                        'USSD_TEST_ROUTE_ERROR',
+
+                    message:
+                        statusCode < 500
+                            ? (
+                                error?.message ||
+                                'The USSD tenant test request could not be completed.'
+                            )
+                            : 'The USSD tenant test request could not be completed.',
+
+                    requestId:
+                        req.requestId,
+
+                    correlationId:
+                        req.correlationId,
+
+                    timestamp:
+                        new Date().toISOString(),
+                });
+        }
+    );
+
+    /**
+     * ------------------------------------------------------------------------
+     * Route Auto Loader Contract
+     * ------------------------------------------------------------------------
+     */
+
+    module.exports =
+        {
+            version:
+                'v1',
+
+            path:
+                '/test/ussd-tenant',
+
+            router,
+
+            metadata:
+                {
+                    name:
+                        'TITech USSD Tenant Middleware Test',
+
+                    description:
+                        'Validates TITech USSD tenant resolution, service-code mapping and request context',
+
+                    environment:
+                        NODE_ENV,
+
+                    enabled:
+                        true,
+
+                    testOnly:
+                        true,
+                },
+        };
+}
+
+/**
+ * ============================================================================
  * Request Context Middleware
- * ========================================================================== */
+ * ============================================================================
+ */
 
 function requestContextMiddleware(
     req,
     res,
     next
 ) {
+    const requestId =
+        normalizeString(
+            req.requestId
+        ) ||
+        normalizeString(
+            req.headers?.[
+                'x-request-id'
+            ]
+        ) ||
+        crypto.randomUUID();
+
+    const correlationId =
+        normalizeString(
+            req.correlationId
+        ) ||
+        normalizeString(
+            req.headers?.[
+                'x-correlation-id'
+            ]
+        ) ||
+        requestId;
 
     req.requestId =
-
-        req.requestId ||
-
-        req.headers["x-request-id"] ||
-
-        crypto.randomUUID();
+        requestId;
 
     req.correlationId =
-
-        req.correlationId ||
-
-        req.headers["x-correlation-id"] ||
-
-        crypto.randomUUID();
+        correlationId;
 
     res.setHeader(
-        "X-Request-ID",
-        req.requestId
+        'X-Request-Id',
+        requestId
     );
 
     res.setHeader(
-        "X-Correlation-ID",
-        req.correlationId
+        'X-Correlation-Id',
+        correlationId
     );
 
     next();
 }
 
-/* ============================================================================
+/**
+ * ============================================================================
  * Metrics Middleware
- * ========================================================================== */
+ * ============================================================================
+ */
 
 function metricsMiddleware(
     req,
     res,
     next
 ) {
-
-    const started =
+    const startedAt =
         Date.now();
 
-    res.on(
-        "finish",
-
+    res.once(
+        'finish',
         () => {
-
             const duration =
-                Date.now() - started;
+                Date.now() -
+                startedAt;
 
             try {
-
                 metricsService?.increment?.(
-                    "titech.test.ussd.requests"
+                    'titech.test.ussd.requests'
                 );
 
                 metricsService?.timing?.(
-                    "titech.test.ussd.duration",
+                    'titech.test.ussd.duration',
                     duration
                 );
 
-            } catch (error) {
-
-                logger?.warn?.(
-                    "USSD Test Metrics Failed",
+                metricsService?.increment?.(
+                    `titech.test.ussd.status.${res.statusCode}`
+                );
+            } catch (
+                error
+            ) {
+                safeLogWarn(
+                    'USSD test metrics failed',
                     {
                         error:
-                            error.message
+                            error?.message,
+
+                        requestId:
+                            req.requestId,
+
+                        correlationId:
+                            req.correlationId,
                     }
                 );
             }
@@ -125,222 +605,707 @@ function metricsMiddleware(
     next();
 }
 
-/* ============================================================================
- * Health Check
- * ========================================================================== */
+/**
+ * ============================================================================
+ * Test Rate Limiter
+ * ============================================================================
+ */
 
-router.get(
-    "/health",
+const testRouteLimiter =
+    rateLimit({
+        windowMs:
+            60 *
+            1000,
 
-    async (
-        req,
-        res
-    ) => {
+        max:
+            getPositiveIntegerEnv(
+                'TITECH_USSD_TEST_RATE_LIMIT',
+                60
+            ),
 
-        return res.status(200).json({
+        standardHeaders:
+            'draft-8',
 
-            success: true,
+        legacyHeaders:
+            false,
 
-            service:
-                "testUssdTenant",
+        skipSuccessfulRequests:
+            false,
 
-            healthy: true,
+        handler(
+            req,
+            res
+        ) {
+            return res
+                .status(429)
+                .json({
+                    success:
+                        false,
 
-            timestamp:
-                new Date()
-                    .toISOString()
-        });
-    }
-);
+                    code:
+                        'USSD_TEST_RATE_LIMITED',
 
-/* ============================================================================
- * Middleware Validation Test
- * ========================================================================== */
+                    message:
+                        'Too many USSD test requests.',
 
-router.post(
-
-    "/",
-
-    requestContextMiddleware,
-
-    metricsMiddleware,
-
-    ussdTenantMiddleware,
-
-    async (
-        req,
-        res
-    ) => {
-
-        try {
-
-            logger.info(
-                "USSD Tenant Test Successful",
-                {
-
-                    tenantId:
-                        req.tenantId,
-
-                    requestId:
-                        req.requestId
-                }
-            );
-
-            return res.status(200).json({
-
-                success: true,
-
-                message:
-                    "USSD Tenant Middleware Passed",
-
-                requestContext: {
+                    retryAfter:
+                        60,
 
                     requestId:
                         req.requestId,
 
                     correlationId:
-                        req.correlationId
-                },
+                        req.correlationId,
 
-                tenant: {
+                    timestamp:
+                        new Date().toISOString(),
+                });
+        },
+    });
 
-                    id:
-                        req.tenant?.id,
+/**
+ * ============================================================================
+ * Health Handler
+ * ============================================================================
+ */
 
-                    code:
-                        req.tenant?.code,
+function healthHandler(
+    req,
+    res
+) {
+    return res
+        .status(200)
+        .json({
+            success:
+                true,
 
-                    name:
-                        req.tenant?.name,
+            service:
+                SERVICE_NAME,
 
-                    status:
-                        req.tenant?.status
-                },
+            version:
+                ROUTER_VERSION,
 
-                tenantContext:
-                    req.tenantContext,
+            status:
+                'UP',
 
-                diagnostics:
-                    req.ussdDiagnostics ||
+            enabled:
+                TEST_ROUTES_ENABLED,
 
-                    null
-            });
+            environment:
+                NODE_ENV,
 
-        } catch (error) {
+            testOnly:
+                true,
 
-            logger.error(
-                "USSD Tenant Test Failed",
+            timestamp:
+                new Date().toISOString(),
+
+            requestId:
+                req.requestId,
+
+            correlationId:
+                req.correlationId,
+        });
+}
+
+/**
+ * ============================================================================
+ * Diagnostics Handler
+ * ============================================================================
+ */
+
+function diagnosticsHandler(
+    req,
+    res
+) {
+    return res
+        .status(200)
+        .json({
+            success:
+                true,
+
+            service:
+                SERVICE_NAME,
+
+            version:
+                ROUTER_VERSION,
+
+            environment:
+                NODE_ENV,
+
+            enabled:
+                TEST_ROUTES_ENABLED,
+
+            endpoints:
+                [
+                    'POST /',
+                    'POST /service-code',
+                    'GET /health',
+                    'GET /diagnostics',
+                ],
+
+            middleware:
                 {
-                    error:
-                        error.message
-                }
-            );
+                    tenantResolution:
+                        true,
 
-            return res.status(500).json({
+                    requestContext:
+                        true,
 
-                success: false,
+                    correlationIds:
+                        true,
+
+                    metrics:
+                        true,
+                },
+
+            timestamp:
+                new Date().toISOString(),
+
+            requestId:
+                req.requestId,
+
+            correlationId:
+                req.correlationId,
+        });
+}
+
+/**
+ * ============================================================================
+ * Tenant Middleware Validation
+ * ============================================================================
+ */
+
+function validateTenantTestPayload(
+    req,
+    res,
+    next
+) {
+    const validationError =
+        validateCommonPayload(
+            req.body
+        );
+
+    if (
+        validationError
+    ) {
+        return res
+            .status(400)
+            .json({
+                success:
+                    false,
+
+                code:
+                    validationError.code,
 
                 message:
-                    error.message
+                    validationError.message,
+
+                requestId:
+                    req.requestId,
+
+                correlationId:
+                    req.correlationId,
             });
-        }
     }
-);
 
-/* ============================================================================
- * Service Code Resolution Test
- * ========================================================================== */
+    next();
+}
 
-router.post(
+/**
+ * ============================================================================
+ * Service Code Validation
+ * ============================================================================
+ */
 
-    "/service-code",
+function validateServiceCodePayload(
+    req,
+    res,
+    next
+) {
+    const validationError =
+        validateCommonPayload(
+            req.body
+        );
 
-    requestContextMiddleware,
+    if (
+        validationError
+    ) {
+        return res
+            .status(400)
+            .json({
+                success:
+                    false,
 
-    metricsMiddleware,
+                code:
+                    validationError.code,
 
-    ussdTenantMiddleware,
+                message:
+                    validationError.message,
 
-    async (
-        req,
-        res
-    ) => {
+                requestId:
+                    req.requestId,
 
-        return res.status(200).json({
+                correlationId:
+                    req.correlationId,
+            });
+    }
 
-            success: true,
+    const serviceCode =
+        normalizeString(
+            req.body?.serviceCode
+        );
 
-            serviceCode:
-                req.body?.serviceCode,
+    if (
+        !serviceCode
+    ) {
+        return res
+            .status(400)
+            .json({
+                success:
+                    false,
 
+                code:
+                    'USSD_SERVICE_CODE_REQUIRED',
+
+                message:
+                    'serviceCode is required.',
+
+                requestId:
+                    req.requestId,
+
+                correlationId:
+                    req.correlationId,
+            });
+    }
+
+    if (
+        serviceCode.length >
+        64
+    ) {
+        return res
+            .status(400)
+            .json({
+                success:
+                    false,
+
+                code:
+                    'USSD_SERVICE_CODE_INVALID',
+
+                message:
+                    'serviceCode is too long.',
+
+                requestId:
+                    req.requestId,
+
+                correlationId:
+                    req.correlationId,
+            });
+    }
+
+    req.body.serviceCode =
+        serviceCode;
+
+    next();
+}
+
+/**
+ * ============================================================================
+ * Middleware Validation Handler
+ * ============================================================================
+ */
+
+function middlewareValidationHandler(
+    req,
+    res
+) {
+    safeLogInfo(
+        'USSD tenant test successful',
+        {
             tenantId:
                 req.tenantId,
 
+            requestId:
+                req.requestId,
+
+            correlationId:
+                req.correlationId,
+        }
+    );
+
+    return res
+        .status(200)
+        .json({
+            success:
+                true,
+
+            message:
+                'TITech USSD tenant middleware passed.',
+
+            requestContext:
+                {
+                    requestId:
+                        req.requestId,
+
+                    correlationId:
+                        req.correlationId,
+                },
+
             tenant:
-                req.tenant?.name
-        });
-    }
-);
+                sanitizeTenant(
+                    req.tenant
+                ),
 
-/* ============================================================================
- * Diagnostics
- * ========================================================================== */
+            tenantContext:
+                sanitizeTenantContext(
+                    req.tenantContext
+                ),
 
-router.get(
+            diagnostics:
+                sanitizeDiagnostics(
+                    req.ussdDiagnostics
+                ),
 
-    "/diagnostics",
-
-    requestContextMiddleware,
-
-    async (
-        req,
-        res
-    ) => {
-
-        return res.status(200).json({
-
-            service:
-                "testUssdTenant",
-
-            version:
-                "1.0.0",
-
-            endpoints: [
-
-                "POST /",
-                "POST /service-code",
-                "GET /health",
-                "GET /diagnostics"
-            ],
+            request:
+                {
+                    serviceCode:
+                        normalizeString(
+                            req.body?.serviceCode
+                        ),
+                },
 
             timestamp:
-                new Date()
-                    .toISOString()
+                new Date().toISOString(),
         });
+}
+
+/**
+ * ============================================================================
+ * Service Code Handler
+ * ============================================================================
+ */
+
+function serviceCodeHandler(
+    req,
+    res
+) {
+    return res
+        .status(200)
+        .json({
+            success:
+                true,
+
+            serviceCode:
+                normalizeString(
+                    req.body?.serviceCode
+                ),
+
+            tenant:
+                sanitizeTenant(
+                    req.tenant
+                ),
+
+            tenantId:
+                normalizeString(
+                    req.tenantId
+                ),
+
+            tenantContext:
+                sanitizeTenantContext(
+                    req.tenantContext
+                ),
+
+            diagnostics:
+                sanitizeDiagnostics(
+                    req.ussdDiagnostics
+                ),
+
+            requestContext:
+                {
+                    requestId:
+                        req.requestId,
+
+                    correlationId:
+                        req.correlationId,
+                },
+
+            timestamp:
+                new Date().toISOString(),
+        });
+}
+
+/**
+ * ============================================================================
+ * Common Payload Validation
+ * ============================================================================
+ */
+
+function validateCommonPayload(
+    payload
+) {
+    if (
+        !payload ||
+        typeof payload !==
+            'object' ||
+        Array.isArray(
+            payload
+        )
+    ) {
+        return {
+            code:
+                'USSD_TEST_PAYLOAD_INVALID',
+
+            message:
+                'Request body must be a JSON object.',
+        };
     }
-);
 
-/* ============================================================================
- * Route Auto Loader Contract
- * ========================================================================== */
+    /**
+     * A test route must NEVER accept client-selected tenant identity as the
+     * authoritative tenant.
+     *
+     * The actual ussdTenantMiddleware determines tenant context.
+     */
+    if (
+        Object.prototype.hasOwnProperty.call(
+            payload,
+            'tenantId'
+        )
+    ) {
+        return {
+            code:
+                'USSD_TEST_TENANT_OVERRIDE_FORBIDDEN',
 
-module.exports = {
+            message:
+                'tenantId must not be supplied by the test client.',
+        };
+    }
 
-    version: "v1",
+    return null;
+}
 
-    path: "/test/ussd-tenant",
+/**
+ * ============================================================================
+ * Sanitization
+ * ============================================================================
+ */
 
-    router,
+function sanitizeTenant(
+    tenant
+) {
+    if (
+        !tenant ||
+        typeof tenant !==
+            'object'
+    ) {
+        return null;
+    }
 
-    metadata: {
+    return {
+        id:
+            normalizeString(
+                tenant.id ||
+                tenant._id
+            ),
+
+        code:
+            normalizeString(
+                tenant.code
+            ),
 
         name:
-            "USSD Tenant Middleware Test",
+            normalizeString(
+                tenant.name
+            ),
 
-        description:
-            "Validates tenant resolution and request context",
+        status:
+            normalizeString(
+                tenant.status
+            ),
+    };
+}
 
-        environment:
-            "development"
+function sanitizeTenantContext(
+    context
+) {
+    if (
+        !context ||
+        typeof context !==
+            'object'
+    ) {
+        return null;
     }
-};
+
+    /**
+     * Expose only safe context fields.
+     */
+    const result =
+        {};
+
+    const allowedKeys =
+        new Set([
+            'tenantId',
+            'tenantCode',
+            'serviceCode',
+            'requestId',
+            'correlationId',
+            'environment',
+            'featureFlags',
+        ]);
+
+    for (
+        const [
+            key,
+            value,
+        ]
+        of Object.entries(
+            context
+        )
+    ) {
+        if (
+            allowedKeys.has(
+                key
+            )
+        ) {
+            result[key] =
+                value;
+        }
+    }
+
+    return result;
+}
+
+function sanitizeDiagnostics(
+    diagnostics
+) {
+    if (
+        !diagnostics ||
+        typeof diagnostics !==
+            'object'
+    ) {
+        return null;
+    }
+
+    const result =
+        {};
+
+    const forbiddenTerms =
+        [
+            'secret',
+            'password',
+            'token',
+            'apikey',
+            'api_key',
+            'credential',
+            'privatekey',
+            'private_key',
+            'connectionstring',
+            'connection_string',
+        ];
+
+    for (
+        const [
+            key,
+            value,
+        ]
+        of Object.entries(
+            diagnostics
+        )
+    ) {
+        const normalizedKey =
+            String(
+                key
+            ).toLowerCase();
+
+        if (
+            forbiddenTerms.some(
+                term =>
+                    normalizedKey.includes(
+                        term
+                    )
+            )
+        ) {
+            continue;
+        }
+
+        result[key] =
+            value;
+    }
+
+    return result;
+}
+
+/**
+ * ============================================================================
+ * Logging Helpers
+ * ============================================================================
+ */
+
+function safeLogInfo(
+    message,
+    metadata
+) {
+    try {
+        logger?.info?.(
+            message,
+            metadata
+        );
+    } catch {
+        // Diagnostics must never fail because logging failed.
+    }
+}
+
+function safeLogWarn(
+    message,
+    metadata
+) {
+    try {
+        logger?.warn?.(
+            message,
+            metadata
+        );
+    } catch {
+        // Ignore logging failures.
+    }
+}
+
+function safeLogError(
+    message,
+    metadata
+) {
+    try {
+        logger?.error?.(
+            message,
+            metadata
+        );
+    } catch {
+        // Ignore logging failures.
+    }
+}
+
+/**
+ * ============================================================================
+ * Environment Helpers
+ * ============================================================================
+ */
+
+function getPositiveIntegerEnv(
+    name,
+    fallback
+) {
+    const value =
+        Number(
+            process.env[
+                name
+            ]
+        );
+
+    return (
+        Number.isInteger(
+            value
+        ) &&
+        value > 0
+    )
+        ? value
+        : fallback;
+}

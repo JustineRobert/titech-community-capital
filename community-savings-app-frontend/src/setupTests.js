@@ -1,1190 +1,390 @@
 /**
  * ============================================================================
- * frontend/src/setupTests.js
+ * TITech Community Capital LTD
+ * TITech Community Capital Operating System
  * ============================================================================
- * TITech Community Capital
- * Enterprise Test Environment
  *
- * Stack
- * ----------------------------------------------------------------------------
- * • React 18
- * • Vite
- * • Vitest
- * • React Testing Library
- * • MSW
- * • Redux Toolkit
- * • React Router
- * • React Hook Form
- * • React Query
- * • Socket.IO
+ * File:
+ *   frontend/src/setupTests.js
  *
- * This file configures the global browser environment used by every test.
+ * Purpose:
+ *   Canonical Vitest + React Testing Library test environment.
+ *
+ * Responsibilities:
+ *   - Configure Vitest test runtime
+ *   - Configure React Testing Library
+ *   - Configure React 18 act environment
+ *   - Configure deterministic timezone
+ *   - Install safe browser API polyfills
+ *   - Start and stop MSW
+ *   - Provide deterministic test identifiers
+ *   - Provide async/timer helpers
+ *   - Provide file-upload helpers
+ *   - Provide React Query / Redux helpers
+ *   - Detect leaked timers
+ *   - Detect unhandled promise rejections
+ *   - Restore test state after every test
+ *
+ * Non-responsibilities:
+ *   - Application business logic
+ *   - Production service initialization
+ *   - Authentication implementation
+ *   - Real API communication
+ *   - Financial transaction execution
+ *
+ * Principles:
+ *   1. Do not hide genuine test failures.
+ *   2. Do not replace working browser APIs unnecessarily.
+ *   3. Prefer MSW for HTTP mocking.
+ *   4. Keep global setup deterministic.
+ *   5. Keep test isolation strict.
+ *   6. Keep mocks realistic enough to catch integration defects.
+ *
  * ============================================================================
  */
 
 import {
+  afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
-  afterEach,
-  afterAll,
-  vi,
   expect,
-} from "vitest";
+  vi,
+} from 'vitest';
 
 import {
   cleanup,
   configure,
-} from "@testing-library/react";
+} from '@testing-library/react';
 
-import "@testing-library/jest-dom/vitest";
+import '@testing-library/jest-dom/vitest';
 
 import {
-  TextEncoder,
   TextDecoder,
-} from "util";
+  TextEncoder,
+} from 'util';
 
-import { server } from "./testServer";
+import { server } from './testServer';
 
-/* ============================================================================
-   Environment
-============================================================================ */
+// ============================================================================
+// 01. TEST ENVIRONMENT
+// ============================================================================
 
-process.env.NODE_ENV = "test";
+process.env.NODE_ENV = 'test';
 
-globalThis.TextEncoder = TextEncoder;
-globalThis.TextDecoder = TextDecoder;
-
-/*
-|--------------------------------------------------------------------------
-| Testing Library Configuration
-|--------------------------------------------------------------------------
-*/
-
-configure({
-  asyncUtilTimeout: 10000,
-  testIdAttribute: "data-testid",
-});
-
-/*
-|--------------------------------------------------------------------------
-| React Act Environment
-|--------------------------------------------------------------------------
-|
-| React 18 uses this flag to suppress unnecessary warnings
-| while executing updates during tests.
-|
-*/
+process.env.TZ = 'UTC';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-/*
-|--------------------------------------------------------------------------
-| Default Timezone
-|--------------------------------------------------------------------------
-*/
+// -----------------------------------------------------------------------------
+// Text encoding
+// -----------------------------------------------------------------------------
 
-process.env.TZ = "UTC";
+globalThis.TextEncoder =
+  globalThis.TextEncoder || TextEncoder;
 
-/*
-|--------------------------------------------------------------------------
-| Stable Randomness
-|--------------------------------------------------------------------------
-|
-| Makes UUIDs and random values deterministic.
-|
-*/
+globalThis.TextDecoder =
+  globalThis.TextDecoder || TextDecoder;
 
-const FIXED_UUID = "00000000-0000-4000-8000-000000000001";
+// ============================================================================
+// 02. TEST CONSTANTS
+// ============================================================================
 
-/*
-|--------------------------------------------------------------------------
-| Test Constants
-|--------------------------------------------------------------------------
-*/
+export const TEST_TENANT_ID =
+  'tenant-test';
 
-export const TEST_TENANT_ID = "tenant-test";
+export const TEST_SACCO_ID =
+  'sacco-test';
 
-export const TEST_SACCO_ID = "sacco-test";
+export const TEST_USER_ID =
+  'user-test';
 
-export const TEST_USER_ID = "user-test";
+export const TEST_ACCOUNT_ID =
+  'account-test';
 
-export const TEST_ACCOUNT_ID = "account-test";
+export const TEST_SESSION_ID =
+  'session-test';
 
-export const TEST_SESSION_ID = "session-test";
+export const TEST_TRANSACTION_ID =
+  'transaction-test';
 
-/*
-|--------------------------------------------------------------------------
-| Global Test Utilities
-|--------------------------------------------------------------------------
-*/
+export const TEST_WALLET_ID =
+  'wallet-test';
 
-globalThis.TEST_IDS = {
+export const TEST_LEDGER_ENTRY_ID =
+  'ledger-entry-test';
+
+export const TEST_LOAN_ID =
+  'loan-test';
+
+// Deterministic test UUID.
+//
+// DO NOT use this value as a production identifier.
+export const TEST_UUID =
+  '00000000-0000-4000-8000-000000000001';
+
+// ============================================================================
+// 03. GLOBAL TEST IDENTIFIERS
+// ============================================================================
+
+globalThis.TEST_IDS = Object.freeze({
   tenantId: TEST_TENANT_ID,
   saccoId: TEST_SACCO_ID,
   userId: TEST_USER_ID,
   accountId: TEST_ACCOUNT_ID,
   sessionId: TEST_SESSION_ID,
-};
-
-/*
-|--------------------------------------------------------------------------
-| Fail Fast On Unhandled Promise Rejections
-|--------------------------------------------------------------------------
-*/
-
-const unhandledRejections = [];
-
-function handleUnhandledRejection(event) {
-  unhandledRejections.push(event.reason);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Optional Console Filtering
-|--------------------------------------------------------------------------
-|
-| Suppress noisy React warnings while allowing real failures
-| to surface.
-|
-*/
-
-const originalConsoleError = console.error;
-const originalConsoleWarn = console.warn;
-
-const ignoredWarnings = [
-  "Warning: ReactDOM.render",
-  "Warning: An update to",
-  "Warning: validateDOMNesting",
-];
-
-function shouldIgnoreConsole(message) {
-  if (!message) return false;
-
-  return ignoredWarnings.some((warning) =>
-    String(message).includes(warning)
-  );
-}
-
-/*
-|--------------------------------------------------------------------------
-| Vitest Global Helpers
-|--------------------------------------------------------------------------
-*/
-
-globalThis.flushPromises = () =>
-  new Promise((resolve) => queueMicrotask(resolve));
-
-globalThis.wait = (ms = 0) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-/*
-|--------------------------------------------------------------------------
-| MSW Lifecycle
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  server.listen({
-    onUnhandledRequest(request) {
-      if (
-        request.url.pathname.startsWith("/assets/") ||
-        request.url.pathname.startsWith("/favicon")
-      ) {
-        return;
-      }
-
-      console.warn(
-        `[MSW] Unhandled ${request.method} ${request.url.href}`
-      );
-    },
-  });
-
-  window.addEventListener(
-    "unhandledrejection",
-    handleUnhandledRejection
-  );
+  transactionId: TEST_TRANSACTION_ID,
+  walletId: TEST_WALLET_ID,
+  ledgerEntryId: TEST_LEDGER_ENTRY_ID,
+  loanId: TEST_LOAN_ID,
 });
 
-/*
-|--------------------------------------------------------------------------
-| Before Each Test
-|--------------------------------------------------------------------------
-*/
+// ============================================================================
+// 04. TESTING LIBRARY CONFIGURATION
+// ============================================================================
 
-beforeEach(() => {
-  vi.useFakeTimers();
+configure({
+  asyncUtilTimeout: 10_000,
+  testIdAttribute: 'data-testid',
+});
+
+// ============================================================================
+// 05. GLOBAL RUNTIME STATE
+// ============================================================================
+
+const runtimeState = {
+  unhandledRejections: [],
+  originalConsole: {
+    error: console.error,
+    warn: console.warn,
+    info: console.info,
+  },
+};
+
+function resetRuntimeState() {
+  runtimeState.unhandledRejections.length = 0;
+}
+
+// ============================================================================
+// 06. CONSOLE POLICY
+// ============================================================================
+//
+// IMPORTANT:
+// Do not broadly suppress React warnings.
+//
+// A fintech/financial application needs tests to expose genuine runtime
+// problems.
+//
+// We only ignore a very small set of known jsdom/environment noise.
+// ============================================================================
+
+const IGNORED_CONSOLE_PATTERNS = Object.freeze([
+  /Not implemented:\s*navigation/i,
+]);
+
+function shouldIgnoreConsoleMessage(message) {
+  const text = String(message ?? '');
+
+  return IGNORED_CONSOLE_PATTERNS.some(
+    (pattern) => pattern.test(text)
+  );
+}
+
+function installTestConsoleGuards() {
+  const originalError =
+    runtimeState.originalConsole.error;
+
+  const originalWarn =
+    runtimeState.originalConsole.warn;
 
   console.error = (...args) => {
-    if (shouldIgnoreConsole(args[0])) {
+    if (
+      shouldIgnoreConsoleMessage(args[0])
+    ) {
       return;
     }
 
-    originalConsoleError(...args);
+    originalError(...args);
   };
 
   console.warn = (...args) => {
-    if (shouldIgnoreConsole(args[0])) {
+    if (
+      shouldIgnoreConsoleMessage(args[0])
+    ) {
       return;
     }
 
-    originalConsoleWarn(...args);
+    originalWarn(...args);
   };
-});
+}
 
-/*
-|--------------------------------------------------------------------------
-| After Each Test
-|--------------------------------------------------------------------------
-|
-| Additional cleanup will be expanded in Parts 2–5.
-|
-*/
+function restoreTestConsole() {
+  console.error =
+    runtimeState.originalConsole.error;
 
-afterEach(() => {
-  cleanup();
+  console.warn =
+    runtimeState.originalConsole.warn;
 
-  server.resetHandlers();
+  console.info =
+    runtimeState.originalConsole.info;
+}
 
-  expect(unhandledRejections).toHaveLength(0);
+// ============================================================================
+// 07. UNHANDLED PROMISE REJECTIONS
+// ============================================================================
 
-  unhandledRejections.length = 0;
-
-  vi.clearAllMocks();
-
-  vi.restoreAllMocks();
-
-  vi.clearAllTimers();
-
-  vi.useRealTimers();
-});
-
-/*
-|--------------------------------------------------------------------------
-| After All Tests
-|--------------------------------------------------------------------------
-*/
-
-afterAll(() => {
-  window.removeEventListener(
-    "unhandledrejection",
-    handleUnhandledRejection
+function handleUnhandledRejection(event) {
+  runtimeState.unhandledRejections.push(
+    event?.reason
   );
+}
 
-  server.close();
+// ============================================================================
+// 08. ASYNC TEST HELPERS
+// ============================================================================
 
-  console.error = originalConsoleError;
-  console.warn = originalConsoleWarn;
-});
+globalThis.flushPromises = () =>
+  new Promise((resolve) => {
+    queueMicrotask(resolve);
+  });
 
-/* ============================================================================
-   End of Part 1
-   Browser APIs, Axios, Socket.IO, Crypto, Fetch, URL, File APIs,
-   Storage, Observers and enterprise mocks are added in Part 2.
-============================================================================ */
-/* ============================================================================
-   Part 2
-   Axios, Socket.IO, Fetch, Browser APIs, Crypto, URL & FileReader
-============================================================================ */
+globalThis.flushAllPromises = async () => {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+};
 
-/*
-|--------------------------------------------------------------------------
-| Axios Enterprise Mock
-|--------------------------------------------------------------------------
-*/
+globalThis.wait = (milliseconds = 0) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
 
-vi.mock("axios", () => {
-  const instance = {
-    defaults: {
-      headers: {
-        common: {},
-      },
-      timeout: 30000,
-    },
+globalThis.sleep = globalThis.wait;
 
-    interceptors: {
-      request: {
-        use: vi.fn(() => 0),
-        eject: vi.fn(),
-        clear: vi.fn(),
-      },
-      response: {
-        use: vi.fn(() => 0),
-        eject: vi.fn(),
-        clear: vi.fn(),
-      },
-    },
+globalThis.nextTick = () =>
+  new Promise((resolve) => {
+    if (
+      typeof process?.nextTick === 'function'
+    ) {
+      process.nextTick(resolve);
+      return;
+    }
 
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
-    head: vi.fn(),
-    options: vi.fn(),
+    queueMicrotask(resolve);
+  });
 
-    request: vi.fn(),
+globalThis.waitForMicrotasks = () =>
+  Promise.resolve();
 
-    create: vi.fn(() => instance),
-  };
+globalThis.advanceTimers = async (
+  milliseconds = 0
+) => {
+  vi.advanceTimersByTime(milliseconds);
+  await globalThis.flushAllPromises();
+};
 
-  return {
-    default: instance,
-    create: instance.create,
-  };
-});
+globalThis.flushTimers = async () => {
+  vi.runOnlyPendingTimers();
+  await globalThis.flushAllPromises();
+};
 
-/*
-|--------------------------------------------------------------------------
-| Socket.IO Client
-|--------------------------------------------------------------------------
-*/
+// ============================================================================
+// 09. SAFE BROWSER API POLYFILLS
+// ============================================================================
+//
+// Only install missing APIs.
+//
+// Do not replace working jsdom/browser implementations unless the individual
+// test explicitly mocks them.
+// ============================================================================
 
-vi.mock("socket.io-client", () => {
-  const socket = {
-    id: "socket-test-id",
+// -----------------------------------------------------------------------------
+// matchMedia
+// -----------------------------------------------------------------------------
 
-    connected: true,
-
-    recovered: true,
-
-    auth: {},
-
-    io: {},
-
-    connect: vi.fn(),
-
-    disconnect: vi.fn(),
-
-    close: vi.fn(),
-
-    open: vi.fn(),
-
-    on: vi.fn(),
-
-    once: vi.fn(),
-
-    off: vi.fn(),
-
-    emit: vi.fn(),
-
-    emitWithAck: vi.fn(),
-
-    timeout: vi.fn(function () {
-      return this;
-    }),
-
-    removeListener: vi.fn(),
-
-    removeAllListeners: vi.fn(),
-
-    listeners: vi.fn(() => []),
-  };
-
-  return {
-    io: vi.fn(() => socket),
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| Fetch
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.fetch = vi.fn(async () => ({
-    ok: true,
-
-    redirected: false,
-
-    status: 200,
-
-    statusText: "OK",
-
-    headers: new Headers(),
-
-    clone() {
-      return this;
-    },
-
-    json: async () => ({}),
-
-    text: async () => "",
-
-    blob: async () => new Blob(),
-
-    arrayBuffer: async () => new ArrayBuffer(0),
-  }));
-});
-
-/*
-|--------------------------------------------------------------------------
-| matchMedia
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-
-    configurable: true,
-
-    value: vi.fn().mockImplementation((query) => ({
+if (
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia !== 'function'
+) {
+  window.matchMedia = vi.fn(
+    (query) => ({
       media: query,
-
       matches: false,
-
       onchange: null,
 
       addListener: vi.fn(),
-
       removeListener: vi.fn(),
 
       addEventListener: vi.fn(),
-
       removeEventListener: vi.fn(),
 
-      dispatchEvent: vi.fn(),
-    })),
-  });
-});
-
-/*
-|--------------------------------------------------------------------------
-| Window Helpers
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  window.scrollTo = vi.fn();
-
-  window.focus = vi.fn();
-
-  window.blur = vi.fn();
-
-  window.open = vi.fn();
-
-  window.close = vi.fn();
-
-  window.print = vi.fn();
-
-  window.alert = vi.fn();
-
-  window.confirm = vi.fn(() => true);
-
-  window.prompt = vi.fn(() => "");
-});
-
-/*
-|--------------------------------------------------------------------------
-| Navigator
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  Object.defineProperty(globalThis, "navigator", {
-    configurable: true,
-
-    writable: true,
-
-    value: {
-      language: "en",
-
-      languages: ["en"],
-
-      onLine: true,
-
-      userAgent: "Vitest",
-
-      clipboard: {
-        writeText: vi.fn(),
-
-        readText: vi.fn(async () => ""),
-      },
-    },
-  });
-});
-
-/*
-|--------------------------------------------------------------------------
-| Crypto
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  if (!globalThis.crypto) {
-    Object.defineProperty(globalThis, "crypto", {
-      configurable: true,
-      writable: true,
-      value: {},
-    });
-  }
-
-  crypto.randomUUID = vi.fn(() => FIXED_UUID);
-
-  crypto.getRandomValues = vi.fn((buffer) => {
-    for (let i = 0; i < buffer.length; i++) {
-      buffer[i] = i + 1;
-    }
-
-    return buffer;
-  });
-
-  crypto.subtle = crypto.subtle || {};
-});
-
-/*
-|--------------------------------------------------------------------------
-| URL APIs
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.URL.createObjectURL = vi.fn(
-    () => "blob:test-object-url"
-  );
-
-  globalThis.URL.revokeObjectURL = vi.fn();
-
-  globalThis.URL.canParse =
-    globalThis.URL.canParse ||
-    vi.fn(() => true);
-});
-
-/*
-|--------------------------------------------------------------------------
-| AbortController
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.AbortController =
-    globalThis.AbortController ||
-    class {
-      constructor() {
-        this.signal = {};
-      }
-
-      abort = vi.fn();
-    };
-});
-
-/*
-|--------------------------------------------------------------------------
-| FileReader
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.FileReader = class {
-    constructor() {
-      this.result = null;
-
-      this.error = null;
-
-      this.onload = null;
-
-      this.onerror = null;
-
-      this.onloadend = null;
-    }
-
-    readAsDataURL() {
-      this.result =
-        "data:text/plain;base64,dGVzdA==";
-
-      this.onload?.({
-        target: this,
-      });
-
-      this.onloadend?.({
-        target: this,
-      });
-    }
-
-    readAsText() {
-      this.result = "test";
-
-      this.onload?.({
-        target: this,
-      });
-
-      this.onloadend?.({
-        target: this,
-      });
-    }
-
-    readAsArrayBuffer() {
-      this.result = new ArrayBuffer(16);
-
-      this.onload?.({
-        target: this,
-      });
-
-      this.onloadend?.({
-        target: this,
-      });
-    }
-
-    abort() {}
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| Blob / File
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.File =
-    globalThis.File ||
-    class File extends Blob {
-      constructor(chunks, filename, options = {}) {
-        super(chunks, options);
-
-        this.name = filename;
-
-        this.lastModified =
-          options.lastModified ?? Date.now();
-
-        this.webkitRelativePath = "";
-      }
-    };
-});
-
-/*
-|--------------------------------------------------------------------------
-| Queue Microtask
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  if (!globalThis.queueMicrotask) {
-    globalThis.queueMicrotask = (callback) =>
-      Promise.resolve().then(callback);
-  }
-});
-
-/*
-|--------------------------------------------------------------------------
-| Structured Clone
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.structuredClone =
-    globalThis.structuredClone ||
-    ((value) =>
-      JSON.parse(JSON.stringify(value)));
-});
-
-/*
-|--------------------------------------------------------------------------
-| requestIdleCallback
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.requestIdleCallback =
-    globalThis.requestIdleCallback ||
-    ((callback) =>
-      setTimeout(
-        () =>
-          callback({
-            didTimeout: false,
-
-            timeRemaining: () => 50,
-          }),
-        0
-      ));
-
-  globalThis.cancelIdleCallback =
-    globalThis.cancelIdleCallback ||
-    clearTimeout;
-});
-
-/* ============================================================================
-   End Part 2
-   Part 3 adds:
-   • localStorage/sessionStorage
-   • IndexedDB
-   • BroadcastChannel
-   • Web Workers
-   • Canvas
-   • Drag & Drop
-   • File Upload APIs
-   • DataTransfer
-============================================================================ */
-/* ============================================================================
-   Part 3
-   Enterprise Storage, IndexedDB, Workers, BroadcastChannel,
-   Canvas, SVG, Drag & Drop, File APIs
-============================================================================ */
-
-/*
-|--------------------------------------------------------------------------
-| localStorage
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  const storageFactory = () => {
-    let store = new Map();
-
-    return {
-      get length() {
-        return store.size;
-      },
-
-      key(index) {
-        return [...store.keys()][index] ?? null;
-      },
-
-      getItem: vi.fn((key) =>
-        store.has(String(key))
-          ? store.get(String(key))
-          : null
+      dispatchEvent: vi.fn(
+        () => false
       ),
-
-      setItem: vi.fn((key, value) => {
-        store.set(String(key), String(value));
-      }),
-
-      removeItem: vi.fn((key) => {
-        store.delete(String(key));
-      }),
-
-      clear: vi.fn(() => {
-        store.clear();
-      }),
-    };
-  };
-
-  Object.defineProperty(window, "localStorage", {
-    configurable: true,
-    writable: true,
-    value: storageFactory(),
-  });
-
-  Object.defineProperty(window, "sessionStorage", {
-    configurable: true,
-    writable: true,
-    value: storageFactory(),
-  });
-});
-
-/*
-|--------------------------------------------------------------------------
-| IndexedDB Enterprise Mock
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  const request = () => ({
-    onsuccess: null,
-    onerror: null,
-    onupgradeneeded: null,
-    result: {
-      close: vi.fn(),
-
-      transaction: vi.fn(() => ({
-        objectStore: vi.fn(() => ({
-          add: vi.fn(),
-          put: vi.fn(),
-          get: vi.fn(),
-          getAll: vi.fn(),
-          delete: vi.fn(),
-          clear: vi.fn(),
-          count: vi.fn(),
-          createIndex: vi.fn(),
-          index: vi.fn(),
-        })),
-      })),
-
-      createObjectStore: vi.fn(() => ({
-        createIndex: vi.fn(),
-      })),
-    },
-  });
-
-  globalThis.indexedDB = {
-    open: vi.fn(() => request()),
-    deleteDatabase: vi.fn(() => request()),
-    databases: vi.fn(async () => []),
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| BroadcastChannel
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.BroadcastChannel = class {
-    constructor(name) {
-      this.name = name;
-      this.onmessage = null;
-    }
-
-    postMessage = vi.fn();
-
-    close = vi.fn();
-
-    addEventListener = vi.fn();
-
-    removeEventListener = vi.fn();
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| Web Worker
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.Worker = class {
-    constructor() {
-      this.onmessage = null;
-      this.onerror = null;
-    }
-
-    postMessage = vi.fn();
-
-    terminate = vi.fn();
-
-    addEventListener = vi.fn();
-
-    removeEventListener = vi.fn();
-
-    dispatchEvent = vi.fn();
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| Shared Worker
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.SharedWorker = class {
-    constructor() {
-      this.port = {
-        start: vi.fn(),
-        close: vi.fn(),
-        postMessage: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      };
-    }
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| DataTransfer
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.DataTransfer = class {
-    constructor() {
-      this.dropEffect = "copy";
-      this.effectAllowed = "all";
-
-      this.files = [];
-
-      this.items = [];
-
-      this.types = [];
-    }
-
-    setData = vi.fn();
-
-    getData = vi.fn(() => "");
-
-    clearData = vi.fn();
-
-    setDragImage = vi.fn();
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| DragEvent
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.DragEvent =
-    globalThis.DragEvent ||
-    class DragEvent extends Event {
-      constructor(type, options = {}) {
-        super(type, options);
-
-        this.dataTransfer =
-          options.dataTransfer ??
-          new DataTransfer();
-      }
-    };
-});
-
-/*
-|--------------------------------------------------------------------------
-| Canvas
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
-    fillRect: vi.fn(),
-    clearRect: vi.fn(),
-
-    beginPath: vi.fn(),
-    closePath: vi.fn(),
-
-    moveTo: vi.fn(),
-    lineTo: vi.fn(),
-
-    stroke: vi.fn(),
-    fill: vi.fn(),
-
-    arc: vi.fn(),
-
-    drawImage: vi.fn(),
-
-    fillText: vi.fn(),
-    strokeText: vi.fn(),
-
-    save: vi.fn(),
-    restore: vi.fn(),
-
-    scale: vi.fn(),
-    rotate: vi.fn(),
-    translate: vi.fn(),
-
-    measureText: vi.fn(() => ({
-      width: 100,
-    })),
-  }));
-
-  HTMLCanvasElement.prototype.toBlob = vi.fn((cb) =>
-    cb(new Blob())
+    })
   );
+}
 
-  HTMLCanvasElement.prototype.toDataURL =
-    vi.fn(() => "data:image/png;base64,test");
-});
+// -----------------------------------------------------------------------------
+// scroll APIs
+// -----------------------------------------------------------------------------
 
-/*
-|--------------------------------------------------------------------------
-| SVG
-|--------------------------------------------------------------------------
-*/
+if (
+  typeof window !== 'undefined' &&
+  typeof window.scrollTo !== 'function'
+) {
+  window.scrollTo = vi.fn();
+}
 
-beforeAll(() => {
-  globalThis.SVGElement =
-    globalThis.SVGElement ||
-    class extends HTMLElement {};
+if (
+  typeof window !== 'undefined' &&
+  typeof window.scrollBy !== 'function'
+) {
+  window.scrollBy = vi.fn();
+}
 
-  SVGElement.prototype.getBBox = vi.fn(() => ({
-    x: 0,
-    y: 0,
-    width: 100,
-    height: 50,
-  }));
+if (
+  typeof Element !== 'undefined' &&
+  typeof Element.prototype.scrollIntoView !==
+    'function'
+) {
+  Element.prototype.scrollIntoView = vi.fn();
+}
 
-  SVGElement.prototype.getComputedTextLength =
-    vi.fn(() => 100);
-});
+// -----------------------------------------------------------------------------
+// requestAnimationFrame
+// -----------------------------------------------------------------------------
 
-/*
-|--------------------------------------------------------------------------
-| Element.animate
-|--------------------------------------------------------------------------
-*/
+if (
+  typeof globalThis.requestAnimationFrame !==
+  'function'
+) {
+  globalThis.requestAnimationFrame =
+    (callback) =>
+      setTimeout(
+        () => callback(Date.now()),
+        16
+      );
+}
 
-beforeAll(() => {
-  Element.prototype.animate = vi.fn(() => ({
-    play: vi.fn(),
-    pause: vi.fn(),
-    cancel: vi.fn(),
-    finish: vi.fn(),
+if (
+  typeof globalThis.cancelAnimationFrame !==
+  'function'
+) {
+  globalThis.cancelAnimationFrame =
+    (id) => clearTimeout(id);
+}
 
-    onfinish: null,
+// -----------------------------------------------------------------------------
+// requestIdleCallback
+// -----------------------------------------------------------------------------
 
-    finished: Promise.resolve(),
-  }));
-});
-
-/*
-|--------------------------------------------------------------------------
-| File System APIs
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  window.showOpenFilePicker = vi.fn(async () => []);
-
-  window.showSaveFilePicker = vi.fn(async () => ({
-    createWritable: async () => ({
-      write: vi.fn(),
-      close: vi.fn(),
-    }),
-  }));
-});
-
-/*
-|--------------------------------------------------------------------------
-| ImageBitmap
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.createImageBitmap = vi.fn(async () => ({}));
-});
-
-/*
-|--------------------------------------------------------------------------
-| File Upload Helpers
-|--------------------------------------------------------------------------
-*/
-
-globalThis.createTestFile = (
-  name = "document.pdf",
-  type = "application/pdf",
-  content = "test"
-) =>
-  new File([content], name, {
-    type,
-  });
-
-globalThis.createImageFile = () =>
-  createTestFile(
-    "logo.png",
-    "image/png",
-    "image"
-  );
-
-globalThis.createPDFFile = () =>
-  createTestFile(
-    "certificate.pdf",
-    "application/pdf",
-    "pdf"
-  );
-
-globalThis.createCSVFile = () =>
-  createTestFile(
-    "members.csv",
-    "text/csv",
-    "id,name"
-  );
-
-/*
-|--------------------------------------------------------------------------
-| Cleanup
-|--------------------------------------------------------------------------
-*/
-
-afterEach(() => {
-  localStorage.clear();
-
-  sessionStorage.clear();
-});
-
-/* ============================================================================
-   End Part 3
-
-   Part 4 introduces:
-
-   • React 18 concurrency helpers
-   • ResizeObserver
-   • IntersectionObserver
-   • MutationObserver
-   • DOMRect
-   • Performance API
-   • VisualViewport
-   • requestAnimationFrame
-   • requestIdleCallback enhancements
-   • Timers
-   • Animation APIs
-   • Scroll APIs
-   • MediaQuery improvements
-============================================================================ */
-/* ============================================================================
-   Part 4
-   React 18 Helpers, Timers, Animation, Observers & Performance APIs
-============================================================================ */
-
-/*
-|--------------------------------------------------------------------------
-| React 18 Scheduler Helpers
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-
-  globalThis.flushPromises = () =>
-    new Promise((resolve) => queueMicrotask(resolve));
-
-  globalThis.flushTimers = async () => {
-    vi.runOnlyPendingTimers();
-    await globalThis.flushPromises();
-  };
-
-  globalThis.nextTick = () =>
-    new Promise((resolve) => process.nextTick(resolve));
-
-  globalThis.waitForMicrotasks = () =>
-    Promise.resolve();
-});
-
-/*
-|--------------------------------------------------------------------------
-| Fake Timers
-|--------------------------------------------------------------------------
-*/
-
-beforeEach(() => {
-  vi.useFakeTimers({
-    shouldAdvanceTime: false,
-  });
-
-  vi.setSystemTime(
-    new Date("2026-01-01T00:00:00.000Z")
-  );
-});
-
-/*
-|--------------------------------------------------------------------------
-| requestAnimationFrame
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.requestAnimationFrame = vi.fn((callback) =>
-    setTimeout(() => callback(performance.now()), 16)
-  );
-
-  globalThis.cancelAnimationFrame = vi.fn((id) =>
-    clearTimeout(id)
-  );
-});
-
-/*
-|--------------------------------------------------------------------------
-| requestIdleCallback
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
+if (
+  typeof globalThis.requestIdleCallback !==
+  'function'
+) {
   globalThis.requestIdleCallback =
-    globalThis.requestIdleCallback ||
-    ((callback) =>
+    (callback) =>
       setTimeout(
         () =>
           callback({
@@ -1192,20 +392,25 @@ beforeAll(() => {
             timeRemaining: () => 50,
           }),
         1
-      ));
+      );
+}
 
+if (
+  typeof globalThis.cancelIdleCallback !==
+  'function'
+) {
   globalThis.cancelIdleCallback =
-    globalThis.cancelIdleCallback ||
-    ((id) => clearTimeout(id));
-});
+    (id) => clearTimeout(id);
+}
 
-/*
-|--------------------------------------------------------------------------
-| ResizeObserver
-|--------------------------------------------------------------------------
-*/
+// -----------------------------------------------------------------------------
+// ResizeObserver
+// -----------------------------------------------------------------------------
 
-beforeAll(() => {
+if (
+  typeof globalThis.ResizeObserver ===
+  'undefined'
+) {
   globalThis.ResizeObserver = class {
     constructor(callback) {
       this.callback = callback;
@@ -1218,575 +423,1011 @@ beforeAll(() => {
     disconnect = vi.fn();
 
     trigger(entries = []) {
-      this.callback(entries, this);
-    }
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| IntersectionObserver
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.IntersectionObserver = class {
-    constructor(callback, options = {}) {
-      this.callback = callback;
-      this.options = options;
-    }
-
-    root = null;
-
-    rootMargin = "0px";
-
-    thresholds = [0];
-
-    observe = vi.fn();
-
-    unobserve = vi.fn();
-
-    disconnect = vi.fn();
-
-    takeRecords = vi.fn(() => []);
-
-    trigger(
-      isIntersecting = true,
-      ratio = 1
-    ) {
-      this.callback([
-        {
-          isIntersecting,
-          intersectionRatio: ratio,
-          target: document.body,
-          boundingClientRect: new DOMRect(),
-          intersectionRect: new DOMRect(),
-          rootBounds: new DOMRect(),
-          time: performance.now(),
-        },
-      ]);
-    }
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| MutationObserver
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.MutationObserver = class {
-    constructor(callback) {
-      this.callback = callback;
-    }
-
-    observe = vi.fn();
-
-    disconnect = vi.fn();
-
-    takeRecords = vi.fn(() => []);
-
-    trigger(records = []) {
-      this.callback(records, this);
-    }
-  };
-});
-
-/*
-|--------------------------------------------------------------------------
-| DOMRect
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  globalThis.DOMRect = class {
-    constructor(
-      x = 0,
-      y = 0,
-      width = 0,
-      height = 0
-    ) {
-      this.x = x;
-      this.y = y;
-      this.width = width;
-      this.height = height;
-
-      this.top = y;
-      this.left = x;
-      this.right = x + width;
-      this.bottom = y + height;
-    }
-
-    static fromRect(rect = {}) {
-      return new DOMRect(
-        rect.x ?? 0,
-        rect.y ?? 0,
-        rect.width ?? 0,
-        rect.height ?? 0
+      this.callback(
+        entries,
+        this
       );
     }
   };
-});
+}
 
-/*
-|--------------------------------------------------------------------------
-| Performance API
-|--------------------------------------------------------------------------
-*/
+// -----------------------------------------------------------------------------
+// IntersectionObserver
+// -----------------------------------------------------------------------------
 
-beforeAll(() => {
-  Object.defineProperty(globalThis, "performance", {
-    configurable: true,
-    writable: true,
-    value: {
-      now: vi.fn(() => Date.now()),
+if (
+  typeof globalThis.IntersectionObserver ===
+  'undefined'
+) {
+  globalThis.IntersectionObserver =
+    class {
+      constructor(
+        callback,
+        options = {}
+      ) {
+        this.callback = callback;
+        this.options = options;
 
-      mark: vi.fn(),
+        this.root = null;
+        this.rootMargin = '0px';
+        this.thresholds = [0];
+      }
 
-      measure: vi.fn(),
+      observe = vi.fn();
 
-      clearMarks: vi.fn(),
+      unobserve = vi.fn();
 
-      clearMeasures: vi.fn(),
+      disconnect = vi.fn();
 
-      getEntries: vi.fn(() => []),
+      takeRecords = vi.fn(
+        () => []
+      );
 
-      getEntriesByType: vi.fn(() => []),
+      trigger(
+        isIntersecting = true,
+        ratio = 1
+      ) {
+        this.callback(
+          [
+            {
+              isIntersecting,
+              intersectionRatio:
+                ratio,
+              target:
+                document.body,
+              boundingClientRect:
+                new DOMRect(),
+              intersectionRect:
+                new DOMRect(),
+              rootBounds:
+                new DOMRect(),
+              time:
+                typeof performance
+                  ?.now === 'function'
+                  ? performance.now()
+                  : Date.now(),
+            },
+          ],
+          this
+        );
+      }
+    };
+}
 
-      getEntriesByName: vi.fn(() => []),
-    },
-  });
-});
+// -----------------------------------------------------------------------------
+// MutationObserver
+// -----------------------------------------------------------------------------
 
-/*
-|--------------------------------------------------------------------------
-| Visual Viewport
-|--------------------------------------------------------------------------
-*/
+if (
+  typeof globalThis.MutationObserver ===
+  'undefined'
+) {
+  globalThis.MutationObserver =
+    class {
+      constructor(callback) {
+        this.callback = callback;
+      }
 
-beforeAll(() => {
-  Object.defineProperty(window, "visualViewport", {
-    configurable: true,
-    writable: true,
-    value: {
-      width: 1440,
-      height: 900,
-      scale: 1,
+      observe = vi.fn();
 
-      offsetLeft: 0,
-      offsetTop: 0,
+      disconnect = vi.fn();
 
-      pageLeft: 0,
-      pageTop: 0,
+      takeRecords = vi.fn(
+        () => []
+      );
 
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    },
-  });
-});
+      trigger(records = []) {
+        this.callback(
+          records,
+          this
+        );
+      }
+    };
+}
 
-/*
-|--------------------------------------------------------------------------
-| Scroll APIs
-|--------------------------------------------------------------------------
-*/
+// -----------------------------------------------------------------------------
+// DOMRect
+// -----------------------------------------------------------------------------
 
-beforeAll(() => {
-  window.scrollTo = vi.fn();
+if (
+  typeof globalThis.DOMRect ===
+  'undefined'
+) {
+  globalThis.DOMRect =
+    class {
+      constructor(
+        x = 0,
+        y = 0,
+        width = 0,
+        height = 0
+      ) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
 
-  window.scrollBy = vi.fn();
+        this.top = y;
+        this.left = x;
+        this.right =
+          x + width;
+        this.bottom =
+          y + height;
+      }
 
-  Element.prototype.scrollIntoView = vi.fn();
+      static fromRect(
+        rect = {}
+      ) {
+        return new DOMRect(
+          rect.x ?? 0,
+          rect.y ?? 0,
+          rect.width ?? 0,
+          rect.height ?? 0
+        );
+      }
+    };
+}
 
-  Element.prototype.scrollTo = vi.fn();
+// -----------------------------------------------------------------------------
+// Element.animate
+// -----------------------------------------------------------------------------
 
-  Element.prototype.scrollBy = vi.fn();
-});
+if (
+  typeof Element !== 'undefined' &&
+  typeof Element.prototype.animate !==
+    'function'
+) {
+  Element.prototype.animate = vi.fn(
+    () => ({
+      play: vi.fn(),
+      pause: vi.fn(),
+      reverse: vi.fn(),
+      cancel: vi.fn(),
+      finish: vi.fn(),
 
-/*
-|--------------------------------------------------------------------------
-| Pointer Events
-|--------------------------------------------------------------------------
-*/
+      currentTime: 0,
 
-beforeAll(() => {
-  HTMLElement.prototype.setPointerCapture =
-    vi.fn();
+      playState:
+        'running',
 
-  HTMLElement.prototype.releasePointerCapture =
-    vi.fn();
+      finished:
+        Promise.resolve(),
 
-  HTMLElement.prototype.hasPointerCapture =
-    vi.fn(() => false);
-});
+      ready:
+        Promise.resolve(),
 
-/*
-|--------------------------------------------------------------------------
-| Element Geometry
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  Element.prototype.getBoundingClientRect =
-    vi.fn(() => ({
-      x: 0,
-      y: 0,
-      top: 0,
-      left: 0,
-      bottom: 100,
-      right: 200,
-      width: 200,
-      height: 100,
-    }));
-
-  Element.prototype.getClientRects =
-    vi.fn(() => []);
-});
-
-/*
-|--------------------------------------------------------------------------
-| CSS Animations
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  Element.prototype.animate = vi.fn(() => ({
-    play: vi.fn(),
-    pause: vi.fn(),
-    reverse: vi.fn(),
-    cancel: vi.fn(),
-    finish: vi.fn(),
-
-    currentTime: 0,
-    playState: "running",
-
-    finished: Promise.resolve(),
-
-    ready: Promise.resolve(),
-
-    onfinish: null,
-  }));
-});
-
-/*
-|--------------------------------------------------------------------------
-| Media Query Improvements
-|--------------------------------------------------------------------------
-*/
-
-beforeAll(() => {
-  window.matchMedia = vi.fn().mockImplementation((query) => ({
-    media: query,
-
-    matches: false,
-
-    onchange: null,
-
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-
-    dispatchEvent: vi.fn(),
-  }));
-});
-
-/*
-|--------------------------------------------------------------------------
-| Enterprise Timer Cleanup
-|--------------------------------------------------------------------------
-*/
-
-afterEach(() => {
-  vi.runOnlyPendingTimers();
-
-  vi.clearAllTimers();
-
-  vi.useRealTimers();
-});
-
-/* ============================================================================
-   End Part 4
-
-   Part 5 adds:
-
-   • Enterprise cleanup utilities
-   • React Query cache reset
-   • Redux store reset helpers
-   • MSW helper utilities
-   • Console filtering
-   • Test helper exports
-   • Global teardown
-   • Memory leak detection
-   • Final enterprise lifecycle management
-============================================================================ */
-/* ============================================================================
-   Part 5
-   Enterprise Cleanup, Reset Hooks, Helper Utilities & Global Lifecycle
-============================================================================ */
-
-/*
-|--------------------------------------------------------------------------
-| Console Filtering
-|--------------------------------------------------------------------------
-|
-| Suppress only known noisy warnings while preserving genuine failures.
-|
-*/
-
-const IGNORED_CONSOLE_PATTERNS = [
-  /ReactDOM\.render/i,
-  /ReactDOMTestUtils\.act/i,
-  /validateDOMNesting/i,
-  /Not implemented: navigation/i,
-  /Warning:.*act\(/i,
-  /Warning:.*defaultProps/i,
-];
-
-const originalConsole = {
-  error: console.error,
-  warn: console.warn,
-  info: console.info,
-};
-
-function shouldIgnoreConsoleMessage(message) {
-  const text = String(message ?? "");
-
-  return IGNORED_CONSOLE_PATTERNS.some((pattern) =>
-    pattern.test(text)
+      onfinish: null,
+      oncancel: null,
+    })
   );
 }
 
-beforeEach(() => {
-  console.error = (...args) => {
-    if (shouldIgnoreConsoleMessage(args[0])) return;
-    originalConsole.error(...args);
-  };
+// ============================================================================
+// 10. CRYPTO
+// ============================================================================
+//
+// Prefer the native Web Crypto implementation.
+//
+// Only polyfill randomUUID when it is absent.
+//
+// Do NOT create fake `crypto.subtle` objects because crypto tests must fail
+// when real cryptographic functionality is unavailable.
+// ============================================================================
 
-  console.warn = (...args) => {
-    if (shouldIgnoreConsoleMessage(args[0])) return;
-    originalConsole.warn(...args);
-  };
-});
+if (
+  globalThis.crypto &&
+  typeof globalThis.crypto.randomUUID !==
+    'function'
+) {
+  globalThis.crypto.randomUUID =
+    vi.fn(
+      () => TEST_UUID
+    );
+}
 
-afterAll(() => {
-  console.error = originalConsole.error;
-  console.warn = originalConsole.warn;
-  console.info = originalConsole.info;
-});
+// ============================================================================
+// 11. URL API
+// ============================================================================
 
-/*
-|--------------------------------------------------------------------------
-| React Query Helpers
-|--------------------------------------------------------------------------
-*/
+if (
+  typeof URL !== 'undefined' &&
+  typeof URL.createObjectURL !==
+    'function'
+) {
+  URL.createObjectURL =
+    vi.fn(
+      () =>
+        'blob:titech-test-object-url'
+    );
+}
 
-globalThis.resetReactQueryClient = (queryClient) => {
-  if (!queryClient) return;
+if (
+  typeof URL !== 'undefined' &&
+  typeof URL.revokeObjectURL !==
+    'function'
+) {
+  URL.revokeObjectURL =
+    vi.fn();
+}
 
-  queryClient.cancelQueries?.();
+if (
+  typeof URL !== 'undefined' &&
+  typeof URL.canParse !==
+    'function'
+) {
+  URL.canParse =
+    vi.fn(
+      () => true
+    );
+}
 
-  queryClient.clear?.();
+// ============================================================================
+// 12. FILE APIs
+// ============================================================================
 
-  queryClient.removeQueries?.();
+if (
+  typeof globalThis.File ===
+  'undefined'
+) {
+  globalThis.File =
+    class File extends Blob {
+      constructor(
+        chunks,
+        filename,
+        options = {}
+      ) {
+        super(
+          chunks,
+          options
+        );
 
-  queryClient.removeMutations?.();
+        this.name =
+          filename;
 
-  queryClient.getQueryCache?.().clear?.();
+        this.lastModified =
+          options.lastModified ??
+          Date.now();
 
-  queryClient.getMutationCache?.().clear?.();
-};
+        this.webkitRelativePath =
+          '';
+      }
+    };
+}
 
-/*
-|--------------------------------------------------------------------------
-| Redux Helpers
-|--------------------------------------------------------------------------
-*/
+// -----------------------------------------------------------------------------
+// FileReader
+// -----------------------------------------------------------------------------
 
-globalThis.resetReduxStore = (store) => {
-  if (!store) return;
+if (
+  typeof globalThis.FileReader ===
+  'undefined'
+) {
+  globalThis.FileReader =
+    class {
+      constructor() {
+        this.result = null;
+        this.error = null;
 
-  try {
-    store.dispatch?.({
-      type: "__TEST__/RESET",
-    });
-  } catch {
-    // ignore
+        this.onload = null;
+        this.onerror = null;
+        this.onloadend = null;
+      }
+
+      readAsDataURL() {
+        this.result =
+          'data:text/plain;base64,dGVzdA==';
+
+        this.onload?.({
+          target: this,
+        });
+
+        this.onloadend?.({
+          target: this,
+        });
+      }
+
+      readAsText() {
+        this.result =
+          'test';
+
+        this.onload?.({
+          target: this,
+        });
+
+        this.onloadend?.({
+          target: this,
+        });
+      }
+
+      readAsArrayBuffer() {
+        this.result =
+          new ArrayBuffer(16);
+
+        this.onload?.({
+          target: this,
+        });
+
+        this.onloadend?.({
+          target: this,
+        });
+      }
+
+      abort() {}
+    };
+}
+
+// ============================================================================
+// 13. CANVAS
+// ============================================================================
+
+if (
+  typeof HTMLCanvasElement !==
+    'undefined' &&
+  typeof HTMLCanvasElement.prototype
+    .getContext !== 'function'
+) {
+  HTMLCanvasElement.prototype
+    .getContext = vi.fn(
+      () => ({
+        fillRect: vi.fn(),
+        clearRect: vi.fn(),
+        beginPath: vi.fn(),
+        closePath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        arc: vi.fn(),
+        drawImage: vi.fn(),
+        fillText: vi.fn(),
+        strokeText: vi.fn(),
+        save: vi.fn(),
+        restore: vi.fn(),
+        scale: vi.fn(),
+        rotate: vi.fn(),
+        translate: vi.fn(),
+
+        measureText:
+          vi.fn(
+            () => ({
+              width: 100,
+            })
+          ),
+      })
+    );
+}
+
+if (
+  typeof HTMLCanvasElement !==
+    'undefined'
+) {
+  if (
+    typeof HTMLCanvasElement
+      .prototype.toBlob !==
+    'function'
+  ) {
+    HTMLCanvasElement.prototype
+      .toBlob = vi.fn(
+        (callback) =>
+          callback(
+            new Blob()
+          )
+      );
   }
-};
 
-/*
-|--------------------------------------------------------------------------
-| MSW Helpers
-|--------------------------------------------------------------------------
-*/
+  if (
+    typeof HTMLCanvasElement
+      .prototype.toDataURL !==
+    'function'
+  ) {
+    HTMLCanvasElement.prototype
+      .toDataURL = vi.fn(
+        () =>
+          'data:image/png;base64,test'
+      );
+  }
+}
 
-globalThis.useMockHandler = (...handlers) => {
-  server.use(...handlers);
-};
+// ============================================================================
+// 14. SVG
+// ============================================================================
 
-globalThis.resetMockServer = () => {
-  server.resetHandlers();
-};
+if (
+  typeof SVGElement !==
+    'undefined'
+) {
+  if (
+    typeof SVGElement.prototype
+      .getBBox !== 'function'
+  ) {
+    SVGElement.prototype.getBBox =
+      vi.fn(
+        () => ({
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 50,
+        })
+      );
+  }
 
-/*
-|--------------------------------------------------------------------------
-| Enterprise Async Helpers
-|--------------------------------------------------------------------------
-*/
+  if (
+    typeof SVGElement.prototype
+      .getComputedTextLength !==
+    'function'
+  ) {
+    SVGElement.prototype
+      .getComputedTextLength =
+      vi.fn(
+        () => 100
+      );
+  }
+}
 
-globalThis.sleep = (ms = 0) =>
-  new Promise((resolve) =>
-    setTimeout(resolve, ms)
+// ============================================================================
+// 15. POINTER EVENTS
+// ============================================================================
+
+if (
+  typeof HTMLElement !==
+    'undefined'
+) {
+  if (
+    typeof HTMLElement.prototype
+      .setPointerCapture !==
+    'function'
+  ) {
+    HTMLElement.prototype
+      .setPointerCapture =
+      vi.fn();
+  }
+
+  if (
+    typeof HTMLElement.prototype
+      .releasePointerCapture !==
+    'function'
+  ) {
+    HTMLElement.prototype
+      .releasePointerCapture =
+      vi.fn();
+  }
+
+  if (
+    typeof HTMLElement.prototype
+      .hasPointerCapture !==
+    'function'
+  ) {
+    HTMLElement.prototype
+      .hasPointerCapture =
+      vi.fn(
+        () => false
+      );
+  }
+}
+
+// ============================================================================
+// 16. FILE PICKER APIs
+// ============================================================================
+
+if (
+  typeof window !== 'undefined'
+) {
+  if (
+    typeof window.showOpenFilePicker !==
+    'function'
+  ) {
+    window.showOpenFilePicker =
+      vi.fn(
+        async () => []
+      );
+  }
+
+  if (
+    typeof window.showSaveFilePicker !==
+    'function'
+  ) {
+    window.showSaveFilePicker =
+      vi.fn(
+        async () => ({
+          createWritable:
+            async () => ({
+              write: vi.fn(),
+              close: vi.fn(),
+            }),
+        })
+      );
+  }
+}
+
+// ============================================================================
+// 17. IMAGE BITMAP
+// ============================================================================
+
+if (
+  typeof globalThis.createImageBitmap !==
+  'function'
+) {
+  globalThis.createImageBitmap =
+    vi.fn(
+      async () => ({})
+    );
+}
+
+// ============================================================================
+// 18. DATA TRANSFER / DRAG AND DROP
+// ============================================================================
+
+if (
+  typeof globalThis.DataTransfer ===
+  'undefined'
+) {
+  globalThis.DataTransfer =
+    class {
+      constructor() {
+        this.dropEffect =
+          'copy';
+
+        this.effectAllowed =
+          'all';
+
+        this.files = [];
+        this.items = [];
+        this.types = [];
+      }
+
+      setData = vi.fn();
+
+      getData =
+        vi.fn(
+          () => ''
+        );
+
+      clearData =
+        vi.fn();
+
+      setDragImage =
+        vi.fn();
+    };
+}
+
+if (
+  typeof globalThis.DragEvent ===
+  'undefined'
+) {
+  globalThis.DragEvent =
+    class extends Event {
+      constructor(
+        type,
+        options = {}
+      ) {
+        super(
+          type,
+          options
+        );
+
+        this.dataTransfer =
+          options.dataTransfer ??
+          new DataTransfer();
+      }
+    };
+}
+
+// ============================================================================
+// 19. BROADCAST CHANNEL
+// ============================================================================
+
+if (
+  typeof globalThis.BroadcastChannel ===
+  'undefined'
+) {
+  globalThis.BroadcastChannel =
+    class {
+      constructor(name) {
+        this.name = name;
+        this.onmessage = null;
+        this.onmessageerror = null;
+      }
+
+      postMessage =
+        vi.fn();
+
+      close =
+        vi.fn();
+
+      addEventListener =
+        vi.fn();
+
+      removeEventListener =
+        vi.fn();
+
+      dispatchEvent =
+        vi.fn(
+          () => false
+        );
+    };
+}
+
+// ============================================================================
+// 20. WEB WORKER
+// ============================================================================
+
+if (
+  typeof globalThis.Worker ===
+  'undefined'
+) {
+  globalThis.Worker =
+    class {
+      constructor() {
+        this.onmessage = null;
+        this.onerror = null;
+        this.onmessageerror = null;
+      }
+
+      postMessage =
+        vi.fn();
+
+      terminate =
+        vi.fn();
+
+      addEventListener =
+        vi.fn();
+
+      removeEventListener =
+        vi.fn();
+
+      dispatchEvent =
+        vi.fn(
+          () => false
+        );
+    };
+}
+
+// ============================================================================
+// 21. SHARED WORKER
+// ============================================================================
+
+if (
+  typeof globalThis.SharedWorker ===
+  'undefined'
+) {
+  globalThis.SharedWorker =
+    class {
+      constructor() {
+        this.port = {
+          start: vi.fn(),
+          close: vi.fn(),
+          postMessage: vi.fn(),
+          addEventListener:
+            vi.fn(),
+          removeEventListener:
+            vi.fn(),
+          dispatchEvent:
+            vi.fn(
+              () => false
+            ),
+        };
+      }
+    };
+}
+
+// ============================================================================
+// 22. INDEXED DB
+// ============================================================================
+//
+// Only provide a lightweight fallback when the test environment has no
+// IndexedDB implementation.
+//
+// For realistic persistence tests, prefer a dedicated IndexedDB implementation
+// such as fake-indexeddb in the Vitest environment.
+// ============================================================================
+
+if (
+  typeof globalThis.indexedDB ===
+  'undefined'
+) {
+  globalThis.indexedDB = {
+    open: vi.fn(
+      () => ({
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+        result: {
+          close: vi.fn(),
+          transaction: vi.fn(
+            () => ({
+              objectStore:
+                vi.fn(
+                  () => ({
+                    add: vi.fn(),
+                    put: vi.fn(),
+                    get: vi.fn(),
+                    getAll:
+                      vi.fn(),
+                    delete:
+                      vi.fn(),
+                    clear:
+                      vi.fn(),
+                    count:
+                      vi.fn(),
+                    createIndex:
+                      vi.fn(),
+                    index:
+                      vi.fn(),
+                  })
+                ),
+            })
+          ),
+          createObjectStore:
+            vi.fn(
+              () => ({
+                createIndex:
+                  vi.fn(),
+              })
+            ),
+        },
+      })
+    ),
+
+    deleteDatabase:
+      vi.fn(
+        () => ({})
+      ),
+
+    databases:
+      vi.fn(
+        async () => []
+      ),
+  };
+}
+
+// ============================================================================
+// 23. VISUAL VIEWPORT
+// ============================================================================
+
+if (
+  typeof window !== 'undefined' &&
+  !window.visualViewport
+) {
+  Object.defineProperty(
+    window,
+    'visualViewport',
+    {
+      configurable: true,
+      writable: false,
+
+      value: {
+        width: 1440,
+        height: 900,
+        scale: 1,
+
+        offsetLeft: 0,
+        offsetTop: 0,
+
+        pageLeft: 0,
+        pageTop: 0,
+
+        addEventListener:
+          vi.fn(),
+
+        removeEventListener:
+          vi.fn(),
+
+        dispatchEvent:
+          vi.fn(
+            () => false
+          ),
+      },
+    }
+  );
+}
+
+// ============================================================================
+// 24. ELEMENT GEOMETRY
+// ============================================================================
+
+if (
+  typeof Element !==
+  'undefined'
+) {
+  if (
+    typeof Element.prototype
+      .getBoundingClientRect !==
+    'function'
+  ) {
+    Element.prototype
+      .getBoundingClientRect =
+      vi.fn(
+        () => ({
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          bottom: 100,
+          right: 200,
+          width: 200,
+          height: 100,
+          toJSON: vi.fn(),
+        })
+      );
+  }
+
+  if (
+    typeof Element.prototype
+      .getClientRects !==
+    'function'
+  ) {
+    Element.prototype
+      .getClientRects =
+      vi.fn(
+        () => []
+      );
+  }
+}
+
+// ============================================================================
+// 25. FILE TEST HELPERS
+// ============================================================================
+
+globalThis.createTestFile = (
+  name = 'document.pdf',
+  type = 'application/pdf',
+  content = 'test'
+) =>
+  new File(
+    [content],
+    name,
+    { type }
   );
 
-globalThis.flushAllPromises = async () => {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-};
+globalThis.createImageFile =
+  () =>
+    globalThis.createTestFile(
+      'logo.png',
+      'image/png',
+      'image'
+    );
 
-globalThis.advanceTimers = async (
-  milliseconds = 0
-) => {
-  vi.advanceTimersByTime(milliseconds);
+globalThis.createPDFFile =
+  () =>
+    globalThis.createTestFile(
+      'certificate.pdf',
+      'application/pdf',
+      'pdf'
+    );
 
-  await globalThis.flushAllPromises();
-};
-
-/*
-|--------------------------------------------------------------------------
-| Mock File Upload Utilities
-|--------------------------------------------------------------------------
-*/
+globalThis.createCSVFile =
+  () =>
+    globalThis.createTestFile(
+      'members.csv',
+      'text/csv',
+      'id,name'
+    );
 
 globalThis.createUploadEvent = (
   input,
   files
 ) => {
-  Object.defineProperty(input, "files", {
-    configurable: true,
-    writable: false,
-    value: files,
-  });
+  Object.defineProperty(
+    input,
+    'files',
+    {
+      configurable: true,
+      value: files,
+    }
+  );
 
-  return new Event("change", {
-    bubbles: true,
-  });
+  return new Event(
+    'change',
+    {
+      bubbles: true,
+    }
+  );
 };
 
-/*
-|--------------------------------------------------------------------------
-| Memory Leak Detection
-|--------------------------------------------------------------------------
-*/
+// ============================================================================
+// 26. MSW HELPERS
+// ============================================================================
 
-let initialTimerCount = 0;
+globalThis.useMockHandler = (
+  ...handlers
+) => {
+  server.use(
+    ...handlers
+  );
+};
 
-beforeEach(() => {
-  initialTimerCount = vi.getTimerCount();
-});
+globalThis.resetMockServer =
+  () => {
+    server.resetHandlers();
+  };
 
-afterEach(() => {
-  const remainingTimers = vi.getTimerCount();
+// ============================================================================
+// 27. REACT QUERY HELPERS
+// ============================================================================
 
-  if (remainingTimers > initialTimerCount) {
-    vi.runOnlyPendingTimers();
-    vi.clearAllTimers();
-  }
-});
+globalThis.resetReactQueryClient =
+  (queryClient) => {
+    if (!queryClient) {
+      return;
+    }
 
-/*
-|--------------------------------------------------------------------------
-| Cleanup Routine
-|--------------------------------------------------------------------------
-*/
+    queryClient.cancelQueries?.();
 
-afterEach(() => {
-  cleanup();
+    queryClient.clear?.();
 
-  server.resetHandlers();
+    queryClient.removeQueries?.();
 
-  localStorage.clear();
+    queryClient.removeMutations?.();
 
-  sessionStorage.clear();
+    queryClient
+      .getQueryCache?.()
+      .clear?.();
 
-  document.body.innerHTML = "";
+    queryClient
+      .getMutationCache?.()
+      .clear?.();
+  };
 
-  document.head.innerHTML = "";
+// ============================================================================
+// 28. REDUX HELPERS
+// ============================================================================
 
-  vi.clearAllMocks();
+globalThis.resetReduxStore =
+  (store) => {
+    if (!store) {
+      return;
+    }
 
-  vi.restoreAllMocks();
-
-  vi.clearAllTimers();
-
-  vi.useRealTimers();
-});
-
-/*
-|--------------------------------------------------------------------------
-| Global Teardown
-|--------------------------------------------------------------------------
-*/
-
-afterAll(() => {
-  try {
-    server.close();
-  } catch {
-    // ignore
-  }
-
-  cleanup();
-
-  vi.restoreAllMocks();
-
-  vi.clearAllMocks();
-
-  vi.clearAllTimers();
-
-  if (typeof indexedDB !== "undefined") {
-    indexedDB.databases?.().then((dbs) => {
-      dbs.forEach((db) => {
-        if (db.name) {
-          indexedDB.deleteDatabase(db.name);
-        }
+    try {
+      store.dispatch?.({
+        type: '__TEST__/RESET',
       });
-    }).catch(() => {
-      // ignore cleanup errors
-    });
-  }
-});
+    } catch {
+      /*
+       * Test cleanup should never mask the real test failure.
+       */
+    }
+  };
 
-/*
-|--------------------------------------------------------------------------
-| Enterprise Test Helper Namespace
-|--------------------------------------------------------------------------
-*/
+// ============================================================================
+// 29. TEST UTILITY NAMESPACE
+// ============================================================================
 
 globalThis.TestUtils = {
-  sleep: globalThis.sleep,
+  sleep:
+    globalThis.sleep,
 
-  flushPromises: globalThis.flushPromises,
+  wait:
+    globalThis.wait,
 
-  flushAllPromises: globalThis.flushAllPromises,
+  flushPromises:
+    globalThis.flushPromises,
 
-  advanceTimers: globalThis.advanceTimers,
+  flushAllPromises:
+    globalThis.flushAllPromises,
 
-  createTestFile: globalThis.createTestFile,
+  flushTimers:
+    globalThis.flushTimers,
 
-  createPDFFile: globalThis.createPDFFile,
+  advanceTimers:
+    globalThis.advanceTimers,
 
-  createImageFile: globalThis.createImageFile,
+  createTestFile:
+    globalThis.createTestFile,
 
-  createCSVFile: globalThis.createCSVFile,
+  createPDFFile:
+    globalThis.createPDFFile,
 
-  createUploadEvent: globalThis.createUploadEvent,
+  createImageFile:
+    globalThis.createImageFile,
 
-  resetReduxStore: globalThis.resetReduxStore,
+  createCSVFile:
+    globalThis.createCSVFile,
+
+  createUploadEvent:
+    globalThis.createUploadEvent,
+
+  resetReduxStore:
+    globalThis.resetReduxStore,
 
   resetReactQueryClient:
     globalThis.resetReactQueryClient,
@@ -1798,41 +1439,262 @@ globalThis.TestUtils = {
     globalThis.resetMockServer,
 };
 
-/*
-|--------------------------------------------------------------------------
-| Final Environment Validation
-|--------------------------------------------------------------------------
-*/
+// ============================================================================
+// 30. MSW LIFECYCLE
+// ============================================================================
 
 beforeAll(() => {
-  expect(globalThis.fetch).toBeDefined();
-  expect(globalThis.localStorage).toBeDefined();
-  expect(globalThis.crypto).toBeDefined();
-  expect(server).toBeDefined();
+  server.listen({
+    onUnhandledRequest(
+      request
+    ) {
+      const pathname =
+        request.url.pathname;
+
+      /*
+       * Static assets are not part of API mocking.
+       */
+      if (
+        pathname.startsWith(
+          '/assets/'
+        ) ||
+        pathname.startsWith(
+          '/favicon'
+        )
+      ) {
+        return;
+      }
+
+      /*
+       * Do NOT throw by default here.
+       *
+       * This warning gives developers visibility while still allowing tests
+       * that intentionally exercise external endpoints to provide explicit
+       * handlers.
+       */
+
+      console.warn(
+        `[MSW] Unhandled ${request.method} ${request.url.href}`
+      );
+    },
+  });
+
+  window.addEventListener(
+    'unhandledrejection',
+    handleUnhandledRejection
+  );
 });
 
-/* ============================================================================
-   END OF ENTERPRISE TEST ENVIRONMENT
-   frontend/src/setupTests.js
+// ============================================================================
+// 31. TEST SETUP
+// ============================================================================
 
-   Features:
-   ✓ React 18 + Vitest
-   ✓ Testing Library
-   ✓ MSW API mocking
-   ✓ Axios mock
-   ✓ Socket.IO mock
-   ✓ Fetch mock
-   ✓ Browser API polyfills
-   ✓ File & Drag-and-Drop support
-   ✓ IndexedDB mock
-   ✓ BroadcastChannel mock
-   ✓ Web Worker mock
-   ✓ Canvas & SVG support
-   ✓ Performance APIs
-   ✓ React Query reset helpers
-   ✓ Redux reset helpers
-   ✓ Deterministic timers
-   ✓ Memory leak detection
-   ✓ Enterprise cleanup lifecycle
-   ✓ Fintech onboarding integration-test ready
-============================================================================ */
+beforeEach(() => {
+  resetRuntimeState();
+
+  installTestConsoleGuards();
+
+  vi.useFakeTimers({
+    shouldAdvanceTime: false,
+  });
+
+  /*
+   * Keep every test on a deterministic clock.
+   */
+  vi.setSystemTime(
+    new Date(
+      '2026-01-01T00:00:00.000Z'
+    )
+  );
+});
+
+// ============================================================================
+// 32. TEST CLEANUP
+// ============================================================================
+
+afterEach(() => {
+  /*
+   * React Testing Library cleanup first so mounted components can execute
+   * their own cleanup logic while the runtime still exists.
+   */
+  cleanup();
+
+  /*
+   * Restore MSW request handlers for the next test.
+   */
+  server.resetHandlers();
+
+  /*
+   * Clear test browser storage without deleting the storage implementation.
+   */
+  try {
+    localStorage.clear();
+  } catch {
+    // Ignore unavailable storage.
+  }
+
+  try {
+    sessionStorage.clear();
+  } catch {
+    // Ignore unavailable storage.
+  }
+
+  /*
+   * Detect unhandled promise rejections.
+   */
+  if (
+    runtimeState.unhandledRejections.length >
+    0
+  ) {
+    const firstRejection =
+      runtimeState.unhandledRejections[0];
+
+    runtimeState.unhandledRejections.length = 0;
+
+    throw firstRejection;
+  }
+
+  /*
+   * Flush and reset timers.
+   */
+  try {
+    vi.runOnlyPendingTimers();
+  } catch {
+    // Ignore timer cleanup errors.
+  }
+
+  vi.clearAllTimers();
+
+  /*
+   * Restore mocks and spies.
+   */
+  vi.clearAllMocks();
+
+  vi.restoreAllMocks();
+
+  /*
+   * Restore real timers.
+   */
+  vi.useRealTimers();
+
+  /*
+   * Restore console.
+   */
+  restoreTestConsole();
+});
+
+// ============================================================================
+// 33. GLOBAL TEARDOWN
+// ============================================================================
+
+afterAll(() => {
+  window.removeEventListener(
+    'unhandledrejection',
+    handleUnhandledRejection
+  );
+
+  try {
+    server.close();
+  } catch {
+    // Ignore MSW shutdown errors.
+  }
+
+  cleanup();
+
+  restoreTestConsole();
+
+  vi.clearAllMocks();
+
+  vi.restoreAllMocks();
+
+  vi.clearAllTimers();
+
+  vi.useRealTimers();
+});
+
+// ============================================================================
+// 34. ENVIRONMENT VALIDATION
+// ============================================================================
+
+beforeAll(() => {
+  expect(
+    globalThis.fetch
+  ).toBeDefined();
+
+  expect(
+    globalThis.localStorage
+  ).toBeDefined();
+
+  expect(
+    globalThis.sessionStorage
+  ).toBeDefined();
+
+  expect(
+    globalThis.crypto
+  ).toBeDefined();
+
+  expect(
+    server
+  ).toBeDefined();
+
+  expect(
+    globalThis.TextEncoder
+  ).toBeDefined();
+
+  expect(
+    globalThis.TextDecoder
+  ).toBeDefined();
+});
+
+// ============================================================================
+// 35. EXPORTABLE TEST HELPERS
+// ============================================================================
+//
+// Named exports are intentionally limited to stable identifiers/constants.
+//
+// Global helpers remain available through TestUtils for convenience.
+// ============================================================================
+
+export const TEST_API_BASE_URL =
+  'http://localhost:5000';
+
+export const TEST_BUILD_TIME =
+  '2026-01-01T00:00:00.000Z';
+
+/**
+ * ============================================================================
+ * END OF TITech COMMUNITY CAPITAL TEST ENVIRONMENT
+ * ============================================================================
+ *
+ * Supported areas:
+ *
+ *   ✓ React 18
+ *   ✓ Vitest
+ *   ✓ React Testing Library
+ *   ✓ Jest DOM matchers
+ *   ✓ MSW
+ *   ✓ React Router compatible browser environment
+ *   ✓ React Query test helpers
+ *   ✓ Redux test helpers
+ *   ✓ Deterministic timers
+ *   ✓ Deterministic timezone
+ *   ✓ Browser API fallbacks
+ *   ✓ File uploads
+ *   ✓ Drag and drop
+ *   ✓ Canvas
+ *   ✓ SVG
+ *   ✓ Workers
+ *   ✓ BroadcastChannel
+ *   ✓ IndexedDB fallback
+ *   ✓ ResizeObserver
+ *   ✓ IntersectionObserver
+ *   ✓ MutationObserver
+ *   ✓ VisualViewport
+ *   ✓ Animation APIs
+ *   ✓ Performance-compatible APIs
+ *   ✓ Promise rejection detection
+ *   ✓ Enterprise cleanup lifecycle
+ *
+ * TITech Community Capital
+ * ============================================================================
+ */

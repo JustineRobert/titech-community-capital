@@ -1,56 +1,220 @@
-// ============================================================================
-// TITech Community Capital
-// Enterprise Route Guards
-// File: src/routes/RouteGuards.jsx
-// Production Grade
-// ============================================================================
+'use strict';
+
+/**
+ * ============================================================================
+ * TITech Community Capital LTD
+ * TITech Community Capital Operating System
+ * ============================================================================
+ *
+ * File:
+ *   frontend/src/routes/RouteGuards.jsx
+ *
+ * Purpose:
+ *   Canonical frontend route authorization engine.
+ *
+ * Responsibilities:
+ *   - Authenticate route access
+ *   - Evaluate roles
+ *   - Evaluate permissions
+ *   - Evaluate feature flags
+ *   - Evaluate tenant requirements
+ *   - Evaluate subscription-plan requirements
+ *   - Evaluate branch requirements
+ *   - Compose multiple authorization policies
+ *   - Provide reusable authorization hooks
+ *   - Provide reusable guard HOCs
+ *
+ * Non-responsibilities:
+ *   - Token acquisition/refresh
+ *   - API calls
+ *   - Database access
+ *   - Backend authorization
+ *   - Financial business rules
+ *   - Ledger/wallet authorization
+ *
+ * IMPORTANT SECURITY PRINCIPLE:
+ *
+ *   This module is a frontend policy engine.
+ *
+ *   It is NOT the authoritative security boundary.
+ *
+ *   Every privileged TITech backend operation must independently enforce
+ *   authentication, tenant isolation, roles, permissions and business rules.
+ *
+ * ============================================================================
+ */
 
 import {
+  useCallback,
   useMemo,
-} from "react";
+} from 'react';
 
-import { useAuth } from "../context/AuthContext";
+import {
+  useAuth,
+} from '../context/AuthContext';
 
 // ============================================================================
-// Constants
+// Guard result constants
 // ============================================================================
 
-export const GuardResult = {
-  ALLOWED: "allowed",
+export const GuardResult = Object.freeze({
+  ALLOWED:
+    'allowed',
+
   UNAUTHENTICATED:
-    "unauthenticated",
+    'unauthenticated',
+
   UNAUTHORIZED:
-    "unauthorized",
+    'unauthorized',
+
+  ROLE_DENIED:
+    'role_denied',
+
+  PERMISSION_DENIED:
+    'permission_denied',
+
   FEATURE_DISABLED:
-    "feature_disabled",
+    'feature_disabled',
+
+  FEATURE_UNAVAILABLE:
+    'feature_unavailable',
+
   TENANT_REQUIRED:
-    "tenant_required",
+    'tenant_required',
+
+  TENANT_INACTIVE:
+    'tenant_inactive',
+
   SUBSCRIPTION_REQUIRED:
-    "subscription_required",
+    'subscription_required',
+
+  SUBSCRIPTION_UNAVAILABLE:
+    'subscription_unavailable',
+
   BRANCH_REQUIRED:
-    "branch_required",
+    'branch_required',
+
+  BRANCH_DENIED:
+    'branch_denied',
+
   SESSION_EXPIRED:
-    "session_expired",
-};
+    'session_expired',
+});
 
 // ============================================================================
-// Utilities
+// Permission modes
 // ============================================================================
 
-function normalizeArray(
+export const PermissionMode = Object.freeze({
+  ALL: 'all',
+  ANY: 'any',
+  NONE: 'none',
+});
+
+// ============================================================================
+// Plan hierarchy
+// ============================================================================
+//
+// Keep aligned with routeConfig.js:
+//
+//   free         = 0
+//   starter      = 1
+//   professional = 2
+//   enterprise   = 3
+//
+// ============================================================================
+
+const PLAN_LEVELS = Object.freeze({
+  free: 0,
+  starter: 1,
+  professional: 2,
+  enterprise: 3,
+});
+
+// ============================================================================
+// Normalization utilities
+// ============================================================================
+
+export function normalizeString(
   value
 ) {
   if (
-    Array.isArray(
-      value
-    )
+    typeof value !==
+    'string'
   ) {
-    return value;
+    return null;
+  }
+
+  const normalized =
+    value.trim();
+
+  return normalized || null;
+}
+
+export function normalizeRole(
+  role
+) {
+  const normalized =
+    normalizeString(role);
+
+  return normalized
+    ? normalized.toLowerCase()
+    : null;
+}
+
+export function normalizePermission(
+  permission
+) {
+  return normalizeString(
+    permission
+  );
+}
+
+export function normalizePlan(
+  plan
+) {
+  const normalized =
+    normalizeString(plan);
+
+  return normalized
+    ? normalized.toLowerCase()
+    : null;
+}
+
+export function normalizeIdentifier(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  const normalized =
+    String(value).trim();
+
+  return normalized || null;
+}
+
+export function normalizeArray(
+  value
+) {
+  if (
+    Array.isArray(value)
+  ) {
+    return value.filter(
+      (
+        item
+      ) =>
+        item !== null &&
+        item !== undefined
+    );
   }
 
   if (
-    value === undefined ||
-    value === null
+    value === null ||
+    value === undefined
   ) {
     return [];
   }
@@ -58,28 +222,23 @@ function normalizeArray(
   return [value];
 }
 
-function includesAny(
-  source = [],
-  values = []
+function uniqueNormalized(
+  values,
+  normalizer
 ) {
-  return values.some(
-    (v) =>
-      source.includes(v)
-  );
-}
-
-function includesAll(
-  source = [],
-  values = []
-) {
-  return values.every(
-    (v) =>
-      source.includes(v)
-  );
+  return [
+    ...new Set(
+      normalizeArray(
+        values
+      )
+        .map(normalizer)
+        .filter(Boolean)
+    ),
+  ];
 }
 
 // ============================================================================
-// Authentication Guard
+// Authentication guard
 // ============================================================================
 
 export function canAccessAuthenticated(
@@ -96,6 +255,21 @@ export function canAccessAuthenticated(
     };
   }
 
+  /*
+   * If AuthContext exposes a known session-expired state, preserve that
+   * reason instead of reporting generic unauthenticated access.
+   */
+  if (
+    auth?.sessionExpired ===
+    true
+  ) {
+    return {
+      allowed: false,
+      reason:
+        GuardResult.SESSION_EXPIRED,
+    };
+  }
+
   return {
     allowed: true,
     reason:
@@ -104,29 +278,32 @@ export function canAccessAuthenticated(
 }
 
 // ============================================================================
-// Role Guard
+// Role guard
 // ============================================================================
 
 export function canAccessRoles(
   auth,
   roles = []
 ) {
-  const result =
+  const authenticated =
     canAccessAuthenticated(
       auth
     );
 
-  if (!result.allowed) {
-    return result;
+  if (
+    !authenticated.allowed
+  ) {
+    return authenticated;
   }
 
-  const allowedRoles =
-    normalizeArray(
-      roles
+  const requiredRoles =
+    uniqueNormalized(
+      roles,
+      normalizeRole
     );
 
   if (
-    allowedRoles.length ===
+    requiredRoles.length ===
     0
   ) {
     return {
@@ -136,44 +313,87 @@ export function canAccessRoles(
     };
   }
 
-  const userRole =
-    auth.user?.role;
+  const currentRole =
+    normalizeRole(
+      auth?.user?.role
+    );
+
+  const allowed =
+    requiredRoles.includes(
+      currentRole
+    );
 
   return {
-    allowed:
-      allowedRoles.includes(
-        userRole
-      ),
-    reason:
-      allowedRoles.includes(
-        userRole
-      )
-        ? GuardResult.ALLOWED
-        : GuardResult.UNAUTHORIZED,
+    allowed,
+    reason: allowed
+      ? GuardResult.ALLOWED
+      : GuardResult.ROLE_DENIED,
   };
 }
 
 // ============================================================================
-// Permission Guard
+// Permission evaluation
+// ============================================================================
+
+function checkPermission(
+  auth,
+  permission
+) {
+  const normalized =
+    normalizePermission(
+      permission
+    );
+
+  if (!normalized) {
+    return false;
+  }
+
+  if (
+    typeof auth?.hasPermission ===
+    'function'
+  ) {
+    return Boolean(
+      auth.hasPermission(
+        normalized
+      )
+    );
+  }
+
+  const userPermissions =
+    uniqueNormalized(
+      auth?.permissions,
+      normalizePermission
+    );
+
+  return userPermissions.includes(
+    normalized
+  );
+}
+
+// ============================================================================
+// Permission guard
 // ============================================================================
 
 export function canAccessPermissions(
   auth,
   permissions = [],
-  mode = "all"
+  mode = PermissionMode.ALL
 ) {
-  const result =
+  const authenticated =
     canAccessAuthenticated(
       auth
     );
 
-  if (!result.allowed) {
-    return result;
+  if (
+    !authenticated.allowed
+  ) {
+    return authenticated;
   }
 
   const required =
-    normalizeArray(
-      permissions
+    uniqueNormalized(
+      permissions,
+      normalizePermission
     );
 
   if (
@@ -187,73 +407,88 @@ export function canAccessPermissions(
     };
   }
 
-  const userPermissions =
-    auth.permissions ||
-    [];
+  const normalizedMode =
+    Object.values(
+      PermissionMode
+    ).includes(mode)
+      ? mode
+      : PermissionMode.ALL;
 
-  let allowed =
-    false;
+  let allowed;
 
-  switch (mode) {
-    case "any":
+  switch (
+    normalizedMode
+  ) {
+    case PermissionMode.ANY:
       allowed =
-        includesAny(
-          userPermissions,
-          required
+        required.some(
+          (permission) =>
+            checkPermission(
+              auth,
+              permission
+            )
         );
       break;
 
-    case "none":
+    case PermissionMode.NONE:
       allowed =
-        !includesAny(
-          userPermissions,
-          required
+        required.every(
+          (permission) =>
+            !checkPermission(
+              auth,
+              permission
+            )
         );
       break;
 
-    case "all":
+    case PermissionMode.ALL:
     default:
       allowed =
-        includesAll(
-          userPermissions,
-          required
+        required.every(
+          (permission) =>
+            checkPermission(
+              auth,
+              permission
+            )
         );
+      break;
   }
 
   return {
     allowed,
-    reason:
-      allowed
-        ? GuardResult.ALLOWED
-        : GuardResult.UNAUTHORIZED,
+    reason: allowed
+      ? GuardResult.ALLOWED
+      : GuardResult.PERMISSION_DENIED,
   };
 }
 
 // ============================================================================
-// Tenant Guard
+// Tenant guard
 // ============================================================================
 
 export function canAccessTenant(
   auth,
   options = {}
 ) {
-  const result =
+  const authenticated =
     canAccessAuthenticated(
       auth
     );
 
-  if (!result.allowed) {
-    return result;
+  if (
+    !authenticated.allowed
+  ) {
+    return authenticated;
   }
 
   const {
-    requireActive =
-      true,
+    requireActive = true,
   } = options;
 
-  if (
-    !auth.tenant
-  ) {
+  const tenant =
+    auth?.tenant;
+
+  if (!tenant) {
     return {
       allowed: false,
       reason:
@@ -263,19 +498,23 @@ export function canAccessTenant(
 
   if (
     requireActive &&
-    auth.tenant.status &&
-    ![
-      "active",
-      "ACTIVE",
-    ].includes(
-      auth.tenant.status
-    )
+    tenant.status
   ) {
-    return {
-      allowed: false,
-      reason:
-        GuardResult.TENANT_REQUIRED,
-    };
+    const status =
+      normalizeString(
+        tenant.status
+      )?.toLowerCase();
+
+    if (
+      status &&
+      status !== 'active'
+    ) {
+      return {
+        allowed: false,
+        reason:
+          GuardResult.TENANT_INACTIVE,
+      };
+    }
   }
 
   return {
@@ -286,7 +525,7 @@ export function canAccessTenant(
 }
 
 // ============================================================================
-// Feature Guard
+// Feature guard
 // ============================================================================
 
 export function canAccessFeature(
@@ -301,57 +540,73 @@ export function canAccessFeature(
     };
   }
 
-  const result =
+  const authenticated =
     canAccessAuthenticated(
       auth
     );
 
-  if (!result.allowed) {
-    return result;
+  if (
+    !authenticated.allowed
+  ) {
+    return authenticated;
+  }
+
+  /*
+   * Fail closed when feature authorization is unavailable.
+   */
+  if (
+    typeof auth?.hasFeature !==
+    'function'
+  ) {
+    return {
+      allowed: false,
+      reason:
+        GuardResult.FEATURE_UNAVAILABLE,
+    };
   }
 
   const enabled =
-    typeof auth.hasFeature ===
-    "function"
-      ? auth.hasFeature(
-          feature
-        )
-      : false;
+    Boolean(
+      auth.hasFeature(
+        feature
+      )
+    );
 
   return {
-    allowed:
-      enabled,
-    reason:
-      enabled
-        ? GuardResult.ALLOWED
-        : GuardResult.FEATURE_DISABLED,
+    allowed: enabled,
+    reason: enabled
+      ? GuardResult.ALLOWED
+      : GuardResult.FEATURE_DISABLED,
   };
 }
 
 // ============================================================================
-// Subscription Guard
+// Subscription guard
 // ============================================================================
 
 export function canAccessSubscription(
   auth,
   requiredPlans = []
 ) {
-  const result =
+  const authenticated =
     canAccessAuthenticated(
       auth
     );
 
-  if (!result.allowed) {
-    return result;
+  if (
+    !authenticated.allowed
+  ) {
+    return authenticated;
   }
 
-  const plans =
-    normalizeArray(
-      requiredPlans
+  const required =
+    uniqueNormalized(
+      requiredPlans,
+      normalizePlan
     );
 
   if (
-    plans.length ===
+    required.length ===
     0
   ) {
     return {
@@ -362,43 +617,121 @@ export function canAccessSubscription(
   }
 
   const currentPlan =
-    auth.tenant?.plan ||
-    auth.subscription;
+    normalizePlan(
+      auth?.tenant?.plan ||
+        auth?.subscription?.plan ||
+        auth?.subscription
+    );
+
+  if (!currentPlan) {
+    return {
+      allowed: false,
+      reason:
+        GuardResult.SUBSCRIPTION_UNAVAILABLE,
+    };
+  }
+
+  const currentLevel =
+    PLAN_LEVELS[
+      currentPlan
+    ];
+
+  if (
+    typeof currentLevel !==
+    'number'
+  ) {
+    return {
+      allowed: false,
+      reason:
+        GuardResult.SUBSCRIPTION_UNAVAILABLE,
+    };
+  }
+
+  const requiredLevels =
+    required
+      .map(
+        (plan) =>
+          PLAN_LEVELS[
+            plan
+          ]
+      )
+      .filter(
+        (level) =>
+          typeof level ===
+          'number'
+      );
+
+  if (
+    requiredLevels.length ===
+    0
+  ) {
+    return {
+      allowed: false,
+      reason:
+        GuardResult.SUBSCRIPTION_UNAVAILABLE,
+    };
+  }
+
+  /*
+   * Treat routeConfig.plan as a minimum supported tier.
+   *
+   * Example:
+   *   [professional, enterprise]
+   *
+   * means professional and above.
+   */
+  const minimumRequiredLevel =
+    Math.min(
+      ...requiredLevels
+    );
 
   const allowed =
-    plans.includes(
-      currentPlan
-    );
+    currentLevel >=
+    minimumRequiredLevel;
 
   return {
     allowed,
-    reason:
-      allowed
-        ? GuardResult.ALLOWED
-        : GuardResult.SUBSCRIPTION_REQUIRED,
+
+    reason: allowed
+      ? GuardResult.ALLOWED
+      : GuardResult.SUBSCRIPTION_REQUIRED,
   };
 }
 
 // ============================================================================
-// Branch Guard
+// Branch guard
 // ============================================================================
+
+function resolveBranchId(
+  branch
+) {
+  return normalizeIdentifier(
+    branch?.id ??
+      branch?._id
+  );
+}
 
 export function canAccessBranch(
   auth,
   branchId
 ) {
-  const result =
+  const authenticated =
     canAccessAuthenticated(
       auth
     );
 
-  if (!result.allowed) {
-    return result;
+  if (
+    !authenticated.allowed
+  ) {
+    return authenticated;
   }
 
-  if (
-    !branchId
-  ) {
+  const requestedBranchId =
+    normalizeIdentifier(
+      branchId
+    );
+
+  if (!requestedBranchId) {
     return {
       allowed: true,
       reason:
@@ -407,29 +740,44 @@ export function canAccessBranch(
   }
 
   const branches =
-    auth.user
-      ?.branches || [];
+    normalizeArray(
+      auth?.user?.branches
+    );
 
   const allowed =
     branches.some(
-      (b) =>
-        b.id ===
-          branchId ||
-        b._id ===
-          branchId
+      (branch) =>
+        resolveBranchId(
+          branch
+        ) ===
+        requestedBranchId
     );
 
   return {
     allowed,
-    reason:
-      allowed
-        ? GuardResult.ALLOWED
-        : GuardResult.BRANCH_REQUIRED,
+    reason: allowed
+      ? GuardResult.ALLOWED
+      : GuardResult.BRANCH_DENIED,
   };
 }
 
 // ============================================================================
-// Composite Guard
+// Composite route evaluator
+// ============================================================================
+//
+// The evaluator intentionally evaluates authentication first so every
+// downstream check has a valid security context.
+//
+// Failure order:
+//
+//   authentication
+//   tenant
+//   roles
+//   permissions
+//   feature
+//   subscription
+//   branch
+//
 // ============================================================================
 
 export function evaluateRouteAccess(
@@ -437,64 +785,132 @@ export function evaluateRouteAccess(
   options = {}
 ) {
   const {
-    roles,
-    permissions,
+    roles = [],
+    permissions = [],
     permissionMode =
-      "all",
-    feature,
-    tenant,
-    subscription,
-    branchId,
+      PermissionMode.ALL,
+    feature = null,
+    tenant = false,
+    tenantOptions = {},
+    subscription = [],
+    branchId = null,
   } = options;
 
-  const checks = [
+  const authenticated =
     canAccessAuthenticated(
       auth
-    ),
+    );
+
+  if (
+    !authenticated.allowed
+  ) {
+    return authenticated;
+  }
+
+  // --------------------------------------------------------------------------
+  // Tenant
+  // --------------------------------------------------------------------------
+
+  if (tenant) {
+    const tenantResult =
+      canAccessTenant(
+        auth,
+        tenantOptions
+      );
+
+    if (
+      !tenantResult.allowed
+    ) {
+      return tenantResult;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Roles
+  // --------------------------------------------------------------------------
+
+  const roleResult =
     canAccessRoles(
       auth,
       roles
-    ),
+    );
+
+  if (
+    !roleResult.allowed
+  ) {
+    return roleResult;
+  }
+
+  // --------------------------------------------------------------------------
+  // Permissions
+  // --------------------------------------------------------------------------
+
+  const permissionResult =
     canAccessPermissions(
       auth,
       permissions,
       permissionMode
-    ),
+    );
+
+  if (
+    !permissionResult.allowed
+  ) {
+    return permissionResult;
+  }
+
+  // --------------------------------------------------------------------------
+  // Feature
+  // --------------------------------------------------------------------------
+
+  const featureResult =
     canAccessFeature(
       auth,
       feature
-    ),
-    tenant
-      ? canAccessTenant(
-          auth
-        )
-      : {
-          allowed:
-            true,
-        },
+    );
+
+  if (
+    !featureResult.allowed
+  ) {
+    return featureResult;
+  }
+
+  // --------------------------------------------------------------------------
+  // Subscription
+  // --------------------------------------------------------------------------
+
+  const subscriptionResult =
     canAccessSubscription(
       auth,
       subscription
-    ),
+    );
+
+  if (
+    !subscriptionResult.allowed
+  ) {
+    return subscriptionResult;
+  }
+
+  // --------------------------------------------------------------------------
+  // Branch
+  // --------------------------------------------------------------------------
+
+  const branchResult =
     canAccessBranch(
       auth,
       branchId
-    ),
-  ];
-
-  const failed =
-    checks.find(
-      (c) =>
-        !c.allowed
     );
 
-  return (
-    failed || {
-      allowed: true,
-      reason:
-        GuardResult.ALLOWED,
-    }
-  );
+  if (
+    !branchResult.allowed
+  ) {
+    return branchResult;
+  }
+
+  return {
+    allowed: true,
+    reason:
+      GuardResult.ALLOWED,
+  };
 }
 
 // ============================================================================
@@ -503,106 +919,285 @@ export function evaluateRouteAccess(
 
 export function useRouteGuards() {
   const auth =
-    useAuth();
+    useAuth() || {};
+
+  const canAccessAuthenticated =
+    useCallback(
+      () =>
+        canAccessAuthenticated(
+          auth
+        ),
+      [auth]
+    );
+
+  const canAccessRoles =
+    useCallback(
+      (roles) =>
+        canAccessRoles(
+          auth,
+          roles
+        ),
+      [auth]
+    );
+
+  const canAccessPermissions =
+    useCallback(
+      (
+        permissions,
+        mode
+      ) =>
+        canAccessPermissions(
+          auth,
+          permissions,
+          mode
+        ),
+      [auth]
+    );
+
+  const canAccessFeature =
+    useCallback(
+      (feature) =>
+        canAccessFeature(
+          auth,
+          feature
+        ),
+      [auth]
+    );
+
+  const canAccessTenant =
+    useCallback(
+      (options) =>
+        canAccessTenant(
+          auth,
+          options
+        ),
+      [auth]
+    );
+
+  const canAccessSubscription =
+    useCallback(
+      (plans) =>
+        canAccessSubscription(
+          auth,
+          plans
+        ),
+      [auth]
+    );
+
+  const canAccessBranch =
+    useCallback(
+      (branchId) =>
+        canAccessBranch(
+          auth,
+          branchId
+        ),
+      [auth]
+    );
+
+  const evaluate =
+    useCallback(
+      (options) =>
+        evaluateRouteAccess(
+          auth,
+          options
+        ),
+      [auth]
+    );
 
   return useMemo(
     () => ({
       auth,
-      canAccessAuthenticated:
-        () =>
-          canAccessAuthenticated(
-            auth
-          ),
 
-      canAccessRoles:
-        (roles) =>
-          canAccessRoles(
-            auth,
-            roles
-          ),
+      canAccessAuthenticated,
 
-      canAccessPermissions:
-        (
-          permissions,
-          mode
-        ) =>
-          canAccessPermissions(
-            auth,
-            permissions,
-            mode
-          ),
+      canAccessRoles,
 
-      canAccessFeature:
-        (
-          feature
-        ) =>
-          canAccessFeature(
-            auth,
-            feature
-          ),
+      canAccessPermissions,
 
-      canAccessTenant:
-        (
-          options
-        ) =>
-          canAccessTenant(
-            auth,
-            options
-          ),
+      canAccessFeature,
 
-      canAccessSubscription:
-        (
-          plans
-        ) =>
-          canAccessSubscription(
-            auth,
-            plans
-          ),
+      canAccessTenant,
 
-      canAccessBranch:
-        (
-          branchId
-        ) =>
-          canAccessBranch(
-            auth,
-            branchId
-          ),
+      canAccessSubscription,
 
-      evaluate:
-        (
-          options
-        ) =>
-          evaluateRouteAccess(
-            auth,
-            options
-          ),
+      canAccessBranch,
+
+      evaluate,
     }),
-    [auth]
+    [
+      auth,
+
+      canAccessAuthenticated,
+
+      canAccessRoles,
+
+      canAccessPermissions,
+
+      canAccessFeature,
+
+      canAccessTenant,
+
+      canAccessSubscription,
+
+      canAccessBranch,
+
+      evaluate,
+    ]
   );
 }
 
 // ============================================================================
-// HOC
+// Simple capability helpers
+// ============================================================================
+
+export function useAuthorizationCapabilities() {
+  const auth =
+    useAuth() || {};
+
+  const can =
+    useCallback(
+      (permission) =>
+        checkPermission(
+          auth,
+          permission
+        ),
+      [auth]
+    );
+
+  const canAny =
+    useCallback(
+      (permissions = []) =>
+        uniqueNormalized(
+          permissions,
+          normalizePermission
+        ).some(
+          (permission) =>
+            checkPermission(
+              auth,
+              permission
+            )
+        ),
+      [auth]
+    );
+
+  const canAll =
+    useCallback(
+      (permissions = []) =>
+        uniqueNormalized(
+          permissions,
+          normalizePermission
+        ).every(
+          (permission) =>
+            checkPermission(
+              auth,
+              permission
+            )
+        ),
+      [auth]
+    );
+
+  const cannot =
+    useCallback(
+      (permission) =>
+        !checkPermission(
+          auth,
+          permission
+        ),
+      [auth]
+    );
+
+  const hasRole =
+    useCallback(
+      (role) =>
+        normalizeRole(
+          auth?.user?.role
+        ) ===
+        normalizeRole(role),
+      [auth?.user?.role]
+    );
+
+  const featureEnabled =
+    useCallback(
+      (feature) =>
+        canAccessFeature(
+          auth,
+          feature
+        ).allowed,
+      [auth]
+    );
+
+  return {
+    can,
+    canAny,
+    canAll,
+    cannot,
+    hasRole,
+    featureEnabled,
+  };
+}
+
+// ============================================================================
+// Higher-order component
+// ============================================================================
+//
+// This HOC intentionally renders a fallback component when denied instead of
+// returning null. Silent null rendering makes authorization failures hard to
+// diagnose and harms accessibility.
+//
 // ============================================================================
 
 export function withRouteGuard(
   Component,
-  evaluator
+  evaluator,
+  {
+    Fallback = null,
+    fallbackProps = {},
+  } = {}
 ) {
+  if (
+    typeof Component !==
+    'function'
+  ) {
+    throw new TypeError(
+      'withRouteGuard requires a valid React component.'
+    );
+  }
+
+  if (
+    typeof evaluator !==
+    'function'
+  ) {
+    throw new TypeError(
+      'withRouteGuard requires a valid evaluator function.'
+    );
+  }
+
   function Guarded(
     props
   ) {
     const auth =
-      useAuth();
+      useAuth() || {};
 
     const result =
       evaluator(
-        auth
+        auth,
+        props
       );
 
     if (
-      !result.allowed
+      !result?.allowed
     ) {
+      if (
+        Fallback
+      ) {
+        return (
+          <Fallback
+            result={result}
+            {...fallbackProps}
+          />
+        );
+      }
+
       return null;
     }
 
@@ -617,18 +1212,27 @@ export function withRouteGuard(
     `withRouteGuard(${
       Component.displayName ||
       Component.name ||
-      "Component"
+      'Component'
     })`;
 
   return Guarded;
 }
 
 // ============================================================================
-// Default Export
+// Default export
 // ============================================================================
 
-export default {
+export default Object.freeze({
   GuardResult,
+  PermissionMode,
+
+  normalizeString,
+  normalizeRole,
+  normalizePermission,
+  normalizePlan,
+  normalizeIdentifier,
+  normalizeArray,
+
   canAccessAuthenticated,
   canAccessRoles,
   canAccessPermissions,
@@ -636,7 +1240,11 @@ export default {
   canAccessFeature,
   canAccessSubscription,
   canAccessBranch,
+
   evaluateRouteAccess,
+
   useRouteGuards,
+  useAuthorizationCapabilities,
+
   withRouteGuard,
-};
+});

@@ -1,77 +1,441 @@
-// src/context/SettingsContext.js
+// ============================================================================
+// TITech Community Capital
+// Enterprise Settings Context
+//
+// File:
+// frontend/src/context/SettingsContext.jsx
+//
+// Production Grade
+// Domain Context | Redux Toolkit Compatible
+// Defensive Loading | Retry | Refresh
+// StrictMode Safe | Unmount Safe
+// Stable Selectors | Error Isolation
+//
+// IMPORTANT ARCHITECTURAL MODEL
+//
+// React Context:
+//   - Exposes the settings domain API to UI components.
+//   - Does NOT expose Redux dispatch directly.
+//
+// State Layer:
+//   - Owns settings persistence/state transitions.
+//
+// API Layer:
+//   - Owns HTTP communication.
+//
+// Backend:
+//   - Remains authoritative for server-controlled settings.
+//
+// ============================================================================
 
-import React, { createContext, useEffect, useContext, useMemo } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchSettings } from '../redux/actions/settingsActions';
-import { toast } from 'react-toastify';
-import { createSelector } from 'reselect';
+"use strict";
 
-/**
- * Create Settings Context with default values.
- * This context provides access to app-wide settings.
- */
-const SettingsContext = createContext({
-  settings: {},
-  loading: false,
-  error: null,
-  dispatch: () => {},
-});
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 
-/**
- * Memoized selector for Redux store's settings slice.
- */
-const selectSettingsState = (state) => state.settings || {};
+import PropTypes from "prop-types";
 
-const selectSettings = createSelector([selectSettingsState], (settings) => ({
-  data: settings.data || {},
-  loading: settings.loading || false,
-  error: settings.error || null,
-}));
+import { useDispatch, useSelector } from "react-redux";
 
-/**
- * Context provider to supply application settings via React context.
- * Automatically fetches settings from backend if not loaded.
- */
-export const SettingsProvider = ({ children }) => {
-  const dispatch = useDispatch();
-  const { data, loading, error } = useSelector(selectSettings);
+import { toast } from "react-toastify";
 
-  useEffect(() => {
-    // Only fetch settings if not already loaded
-    if (!data || Object.keys(data).length === 0) {
-      const loadSettings = async () => {
-        try {
-          await dispatch(fetchSettings());
-        } catch (err) {
-          toast.error('Failed to fetch settings.');
-        }
-      };
-      loadSettings();
-    }
-  }, [dispatch, data]);
+import {
+  fetchSettings,
+  refreshSettings,
+} from "../state/settings/settingsOperations";
 
-  // Memoize context value to avoid unnecessary re-renders
-  const contextValue = useMemo(
-    () => ({
-      settings: data,
-      loading,
-      error,
-      dispatch,
-    }),
-    [data, loading, error, dispatch]
+// ============================================================================
+// Context
+// ============================================================================
+
+const SettingsContext =
+  createContext(undefined);
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const EMPTY_SETTINGS = Object.freeze({});
+
+// ============================================================================
+// Selectors
+// ============================================================================
+//
+// Keep state-shape knowledge inside the settings domain.
+//
+// This makes SettingsContext independent from the exact Redux store shape
+// and makes future migration easier.
+//
+
+const selectSettingsState = state =>
+  state?.settings ?? {};
+
+const selectSettingsData = state =>
+  selectSettingsState(
+    state
+  )?.data ?? EMPTY_SETTINGS;
+
+const selectSettingsLoading = state =>
+  Boolean(
+    selectSettingsState(
+      state
+    )?.loading
   );
 
-  return <SettingsContext.Provider value={contextValue}>{children}</SettingsContext.Provider>;
+const selectSettingsError = state =>
+  selectSettingsState(
+    state
+  )?.error ?? null;
+
+const selectSettingsLoaded = state =>
+  Boolean(
+    selectSettingsState(
+      state
+    )?.loaded
+  );
+
+// ============================================================================
+// Provider
+// ============================================================================
+
+export function SettingsProvider({
+  children,
+}) {
+  // ========================================================================
+  // Redux
+  // ========================================================================
+
+  const dispatch =
+    useDispatch();
+
+  // ========================================================================
+  // State
+  // ========================================================================
+
+  const settings =
+    useSelector(
+      selectSettingsData
+    );
+
+  const loading =
+    useSelector(
+      selectSettingsLoading
+    );
+
+  const error =
+    useSelector(
+      selectSettingsError
+    );
+
+  const loaded =
+    useSelector(
+      selectSettingsLoaded
+    );
+
+  // ========================================================================
+  // Lifecycle
+  // ========================================================================
+
+  const mountedRef =
+    useRef(false);
+
+  const initialLoadStartedRef =
+    useRef(false);
+
+  // ========================================================================
+  // Mounted Helper
+  // ========================================================================
+
+  const isMounted =
+    useCallback(
+      () =>
+        mountedRef.current,
+      []
+    );
+
+  // ========================================================================
+  // Fetch Settings
+  // ========================================================================
+  //
+  // This is the public domain operation.
+  //
+  // Consumers should not need to know that Redux is underneath.
+  // ========================================================================
+
+  const loadSettings =
+    useCallback(
+      async ({
+        force = false,
+        notify = false,
+      } = {}) => {
+        if (
+          !isMounted()
+        ) {
+          return null;
+        }
+
+        try {
+          const result =
+            await dispatch(
+              fetchSettings({
+                force,
+              })
+            );
+
+          if (
+            notify &&
+            isMounted()
+          ) {
+            toast.success(
+              "Settings updated successfully."
+            );
+          }
+
+          return result;
+        } catch (fetchError) {
+          if (
+            notify &&
+            isMounted()
+          ) {
+            toast.error(
+              "Failed to load application settings."
+            );
+          }
+
+          throw fetchError;
+        }
+      },
+      [
+        dispatch,
+        isMounted,
+      ]
+    );
+
+  // ========================================================================
+  // Refresh Settings
+  // ========================================================================
+
+  const refresh =
+    useCallback(
+      async ({
+        notify = true,
+      } = {}) => {
+        if (
+          !isMounted()
+        ) {
+          return null;
+        }
+
+        try {
+          /**
+           * Prefer the explicit refresh operation when available.
+           *
+           * This allows the state layer to force server synchronization
+           * without duplicating fetch semantics inside the context.
+           */
+          const result =
+            await dispatch(
+              refreshSettings()
+            );
+
+          if (
+            notify &&
+            isMounted()
+          ) {
+            toast.success(
+              "Settings refreshed successfully."
+            );
+          }
+
+          return result;
+        } catch (refreshError) {
+          if (
+            notify &&
+            isMounted()
+          ) {
+            toast.error(
+              "Failed to refresh application settings."
+            );
+          }
+
+          throw refreshError;
+        }
+      },
+      [
+        dispatch,
+        isMounted,
+      ]
+    );
+
+  // ========================================================================
+  // Initial Settings Bootstrap
+  // ========================================================================
+  //
+  // The explicit ref prevents duplicate initial fetches caused by React
+  // StrictMode development re-execution.
+  //
+  // The loaded flag remains the authoritative state-layer indication that
+  // settings have already been successfully retrieved.
+  // ========================================================================
+
+  useEffect(() => {
+    mountedRef.current =
+      true;
+
+    return () => {
+      mountedRef.current =
+        false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      initialLoadStartedRef.current
+    ) {
+      return;
+    }
+
+    if (
+      loaded ||
+      loading
+    ) {
+      return;
+    }
+
+    initialLoadStartedRef.current =
+      true;
+
+    loadSettings({
+      force: false,
+      notify: false,
+    }).catch(error => {
+      /**
+       * The error is already represented by the settings state.
+       *
+       * Avoid automatically displaying a toast here because settings are
+       * application infrastructure and a toast on every mount can become
+       * noisy, particularly during development StrictMode execution.
+       */
+      if (
+        import.meta.env.DEV
+      ) {
+        console.warn(
+          "[SETTINGS] Initial settings load failed.",
+          error
+        );
+      }
+    });
+  }, [
+    loadSettings,
+    loaded,
+    loading,
+  ]);
+
+  // ========================================================================
+  // Context Value
+  // ========================================================================
+
+  const contextValue =
+    useMemo(
+      () => ({
+        // --------------------------------------------------------------
+        // Data
+        // --------------------------------------------------------------
+
+        settings,
+
+        // --------------------------------------------------------------
+        // State
+        // --------------------------------------------------------------
+
+        loading,
+
+        loaded,
+
+        error,
+
+        // --------------------------------------------------------------
+        // Derived state
+        // --------------------------------------------------------------
+
+        ready:
+          loaded &&
+          !loading,
+
+        hasSettings:
+          Object.keys(
+            settings
+          ).length > 0,
+
+        // --------------------------------------------------------------
+        // Operations
+        // --------------------------------------------------------------
+
+        refresh,
+
+        reload:
+          refresh,
+      }),
+      [
+        settings,
+        loading,
+        loaded,
+        error,
+        refresh,
+      ]
+    );
+
+  // ========================================================================
+  // Render
+  // ========================================================================
+
+  return (
+    <SettingsContext.Provider
+      value={contextValue}
+    >
+      {children}
+    </SettingsContext.Provider>
+  );
+}
+
+// ============================================================================
+// PropTypes
+// ============================================================================
+
+SettingsProvider.propTypes = {
+  children:
+    PropTypes.node.isRequired,
 };
 
-/**
- * Hook to consume settings context.
- * Throws an error if used outside the provider.
- */
-export const useSettings = () => {
-  const context = useContext(SettingsContext);
-  if (!context) {
-    throw new Error('useSettings must be used within a SettingsProvider');
+// ============================================================================
+// Hook
+// ============================================================================
+
+export function useSettings() {
+  const context =
+    useContext(
+      SettingsContext
+    );
+
+  if (
+    context === undefined
+  ) {
+    throw new Error(
+      "useSettings must be used within <SettingsProvider>."
+    );
   }
+
   return context;
-};
+}
+
+// ============================================================================
+// Export
+// ============================================================================
+
+export default SettingsContext;

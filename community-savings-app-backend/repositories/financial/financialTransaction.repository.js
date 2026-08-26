@@ -1,10 +1,10 @@
 "use strict";
 
 /**
- * =============================================================================
+ * ============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
- * =============================================================================
+ * Enterprise Financial Transaction Repository
+ * ============================================================================
  *
  * File:
  *   backend/repositories/financial/financialTransaction.repository.js
@@ -12,39 +12,106 @@
  * Purpose:
  *   Persistence boundary for immutable financial transaction records.
  *
- * Architectural Position:
+ * ============================================================================
+ * ARCHITECTURAL POSITION
+ * ============================================================================
  *
- *   Financial Service
- *          ↓
- *   Financial Repository
- *          ↓
+ *   Financial Transaction Service
+ *              │
+ *              ▼
+ *   Financial Transaction Repository
+ *              │
+ *              ▼
  *   FinancialTransaction Model
- *          ↓
- *   MongoDB Session
+ *              │
+ *              ▼
+ *          MongoDB
  *
- * Repository Rules:
+ * ============================================================================
+ * REPOSITORY RESPONSIBILITIES
+ * ============================================================================
  *
- *   ✓ Every financial write requires a MongoDB session.
- *   ✓ Repository NEVER starts a transaction.
- *   ✓ Repository NEVER commits a transaction.
- *   ✓ Repository NEVER aborts a transaction.
- *   ✓ Transaction ID must be unique.
- *   ✓ Tenant ownership is always persisted.
- *   ✓ Tenant ownership is always included in scoped reads.
- *   ✓ Financial transaction records are immutable.
- *   ✓ No generic update/delete operations are exposed.
- *   ✓ Duplicate transaction IDs are converted to domain errors.
+ * ✓ Persist immutable financial transaction records.
+ * ✓ Require a MongoDB session for every financial write.
+ * ✓ Require an active transaction where the driver exposes inTransaction().
+ * ✓ Never start a MongoDB transaction.
+ * ✓ Never commit a MongoDB transaction.
+ * ✓ Never abort a MongoDB transaction.
+ * ✓ Validate tenant ownership.
+ * ✓ Validate transaction identity.
+ * ✓ Validate financial identifiers.
+ * ✓ Preserve exact monetary values.
+ * ✓ Normalize supported enumerations.
+ * ✓ Convert duplicate-key errors into domain errors.
+ * ✓ Provide tenant-scoped reads.
+ * ✓ Provide existing-record lookup helpers.
  *
- * IMPORTANT:
+ * ============================================================================
+ * REPOSITORY NON-RESPONSIBILITIES
+ * ============================================================================
  *
- *   This repository does not decide whether a financial transaction is
- *   authorized or financially valid.
+ * ✗ Authorization.
+ * ✗ Business-level financial validation.
+ * ✗ Ledger balancing.
+ * ✗ Balance mutation.
+ * ✗ Idempotency orchestration.
+ * ✗ Transaction lifecycle ownership.
+ * ✗ Transaction state transitions after creation.
+ * ✗ Generic update/delete operations.
  *
- *   Authorization belongs to the authorization layer.
- *   Business validation belongs to the financial service.
- *   Atomicity belongs to the financial transaction coordinator.
- * =============================================================================
+ * ============================================================================
+ * IMMUTABILITY
+ * ============================================================================
+ *
+ * Financial transaction records are append-only from this repository.
+ *
+ * Deliberately NOT exported:
+ *
+ *   update()
+ *   patch()
+ *   delete()
+ *   remove()
+ *   replace()
+ *
+ * Any legal financial state transition should be represented through the
+ * financial transaction coordinator's domain workflow rather than arbitrary
+ * repository mutation.
+ *
+ * ============================================================================
+ * TENANT ISOLATION
+ * ============================================================================
+ *
+ * Tenant IDs are validated against:
+ *
+ *   backend/tenancy/tenant.constants.js
+ *
+ * The repository never silently converts an invalid tenant identifier into a
+ * different valid identifier.
+ *
+ * ============================================================================
+ * MONEY
+ * ============================================================================
+ *
+ * The repository never performs financial calculations using JavaScript
+ * floating-point arithmetic.
+ *
+ * Preferred model representations:
+ *
+ *   MongoDB Decimal128
+ *   OR exact decimal string
+ *   OR integer minor units where the model is designed accordingly.
+ *
+ * ============================================================================
+ * TITech terminology
+ * ============================================================================
+ *
+ * All legacy ACFOS terminology has been replaced with TITech terminology.
+ *
+ * ============================================================================
  */
+
+const mongoose =
+    require("mongoose");
 
 const {
     FinancialTransaction
@@ -58,9 +125,16 @@ const {
     "../../services/financial/financialTransaction.service"
 );
 
-// =============================================================================
-// Constants
-// =============================================================================
+const tenantConstants =
+    require(
+        "../../tenancy/tenant.constants"
+    );
+
+/**
+ * ============================================================================
+ * Constants
+ * ============================================================================
+ */
 
 const TRANSACTION_STATUSES =
     Object.freeze([
@@ -72,31 +146,48 @@ const TRANSACTION_STATUSES =
         "CANCELLED"
     ]);
 
-const MAX_TRANSACTION_ID_LENGTH = 128;
-const MAX_TENANT_ID_LENGTH = 128;
-const MAX_PRINCIPAL_ID_LENGTH = 128;
-const MAX_OPERATION_LENGTH = 128;
-const MAX_RESOURCE_LENGTH = 256;
-const MAX_CURRENCY_LENGTH = 16;
+const TRANSACTION_ID_MAX_LENGTH =
+    128;
 
-// =============================================================================
-// Validation Helpers
-// =============================================================================
+const TENANT_ID_MAX_LENGTH =
+    64;
 
-function throwRepositoryError(
+const PRINCIPAL_ID_MAX_LENGTH =
+    128;
+
+const OPERATION_MAX_LENGTH =
+    128;
+
+const RESOURCE_MAX_LENGTH =
+    256;
+
+const CURRENCY_MAX_LENGTH =
+    16;
+
+const MAX_METADATA_KEYS =
+    100;
+
+const MAX_METADATA_BYTES =
+    32 * 1024;
+
+const IDENTIFIER_REGEX =
+    /^[a-zA-Z0-9._:-]+$/;
+
+const CURRENCY_REGEX =
+    /^[A-Z]{3,16}$/;
+
+/**
+ * ============================================================================
+ * Domain Error Factory
+ * ============================================================================
+ */
+
+function createRepositoryError(
     message,
     code,
     statusCode = 500,
     details = undefined
 ) {
-
-    /*
-     * FinancialTransactionError implementations may evolve.
-     *
-     * The repository attempts to preserve diagnostic details when the domain
-     * error supports them.
-     */
-
     const error =
         new FinancialTransactionError(
             message,
@@ -104,7 +195,10 @@ function throwRepositoryError(
             statusCode
         );
 
-    if (details !== undefined) {
+    if (
+        details !==
+        undefined
+    ) {
         error.details =
             details;
     }
@@ -112,18 +206,22 @@ function throwRepositoryError(
     return error;
 }
 
-// =============================================================================
-// Session Validation
-// =============================================================================
+/**
+ * ============================================================================
+ * Session Validation
+ * ============================================================================
+ */
 
 function requireSession(
     session
 ) {
-
-    if (!session) {
-
-        throw throwRepositoryError(
-            "MongoDB transaction session is required.",
+    if (
+        !session ||
+        typeof session !==
+            "object"
+    ) {
+        throw createRepositoryError(
+            "MongoDB transaction session is required for financial writes.",
             "FINANCIAL_SESSION_REQUIRED",
             500
         );
@@ -132,30 +230,58 @@ function requireSession(
     return session;
 }
 
-// =============================================================================
-// Required Value Validation
-// =============================================================================
+/**
+ * Require an active transaction where the MongoDB session exposes that
+ * capability.
+ *
+ * The repository does not create the transaction.
+ */
+function requireActiveTransaction(
+    session
+) {
+    requireSession(
+        session
+    );
+
+    if (
+        typeof session.inTransaction ===
+        "function"
+    ) {
+        if (
+            !session.inTransaction()
+        ) {
+            throw createRepositoryError(
+                "An active MongoDB transaction is required for financial transaction persistence.",
+                "FINANCIAL_TRANSACTION_NOT_ACTIVE",
+                500
+            );
+        }
+    }
+
+    return session;
+}
+
+/**
+ * ============================================================================
+ * Generic Value Validation
+ * ============================================================================
+ */
 
 function requireValue(
     value,
     field,
-    options = {}
-) {
-
-    const {
-
+    {
         maxLength,
-
         trim = true
-
-    } = options;
-
+    } = {}
+) {
     if (
-        value === undefined ||
-        value === null
+        value ===
+            undefined ||
+        value ===
+            null
     ) {
-
-        throw throwRepositoryError(
+        throw createRepositoryError(
             `${field} is required.`,
             "FINANCIAL_TRANSACTION_FIELD_REQUIRED",
             400,
@@ -167,15 +293,16 @@ function requireValue(
 
     const normalized =
         trim &&
-        typeof value === "string"
+        typeof value ===
+            "string"
             ? value.trim()
             : value;
 
     if (
-        normalized === ""
+        normalized ===
+        ""
     ) {
-
-        throw throwRepositoryError(
+        throw createRepositoryError(
             `${field} is required.`,
             "FINANCIAL_TRANSACTION_FIELD_REQUIRED",
             400,
@@ -187,11 +314,12 @@ function requireValue(
 
     if (
         maxLength &&
-        String(normalized).length >
-        maxLength
+        String(
+            normalized
+        ).length >
+            maxLength
     ) {
-
-        throw throwRepositoryError(
+        throw createRepositoryError(
             `${field} exceeds the maximum permitted length.`,
             "FINANCIAL_TRANSACTION_FIELD_TOO_LONG",
             400,
@@ -205,16 +333,17 @@ function requireValue(
     return normalized;
 }
 
-// =============================================================================
-// Identifier Validation
-// =============================================================================
+/**
+ * ============================================================================
+ * Identifier Validation
+ * ============================================================================
+ */
 
 function requireIdentifier(
     value,
     field,
     maxLength
 ) {
-
     const normalized =
         requireValue(
             value,
@@ -225,12 +354,13 @@ function requireIdentifier(
         );
 
     if (
-        !/^[a-zA-Z0-9._:-]+$/.test(
-            String(normalized)
+        !IDENTIFIER_REGEX.test(
+            String(
+                normalized
+            )
         )
     ) {
-
-        throw throwRepositoryError(
+        throw createRepositoryError(
             `${field} contains invalid characters.`,
             "FINANCIAL_TRANSACTION_INVALID_IDENTIFIER",
             400,
@@ -240,117 +370,155 @@ function requireIdentifier(
         );
     }
 
-    return normalized;
+    return String(
+        normalized
+    );
 }
 
-// =============================================================================
-// Transaction ID
-// =============================================================================
+/**
+ * ============================================================================
+ * Transaction ID
+ * ============================================================================
+ */
 
 function requireTransactionId(
     transactionId
 ) {
-
     return requireIdentifier(
         transactionId,
         "transactionId",
-        MAX_TRANSACTION_ID_LENGTH
+        TRANSACTION_ID_MAX_LENGTH
     );
 }
 
-// =============================================================================
-// Tenant ID
-// =============================================================================
+/**
+ * ============================================================================
+ * Tenant ID
+ * ============================================================================
+ *
+ * Strict canonical validation.
+ * ============================================================================
+ */
 
 function requireTenantId(
     tenantId
 ) {
+    const normalized =
+        requireIdentifier(
+            tenantId,
+            "tenantId",
+            TENANT_ID_MAX_LENGTH
+        )
+            .toLowerCase();
 
-    return requireIdentifier(
-        tenantId,
-        "tenantId",
-        MAX_TENANT_ID_LENGTH
-    );
+    if (
+        typeof tenantConstants
+            .isValidTenantId ===
+        "function"
+    ) {
+        if (
+            !tenantConstants.isValidTenantId(
+                normalized
+            )
+        ) {
+            throw createRepositoryError(
+                "Invalid tenant identifier.",
+                "FINANCIAL_TRANSACTION_INVALID_TENANT",
+                400,
+                {
+                    tenantId:
+                        normalized
+                }
+            );
+        }
+    }
+
+    return normalized;
 }
 
-// =============================================================================
-// Principal ID
-// =============================================================================
+/**
+ * ============================================================================
+ * Principal ID
+ * ============================================================================
+ */
 
 function requirePrincipalId(
     principalId
 ) {
-
     return requireIdentifier(
         principalId,
         "principalId",
-        MAX_PRINCIPAL_ID_LENGTH
+        PRINCIPAL_ID_MAX_LENGTH
     );
 }
 
-// =============================================================================
-// Operation
-// =============================================================================
+/**
+ * ============================================================================
+ * Operation
+ * ============================================================================
+ */
 
 function requireOperation(
     operation
 ) {
-
     return requireIdentifier(
         operation,
         "operation",
-        MAX_OPERATION_LENGTH
+        OPERATION_MAX_LENGTH
     );
 }
 
-// =============================================================================
-// Resource
-// =============================================================================
+/**
+ * ============================================================================
+ * Resource
+ * ============================================================================
+ */
 
 function requireResource(
     resource
 ) {
-
     return requireValue(
         resource,
         "resource",
         {
             maxLength:
-                MAX_RESOURCE_LENGTH
+                RESOURCE_MAX_LENGTH
         }
     );
 }
 
-// =============================================================================
-// Currency
-// =============================================================================
+/**
+ * ============================================================================
+ * Currency
+ * ============================================================================
+ */
 
 function requireCurrency(
     currency
 ) {
-
     const normalized =
         requireValue(
             currency,
             "currency",
             {
                 maxLength:
-                    MAX_CURRENCY_LENGTH
+                    CURRENCY_MAX_LENGTH
             }
         );
 
     const value =
         String(
             normalized
-        ).toUpperCase();
+        )
+            .trim()
+            .toUpperCase();
 
     if (
-        !/^[A-Z]{3,16}$/.test(
+        !CURRENCY_REGEX.test(
             value
         )
     ) {
-
-        throw throwRepositoryError(
+        throw createRepositoryError(
             "Invalid currency code.",
             "FINANCIAL_TRANSACTION_INVALID_CURRENCY",
             400,
@@ -364,29 +532,40 @@ function requireCurrency(
     return value;
 }
 
-// =============================================================================
-// Amount
-// =============================================================================
-//
-// Do not perform floating-point arithmetic here.
-//
-// Financial calculations should happen in the financial domain/service layer
-// using Decimal128 / integer minor units according to the model design.
-//
-// The repository validates presence and delegates the canonical representation
-// to Mongoose.
-// =============================================================================
+/**
+ * ============================================================================
+ * Monetary Amount Validation
+ * ============================================================================
+ *
+ * No Number(amount) conversion.
+ *
+ * Accepted:
+ *
+ *   Decimal128
+ *   canonical decimal string
+ *   safe integer Number
+ *
+ * Rejected:
+ *
+ *   NaN
+ *   Infinity
+ *   scientific notation
+ *   unsafe floating-point values
+ *
+ * The final BSON representation is delegated to the Mongoose model.
+ * ============================================================================
+ */
 
 function requireAmount(
     amount
 ) {
-
     if (
-        amount === undefined ||
-        amount === null
+        amount ===
+            undefined ||
+        amount ===
+            null
     ) {
-
-        throw throwRepositoryError(
+        throw createRepositoryError(
             "amount is required.",
             "FINANCIAL_TRANSACTION_AMOUNT_REQUIRED",
             400,
@@ -397,21 +576,155 @@ function requireAmount(
         );
     }
 
-    return amount;
+    if (
+        mongoose.isDecimal128(
+            amount
+        )
+    ) {
+        validateDecimalText(
+            amount.toString()
+        );
+
+        return amount;
+    }
+
+    if (
+        typeof amount ===
+        "string"
+    ) {
+        const value =
+            amount.trim();
+
+        validateDecimalText(
+            value
+        );
+
+        return value;
+    }
+
+    if (
+        typeof amount ===
+        "number"
+    ) {
+        if (
+            !Number.isFinite(
+                amount
+            )
+        ) {
+            throw createRepositoryError(
+                "Financial transaction amount must be finite.",
+                "FINANCIAL_TRANSACTION_INVALID_AMOUNT",
+                400
+            );
+        }
+
+        /**
+         * Non-integer JS numbers are deliberately rejected because they may
+         * contain binary floating-point representation errors.
+         */
+        if (
+            !Number.isSafeInteger(
+                amount
+            )
+        ) {
+            throw createRepositoryError(
+                "Financial transaction amount must use Decimal128 or an exact decimal string.",
+                "FINANCIAL_TRANSACTION_UNSAFE_NUMBER",
+                400
+            );
+        }
+
+        return amount;
+    }
+
+    if (
+        typeof amount?.toString ===
+        "function"
+    ) {
+        const value =
+            amount
+                .toString()
+                .trim();
+
+        validateDecimalText(
+            value
+        );
+
+        return amount;
+    }
+
+    throw createRepositoryError(
+        "Invalid financial transaction amount.",
+        "FINANCIAL_TRANSACTION_INVALID_AMOUNT",
+        400
+    );
 }
 
-// =============================================================================
-// Status
-// =============================================================================
+function validateDecimalText(
+    value
+) {
+    if (
+        !value
+    ) {
+        throw createRepositoryError(
+            "Financial transaction amount is required.",
+            "FINANCIAL_TRANSACTION_AMOUNT_REQUIRED",
+            400
+        );
+    }
+
+    /**
+     * Canonical non-scientific decimal notation.
+     */
+    if (
+        !/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(
+            value
+        )
+    ) {
+        throw createRepositoryError(
+            "Financial transaction amount must use canonical decimal notation.",
+            "FINANCIAL_TRANSACTION_INVALID_AMOUNT",
+            400
+        );
+    }
+
+    if (
+        /^0+(?:\.0+)?$/.test(
+            value
+        )
+    ) {
+        throw createRepositoryError(
+            "Financial transaction amount must be greater than zero.",
+            "FINANCIAL_TRANSACTION_ZERO_AMOUNT",
+            400
+        );
+    }
+
+    if (
+        value.length >
+        64
+    ) {
+        throw createRepositoryError(
+            "Financial transaction amount is too large.",
+            "FINANCIAL_TRANSACTION_AMOUNT_TOO_LARGE",
+            400
+        );
+    }
+}
+
+/**
+ * ============================================================================
+ * Status
+ * ============================================================================
+ */
 
 function requireStatus(
     status
 ) {
-
     const normalized =
         String(
             status ||
-            "COMPLETED"
+                "COMPLETED"
         )
             .trim()
             .toUpperCase();
@@ -421,8 +734,7 @@ function requireStatus(
             normalized
         )
     ) {
-
-        throw throwRepositoryError(
+        throw createRepositoryError(
             "Invalid financial transaction status.",
             "FINANCIAL_TRANSACTION_INVALID_STATUS",
             400,
@@ -436,28 +748,32 @@ function requireStatus(
     return normalized;
 }
 
-// =============================================================================
-// Metadata
-// =============================================================================
+/**
+ * ============================================================================
+ * Metadata
+ * ============================================================================
+ */
 
 function normalizeMetadata(
     metadata
 ) {
-
     if (
-        metadata === undefined ||
-        metadata === null
+        metadata ===
+            undefined ||
+        metadata ===
+            null
     ) {
         return {};
     }
 
     if (
         typeof metadata !==
-        "object" ||
-        Array.isArray(metadata)
+            "object" ||
+        Array.isArray(
+            metadata
+        )
     ) {
-
-        throw throwRepositoryError(
+        throw createRepositoryError(
             "Financial transaction metadata must be an object.",
             "FINANCIAL_TRANSACTION_INVALID_METADATA",
             400,
@@ -468,19 +784,137 @@ function normalizeMetadata(
         );
     }
 
-    /*
-     * Clone the object so callers cannot mutate the same object reference
-     * after repository invocation.
-     */
+    const keys =
+        Object.keys(
+            metadata
+        );
 
+    if (
+        keys.length >
+        MAX_METADATA_KEYS
+    ) {
+        throw createRepositoryError(
+            "Financial transaction metadata contains too many fields.",
+            "FINANCIAL_TRANSACTION_METADATA_TOO_LARGE",
+            400,
+            {
+                maxKeys:
+                    MAX_METADATA_KEYS
+            }
+        );
+    }
+
+    let serialized;
+
+    try {
+        serialized =
+            JSON.stringify(
+                metadata
+            );
+    } catch {
+        throw createRepositoryError(
+            "Financial transaction metadata must be JSON serializable.",
+            "FINANCIAL_TRANSACTION_METADATA_NOT_SERIALIZABLE",
+            400
+        );
+    }
+
+    if (
+        Buffer.byteLength(
+            serialized,
+            "utf8"
+        ) >
+        MAX_METADATA_BYTES
+    ) {
+        throw createRepositoryError(
+            "Financial transaction metadata exceeds the maximum permitted size.",
+            "FINANCIAL_TRANSACTION_METADATA_TOO_LARGE",
+            400,
+            {
+                maxBytes:
+                    MAX_METADATA_BYTES
+            }
+        );
+    }
+
+    return deepClone(
+        metadata
+    );
+}
+
+/**
+ * ============================================================================
+ * Normalize Creation Payload
+ * ============================================================================
+ */
+
+function normalizeCreatePayload({
+    transactionId,
+    tenantId,
+    principalId,
+    operation,
+    resource,
+    amount,
+    currency,
+    status = "COMPLETED",
+    metadata = {}
+}) {
     return {
-        ...metadata
+        transactionId:
+            requireTransactionId(
+                transactionId
+            ),
+
+        tenantId:
+            requireTenantId(
+                tenantId
+            ),
+
+        principalId:
+            requirePrincipalId(
+                principalId
+            ),
+
+        operation:
+            requireOperation(
+                operation
+            ),
+
+        resource:
+            requireResource(
+                resource
+            ),
+
+        amount:
+            requireAmount(
+                amount
+            ),
+
+        currency:
+            requireCurrency(
+                currency
+            ),
+
+        status:
+            requireStatus(
+                status
+            ),
+
+        metadata:
+            normalizeMetadata(
+                metadata
+            )
     };
 }
 
-// =============================================================================
-// Create
-// =============================================================================
+/**
+ * ============================================================================
+ * Create
+ * ============================================================================
+ *
+ * The caller MUST own the MongoDB transaction.
+ * ============================================================================
+ */
 
 async function create({
     session,
@@ -494,150 +928,59 @@ async function create({
     status = "COMPLETED",
     metadata = {}
 }) {
-
-    requireSession(
+    requireActiveTransaction(
         session
     );
 
-    const normalizedTransactionId =
-        requireTransactionId(
-            transactionId
-        );
-
-    const normalizedTenantId =
-        requireTenantId(
-            tenantId
-        );
-
-    const normalizedPrincipalId =
-        requirePrincipalId(
-            principalId
-        );
-
-    const normalizedOperation =
-        requireOperation(
-            operation
-        );
-
-    const normalizedResource =
-        requireResource(
-            resource
-        );
-
-    const normalizedAmount =
-        requireAmount(
-            amount
-        );
-
-    const normalizedCurrency =
-        requireCurrency(
-            currency
-        );
-
-    const normalizedStatus =
-        requireStatus(
-            status
-        );
-
-    const normalizedMetadata =
-        normalizeMetadata(
+    const normalized =
+        normalizeCreatePayload({
+            transactionId,
+            tenantId,
+            principalId,
+            operation,
+            resource,
+            amount,
+            currency,
+            status,
             metadata
-        );
+        });
 
     try {
-
-        const [record] =
+        const created =
             await FinancialTransaction.create(
-
                 [
-                    {
-
-                        transactionId:
-                            normalizedTransactionId,
-
-                        tenantId:
-                            normalizedTenantId,
-
-                        principalId:
-                            normalizedPrincipalId,
-
-                        operation:
-                            normalizedOperation,
-
-                        resource:
-                            normalizedResource,
-
-                        amount:
-                            normalizedAmount,
-
-                        currency:
-                            normalizedCurrency,
-
-                        status:
-                            normalizedStatus,
-
-                        metadata:
-                            normalizedMetadata
-
-                    }
+                    normalized
                 ],
-
                 {
                     session
                 }
-
             );
 
-        return record;
-
-    } catch (error) {
-
-        /*
-         * MongoDB duplicate-key violation.
-         *
-         * This is an expected domain-level race condition when two requests
-         * attempt to create the same financial transaction concurrently.
-         */
-
-        if (
-            error?.code === 11000
-        ) {
-
-            throw throwRepositoryError(
-                "Financial transaction already exists.",
-                "FINANCIAL_TRANSACTION_ALREADY_EXISTS",
-                409,
-                {
-                    transactionId:
-                        normalizedTransactionId,
-
-                    tenantId:
-                        normalizedTenantId
-                }
-            );
-        }
-
-        throw error;
+        return created[0];
+    } catch (
+        error
+    ) {
+        throw translatePersistenceError(
+            error,
+            normalized
+        );
     }
 }
 
-// =============================================================================
-// Find by Transaction ID
-// =============================================================================
-//
-// Reads do not create or commit transactions.
-//
-// A session is accepted when the caller is already operating inside a MongoDB
-// transaction. This allows consistent reads from the same transactional view.
-//
-// =============================================================================
+/**
+ * ============================================================================
+ * Find By Transaction ID
+ * ============================================================================
+ *
+ * Tenant is mandatory for every lookup.
+ * ============================================================================
+ */
 
 async function findById({
     session,
     transactionId,
     tenantId
 }) {
-
     const normalizedTransactionId =
         requireTransactionId(
             transactionId
@@ -649,17 +992,19 @@ async function findById({
         );
 
     const query =
-        FinancialTransaction.findOne({
+        FinancialTransaction.findOne(
+            {
+                transactionId:
+                    normalizedTransactionId,
 
-            transactionId:
-                normalizedTransactionId,
+                tenantId:
+                    normalizedTenantId
+            }
+        );
 
-            tenantId:
-                normalizedTenantId
-
-        });
-
-    if (session) {
+    if (
+        session
+    ) {
         query.session(
             session
         );
@@ -670,36 +1015,49 @@ async function findById({
         .exec();
 }
 
-// =============================================================================
-// Find by Transaction ID - Required Existing Record
-// =============================================================================
+/**
+ * ============================================================================
+ * Require Existing Record
+ * ============================================================================
+ */
 
 async function requireById({
     session,
     transactionId,
     tenantId
 }) {
+    const normalizedTransactionId =
+        requireTransactionId(
+            transactionId
+        );
+
+    const normalizedTenantId =
+        requireTenantId(
+            tenantId
+        );
 
     const record =
         await findById({
-
             session,
-
-            transactionId,
-
-            tenantId
-
+            transactionId:
+                normalizedTransactionId,
+            tenantId:
+                normalizedTenantId
         });
 
-    if (!record) {
-
-        throw throwRepositoryError(
+    if (
+        !record
+    ) {
+        throw createRepositoryError(
             "Financial transaction was not found.",
             "FINANCIAL_TRANSACTION_NOT_FOUND",
             404,
             {
-                transactionId,
-                tenantId
+                transactionId:
+                    normalizedTransactionId,
+
+                tenantId:
+                    normalizedTenantId
             }
         );
     }
@@ -707,9 +1065,11 @@ async function requireById({
     return record;
 }
 
-// =============================================================================
-// Find by Operation
-// =============================================================================
+/**
+ * ============================================================================
+ * Find By Operation
+ * ============================================================================
+ */
 
 async function findByOperation({
     session,
@@ -718,7 +1078,6 @@ async function findByOperation({
     operation,
     limit = 50
 }) {
-
     const normalizedTenantId =
         requireTenantId(
             tenantId
@@ -735,37 +1094,43 @@ async function findByOperation({
         );
 
     const safeLimit =
-        Math.min(
-            Math.max(
-                Number(limit) || 50,
-                1
-            ),
-            100
+        clampInteger(
+            limit,
+            1,
+            100,
+            50
         );
 
     const query =
         FinancialTransaction
-            .find({
+            .find(
+                {
+                    tenantId:
+                        normalizedTenantId,
 
-                tenantId:
-                    normalizedTenantId,
+                    principalId:
+                        normalizedPrincipalId,
 
-                principalId:
-                    normalizedPrincipalId,
+                    operation:
+                        normalizedOperation
+                }
+            )
+            .sort(
+                {
+                    createdAt:
+                        -1,
 
-                operation:
-                    normalizedOperation
-
-            })
-            .sort({
-                createdAt:
-                    -1
-            })
+                    _id:
+                        -1
+                }
+            )
             .limit(
                 safeLimit
             );
 
-    if (session) {
+    if (
+        session
+    ) {
         query.session(
             session
         );
@@ -776,20 +1141,426 @@ async function findByOperation({
         .exec();
 }
 
-// =============================================================================
-// Exports
-// =============================================================================
+/**
+ * ============================================================================
+ * Find By Principal
+ * ============================================================================
+ */
 
-module.exports = {
+async function findByPrincipal({
+    session,
+    tenantId,
+    principalId,
+    limit = 100,
+    status
+}) {
+    const normalizedTenantId =
+        requireTenantId(
+            tenantId
+        );
 
-    TRANSACTION_STATUSES,
+    const normalizedPrincipalId =
+        requirePrincipalId(
+            principalId
+        );
 
-    create,
+    const safeLimit =
+        clampInteger(
+            limit,
+            1,
+            500,
+            100
+        );
 
-    findById,
+    const filter =
+        {
+            tenantId:
+                normalizedTenantId,
 
-    requireById,
+            principalId:
+                normalizedPrincipalId
+        };
 
-    findByOperation
+    if (
+        status !==
+            undefined &&
+        status !==
+            null
+    ) {
+        filter.status =
+            requireStatus(
+                status
+            );
+    }
 
-};
+    const query =
+        FinancialTransaction
+            .find(
+                filter
+            )
+            .sort(
+                {
+                    createdAt:
+                        -1,
+
+                    _id:
+                        -1
+                }
+            )
+            .limit(
+                safeLimit
+            );
+
+    if (
+        session
+    ) {
+        query.session(
+            session
+        );
+    }
+
+    return query
+        .lean()
+        .exec();
+}
+
+/**
+ * ============================================================================
+ * Count By Tenant
+ * ============================================================================
+ */
+
+async function countByTenant({
+    session,
+    tenantId,
+    status
+}) {
+    const normalizedTenantId =
+        requireTenantId(
+            tenantId
+        );
+
+    const filter =
+        {
+            tenantId:
+                normalizedTenantId
+        };
+
+    if (
+        status !==
+            undefined &&
+        status !==
+            null
+    ) {
+        filter.status =
+            requireStatus(
+                status
+            );
+    }
+
+    const query =
+        FinancialTransaction.countDocuments(
+            filter
+        );
+
+    if (
+        session
+    ) {
+        query.session(
+            session
+        );
+    }
+
+    return query.exec();
+}
+
+/**
+ * ============================================================================
+ * Check Existence
+ * ============================================================================
+ *
+ * Useful for idempotency/service-level orchestration without exposing a
+ * generic query builder.
+ * ============================================================================
+ */
+
+async function exists({
+    session,
+    transactionId,
+    tenantId
+}) {
+    const normalizedTransactionId =
+        requireTransactionId(
+            transactionId
+        );
+
+    const normalizedTenantId =
+        requireTenantId(
+            tenantId
+        );
+
+    const query =
+        FinancialTransaction.exists(
+            {
+                transactionId:
+                    normalizedTransactionId,
+
+                tenantId:
+                    normalizedTenantId
+            }
+        );
+
+    if (
+        session
+    ) {
+        query.session(
+            session
+        );
+    }
+
+    const result =
+        await query.exec();
+
+    return Boolean(
+        result
+    );
+}
+
+/**
+ * ============================================================================
+ * Immutable Transaction Query
+ * ============================================================================
+ *
+ * Explicitly returns the persisted record only. There is intentionally no
+ * repository method for modifying an existing transaction.
+ * ============================================================================
+ */
+
+async function getSnapshot({
+    session,
+    transactionId,
+    tenantId
+}) {
+    return requireById({
+        session,
+        transactionId,
+        tenantId
+    });
+}
+
+/**
+ * ============================================================================
+ * Persistence Error Translation
+ * ============================================================================
+ */
+
+function translatePersistenceError(
+    error,
+    context
+) {
+    if (
+        error?.code ===
+        11000
+    ) {
+        return createRepositoryError(
+            "Financial transaction already exists.",
+            "FINANCIAL_TRANSACTION_ALREADY_EXISTS",
+            409,
+            {
+                transactionId:
+                    context
+                        ?.transactionId,
+
+                tenantId:
+                    context
+                        ?.tenantId,
+
+                principalId:
+                    context
+                        ?.principalId,
+
+                keyPattern:
+                    error
+                        ?.keyPattern
+            }
+        );
+    }
+
+    if (
+        error?.name ===
+        "ValidationError"
+    ) {
+        return createRepositoryError(
+            "Financial transaction model validation failed.",
+            "FINANCIAL_TRANSACTION_MODEL_VALIDATION_FAILED",
+            400,
+            {
+                errors:
+                    sanitizeValidationErrors(
+                        error
+                    )
+            }
+        );
+    }
+
+    if (
+        error?.name ===
+        "CastError"
+    ) {
+        return createRepositoryError(
+            "Financial transaction persistence received an invalid MongoDB value.",
+            "FINANCIAL_TRANSACTION_MONGO_CAST_ERROR",
+            400
+        );
+    }
+
+    /**
+     * Transaction retry labels must propagate to the coordinator.
+     */
+    if (
+        error?.hasErrorLabel?.(
+            "TransientTransactionError"
+        )
+    ) {
+        return error;
+    }
+
+    if (
+        error?.hasErrorLabel?.(
+            "UnknownTransactionCommitResult"
+        )
+    ) {
+        return error;
+    }
+
+    return error;
+}
+
+/**
+ * ============================================================================
+ * Validation Error Sanitization
+ * ============================================================================
+ */
+
+function sanitizeValidationErrors(
+    error
+) {
+    const result =
+        {};
+
+    if (
+        !error?.errors
+    ) {
+        return result;
+    }
+
+    for (
+        const [
+            field,
+            detail
+        ] of Object.entries(
+            error.errors
+        )
+    ) {
+        result[field] =
+            detail?.message ||
+            "Validation failed";
+    }
+
+    return result;
+}
+
+/**
+ * ============================================================================
+ * Utility
+ * ============================================================================
+ */
+
+function clampInteger(
+    value,
+    minimum,
+    maximum,
+    fallback
+) {
+    const numeric =
+        Number(
+            value
+        );
+
+    if (
+        !Number.isInteger(
+            numeric
+        )
+    ) {
+        return fallback;
+    }
+
+    return Math.min(
+        Math.max(
+            numeric,
+            minimum
+        ),
+        maximum
+    );
+}
+
+function deepClone(
+    value
+) {
+    try {
+        return JSON.parse(
+            JSON.stringify(
+                value
+            )
+        );
+    } catch {
+        return {
+            ...value
+        };
+    }
+}
+
+/**
+ * ============================================================================
+ * Exports
+ * ============================================================================
+ */
+
+module.exports =
+    Object.freeze({
+        TRANSACTION_STATUSES,
+
+        requireSession,
+
+        requireActiveTransaction,
+
+        requireTransactionId,
+
+        requireTenantId,
+
+        requirePrincipalId,
+
+        requireOperation,
+
+        requireResource,
+
+        requireCurrency,
+
+        requireAmount,
+
+        create,
+
+        findById,
+
+        requireById,
+
+        findByOperation,
+
+        findByPrincipal,
+
+        countByTenant,
+
+        exists,
+
+        getSnapshot
+    });

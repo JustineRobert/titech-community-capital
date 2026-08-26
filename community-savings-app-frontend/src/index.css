@@ -1,0 +1,1245 @@
+/**
+ * ============================================================================
+ * TITech Community Capital LTD
+ * TITech Community Capital Operating System
+ * ============================================================================
+ *
+ * File:
+ *   frontend/src/index.css
+ *
+ * Purpose:
+ *   Canonical global stylesheet and browser rendering foundation.
+ *
+ * Responsibilities:
+ *   - CSS normalization
+ *   - Global design tokens
+ *   - Typography foundation
+ *   - Accessibility defaults
+ *   - Responsive foundations
+ *   - Form normalization
+ *   - Button normalization
+ *   - Table defaults
+ *   - Focus management
+ *   - Scroll behavior
+ *   - Loading / disabled states
+ *   - Error / status foundations
+ *   - Dialog / overlay foundations
+ *   - Mobile browser compatibility
+ *   - Reduced-motion support
+ *   - Dark-mode foundation
+ *
+ * Non-responsibilities:
+ *   - Page-specific styling
+ *   - Component-specific styling
+ *   - Financial business logic
+ *   - Authentication logic
+ *   - Application state
+ *   - API behavior
+ *
+ * Architecture:
+ *
+ *   Browser defaults
+ *        ↓
+ *   CSS normalization
+ *        ↓
+ *   TITech design tokens
+ *        ↓
+ *   Global primitives
+ *        ↓
+ *   Component / page styles
+ *
+ * ============================================================================
+ */
+
+/* ============================================================================
+   01. CSS FOUNDATION
+   ============================================================================ */
+
+:root {
+  /* --------------------------------------------------------------------------
+     Typography
+     -------------------------------------------------------------------------- */
+
+  --titech-font-family-sans:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  --titech-font-family-mono:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    Menlo,
+    monospace;
+
+  --titech-font-size-root: 16px;
+
+  --titech-line-height-body: 1.5;
+  --titech-line-height-heading: 1.2;
+
+  --titech-font-weight-regular: 400;
+  --titech-font-weight-medium: 500;
+  --titech-font-weight-semibold: 600;
+  --titech-font-weight-bold: 700;
+
+  /* --------------------------------------------------------------------------
+     TITech brand foundation
+     -------------------------------------------------------------------------- */
+
+  --titech-color-brand-50: #eff6ff;
+  --titech-color-brand-100: #dbeafe;
+  --titech-color-brand-200: #bfdbfe;
+  --titech-color-brand-300: #93c5fd;
+  --titech-color-brand-400: #60a5fa;
+  --titech-color-brand-500: #3b82f6;
+  --titech-color-brand-600: #2563eb;
+  --titech-color-brand-700: #1d4ed8;
+  --titech-color-brand-800: #1e40af;
+  --titech-color-brand-900: #1e3a8a;
+  --titech-color-brand-950: #172554;
+
+  /* --------------------------------------------------------------------------
+     Neutral palette
+     -------------------------------------------------------------------------- */
+
+  --titech-color-white: #ffffff;
+  --titech-color-black: #000000;
+
+  --titech-color-neutral-50: #f8fafc;
+  --titech-color-neutral-100: #f1f5f9;
+  --titech-color-neutral-200: #e2e8f0;
+  --titech-color-neutral-300: #cbd5e1;
+  --titech-color-neutral-400: #94a3b8;
+  --titech-color-neutral-500: #64748b;
+  --titech-color-neutral-600: #475569;
+  --titech-color-neutral-700: #334155;
+  --titech-color-neutral-800: #1e293b;
+  --titech-color-neutral-900: #0f172a;
+  --titech-color-neutral-950: #020617;
+
+  /* --------------------------------------------------------------------------
+     Semantic colors
+     -------------------------------------------------------------------------- */
+
+  --titech-color-success-50: #f0fdf4;
+  --titech-color-success-100: #dcfce7;
+  --titech-color-success-500: #22c55e;
+  --titech-color-success-600: #16a34a;
+  --titech-color-success-700: #15803d;
+
+  --titech-color-warning-50: #fffbeb;
+  --titech-color-warning-100: #fef3c7;
+  --titech-color-warning-500: #f59e0b;
+  --titech-color-warning-600: #d97706;
+  --titech-color-warning-700: #b45309;
+
+  --titech-color-danger-50: #fef2f2;
+  --titech-color-danger-100: #fee2e2;
+  --titech-color-danger-500: #ef4444;
+  --titech-color-danger-600: #dc2626;
+  --titech-color-danger-700: #b91c1c;
+
+  --titech-color-info-50: #eff6ff;
+  --titech-color-info-100: #dbeafe;
+  --titech-color-info-500: #3b82f6;
+  --titech-color-info-600: #2563eb;
+
+  /* --------------------------------------------------------------------------
+     Application surfaces
+     -------------------------------------------------------------------------- */
+
+  --titech-color-background:
+    var(--titech-color-neutral-50);
+
+  --titech-color-surface:
+    var(--titech-color-white);
+
+  --titech-color-surface-muted:
+    var(--titech-color-neutral-100);
+
+  --titech-color-text:
+    var(--titech-color-neutral-900);
+
+  --titech-color-text-muted:
+    var(--titech-color-neutral-600);
+
+  --titech-color-text-subtle:
+    var(--titech-color-neutral-500);
+
+  --titech-color-border:
+    var(--titech-color-neutral-200);
+
+  --titech-color-border-strong:
+    var(--titech-color-neutral-300);
+
+  /* --------------------------------------------------------------------------
+     Focus
+     -------------------------------------------------------------------------- */
+
+  --titech-focus-color:
+    var(--titech-color-brand-600);
+
+  --titech-focus-ring:
+    0 0 0 3px
+    rgba(37, 99, 235, 0.25);
+
+  /* --------------------------------------------------------------------------
+     Border radius
+     -------------------------------------------------------------------------- */
+
+  --titech-radius-xs: 0.25rem;
+  --titech-radius-sm: 0.375rem;
+  --titech-radius-md: 0.5rem;
+  --titech-radius-lg: 0.75rem;
+  --titech-radius-xl: 1rem;
+  --titech-radius-2xl: 1.25rem;
+  --titech-radius-full: 9999px;
+
+  /* --------------------------------------------------------------------------
+     Shadows
+     -------------------------------------------------------------------------- */
+
+  --titech-shadow-xs:
+    0 1px 2px rgba(15, 23, 42, 0.05);
+
+  --titech-shadow-sm:
+    0 1px 3px rgba(15, 23, 42, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.04);
+
+  --titech-shadow-md:
+    0 4px 12px rgba(15, 23, 42, 0.08);
+
+  --titech-shadow-lg:
+    0 10px 30px rgba(15, 23, 42, 0.12);
+
+  --titech-shadow-xl:
+    0 20px 50px rgba(15, 23, 42, 0.16);
+
+  /* --------------------------------------------------------------------------
+     Spacing
+     -------------------------------------------------------------------------- */
+
+  --titech-space-1: 0.25rem;
+  --titech-space-2: 0.5rem;
+  --titech-space-3: 0.75rem;
+  --titech-space-4: 1rem;
+  --titech-space-5: 1.25rem;
+  --titech-space-6: 1.5rem;
+  --titech-space-8: 2rem;
+  --titech-space-10: 2.5rem;
+  --titech-space-12: 3rem;
+  --titech-space-16: 4rem;
+  --titech-space-20: 5rem;
+  --titech-space-24: 6rem;
+
+  /* --------------------------------------------------------------------------
+     Layout
+     -------------------------------------------------------------------------- */
+
+  --titech-content-max-width: 1440px;
+  --titech-content-padding: 1rem;
+
+  --titech-header-height: 4rem;
+  --titech-sidebar-width: 16rem;
+
+  /* --------------------------------------------------------------------------
+     Z-index layers
+     -------------------------------------------------------------------------- */
+
+  --titech-z-base: 0;
+  --titech-z-dropdown: 1000;
+  --titech-z-sticky: 1100;
+  --titech-z-header: 1200;
+  --titech-z-overlay: 1300;
+  --titech-z-modal: 1400;
+  --titech-z-popover: 1500;
+  --titech-z-toast: 1600;
+  --titech-z-tooltip: 1700;
+
+  /* --------------------------------------------------------------------------
+     Transitions
+     -------------------------------------------------------------------------- */
+
+  --titech-transition-fast:
+    120ms ease;
+
+  --titech-transition-normal:
+    180ms ease;
+
+  --titech-transition-slow:
+    280ms ease;
+
+  /* --------------------------------------------------------------------------
+     Motion
+     -------------------------------------------------------------------------- */
+
+  --titech-motion-distance: 4px;
+}
+
+
+/* ============================================================================
+   02. BOX MODEL RESET
+   ============================================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: var(--titech-font-size-root);
+  min-height: 100%;
+  scroll-behavior: smooth;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+
+  background:
+    var(--titech-color-background);
+
+  color:
+    var(--titech-color-text);
+
+  font-family:
+    var(--titech-font-family-sans);
+
+  font-size: 1rem;
+  font-weight: var(--titech-font-weight-regular);
+  line-height: var(--titech-line-height-body);
+
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  overflow-x: hidden;
+}
+
+
+/* ============================================================================
+   03. APPLICATION ROOT
+   ============================================================================ */
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+
+/* ============================================================================
+   04. DOCUMENT NORMALIZATION
+   ============================================================================ */
+
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+main,
+nav,
+section,
+summary {
+  display: block;
+}
+
+audio,
+canvas,
+iframe,
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
+}
+
+iframe {
+  border: 0;
+}
+
+figure,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+p {
+  margin-top: 0;
+}
+
+hr {
+  height: 0;
+  margin: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--titech-color-border);
+}
+
+
+/* ============================================================================
+   05. TYPOGRAPHY
+   ============================================================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+
+  color:
+    var(--titech-color-text);
+
+  font-weight:
+    var(--titech-font-weight-semibold);
+
+  line-height:
+    var(--titech-line-height-heading);
+
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+h2 {
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+}
+
+h3 {
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+}
+
+h4 {
+  font-size: 1.25rem;
+}
+
+h5 {
+  font-size: 1.125rem;
+}
+
+h6 {
+  font-size: 1rem;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+small {
+  font-size: 0.875rem;
+}
+
+strong,
+b {
+  font-weight:
+    var(--titech-font-weight-semibold);
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family:
+    var(--titech-font-family-mono);
+}
+
+code,
+kbd {
+  font-size: 0.875em;
+}
+
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+
+  padding: 1rem;
+
+  border:
+    1px solid var(--titech-color-border);
+
+  border-radius:
+    var(--titech-radius-md);
+
+  background:
+    var(--titech-color-neutral-900);
+
+  color:
+    var(--titech-color-neutral-100);
+
+  white-space: pre;
+}
+
+
+/* ============================================================================
+   06. LINKS
+   ============================================================================ */
+
+a {
+  color:
+    var(--titech-color-brand-700);
+
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.15em;
+
+  transition:
+    color var(--titech-transition-fast);
+}
+
+a:hover {
+  color:
+    var(--titech-color-brand-800);
+}
+
+a:focus-visible {
+  outline:
+    2px solid var(--titech-focus-color);
+
+  outline-offset: 2px;
+
+  border-radius:
+    var(--titech-radius-xs);
+}
+
+
+/* ============================================================================
+   07. BUTTONS
+   ============================================================================ */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  margin: 0;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+[role='button']:focus-visible {
+  outline:
+    2px solid var(--titech-focus-color);
+
+  outline-offset: 2px;
+
+  box-shadow:
+    var(--titech-focus-ring);
+}
+
+
+/* ============================================================================
+   08. FORM ELEMENTS
+   ============================================================================ */
+
+input,
+textarea,
+select {
+  width: 100%;
+
+  min-height: 2.75rem;
+
+  border:
+    1px solid var(--titech-color-border-strong);
+
+  border-radius:
+    var(--titech-radius-md);
+
+  background:
+    var(--titech-color-surface);
+
+  color:
+    var(--titech-color-text);
+
+  padding:
+    0.625rem 0.75rem;
+
+  transition:
+    border-color var(--titech-transition-fast),
+    box-shadow var(--titech-transition-fast),
+    background-color var(--titech-transition-fast);
+}
+
+textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+select {
+  cursor: pointer;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color:
+    var(--titech-color-text-subtle);
+
+  opacity: 1;
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  border-color:
+    var(--titech-color-neutral-400);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color:
+    var(--titech-color-brand-600);
+
+  outline: none;
+
+  box-shadow:
+    var(--titech-focus-ring);
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed;
+
+  background:
+    var(--titech-color-neutral-100);
+
+  color:
+    var(--titech-color-text-subtle);
+
+  opacity: 0.75;
+}
+
+
+/* ============================================================================
+   09. CHECKBOXES / RADIO BUTTONS
+   ============================================================================ */
+
+input[type='checkbox'],
+input[type='radio'] {
+  width: auto;
+  min-height: auto;
+  accent-color:
+    var(--titech-color-brand-600);
+}
+
+
+/* ============================================================================
+   10. TABLES
+   ============================================================================ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+th,
+td {
+  padding: 0.75rem 1rem;
+
+  border-bottom:
+    1px solid var(--titech-color-border);
+
+  text-align: left;
+
+  vertical-align: middle;
+}
+
+th {
+  color:
+    var(--titech-color-text-muted);
+
+  font-size: 0.875rem;
+  font-weight:
+    var(--titech-font-weight-semibold);
+}
+
+tbody tr {
+  transition:
+    background-color var(--titech-transition-fast);
+}
+
+tbody tr:hover {
+  background:
+    var(--titech-color-neutral-50);
+}
+
+
+/* ============================================================================
+   11. LISTS
+   ============================================================================ */
+
+ul,
+ol {
+  margin-top: 0;
+  padding-left: 1.5rem;
+}
+
+
+/* ============================================================================
+   12. IMAGES
+   ============================================================================ */
+
+img {
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+img[alt=''] {
+  user-select: none;
+}
+
+
+/* ============================================================================
+   13. ACCESSIBILITY
+   ============================================================================ */
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline:
+    2px solid var(--titech-focus-color);
+
+  outline-offset: 2px;
+}
+
+[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+[aria-busy='true'] {
+  cursor: progress;
+}
+
+
+/*
+ * Visually hidden but accessible to assistive technology.
+ */
+
+.sr-only {
+  position: absolute !important;
+
+  width: 1px !important;
+  height: 1px !important;
+
+  padding: 0 !important;
+  margin: -1px !important;
+
+  overflow: hidden !important;
+
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+
+  white-space: nowrap !important;
+
+  border: 0 !important;
+}
+
+
+/* ============================================================================
+   14. SELECTION
+   ============================================================================ */
+
+::selection {
+  background:
+    var(--titech-color-brand-200);
+
+  color:
+    var(--titech-color-brand-950);
+}
+
+
+/* ============================================================================
+   15. SCROLLBARS
+   ============================================================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color:
+    var(--titech-color-neutral-300)
+    transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background:
+    var(--titech-color-neutral-300);
+
+  border-radius:
+    var(--titech-radius-full);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background:
+    var(--titech-color-neutral-400);
+}
+
+
+/* ============================================================================
+   16. COMMON APPLICATION UTILITIES
+   ============================================================================ */
+
+.titech-container {
+  width: 100%;
+  max-width: var(--titech-content-max-width);
+
+  margin-inline: auto;
+
+  padding-inline:
+    var(--titech-content-padding);
+}
+
+.titech-surface {
+  background:
+    var(--titech-color-surface);
+
+  border:
+    1px solid var(--titech-color-border);
+
+  border-radius:
+    var(--titech-radius-lg);
+
+  box-shadow:
+    var(--titech-shadow-sm);
+}
+
+.titech-muted {
+  color:
+    var(--titech-color-text-muted);
+}
+
+.titech-subtle {
+  color:
+    var(--titech-color-text-subtle);
+}
+
+
+/* ============================================================================
+   17. STATUS FOUNDATIONS
+   ============================================================================ */
+
+.titech-status-success {
+  color:
+    var(--titech-color-success-700);
+
+  background:
+    var(--titech-color-success-50);
+}
+
+.titech-status-warning {
+  color:
+    var(--titech-color-warning-700);
+
+  background:
+    var(--titech-color-warning-50);
+}
+
+.titech-status-danger {
+  color:
+    var(--titech-color-danger-700);
+
+  background:
+    var(--titech-color-danger-50);
+}
+
+.titech-status-info {
+  color:
+    var(--titech-color-info-600);
+
+  background:
+    var(--titech-color-info-50);
+}
+
+
+/* ============================================================================
+   18. LOADING / BUSY STATES
+   ============================================================================ */
+
+.titech-loading {
+  cursor: progress;
+  user-select: none;
+}
+
+.titech-disabled {
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.65;
+}
+
+
+/* ============================================================================
+   19. OVERLAY / MODAL FOUNDATION
+   ============================================================================ */
+
+.titech-overlay {
+  position: fixed;
+  inset: 0;
+
+  z-index:
+    var(--titech-z-overlay);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1rem;
+
+  background:
+    rgba(15, 23, 42, 0.55);
+
+  overscroll-behavior: contain;
+}
+
+.titech-modal {
+  position: relative;
+
+  width: min(
+    100%,
+    32rem
+  );
+
+  max-height:
+    calc(100vh - 2rem);
+
+  overflow: auto;
+
+  padding: 1.5rem;
+
+  background:
+    var(--titech-color-surface);
+
+  border:
+    1px solid var(--titech-color-border);
+
+  border-radius:
+    var(--titech-radius-xl);
+
+  box-shadow:
+    var(--titech-shadow-xl);
+}
+
+
+/* ============================================================================
+   20. TOAST / NOTIFICATION FOUNDATION
+   ============================================================================ */
+
+.titech-toast-region {
+  position: fixed;
+
+  z-index:
+    var(--titech-z-toast);
+
+  pointer-events: none;
+}
+
+.titech-toast-region > * {
+  pointer-events: auto;
+}
+
+
+/* ============================================================================
+   21. OFFLINE FOUNDATION
+   ============================================================================ */
+
+.titech-offline {
+  color:
+    var(--titech-color-warning-700);
+
+  background:
+    var(--titech-color-warning-50);
+
+  border:
+    1px solid var(--titech-color-warning-100);
+}
+
+
+/* ============================================================================
+   22. ERROR FOUNDATION
+   ============================================================================ */
+
+.titech-error {
+  color:
+    var(--titech-color-danger-700);
+
+  background:
+    var(--titech-color-danger-50);
+
+  border:
+    1px solid var(--titech-color-danger-100);
+}
+
+
+/* ============================================================================
+   23. RESPONSIVE MEDIA
+   ============================================================================ */
+
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+iframe {
+  max-width: 100%;
+}
+
+
+/* ============================================================================
+   24. MOBILE / TOUCH OPTIMIZATION
+   ============================================================================ */
+
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --titech-content-padding: 0.875rem;
+  }
+
+  html {
+    font-size: 15px;
+  }
+
+  th,
+  td {
+    padding:
+      0.625rem 0.75rem;
+  }
+
+  .titech-modal {
+    width: 100%;
+    max-height:
+      calc(100vh - 1rem);
+
+    padding: 1rem;
+  }
+}
+
+
+/* ============================================================================
+   25. TABLET / DESKTOP
+   ============================================================================ */
+
+@media (min-width: 768px) {
+  :root {
+    --titech-content-padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --titech-content-padding: 2rem;
+  }
+}
+
+
+/* ============================================================================
+   26. REDUCED MOTION
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ============================================================================
+   27. DARK MODE FOUNDATION
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --titech-color-background:
+      var(--titech-color-neutral-950);
+
+    --titech-color-surface:
+      var(--titech-color-neutral-900);
+
+    --titech-color-surface-muted:
+      var(--titech-color-neutral-800);
+
+    --titech-color-text:
+      var(--titech-color-neutral-100);
+
+    --titech-color-text-muted:
+      var(--titech-color-neutral-300);
+
+    --titech-color-text-subtle:
+      var(--titech-color-neutral-400);
+
+    --titech-color-border:
+      var(--titech-color-neutral-700);
+
+    --titech-color-border-strong:
+      var(--titech-color-neutral-600);
+  }
+
+  input,
+  textarea,
+  select {
+    color-scheme: dark;
+  }
+
+  tbody tr:hover {
+    background:
+      var(--titech-color-neutral-800);
+  }
+
+  .titech-surface {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+}
+
+
+/* ============================================================================
+   28. PRINT
+   ============================================================================ */
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  a {
+    color: #000000;
+    text-decoration: underline;
+  }
+
+  nav,
+  footer,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  .titech-container {
+    max-width: none;
+    padding: 0;
+  }
+}
+
+
+/* ============================================================================
+   29. HIGH-CONTRAST / FORCED COLORS
+   ============================================================================ */
+
+@media (forced-colors: active) {
+  *,
+  *::before,
+  *::after {
+    forced-color-adjust: auto;
+  }
+
+  :focus-visible {
+    outline:
+      2px solid CanvasText;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    border:
+      1px solid ButtonText;
+  }
+}
+
+
+/* ============================================================================
+   30. SAFE AREA SUPPORT
+   ============================================================================ */
+
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top:
+      env(safe-area-inset-top);
+
+    padding-right:
+      env(safe-area-inset-right);
+
+    padding-bottom:
+      env(safe-area-inset-bottom);
+
+    padding-left:
+      env(safe-area-inset-left);
+  }
+}
+
+
+/* ============================================================================
+   31. END
+   ============================================================================
+ *
+ * TITech Community Capital
+ *
+ * Global CSS should remain intentionally conservative.
+ *
+ * Component-specific visual behavior belongs in component/page styles.
+ *
+ * ============================================================================
+ */
