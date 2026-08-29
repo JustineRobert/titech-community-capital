@@ -1,0 +1,1572 @@
+/**
+ * ============================================================================
+ * TITech Community Capital Ltd
+ * Enterprise TITech Chat — Savings Threads Styles
+ * ============================================================================
+ *
+ * File:
+ *   frontend/src/pages/TITechChat/SavingsThreads.css
+ *
+ * Version:
+ *   3.0.0
+ *
+ * Purpose:
+ *   Enterprise-grade responsive styling for the TITech Community Capital
+ *   savings discussion / thread experience.
+ *
+ * Design objectives:
+ *   - Production-grade visual hierarchy
+ *   - Responsive desktop/tablet/mobile layouts
+ *   - Accessibility-first interaction states
+ *   - Keyboard-friendly focus treatment
+ *   - Reduced-motion support
+ *   - High-density financial/community information presentation
+ *   - Clear loading, empty, error and retry states
+ *   - Safe long-content handling
+ *   - Touch-friendly controls
+ *   - Consistent TITech branding
+ *   - Print-friendly presentation
+ *
+ * Important:
+ *   This stylesheet contains presentation rules only.
+ *   It must not contain financial, authorization, security or business logic.
+ *
+ * Branding:
+ *   TITech Community Capital
+ *
+ * ============================================================================
+ */
+
+/* ============================================================================
+ * DESIGN TOKENS
+ * ========================================================================== */
+
+:root {
+  --titech-savings-font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  --titech-savings-mono-font-family:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    Menlo,
+    monospace;
+
+  --titech-savings-color-primary:
+    #14532d;
+
+  --titech-savings-color-primary-hover:
+    #166534;
+
+  --titech-savings-color-primary-active:
+    #15803d;
+
+  --titech-savings-color-primary-soft:
+    #f0fdf4;
+
+  --titech-savings-color-success:
+    #15803d;
+
+  --titech-savings-color-success-soft:
+    #f0fdf4;
+
+  --titech-savings-color-warning:
+    #a16207;
+
+  --titech-savings-color-warning-soft:
+    #fefce8;
+
+  --titech-savings-color-danger:
+    #b91c1c;
+
+  --titech-savings-color-danger-soft:
+    #fef2f2;
+
+  --titech-savings-color-info:
+    #0369a1;
+
+  --titech-savings-color-info-soft:
+    #f0f9ff;
+
+  --titech-savings-color-text:
+    #17202a;
+
+  --titech-savings-color-text-secondary:
+    #475569;
+
+  --titech-savings-color-text-muted:
+    #64748b;
+
+  --titech-savings-color-text-inverse:
+    #ffffff;
+
+  --titech-savings-color-border:
+    #e2e8f0;
+
+  --titech-savings-color-border-strong:
+    #cbd5e1;
+
+  --titech-savings-color-surface:
+    #ffffff;
+
+  --titech-savings-color-surface-muted:
+    #f8fafc;
+
+  --titech-savings-color-surface-subtle:
+    #f1f5f9;
+
+  --titech-savings-color-overlay:
+    rgb(15 23 42 / 0.08);
+
+  --titech-savings-radius-xs:
+    0.25rem;
+
+  --titech-savings-radius-sm:
+    0.375rem;
+
+  --titech-savings-radius-md:
+    0.625rem;
+
+  --titech-savings-radius-lg:
+    0.875rem;
+
+  --titech-savings-radius-xl:
+    1.125rem;
+
+  --titech-savings-radius-pill:
+    999px;
+
+  --titech-savings-shadow-xs:
+    0 1px 2px rgb(15 23 42 / 0.05);
+
+  --titech-savings-shadow-sm:
+    0 2px 6px rgb(15 23 42 / 0.06);
+
+  --titech-savings-shadow-md:
+    0 8px 24px rgb(15 23 42 / 0.08);
+
+  --titech-savings-shadow-lg:
+    0 16px 40px rgb(15 23 42 / 0.12);
+
+  --titech-savings-transition-fast:
+    120ms ease;
+
+  --titech-savings-transition:
+    180ms ease;
+
+  --titech-savings-transition-slow:
+    280ms ease;
+
+  --titech-savings-content-width:
+    1180px;
+
+  --titech-savings-reading-width:
+    820px;
+
+  --titech-savings-control-height:
+    2.625rem;
+
+  --titech-savings-header-offset:
+    0px;
+
+  --titech-savings-focus-ring:
+    0 0 0 3px rgb(20 83 45 / 0.2);
+
+  --titech-savings-spacing-1:
+    0.25rem;
+
+  --titech-savings-spacing-2:
+    0.5rem;
+
+  --titech-savings-spacing-3:
+    0.75rem;
+
+  --titech-savings-spacing-4:
+    1rem;
+
+  --titech-savings-spacing-5:
+    1.25rem;
+
+  --titech-savings-spacing-6:
+    1.5rem;
+
+  --titech-savings-spacing-8:
+    2rem;
+
+  --titech-savings-spacing-10:
+    2.5rem;
+
+  --titech-savings-spacing-12:
+    3rem;
+}
+
+/* ============================================================================
+ * ROOT CONTAINER
+ * ========================================================================== */
+
+.titech-savings-threads {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  color: var(--titech-savings-color-text);
+  background:
+    linear-gradient(
+      180deg,
+      var(--titech-savings-color-surface-muted) 0%,
+      var(--titech-savings-color-surface) 42rem
+    );
+  font-family: var(--titech-savings-font-family);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.titech-savings-threads *,
+.titech-savings-threads *::before,
+.titech-savings-threads *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+ * PAGE SHELL
+ * ========================================================================== */
+
+.titech-savings-threads__shell {
+  width: min(
+    calc(100% - 2rem),
+    var(--titech-savings-content-width)
+  );
+  margin-inline: auto;
+  padding-block: var(--titech-savings-spacing-8);
+}
+
+.titech-savings-threads__content {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ============================================================================
+ * HEADER
+ * ========================================================================== */
+
+.titech-savings-threads__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--titech-savings-spacing-6);
+  margin-bottom: var(--titech-savings-spacing-6);
+}
+
+.titech-savings-threads__header-content {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.titech-savings-threads__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  margin-bottom: var(--titech-savings-spacing-2);
+  padding-inline: 0.625rem;
+  border: 1px solid var(--titech-savings-color-border);
+  border-radius: var(--titech-savings-radius-pill);
+  background: var(--titech-savings-color-primary-soft);
+  color: var(--titech-savings-color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.titech-savings-threads__title {
+  margin: 0;
+  color: var(--titech-savings-color-text);
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.titech-savings-threads__description {
+  max-width: 760px;
+  margin: var(--titech-savings-spacing-3) 0 0;
+  color: var(--titech-savings-color-text-secondary);
+  font-size: 0.975rem;
+  line-height: 1.65;
+}
+
+.titech-savings-threads__header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--titech-savings-spacing-2);
+}
+
+/* ============================================================================
+ * TOOLBAR
+ * ========================================================================== */
+
+.titech-savings-threads__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--titech-savings-spacing-4);
+  margin-bottom: var(--titech-savings-spacing-5);
+  padding: var(--titech-savings-spacing-4);
+  border: 1px solid var(--titech-savings-color-border);
+  border-radius: var(--titech-savings-radius-lg);
+  background: var(--titech-savings-color-surface);
+  box-shadow: var(--titech-savings-shadow-xs);
+}
+
+.titech-savings-threads__toolbar-start,
+.titech-savings-threads__toolbar-end {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--titech-savings-spacing-2);
+}
+
+.titech-savings-threads__toolbar-start {
+  flex: 1 1 auto;
+}
+
+.titech-savings-threads__toolbar-end {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+/* ============================================================================
+ * SEARCH
+ * ========================================================================== */
+
+.titech-savings-threads__search {
+  position: relative;
+  min-width: min(100%, 300px);
+  flex: 1 1 320px;
+}
+
+.titech-savings-threads__search-input {
+  width: 100%;
+  min-height: var(--titech-savings-control-height);
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--titech-savings-color-border-strong);
+  border-radius: var(--titech-savings-radius-md);
+  outline: none;
+  background: var(--titech-savings-color-surface);
+  color: var(--titech-savings-color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  transition:
+    border-color var(--titech-savings-transition-fast),
+    box-shadow var(--titech-savings-transition-fast),
+    background-color var(--titech-savings-transition-fast);
+}
+
+.titech-savings-threads__search-input::placeholder {
+  color: var(--titech-savings-color-text-muted);
+}
+
+.titech-savings-threads__search-input:hover {
+  border-color: #94a3b8;
+}
+
+.titech-savings-threads__search-input:focus,
+.titech-savings-threads__search-input:focus-visible {
+  border-color: var(--titech-savings-color-primary);
+  box-shadow: var(--titech-savings-focus-ring);
+}
+
+.titech-savings-threads__search-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--titech-savings-radius-sm);
+  background: transparent;
+  color: var(--titech-savings-color-text-muted);
+  cursor: pointer;
+}
+
+.titech-savings-threads__search-clear:hover {
+  background: var(--titech-savings-color-surface-subtle);
+  color: var(--titech-savings-color-text);
+}
+
+/* ============================================================================
+ * FILTERS
+ * ========================================================================== */
+
+.titech-savings-threads__filters {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--titech-savings-spacing-2);
+}
+
+.titech-savings-threads__filter {
+  min-height: var(--titech-savings-control-height);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--titech-savings-color-border-strong);
+  border-radius: var(--titech-savings-radius-md);
+  outline: none;
+  background: var(--titech-savings-color-surface);
+  color: var(--titech-savings-color-text-secondary);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition:
+    border-color var(--titech-savings-transition-fast),
+    box-shadow var(--titech-savings-transition-fast);
+}
+
+.titech-savings-threads__filter:hover {
+  border-color: #94a3b8;
+}
+
+.titech-savings-threads__filter:focus,
+.titech-savings-threads__filter:focus-visible {
+  border-color: var(--titech-savings-color-primary);
+  box-shadow: var(--titech-savings-focus-ring);
+}
+
+/* ============================================================================
+ * BUTTON SYSTEM
+ * ========================================================================== */
+
+.titech-savings-threads__button {
+  display: inline-flex;
+  min-height: var(--titech-savings-control-height);
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid transparent;
+  border-radius: var(--titech-savings-radius-md);
+  outline: none;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--titech-savings-transition-fast),
+    border-color var(--titech-savings-transition-fast),
+    color var(--titech-savings-transition-fast),
+    box-shadow var(--titech-savings-transition-fast),
+    transform var(--titech-savings-transition-fast);
+}
+
+.titech-savings-threads__button:focus,
+.titech-savings-threads__button:focus-visible {
+  box-shadow: var(--titech-savings-focus-ring);
+}
+
+.titech-savings-threads__button:active {
+  transform: translateY(1px);
+}
+
+.titech-savings-threads__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.titech-savings-threads__button--primary {
+  border-color: var(--titech-savings-color-primary);
+  background: var(--titech-savings-color-primary);
+  color: var(--titech-savings-color-text-inverse);
+}
+
+.titech-savings-threads__button--primary:hover {
+  border-color: var(--titech-savings-color-primary-hover);
+  background: var(--titech-savings-color-primary-hover);
+}
+
+.titech-savings-threads__button--secondary {
+  border-color: var(--titech-savings-color-border-strong);
+  background: var(--titech-savings-color-surface);
+  color: var(--titech-savings-color-text);
+}
+
+.titech-savings-threads__button--secondary:hover {
+  background: var(--titech-savings-color-surface-muted);
+}
+
+.titech-savings-threads__button--danger {
+  border-color: #fecaca;
+  background: var(--titech-savings-color-danger-soft);
+  color: var(--titech-savings-color-danger);
+}
+
+.titech-savings-threads__button--danger:hover {
+  background: #fee2e2;
+}
+
+/* ============================================================================
+ * THREAD LIST
+ * ========================================================================== */
+
+.titech-savings-threads__list {
+  display: grid;
+  gap: var(--titech-savings-spacing-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.titech-savings-threads__list-item {
+  min-width: 0;
+}
+
+/* ============================================================================
+ * THREAD CARD
+ * ========================================================================== */
+
+.titech-savings-thread {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--titech-savings-spacing-4);
+  padding: var(--titech-savings-spacing-5);
+  border: 1px solid var(--titech-savings-color-border);
+  border-radius: var(--titech-savings-radius-lg);
+  background: var(--titech-savings-color-surface);
+  box-shadow: var(--titech-savings-shadow-xs);
+  transition:
+    border-color var(--titech-savings-transition),
+    box-shadow var(--titech-savings-transition),
+    transform var(--titech-savings-transition);
+}
+
+.titech-savings-thread:hover {
+  border-color: var(--titech-savings-color-border-strong);
+  box-shadow: var(--titech-savings-shadow-sm);
+}
+
+.titech-savings-thread:focus-within {
+  border-color: var(--titech-savings-color-primary);
+  box-shadow: var(--titech-savings-focus-ring);
+}
+
+.titech-savings-thread--unread {
+  border-left: 3px solid var(--titech-savings-color-primary);
+}
+
+.titech-savings-thread--pinned {
+  background:
+    linear-gradient(
+      180deg,
+      var(--titech-savings-color-primary-soft),
+      var(--titech-savings-color-surface)
+    );
+}
+
+.titech-savings-thread--locked {
+  opacity: 0.88;
+}
+
+/* ============================================================================
+ * THREAD HEADER
+ * ========================================================================== */
+
+.titech-savings-thread__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--titech-savings-spacing-4);
+}
+
+.titech-savings-thread__identity {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--titech-savings-spacing-3);
+}
+
+.titech-savings-thread__avatar {
+  display: inline-flex;
+  width: 2.625rem;
+  height: 2.625rem;
+  flex: 0 0 2.625rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--titech-savings-color-border);
+  border-radius: 50%;
+  background: var(--titech-savings-color-surface-subtle);
+  color: var(--titech-savings-color-primary);
+  font-size: 0.875rem;
+  font-weight: 750;
+}
+
+.titech-savings-thread__avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.titech-savings-thread__identity-content {
+  min-width: 0;
+}
+
+.titech-savings-thread__author {
+  margin: 0;
+  color: var(--titech-savings-color-text);
+  font-size: 0.875rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.titech-savings-thread__timestamp {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--titech-savings-color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.titech-savings-thread__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.titech-savings-thread__action {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--titech-savings-radius-sm);
+  background: transparent;
+  color: var(--titech-savings-color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--titech-savings-transition-fast),
+    color var(--titech-savings-transition-fast);
+}
+
+.titech-savings-thread__action:hover {
+  background: var(--titech-savings-color-surface-subtle);
+  color: var(--titech-savings-color-text);
+}
+
+.titech-savings-thread__action:focus,
+.titech-savings-thread__action:focus-visible {
+  outline: none;
+  box-shadow: var(--titech-savings-focus-ring);
+}
+
+/* ============================================================================
+ * THREAD BADGES
+ * ========================================================================== */
+
+.titech-savings-thread__badges {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.titech-savings-thread__badge {
+  display: inline-flex;
+  min-height: 1.5rem;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--titech-savings-color-border);
+  border-radius: var(--titech-savings-radius-pill);
+  background: var(--titech-savings-color-surface-muted);
+  color: var(--titech-savings-color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.titech-savings-thread__badge--savings {
+  border-color: #bbf7d0;
+  background: var(--titech-savings-color-success-soft);
+  color: var(--titech-savings-color-success);
+}
+
+.titech-savings-thread__badge--important {
+  border-color: #fde68a;
+  background: var(--titech-savings-color-warning-soft);
+  color: var(--titech-savings-color-warning);
+}
+
+.titech-savings-thread__badge--locked {
+  border-color: #fecaca;
+  background: var(--titech-savings-color-danger-soft);
+  color: var(--titech-savings-color-danger);
+}
+
+.titech-savings-thread__badge--unread {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+/* ============================================================================
+ * THREAD TITLE
+ * ========================================================================== */
+
+.titech-savings-thread__title {
+  margin: 0;
+  color: var(--titech-savings-color-text);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.titech-savings-thread__title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.titech-savings-thread__title-link:hover {
+  color: var(--titech-savings-color-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.titech-savings-thread__title-link:focus,
+.titech-savings-thread__title-link:focus-visible {
+  outline: none;
+  border-radius: var(--titech-savings-radius-xs);
+  box-shadow: var(--titech-savings-focus-ring);
+}
+
+/* ============================================================================
+ * THREAD BODY / EXCERPT
+ * ========================================================================== */
+
+.titech-savings-thread__body,
+.titech-savings-thread__excerpt {
+  margin: 0;
+  color: var(--titech-savings-color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.titech-savings-thread__body p,
+.titech-savings-thread__excerpt p {
+  margin: 0 0 0.75rem;
+}
+
+.titech-savings-thread__body p:last-child,
+.titech-savings-thread__excerpt p:last-child {
+  margin-bottom: 0;
+}
+
+.titech-savings-thread__body a,
+.titech-savings-thread__excerpt a {
+  color: var(--titech-savings-color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ============================================================================
+ * SAVINGS SUMMARY
+ * ========================================================================== */
+
+.titech-savings-thread__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--titech-savings-spacing-3);
+  padding: var(--titech-savings-spacing-4);
+  border: 1px solid var(--titech-savings-color-border);
+  border-radius: var(--titech-savings-radius-md);
+  background: var(--titech-savings-color-surface-muted);
+}
+
+.titech-savings-thread__summary-item {
+  min-width: 0;
+}
+
+.titech-savings-thread__summary-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--titech-savings-color-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.titech-savings-thread__summary-value {
+  display: block;
+  color: var(--titech-savings-color-text);
+  font-family: var(--titech-savings-mono-font-family);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================================
+ * THREAD FOOTER / METADATA
+ * ========================================================================== */
+
+.titech-savings-thread__footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--titech-savings-spacing-4);
+  padding-top: var(--titech-savings-spacing-3);
+  border-top: 1px solid var(--titech-savings-color-border);
+}
+
+.titech-savings-thread__meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.625rem 1rem;
+  color: var(--titech-savings-color-text-muted);
+  font-size: 0.75rem;
+}
+
+.titech-savings-thread__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.titech-savings-thread__meta-item strong {
+  color: var(--titech-savings-color-text-secondary);
+  font-weight: 700;
+}
+
+.titech-savings-thread__engagement {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.titech-savings-thread__engagement-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--titech-savings-color-text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+ * PAGINATION
+ * ========================================================================== */
+
+.titech-savings-threads__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--titech-savings-spacing-2);
+  margin-top: var(--titech-savings-spacing-6);
+}
+
+.titech-savings-threads__pagination-info {
+  margin-inline: var(--titech-savings-spacing-2);
+  color: var(--titech-savings-color-text-muted);
+  font-size: 0.8rem;
+}
+
+/* ============================================================================
+ * LOADING STATE
+ * ========================================================================== */
+
+.titech-savings-threads__loading {
+  display: grid;
+  gap: var(--titech-savings-spacing-3);
+}
+
+.titech-savings-thread--skeleton {
+  pointer-events: none;
+}
+
+.titech-savings-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--titech-savings-radius-sm);
+  background: var(--titech-savings-color-surface-subtle);
+}
+
+.titech-savings-skeleton::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.65),
+      transparent
+    );
+  animation: titech-savings-skeleton-shimmer 1.4s infinite;
+}
+
+.titech-savings-skeleton--avatar {
+  width: 2.625rem;
+  height: 2.625rem;
+  border-radius: 50%;
+}
+
+.titech-savings-skeleton--line {
+  width: 100%;
+  height: 0.75rem;
+}
+
+.titech-savings-skeleton--line-short {
+  width: 45%;
+  height: 0.75rem;
+}
+
+.titech-savings-skeleton--title {
+  width: 72%;
+  height: 1.125rem;
+}
+
+@keyframes titech-savings-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ============================================================================
+ * EMPTY STATE
+ * ========================================================================== */
+
+.titech-savings-threads__empty {
+  display: flex;
+  min-height: 260px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--titech-savings-spacing-8);
+  border: 1px dashed var(--titech-savings-color-border-strong);
+  border-radius: var(--titech-savings-radius-lg);
+  background: var(--titech-savings-color-surface);
+  text-align: center;
+}
+
+.titech-savings-threads__empty-icon {
+  display: inline-flex;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--titech-savings-spacing-4);
+  border-radius: 50%;
+  background: var(--titech-savings-color-primary-soft);
+  color: var(--titech-savings-color-primary);
+}
+
+.titech-savings-threads__empty-title {
+  margin: 0;
+  color: var(--titech-savings-color-text);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.titech-savings-threads__empty-description {
+  max-width: 540px;
+  margin: var(--titech-savings-spacing-2) auto 0;
+  color: var(--titech-savings-color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.titech-savings-threads__empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--titech-savings-spacing-2);
+  margin-top: var(--titech-savings-spacing-5);
+}
+
+/* ============================================================================
+ * ERROR STATE
+ * ========================================================================== */
+
+.titech-savings-threads__error {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--titech-savings-spacing-8);
+  border: 1px solid #fecaca;
+  border-radius: var(--titech-savings-radius-lg);
+  background: var(--titech-savings-color-danger-soft);
+  text-align: center;
+}
+
+.titech-savings-threads__error-icon {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--titech-savings-spacing-4);
+  border-radius: 50%;
+  background: #fee2e2;
+  color: var(--titech-savings-color-danger);
+}
+
+.titech-savings-threads__error-title {
+  margin: 0;
+  color: #7f1d1d;
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.titech-savings-threads__error-message {
+  max-width: 620px;
+  margin: var(--titech-savings-spacing-2) auto 0;
+  color: #991b1b;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.titech-savings-threads__error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--titech-savings-spacing-2);
+  margin-top: var(--titech-savings-spacing-5);
+}
+
+/* ============================================================================
+ * STATUS / ANNOUNCEMENT
+ * ========================================================================== */
+
+.titech-savings-threads__status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--titech-savings-spacing-3);
+  margin-bottom: var(--titech-savings-spacing-4);
+  padding: var(--titech-savings-spacing-3) var(--titech-savings-spacing-4);
+  border: 1px solid var(--titech-savings-color-border);
+  border-radius: var(--titech-savings-radius-md);
+  background: var(--titech-savings-color-surface-muted);
+  color: var(--titech-savings-color-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.titech-savings-threads__status--success {
+  border-color: #bbf7d0;
+  background: var(--titech-savings-color-success-soft);
+  color: #166534;
+}
+
+.titech-savings-threads__status--warning {
+  border-color: #fde68a;
+  background: var(--titech-savings-color-warning-soft);
+  color: #854d0e;
+}
+
+.titech-savings-threads__status--error {
+  border-color: #fecaca;
+  background: var(--titech-savings-color-danger-soft);
+  color: #991b1b;
+}
+
+/* ============================================================================
+ * COMPOSER
+ * ========================================================================== */
+
+.titech-savings-threads__composer {
+  margin-bottom: var(--titech-savings-spacing-5);
+  padding: var(--titech-savings-spacing-5);
+  border: 1px solid var(--titech-savings-color-border);
+  border-radius: var(--titech-savings-radius-lg);
+  background: var(--titech-savings-color-surface);
+  box-shadow: var(--titech-savings-shadow-xs);
+}
+
+.titech-savings-threads__composer-header {
+  margin-bottom: var(--titech-savings-spacing-4);
+}
+
+.titech-savings-threads__composer-title {
+  margin: 0;
+  color: var(--titech-savings-color-text);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.titech-savings-threads__composer-description {
+  margin: 0.35rem 0 0;
+  color: var(--titech-savings-color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.titech-savings-threads__composer textarea,
+.titech-savings-threads__composer input {
+  width: 100%;
+  border: 1px solid var(--titech-savings-color-border-strong);
+  border-radius: var(--titech-savings-radius-md);
+  outline: none;
+  background: var(--titech-savings-color-surface);
+  color: var(--titech-savings-color-text);
+  font: inherit;
+}
+
+.titech-savings-threads__composer textarea {
+  min-height: 120px;
+  resize: vertical;
+  padding: 0.75rem;
+  line-height: 1.6;
+}
+
+.titech-savings-threads__composer input {
+  min-height: var(--titech-savings-control-height);
+  padding: 0.625rem 0.75rem;
+}
+
+.titech-savings-threads__composer textarea:focus,
+.titech-savings-threads__composer textarea:focus-visible,
+.titech-savings-threads__composer input:focus,
+.titech-savings-threads__composer input:focus-visible {
+  border-color: var(--titech-savings-color-primary);
+  box-shadow: var(--titech-savings-focus-ring);
+}
+
+.titech-savings-threads__composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--titech-savings-spacing-4);
+  margin-top: var(--titech-savings-spacing-3);
+}
+
+.titech-savings-threads__composer-hint {
+  color: var(--titech-savings-color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.titech-savings-threads__composer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--titech-savings-spacing-2);
+}
+
+/* ============================================================================
+ * ACCESSIBILITY
+ * ========================================================================== */
+
+.titech-savings-threads :focus-visible {
+  outline: 3px solid rgb(20 83 45 / 0.25);
+  outline-offset: 2px;
+}
+
+.titech-savings-threads button,
+.titech-savings-threads a,
+.titech-savings-threads input,
+.titech-savings-threads select,
+.titech-savings-threads textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.titech-savings-threads [aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.titech-savings-threads__visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* ============================================================================
+ * RESPONSIVE — LARGE TABLETS
+ * ========================================================================== */
+
+@media (max-width: 960px) {
+  .titech-savings-threads__shell {
+    width: min(
+      calc(100% - 1.5rem),
+      var(--titech-savings-content-width)
+    );
+    padding-block: var(--titech-savings-spacing-6);
+  }
+
+  .titech-savings-threads__header {
+    gap: var(--titech-savings-spacing-4);
+  }
+
+  .titech-savings-threads__toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .titech-savings-threads__toolbar-start,
+  .titech-savings-threads__toolbar-end {
+    width: 100%;
+  }
+
+  .titech-savings-threads__toolbar-end {
+    justify-content: flex-start;
+  }
+
+  .titech-savings-threads__search {
+    flex-basis: 100%;
+  }
+}
+
+/* ============================================================================
+ * RESPONSIVE — TABLET / MOBILE
+ * ========================================================================== */
+
+@media (max-width: 720px) {
+  .titech-savings-threads__shell {
+    width: min(
+      calc(100% - 1rem),
+      var(--titech-savings-content-width)
+    );
+    padding-block: var(--titech-savings-spacing-5);
+  }
+
+  .titech-savings-threads__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .titech-savings-threads__header-actions {
+    justify-content: flex-start;
+  }
+
+  .titech-savings-thread {
+    padding: var(--titech-savings-spacing-4);
+  }
+
+  .titech-savings-thread__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .titech-savings-thread__footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .titech-savings-thread__engagement {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .titech-savings-threads__composer-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .titech-savings-threads__composer-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* ============================================================================
+ * RESPONSIVE — SMALL MOBILE
+ * ========================================================================== */
+
+@media (max-width: 480px) {
+  .titech-savings-threads__shell {
+    width: 100%;
+    padding-inline: 0.75rem;
+  }
+
+  .titech-savings-threads__title {
+    font-size: 1.35rem;
+  }
+
+  .titech-savings-threads__toolbar {
+    padding: var(--titech-savings-spacing-3);
+  }
+
+  .titech-savings-threads__toolbar-start,
+  .titech-savings-threads__toolbar-end,
+  .titech-savings-threads__filters {
+    width: 100%;
+  }
+
+  .titech-savings-threads__filter {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .titech-savings-threads__button {
+    min-height: 2.75rem;
+  }
+
+  .titech-savings-thread__header {
+    gap: var(--titech-savings-spacing-3);
+  }
+
+  .titech-savings-thread__avatar {
+    width: 2.375rem;
+    height: 2.375rem;
+    flex-basis: 2.375rem;
+  }
+
+  .titech-savings-thread__actions {
+    gap: 0;
+  }
+
+  .titech-savings-thread__meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.375rem;
+  }
+
+  .titech-savings-threads__empty,
+  .titech-savings-threads__error {
+    min-height: 220px;
+    padding: var(--titech-savings-spacing-6);
+  }
+
+  .titech-savings-threads__empty-actions,
+  .titech-savings-threads__error-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .titech-savings-threads__empty-actions
+    .titech-savings-threads__button,
+  .titech-savings-threads__error-actions
+    .titech-savings-threads__button {
+    width: 100%;
+  }
+}
+
+/* ============================================================================
+ * REDUCED MOTION
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .titech-savings-threads *,
+  .titech-savings-threads *::before,
+  .titech-savings-threads *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ============================================================================
+ * HIGH CONTRAST / FORCED COLORS
+ * ========================================================================== */
+
+@media (forced-colors: active) {
+  .titech-savings-thread,
+  .titech-savings-threads__toolbar,
+  .titech-savings-threads__composer,
+  .titech-savings-threads__empty,
+  .titech-savings-threads__error,
+  .titech-savings-threads__status {
+    border: 1px solid CanvasText;
+  }
+
+  .titech-savings-threads__button {
+    border: 1px solid ButtonText;
+  }
+
+  .titech-savings-threads__button--primary {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .titech-savings-thread__title-link {
+    color: LinkText;
+  }
+
+  .titech-savings-threads :focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
+
+/* ============================================================================
+ * PRINT
+ * ========================================================================== */
+
+@media print {
+  .titech-savings-threads {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .titech-savings-threads__shell {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  .titech-savings-threads__header-actions,
+  .titech-savings-threads__toolbar,
+  .titech-savings-thread__actions,
+  .titech-savings-threads__composer,
+  .titech-savings-threads__pagination,
+  .titech-savings-threads__empty-actions,
+  .titech-savings-threads__error-actions {
+    display: none !important;
+  }
+
+  .titech-savings-thread {
+    break-inside: avoid;
+    border: 1px solid #999999;
+    box-shadow: none;
+  }
+
+  .titech-savings-thread__title-link {
+    color: #000000;
+    text-decoration: none;
+  }
+
+  .titech-savings-thread__body a,
+  .titech-savings-thread__excerpt a {
+    color: #000000;
+  }
+}
+
+/* ============================================================================
+ * DARK-MODE SUPPORT
+ *
+ * Uses the user's system preference only when the application has not already
+ * supplied a stronger theme at a higher level.
+ * ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --titech-savings-color-text:
+      #e5e7eb;
+
+    --titech-savings-color-text-secondary:
+      #cbd5e1;
+
+    --titech-savings-color-text-muted:
+      #94a3b8;
+
+    --titech-savings-color-text-inverse:
+      #ffffff;
+
+    --titech-savings-color-border:
+      #334155;
+
+    --titech-savings-color-border-strong:
+      #475569;
+
+    --titech-savings-color-surface:
+      #111827;
+
+    --titech-savings-color-surface-muted:
+      #0f172a;
+
+    --titech-savings-color-surface-subtle:
+      #1e293b;
+
+    --titech-savings-color-primary-soft:
+      #052e16;
+
+    --titech-savings-color-success-soft:
+      #052e16;
+
+    --titech-savings-color-warning-soft:
+      #422006;
+
+    --titech-savings-color-danger-soft:
+      #450a0a;
+
+    --titech-savings-color-info-soft:
+      #082f49;
+  }
+
+  .titech-savings-threads {
+    background:
+      linear-gradient(
+        180deg,
+        #020617 0%,
+        #0f172a 42rem
+      );
+  }
+
+  .titech-savings-thread--pinned {
+    background:
+      linear-gradient(
+        180deg,
+        #052e16,
+        var(--titech-savings-color-surface)
+      );
+  }
+
+  .titech-savings-skeleton::after {
+    background:
+      linear-gradient(
+        90deg,
+        transparent,
+        rgb(255 255 255 / 0.08),
+        transparent
+      );
+  }
+
+  .titech-savings-threads__button--secondary {
+    background: var(--titech-savings-color-surface);
+    color: var(--titech-savings-color-text);
+  }
+
+  .titech-savings-threads__button--secondary:hover {
+    background: var(--titech-savings-color-surface-subtle);
+  }
+}
+
+/* ============================================================================
+ * END OF FILE
+ * ============================================================================
+ */

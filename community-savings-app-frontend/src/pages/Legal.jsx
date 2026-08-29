@@ -1,28 +1,65 @@
 /**
  * ============================================================================
- * TITech Community Capital – Legal Information
- * File: frontend/src/pages/Legal.jsx
+ * TITech Community Capital Ltd
+ * Enterprise Legal Information Page
+ * ============================================================================
  *
- * Enterprise Production Grade
- * ----------------------------------------------------------------------------
- * - Terms of Service
- * - Privacy Policy
- * - Financial Disclaimer
- * - Accessibility / WCAG-oriented structure
- * - Responsive layout
- * - Sticky section navigation
- * - Scroll-to-top support
- * - Active section tracking
- * - Print support
- * - Deep-link friendly anchors
- * - Keyboard accessible navigation
- * - Reduced-motion awareness
- * - Safe browser API usage
- * - No sensitive client-side state
- * - TITech terminology consistency
- * - Production-safe lifecycle management
+ * File:
+ *   frontend/src/pages/Legal.jsx
+ *
+ * Purpose:
+ *   Production-grade presentation layer for TITech Community Capital legal
+ *   information.
+ *
+ * Architecture:
+ *
+ *   frontend/src/legal/
+ *   ├── index.js
+ *   ├── legalRegistry.js
+ *   ├── legalTypes.js
+ *   └── legalUtils.js
+ *
+ *   frontend/src/pages/
+ *   └── Legal.jsx
+ *
+ * Design Principles:
+ *   ✓ Registry-driven legal metadata
+ *   ✓ No duplicate legal registry configuration
+ *   ✓ Accessible document landmarks
+ *   ✓ WCAG-oriented navigation
+ *   ✓ Responsive navigation
+ *   ✓ Sticky legal navigation
+ *   ✓ Active section tracking
+ *   ✓ Deep-link/hash navigation
+ *   ✓ Browser back/forward hash support
+ *   ✓ Keyboard navigation
+ *   ✓ Reduced-motion awareness
+ *   ✓ Print support
+ *   ✓ Defensive browser API usage
+ *   ✓ IntersectionObserver cleanup
+ *   ✓ Safe lifecycle management
+ *   ✓ Stable section identifiers
+ *   ✓ Scroll restoration
+ *   ✓ Document version awareness
+ *   ✓ Registry validation compatibility
+ *   ✓ Future CMS/API compatibility
+ *   ✓ No sensitive client-side state
+ *   ✓ TITech terminology consistency
+ *
+ * IMPORTANT:
+ *   This component is a software presentation layer.
+ *
+ *   It does not determine whether TITech Community Capital Ltd is licensed,
+ *   authorized, regulated, or legally permitted to perform a regulated
+ *   financial activity.
+ *
+ *   Substantive legal content must be reviewed and approved by appropriately
+ *   qualified legal, regulatory, privacy, and compliance professionals.
+ *
  * ============================================================================
  */
+
+'use strict';
 
 import React, {
   useCallback,
@@ -31,37 +68,73 @@ import React, {
   useRef,
   useState,
 } from 'react';
+
 import { Link } from 'react-router-dom';
+
 import {
   ChevronUp,
   FileText,
   Home,
   Lock,
+  Menu,
   Printer,
   Scale,
   ShieldCheck,
+  X,
 } from 'lucide-react';
+
+import {
+  LEGAL_DOCUMENTS,
+  LEGAL_STATUS,
+  LEGAL_CATEGORY,
+  getPublishedLegalDocuments,
+  getPublicLegalDocuments,
+} from '../legal';
 
 import './Legal.css';
 
 /* ============================================================================
- * Document Metadata
+ * PAGE CONSTANTS
  * ========================================================================== */
 
-const LEGAL_LAST_UPDATED = 'January 15, 2026';
-const LEGAL_VERSION = '1.0';
-const LEGAL_CONTACT_EMAIL = 'legal@titechcommunity.app';
-const LEGAL_CONTACT_PHONE = '+256 (782) 397907';
-const LEGAL_CONTACT_PHONE_URI = '+256782397907';
-const LEGAL_CONTACT_ADDRESS = 'Kampala, Uganda';
+const PAGE_CONFIG = Object.freeze({
+  organizationName: 'TITech Community Capital Ltd',
+  platformName: 'TITech Community Capital Platform',
+
+  /*
+   * These values are presentation fallbacks only.
+   *
+   * The authoritative document version/date should come from the registry
+   * whenever available.
+   */
+  fallbackLastUpdated: 'January 15, 2026',
+  fallbackVersion: '1.0',
+
+  legalEmail: 'legal@titechcommunity.app',
+  phoneDisplay: '+256 (782) 397907',
+  phoneUri: '+256782397907',
+  address: 'Kampala, Uganda',
+  responseTime: '5 business days',
+});
 
 const SCROLL_TOP_THRESHOLD = 420;
-const INITIAL_HASH_DELAY = 50;
+const INITIAL_HASH_DELAY = 75;
+const SECTION_SCROLL_OFFSET = 24;
+
+const SCROLL_LOCK_RELEASE_MS = 850;
+const REDUCED_SCROLL_LOCK_RELEASE_MS = 75;
 
 /* ============================================================================
- * Section Configuration
+ * STABLE SECTION CONFIGURATION
  * ========================================================================== */
 
+/**
+ * Stable UI section identifiers.
+ *
+ * These IDs are deliberately kept independent from legal document IDs so
+ * legal content can later be supplied by a CMS/API without forcing the
+ * browser navigation contract to change.
+ */
 const SECTION_IDS = Object.freeze([
   'tos-1',
   'tos-2',
@@ -69,12 +142,14 @@ const SECTION_IDS = Object.freeze([
   'tos-4',
   'tos-5',
   'tos-6',
+
   'pp-1',
   'pp-2',
   'pp-3',
   'pp-4',
   'pp-5',
   'pp-6',
+
   'disclaimer',
   'financial-disclaimer',
   'contact-legal',
@@ -86,45 +161,94 @@ const NAV_SECTIONS = Object.freeze([
     title: 'Terms of Service',
     icon: Scale,
     links: [
-      { id: 'tos-1', label: '1. Acceptance of Terms' },
-      { id: 'tos-2', label: '2. User Rights & Responsibilities' },
-      { id: 'tos-3', label: '3. User Conduct' },
-      { id: 'tos-4', label: '4. Payment Terms' },
-      { id: 'tos-5', label: '5. Loan Agreements' },
-      { id: 'tos-6', label: '6. Limitation of Liability' },
+      {
+        id: 'tos-1',
+        label: '1. Acceptance of Terms',
+      },
+      {
+        id: 'tos-2',
+        label: '2. User Rights & Responsibilities',
+      },
+      {
+        id: 'tos-3',
+        label: '3. User Conduct',
+      },
+      {
+        id: 'tos-4',
+        label: '4. Payment Terms',
+      },
+      {
+        id: 'tos-5',
+        label: '5. Loan Agreements',
+      },
+      {
+        id: 'tos-6',
+        label: '6. Limitation of Liability',
+      },
     ],
   },
+
   {
     id: 'privacy',
     title: 'Privacy Policy',
     icon: ShieldCheck,
     links: [
-      { id: 'pp-1', label: '1. Information We Collect' },
-      { id: 'pp-2', label: '2. How We Use Information' },
-      { id: 'pp-3', label: '3. Data Security' },
-      { id: 'pp-4', label: '4. Your Privacy Rights' },
-      { id: 'pp-5', label: '5. Cookies & Tracking' },
-      { id: 'pp-6', label: '6. Third-Party Services' },
+      {
+        id: 'pp-1',
+        label: '1. Information We Collect',
+      },
+      {
+        id: 'pp-2',
+        label: '2. How We Use Information',
+      },
+      {
+        id: 'pp-3',
+        label: '3. Data Security',
+      },
+      {
+        id: 'pp-4',
+        label: '4. Your Privacy Rights',
+      },
+      {
+        id: 'pp-5',
+        label: '5. Cookies & Tracking',
+      },
+      {
+        id: 'pp-6',
+        label: '6. Third-Party Services',
+      },
     ],
   },
+
   {
     id: 'disclaimer-section',
     title: 'Disclaimer',
     icon: FileText,
     links: [
-      { id: 'disclaimer', label: 'General Disclaimer' },
-      { id: 'financial-disclaimer', label: 'Financial Disclaimer' },
-      { id: 'contact-legal', label: 'Contact Legal' },
+      {
+        id: 'disclaimer',
+        label: 'General Disclaimer',
+      },
+      {
+        id: 'financial-disclaimer',
+        label: 'Financial Disclaimer',
+      },
+      {
+        id: 'contact-legal',
+        label: 'Contact Legal',
+      },
     ],
   },
 ]);
 
 /* ============================================================================
- * Browser Helpers
+ * BROWSER HELPERS
  * ========================================================================== */
 
 /**
- * Detect reduced-motion preference safely.
+ * Safely determine whether reduced motion is preferred.
+ *
+ * @returns {boolean}
  */
 function prefersReducedMotion() {
   if (
@@ -134,44 +258,62 @@ function prefersReducedMotion() {
     return false;
   }
 
-  return window.matchMedia(
-    '(prefers-reduced-motion: reduce)',
-  ).matches;
+  try {
+    return window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Normalize a URL hash into a section ID.
+ * Safely obtain the current browser hash.
+ *
+ * @returns {string|null}
  */
 function getHashSectionId() {
   if (typeof window === 'undefined') {
     return null;
   }
 
-  const hash = window.location.hash;
+  const rawHash = window.location?.hash;
 
-  if (!hash) {
+  if (!rawHash) {
     return null;
   }
 
-  const id = decodeURIComponent(hash.replace(/^#/, ''));
+  try {
+    const decoded = decodeURIComponent(
+      rawHash.replace(/^#/, ''),
+    );
 
-  return SECTION_IDS.includes(id) ? id : null;
+    return SECTION_IDS.includes(decoded)
+      ? decoded
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Update the current URL hash without triggering a full navigation.
+ * Replace the current URL hash without causing a page reload.
+ *
+ * @param {string} id
  */
 function replaceSectionHash(id) {
   if (
     typeof window === 'undefined' ||
-    !window.history?.replaceState ||
-    !id
+    !window.history ||
+    typeof window.history.replaceState !== 'function' ||
+    !SECTION_IDS.includes(id)
   ) {
     return;
   }
 
   const baseUrl =
-    window.location.pathname + window.location.search;
+    window.location.pathname +
+    window.location.search;
 
   window.history.replaceState(
     null,
@@ -181,12 +323,13 @@ function replaceSectionHash(id) {
 }
 
 /**
- * Remove the current hash without reloading the page.
+ * Clear the current URL hash.
  */
 function clearSectionHash() {
   if (
     typeof window === 'undefined' ||
-    !window.history?.replaceState
+    !window.history ||
+    typeof window.history.replaceState !== 'function'
   ) {
     return;
   }
@@ -194,34 +337,219 @@ function clearSectionHash() {
   window.history.replaceState(
     null,
     '',
-    window.location.pathname + window.location.search,
+    window.location.pathname +
+      window.location.search,
   );
 }
 
 /* ============================================================================
- * Component
+ * REGISTRY HELPERS
+ * ========================================================================== */
+
+/**
+ * Safely retrieve the authoritative registry.
+ *
+ * The page intentionally avoids assuming that every registry implementation
+ * exposes exactly the same runtime shape.
+ */
+function getRegistryDocuments() {
+  if (!Array.isArray(LEGAL_DOCUMENTS)) {
+    return [];
+  }
+
+  return LEGAL_DOCUMENTS;
+}
+
+/**
+ * Find a document using likely registry identifiers.
+ *
+ * @param {Array<object>} documents
+ * @param {string[]} identifiers
+ * @returns {object|null}
+ */
+function findRegistryDocument(
+  documents,
+  identifiers,
+) {
+  if (!Array.isArray(documents)) {
+    return null;
+  }
+
+  return (
+    documents.find((document) =>
+      identifiers.includes(document?.id),
+    ) ||
+    documents.find((document) =>
+      identifiers.includes(document?.slug),
+    ) ||
+    null
+  );
+}
+
+/**
+ * Safely resolve document metadata from the enterprise registry.
+ *
+ * @param {string[]} identifiers
+ * @param {object} fallback
+ * @returns {object}
+ */
+function resolveDocumentMetadata(
+  identifiers,
+  fallback,
+) {
+  const documents = getRegistryDocuments();
+
+  const registryDocument =
+    findRegistryDocument(
+      documents,
+      identifiers,
+    );
+
+  if (!registryDocument) {
+    return fallback;
+  }
+
+  return {
+    ...fallback,
+    ...registryDocument,
+  };
+}
+
+/* ============================================================================
+ * COMPONENT
  * ========================================================================== */
 
 const Legal = () => {
   const contentRef = useRef(null);
   const observerRef = useRef(null);
-  const mountedRef = useRef(true);
+  const mountedRef = useRef(false);
+  const navigationLockRef = useRef(null);
+  const navigationTimerRef = useRef(null);
+  const initialNavigationTimerRef =
+    useRef(null);
 
-  const [activeSection, setActiveSection] = useState('tos-1');
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [activeSection, setActiveSection] =
+    useState('tos-1');
 
-  /* --------------------------------------------------------------------------
-   * Stable Navigation Configuration
-   * ------------------------------------------------------------------------ */
+  const [showScrollTop, setShowScrollTop] =
+    useState(false);
+
+  const [mobileNavOpen, setMobileNavOpen] =
+    useState(false);
+
+  /* ==========================================================================
+   * REGISTRY-DRIVEN METADATA
+   * ======================================================================== */
+
+  const registryDocuments = useMemo(
+    () => getRegistryDocuments(),
+    [],
+  );
+
+  const publishedDocuments = useMemo(() => {
+    try {
+      return getPublishedLegalDocuments();
+    } catch {
+      return registryDocuments.filter(
+        (document) =>
+          document?.status ===
+          LEGAL_STATUS?.PUBLISHED,
+      );
+    }
+  }, [registryDocuments]);
+
+  const publicDocuments = useMemo(() => {
+    try {
+      return getPublicLegalDocuments();
+    } catch {
+      return publishedDocuments.filter(
+        (document) =>
+          document?.public === true,
+      );
+    }
+  }, [publishedDocuments]);
+
+  const termsDocument = useMemo(
+    () =>
+      resolveDocumentMetadata(
+        [
+          'terms-of-service',
+          'terms',
+          'tos',
+        ],
+        {
+          title: 'Terms of Service',
+          currentVersion:
+            PAGE_CONFIG.fallbackVersion,
+          lastUpdated:
+            PAGE_CONFIG.fallbackLastUpdated,
+        },
+      ),
+    [],
+  );
+
+  const privacyDocument = useMemo(
+    () =>
+      resolveDocumentMetadata(
+        [
+          'privacy-policy',
+          'privacy',
+        ],
+        {
+          title: 'Privacy Policy',
+          currentVersion:
+            PAGE_CONFIG.fallbackVersion,
+          lastUpdated:
+            PAGE_CONFIG.fallbackLastUpdated,
+        },
+      ),
+    [],
+  );
+
+  const disclaimerDocument = useMemo(
+    () =>
+      resolveDocumentMetadata(
+        [
+          'general-disclaimer',
+          'disclaimer',
+        ],
+        {
+          title: 'General Disclaimer',
+          currentVersion:
+            PAGE_CONFIG.fallbackVersion,
+          lastUpdated:
+            PAGE_CONFIG.fallbackLastUpdated,
+        },
+      ),
+    [],
+  );
+
+  const legalVersion =
+    termsDocument?.currentVersion ||
+    privacyDocument?.currentVersion ||
+    PAGE_CONFIG.fallbackVersion;
+
+  const legalLastUpdated =
+    termsDocument?.lastModified ||
+    termsDocument?.publishedDate ||
+    termsDocument?.effectiveDate ||
+    privacyDocument?.lastModified ||
+    privacyDocument?.publishedDate ||
+    privacyDocument?.effectiveDate ||
+    PAGE_CONFIG.fallbackLastUpdated;
+
+  /* ==========================================================================
+   * NAVIGATION CONFIGURATION
+   * ======================================================================== */
 
   const navigation = useMemo(
     () => NAV_SECTIONS,
     [],
   );
 
-  /* --------------------------------------------------------------------------
-   * Scroll Position
-   * ------------------------------------------------------------------------ */
+  /* ==========================================================================
+   * SCROLL POSITION
+   * ======================================================================== */
 
   const handleScroll = useCallback(() => {
     const container = contentRef.current;
@@ -231,16 +559,76 @@ const Legal = () => {
     }
 
     const shouldShow =
-      container.scrollTop > SCROLL_TOP_THRESHOLD;
+      container.scrollTop >
+      SCROLL_TOP_THRESHOLD;
 
     setShowScrollTop((previous) =>
-      previous === shouldShow ? previous : shouldShow,
+      previous === shouldShow
+        ? previous
+        : shouldShow,
     );
   }, []);
 
-  /* --------------------------------------------------------------------------
-   * Scroll To Top
-   * ------------------------------------------------------------------------ */
+  /* ==========================================================================
+   * NAVIGATION LOCK
+   * ======================================================================== */
+
+  const releaseNavigationLock =
+    useCallback((expectedId = null) => {
+      if (
+        expectedId === null ||
+        navigationLockRef.current ===
+          expectedId
+      ) {
+        navigationLockRef.current = null;
+      }
+    }, []);
+
+  const scheduleNavigationLockRelease =
+    useCallback(
+      (id) => {
+        if (
+          typeof window === 'undefined'
+        ) {
+          releaseNavigationLock(id);
+          return;
+        }
+
+        if (
+          navigationTimerRef.current !==
+          null
+        ) {
+          window.clearTimeout(
+            navigationTimerRef.current,
+          );
+        }
+
+        const delay =
+          prefersReducedMotion()
+            ? REDUCED_SCROLL_LOCK_RELEASE_MS
+            : SCROLL_LOCK_RELEASE_MS;
+
+        navigationTimerRef.current =
+          window.setTimeout(() => {
+            if (
+              mountedRef.current &&
+              navigationLockRef.current ===
+                id
+            ) {
+              navigationLockRef.current =
+                null;
+            }
+
+            navigationTimerRef.current =
+              null;
+          }, delay);
+      },
+      [releaseNavigationLock],
+    );
+
+  /* ==========================================================================
+   * SCROLL TO TOP
+   * ======================================================================== */
 
   const scrollToTop = useCallback(() => {
     const container = contentRef.current;
@@ -248,6 +636,8 @@ const Legal = () => {
     if (!container) {
       return;
     }
+
+    navigationLockRef.current = 'tos-1';
 
     container.scrollTo({
       top: 0,
@@ -258,22 +648,31 @@ const Legal = () => {
 
     setActiveSection('tos-1');
     clearSectionHash();
+    setMobileNavOpen(false);
 
-    /*
-     * Move keyboard focus back into the document container so keyboard and
-     * screen-reader users receive predictable navigation behavior.
-     */
     if (
-      typeof container.focus === 'function' &&
+      typeof container.focus ===
+        'function' &&
+      typeof document !== 'undefined' &&
       document.activeElement !== container
     ) {
-      container.focus({ preventScroll: true });
+      try {
+        container.focus({
+          preventScroll: true,
+        });
+      } catch {
+        container.focus();
+      }
     }
-  }, []);
 
-  /* --------------------------------------------------------------------------
-   * Print
-   * ------------------------------------------------------------------------ */
+    scheduleNavigationLockRelease(
+      'tos-1',
+    );
+  }, [scheduleNavigationLockRelease]);
+
+  /* ==========================================================================
+   * PRINT
+   * ======================================================================== */
 
   const handlePrint = useCallback(() => {
     if (
@@ -283,76 +682,109 @@ const Legal = () => {
       return;
     }
 
-    window.print();
+    setMobileNavOpen(false);
+
+    window.setTimeout(() => {
+      if (
+        mountedRef.current &&
+        typeof window.print === 'function'
+      ) {
+        window.print();
+      }
+    }, 0);
   }, []);
 
-  /* --------------------------------------------------------------------------
-   * Section Navigation
-   * ------------------------------------------------------------------------ */
+  /* ==========================================================================
+   * SECTION NAVIGATION
+   * ======================================================================== */
 
-  const scrollToSection = useCallback((id) => {
-    const container = contentRef.current;
+  const scrollToSection = useCallback(
+    (id) => {
+      const container = contentRef.current;
 
-    if (!container || !SECTION_IDS.includes(id)) {
-      return;
-    }
+      if (
+        !container ||
+        !SECTION_IDS.includes(id)
+      ) {
+        return;
+      }
 
-    const target = document.getElementById(id);
+      if (
+        typeof document === 'undefined' ||
+        typeof document.getElementById !==
+          'function'
+      ) {
+        return;
+      }
 
-    if (!target) {
-      return;
-    }
+      const target =
+        document.getElementById(id);
 
-    /*
-     * Calculate the target position relative to the legal scroll container.
-     * This is more deterministic than relying exclusively on
-     * scrollIntoView(), particularly when the application itself has a
-     * scrollable layout.
-     */
-    const containerRect = container.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
+      if (!target) {
+        return;
+      }
 
-    const nextTop =
-      container.scrollTop +
-      (targetRect.top - containerRect.top) -
-      20;
+      const containerRect =
+        container.getBoundingClientRect();
 
-    container.scrollTo({
-      top: Math.max(0, nextTop),
-      behavior: prefersReducedMotion()
-        ? 'auto'
-        : 'smooth',
-    });
+      const targetRect =
+        target.getBoundingClientRect();
 
-    setActiveSection(id);
-    replaceSectionHash(id);
-  }, []);
+      const nextTop =
+        container.scrollTop +
+        (targetRect.top -
+          containerRect.top) -
+        SECTION_SCROLL_OFFSET;
 
-  const handleSectionNavigation = useCallback(
-    (event, id) => {
-      event.preventDefault();
+      navigationLockRef.current = id;
 
-      scrollToSection(id);
+      container.scrollTo({
+        top: Math.max(0, nextTop),
+        behavior: prefersReducedMotion()
+          ? 'auto'
+          : 'smooth',
+      });
+
+      setActiveSection(id);
+      replaceSectionHash(id);
+      setMobileNavOpen(false);
+
+      scheduleNavigationLockRelease(id);
     },
-    [scrollToSection],
+    [scheduleNavigationLockRelease],
   );
 
-  /* --------------------------------------------------------------------------
-   * Intersection Observer
-   * ------------------------------------------------------------------------ */
+  const handleSectionNavigation =
+    useCallback(
+      (event, id) => {
+        if (event) {
+          event.preventDefault();
+        }
+
+        scrollToSection(id);
+      },
+      [scrollToSection],
+    );
+
+  /* ==========================================================================
+   * INTERSECTION OBSERVER
+   * ======================================================================== */
 
   useEffect(() => {
     const container = contentRef.current;
 
     if (
       !container ||
-      typeof IntersectionObserver === 'undefined'
+      typeof IntersectionObserver ===
+        'undefined'
     ) {
       return undefined;
     }
 
     const sections = SECTION_IDS
-      .map((id) => document.getElementById(id))
+      .map((id) =>
+        document.getElementById(id),
+      )
       .filter(Boolean);
 
     if (!sections.length) {
@@ -361,51 +793,63 @@ const Legal = () => {
 
     observerRef.current?.disconnect();
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (!mountedRef.current) {
-          return;
-        }
+    observerRef.current =
+      new IntersectionObserver(
+        (entries) => {
+          if (!mountedRef.current) {
+            return;
+          }
 
-        const visibleEntries = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort(
-            (first, second) =>
-              first.boundingClientRect.top -
-              second.boundingClientRect.top,
-          );
+          if (navigationLockRef.current) {
+            return;
+          }
 
-        if (!visibleEntries.length) {
-          return;
-        }
+          const visibleEntries = entries
+            .filter(
+              (entry) =>
+                entry.isIntersecting,
+            )
+            .sort(
+              (first, second) =>
+                first.boundingClientRect.top -
+                second.boundingClientRect.top,
+            );
 
-        const nextId =
-          visibleEntries[0]?.target?.id;
+          if (!visibleEntries.length) {
+            return;
+          }
 
-        if (
-          nextId &&
-          SECTION_IDS.includes(nextId)
-        ) {
-          setActiveSection((previous) =>
-            previous === nextId
-              ? previous
-              : nextId,
-          );
-        }
-      },
-      {
-        root: container,
-        /*
-         * Creates a practical "active section" reading zone near the
-         * upper portion of the legal document.
-         */
-        rootMargin: '-12% 0px -65% 0px',
-        threshold: [0, 0.1, 0.25, 0.5],
-      },
-    );
+          const nextId =
+            visibleEntries[0]?.target?.id;
+
+          if (
+            nextId &&
+            SECTION_IDS.includes(nextId)
+          ) {
+            setActiveSection((previous) =>
+              previous === nextId
+                ? previous
+                : nextId,
+            );
+          }
+        },
+        {
+          root: container,
+          rootMargin:
+            '-12% 0px -65% 0px',
+          threshold: [
+            0,
+            0.1,
+            0.25,
+            0.5,
+          ],
+        },
+      );
 
     sections.forEach((section) => {
-      observerRef.current?.observe(section);
+      observerRef.current?.observe(
+        section,
+      );
     });
 
     return () => {
@@ -414,44 +858,58 @@ const Legal = () => {
     };
   }, []);
 
-  /* --------------------------------------------------------------------------
-   * Initial Deep-Link Handling
-   * ------------------------------------------------------------------------ */
+  /* ==========================================================================
+   * INITIAL HASH / DEEP LINK
+   * ======================================================================== */
 
   useEffect(() => {
-    const hashSectionId = getHashSectionId();
+    const hashSectionId =
+      getHashSectionId();
 
     if (!hashSectionId) {
       return undefined;
     }
 
-    const timer =
-      typeof window !== 'undefined'
-        ? window.setTimeout(() => {
-            if (!mountedRef.current) {
-              return;
-            }
+    if (
+      typeof window === 'undefined'
+    ) {
+      return undefined;
+    }
 
-            scrollToSection(hashSectionId);
-          }, INITIAL_HASH_DELAY)
-        : null;
+    initialNavigationTimerRef.current =
+      window.setTimeout(() => {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        scrollToSection(
+          hashSectionId,
+        );
+      }, INITIAL_HASH_DELAY);
 
     return () => {
       if (
-        timer !== null &&
+        initialNavigationTimerRef.current !==
+          null &&
         typeof window !== 'undefined'
       ) {
-        window.clearTimeout(timer);
+        window.clearTimeout(
+          initialNavigationTimerRef.current,
+        );
+
+        initialNavigationTimerRef.current =
+          null;
       }
     };
   }, [scrollToSection]);
 
-  /* --------------------------------------------------------------------------
-   * Scroll Listener
-   * ------------------------------------------------------------------------ */
+  /* ==========================================================================
+   * SCROLL LISTENER
+   * ======================================================================== */
 
   useEffect(() => {
-    const container = contentRef.current;
+    const container =
+      contentRef.current;
 
     if (!container) {
       return undefined;
@@ -460,7 +918,9 @@ const Legal = () => {
     container.addEventListener(
       'scroll',
       handleScroll,
-      { passive: true },
+      {
+        passive: true,
+      },
     );
 
     handleScroll();
@@ -473,22 +933,25 @@ const Legal = () => {
     };
   }, [handleScroll]);
 
-  /* --------------------------------------------------------------------------
-   * Browser Hash Navigation
-   *
-   * Handles back/forward navigation and external links containing a legal
-   * section hash.
-   * ------------------------------------------------------------------------ */
+  /* ==========================================================================
+   * BROWSER HASH NAVIGATION
+   * ======================================================================== */
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (
+      typeof window === 'undefined'
+    ) {
       return undefined;
     }
 
     const handleHashChange = () => {
-      const id = getHashSectionId();
+      const id =
+        getHashSectionId();
 
-      if (!id || !mountedRef.current) {
+      if (
+        !id ||
+        !mountedRef.current
+      ) {
         return;
       }
 
@@ -508,11 +971,17 @@ const Legal = () => {
     };
   }, [scrollToSection]);
 
-  /* --------------------------------------------------------------------------
-   * Global Keyboard Shortcuts
-   * ------------------------------------------------------------------------ */
+  /* ==========================================================================
+   * KEYBOARD SHORTCUTS
+   * ======================================================================== */
 
   useEffect(() => {
+    if (
+      typeof window === 'undefined'
+    ) {
+      return undefined;
+    }
+
     const handleKeyDown = (event) => {
       if (
         event.defaultPrevented ||
@@ -523,27 +992,33 @@ const Legal = () => {
         return;
       }
 
-      /*
-       * Escape provides a convenient way to return to the top when the
-       * scroll-to-top control is available.
-       */
-      if (
-        event.key === 'Escape' &&
-        contentRef.current &&
-        contentRef.current.scrollTop > SCROLL_TOP_THRESHOLD
-      ) {
-        event.preventDefault();
-        scrollToTop();
+      const activeElement =
+        typeof document !== 'undefined'
+          ? document.activeElement
+          : null;
+
+      if (event.key === 'Escape') {
+        if (mobileNavOpen) {
+          event.preventDefault();
+          setMobileNavOpen(false);
+          return;
+        }
+
+        if (
+          contentRef.current &&
+          contentRef.current.scrollTop >
+            SCROLL_TOP_THRESHOLD
+        ) {
+          event.preventDefault();
+          scrollToTop();
+          return;
+        }
       }
 
-      /*
-       * Home is intentionally scoped to the legal document when focus is
-       * already inside the legal content or navigation.
-       */
       if (
         event.key === 'Home' &&
         event.shiftKey &&
-        document.activeElement?.closest?.(
+        activeElement?.closest?.(
           '.legal-page',
         )
       ) {
@@ -563,11 +1038,45 @@ const Legal = () => {
         handleKeyDown,
       );
     };
-  }, [scrollToTop]);
+  }, [
+    mobileNavOpen,
+    scrollToTop,
+  ]);
 
-  /* --------------------------------------------------------------------------
-   * Lifecycle Safety
-   * ------------------------------------------------------------------------ */
+  /* ==========================================================================
+   * BODY SCROLL LOCK
+   * ======================================================================== */
+
+  useEffect(() => {
+    if (
+      typeof document === 'undefined'
+    ) {
+      return undefined;
+    }
+
+    if (!mobileNavOpen) {
+      document.body.style.removeProperty(
+        'overflow',
+      );
+
+      return undefined;
+    }
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow =
+      'hidden';
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+    };
+  }, [mobileNavOpen]);
+
+  /* ==========================================================================
+   * LIFECYCLE SAFETY
+   * ======================================================================== */
 
   useEffect(() => {
     mountedRef.current = true;
@@ -577,46 +1086,103 @@ const Legal = () => {
 
       observerRef.current?.disconnect();
       observerRef.current = null;
+
+      navigationLockRef.current =
+        null;
+
+      if (
+        typeof window !== 'undefined'
+      ) {
+        if (
+          navigationTimerRef.current !==
+          null
+        ) {
+          window.clearTimeout(
+            navigationTimerRef.current,
+          );
+        }
+
+        if (
+          initialNavigationTimerRef.current !==
+          null
+        ) {
+          window.clearTimeout(
+            initialNavigationTimerRef.current,
+          );
+        }
+      }
+
+      navigationTimerRef.current =
+        null;
+
+      initialNavigationTimerRef.current =
+        null;
     };
   }, []);
 
   /* ==========================================================================
-   * Render
+   * RENDER
    * ======================================================================== */
 
   return (
-    <div className="legal-page">
+    <div
+      className="legal-page"
+      data-legal-version={
+        legalVersion
+      }
+      data-legal-document-count={
+        registryDocuments.length
+      }
+      data-legal-published-count={
+        publishedDocuments.length
+      }
+      data-legal-public-count={
+        publicDocuments.length
+      }
+    >
       {/* ======================================================================
-       * Header
+       * HEADER
        * ==================================================================== */}
 
-      <header className="legal-header">
+      <header
+        className="legal-header"
+        aria-labelledby="legal-page-title"
+      >
         <div className="legal-header-content">
           <div
             className="legal-header-badge"
-            aria-hidden="true"
+            aria-label={
+              PAGE_CONFIG.organizationName
+            }
           >
-            <ShieldCheck size={20} />
+            <ShieldCheck
+              size={20}
+              aria-hidden="true"
+            />
+
             <span>
-              TITech Community Capital
+              {PAGE_CONFIG.organizationName}
             </span>
           </div>
 
-          <h1 className="legal-title">
+          <h1
+            id="legal-page-title"
+            className="legal-title"
+          >
             Legal Information
           </h1>
 
           <p className="legal-subtitle">
-            Terms of Service, Privacy Policy &amp;
-            Disclaimer
+            Terms of Service, Privacy Policy
+            &amp; Disclaimer
           </p>
 
           <p className="legal-description">
-            Please review these legal documents carefully.
-            They explain the terms governing your use of
-            the TITech Community Capital Platform, our
-            approach to privacy and data protection, and
-            important financial and operational
+            Please review these legal documents
+            carefully. They explain the terms governing
+            use of the TITech Community Capital Platform,
+            our approach to privacy and data protection,
+            and important financial and operational
             disclaimers.
           </p>
 
@@ -625,8 +1191,10 @@ const Legal = () => {
             aria-label="Legal document metadata"
           >
             <span>
-              <strong>Last updated:</strong>{' '}
-              {LEGAL_LAST_UPDATED}
+              <strong>
+                Last updated:
+              </strong>{' '}
+              {legalLastUpdated}
             </span>
 
             <span aria-hidden="true">
@@ -634,90 +1202,144 @@ const Legal = () => {
             </span>
 
             <span>
-              <strong>Version:</strong>{' '}
-              {LEGAL_VERSION}
+              <strong>
+                Version:
+              </strong>{' '}
+              {legalVersion}
             </span>
           </div>
         </div>
       </header>
 
       {/* ======================================================================
-       * Main Layout
+       * MOBILE NAVIGATION
+       * ==================================================================== */}
+
+      <div className="legal-mobile-nav-toggle">
+        <button
+          type="button"
+          className="legal-mobile-nav-button"
+          onClick={() =>
+            setMobileNavOpen(
+              (previous) => !previous,
+            )
+          }
+          aria-expanded={
+            mobileNavOpen
+          }
+          aria-controls="legal-navigation"
+          aria-label={
+            mobileNavOpen
+              ? 'Close legal navigation'
+              : 'Open legal navigation'
+          }
+        >
+          {mobileNavOpen ? (
+            <X
+              size={20}
+              aria-hidden="true"
+            />
+          ) : (
+            <Menu
+              size={20}
+              aria-hidden="true"
+            />
+          )}
+
+          <span>
+            Legal Navigation
+          </span>
+        </button>
+      </div>
+
+      {/* ======================================================================
+       * MAIN LAYOUT
        * ==================================================================== */}
 
       <div className="legal-container">
         {/* ====================================================================
-         * Sidebar Navigation
+         * SIDEBAR
          * ================================================================== */}
 
         <aside
-          className="legal-sidebar"
+          id="legal-navigation"
+          className={`legal-sidebar${
+            mobileNavOpen
+              ? ' mobile-open'
+              : ''
+          }`}
           aria-label="Legal document navigation"
         >
           <nav
             className="legal-nav"
             aria-label="Legal sections"
           >
-            {navigation.map((section) => {
-              const SectionIcon = section.icon;
+            {navigation.map(
+              (section) => {
+                const SectionIcon =
+                  section.icon;
 
-              return (
-                <div
-                  key={section.id}
-                  className="nav-section"
-                >
-                  <h2 className="nav-section-title">
-                    <SectionIcon
-                      size={16}
-                      aria-hidden="true"
-                    />
+                return (
+                  <div
+                    key={section.id}
+                    className="nav-section"
+                  >
+                    <h2 className="nav-section-title">
+                      <SectionIcon
+                        size={16}
+                        aria-hidden="true"
+                      />
 
-                    <span>
-                      {section.title}
-                    </span>
-                  </h2>
+                      <span>
+                        {section.title}
+                      </span>
+                    </h2>
 
-                  <div className="nav-section-links">
-                    {section.links.map(
-                      (link) => {
-                        const isActive =
-                          activeSection ===
-                          link.id;
+                    <div className="nav-section-links">
+                      {section.links.map(
+                        (link) => {
+                          const isActive =
+                            activeSection ===
+                            link.id;
 
-                        return (
-                          <a
-                            key={link.id}
-                            href={`#${link.id}`}
-                            className={`nav-link${
-                              isActive
-                                ? ' active'
-                                : ''
-                            }`}
-                            aria-current={
-                              isActive
-                                ? 'location'
-                                : undefined
-                            }
-                            onClick={(event) =>
-                              handleSectionNavigation(
-                                event,
-                                link.id,
-                              )
-                            }
-                          >
-                            {link.label}
-                          </a>
-                        );
-                      },
-                    )}
+                          return (
+                            <a
+                              key={link.id}
+                              href={`#${link.id}`}
+                              className={`nav-link${
+                                isActive
+                                  ? ' active'
+                                  : ''
+                              }`}
+                              aria-current={
+                                isActive
+                                  ? 'location'
+                                  : undefined
+                              }
+                              aria-controls={
+                                link.id
+                              }
+                              onClick={(event) =>
+                                handleSectionNavigation(
+                                  event,
+                                  link.id,
+                                )
+                              }
+                            >
+                              {link.label}
+                            </a>
+                          );
+                        },
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              },
+            )}
           </nav>
 
           {/* ================================================================
-           * Sidebar Actions
+           * SIDEBAR ACTIONS
            * ============================================================ */}
 
           <div className="legal-nav-actions">
@@ -757,16 +1379,21 @@ const Legal = () => {
         </aside>
 
         {/* ====================================================================
-         * Legal Content
+         * LEGAL CONTENT
          * ================================================================== */}
 
         <main
           ref={contentRef}
           className="legal-content"
           tabIndex={-1}
-          aria-label="TITech Community Capital legal documents"
+          aria-labelledby="legal-page-title"
         >
-          <article className="legal-article">
+          <article
+            className="legal-article"
+            data-document-version={
+              legalVersion
+            }
+          >
             {/* ================================================================
              * TERMS OF SERVICE
              * ============================================================ */}
@@ -774,6 +1401,10 @@ const Legal = () => {
             <section
               className="legal-major-section"
               aria-labelledby="terms-title"
+              data-legal-document-id={
+                termsDocument?.id ||
+                'terms-of-service'
+              }
             >
               <div className="legal-major-heading">
                 <div
@@ -793,7 +1424,10 @@ const Legal = () => {
 
                   <p className="section-update">
                     Last updated:{' '}
-                    {LEGAL_LAST_UPDATED}
+                    {termsDocument?.lastModified ||
+                      termsDocument?.publishedDate ||
+                      termsDocument?.effectiveDate ||
+                      PAGE_CONFIG.fallbackLastUpdated}
                   </p>
                 </div>
               </div>
@@ -1180,6 +1814,10 @@ const Legal = () => {
             <section
               className="legal-major-section"
               aria-labelledby="privacy-title"
+              data-legal-document-id={
+                privacyDocument?.id ||
+                'privacy-policy'
+              }
             >
               <div className="legal-major-heading">
                 <div
@@ -1199,7 +1837,10 @@ const Legal = () => {
 
                   <p className="section-update">
                     Last updated:{' '}
-                    {LEGAL_LAST_UPDATED}
+                    {privacyDocument?.lastModified ||
+                      privacyDocument?.publishedDate ||
+                      privacyDocument?.effectiveDate ||
+                      PAGE_CONFIG.fallbackLastUpdated}
                   </p>
                 </div>
               </div>
@@ -1620,6 +2261,10 @@ const Legal = () => {
             <section
               className="legal-major-section"
               aria-labelledby="disclaimer-title"
+              data-legal-document-id={
+                disclaimerDocument?.id ||
+                'general-disclaimer'
+              }
             >
               <div className="legal-major-heading">
                 <div
@@ -1636,6 +2281,14 @@ const Legal = () => {
                   >
                     Disclaimer
                   </h2>
+
+                  <p className="section-update">
+                    Last updated:{' '}
+                    {disclaimerDocument?.lastModified ||
+                      disclaimerDocument?.publishedDate ||
+                      disclaimerDocument?.effectiveDate ||
+                      PAGE_CONFIG.fallbackLastUpdated}
+                  </p>
                 </div>
               </div>
 
@@ -1777,7 +2430,7 @@ const Legal = () => {
                   documents, privacy practices, or
                   applicable user rights, please contact
                   the TITech Community Capital legal team
-                  through the organization's approved
+                  through the organization&apos;s approved
                   contact channels.
                 </p>
 
@@ -1790,9 +2443,9 @@ const Legal = () => {
                       Email:
                     </strong>{' '}
                     <a
-                      href={`mailto:${LEGAL_CONTACT_EMAIL}`}
+                      href={`mailto:${PAGE_CONFIG.legalEmail}`}
                     >
-                      {LEGAL_CONTACT_EMAIL}
+                      {PAGE_CONFIG.legalEmail}
                     </a>
                   </p>
 
@@ -1801,9 +2454,9 @@ const Legal = () => {
                       Phone:
                     </strong>{' '}
                     <a
-                      href={`tel:${LEGAL_CONTACT_PHONE_URI}`}
+                      href={`tel:${PAGE_CONFIG.phoneUri}`}
                     >
-                      {LEGAL_CONTACT_PHONE}
+                      {PAGE_CONFIG.phoneDisplay}
                     </a>
                   </p>
 
@@ -1811,7 +2464,7 @@ const Legal = () => {
                     <strong>
                       Address:
                     </strong>{' '}
-                    {LEGAL_CONTACT_ADDRESS}
+                    {PAGE_CONFIG.address}
                   </p>
 
                   <p>
@@ -1819,32 +2472,35 @@ const Legal = () => {
                       Target response time:
                     </strong>{' '}
                     We aim to respond to legal and
-                    privacy inquiries within 5 business
-                    days, subject to complexity,
-                    verification requirements, and
-                    applicable law.
+                    privacy inquiries within{' '}
+                    {PAGE_CONFIG.responseTime},
+                    subject to complexity, verification
+                    requirements, and applicable law.
                   </p>
                 </div>
               </section>
             </section>
 
             {/* ================================================================
-             * Document Footer
+             * DOCUMENT FOOTER
              * ============================================================ */}
 
-            <footer className="legal-footer-note">
+            <footer
+              className="legal-footer-note"
+              aria-label="Legal document footer"
+            >
               <p>
                 <strong>
                   Last Updated:
                 </strong>{' '}
-                {LEGAL_LAST_UPDATED}{' '}
+                {legalLastUpdated}{' '}
                 <span aria-hidden="true">
                   |
                 </span>{' '}
                 <strong>
                   Version:
                 </strong>{' '}
-                {LEGAL_VERSION}
+                {legalVersion}
               </p>
 
               <p>
@@ -1858,16 +2514,16 @@ const Legal = () => {
 
               <p className="legal-footer-brand">
                 © {new Date().getFullYear()}{' '}
-                TITech Community Capital.
+                {PAGE_CONFIG.organizationName}.
                 {' '}
                 All rights reserved.
               </p>
             </footer>
           </article>
 
-          {/* ==================================================================
-           * Scroll To Top
-           * ================================================================= */}
+          {/* ================================================================
+           * SCROLL TO TOP
+           * ============================================================ */}
 
           {showScrollTop && (
             <button

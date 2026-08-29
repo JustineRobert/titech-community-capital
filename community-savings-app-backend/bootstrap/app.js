@@ -3,6 +3,7 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
+ * TITech Community Capital Operating System
  * Enterprise Application Bootstrap / Composition Root
  * =============================================================================
  *
@@ -13,7 +14,7 @@
  *   Canonical enterprise composition root for the TITech Community Capital
  *   backend runtime.
  *
- * Canonical lifecycle authority:
+ * Architectural authority:
  *
  *   BootstrapContext
  *
@@ -24,54 +25,79 @@
  * Canonical startup:
  *
  *   created
-   ↓
-starting
-   ↓
-environment
-   ↓
-configuration
-   ↓
-logger
-   ↓
-observability
-   ↓
-readiness
-   ↓
-resilience
-   ↓
-infrastructure
-   ↓
-services
-   ↓
-middleware
-   ↓
-routes
-   ↓
-httpServer
-   ↓
-runtimeReady
-   ↓
-ready
+ *      ↓
+ *   starting
+ *      ↓
+ *   environment
+ *      ↓
+ *   configuration
+ *      ↓
+ *   logger
+ *      ↓
+ *   observability
+ *      ↓
+ *   readiness
+ *      ↓
+ *   resilience
+ *      ↓
+ *   infrastructure
+ *      ↓
+ *   services
+ *      ↓
+ *   middleware
+ *      ↓
+ *   routes
+ *      ↓
+ *   httpServer
+ *      ↓
+ *   runtimeReady
+ *      ↓
+ *   ready
  *
  * Failure:
  *
- *   phase
+ *   phase failure
  *      ↓
  *   failed
  *      ↓
- *   shutting_down
+ *   cleanup
  *      ↓
  *   stopped
  *
- * IMPORTANT
- * =============================================================================
+ * Shutdown:
  *
- * BootstrapContext is authoritative.
+ *   signal/fatal/manual
+ *      ↓
+ *   shutdown requested
+ *      ↓
+ *   shutting_down
+ *      ↓
+ *   reverse infrastructure cleanup
+ *      ↓
+ *   stopped
  *
- * runtime/state.js is NEVER assigned to context.state and is NEVER used as
- * the canonical lifecycle authority.
+ * Design principles:
  *
- * All startup phases receive the same BootstrapContext instance.
+ *   1. BootstrapContext is the sole lifecycle authority.
+ *   2. runtime/state.js is compatibility/read-model only.
+ *   3. Every startup phase receives the same BootstrapContext.
+ *   4. Startup is single-flight.
+ *   5. Shutdown is single-flight.
+ *   6. Startup and shutdown cannot perform competing cleanup concurrently.
+ *   7. Startup-failure cleanup has a dedicated internal path.
+ *   8. Compatibility projection failures never override canonical state.
+ *   9. Partially initialized runtimes are never intentionally left alive.
+ *  10. Initialization contracts are validated before startup.
+ *  11. Signals and fatal process failures converge on one shutdown mechanism.
+ *  12. Route ownership remains inside this canonical composition root.
+ *  13. server.js remains a thin process-entry wrapper.
+ *  14. Every runtime generation receives a fresh BootstrapContext.
+ *  15. Shutdown is safe when startup fails at any phase.
+ *  16. Operation identifiers are independent from runtime-generation identity.
+ *  17. Lifecycle transitions are serialized.
+ *  18. Stale runtime generations cannot mutate the active generation.
+ *  19. Shutdown cleanup is idempotent.
+ *  20. Compatibility state is never treated as authoritative.
  *
  * =============================================================================
  */
@@ -80,21 +106,12 @@ const app = require("../app");
 const configuration = require("../config");
 const runtimeState = require("../runtime/state");
 
-/* =============================================================================
- * CANONICAL CONTEXT
- * =============================================================================
- */
-
 const {
   BootstrapContext,
-  createBootstrapContext: createCanonicalBootstrapContext,
+  createBootstrapContext:
+    createCanonicalBootstrapContext,
   BOOTSTRAP_PHASES,
 } = require("./context/BootstrapContext");
-
-/* =============================================================================
- * BOOTSTRAP MODULES
- * =============================================================================
- */
 
 const environmentBootstrap = require("./environment");
 const loggerBootstrap = require("./logger");
@@ -114,12 +131,11 @@ const errorHandlerModule = require("../middleware/errorHandler");
 const startupErrors = require("./startupErrors");
 
 /* =============================================================================
- * MODULE RUNTIME STATE
+ * PROCESS / MODULE STATE
  * =============================================================================
  */
 
 let logger = null;
-
 let bootstrapContext = null;
 
 let startupPromise = null;
@@ -127,6 +143,9 @@ let shutdownPromise = null;
 
 let startupCompleted = false;
 let shutdownCompleted = false;
+
+let startupInProgress = false;
+let shutdownInProgress = false;
 
 let shutdownRequested = false;
 let startupFailureHandled = false;
@@ -136,6 +155,22 @@ let fatalHandlersInstalled = false;
 
 let errorHandlerRegistered = false;
 let shutdownManagerInitialized = false;
+
+let runtimeGeneration = 0;
+let operationSequence = 0;
+
+let activeStartupOperationId = null;
+let activeShutdownOperationId = null;
+
+let startupStartedAt = null;
+let shutdownStartedAt = null;
+
+let startupAbortController = null;
+
+let activeRouteComposition = null;
+let activeRuntimeGeneration = null;
+
+let fatalShutdownPromise = null;
 
 /* =============================================================================
  * SERVICE METADATA
@@ -165,9 +200,19 @@ const SERVICE_METADATA = Object.freeze({
     configuration?.version ||
     "1.0.0",
 
-  nodeMajor: Number(
-    String(process.versions.node).split(".")[0],
-  ),
+  nodeMajor:
+    Number(
+      String(process.versions.node).split(".")[0],
+    ),
+
+  nodeVersion:
+    process.versions.node,
+
+  platform:
+    process.platform,
+
+  architecture:
+    process.arch,
 });
 
 /* =============================================================================
@@ -202,14 +247,70 @@ function getEnvironmentName() {
 
 function createComponentMetadata(extra = {}) {
   return {
-    component: "bootstrap/app",
-    service: getServiceName(),
-    application: getApplicationName(),
-    applicationLegalName: getApplicationLegalName(),
-    version: getApplicationVersion(),
-    environment: getEnvironmentName(),
+    component:
+      "bootstrap/app",
+
+    service:
+      getServiceName(),
+
+    application:
+      getApplicationName(),
+
+    applicationLegalName:
+      getApplicationLegalName(),
+
+    version:
+      getApplicationVersion(),
+
+    environment:
+      getEnvironmentName(),
+
+    runtimeGeneration:
+      activeRuntimeGeneration,
+
     ...extra,
   };
+}
+
+/* =============================================================================
+ * OPERATION IDENTIFIERS
+ * =============================================================================
+ *
+ * Operation sequence and runtime generation are deliberately independent.
+ *
+ * runtimeGeneration:
+ *   Identifies one complete application lifecycle.
+ *
+ * operationSequence:
+ *   Identifies an individual startup/shutdown operation.
+ *
+ * =============================================================================
+ */
+
+function createOperationId(
+  prefix = "operation",
+) {
+  operationSequence += 1;
+
+  return [
+    prefix,
+    process.pid,
+    Date.now().toString(36),
+    operationSequence.toString(36),
+  ].join("-");
+}
+
+function getDurationMs(startedAt) {
+  if (!startedAt) {
+    return null;
+  }
+
+  return (
+    Number(
+      process.hrtime.bigint() -
+        startedAt,
+    ) / 1_000_000
+  );
 }
 
 /* =============================================================================
@@ -219,33 +320,49 @@ function createComponentMetadata(extra = {}) {
 
 function createConsoleLogger() {
   return Object.freeze({
-    info: (...args) => console.info(...args),
-    warn: (...args) => console.warn(...args),
-    error: (...args) => console.error(...args),
-    debug: (...args) => console.debug(...args),
-    trace: (...args) => console.trace(...args),
-    fatal: (...args) => console.error(...args),
+    info:
+      (...args) =>
+        console.info(...args),
+
+    warn:
+      (...args) =>
+        console.warn(...args),
+
+    error:
+      (...args) =>
+        console.error(...args),
+
+    debug:
+      (...args) =>
+        console.debug(...args),
+
+    trace:
+      (...args) =>
+        console.trace(...args),
+
+    fatal:
+      (...args) =>
+        console.error(...args),
   });
 }
 
-/* =============================================================================
- * LOGGER RESOLUTION
- * =============================================================================
- */
-
 function resolveLogger() {
-  const fallback = createConsoleLogger();
+  const fallback =
+    createConsoleLogger();
 
   try {
     if (
       loggerBootstrap &&
-      typeof loggerBootstrap.getLogger === "function"
+      typeof loggerBootstrap.getLogger ===
+        "function"
     ) {
-      const resolved = loggerBootstrap.getLogger();
+      const resolved =
+        loggerBootstrap.getLogger();
 
       if (
         resolved &&
-        typeof resolved.info === "function"
+        typeof resolved.info ===
+          "function"
       ) {
         return resolved;
       }
@@ -253,129 +370,151 @@ function resolveLogger() {
 
     if (
       loggerBootstrap?.logger &&
-      typeof loggerBootstrap.logger.info === "function"
+      typeof loggerBootstrap.logger.info ===
+        "function"
     ) {
       return loggerBootstrap.logger;
     }
 
     if (
       loggerBootstrap &&
-      typeof loggerBootstrap.info === "function"
+      typeof loggerBootstrap.info ===
+        "function"
     ) {
       return loggerBootstrap;
     }
 
     if (
       loggerBootstrap?.default &&
-      typeof loggerBootstrap.default.info === "function"
+      typeof loggerBootstrap.default.info ===
+        "function"
     ) {
       return loggerBootstrap.default;
     }
   } catch {
-    // Logger resolution must never break bootstrap.
+    // Never allow logger resolution to break lifecycle handling.
   }
 
   return fallback;
 }
 
-logger = resolveLogger();
+logger =
+  resolveLogger();
+
+function getLogger() {
+  return logger;
+}
 
 /* =============================================================================
  * SAFE LOGGING
  * =============================================================================
  */
 
-function safeLog(level, metadata = {}, message) {
-  const fallback = createConsoleLogger();
+function safeLog(
+  level,
+  metadata = {},
+  message,
+) {
+  const fallback =
+    createConsoleLogger();
 
   try {
     const activeLogger =
       logger &&
-        typeof logger[level] === "function"
+      typeof logger[level] ===
+        "function"
         ? logger
         : fallback;
 
-    if (message !== undefined) {
-      activeLogger[level](metadata, message);
+    if (
+      message !== undefined
+    ) {
+      activeLogger[level](
+        metadata,
+        message,
+      );
     } else {
-      activeLogger[level](metadata);
+      activeLogger[level](
+        metadata,
+      );
     }
   } catch {
     try {
-      if (message !== undefined) {
-        fallback[level](metadata, message);
+      if (
+        message !== undefined
+      ) {
+        fallback[level](
+          metadata,
+          message,
+        );
       } else {
-        fallback[level](metadata);
+        fallback[level](
+          metadata,
+        );
       }
     } catch {
-      // Logging is never allowed to break lifecycle handling.
+      // Logging must never break lifecycle control.
     }
   }
 }
 
-function safeLogInfo(metadata, message) {
-  safeLog("info", metadata, message);
+function safeLogInfo(
+  metadata,
+  message,
+) {
+  safeLog(
+    "info",
+    metadata,
+    message,
+  );
 }
 
-function safeLogWarn(metadata, message) {
-  safeLog("warn", metadata, message);
+function safeLogWarn(
+  metadata,
+  message,
+) {
+  safeLog(
+    "warn",
+    metadata,
+    message,
+  );
 }
 
-function safeLogError(metadata, message) {
-  safeLog("error", metadata, message);
+function safeLogError(
+  metadata,
+  message,
+) {
+  safeLog(
+    "error",
+    metadata,
+    message,
+  );
 }
 
-function safeLogDebug(metadata, message) {
-  safeLog("debug", metadata, message);
+function safeLogDebug(
+  metadata,
+  message,
+) {
+  safeLog(
+    "debug",
+    metadata,
+    message,
+  );
 }
 
-function safeLogFatal(metadata, message) {
-  safeLog("fatal", metadata, message);
+function safeLogFatal(
+  metadata,
+  message,
+) {
+  safeLog(
+    "fatal",
+    metadata,
+    message,
+  );
 }
 
 /* =============================================================================
  * INITIALIZER RESOLUTION
- * =============================================================================
- *
- * Supported module contracts:
- *
- *   module.exports = fn
- *
- *   module.exports = {
- *     initialize: fn
- *   }
- *
- *   module.exports = {
- *     bootstrap: fn
- *   }
- *
- *   module.exports = {
- *     start: fn
- *   }
- *
- *   module.exports = {
- *     load: fn
- *   }
- *
- *   module.exports = {
- *     mount: fn
- *   }
- *
- *   module.exports = {
- *     register: fn
- *   }
- *
- *   module.exports = {
- *     registerMiddleware: fn
- *   }
- *
- *   module.exports = {
- *     registerRoutes: fn
- *   }
- *
- *   module.exports = {
- *     default: fn
- *   }
  * =============================================================================
  */
 
@@ -389,11 +528,18 @@ function resolveBootstrapInitializer(
     includeRegister = false,
   } = options;
 
-  if (typeof moduleValue === "function") {
+  if (
+    typeof moduleValue ===
+    "function"
+  ) {
     return moduleValue;
   }
 
-  if (!moduleValue || typeof moduleValue !== "object") {
+  if (
+    !moduleValue ||
+    typeof moduleValue !==
+      "object"
+  ) {
     return null;
   }
 
@@ -404,11 +550,15 @@ function resolveBootstrapInitializer(
   ];
 
   if (includeLoad) {
-    candidates.push(moduleValue.load);
+    candidates.push(
+      moduleValue.load,
+    );
   }
 
   if (includeMount) {
-    candidates.push(moduleValue.mount);
+    candidates.push(
+      moduleValue.mount,
+    );
   }
 
   if (includeRegister) {
@@ -419,21 +569,27 @@ function resolveBootstrapInitializer(
     );
   }
 
-  candidates.push(moduleValue.default);
+  candidates.push(
+    moduleValue.default,
+  );
 
-  for (const candidate of candidates) {
-    if (typeof candidate === "function") {
+  for (
+    const candidate of candidates
+  ) {
+    if (
+      typeof candidate ===
+      "function"
+    ) {
       return candidate;
     }
   }
 
-  /*
-   * Handle transpiled/default object exports safely.
-   */
   if (
     moduleValue.default &&
-    typeof moduleValue.default === "object" &&
-    moduleValue.default !== moduleValue
+    typeof moduleValue.default ===
+      "object" &&
+    moduleValue.default !==
+      moduleValue
   ) {
     return resolveBootstrapInitializer(
       moduleValue.default,
@@ -449,24 +605,35 @@ function resolveBootstrapInitializer(
  * =============================================================================
  */
 
-function resolveModuleValue(moduleValue, names = []) {
+function resolveModuleValue(
+  moduleValue,
+  names = [],
+) {
   if (!moduleValue) {
     return null;
   }
 
-  for (const name of names) {
+  for (
+    const name of names
+  ) {
     try {
-      const value = moduleValue[name];
+      const value =
+        moduleValue[name];
 
-      if (typeof value === "function") {
+      if (
+        typeof value ===
+        "function"
+      ) {
         return value();
       }
 
-      if (value !== undefined) {
+      if (
+        value !== undefined
+      ) {
         return value;
       }
     } catch {
-      // Continue with the next accessor.
+      // Continue.
     }
   }
 
@@ -474,16 +641,21 @@ function resolveModuleValue(moduleValue, names = []) {
 }
 
 /* =============================================================================
- * CONTEXT VALIDATION
+ * CONTEXT CONTRACT
  * =============================================================================
  */
 
-function getCanonicalContextState(context) {
+function getCanonicalContextState(
+  context,
+) {
   if (!context) {
     return null;
   }
 
-  if (typeof context.state !== "string") {
+  if (
+    typeof context.state !==
+    "string"
+  ) {
     throw new TypeError(
       "Invalid TITech BootstrapContext contract: context.state must be a lifecycle-state string.",
     );
@@ -492,7 +664,9 @@ function getCanonicalContextState(context) {
   return context.state;
 }
 
-function assertCanonicalBootstrapContext(context) {
+function assertCanonicalBootstrapContext(
+  context,
+) {
   if (
     !context ||
     !(context instanceof BootstrapContext)
@@ -512,17 +686,84 @@ function assertCanonicalBootstrapContext(context) {
     "markStopped",
   ];
 
-  for (const method of requiredMethods) {
-    if (typeof context[method] !== "function") {
+  for (
+    const method of requiredMethods
+  ) {
+    if (
+      typeof context[method] !==
+      "function"
+    ) {
       throw new TypeError(
         `TITech BootstrapContext lifecycle contract is missing "${method}()".`,
       );
     }
   }
 
-  getCanonicalContextState(context);
+  getCanonicalContextState(
+    context,
+  );
 
   return true;
+}
+
+/* =============================================================================
+ * STARTUP INTERRUPTION
+ * =============================================================================
+ */
+
+function requestStartupInterruption(
+  reason,
+) {
+  shutdownRequested = true;
+
+  try {
+    if (
+      startupAbortController &&
+      !startupAbortController.signal.aborted
+    ) {
+      startupAbortController.abort(
+        new Error(
+          `TITech startup interrupted: ${
+            reason ||
+            "shutdown requested"
+          }.`,
+        ),
+      );
+    }
+  } catch {
+    // Advisory only.
+  }
+}
+
+function assertStartupMayContinue(
+  phase,
+) {
+  if (!startupInProgress) {
+    return;
+  }
+
+  if (!shutdownRequested) {
+    return;
+  }
+
+  const error =
+    new Error(
+      `TITech application startup was interrupted during "${phase}" because shutdown was requested.`,
+    );
+
+  error.name =
+    "StartupInterruptedError";
+
+  error.code =
+    "STARTUP_INTERRUPTED";
+
+  error.phase =
+    phase;
+
+  error.operation =
+    "application-startup";
+
+  throw error;
 }
 
 /* =============================================================================
@@ -530,56 +771,86 @@ function assertCanonicalBootstrapContext(context) {
  * =============================================================================
  */
 
-function normalizeStartupInput(error, options = {}) {
-  if (error instanceof BootstrapContext) {
-    const state = getCanonicalContextState(error);
+function normalizeStartupInput(
+  error,
+  options = {},
+) {
+  if (
+    error instanceof BootstrapContext
+  ) {
+    const state =
+      getCanonicalContextState(
+        error,
+      );
 
-    const contextError = new Error(
-      `TITech BootstrapContext was supplied as an error value while lifecycle state is "${state}".`,
-    );
+    const contextError =
+      new Error(
+        `TITech BootstrapContext was supplied as an error value while lifecycle state is "${state}".`,
+      );
 
-    contextError.name = "BootstrapContextStateError";
-    contextError.code = "STARTUP_INVALID_CONTEXT";
-    contextError.phase = options.phase || "lifecycle";
-    contextError.contextState = state;
+    contextError.name =
+      "BootstrapContextStateError";
+
+    contextError.code =
+      "STARTUP_INVALID_CONTEXT";
+
+    contextError.phase =
+      options.phase ||
+      "lifecycle";
+
+    contextError.contextState =
+      state;
 
     return contextError;
   }
 
-  if (error instanceof Error) {
+  if (
+    error instanceof Error
+  ) {
     return error;
   }
 
-  if (error && typeof error === "object") {
-    const normalized = new Error(
-      error.message ||
-      "TITech bootstrap operation failed.",
-    );
+  if (
+    error &&
+    typeof error ===
+      "object"
+  ) {
+    const normalized =
+      new Error(
+        error.message ||
+          "TITech bootstrap operation failed.",
+      );
 
     normalized.name =
-      error.name || "BootstrapError";
+      error.name ||
+      "BootstrapError";
 
     if (error.code) {
-      normalized.code = error.code;
+      normalized.code =
+        error.code;
     }
 
     if (error.cause) {
-      normalized.cause = error.cause;
+      normalized.cause =
+        error.cause;
     }
 
     if (error.phase) {
-      normalized.phase = error.phase;
+      normalized.phase =
+        error.phase;
     }
 
     if (error.operation) {
-      normalized.operation = error.operation;
+      normalized.operation =
+        error.operation;
     }
 
     return normalized;
   }
 
   return new Error(
-    typeof error === "string"
+    typeof error ===
+      "string"
       ? error
       : "TITech bootstrap operation failed.",
   );
@@ -590,11 +861,17 @@ function normalizeStartupError(
   options = {},
 ) {
   const safeInput =
-    normalizeStartupInput(error, options);
+    normalizeStartupInput(
+      error,
+      options,
+    );
 
   if (
-    startupErrors?.isStartupError?.(safeInput) &&
-    Object.keys(options).length === 0
+    startupErrors?.isStartupError?.(
+      safeInput,
+    ) &&
+    Object.keys(options).length ===
+      0
   ) {
     return safeInput;
   }
@@ -635,7 +912,8 @@ function normalizeStartupError(
         options.fatal !== false,
 
       preserveCauseStack:
-        options.preserveCauseStack !== false,
+        options.preserveCauseStack !==
+        false,
 
       ...options,
     },
@@ -648,10 +926,13 @@ function createPhaseStartupError(
   options = {},
 ) {
   const safeInput =
-    normalizeStartupInput(error, {
-      ...options,
-      phase,
-    });
+    normalizeStartupInput(
+      error,
+      {
+        ...options,
+        phase,
+      },
+    );
 
   return startupErrors.startupErrorForPhase(
     phase,
@@ -684,7 +965,8 @@ function createPhaseStartupError(
         options.fatal !== false,
 
       preserveCauseStack:
-        options.preserveCauseStack !== false,
+        options.preserveCauseStack !==
+        false,
 
       durationMs:
         options.durationMs,
@@ -695,29 +977,51 @@ function createPhaseStartupError(
 }
 
 /* =============================================================================
- * CANONICAL BOOTSTRAP CONTEXT
+ * BOOTSTRAP CONTEXT
  * =============================================================================
  */
 
 function createBootstrapContext() {
+  runtimeGeneration += 1;
+
+  const generation =
+    runtimeGeneration;
+
   const context =
     createCanonicalBootstrapContext({
-      application: app,
+      application:
+        app,
+
       configuration,
+
       logger,
 
       metadata:
         createComponentMetadata({
-          component: "bootstrap",
-          source: "backend/bootstrap/app.js",
+          component:
+            "bootstrap",
+
+          source:
+            "backend/bootstrap/app.js",
+
+          runtimeGeneration:
+            generation,
         }),
     });
 
-  assertCanonicalBootstrapContext(context);
+  assertCanonicalBootstrapContext(
+    context,
+  );
 
   if (!context.container) {
     context.container = {};
   }
+
+  context.runtimeGeneration =
+    generation;
+
+  context.runtimeGenerationId =
+    generation;
 
   return context;
 }
@@ -729,35 +1033,45 @@ function getBootstrapContext() {
 /* =============================================================================
  * RUNTIME COMPATIBILITY PROJECTION
  * =============================================================================
- *
- * IMPORTANT:
- *
- * This section intentionally does NOT control lifecycle.
- * It only mirrors canonical state for legacy/read-model consumers.
- * =============================================================================
  */
 
-const RUNTIME_SERVICE_MAP = Object.freeze({
-  logger: "logger",
-  observability: "observability",
-  resilience: "resilience",
-  infrastructure: "database",
-  middleware: "middleware",
-  routes: "routes",
-  httpServer: "server",
-});
+const RUNTIME_SERVICE_MAP =
+  Object.freeze({
+    logger:
+      "logger",
+
+    observability:
+      "observability",
+
+    resilience:
+      "resilience",
+
+    infrastructure:
+      "database",
+
+    middleware:
+      "middleware",
+
+    routes:
+      "routes",
+
+    httpServer:
+      "server",
+  });
 
 function mirrorServiceState(
   canonicalPhase,
   state,
 ) {
   const runtimeService =
-    RUNTIME_SERVICE_MAP[canonicalPhase];
+    RUNTIME_SERVICE_MAP[
+      canonicalPhase
+    ];
 
   if (
     !runtimeService ||
     typeof runtimeState?.setServiceState !==
-    "function"
+      "function"
   ) {
     return;
   }
@@ -774,10 +1088,16 @@ function mirrorServiceState(
       createComponentMetadata({
         event:
           "runtime_state_service_update_failed",
-        phase: canonicalPhase,
+
+        phase:
+          canonicalPhase,
+
         runtimeService,
+
         state,
-        message: error?.message,
+
+        message:
+          error?.message,
       }),
       "TITech runtime compatibility service-state update failed.",
     );
@@ -795,7 +1115,9 @@ function mirrorApplicationStarting() {
       createComponentMetadata({
         event:
           "runtime_state_starting_update_failed",
-        message: error?.message,
+
+        message:
+          error?.message,
       }),
       "TITech runtime compatibility starting-state update failed.",
     );
@@ -813,7 +1135,9 @@ function mirrorApplicationStarted() {
       createComponentMetadata({
         event:
           "runtime_state_started_update_failed",
-        message: error?.message,
+
+        message:
+          error?.message,
       }),
       "TITech runtime compatibility started-state update failed.",
     );
@@ -831,14 +1155,18 @@ function mirrorApplicationReady() {
       createComponentMetadata({
         event:
           "runtime_state_ready_update_failed",
-        message: error?.message,
+
+        message:
+          error?.message,
       }),
       "TITech runtime compatibility ready-state update failed.",
     );
   }
 }
 
-function mirrorApplicationFailed(error) {
+function mirrorApplicationFailed(
+  error,
+) {
   try {
     runtimeState?.markFailed?.(
       error,
@@ -850,7 +1178,9 @@ function mirrorApplicationFailed(error) {
       createComponentMetadata({
         event:
           "runtime_state_failure_update_failed",
-        message: stateError?.message,
+
+        message:
+          stateError?.message,
       }),
       "TITech runtime compatibility failure-state update failed.",
     );
@@ -868,7 +1198,9 @@ function mirrorApplicationShutdown() {
       createComponentMetadata({
         event:
           "runtime_state_shutdown_update_failed",
-        message: error?.message,
+
+        message:
+          error?.message,
       }),
       "TITech runtime compatibility shutdown-state update failed.",
     );
@@ -886,7 +1218,9 @@ function mirrorApplicationStopped() {
       createComponentMetadata({
         event:
           "runtime_state_stopped_update_failed",
-        message: error?.message,
+
+        message:
+          error?.message,
       }),
       "TITech runtime compatibility stopped-state update failed.",
     );
@@ -894,7 +1228,7 @@ function mirrorApplicationStopped() {
 }
 
 /* =============================================================================
- * ENVIRONMENT
+ * STARTUP PHASES
  * =============================================================================
  */
 
@@ -904,7 +1238,8 @@ async function bootstrapEnvironment() {
       resolveBootstrapInitializer(
         environmentBootstrap,
         {
-          includeLoad: true,
+          includeLoad:
+            true,
         },
       );
 
@@ -916,7 +1251,8 @@ async function bootstrapEnvironment() {
 
       if (
         result &&
-        typeof result === "object"
+        typeof result ===
+          "object"
       ) {
         return (
           result.environment ||
@@ -950,11 +1286,6 @@ async function bootstrapEnvironment() {
   }
 }
 
-/* =============================================================================
- * CONFIGURATION
- * =============================================================================
- */
-
 async function bootstrapConfiguration() {
   try {
     if (!configuration) {
@@ -964,8 +1295,11 @@ async function bootstrapConfiguration() {
     }
 
     if (
-      configuration.__requiresImmutable === true &&
-      !Object.isFrozen(configuration)
+      configuration.__requiresImmutable ===
+        true &&
+      !Object.isFrozen(
+        configuration,
+      )
     ) {
       throw new Error(
         "TITech application configuration must be immutable.",
@@ -985,66 +1319,72 @@ async function bootstrapConfiguration() {
   }
 }
 
-/* =============================================================================
- * LOGGER
- * =============================================================================
- */
-
 async function bootstrapLogger() {
   try {
     const initializer =
       resolveBootstrapInitializer(
         loggerBootstrap,
         {
-          includeLoad: true,
-          includeRegister: true,
+          includeLoad:
+            true,
+
+          includeRegister:
+            true,
         },
       );
 
     if (initializer) {
       const initialized =
         await initializer({
-          context: bootstrapContext,
+          context:
+            bootstrapContext,
+
           configuration,
-          service: getServiceName(),
-          application: getApplicationName(),
-          version: getApplicationVersion(),
+
+          service:
+            getServiceName(),
+
+          application:
+            getApplicationName(),
+
+          version:
+            getApplicationVersion(),
         });
 
       if (
         initialized &&
         typeof initialized.info ===
-        "function"
+          "function"
       ) {
-        logger = initialized;
+        logger =
+          initialized;
       }
     }
 
-    const refreshed = resolveLogger();
-
-    if (
-      refreshed &&
-      typeof refreshed.info ===
-      "function"
-    ) {
-      logger = refreshed;
-    }
+    logger =
+      resolveLogger();
 
     if (
       !logger ||
-      typeof logger.info !== "function"
+      typeof logger.info !==
+        "function"
     ) {
       throw new Error(
         "TITech application logger is unavailable after initialization.",
       );
     }
 
-    bootstrapContext.setLogger(logger);
+    bootstrapContext.setLogger(
+      logger,
+    );
 
     safeLogInfo(
       createComponentMetadata({
-        phase: "logger",
-        event: "logger.ready",
+        phase:
+          "logger",
+
+        event:
+          "logger.ready",
       }),
       "TITech logger bootstrap completed.",
     );
@@ -1062,11 +1402,6 @@ async function bootstrapLogger() {
   }
 }
 
-/* =============================================================================
- * OBSERVABILITY
- * =============================================================================
- */
-
 async function bootstrapObservability() {
   try {
     const initializer =
@@ -1081,12 +1416,21 @@ async function bootstrapObservability() {
     }
 
     return await initializer({
-      context: bootstrapContext,
+      context:
+        bootstrapContext,
+
       configuration,
+
       logger,
-      service: getServiceName(),
-      application: getApplicationName(),
-      version: getApplicationVersion(),
+
+      service:
+        getServiceName(),
+
+      application:
+        getApplicationName(),
+
+      version:
+        getApplicationVersion(),
     });
   } catch (error) {
     throw createPhaseStartupError(
@@ -1100,16 +1444,14 @@ async function bootstrapObservability() {
   }
 }
 
-/* =============================================================================
- * READINESS
- * =============================================================================
- */
-
 async function bootstrapReadiness() {
   try {
     const options = {
-      source: "bootstrap/app",
-      context: bootstrapContext,
+      source:
+        "bootstrap/app",
+
+      context:
+        bootstrapContext,
     };
 
     if (
@@ -1135,8 +1477,11 @@ async function bootstrapReadiness() {
       "function"
     ) {
       await readinessBootstrap.evaluate({
-        allowRecovery: true,
-        context: bootstrapContext,
+        allowRecovery:
+          true,
+
+        context:
+          bootstrapContext,
       });
     }
 
@@ -1155,11 +1500,6 @@ async function bootstrapReadiness() {
     );
   }
 }
-
-/* =============================================================================
- * RESILIENCE
- * =============================================================================
- */
 
 async function bootstrapResilience() {
   try {
@@ -1189,18 +1529,14 @@ async function bootstrapResilience() {
   }
 }
 
-/* =============================================================================
- * INFRASTRUCTURE
- * =============================================================================
- */
-
 async function bootstrapInfrastructure() {
   try {
     const initializer =
       resolveBootstrapInitializer(
         infrastructureBootstrap,
         {
-          includeRegister: true,
+          includeRegister:
+            true,
         },
       );
 
@@ -1217,7 +1553,8 @@ async function bootstrapInfrastructure() {
 
     if (
       result &&
-      typeof result === "object" &&
+      typeof result ===
+        "object" &&
       result.ok === false &&
       result.ready === false
     ) {
@@ -1242,11 +1579,6 @@ async function bootstrapInfrastructure() {
     );
   }
 }
-
-/* =============================================================================
- * SERVICES
- * =============================================================================
- */
 
 async function bootstrapServices() {
   try {
@@ -1289,44 +1621,51 @@ async function bootstrapServices() {
           "getServiceRegistry",
           "serviceRegistry",
         ],
-      ) || resolvedServices;
+      ) ||
+      resolvedServices;
 
     bootstrapContext.serviceRegistry =
       serviceRegistry;
 
-    /*
-     * Construct exactly one root services context.
-     *
-     * Do not blindly construct a second context and replace the first one.
-     * A child context is created only when the module explicitly exposes
-     * createServicesContext().
-     */
     if (
       typeof servicesContextBootstrap?.createRootContext ===
       "function"
     ) {
       const rootContext =
         servicesContextBootstrap.createRootContext({
-          config: configuration,
+          config:
+            configuration,
+
           configuration,
+
           environment:
             bootstrapContext.environment,
+
           logger:
             bootstrapContext.logger,
+
           observability:
             bootstrapContext.observability,
+
           readiness:
             bootstrapContext.readiness,
+
           resilience:
             bootstrapContext.resilience,
+
           infrastructure:
             bootstrapContext.infrastructure,
+
           services:
             bootstrapContext.services,
+
           serviceRegistry,
+
           container:
             bootstrapContext.container,
+
           bootstrapContext,
+
           metadata:
             createComponentMetadata({
               source:
@@ -1335,6 +1674,9 @@ async function bootstrapServices() {
         });
 
       if (rootContext) {
+        bootstrapContext.servicesRootContext =
+          rootContext;
+
         bootstrapContext.servicesContext =
           rootContext;
 
@@ -1345,15 +1687,17 @@ async function bootstrapServices() {
 
     if (
       typeof servicesContextBootstrap?.createServicesContext ===
-      "function" &&
-      bootstrapContext.servicesContext
+        "function" &&
+      bootstrapContext.servicesRootContext
     ) {
       const childContext =
         servicesContextBootstrap.createServicesContext({
           parent:
-            bootstrapContext.servicesContext,
+            bootstrapContext.servicesRootContext,
+
           services:
             bootstrapContext.serviceRegistry,
+
           bootstrapContext,
         });
 
@@ -1379,18 +1723,14 @@ async function bootstrapServices() {
   }
 }
 
-/* =============================================================================
- * MIDDLEWARE
- * =============================================================================
- */
-
 async function bootstrapMiddleware() {
   try {
     const initializer =
       resolveBootstrapInitializer(
         middlewareBootstrap,
         {
-          includeRegister: true,
+          includeRegister:
+            true,
         },
       );
 
@@ -1400,30 +1740,16 @@ async function bootstrapMiddleware() {
       );
     }
 
-    /*
-     * Canonical middleware contract:
-     *
-     *   middleware(app, context)
-     *
-     * Context-only compatibility is supported explicitly rather than guessed.
-     */
-    let result;
-
-    if (
+    const result =
       middlewareBootstrap?.acceptsContextOnly ===
       true
-    ) {
-      result =
-        await initializer(
-          bootstrapContext,
-        );
-    } else {
-      result =
-        await initializer(
-          app,
-          bootstrapContext,
-        );
-    }
+        ? await initializer(
+            bootstrapContext,
+          )
+        : await initializer(
+            app,
+            bootstrapContext,
+          );
 
     const middleware =
       result ||
@@ -1447,19 +1773,17 @@ async function bootstrapMiddleware() {
   }
 }
 
-/* =============================================================================
- * ROUTES
- * =============================================================================
- */
-
 async function bootstrapRoutes() {
   try {
     const initializer =
       resolveBootstrapInitializer(
         routesBootstrap,
         {
-          includeMount: true,
-          includeRegister: true,
+          includeMount:
+            true,
+
+          includeRegister:
+            true,
         },
       );
 
@@ -1474,7 +1798,11 @@ async function bootstrapRoutes() {
         app,
         bootstrapContext,
         {
-          requireReadiness: false,
+          requireReadiness:
+            false,
+
+          routeComposition:
+            activeRouteComposition,
         },
       );
 
@@ -1483,11 +1811,19 @@ async function bootstrapRoutes() {
       routesBootstrap?.router ||
       routesBootstrap;
 
-    bootstrapContext.setRoutes(router);
+    bootstrapContext.setRoutes(
+      router,
+    );
 
     safeLogInfo(
       createComponentMetadata({
-        event: "routes.registered",
+        event:
+          "routes.registered",
+
+        routeCompositionProvided:
+          Boolean(
+            activeRouteComposition,
+          ),
       }),
       "TITech API routes registered successfully.",
     );
@@ -1506,20 +1842,7 @@ async function bootstrapRoutes() {
 }
 
 /* =============================================================================
- * CENTRALIZED ERROR HANDLER
- * =============================================================================
- *
- * Ordering:
- *
- *   middleware
- *      ↓
- *   routes
- *      ↓
- *   centralized error handler
- *      ↓
- *   HTTP server
- *
- * This is intentionally NOT a BootstrapContext phase.
+ * ERROR HANDLER
  * =============================================================================
  */
 
@@ -1530,20 +1853,27 @@ async function bootstrapErrorHandler() {
 
   try {
     const errorHandler =
-      typeof errorHandlerModule === "function"
+      typeof errorHandlerModule ===
+        "function"
         ? errorHandlerModule
         : errorHandlerModule?.errorHandler ||
-        errorHandlerModule?.default;
+          errorHandlerModule?.default;
 
-    if (typeof errorHandler !== "function") {
+    if (
+      typeof errorHandler !==
+      "function"
+    ) {
       throw new TypeError(
         "TITech centralized error handler must export a callable middleware function.",
       );
     }
 
-    app.use(errorHandler);
+    app.use(
+      errorHandler,
+    );
 
-    errorHandlerRegistered = true;
+    errorHandlerRegistered =
+      true;
 
     safeLogDebug(
       createComponentMetadata({
@@ -1588,10 +1918,14 @@ async function bootstrapHttpServer() {
       app,
 
       bootstrapContext,
-      context: bootstrapContext,
+
+      context:
+        bootstrapContext,
 
       configuration,
-      config: configuration,
+
+      config:
+        configuration,
 
       environment:
         bootstrapContext.environment,
@@ -1618,14 +1952,20 @@ async function bootstrapHttpServer() {
 
       routes:
         bootstrapContext.routes,
+
+      routeComposition:
+        activeRouteComposition,
     };
 
     const result =
       await initializer(
         serverContext,
         {
-          requireReadiness: true,
-          requireHttpServer: false,
+          requireReadiness:
+            true,
+
+          requireHttpServer:
+            false,
         },
       );
 
@@ -1665,7 +2005,9 @@ async function bootstrapHttpServer() {
 
     return {
       ...(result || {}),
+
       server,
+
       address:
         bootstrapContext.serverAddress,
     };
@@ -1680,11 +2022,6 @@ async function bootstrapHttpServer() {
     );
   }
 }
-
-/* =============================================================================
- * RUNTIME READY
- * =============================================================================
- */
 
 async function bootstrapRuntimeReady() {
   try {
@@ -1738,8 +2075,11 @@ async function markApplicationReady() {
       "function"
     ) {
       await readinessBootstrap.evaluate({
-        allowRecovery: true,
-        context: bootstrapContext,
+        allowRecovery:
+          true,
+
+        context:
+          bootstrapContext,
       });
     }
 
@@ -1760,8 +2100,11 @@ async function markApplicationReady() {
       "function"
     ) {
       readinessBootstrap.markReady({
-        source: "bootstrap/app",
-        context: bootstrapContext,
+        source:
+          "bootstrap/app",
+
+        context:
+          bootstrapContext,
       });
     }
 
@@ -1771,8 +2114,19 @@ async function markApplicationReady() {
 
     safeLogInfo(
       createComponentMetadata({
-        event: "application.ready",
-        state: bootstrapContext.state,
+        event:
+          "application.ready",
+
+        state:
+          bootstrapContext.state,
+
+        startupDurationMs:
+          getDurationMs(
+            startupStartedAt,
+          ),
+
+        startupOperationId:
+          activeStartupOperationId,
       }),
       "TITech application is ready.",
     );
@@ -1795,20 +2149,32 @@ async function markApplicationReady() {
  * =============================================================================
  */
 
-function normalizePhaseName(phase) {
-  const normalized = String(phase || "").trim();
+function normalizePhaseName(
+  phase,
+) {
+  const normalized =
+    String(
+      phase || "",
+    ).trim();
 
   if (
-    !BOOTSTRAP_PHASES.includes(normalized)
+    !BOOTSTRAP_PHASES.includes(
+      normalized,
+    )
   ) {
-    const error = new Error(
-      `Unknown TITech bootstrap phase "${phase}". Expected one of: ${BOOTSTRAP_PHASES.join(
-        ", ",
-      )}`,
-    );
+    const error =
+      new Error(
+        `Unknown TITech bootstrap phase "${phase}". Expected one of: ${BOOTSTRAP_PHASES.join(
+          ", ",
+        )}`,
+      );
 
-    error.code = "BOOTSTRAP_UNKNOWN_PHASE";
-    error.phase = normalized || "bootstrap";
+    error.code =
+      "BOOTSTRAP_UNKNOWN_PHASE";
+
+    error.phase =
+      normalized ||
+      "bootstrap";
 
     throw error;
   }
@@ -1829,12 +2195,16 @@ async function runStartupPhase(
 
   try {
     canonicalPhase =
-      normalizePhaseName(phase);
+      normalizePhaseName(
+        phase,
+      );
   } catch (error) {
     throw normalizeStartupError(
       error,
       {
-        phase: "bootstrap",
+        phase:
+          "bootstrap",
+
         operation:
           "normalize-startup-phase",
       },
@@ -1847,7 +2217,9 @@ async function runStartupPhase(
         "TITech BootstrapContext is unavailable before startup phase execution.",
       ),
       {
-        phase: canonicalPhase,
+        phase:
+          canonicalPhase,
+
         operation:
           `bootstrap-${canonicalPhase}`,
       },
@@ -1858,14 +2230,47 @@ async function runStartupPhase(
     bootstrapContext,
   );
 
+  assertStartupMayContinue(
+    canonicalPhase,
+  );
+
+  if (
+    typeof execute !==
+    "function"
+  ) {
+    throw createPhaseStartupError(
+      canonicalPhase,
+      new TypeError(
+        `Startup phase "${canonicalPhase}" does not have a callable executor.`,
+      ),
+      {
+        operation:
+          `bootstrap-${canonicalPhase}`,
+      },
+    );
+  }
+
+  const contextAtStart =
+    bootstrapContext;
+
+  const generationAtStart =
+    activeRuntimeGeneration;
+
   const startedAt =
     process.hrtime.bigint();
 
   try {
-    bootstrapContext.startPhase(
+    contextAtStart.startPhase(
       canonicalPhase,
       {
-        phase: canonicalPhase,
+        phase:
+          canonicalPhase,
+
+        operationId:
+          activeStartupOperationId,
+
+        runtimeGeneration:
+          generationAtStart,
       },
     );
   } catch (error) {
@@ -1893,24 +2298,62 @@ async function runStartupPhase(
   );
 
   try {
+    assertStartupMayContinue(
+      canonicalPhase,
+    );
+
     const result =
       await execute(
-        bootstrapContext,
+        contextAtStart,
       );
+
+    /*
+     * Prevent an obsolete runtime generation from completing a phase after
+     * another generation has become active.
+     */
+    if (
+      bootstrapContext !==
+        contextAtStart ||
+      activeRuntimeGeneration !==
+        generationAtStart
+    ) {
+      const staleError =
+        new Error(
+          `TITech startup phase "${canonicalPhase}" completed for a stale runtime generation.`,
+        );
+
+      staleError.name =
+        "StaleRuntimeGenerationError";
+
+      staleError.code =
+        "STALE_RUNTIME_GENERATION";
+
+      staleError.phase =
+        canonicalPhase;
+
+      throw staleError;
+    }
+
+    assertStartupMayContinue(
+      canonicalPhase,
+    );
 
     const durationMs =
       Number(
         process.hrtime.bigint() -
-        startedAt,
+          startedAt,
       ) / 1_000_000;
 
-    /*
-     * Canonical lifecycle transition occurs BEFORE compatibility projection.
-     */
-    bootstrapContext.completePhase(
+    contextAtStart.completePhase(
       canonicalPhase,
       {
         durationMs,
+
+        operationId:
+          activeStartupOperationId,
+
+        runtimeGeneration:
+          generationAtStart,
       },
     );
 
@@ -1921,11 +2364,19 @@ async function runStartupPhase(
 
     safeLogDebug(
       createComponentMetadata({
-        event: "phase.completed",
-        phase: canonicalPhase,
+        event:
+          "phase.completed",
+
+        phase:
+          canonicalPhase,
+
         durationMs,
+
         canonicalState:
-          bootstrapContext.state,
+          contextAtStart.state,
+
+        operationId:
+          activeStartupOperationId,
       }),
       `TITech bootstrap phase "${canonicalPhase}" completed.`,
     );
@@ -1935,7 +2386,7 @@ async function runStartupPhase(
     const durationMs =
       Number(
         process.hrtime.bigint() -
-        startedAt,
+          startedAt,
       ) / 1_000_000;
 
     const normalized =
@@ -1945,26 +2396,50 @@ async function runStartupPhase(
         {
           operation:
             `bootstrap-${canonicalPhase}`,
+
           durationMs,
+
+          operationId:
+            activeStartupOperationId,
+
+          runtimeGeneration:
+            generationAtStart,
         },
       );
 
     try {
-      bootstrapContext.failPhase(
-        canonicalPhase,
-        normalized,
-        {
-          durationMs,
-        },
-      );
+      if (
+        bootstrapContext ===
+        contextAtStart
+      ) {
+        contextAtStart.failPhase(
+          canonicalPhase,
+          normalized,
+          {
+            durationMs,
+
+            operationId:
+              activeStartupOperationId,
+
+            runtimeGeneration:
+              generationAtStart,
+          },
+        );
+      }
     } catch (contextError) {
       safeLogWarn(
         createComponentMetadata({
           event:
             "phase.failure_recording_failed",
-          phase: canonicalPhase,
+
+          phase:
+            canonicalPhase,
+
           message:
             contextError?.message,
+
+          operationId:
+            activeStartupOperationId,
         }),
         "TITech BootstrapContext phase failure recording failed.",
       );
@@ -1985,12 +2460,18 @@ async function runStartupPhase(
  */
 
 async function initializeShutdownManager() {
-  if (shutdownManagerInitialized) {
+  if (
+    shutdownManagerInitialized
+  ) {
     return;
   }
 
-  if (!shutdownManagerBootstrap) {
-    shutdownManagerInitialized = true;
+  if (
+    !shutdownManagerBootstrap
+  ) {
+    shutdownManagerInitialized =
+      true;
+
     return;
   }
 
@@ -1999,9 +2480,13 @@ async function initializeShutdownManager() {
     "function"
   ) {
     await shutdownManagerBootstrap.initialize({
-      context: bootstrapContext,
+      context:
+        bootstrapContext,
+
       app,
+
       configuration,
+
       logger,
     });
   }
@@ -2015,7 +2500,8 @@ async function initializeShutdownManager() {
     );
   }
 
-  shutdownManagerInitialized = true;
+  shutdownManagerInitialized =
+    true;
 }
 
 /* =============================================================================
@@ -2023,7 +2509,9 @@ async function initializeShutdownManager() {
  * =============================================================================
  */
 
-async function executeShutdownHooks(reason) {
+async function executeShutdownHooks(
+  reason,
+) {
   if (
     typeof shutdownBootstrap?.shutdown ===
     "function"
@@ -2031,16 +2519,29 @@ async function executeShutdownHooks(reason) {
     await shutdownBootstrap.shutdown(
       reason,
       {
-        signal: String(reason).startsWith(
-          "signal:",
-        )
-          ? String(reason).slice(
-            "signal:".length,
+        signal:
+          String(
+            reason,
+          ).startsWith(
+            "signal:",
           )
-          : undefined,
+            ? String(
+                reason,
+              ).slice(
+                "signal:".length,
+              )
+            : undefined,
 
-        context: bootstrapContext,
+        context:
+          bootstrapContext,
+
         app,
+
+        operationId:
+          activeShutdownOperationId,
+
+        runtimeGeneration:
+          activeRuntimeGeneration,
       },
     );
 
@@ -2050,7 +2551,8 @@ async function executeShutdownHooks(reason) {
   if (
     typeof shutdownBootstrap
       ?.shutdownCoordinator
-      ?.request === "function"
+      ?.request ===
+    "function"
   ) {
     await shutdownBootstrap.shutdownCoordinator.request(
       reason,
@@ -2074,7 +2576,7 @@ async function executeShutdownHooks(reason) {
   if (
     bootstrapContext &&
     typeof bootstrapContext.executeShutdownHooks ===
-    "function"
+      "function"
   ) {
     await bootstrapContext.executeShutdownHooks();
   }
@@ -2085,38 +2587,384 @@ async function executeShutdownHooks(reason) {
  * =============================================================================
  */
 
-function transitionContextToShutdown(reason) {
+function transitionContextToShutdown(
+  reason,
+) {
   if (!bootstrapContext) {
     return;
   }
 
+  const state =
+    bootstrapContext.state;
+
+  if (
+    state ===
+      "stopped" ||
+    state ===
+      "shutting_down"
+  ) {
+    return;
+  }
+
   try {
-    const state =
-      bootstrapContext.state;
-
-    if (
-      state === "stopped" ||
-      state === "shutting_down"
-    ) {
-      return;
-    }
-
     bootstrapContext.beginShutdown(
       reason,
     );
   } catch (error) {
+    /*
+     * Some canonical state machines require failed → stopped cleanup rather
+     * than failed → shutting_down. We do not mutate canonical state ourselves.
+     *
+     * The context remains authoritative. The cleanup coordinator is allowed
+     * to continue so long as the underlying shutdown implementation supports
+     * failed-runtime cleanup.
+     */
     safeLogWarn(
       createComponentMetadata({
         event:
           "bootstrap_context_shutdown_transition_failed",
+
         reason,
-        state:
-          bootstrapContext?.state,
+
+        state,
+
         message:
           error?.message,
       }),
-      "TITech BootstrapContext shutdown transition failed.",
+      "TITech BootstrapContext shutdown transition failed; cleanup coordinator will continue.",
     );
+  }
+}
+
+/* =============================================================================
+ * INTERNAL SHUTDOWN
+ * =============================================================================
+ */
+
+async function performShutdown({
+  reason,
+  exit,
+  exitCode,
+  skipProcessExit,
+}) {
+  try {
+    safeLogInfo(
+      createComponentMetadata({
+        event:
+          "shutdown.requested",
+
+        reason,
+
+        startupCompleted,
+
+        canonicalState:
+          bootstrapContext?.state ||
+          null,
+
+        operationId:
+          activeShutdownOperationId,
+      }),
+      "TITech Community Capital shutdown requested.",
+    );
+
+    transitionContextToShutdown(
+      reason,
+    );
+
+    try {
+      readinessBootstrap?.markNotReady?.(
+        "application-shutdown",
+        {
+          reason,
+
+          context:
+            bootstrapContext,
+        },
+      );
+    } catch (error) {
+      safeLogWarn(
+        createComponentMetadata({
+          event:
+            "readiness.shutdown_update_failed",
+
+          message:
+            error?.message,
+        }),
+        "TITech readiness shutdown-state update failed.",
+      );
+    }
+
+    mirrorApplicationShutdown();
+
+    await executeShutdownHooks(
+      reason,
+    );
+
+    if (
+      bootstrapContext &&
+      bootstrapContext.state !==
+        "stopped"
+    ) {
+      try {
+        bootstrapContext.markStopped();
+      } catch (error) {
+        safeLogWarn(
+          createComponentMetadata({
+            event:
+              "bootstrap_context_stopped_transition_failed",
+
+            message:
+              error?.message,
+
+            state:
+              bootstrapContext?.state,
+          }),
+          "TITech BootstrapContext stopped-state transition failed.",
+        );
+      }
+    }
+
+    mirrorApplicationStopped();
+
+    shutdownCompleted =
+      true;
+
+    startupCompleted =
+      false;
+
+    startupFailureHandled =
+      false;
+
+    shutdownRequested =
+      false;
+
+    const durationMs =
+      getDurationMs(
+        shutdownStartedAt,
+      );
+
+    safeLogInfo(
+      createComponentMetadata({
+        event:
+          "shutdown.completed",
+
+        reason,
+
+        durationMs,
+
+        canonicalState:
+          bootstrapContext?.state ||
+          null,
+
+        operationId:
+          activeShutdownOperationId,
+      }),
+      "TITech Community Capital shutdown completed.",
+    );
+
+    if (
+      exit &&
+      !skipProcessExit
+    ) {
+      process.exit(
+        exitCode,
+      );
+    }
+
+    return {
+      state:
+        bootstrapContext?.state ||
+        null,
+
+      durationMs,
+
+      operationId:
+        activeShutdownOperationId,
+
+      runtimeGeneration:
+        activeRuntimeGeneration,
+    };
+  } catch (error) {
+    const normalized =
+      normalizeStartupError(
+        error,
+        {
+          phase:
+            "lifecycle",
+
+          operation:
+            "application-shutdown",
+
+          critical:
+            exit,
+
+          fatal:
+            exit,
+
+          preserveCauseStack:
+            true,
+
+          operationId:
+            activeShutdownOperationId,
+
+          runtimeGeneration:
+            activeRuntimeGeneration,
+
+          durationMs:
+            getDurationMs(
+              shutdownStartedAt,
+            ),
+        },
+      );
+
+    safeLogError(
+      typeof normalized.toLogObject ===
+        "function"
+        ? normalized.toLogObject({
+            includeStack:
+              true,
+
+            includeCauseStack:
+              true,
+          })
+        : normalized,
+      "TITech Community Capital shutdown failed.",
+    );
+
+    if (
+      exit &&
+      !skipProcessExit
+    ) {
+      process.exit(
+        exitCode || 1,
+      );
+    }
+
+    throw normalized;
+  }
+}
+
+/* =============================================================================
+ * STARTUP FAILURE CLEANUP
+ * =============================================================================
+ */
+
+async function cleanupFailedStartup(
+  originalError,
+) {
+  if (
+    startupFailureHandled
+  ) {
+    return;
+  }
+
+  startupFailureHandled =
+    true;
+
+  const failedContext =
+    bootstrapContext;
+
+  try {
+    if (
+      failedContext &&
+      failedContext.state !==
+        "failed" &&
+      failedContext.state !==
+        "stopped"
+    ) {
+      failedContext.markFailed(
+        originalError,
+        originalError?.phase ||
+          failedContext.currentPhase ||
+          "bootstrap",
+      );
+    }
+  } catch (error) {
+    safeLogWarn(
+      createComponentMetadata({
+        event:
+          "startup.failure_transition_failed",
+
+        message:
+          error?.message,
+      }),
+      "TITech startup failure transition failed.",
+    );
+  }
+
+  mirrorApplicationFailed(
+    originalError,
+  );
+
+  /*
+   * Detach startup ownership before cleanup.
+   *
+   * This prevents the public shutdown guard from deadlocking against the
+   * startup promise which is currently executing the cleanup path.
+   */
+  startupInProgress =
+    false;
+
+  shutdownRequested =
+    true;
+
+  shutdownInProgress =
+    true;
+
+  shutdownStartedAt =
+    process.hrtime.bigint();
+
+  activeShutdownOperationId =
+    createOperationId(
+      "startup-cleanup",
+    );
+
+  try {
+    await performShutdown({
+      reason:
+        "startup_failure",
+
+      exit:
+        false,
+
+      exitCode:
+        1,
+
+      skipProcessExit:
+        true,
+    });
+  } catch (cleanupError) {
+    safeLogError(
+      createComponentMetadata({
+        event:
+          "startup.cleanup.failed",
+
+        originalFailure:
+          originalError?.message,
+
+        cleanupFailure:
+          cleanupError?.message,
+
+        operationId:
+          activeShutdownOperationId,
+      }),
+      "TITech startup cleanup encountered an error.",
+    );
+  } finally {
+    shutdownInProgress =
+      false;
+
+    shutdownPromise =
+      null;
+
+    activeShutdownOperationId =
+      null;
+
+    shutdownStartedAt =
+      null;
+
+    shutdownRequested =
+      false;
   }
 }
 
@@ -2125,412 +2973,430 @@ function transitionContextToShutdown(reason) {
  * =============================================================================
  */
 
-async function startApplication() {
-  /*
-   * Startup is single-flight.
-   */
+async function startApplication(
+  options = {},
+) {
   if (startupPromise) {
     return startupPromise;
   }
 
-  /*
-   * Already ready.
-   */
   if (
     startupCompleted &&
-    bootstrapContext?.state === "ready"
+    bootstrapContext?.state ===
+      "ready"
   ) {
     return {
       app,
+
       server:
         bootstrapContext.httpServer ||
         null,
-      context: bootstrapContext,
+
+      context:
+        bootstrapContext,
+
       state:
-        runtimeState.getApplicationState?.(),
+        runtimeState.getApplicationState?.() ||
+        null,
+
+      runtimeGeneration:
+        activeRuntimeGeneration,
     };
   }
 
-  /*
-   * A runtime must not silently restart while a shutdown is in progress.
-   */
-  if (shutdownPromise) {
+  if (
+    shutdownPromise ||
+    shutdownInProgress
+  ) {
     throw new Error(
       "TITech application shutdown is currently in progress; startup cannot begin concurrently.",
     );
   }
 
-  startupPromise = (async () => {
-    bootstrapContext =
-      createBootstrapContext();
+  activeRouteComposition =
+    options?.routeComposition ||
+    null;
 
-    startupCompleted = false;
-    shutdownCompleted = false;
-    shutdownRequested = false;
-    startupFailureHandled = false;
-    errorHandlerRegistered = false;
-    shutdownManagerInitialized = false;
+  startupPromise =
+    (async () => {
+      startupInProgress =
+        true;
 
-    try {
-      safeLogInfo(
-        createComponentMetadata({
-          event:
-            "application.bootstrap.started",
-          state:
-            bootstrapContext.state,
-          runtimeGeneration:
-            bootstrapContext.runtimeGeneration ||
-            undefined,
-        }),
-        "Starting TITech Community Capital application bootstrap.",
-      );
+      startupStartedAt =
+        process.hrtime.bigint();
 
-      /**
- * created → starting
- *
- * IMPORTANT:
- * -----------------------------------------------------------------------------
- * `starting` is the canonical BootstrapContext lifecycle state.
- *
- * Do NOT use `bootstrapping` here. That was an obsolete lifecycle name and
- * conflicts with the canonical BootstrapContext implementation.
- */
-      bootstrapContext.start();
-
-      const startupLifecycleState =
-        typeof bootstrapContext.getState === "function"
-          ? bootstrapContext.getState()
-          : bootstrapContext.state;
-
-      if (
-        startupLifecycleState !==
-        "starting"
-      ) {
-        throw new Error(
-          `TITech BootstrapContext lifecycle contract violation: ` +
-          `expected "starting" state after start(), ` +
-          `received "${startupLifecycleState}".`,
-        );
-      }
-      mirrorApplicationStarting();
-
-      /* ---------------------------------------------------------------------
-       * ENVIRONMENT
-       * ------------------------------------------------------------------- */
-
-      bootstrapContext.setEnvironment(
-        await runStartupPhase(
-          "environment",
-          bootstrapEnvironment,
-        ),
-      );
-
-      /* ---------------------------------------------------------------------
-       * CONFIGURATION
-       * ------------------------------------------------------------------- */
-
-      bootstrapContext.setConfiguration(
-        await runStartupPhase(
-          "configuration",
-          bootstrapConfiguration,
-        ),
-      );
-
-      /* ---------------------------------------------------------------------
-       * LOGGER
-       * ------------------------------------------------------------------- */
-
-      bootstrapContext.setLogger(
-        await runStartupPhase(
-          "logger",
-          bootstrapLogger,
-        ),
-      );
-
-      logger =
-        bootstrapContext.logger ||
-        logger;
-
-      /* ---------------------------------------------------------------------
-       * OBSERVABILITY
-       * ------------------------------------------------------------------- */
-
-      bootstrapContext.setObservability(
-        await runStartupPhase(
-          "observability",
-          bootstrapObservability,
-        ),
-      );
-
-      /* ---------------------------------------------------------------------
-       * READINESS
-       * ------------------------------------------------------------------- */
-
-      bootstrapContext.setReadiness(
-        await runStartupPhase(
-          "readiness",
-          bootstrapReadiness,
-        ),
-      );
-
-      /* ---------------------------------------------------------------------
-       * RESILIENCE
-       * ------------------------------------------------------------------- */
-
-      bootstrapContext.setResilience(
-        await runStartupPhase(
-          "resilience",
-          bootstrapResilience,
-        ),
-      );
-
-      /* ---------------------------------------------------------------------
-       * INFRASTRUCTURE
-       * ------------------------------------------------------------------- */
-
-      bootstrapContext.setInfrastructure(
-        await runStartupPhase(
-          "infrastructure",
-          bootstrapInfrastructure,
-        ),
-      );
-
-      /* ---------------------------------------------------------------------
-       * SERVICES
-       * ------------------------------------------------------------------- */
-
-      bootstrapContext.setServices(
-        await runStartupPhase(
-          "services",
-          bootstrapServices,
-        ),
-      );
-
-      /* ---------------------------------------------------------------------
-       * MIDDLEWARE
-       * ------------------------------------------------------------------- */
-
-      await runStartupPhase(
-        "middleware",
-        bootstrapMiddleware,
-      );
-
-      /* ---------------------------------------------------------------------
-       * ROUTES
-       * ------------------------------------------------------------------- */
-
-      await runStartupPhase(
-        "routes",
-        bootstrapRoutes,
-      );
-
-      /*
-       * Error handler MUST be after routes and before the server begins
-       * accepting requests.
-       */
-      await bootstrapErrorHandler();
-
-      /* ---------------------------------------------------------------------
-       * HTTP SERVER
-       * ------------------------------------------------------------------- */
-
-      await runStartupPhase(
-        "httpServer",
-        bootstrapHttpServer,
-      );
-
-      if (!bootstrapContext.httpServer) {
-        throw createPhaseStartupError(
-          "httpServer",
-          new Error(
-            "TITech HTTP server phase completed without an HTTP server.",
-          ),
-          {
-            operation:
-              "validate-http-server",
-          },
-        );
-      }
-
-      /* ---------------------------------------------------------------------
-       * RUNTIME READY
-       * ------------------------------------------------------------------- */
-
-      await runStartupPhase(
-        "runtimeReady",
-        bootstrapRuntimeReady,
-      );
-
-      if (
-        typeof bootstrapContext.validateRuntimeReady ===
-        "function"
-      ) {
-        bootstrapContext.validateRuntimeReady();
-      }
-
-      /* ---------------------------------------------------------------------
-       * SHUTDOWN MANAGER
-       * ------------------------------------------------------------------- */
-
-      await initializeShutdownManager();
-
-      /* ---------------------------------------------------------------------
-       * APPLICATION STARTED
-       * ------------------------------------------------------------------- */
-
-      mirrorApplicationStarted();
-
-      /* ---------------------------------------------------------------------
-       * APPLICATION READY
-       * ------------------------------------------------------------------- */
-
-      await markApplicationReady();
-
-      if (
-        bootstrapContext.state !== "ready"
-      ) {
-        throw new Error(
-          `TITech bootstrap lifecycle contract violation: expected "ready", received "${bootstrapContext.state}".`,
-        );
-      }
-
-      startupCompleted = true;
-      shutdownCompleted = false;
-      shutdownRequested = false;
-
-      safeLogInfo(
-        createComponentMetadata({
-          event:
-            "application.bootstrap.completed",
-          state:
-            bootstrapContext.state,
-          server:
-            bootstrapContext.serverAddress,
-          runtimeGeneration:
-            bootstrapContext.runtimeGeneration ||
-            undefined,
-        }),
-        "TITech Community Capital startup completed successfully.",
-      );
-
-      return {
-        app,
-        server:
-          bootstrapContext.httpServer ||
-          null,
-        context: bootstrapContext,
-        state:
-          runtimeState.getApplicationState?.(),
-      };
-    } catch (error) {
-      const normalized =
-        normalizeStartupError(
-          error,
-          {
-            phase:
-              error?.phase ||
-              bootstrapContext?.currentPhase ||
-              "bootstrap",
-
-            operation:
-              error?.operation ||
-              "application-startup",
-
-            critical: true,
-            fatal: true,
-            preserveCauseStack: true,
-          },
+      activeStartupOperationId =
+        createOperationId(
+          "startup",
         );
 
-      startupFailureHandled = true;
+      startupAbortController =
+        new AbortController();
 
-      /*
-       * Canonical failure transition.
-       */
+      bootstrapContext =
+        createBootstrapContext();
+
+      activeRuntimeGeneration =
+        bootstrapContext.runtimeGeneration;
+
+      startupCompleted =
+        false;
+
+      shutdownCompleted =
+        false;
+
+      shutdownRequested =
+        false;
+
+      startupFailureHandled =
+        false;
+
+      errorHandlerRegistered =
+        false;
+
+      shutdownManagerInitialized =
+        false;
+
+      bootstrapContext.startupOperationId =
+        activeStartupOperationId;
+
+      bootstrapContext.startupSignal =
+        startupAbortController.signal;
+
+      bootstrapContext.routeComposition =
+        activeRouteComposition;
+
       try {
+        validateBootstrapComposition();
+
+        safeLogInfo(
+          createComponentMetadata({
+            event:
+              "application.bootstrap.started",
+
+            state:
+              bootstrapContext.state,
+
+            runtimeGeneration:
+              activeRuntimeGeneration,
+
+            operationId:
+              activeStartupOperationId,
+
+            routeCompositionProvided:
+              Boolean(
+                activeRouteComposition,
+              ),
+          }),
+          "Starting TITech Community Capital application bootstrap.",
+        );
+
+        /*
+         * created → starting
+         */
+        bootstrapContext.start();
+
         if (
-          bootstrapContext &&
           bootstrapContext.state !==
-          "failed" &&
-          bootstrapContext.state !==
-          "stopped"
+          "starting"
         ) {
-          bootstrapContext.markFailed(
-            normalized,
-            normalized.phase,
+          throw new Error(
+            `TITech BootstrapContext lifecycle contract violation: expected "starting" after start(), received "${bootstrapContext.state}".`,
           );
         }
-      } catch (contextError) {
-        safeLogWarn(
-          createComponentMetadata({
-            event:
-              "bootstrap_context_failure_transition_failed",
-            message:
-              contextError?.message,
-          }),
-          "TITech BootstrapContext failure transition failed.",
+
+        mirrorApplicationStarting();
+
+        /*
+         * ENVIRONMENT
+         */
+        bootstrapContext.setEnvironment(
+          await runStartupPhase(
+            "environment",
+            bootstrapEnvironment,
+          ),
         );
-      }
 
-      mirrorApplicationFailed(
-        normalized,
-      );
+        /*
+         * CONFIGURATION
+         */
+        bootstrapContext.setConfiguration(
+          await runStartupPhase(
+            "configuration",
+            bootstrapConfiguration,
+          ),
+        );
 
-      safeLogError(
-        typeof normalized.toLogObject ===
+        /*
+         * LOGGER
+         */
+        bootstrapContext.setLogger(
+          await runStartupPhase(
+            "logger",
+            bootstrapLogger,
+          ),
+        );
+
+        logger =
+          bootstrapContext.logger ||
+          logger;
+
+        /*
+         * OBSERVABILITY
+         */
+        bootstrapContext.setObservability(
+          await runStartupPhase(
+            "observability",
+            bootstrapObservability,
+          ),
+        );
+
+        /*
+         * READINESS
+         */
+        bootstrapContext.setReadiness(
+          await runStartupPhase(
+            "readiness",
+            bootstrapReadiness,
+          ),
+        );
+
+        /*
+         * RESILIENCE
+         */
+        bootstrapContext.setResilience(
+          await runStartupPhase(
+            "resilience",
+            bootstrapResilience,
+          ),
+        );
+
+        /*
+         * INFRASTRUCTURE
+         */
+        bootstrapContext.setInfrastructure(
+          await runStartupPhase(
+            "infrastructure",
+            bootstrapInfrastructure,
+          ),
+        );
+
+        /*
+         * SERVICES
+         */
+        bootstrapContext.setServices(
+          await runStartupPhase(
+            "services",
+            bootstrapServices,
+          ),
+        );
+
+        /*
+         * MIDDLEWARE
+         */
+        await runStartupPhase(
+          "middleware",
+          bootstrapMiddleware,
+        );
+
+        /*
+         * ROUTES
+         */
+        await runStartupPhase(
+          "routes",
+          bootstrapRoutes,
+        );
+
+        /*
+         * ERROR HANDLER
+         */
+        await bootstrapErrorHandler();
+
+        /*
+         * HTTP SERVER
+         */
+        await runStartupPhase(
+          "httpServer",
+          bootstrapHttpServer,
+        );
+
+        if (
+          !bootstrapContext.httpServer
+        ) {
+          throw createPhaseStartupError(
+            "httpServer",
+            new Error(
+              "TITech HTTP server phase completed without an HTTP server.",
+            ),
+            {
+              operation:
+                "validate-http-server",
+            },
+          );
+        }
+
+        /*
+         * RUNTIME READY
+         */
+        await runStartupPhase(
+          "runtimeReady",
+          bootstrapRuntimeReady,
+        );
+
+        if (
+          typeof bootstrapContext.validateRuntimeReady ===
           "function"
-          ? normalized.toLogObject({
-            includeStack: true,
-            includeCauseStack: true,
-          })
-          : {
-            ...createComponentMetadata({
-              event:
-                "application.startup.failed",
-            }),
-            name: normalized.name,
-            code: normalized.code,
-            phase: normalized.phase,
-            message: normalized.message,
-            stack: normalized.stack,
-          },
-        "TITech Community Capital startup failed.",
-      );
+        ) {
+          bootstrapContext.validateRuntimeReady();
+        }
 
-      /*
-       * Never leave a partially initialized runtime alive.
-       *
-       * skipProcessExit=true is mandatory here because this function is being
-       * called from inside the startup lifecycle.
-       */
-      try {
-        await shutdownApplication({
-          reason: "startup_failure",
-          exit: false,
-          skipProcessExit: true,
-        });
-      } catch (cleanupError) {
-        safeLogError(
+        /*
+         * SHUTDOWN MANAGER
+         */
+        await initializeShutdownManager();
+
+        /*
+         * STARTED
+         */
+        mirrorApplicationStarted();
+
+        /*
+         * READY
+         */
+        await markApplicationReady();
+
+        if (
+          bootstrapContext.state !==
+          "ready"
+        ) {
+          throw new Error(
+            `TITech bootstrap lifecycle contract violation: expected "ready", received "${bootstrapContext.state}".`,
+          );
+        }
+
+        startupCompleted =
+          true;
+
+        shutdownCompleted =
+          false;
+
+        safeLogInfo(
           createComponentMetadata({
             event:
-              "startup.cleanup.failed",
-            message:
-              cleanupError?.message,
-            originalFailure:
-              normalized.message,
-          }),
-          "TITech startup cleanup encountered an error.",
-        );
-      }
+              "application.bootstrap.completed",
 
-      throw normalized;
-    }
-  })();
+            state:
+              bootstrapContext.state,
+
+            server:
+              bootstrapContext.serverAddress,
+
+            runtimeGeneration:
+              activeRuntimeGeneration,
+
+            operationId:
+              activeStartupOperationId,
+
+            durationMs:
+              getDurationMs(
+                startupStartedAt,
+              ),
+          }),
+          "TITech Community Capital startup completed successfully.",
+        );
+
+        return {
+          app,
+
+          server:
+            bootstrapContext.httpServer ||
+            null,
+
+          context:
+            bootstrapContext,
+
+          state:
+            runtimeState.getApplicationState?.() ||
+            null,
+
+          runtimeGeneration:
+            activeRuntimeGeneration,
+        };
+      } catch (error) {
+        const normalized =
+          normalizeStartupError(
+            error,
+            {
+              phase:
+                error?.phase ||
+                bootstrapContext?.currentPhase ||
+                "bootstrap",
+
+              operation:
+                error?.operation ||
+                "application-startup",
+
+              critical:
+                true,
+
+              fatal:
+                true,
+
+              preserveCauseStack:
+                true,
+
+              operationId:
+                activeStartupOperationId,
+
+              runtimeGeneration:
+                activeRuntimeGeneration,
+
+              durationMs:
+                getDurationMs(
+                  startupStartedAt,
+                ),
+            },
+          );
+
+        safeLogError(
+          typeof normalized.toLogObject ===
+            "function"
+            ? normalized.toLogObject({
+                includeStack:
+                  true,
+
+                includeCauseStack:
+                  true,
+              })
+            : normalized,
+          "TITech Community Capital startup failed.",
+        );
+
+        await cleanupFailedStartup(
+          normalized,
+        );
+
+        throw normalized;
+      } finally {
+        startupInProgress =
+          false;
+
+        startupAbortController =
+          null;
+      }
+    })();
 
   try {
     return await startupPromise;
   } finally {
-    startupPromise = null;
+    startupPromise =
+      null;
+
+    activeStartupOperationId =
+      null;
+
+    startupStartedAt =
+      null;
   }
 }
 
@@ -2540,189 +3406,137 @@ async function startApplication() {
  */
 
 async function shutdownApplication({
-  reason = "shutdown",
-  exit = false,
-  exitCode = 0,
-  skipProcessExit = false,
+  reason =
+    "shutdown",
+
+  exit =
+    false,
+
+  exitCode =
+    0,
+
+  skipProcessExit =
+    false,
 } = {}) {
-  /*
-   * Shutdown is single-flight.
-   */
   if (shutdownPromise) {
     return shutdownPromise;
   }
 
-  if (shutdownCompleted) {
+  if (
+    shutdownCompleted &&
+    !startupInProgress
+  ) {
     if (
       exit &&
       !skipProcessExit
     ) {
-      process.exit(exitCode);
+      process.exit(
+        exitCode,
+      );
     }
 
-    return;
+    return {
+      state:
+        bootstrapContext?.state ||
+        "stopped",
+
+      alreadyStopped:
+        true,
+
+      runtimeGeneration:
+        activeRuntimeGeneration,
+    };
   }
 
   /*
-   * If startup is still actively executing, mark shutdown as requested.
-   * The startup failure path will perform the actual cleanup if startup fails.
+   * Normal shutdown while startup is active is intentionally deferred.
+   *
+   * Startup failure cleanup uses cleanupFailedStartup() instead.
    */
-  shutdownRequested = true;
+  if (
+    startupInProgress &&
+    startupPromise
+  ) {
+    requestStartupInterruption(
+      reason,
+    );
 
-  shutdownPromise = (async () => {
-    const startedAt =
-      process.hrtime.bigint();
+    safeLogWarn(
+      createComponentMetadata({
+        event:
+          "shutdown.deferred_until_startup_exit",
 
-    try {
-      safeLogInfo(
-        createComponentMetadata({
-          event:
-            "shutdown.requested",
-          reason,
-          startupCompleted,
-          canonicalState:
-            bootstrapContext?.state ||
-            null,
-        }),
-        "TITech Community Capital shutdown requested.",
-      );
-
-      transitionContextToShutdown(
         reason,
-      );
 
-      try {
-        readinessBootstrap?.markNotReady?.(
-          "application-shutdown",
-          {
-            reason,
-          },
-        );
-      } catch (error) {
-        safeLogWarn(
-          createComponentMetadata({
-            event:
-              "readiness.shutdown_update_failed",
-            message:
-              error?.message,
-          }),
-          "TITech readiness shutdown-state update failed.",
-        );
-      }
+        operationId:
+          activeStartupOperationId,
 
-      mirrorApplicationShutdown();
+        runtimeGeneration:
+          activeRuntimeGeneration,
+      }),
+      "TITech shutdown requested while startup is active; shutdown has been deferred until startup exits.",
+    );
 
-      await executeShutdownHooks(
-        reason,
-      );
+    return {
+      deferred:
+        true,
 
-      /*
-       * Shutdown subsystem may already have transitioned the context.
-       */
-      if (
-        bootstrapContext &&
-        bootstrapContext.state !==
-        "stopped"
-      ) {
-        try {
-          bootstrapContext.markStopped();
-        } catch (error) {
-          safeLogWarn(
-            createComponentMetadata({
-              event:
-                "bootstrap_context_stopped_transition_failed",
-              message:
-                error?.message,
-            }),
-            "TITech BootstrapContext stopped-state transition failed.",
-          );
-        }
-      }
+      reason,
 
-      mirrorApplicationStopped();
+      state:
+        bootstrapContext?.state ||
+        null,
 
-      shutdownCompleted = true;
-      startupCompleted = false;
-      startupFailureHandled = false;
-      shutdownRequested = false;
+      operationId:
+        activeStartupOperationId,
 
-      const durationMs =
-        Number(
-          process.hrtime.bigint() -
-          startedAt,
-        ) / 1_000_000;
+      runtimeGeneration:
+        activeRuntimeGeneration,
+    };
+  }
 
-      safeLogInfo(
-        createComponentMetadata({
-          event:
-            "shutdown.completed",
-          reason,
-          durationMs,
-          canonicalState:
-            bootstrapContext?.state ||
-            null,
-        }),
-        "TITech Community Capital shutdown completed.",
-      );
+  shutdownRequested =
+    true;
 
-      if (
-        exit &&
-        !skipProcessExit
-      ) {
-        process.exit(exitCode);
-      }
-    } catch (error) {
-      const normalized =
-        normalizeStartupError(
-          error,
-          {
-            phase: "lifecycle",
-            operation:
-              "application-shutdown",
-            critical: exit,
-            fatal: exit,
-            preserveCauseStack: true,
-          },
-        );
+  shutdownInProgress =
+    true;
 
-      safeLogError(
-        typeof normalized.toLogObject ===
-          "function"
-          ? normalized.toLogObject({
-            includeStack: true,
-            includeCauseStack: true,
-          })
-          : {
-            ...createComponentMetadata({
-              event: "shutdown.failed",
-            }),
-            name: normalized.name,
-            code: normalized.code,
-            message: normalized.message,
-            stack: normalized.stack,
-          },
-        "TITech Community Capital shutdown failed.",
-      );
+  shutdownStartedAt =
+    process.hrtime.bigint();
 
-      shutdownRequested = false;
+  activeShutdownOperationId =
+    createOperationId(
+      "shutdown",
+    );
 
-      if (
-        exit &&
-        !skipProcessExit
-      ) {
-        process.exit(
-          exitCode || 1,
-        );
-      }
+  shutdownPromise =
+    performShutdown({
+      reason,
 
-      throw normalized;
-    }
-  })();
+      exit,
+
+      exitCode,
+
+      skipProcessExit,
+    });
 
   try {
     return await shutdownPromise;
   } finally {
-    shutdownPromise = null;
+    shutdownPromise =
+      null;
+
+    shutdownInProgress =
+      false;
+
+    activeShutdownOperationId =
+      null;
+
+    shutdownStartedAt =
+      null;
+
+    activeRouteComposition =
+      null;
   }
 }
 
@@ -2732,86 +3546,171 @@ async function shutdownApplication({
  */
 
 function installSignalHandlers() {
-  if (signalHandlersInstalled) {
-    return;
+  if (
+    signalHandlersInstalled
+  ) {
+    return false;
   }
 
-  signalHandlersInstalled = true;
+  signalHandlersInstalled =
+    true;
 
   const handleSignal =
     (signal) =>
-      async () => {
-        safeLogInfo(
+    async () => {
+      safeLogInfo(
+        createComponentMetadata({
+          event:
+            "signal.received",
+
+          signal,
+        }),
+        `TITech process received ${signal}.`,
+      );
+
+      try {
+        const result =
+          await shutdownApplication({
+            reason:
+              `signal:${signal}`,
+
+            exit:
+              true,
+
+            exitCode:
+              0,
+          });
+
+        if (
+          result?.deferred
+        ) {
+          const pendingStartup =
+            startupPromise;
+
+          if (
+            pendingStartup
+          ) {
+            try {
+              await pendingStartup;
+            } catch {
+              // Startup failure is already normalized and logged.
+            }
+          }
+
+          if (
+            !shutdownCompleted
+          ) {
+            await shutdownApplication({
+              reason:
+                `signal:${signal}:post-startup`,
+
+              exit:
+                true,
+
+              exitCode:
+                0,
+            });
+          } else {
+            process.exit(0);
+          }
+        }
+      } catch (error) {
+        safeLogError(
           createComponentMetadata({
-            event: "signal.received",
+            event:
+              "signal.shutdown.failed",
+
             signal,
+
+            name:
+              error?.name,
+
+            code:
+              error?.code,
+
+            message:
+              error?.message,
           }),
-          `TITech process received ${signal}.`,
+          "TITech signal shutdown failed.",
         );
 
-        try {
-          await shutdownApplication({
-            reason: `signal:${signal}`,
-            exit: true,
-            exitCode: 0,
-          });
-        } catch (error) {
-          safeLogError(
-            createComponentMetadata({
-              event:
-                "signal.shutdown.failed",
-              signal,
-              message:
-                error?.message,
-            }),
-            "TITech signal shutdown failed.",
-          );
-
-          process.exitCode = 1;
-        }
-      };
+        process.exitCode =
+          1;
+      }
+    };
 
   process.once(
     "SIGINT",
-    handleSignal("SIGINT"),
+    handleSignal(
+      "SIGINT",
+    ),
   );
 
   process.once(
     "SIGTERM",
-    handleSignal("SIGTERM"),
+    handleSignal(
+      "SIGTERM",
+    ),
   );
 
-  if (process.platform !== "win32") {
+  if (
+    process.platform !==
+    "win32"
+  ) {
     process.once(
       "SIGQUIT",
-      handleSignal("SIGQUIT"),
+      handleSignal(
+        "SIGQUIT",
+      ),
     );
   }
+
+  return true;
 }
 
 /* =============================================================================
- * FATAL PROCESS ERROR HANDLERS
+ * FATAL PROCESS ERRORS
  * =============================================================================
  */
 
-function installFatalErrorHandlers() {
-  if (fatalHandlersInstalled) {
-    return;
+async function handleFatalProcessError(
+  type,
+  reason,
+) {
+  /*
+   * Multiple fatal events converge on one shutdown promise.
+   */
+  if (fatalShutdownPromise) {
+    return fatalShutdownPromise;
   }
 
-  fatalHandlersInstalled = true;
+  fatalShutdownPromise =
+    (async () => {
+      const error =
+        reason instanceof Error
+          ? reason
+          : new Error(
+              typeof reason ===
+                "string"
+                ? reason
+                : `TITech ${type}.`,
+            );
 
-  process.once(
-    "uncaughtException",
-    async (error) => {
       const normalized =
         startupErrors.runtimeError(
-          "TITech process encountered an uncaught exception.",
+          `TITech process encountered ${type}.`,
           {
-            cause: error,
-            critical: true,
-            fatal: true,
-            retryable: false,
+            cause:
+              error,
+
+            critical:
+              true,
+
+            fatal:
+              true,
+
+            retryable:
+              false,
           },
         );
 
@@ -2819,70 +3718,113 @@ function installFatalErrorHandlers() {
         typeof normalized.toLogObject ===
           "function"
           ? normalized.toLogObject({
-            includeStack: true,
-            includeCauseStack: true,
-          })
+              includeStack:
+                true,
+
+              includeCauseStack:
+                true,
+            })
           : normalized,
-        "TITech uncaught exception.",
+        `TITech ${type}.`,
       );
 
       try {
-        await shutdownApplication({
-          reason: "uncaughtException",
-          exit: true,
-          exitCode: 1,
-        });
-      } catch {
-        process.exitCode = 1;
+        const result =
+          await shutdownApplication({
+            reason:
+              type,
+
+            exit:
+              true,
+
+            exitCode:
+              1,
+          });
+
+        if (
+          result?.deferred
+        ) {
+          const pendingStartup =
+            startupPromise;
+
+          if (
+            pendingStartup
+          ) {
+            try {
+              await pendingStartup;
+            } catch {
+              // Already logged.
+            }
+          }
+
+          if (
+            !shutdownCompleted
+          ) {
+            await shutdownApplication({
+              reason:
+                `${type}:post-startup`,
+
+              exit:
+                true,
+
+              exitCode:
+                1,
+            });
+          }
+        }
+      } catch (shutdownError) {
+        safeLogFatal(
+          createComponentMetadata({
+            event:
+              "fatal.shutdown.failed",
+
+            type,
+
+            message:
+              shutdownError?.message,
+          }),
+          "TITech fatal-error shutdown failed.",
+        );
+
+        process.exitCode =
+          1;
       }
+    })();
+
+  return fatalShutdownPromise;
+}
+
+function installFatalErrorHandlers() {
+  if (
+    fatalHandlersInstalled
+  ) {
+    return false;
+  }
+
+  fatalHandlersInstalled =
+    true;
+
+  process.once(
+    "uncaughtException",
+    (error) => {
+      void handleFatalProcessError(
+        "uncaughtException",
+        error,
+      );
     },
   );
 
   process.once(
     "unhandledRejection",
-    async (reason) => {
-      const error =
-        reason instanceof Error
-          ? reason
-          : new Error(
-            typeof reason === "string"
-              ? reason
-              : "TITech unhandled promise rejection.",
-          );
-
-      const normalized =
-        startupErrors.runtimeError(
-          "TITech process encountered an unhandled promise rejection.",
-          {
-            cause: error,
-            critical: true,
-            fatal: true,
-            retryable: false,
-          },
-        );
-
-      safeLogFatal(
-        typeof normalized.toLogObject ===
-          "function"
-          ? normalized.toLogObject({
-            includeStack: true,
-            includeCauseStack: true,
-          })
-          : normalized,
-        "TITech unhandled promise rejection.",
+    (reason) => {
+      void handleFatalProcessError(
+        "unhandledRejection",
+        reason,
       );
-
-      try {
-        await shutdownApplication({
-          reason: "unhandledRejection",
-          exit: true,
-          exitCode: 1,
-        });
-      } catch {
-        process.exitCode = 1;
-      }
     },
   );
+
+  return true;
 }
 
 /* =============================================================================
@@ -2892,7 +3834,8 @@ function installFatalErrorHandlers() {
 
 function isRuntimeReady() {
   return (
-    bootstrapContext?.state === "ready"
+    bootstrapContext?.state ===
+    "ready"
   );
 }
 
@@ -2918,63 +3861,114 @@ async function getHealthState() {
     }
 
     return {
-      status: isRuntimeReady()
-        ? "healthy"
-        : "not_ready",
+      status:
+        isRuntimeReady()
+          ? "healthy"
+          : "not_ready",
 
-      ready: isRuntimeReady(),
+      ready:
+        isRuntimeReady(),
 
       application:
         getApplicationName(),
 
-      service: getServiceName(),
+      service:
+        getServiceName(),
 
       version:
         getApplicationVersion(),
 
+      runtimeGeneration:
+        activeRuntimeGeneration,
+
       bootstrapState:
         bootstrapContext?.state ||
         null,
+
+      currentPhase:
+        bootstrapContext?.currentPhase ||
+        null,
+
+      startupInProgress,
+
+      shutdownInProgress,
     };
   } catch (error) {
     return {
-      status: "unhealthy",
-      ready: false,
+      status:
+        "unhealthy",
+
+      ready:
+        false,
 
       application:
         getApplicationName(),
 
-      service: getServiceName(),
+      service:
+        getServiceName(),
 
       version:
         getApplicationVersion(),
+
+      runtimeGeneration:
+        activeRuntimeGeneration,
 
       bootstrapState:
         bootstrapContext?.state ||
         null,
 
+      currentPhase:
+        bootstrapContext?.currentPhase ||
+        null,
+
+      startupInProgress,
+
+      shutdownInProgress,
+
       error: {
-        name: error?.name,
-        code: error?.code,
-        message: error?.message,
+        name:
+          error?.name,
+
+        code:
+          error?.code,
+
+        message:
+          error?.message,
       },
     };
   }
 }
 
 /* =============================================================================
- * BOOTSTRAP DIAGNOSTICS
+ * DIAGNOSTICS
  * =============================================================================
  */
 
 function getBootstrapState() {
   return {
     startupCompleted,
+
     shutdownCompleted,
+
+    startupInProgress,
+
+    shutdownInProgress,
+
     shutdownRequested,
+
     startupFailureHandled,
 
-    ready: isRuntimeReady(),
+    ready:
+      isRuntimeReady(),
+
+    runtimeGeneration:
+      activeRuntimeGeneration,
+
+    operationSequence,
+
+    activeStartupOperationId,
+
+    activeShutdownOperationId,
 
     canonical: {
       state:
@@ -2985,12 +3979,9 @@ function getBootstrapState() {
         bootstrapContext?.currentPhase ||
         null,
 
-      /*
-       * Return the actual context for internal callers.
-       * Consumers needing serialization should use diagnostics instead.
-       */
       context:
-        bootstrapContext || null,
+        bootstrapContext ||
+        null,
 
       diagnostics:
         typeof bootstrapContext?.getDiagnostics ===
@@ -3009,6 +4000,79 @@ function getBootstrapState() {
   };
 }
 
+function getLifecycleSnapshot() {
+  return Object.freeze({
+    service:
+      getServiceName(),
+
+    application:
+      getApplicationName(),
+
+    version:
+      getApplicationVersion(),
+
+    environment:
+      getEnvironmentName(),
+
+    state:
+      bootstrapContext?.state ||
+      null,
+
+    currentPhase:
+      bootstrapContext?.currentPhase ||
+      null,
+
+    ready:
+      isRuntimeReady(),
+
+    startupCompleted,
+
+    shutdownCompleted,
+
+    startupInProgress,
+
+    shutdownInProgress,
+
+    shutdownRequested,
+
+    startupFailureHandled,
+
+    runtimeGeneration:
+      activeRuntimeGeneration,
+
+    startupOperationId:
+      activeStartupOperationId,
+
+    shutdownOperationId:
+      activeShutdownOperationId,
+
+    serverAddress:
+      bootstrapContext?.serverAddress ||
+      null,
+
+    routeCompositionProvided:
+      Boolean(
+        activeRouteComposition,
+      ),
+
+    uptimeSeconds:
+      process.uptime(),
+  });
+}
+
+/* =============================================================================
+ * PROMISE ACCESSORS
+ * =============================================================================
+ */
+
+function getStartupPromise() {
+  return startupPromise;
+}
+
+function getShutdownPromise() {
+  return shutdownPromise;
+}
+
 /* =============================================================================
  * COMPOSITION VALIDATION
  * =============================================================================
@@ -3022,15 +4086,21 @@ function validateBootstrapComposition() {
   }
 
   if (
-    !Array.isArray(BOOTSTRAP_PHASES) ||
-    BOOTSTRAP_PHASES.length === 0
+    !Array.isArray(
+      BOOTSTRAP_PHASES,
+    ) ||
+    BOOTSTRAP_PHASES.length ===
+      0
   ) {
     throw new Error(
       "TITech BootstrapContext phase registry is invalid.",
     );
   }
 
-  if (SERVICE_METADATA.nodeMajor < 20) {
+  if (
+    SERVICE_METADATA.nodeMajor <
+    20
+  ) {
     throw new Error(
       `TITech Community Capital requires Node.js 20+; detected Node.js ${process.versions.node}.`,
     );
@@ -3051,9 +4121,13 @@ function validateBootstrapComposition() {
     "runtimeReady",
   ];
 
-  for (const phase of requiredPhases) {
+  for (
+    const phase of requiredPhases
+  ) {
     if (
-      !BOOTSTRAP_PHASES.includes(phase)
+      !BOOTSTRAP_PHASES.includes(
+        phase,
+      )
     ) {
       throw new Error(
         `TITech BootstrapContext is missing canonical phase "${phase}".`,
@@ -3061,83 +4135,171 @@ function validateBootstrapComposition() {
     }
   }
 
-  const infrastructureInitializer =
-    resolveBootstrapInitializer(
-      infrastructureBootstrap,
-      {
-        includeRegister: true,
+  const requiredModules = [
+    {
+      name:
+        "observability",
+
+      value:
+        observabilityBootstrap,
+
+      options:
+        {},
+
+      required:
+        true,
+    },
+
+    {
+      name:
+        "resilience",
+
+      value:
+        resilienceBootstrap,
+
+      options:
+        {},
+
+      required:
+        true,
+    },
+
+    {
+      name:
+        "infrastructure",
+
+      value:
+        infrastructureBootstrap,
+
+      options: {
+        includeRegister:
+          true,
       },
-    );
 
-  if (
-    typeof infrastructureInitializer !==
-    "function"
-  ) {
-    throw new Error(
-      "TITech infrastructure bootstrap initializer is unavailable.",
-    );
-  }
+      required:
+        true,
+    },
 
-  const servicesInitializer =
-    resolveBootstrapInitializer(
-      servicesBootstrap,
-    );
+    {
+      name:
+        "services",
 
-  if (
-    typeof servicesInitializer !==
-    "function"
-  ) {
-    throw new Error(
-      "TITech services bootstrap initializer is unavailable.",
-    );
-  }
+      value:
+        servicesBootstrap,
 
-  const middlewareInitializer =
-    resolveBootstrapInitializer(
-      middlewareBootstrap,
-      {
-        includeRegister: true,
+      options:
+        {},
+
+      required:
+        true,
+    },
+
+    {
+      name:
+        "middleware",
+
+      value:
+        middlewareBootstrap,
+
+      options: {
+        includeRegister:
+          true,
       },
-    );
 
-  if (
-    typeof middlewareInitializer !==
-    "function"
-  ) {
-    throw new Error(
-      "TITech middleware bootstrap initializer is unavailable.",
-    );
-  }
+      required:
+        true,
+    },
 
-  const routesInitializer =
-    resolveBootstrapInitializer(
-      routesBootstrap,
-      {
-        includeMount: true,
-        includeRegister: true,
+    {
+      name:
+        "routes",
+
+      value:
+        routesBootstrap,
+
+      options: {
+        includeMount:
+          true,
+
+        includeRegister:
+          true,
       },
-    );
+
+      required:
+        true,
+    },
+
+    {
+      name:
+        "httpServer",
+
+      value:
+        serverBootstrap,
+
+      options:
+        {},
+
+      required:
+        true,
+    },
+  ];
+
+  for (
+    const moduleDefinition of
+      requiredModules
+  ) {
+    const initializer =
+      resolveBootstrapInitializer(
+        moduleDefinition.value,
+        moduleDefinition.options,
+      );
+
+    if (
+      moduleDefinition.required &&
+      typeof initializer !==
+        "function"
+    ) {
+      throw new Error(
+        `TITech ${moduleDefinition.name} bootstrap initializer is unavailable.`,
+      );
+    }
+  }
 
   if (
-    typeof routesInitializer !==
+    typeof app?.use !==
     "function"
   ) {
     throw new Error(
-      "TITech route bootstrap initializer is unavailable.",
+      "TITech application composition root requires an Express-compatible app.use() implementation.",
     );
   }
 
-  const serverInitializer =
-    resolveBootstrapInitializer(
-      serverBootstrap,
-    );
+  const errorHandler =
+    typeof errorHandlerModule ===
+      "function"
+      ? errorHandlerModule
+      : errorHandlerModule?.errorHandler ||
+        errorHandlerModule?.default;
 
   if (
-    typeof serverInitializer !==
+    typeof errorHandler !==
     "function"
   ) {
     throw new Error(
-      "TITech HTTP server bootstrap initializer is unavailable.",
+      "TITech centralized error handler must export a callable middleware function.",
+    );
+  }
+
+  if (
+    configuration &&
+    configuration.__requiresImmutable ===
+      true &&
+    !Object.isFrozen(
+      configuration,
+    )
+  ) {
+    throw new Error(
+      "TITech application configuration is required to be immutable but is not frozen.",
     );
   }
 
@@ -3154,38 +4316,55 @@ const publicApi = {
 
   configuration,
 
-  metadata: SERVICE_METADATA,
+  metadata:
+    SERVICE_METADATA,
 
-  getLogger() {
-    return logger;
-  },
+  getLogger,
 
   getServiceName,
+
   getApplicationName,
+
   getApplicationLegalName,
+
   getApplicationVersion,
+
   getEnvironmentName,
 
   getBootstrapContext,
 
   startApplication,
+
   shutdownApplication,
 
   installSignalHandlers,
+
   installFatalErrorHandlers,
 
   bootstrapEnvironment,
+
   bootstrapConfiguration,
+
   bootstrapLogger,
+
   bootstrapObservability,
+
   bootstrapReadiness,
+
   bootstrapResilience,
+
   bootstrapInfrastructure,
+
   bootstrapServices,
+
   bootstrapMiddleware,
+
   bootstrapRoutes,
+
   bootstrapErrorHandler,
+
   bootstrapHttpServer,
+
   bootstrapRuntimeReady,
 
   markApplicationReady,
@@ -3195,7 +4374,9 @@ const publicApi = {
   runStartupPhase,
 
   normalizeStartupError,
+
   normalizeStartupInput,
+
   createPhaseStartupError,
 
   resolveBootstrapInitializer,
@@ -3203,6 +4384,12 @@ const publicApi = {
   validateBootstrapComposition,
 
   getBootstrapState,
+
+  getLifecycleSnapshot,
+
+  getStartupPromise,
+
+  getShutdownPromise,
 
   getRuntimeState:
     runtimeState.getApplicationState,
@@ -3216,19 +4403,24 @@ const publicApi = {
   BootstrapContext,
 };
 
-module.exports = Object.freeze(
-  publicApi,
-);
+module.exports =
+  Object.freeze(
+    publicApi,
+  );
 
 /* =============================================================================
  * DIRECT EXECUTION
  * =============================================================================
  */
 
-if (require.main === module) {
+if (
+  require.main === module
+) {
   try {
     validateBootstrapComposition();
-  } catch (compositionError) {
+  } catch (
+    compositionError
+  ) {
     safeLogFatal(
       createComponentMetadata({
         event:
@@ -3249,11 +4441,16 @@ if (require.main === module) {
       "TITech bootstrap composition validation failed.",
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
   }
 
-  if (process.exitCode !== 1) {
+  if (
+    process.exitCode !==
+    1
+  ) {
     installSignalHandlers();
+
     installFatalErrorHandlers();
 
     startApplication().catch(
@@ -3266,9 +4463,11 @@ if (require.main === module) {
                 error?.phase ||
                 "bootstrap",
 
-              fatal: true,
+              fatal:
+                true,
 
-              preserveCauseStack: true,
+              preserveCauseStack:
+                true,
             },
           );
 
@@ -3276,14 +4475,18 @@ if (require.main === module) {
           typeof normalized.toLogObject ===
             "function"
             ? normalized.toLogObject({
-              includeStack: true,
-              includeCauseStack: true,
-            })
+                includeStack:
+                  true,
+
+                includeCauseStack:
+                  true,
+              })
             : normalized,
           "TITech application failed to start.",
         );
 
-        process.exitCode = 1;
+        process.exitCode =
+          1;
       },
     );
   }

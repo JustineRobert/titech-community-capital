@@ -13,7 +13,8 @@
  *   Canonical enterprise infrastructure composition adapter for TITech
  *   Community Capital.
  *
- * Architecture
+ * -----------------------------------------------------------------------------
+ * ARCHITECTURE
  * -----------------------------------------------------------------------------
  *
  *   environment
@@ -43,9 +44,33 @@
  *   routes
  *       ↓
  *   HTTP server
+ *       ↓
+ *   runtimeReady
+ *       ↓
+ *   ready
  *
- * Responsibilities
  * -----------------------------------------------------------------------------
+ * LIFECYCLE AUTHORITY
+ * -----------------------------------------------------------------------------
+ *
+ * Canonical lifecycle authority:
+ *
+ *   BootstrapContext
+ *
+ * Compatibility/read-model:
+ *
+ *   runtime/state.js
+ *
+ * This module NEVER replaces:
+ *
+ *   context.state
+ *
+ * with infrastructure runtime state.
+ *
+ * -----------------------------------------------------------------------------
+ * RESPONSIBILITIES
+ * -----------------------------------------------------------------------------
+ *
  * ✓ Infrastructure lifecycle composition
  * ✓ Explicit adapter registration
  * ✓ Configuration-driven adapter resolution
@@ -61,24 +86,27 @@
  * ✓ Duplicate-registration protection
  * ✓ Optional infrastructure graceful degradation
  * ✓ Critical infrastructure fail-fast semantics
- * ✓ Runtime initialization contract for bootstrap/app.js
+ * ✓ Runtime initialization contract
  * ✓ Runtime shutdown contract
- * ✓ Partial-startup cleanup
- * ✓ Failed-start rollback bookkeeping
+ * ✓ Partial-startup rollback
+ * ✓ Failed-start cleanup
  * ✓ Started-state verification
  * ✓ Infrastructure diagnostics
  * ✓ Health/readiness-aware lifecycle context
  * ✓ Mutable execution context for runtime handles
  * ✓ Immutable infrastructure metadata namespace
- * ✓ Canonical BootstrapContext preservation
- * ✓ CommonJS export compatibility
- * ✓ No business logic
+ * ✓ BootstrapContext preservation
+ * ✓ Single-flight startup
+ * ✓ Single-flight shutdown
+ * ✓ Runtime generation tracking
+ * ✓ CommonJS compatibility
  *
- * IMPORTANT
  * -----------------------------------------------------------------------------
- * This module is an ORCHESTRATION ADAPTER.
+ * NON-RESPONSIBILITIES
+ * -----------------------------------------------------------------------------
  *
- * It does NOT implement:
+ * This module does NOT implement:
+ *
  *   - database queries
  *   - Redis commands
  *   - financial transaction logic
@@ -90,19 +118,6 @@
  *   - gateway business rules
  *
  * Existing infrastructure implementations remain authoritative.
- *
- * Lifecycle authority
- * -----------------------------------------------------------------------------
- *
- * BootstrapContext
- *   → canonical application lifecycle authority
- *
- * runtime/state.js
- *   → compatibility/read-model only
- *
- * This module NEVER assigns a foreign object to:
- *
- *   context.state
  *
  * =============================================================================
  */
@@ -121,9 +136,15 @@ const {
 } = require("./hooks");
 
 /* =============================================================================
- * INFRASTRUCTURE MODULE DEFINITIONS
+ * CONSTANTS
  * =============================================================================
  */
+
+const SERVICE_NAME =
+  "titech-community-capital-backend";
+
+const APPLICATION_NAME =
+  "TITech Community Capital";
 
 const INFRASTRUCTURE_MODULES = Object.freeze({
   database: Object.freeze([
@@ -232,11 +253,6 @@ const INFRASTRUCTURE_MODULES = Object.freeze({
   ]),
 });
 
-/* =============================================================================
- * LIFECYCLE DEPENDENCIES
- * =============================================================================
- */
-
 const DEPENDENCIES = Object.freeze({
   resilience: Object.freeze([
     "observability",
@@ -269,11 +285,6 @@ const DEPENDENCIES = Object.freeze({
   ]),
 });
 
-/* =============================================================================
- * PRIORITIES
- * =============================================================================
- */
-
 const PRIORITIES = Object.freeze({
   resilience: -500,
   database: -400,
@@ -283,11 +294,6 @@ const PRIORITIES = Object.freeze({
   socketIO: 0,
   apiGateway: 100,
 });
-
-/* =============================================================================
- * FEATURE FLAGS
- * =============================================================================
- */
 
 const ENABLE_FLAGS = Object.freeze({
   database: "MONGODB_ENABLED",
@@ -299,11 +305,6 @@ const ENABLE_FLAGS = Object.freeze({
   apiGateway: "API_GATEWAY_ENABLED",
 });
 
-/* =============================================================================
- * DEFAULT ENABLEMENT
- * =============================================================================
- */
-
 const DEFAULT_ENABLED = Object.freeze({
   database: true,
   redis: true,
@@ -314,11 +315,6 @@ const DEFAULT_ENABLED = Object.freeze({
   apiGateway: false,
 });
 
-/* =============================================================================
- * SUBSYSTEM ORDER
- * =============================================================================
- */
-
 const SUBSYSTEM_ORDER = Object.freeze([
   "resilience",
   "database",
@@ -328,11 +324,6 @@ const SUBSYSTEM_ORDER = Object.freeze([
   "socketIO",
   "apiGateway",
 ]);
-
-/* =============================================================================
- * LIFECYCLE METHOD NAMES
- * =============================================================================
- */
 
 const START_METHODS = Object.freeze([
   "initialize",
@@ -352,11 +343,6 @@ const STOP_METHODS = Object.freeze([
   "dispose",
 ]);
 
-/* =============================================================================
- * CONFIGURATION MODULE KEYS
- * =============================================================================
- */
-
 const CONFIGURATION_MODULE_KEYS = Object.freeze([
   "module",
   "adapter",
@@ -366,12 +352,38 @@ const CONFIGURATION_MODULE_KEYS = Object.freeze([
   "require",
 ]);
 
+const LIFECYCLE_STATES = Object.freeze({
+  DISABLED: "disabled",
+  UNAVAILABLE: "unavailable",
+  INVALID: "invalid",
+  REGISTERED: "registered",
+  STARTING: "starting",
+  STARTED: "started",
+  STOPPED: "stopped",
+  FAILED: "failed",
+});
+
 /* =============================================================================
  * INTERNAL STATE
+ * =============================================================================
+ *
+ * These variables describe the infrastructure orchestrator itself.
+ *
+ * They are NOT a replacement for BootstrapContext.
  * =============================================================================
  */
 
 const registrationState = new Map();
+
+/**
+ * Shared execution contexts by subsystem.
+ *
+ * A lifecycle hook may execute many times over the lifetime of the Node
+ * process. Keeping the context object stable prevents adapters from retaining
+ * stale references while still allowing the current BootstrapContext to be
+ * refreshed for a new runtime generation.
+ */
+const executionContexts = new Map();
 
 let initialized = false;
 let initializing = false;
@@ -384,6 +396,8 @@ let initializationContext = null;
 let initializationResult = null;
 
 let startupAttempted = false;
+
+let runtimeGeneration = 0;
 
 /* =============================================================================
  * UTILITY HELPERS
@@ -415,46 +429,33 @@ function getNowIso() {
   return new Date().toISOString();
 }
 
-function moduleExists(modulePath) {
-  try {
-    require.resolve(modulePath);
-
-    return true;
-  } catch (error) {
-    if (isModuleResolutionError(error)) {
-      return false;
-    }
-
-    throw error;
+function createErrorDescriptor(error) {
+  if (!error) {
+    return null;
   }
+
+  return Object.freeze({
+    name:
+      error.name ??
+      "Error",
+
+    code:
+      error.code ??
+      null,
+
+    message:
+      error.message ??
+      String(error),
+  });
 }
 
-function resolveModule(paths) {
-  for (const modulePath of paths) {
-    if (!moduleExists(modulePath)) {
-      continue;
-    }
+function normalizeBoolean(value, fallback = null) {
+  const parsed =
+    parseBooleanFlag(value);
 
-    return {
-      modulePath,
-      module: require(modulePath),
-      source: "repository",
-    };
-  }
-
-  return null;
-}
-
-function unwrapModule(moduleValue) {
-  if (
-    moduleValue &&
-    moduleValue.__esModule &&
-    moduleValue.default
-  ) {
-    return moduleValue.default;
-  }
-
-  return moduleValue;
+  return parsed === null
+    ? fallback
+    : parsed;
 }
 
 function uniqueCandidates(candidates) {
@@ -485,9 +486,10 @@ function parseBooleanFlag(value) {
     return null;
   }
 
-  const normalized = String(value)
-    .trim()
-    .toLowerCase();
+  const normalized =
+    String(value)
+      .trim()
+      .toLowerCase();
 
   if (
     [
@@ -516,8 +518,61 @@ function parseBooleanFlag(value) {
   return null;
 }
 
+function moduleExists(modulePath) {
+  try {
+    require.resolve(modulePath);
+
+    return true;
+  } catch (error) {
+    if (isModuleResolutionError(error)) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+function resolveModule(paths) {
+  for (const modulePath of paths) {
+    if (!moduleExists(modulePath)) {
+      continue;
+    }
+
+    return {
+      modulePath,
+
+      module:
+        require(modulePath),
+
+      source:
+        "repository",
+    };
+  }
+
+  return null;
+}
+
+function unwrapModule(moduleValue) {
+  if (
+    moduleValue &&
+    moduleValue.__esModule &&
+    moduleValue.default
+  ) {
+    return moduleValue.default;
+  }
+
+  return moduleValue;
+}
+
+function getRootDirectory() {
+  return path.resolve(
+    __dirname,
+    "..",
+  );
+}
+
 /* =============================================================================
- * CONFIGURATION MODULE RESOLUTION
+ * CONFIGURATION RESOLUTION
  * =============================================================================
  */
 
@@ -525,18 +580,22 @@ function getSubsystemConfiguration(
   context,
   subsystem,
 ) {
-  const config =
+  const configuration =
     context?.configuration ??
     context?.config ??
     null;
 
-  if (!config) {
+  if (!configuration) {
     return null;
   }
 
   return (
-    config?.infrastructure?.[subsystem] ??
-    config?.[subsystem] ??
+    configuration?.infrastructure?.[
+      subsystem
+    ] ??
+    configuration?.[
+      subsystem
+    ] ??
     null
   );
 }
@@ -561,6 +620,7 @@ function getConfiguredAdapterDefinition(
       isObjectLike(configuration) &&
       (
         isFunction(configuration.initialize) ||
+        isFunction(configuration.init) ||
         isFunction(configuration.start) ||
         isFunction(configuration.connect)
       )
@@ -573,7 +633,8 @@ function getConfiguredAdapterDefinition(
   }
 
   for (
-    const key of CONFIGURATION_MODULE_KEYS
+    const key of
+      CONFIGURATION_MODULE_KEYS
   ) {
     const candidate =
       configuration?.[key];
@@ -587,7 +648,8 @@ function getConfiguredAdapterDefinition(
 
     return {
       value: candidate,
-      source: `configuration.${key}`,
+      source:
+        `configuration.${key}`,
     };
   }
 
@@ -609,12 +671,18 @@ function resolveConfiguredAdapter(
   }
 
   if (
-    typeof definition.value !== "string"
+    typeof definition.value !==
+    "string"
   ) {
     return {
-      modulePath: `configured:${subsystem}`,
-      module: definition.value,
-      source: definition.source,
+      modulePath:
+        `configured:${subsystem}`,
+
+      module:
+        definition.value,
+
+      source:
+        definition.source,
     };
   }
 
@@ -626,13 +694,12 @@ function resolveConfiguredAdapter(
   }
 
   const backendRoot =
-    path.resolve(
-      __dirname,
-      "..",
-    );
+    getRootDirectory();
 
   const absolutePath =
-    path.isAbsolute(configuredPath)
+    path.isAbsolute(
+      configuredPath,
+    )
       ? configuredPath
       : path.resolve(
           backendRoot,
@@ -646,9 +713,14 @@ function resolveConfiguredAdapter(
   }
 
   return {
-    modulePath: absolutePath,
-    module: require(absolutePath),
-    source: definition.source,
+    modulePath:
+      absolutePath,
+
+    module:
+      require(absolutePath),
+
+    source:
+      definition.source,
   };
 }
 
@@ -667,8 +739,9 @@ function resolveInfrastructureModule(
   }
 
   return resolveModule(
-    INFRASTRUCTURE_MODULES[subsystem] ??
-    [],
+    INFRASTRUCTURE_MODULES[
+      subsystem
+    ] ?? [],
   );
 }
 
@@ -690,7 +763,8 @@ function getCandidateMethod(
       return {
         target,
         name,
-        fn: target[name],
+        fn:
+          target[name],
       };
     }
   }
@@ -715,11 +789,13 @@ function resolveLifecycleMethods(
   const candidates =
     uniqueCandidates([
       exported,
+
       exported?.service,
       exported?.client,
       exported?.manager,
       exported?.instance,
       exported?.infrastructure,
+
       exported?.default,
       exported?.default?.service,
       exported?.default?.client,
@@ -773,7 +849,11 @@ async function invokeLifecycleMethod(
     return undefined;
   }
 
-  if (!isFunction(lifecycleMethod.fn)) {
+  if (
+    !isFunction(
+      lifecycleMethod.fn,
+    )
+  ) {
     throw new TypeError(
       "TITech infrastructure lifecycle method is not callable.",
     );
@@ -786,66 +866,47 @@ async function invokeLifecycleMethod(
 }
 
 /* =============================================================================
- * INFRASTRUCTURE EXECUTION CONTEXT
- * =============================================================================
- *
- * IMPORTANT DESIGN
- * -----------------------------------------------------------------------------
- *
- * This function intentionally creates TWO layers:
- *
- * 1. `infrastructure`
- *    Immutable read-mostly metadata and shared references.
- *
- * 2. returned execution context
- *    Mutable lifecycle execution state.
- *
- * The BootstrapContext itself is retained by reference under:
- *
- *   executionContext.bootstrapContext
- *   executionContext.infrastructure.bootstrapContext
- *
- * Neither layer replaces:
- *
- *   bootstrapContext.state
- *
- * with infrastructure runtime state.
- *
- * Runtime handles are intentionally kept on the mutable execution context:
- *
- *   executionContext.database
- *   executionContext.redis
- *   executionContext.queue
- *   executionContext.eventBus
- *   executionContext.socketIO
- *   executionContext.apiGateway
- *
- * The immutable namespace does NOT contain those mutable handles.
+ * EXECUTION CONTEXT
  * =============================================================================
  */
 
 function createInfrastructureContext(
   context,
+  subsystem = null,
 ) {
+  const bootstrapContext =
+    context ??
+    null;
+
   const configuration =
-    context?.configuration ??
-    context?.config ??
+    bootstrapContext?.configuration ??
+    bootstrapContext?.config ??
     null;
 
   /**
    * ---------------------------------------------------------------------------
-   * Immutable infrastructure metadata
+   * Immutable metadata namespace
    * ---------------------------------------------------------------------------
+   *
+   * This namespace intentionally contains no mutable runtime handles.
    */
   const infrastructure = {
     rootDirectory:
-      path.resolve(
-        __dirname,
-        "..",
-      ),
+      getRootDirectory(),
+
+    service:
+      SERVICE_NAME,
+
+    application:
+      APPLICATION_NAME,
+
+    subsystem,
+
+    generation:
+      runtimeGeneration,
 
     environment:
-      context?.environment ??
+      bootstrapContext?.environment ??
       null,
 
     configuration,
@@ -854,58 +915,65 @@ function createInfrastructureContext(
       configuration,
 
     logger:
-      context?.logger ??
+      bootstrapContext?.logger ??
       null,
 
     observability:
-      context?.observability ??
+      bootstrapContext?.observability ??
       null,
 
     readiness:
-      context?.readiness ??
+      bootstrapContext?.readiness ??
       null,
 
     resilience:
-      context?.resilience ??
+      bootstrapContext?.resilience ??
       null,
 
     hooks:
-      context?.hooks ??
+      bootstrapContext?.hooks ??
       hooks ??
       null,
 
-    /**
-     * Canonical lifecycle authority.
-     *
-     * Retained by reference.
-     *
-     * NEVER:
-     *
-     *   infrastructure.bootstrapContext.state = ...
-     *
-     * Infrastructure code must use the BootstrapContext lifecycle API instead.
-     */
-    bootstrapContext:
-      context ??
-      null,
+    bootstrapContext,
   };
 
-  Object.freeze(infrastructure);
+  Object.freeze(
+    infrastructure,
+  );
 
   /**
    * ---------------------------------------------------------------------------
-   * Mutable execution context
+   * Mutable lifecycle execution context
    * ---------------------------------------------------------------------------
    *
-   * Existing infrastructure adapters may safely attach runtime resources.
+   * Runtime adapters may attach their handles here:
+   *
+   *   executionContext.database
+   *   executionContext.redis
+   *   executionContext.eventBus
+   *   executionContext.queue
+   *   executionContext.socketIO
+   *   executionContext.apiGateway
+   *
+   * These handles MUST NOT be written into BootstrapContext.state.
    */
   return {
-    bootstrapContext:
-      context ??
-      null,
+    bootstrapContext,
+
+    service:
+      SERVICE_NAME,
+
+    application:
+      APPLICATION_NAME,
+
+    subsystem,
+
+    generation:
+      runtimeGeneration,
 
     environment:
-      context?.environment ??
+      bootstrapContext?.environment ??
       null,
 
     configuration,
@@ -914,44 +982,170 @@ function createInfrastructureContext(
       configuration,
 
     logger:
-      context?.logger ??
+      bootstrapContext?.logger ??
       null,
 
     observability:
-      context?.observability ??
+      bootstrapContext?.observability ??
       null,
 
     readiness:
-      context?.readiness ??
+      bootstrapContext?.readiness ??
       null,
 
     resilience:
-      context?.resilience ??
+      bootstrapContext?.resilience ??
       null,
 
     infrastructure,
+
+    hook:
+      null,
   };
 }
 
-/* =============================================================================
- * LIFECYCLE CONTEXT ENRICHMENT
- * =============================================================================
+/**
+ * Get or create the stable execution context for a subsystem.
  *
- * This helper guarantees that every lifecycle callback receives the SAME
- * mutable execution-context instance for a subsystem startup/shutdown cycle.
- *
- * We avoid:
- *
- *   { ...executionContext, ...hookContext }
- *
- * as the primary context because spreading creates a new object and therefore
- * prevents runtime handles attached by one callback from becoming authoritative
- * on the shared infrastructure execution context.
- *
- * Hook-specific metadata is attached under `hook` rather than replacing the
- * shared execution context.
- * =============================================================================
+ * This is important because hook registration can happen once while the
+ * runtime itself may be initialized more than once during the life of the
+ * Node.js process, especially in tests or controlled restart scenarios.
  */
+function getOrCreateExecutionContext(
+  subsystem,
+  context,
+) {
+  const existing =
+    executionContexts.get(
+      subsystem,
+    );
+
+  if (existing) {
+    refreshExecutionContext(
+      existing,
+      context,
+      subsystem,
+    );
+
+    return existing;
+  }
+
+  const created =
+    createInfrastructureContext(
+      context,
+      subsystem,
+    );
+
+  executionContexts.set(
+    subsystem,
+    created,
+  );
+
+  return created;
+}
+
+function refreshExecutionContext(
+  executionContext,
+  context,
+  subsystem,
+) {
+  if (!executionContext) {
+    return;
+  }
+
+  const bootstrapContext =
+    context ??
+    null;
+
+  const configuration =
+    bootstrapContext?.configuration ??
+    bootstrapContext?.config ??
+    null;
+
+  executionContext.bootstrapContext =
+    bootstrapContext;
+
+  executionContext.subsystem =
+    subsystem;
+
+  executionContext.generation =
+    runtimeGeneration;
+
+  executionContext.environment =
+    bootstrapContext?.environment ??
+    null;
+
+  executionContext.configuration =
+    configuration;
+
+  executionContext.config =
+    configuration;
+
+  executionContext.logger =
+    bootstrapContext?.logger ??
+    null;
+
+  executionContext.observability =
+    bootstrapContext?.observability ??
+    null;
+
+  executionContext.readiness =
+    bootstrapContext?.readiness ??
+    null;
+
+  executionContext.resilience =
+    bootstrapContext?.resilience ??
+    null;
+
+  executionContext.infrastructure =
+    Object.freeze({
+      rootDirectory:
+        getRootDirectory(),
+
+      service:
+        SERVICE_NAME,
+
+      application:
+        APPLICATION_NAME,
+
+      subsystem,
+
+      generation:
+        runtimeGeneration,
+
+      environment:
+        bootstrapContext?.environment ??
+        null,
+
+      configuration,
+
+      config:
+        configuration,
+
+      logger:
+        bootstrapContext?.logger ??
+        null,
+
+      observability:
+        bootstrapContext?.observability ??
+        null,
+
+      readiness:
+        bootstrapContext?.readiness ??
+        null,
+
+      resilience:
+        bootstrapContext?.resilience ??
+        null,
+
+      hooks:
+        bootstrapContext?.hooks ??
+        hooks ??
+        null,
+
+      bootstrapContext,
+    });
+}
 
 function createLifecycleExecutionContext(
   executionContext,
@@ -959,7 +1153,8 @@ function createLifecycleExecutionContext(
 ) {
   if (
     !executionContext ||
-    typeof executionContext !== "object"
+    typeof executionContext !==
+      "object"
   ) {
     throw new TypeError(
       "TITech infrastructure execution context must be an object.",
@@ -967,13 +1162,14 @@ function createLifecycleExecutionContext(
   }
 
   executionContext.hook =
-    hookContext ?? null;
+    hookContext ??
+    null;
 
   return executionContext;
 }
 
 /* =============================================================================
- * ENABLEMENT / CRITICALITY
+ * ENABLEMENT
  * =============================================================================
  */
 
@@ -981,7 +1177,7 @@ function readEnabledFlag(
   context,
   subsystem,
 ) {
-  const config =
+  const configuration =
     context?.configuration ??
     context?.config ??
     null;
@@ -991,52 +1187,32 @@ function readEnabledFlag(
     null;
 
   const configCandidates = [
-    config?.infrastructure?.[
+    configuration?.infrastructure?.[
       subsystem
     ]?.enabled,
 
-    config?.infrastructure?.enabled?.[
-      subsystem
-    ],
+    configuration?.infrastructure
+      ?.enabled?.[
+        subsystem
+      ],
 
-    config?.[subsystem]?.enabled,
-
-    config?.services?.[
+    configuration?.[
       subsystem
     ]?.enabled,
 
-    subsystem === "database"
-      ? config?.database?.enabled
-      : undefined,
-
-    subsystem === "redis"
-      ? config?.redis?.enabled
-      : undefined,
-
-    subsystem === "queue"
-      ? config?.queue?.enabled
-      : undefined,
-
-    subsystem === "resilience"
-      ? config?.resilience?.enabled
-      : undefined,
-
-    subsystem === "eventBus"
-      ? config?.eventBus?.enabled
-      : undefined,
-
-    subsystem === "socketIO"
-      ? config?.socketIO?.enabled
-      : undefined,
-
-    subsystem === "apiGateway"
-      ? config?.apiGateway?.enabled
-      : undefined,
+    configuration?.services?.[
+      subsystem
+    ]?.enabled,
   ];
 
-  for (const candidate of configCandidates) {
+  for (
+    const candidate of
+      configCandidates
+  ) {
     const parsed =
-      parseBooleanFlag(candidate);
+      parseBooleanFlag(
+        candidate,
+      );
 
     if (parsed !== null) {
       return parsed;
@@ -1044,18 +1220,23 @@ function readEnabledFlag(
   }
 
   const environmentCandidates = [
-    environment?.[subsystem]?.enabled,
+    environment?.[
+      subsystem
+    ]?.enabled,
 
     environment?.infrastructure?.[
       subsystem
     ]?.enabled,
 
-    environment?.infrastructure?.enabled?.[
-      subsystem
-    ],
+    environment?.infrastructure
+      ?.enabled?.[
+        subsystem
+      ],
 
     process.env[
-      ENABLE_FLAGS[subsystem]
+      ENABLE_FLAGS[
+        subsystem
+      ]
     ],
   ];
 
@@ -1064,7 +1245,9 @@ function readEnabledFlag(
       environmentCandidates
   ) {
     const parsed =
-      parseBooleanFlag(candidate);
+      parseBooleanFlag(
+        candidate,
+      );
 
     if (parsed !== null) {
       return parsed;
@@ -1072,7 +1255,9 @@ function readEnabledFlag(
   }
 
   return Boolean(
-    DEFAULT_ENABLED[subsystem],
+    DEFAULT_ENABLED[
+      subsystem
+    ],
   );
 }
 
@@ -1080,19 +1265,22 @@ function isCriticalSubsystem(
   subsystem,
   context,
 ) {
-  const config =
+  const configuration =
     context?.configuration ??
     context?.config ??
     null;
 
   const configuredCritical =
     parseBooleanFlag(
-      config?.infrastructure?.[
+      configuration?.infrastructure?.[
         subsystem
       ]?.critical,
     );
 
-  if (configuredCritical !== null) {
+  if (
+    configuredCritical !==
+    null
+  ) {
     return configuredCritical;
   }
 
@@ -1100,7 +1288,9 @@ function isCriticalSubsystem(
     "database",
     "redis",
     "resilience",
-  ].includes(subsystem);
+  ].includes(
+    subsystem,
+  );
 }
 
 /* =============================================================================
@@ -1123,7 +1313,12 @@ function setRegistration(
   const registration =
     Object.freeze({
       subsystem,
+
+      generation:
+        runtimeGeneration,
+
       ...value,
+
       updatedAt:
         getNowIso(),
     });
@@ -1162,20 +1357,16 @@ function markRegistrationFailure(
         current?.registered ??
         false,
 
-      started: false,
+      started:
+        false,
 
-      state: "failed",
+      state:
+        LIFECYCLE_STATES.FAILED,
 
-      lastError: {
-        name:
-          error?.name,
-
-        code:
-          error?.code,
-
-        message:
-          error?.message,
-      },
+      lastError:
+        createErrorDescriptor(
+          error,
+        ),
 
       failedAt:
         getNowIso(),
@@ -1200,10 +1391,11 @@ function markRegistrationStopped(
     {
       ...current,
 
-      started: false,
+      started:
+        false,
 
       state:
-        "stopped",
+        LIFECYCLE_STATES.STOPPED,
 
       stoppedAt:
         getNowIso(),
@@ -1227,7 +1419,8 @@ function registerInfrastructureComponent(
 
   if (
     existing &&
-    existing.state !== "failed"
+    existing.state !==
+      LIFECYCLE_STATES.FAILED
   ) {
     return existing;
   }
@@ -1259,13 +1452,25 @@ function registerInfrastructureComponent(
     return setRegistration(
       subsystem,
       {
-        enabled: false,
-        available: false,
-        registered: false,
-        started: false,
-        state: "disabled",
+        enabled:
+          false,
+
+        available:
+          false,
+
+        registered:
+          false,
+
+        started:
+          false,
+
+        state:
+          LIFECYCLE_STATES.DISABLED,
+
         critical,
-        reason: "disabled",
+
+        reason:
+          "disabled",
       },
     );
   }
@@ -1279,22 +1484,40 @@ function registerInfrastructureComponent(
         subsystem,
       );
   } catch (error) {
-    return markRegistrationFailure(
-      subsystem,
-      error,
-    );
+    const registration =
+      markRegistrationFailure(
+        subsystem,
+        error,
+      );
+
+    if (critical) {
+      return registration;
+    }
+
+    return registration;
   }
 
   if (!loaded) {
     return setRegistration(
       subsystem,
       {
-        enabled: true,
-        available: false,
-        registered: false,
-        started: false,
-        state: "unavailable",
+        enabled:
+          true,
+
+        available:
+          false,
+
+        registered:
+          false,
+
+        started:
+          false,
+
+        state:
+          LIFECYCLE_STATES.UNAVAILABLE,
+
         critical,
+
         reason:
           "module-not-found",
       },
@@ -1312,43 +1535,67 @@ function registerInfrastructureComponent(
     return setRegistration(
       subsystem,
       {
-        enabled: true,
-        available: true,
-        registered: false,
-        started: false,
-        state: "invalid",
+        enabled:
+          true,
+
+        available:
+          true,
+
+        registered:
+          false,
+
+        started:
+          false,
+
+        state:
+          LIFECYCLE_STATES.INVALID,
+
         critical,
+
         reason:
           "startup-lifecycle-method-missing",
+
         modulePath:
           loaded.modulePath,
+
         resolutionSource:
           loaded.source ??
           "unknown",
+
         startupMethod:
           null,
+
         shutdownMethod:
-          resolvedLifecycle?.stop?.name ??
+          resolvedLifecycle
+            ?.stop
+            ?.name ??
           null,
       },
     );
   }
 
   /**
-   * ONE shared mutable execution context for this infrastructure subsystem.
+   * Keep one stable mutable execution context for the registered subsystem.
    */
   const executionContext =
-    createInfrastructureContext(
+    getOrCreateExecutionContext(
+      subsystem,
       context,
     );
 
   const dependencies =
-    DEPENDENCIES[subsystem] ??
-    [];
+    [
+      ...(DEPENDENCIES[
+        subsystem
+      ] ?? []),
+    ];
 
   const priority =
-    PRIORITIES[subsystem] ??
-    0;
+    Number.isFinite(
+      PRIORITIES[subsystem],
+    )
+      ? PRIORITIES[subsystem]
+      : 0;
 
   const metadata =
     Object.freeze({
@@ -1363,30 +1610,31 @@ function registerInfrastructureComponent(
 
       startupMethod:
         resolvedLifecycle
-          .start.name,
+          .start
+          .name,
 
       shutdownMethod:
         resolvedLifecycle
-          .stop?.name ??
+          .stop
+          ?.name ??
         null,
 
-      dependencies: [
-        ...dependencies,
-      ],
+      dependencies,
 
       priority,
 
       critical,
     });
 
-  if (
-    hooks &&
-    typeof hooks.has ===
-      "function" &&
-    !hooks.has(
-      subsystem,
-    )
-  ) {
+  const hookAlreadyRegistered =
+    Boolean(
+      hooks &&
+      typeof hooks.has ===
+        "function" &&
+      hooks.has(subsystem),
+    );
+
+  if (!hookAlreadyRegistered) {
     lifecycle(
       subsystem,
       {
@@ -1408,27 +1656,43 @@ function registerInfrastructureComponent(
             setRegistration(
               subsystem,
               {
-                enabled: true,
-                available: true,
-                registered: true,
-                started: false,
-                state: "starting",
+                enabled:
+                  true,
+
+                available:
+                  true,
+
+                registered:
+                  true,
+
+                started:
+                  false,
+
+                state:
+                  LIFECYCLE_STATES.STARTING,
+
                 critical,
+
                 modulePath:
                   loaded.modulePath,
+
                 resolutionSource:
                   loaded.source ??
                   "unknown",
+
                 startupMethod:
                   resolvedLifecycle
-                    .start.name,
+                    .start
+                    .name,
+
                 shutdownMethod:
                   resolvedLifecycle
-                    .stop?.name ??
+                    .stop
+                    ?.name ??
                   null,
-                dependencies: [
-                  ...dependencies,
-                ],
+
+                dependencies,
+
                 priority,
               },
             );
@@ -1440,45 +1704,51 @@ function registerInfrastructureComponent(
                   executionContext,
                 );
 
-              /**
-               * Runtime handles belong to the mutable execution context.
-               *
-               * Examples:
-               *
-               *   executionContext.database
-               *   executionContext.redis
-               *   executionContext.queue
-               *
-               * No runtime handle is copied into the immutable infrastructure
-               * namespace.
-               */
               setRegistration(
                 subsystem,
                 {
-                  enabled: true,
-                  available: true,
-                  registered: true,
-                  started: true,
-                  state: "started",
+                  enabled:
+                    true,
+
+                  available:
+                    true,
+
+                  registered:
+                    true,
+
+                  started:
+                    true,
+
+                  state:
+                    LIFECYCLE_STATES.STARTED,
+
                   critical,
+
                   modulePath:
                     loaded.modulePath,
+
                   resolutionSource:
                     loaded.source ??
                     "unknown",
+
                   startupMethod:
                     resolvedLifecycle
-                      .start.name,
+                      .start
+                      .name,
+
                   shutdownMethod:
                     resolvedLifecycle
-                      .stop?.name ??
+                      .stop
+                      ?.name ??
                     null,
-                  dependencies: [
-                    ...dependencies,
-                  ],
+
+                  dependencies,
+
                   priority,
+
                   lastStartResult:
                     result,
+
                   startedAt:
                     getNowIso(),
                 },
@@ -1510,6 +1780,23 @@ function registerInfrastructureComponent(
             if (
               !current ||
               !current.started
+            ) {
+              markRegistrationStopped(
+                subsystem,
+              );
+
+              return undefined;
+            }
+
+            /**
+             * A subsystem may legitimately expose no shutdown method.
+             *
+             * In that case the hook itself remains lifecycle-safe and the
+             * subsystem is marked stopped after startup resources have ceased
+             * to be authoritative.
+             */
+            if (
+              !resolvedLifecycle.stop
             ) {
               markRegistrationStopped(
                 subsystem,
@@ -1546,35 +1833,47 @@ function registerInfrastructureComponent(
   return setRegistration(
     subsystem,
     {
-      enabled: true,
-      available: true,
-      registered: true,
-      started: false,
-      state: "registered",
+      enabled:
+        true,
+
+      available:
+        true,
+
+      registered:
+        true,
+
+      started:
+        false,
+
+      state:
+        LIFECYCLE_STATES.REGISTERED,
+
       critical,
+
       modulePath:
         loaded.modulePath,
+
       resolutionSource:
         loaded.source ??
         "unknown",
+
       startupMethod:
         resolvedLifecycle
-          .start.name,
+          .start
+          .name,
+
       shutdownMethod:
         resolvedLifecycle
-          .stop?.name ??
+          .stop
+          ?.name ??
         null,
-      dependencies: [
-        ...dependencies,
-      ],
+
+      dependencies,
+
       priority,
+
       reason:
-        hooks &&
-        typeof hooks.has ===
-          "function" &&
-        hooks.has(
-          subsystem,
-        )
+        hookAlreadyRegistered
           ? "already-registered"
           : undefined,
     },
@@ -1611,13 +1910,16 @@ function registerInfrastructure(
     initialized:
       false,
 
+    generation:
+      runtimeGeneration,
+
     registeredAt:
       getNowIso(),
   });
 }
 
 /* =============================================================================
- * PROVIDED INFRASTRUCTURE REGISTRATION
+ * EXPLICIT / PROVIDED INFRASTRUCTURE
  * =============================================================================
  */
 
@@ -1633,6 +1935,17 @@ function registerProvidedInfrastructure(
     );
   }
 
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      INFRASTRUCTURE_MODULES,
+      subsystem,
+    )
+  ) {
+    throw new Error(
+      `Unknown TITech infrastructure subsystem "${subsystem}".`,
+    );
+  }
+
   const existing =
     getRegistration(
       subsystem,
@@ -1640,7 +1953,8 @@ function registerProvidedInfrastructure(
 
   if (
     existing &&
-    existing.state !== "failed"
+    existing.state !==
+      LIFECYCLE_STATES.FAILED
   ) {
     return existing;
   }
@@ -1653,20 +1967,28 @@ function registerProvidedInfrastructure(
   const explicitStart =
     isFunction(options.start)
       ? {
-          target: exported,
+          target:
+            exported,
+
           name:
             "explicit-start",
-          fn: options.start,
+
+          fn:
+            options.start,
         }
       : null;
 
   const explicitStop =
     isFunction(options.stop)
       ? {
-          target: exported,
+          target:
+            exported,
+
           name:
             "explicit-stop",
-          fn: options.stop,
+
+          fn:
+            options.stop,
         }
       : null;
 
@@ -1697,15 +2019,18 @@ function registerProvidedInfrastructure(
   }
 
   const executionContext =
-    createInfrastructureContext(
+    getOrCreateExecutionContext(
+      subsystem,
       context,
     );
 
   const critical =
-    options.critical ??
-    isCriticalSubsystem(
-      subsystem,
-      context,
+    normalizeBoolean(
+      options.critical,
+      isCriticalSubsystem(
+        subsystem,
+        context,
+      ),
     );
 
   const dependencies =
@@ -1715,44 +2040,68 @@ function registerProvidedInfrastructure(
       ? [
           ...options.dependencies,
         ]
-      : DEPENDENCIES[
-          subsystem
-        ] ?? [];
+      : [
+          ...(DEPENDENCIES[
+            subsystem
+          ] ?? []),
+        ];
 
   const priority =
-    options.priority ??
-    PRIORITIES[subsystem] ??
-    0;
+    Number.isFinite(
+      options.priority,
+    )
+      ? options.priority
+      : (
+          Number.isFinite(
+            PRIORITIES[
+              subsystem
+            ],
+          )
+            ? PRIORITIES[
+                subsystem
+              ]
+            : 0
+        );
 
   const modulePath =
     options.modulePath ??
     `provided:${subsystem}`;
 
-  if (
-    hooks &&
-    typeof hooks.has ===
-      "function" &&
-    !hooks.has(
-      subsystem,
-    )
-  ) {
+  const hookAlreadyRegistered =
+    Boolean(
+      hooks &&
+      typeof hooks.has ===
+        "function" &&
+      hooks.has(subsystem),
+    );
+
+  if (!hookAlreadyRegistered) {
     lifecycle(
       subsystem,
       {
         priority,
+
         dependencies,
+
         critical,
 
-        metadata: {
-          subsystem,
-          explicit: true,
-          critical,
-          priority,
-          dependencies: [
-            ...dependencies,
-          ],
-          modulePath,
-        },
+        metadata:
+          Object.freeze({
+            subsystem,
+
+            explicit:
+              true,
+
+            critical,
+
+            priority,
+
+            dependencies: [
+              ...dependencies,
+            ],
+
+            modulePath,
+          }),
 
         start:
           async hookContext => {
@@ -1764,24 +2113,42 @@ function registerProvidedInfrastructure(
             setRegistration(
               subsystem,
               {
-                enabled: true,
-                available: true,
-                registered: true,
-                started: false,
-                state: "starting",
-                explicit: true,
+                enabled:
+                  true,
+
+                available:
+                  true,
+
+                registered:
+                  true,
+
+                started:
+                  false,
+
+                state:
+                  LIFECYCLE_STATES.STARTING,
+
+                explicit:
+                  true,
+
                 critical,
+
                 modulePath,
+
                 resolutionSource:
                   "explicit",
+
                 startupMethod:
                   resolvedStart.name,
+
                 shutdownMethod:
                   resolvedStop?.name ??
                   null,
+
                 dependencies: [
                   ...dependencies,
                 ],
+
                 priority,
               },
             );
@@ -1796,27 +2163,47 @@ function registerProvidedInfrastructure(
               setRegistration(
                 subsystem,
                 {
-                  enabled: true,
-                  available: true,
-                  registered: true,
-                  started: true,
-                  state: "started",
-                  explicit: true,
+                  enabled:
+                    true,
+
+                  available:
+                    true,
+
+                  registered:
+                    true,
+
+                  started:
+                    true,
+
+                  state:
+                    LIFECYCLE_STATES.STARTED,
+
+                  explicit:
+                    true,
+
                   critical,
+
                   modulePath,
+
                   resolutionSource:
                     "explicit",
+
                   startupMethod:
                     resolvedStart.name,
+
                   shutdownMethod:
                     resolvedStop?.name ??
                     null,
+
                   dependencies: [
                     ...dependencies,
                   ],
+
                   priority,
+
                   lastStartResult:
                     result,
+
                   startedAt:
                     getNowIso(),
                 },
@@ -1856,6 +2243,14 @@ function registerProvidedInfrastructure(
               return undefined;
             }
 
+            if (!resolvedStop) {
+              markRegistrationStopped(
+                subsystem,
+              );
+
+              return undefined;
+            }
+
             try {
               const result =
                 await invokeLifecycleMethod(
@@ -1884,31 +2279,54 @@ function registerProvidedInfrastructure(
   return setRegistration(
     subsystem,
     {
-      enabled: true,
-      available: true,
-      registered: true,
-      started: false,
-      state: "registered",
-      explicit: true,
+      enabled:
+        true,
+
+      available:
+        true,
+
+      registered:
+        true,
+
+      started:
+        false,
+
+      state:
+        LIFECYCLE_STATES.REGISTERED,
+
+      explicit:
+        true,
+
       critical,
+
       modulePath,
+
       resolutionSource:
         "explicit",
+
       startupMethod:
         resolvedStart.name,
+
       shutdownMethod:
         resolvedStop?.name ??
         null,
+
       dependencies: [
         ...dependencies,
       ],
+
       priority,
+
+      reason:
+        hookAlreadyRegistered
+          ? "already-registered"
+          : undefined,
     },
   );
 }
 
 /* =============================================================================
- * EXPLICIT ADAPTERS
+ * EXPLICIT ADAPTER API
  * =============================================================================
  */
 
@@ -2004,16 +2422,21 @@ function registerApiGateway(
 }
 
 /* =============================================================================
- * HOOK ENGINE STARTUP RESOLUTION
+ * HOOK ENGINE EXECUTOR RESOLUTION
  * =============================================================================
  */
 
 function resolveHookStartupExecutor() {
   if (typeof startup === "function") {
     return {
-      target: null,
-      method: "startup",
-      execute: startup,
+      target:
+        null,
+
+      method:
+        "startup",
+
+      execute:
+        startup,
     };
   }
 
@@ -2022,6 +2445,7 @@ function resolveHookStartupExecutor() {
     [startup, "execute"],
     [startup, "start"],
     [startup, "initialize"],
+
     [hooks, "run"],
     [hooks, "execute"],
     [hooks, "start"],
@@ -2029,16 +2453,22 @@ function resolveHookStartupExecutor() {
   ];
 
   for (
-    const [target, method] of
-      candidates
+    const [
+      target,
+      method,
+    ] of candidates
   ) {
     if (
       target &&
-      isFunction(target[method])
+      isFunction(
+        target[method],
+      )
     ) {
       return {
         target,
+
         method,
+
         execute:
           target[method],
       };
@@ -2054,6 +2484,7 @@ function resolveHookShutdownExecutor() {
     [startup, "stop"],
     [startup, "close"],
     [startup, "destroy"],
+
     [hooks, "shutdown"],
     [hooks, "stop"],
     [hooks, "close"],
@@ -2061,16 +2492,22 @@ function resolveHookShutdownExecutor() {
   ];
 
   for (
-    const [target, method] of
-      candidates
+    const [
+      target,
+      method,
+    ] of candidates
   ) {
     if (
       target &&
-      isFunction(target[method])
+      isFunction(
+        target[method],
+      )
     ) {
       return {
         target,
+
         method,
+
         execute:
           target[method],
       };
@@ -2088,10 +2525,23 @@ function resolveHookShutdownExecutor() {
 async function executeRegisteredInfrastructure(
   context = {},
 ) {
-  const executionContext =
-    createInfrastructureContext(
-      context,
-    );
+  for (
+    const subsystem of
+      SUBSYSTEM_ORDER
+  ) {
+    const executionContext =
+      executionContexts.get(
+        subsystem,
+      );
+
+    if (executionContext) {
+      refreshExecutionContext(
+        executionContext,
+        context,
+        subsystem,
+      );
+    }
+  }
 
   const executor =
     resolveHookStartupExecutor();
@@ -2102,6 +2552,12 @@ async function executeRegisteredInfrastructure(
     );
   }
 
+  const executionContext =
+    createInfrastructureContext(
+      context,
+      "infrastructure",
+    );
+
   return executor.execute.call(
     executor.target,
     executionContext,
@@ -2109,17 +2565,29 @@ async function executeRegisteredInfrastructure(
 }
 
 /* =============================================================================
- * EXECUTE INFRASTRUCTURE SHUTDOWN
- * =============================================================================
- */
+ * EXECUTE REGISTERED SHUTDOWN
+ * ============================================================================= */
 
 async function executeRegisteredInfrastructureShutdown(
   context = {},
 ) {
-  const executionContext =
-    createInfrastructureContext(
-      context,
-    );
+  for (
+    const subsystem of
+      SUBSYSTEM_ORDER
+  ) {
+    const executionContext =
+      executionContexts.get(
+        subsystem,
+      );
+
+    if (executionContext) {
+      refreshExecutionContext(
+        executionContext,
+        context,
+        subsystem,
+      );
+    }
+  }
 
   const executor =
     resolveHookShutdownExecutor();
@@ -2129,6 +2597,12 @@ async function executeRegisteredInfrastructureShutdown(
       "TITech infrastructure hook shutdown engine is unavailable.",
     );
   }
+
+  const executionContext =
+    createInfrastructureContext(
+      context,
+      "infrastructure",
+    );
 
   return executor.execute.call(
     executor.target,
@@ -2199,6 +2673,21 @@ function getCriticalNotStartedSubsystems() {
     );
 }
 
+function getFailedSubsystems() {
+  return Object.values(
+    getInfrastructureStatus(),
+  )
+    .filter(
+      entry =>
+        entry.state ===
+        LIFECYCLE_STATES.FAILED,
+    )
+    .map(
+      entry =>
+        entry.subsystem,
+    );
+}
+
 function validateRegistrationsBeforeStart() {
   const invalid =
     Object.values(
@@ -2224,6 +2713,7 @@ function validateRegistrationsBeforeStart() {
         entry =>
           `${entry.subsystem} (${
             entry.reason ||
+            entry.state ||
             "unavailable"
           })`,
       )
@@ -2251,6 +2741,16 @@ function validateStartedInfrastructure() {
 /* =============================================================================
  * PARTIAL STARTUP CLEANUP
  * =============================================================================
+ *
+ * IMPORTANT
+ * -----------------------------------------------------------------------------
+ *
+ * This function is used after a startup failure.
+ *
+ * It does not call initializeInfrastructure() or shutdownInfrastructure()
+ * recursively. That prevents lifecycle deadlocks caused by waiting on the
+ * currently executing initialization/shutdown promise.
+ * =============================================================================
  */
 
 async function cleanupPartialInfrastructure(
@@ -2273,27 +2773,40 @@ async function cleanupPartialInfrastructure(
 
   if (!activeSubsystems.length) {
     return Object.freeze({
-      attempted: false,
-      cleaned: true,
+      attempted:
+        false,
+
+      cleaned:
+        true,
+
       activeSubsystems: [],
+
+      generation:
+        runtimeGeneration,
     });
   }
 
   try {
+    const cleanupContext = {
+      ...(isObjectLike(context)
+        ? context
+        : {}),
+
+      reason:
+        "infrastructure_startup_failure",
+
+      startupError:
+        originalError,
+
+      partialStartup:
+        true,
+
+      generation:
+        runtimeGeneration,
+    };
+
     await executeRegisteredInfrastructureShutdown(
-      {
-        ...(isObjectLike(context)
-          ? context
-          : {}),
-
-        reason:
-          "infrastructure_startup_failure",
-
-        startupError:
-          originalError,
-
-        partialStartup: true,
-      },
+      cleanupContext,
     );
 
     for (
@@ -2306,9 +2819,16 @@ async function cleanupPartialInfrastructure(
     }
 
     return Object.freeze({
-      attempted: true,
-      cleaned: true,
+      attempted:
+        true,
+
+      cleaned:
+        true,
+
       activeSubsystems,
+
+      generation:
+        runtimeGeneration,
     });
   } catch (cleanupError) {
     for (
@@ -2329,20 +2849,21 @@ async function cleanupPartialInfrastructure(
     }
 
     return Object.freeze({
-      attempted: true,
-      cleaned: false,
+      attempted:
+        true,
+
+      cleaned:
+        false,
+
       activeSubsystems,
 
-      error: {
-        name:
-          cleanupError?.name,
+      generation:
+        runtimeGeneration,
 
-        code:
-          cleanupError?.code,
-
-        message:
-          cleanupError?.message,
-      },
+      error:
+        createErrorDescriptor(
+          cleanupError,
+        ),
     });
   }
 }
@@ -2365,21 +2886,28 @@ function buildInitializationResult(
   const criticalNotStarted =
     getCriticalNotStartedSubsystems();
 
+  const failedSubsystems =
+    getFailedSubsystems();
+
   return Object.freeze({
     ok:
       criticalUnavailable.length === 0 &&
       criticalNotStarted.length === 0,
 
-    initialized: true,
+    initialized:
+      true,
 
     service:
-      "titech-community-capital-backend",
+      SERVICE_NAME,
 
     application:
-      "TITech Community Capital",
+      APPLICATION_NAME,
 
     state:
       "initialized",
+
+    generation:
+      runtimeGeneration,
 
     subsystems:
       status,
@@ -2387,6 +2915,8 @@ function buildInitializationResult(
     criticalUnavailable,
 
     criticalNotStarted,
+
+    failedSubsystems,
 
     startupResult,
 
@@ -2410,13 +2940,23 @@ async function initializeInfrastructure(
 ) {
   if (initialized) {
     return (
-      initializationResult ||
+      initializationResult ??
       Object.freeze({
-        ok: true,
-        initialized: true,
-        idempotent: true,
+        ok:
+          true,
+
+        initialized:
+          true,
+
+        idempotent:
+          true,
+
+        generation:
+          runtimeGeneration,
+
         subsystems:
           getInfrastructureStatus(),
+
         timestamp:
           getNowIso(),
       })
@@ -2433,10 +2973,20 @@ async function initializeInfrastructure(
     );
   }
 
+  /**
+   * New runtime generation.
+   *
+   * A generation identifies one complete startup lifecycle.
+   */
+  runtimeGeneration += 1;
+
   initializationPromise =
     (async () => {
-      initializing = true;
-      startupAttempted = false;
+      initializing =
+        true;
+
+      startupAttempted =
+        false;
 
       const effectiveContext =
         context || {};
@@ -2445,22 +2995,35 @@ async function initializeInfrastructure(
         effectiveContext;
 
       try {
+        /**
+         * Registration is deliberately performed before lifecycle execution.
+         */
         registerInfrastructure(
           effectiveContext,
         );
 
+        /**
+         * Critical infrastructure must be structurally valid before any
+         * startup lifecycle is executed.
+         */
         validateRegistrationsBeforeStart();
 
-        startupAttempted = true;
+        startupAttempted =
+          true;
 
         const startupResult =
           await executeRegisteredInfrastructure(
             effectiveContext,
           );
 
+        /**
+         * Runtime startup is not considered successful until all critical
+         * infrastructure is actually started.
+         */
         validateStartedInfrastructure();
 
-        initialized = true;
+        initialized =
+          true;
 
         initializationResult =
           buildInitializationResult(
@@ -2478,8 +3041,11 @@ async function initializeInfrastructure(
 
         return initializationResult;
       } catch (error) {
-        initialized = false;
-        initializationResult = null;
+        initialized =
+          false;
+
+        initializationResult =
+          null;
 
         if (startupAttempted) {
           const cleanupResult =
@@ -2488,14 +3054,33 @@ async function initializeInfrastructure(
               error,
             );
 
+          /**
+           * Diagnostics are advisory and must never hide the original
+           * startup failure.
+           */
           if (
             error &&
             typeof error ===
               "object"
           ) {
             try {
-              error.infrastructureCleanup =
-                cleanupResult;
+              Object.defineProperty(
+                error,
+                "infrastructureCleanup",
+                {
+                  value:
+                    cleanupResult,
+
+                  enumerable:
+                    false,
+
+                  configurable:
+                    true,
+
+                  writable:
+                    true,
+                },
+              );
             } catch {
               // Diagnostic attachment is advisory only.
             }
@@ -2504,20 +3089,24 @@ async function initializeInfrastructure(
 
         throw error;
       } finally {
-        initializing = false;
-        startupAttempted = false;
+        initializing =
+          false;
+
+        startupAttempted =
+          false;
       }
     })();
 
   try {
     return await initializationPromise;
   } finally {
-    initializationPromise = null;
+    initializationPromise =
+      null;
   }
 }
 
 /* =============================================================================
- * BOOTSTRAP / START ALIASES
+ * STARTUP ALIASES
  * =============================================================================
  */
 
@@ -2544,17 +3133,39 @@ async function shutdownInfrastructure(
 
   if (shuttingDown) {
     return Object.freeze({
-      ok: true,
-      shutdown: false,
-      idempotent: true,
+      ok:
+        true,
+
+      shutdown:
+        false,
+
+      idempotent:
+        true,
+
       reason:
         "shutdown-already-in-progress",
+
+      generation:
+        runtimeGeneration,
     });
+  }
+
+  /**
+   * Do not start a shutdown concurrently with initialization.
+   *
+   * The normal startup failure path performs its own rollback rather than
+   * entering this public shutdown function recursively.
+   */
+  if (initializing) {
+    throw new Error(
+      "TITech infrastructure cannot shutdown while initialization is in progress.",
+    );
   }
 
   shutdownPromise =
     (async () => {
-      shuttingDown = true;
+      shuttingDown =
+        true;
 
       const effectiveContext = {
         ...(isObjectLike(context)
@@ -2564,6 +3175,9 @@ async function shutdownInfrastructure(
         ...(isObjectLike(options)
           ? options
           : {}),
+
+        generation:
+          runtimeGeneration,
       };
 
       try {
@@ -2581,19 +3195,37 @@ async function shutdownInfrastructure(
                 entry.subsystem,
             );
 
-        if (!activeSubsystems.length) {
-          initialized = false;
-          initializationResult = null;
+        if (
+          !activeSubsystems.length
+        ) {
+          initialized =
+            false;
+
+          initializationResult =
+            null;
 
           return Object.freeze({
-            ok: true,
-            initialized: false,
-            shutdown: true,
-            idempotent: true,
+            ok:
+              true,
+
+            initialized:
+              false,
+
+            shutdown:
+              true,
+
+            idempotent:
+              true,
+
             reason:
               "no-active-infrastructure",
+
+            generation:
+              runtimeGeneration,
+
             subsystems:
               getInfrastructureStatus(),
+
             timestamp:
               getNowIso(),
           });
@@ -2615,8 +3247,13 @@ async function shutdownInfrastructure(
               subsystem,
               {
                 ...registration,
-                started: false,
-                state: "stopped",
+
+                started:
+                  false,
+
+                state:
+                  LIFECYCLE_STATES.STOPPED,
+
                 stoppedAt:
                   getNowIso(),
               },
@@ -2624,17 +3261,32 @@ async function shutdownInfrastructure(
           }
         }
 
-        initialized = false;
-        initializationResult = null;
+        initialized =
+          false;
+
+        initializationResult =
+          null;
 
         return Object.freeze({
-          ok: true,
-          initialized: false,
-          shutdown: true,
+          ok:
+            true,
+
+          initialized:
+            false,
+
+          shutdown:
+            true,
+
           shutdownResult,
+
           activeSubsystems,
+
+          generation:
+            runtimeGeneration,
+
           subsystems:
             getInfrastructureStatus(),
+
           timestamp:
             getNowIso(),
         });
@@ -2657,15 +3309,19 @@ async function shutdownInfrastructure(
 
         throw error;
       } finally {
-        shuttingDown = false;
-        initializationContext = null;
+        shuttingDown =
+          false;
+
+        initializationContext =
+          null;
       }
     })();
 
   try {
     return await shutdownPromise;
   } finally {
-    shutdownPromise = null;
+    shutdownPromise =
+      null;
   }
 }
 
@@ -2706,6 +3362,15 @@ function getInfrastructureSummary() {
     Object.values(status);
 
   return Object.freeze({
+    service:
+      SERVICE_NAME,
+
+    application:
+      APPLICATION_NAME,
+
+    generation:
+      runtimeGeneration,
+
     initialized,
 
     initializing,
@@ -2739,7 +3404,22 @@ function getInfrastructureSummary() {
     failed:
       values.filter(
         value =>
-          value.state === "failed",
+          value.state ===
+          LIFECYCLE_STATES.FAILED,
+      ).length,
+
+    disabled:
+      values.filter(
+        value =>
+          value.state ===
+          LIFECYCLE_STATES.DISABLED,
+      ).length,
+
+    unavailable:
+      values.filter(
+        value =>
+          value.state ===
+          LIFECYCLE_STATES.UNAVAILABLE,
       ).length,
 
     criticalUnavailable:
@@ -2748,8 +3428,14 @@ function getInfrastructureSummary() {
     criticalNotStarted:
       getCriticalNotStartedSubsystems(),
 
+    failedSubsystems:
+      getFailedSubsystems(),
+
     ready:
       isInfrastructureReady(),
+
+    timestamp:
+      getNowIso(),
   });
 }
 
@@ -2791,7 +3477,9 @@ function isInfrastructureReady() {
   const status =
     getInfrastructureStatus();
 
-  return !Object.values(status).some(
+  return !Object.values(
+    status,
+  ).some(
     entry =>
       entry.enabled &&
       entry.critical &&
@@ -2801,6 +3489,31 @@ function isInfrastructureReady() {
         !entry.started
       ),
   );
+}
+
+/* =============================================================================
+ * RUNTIME GENERATION / STATE INFORMATION
+ * =============================================================================
+ */
+
+function getRuntimeGeneration() {
+  return runtimeGeneration;
+}
+
+function getLifecycleState() {
+  if (shuttingDown) {
+    return "shutting_down";
+  }
+
+  if (initializing) {
+    return "starting";
+  }
+
+  if (initialized) {
+    return "ready";
+  }
+
+  return "stopped";
 }
 
 /* =============================================================================
@@ -2821,19 +3534,87 @@ function resetInfrastructureRegistry() {
 
   registrationState.clear();
 
-  initializationPromise = null;
-  shutdownPromise = null;
-  initializationContext = null;
-  initializationResult = null;
+  executionContexts.clear();
 
-  initialized = false;
-  startupAttempted = false;
+  initializationPromise =
+    null;
+
+  shutdownPromise =
+    null;
+
+  initializationContext =
+    null;
+
+  initializationResult =
+    null;
+
+  initialized =
+    false;
+
+  startupAttempted =
+    false;
+
+  runtimeGeneration =
+    0;
 }
 
 /* =============================================================================
  * DEVELOPMENT COMPOSITION SELF-CHECK
  * =============================================================================
  */
+
+function validateInfrastructureDefinitionContract() {
+  for (
+    const subsystem of
+      SUBSYSTEM_ORDER
+  ) {
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        INFRASTRUCTURE_MODULES,
+        subsystem,
+      )
+    ) {
+      throw new Error(
+        `TITech infrastructure definition contract is invalid: "${subsystem}" has no module candidates.`,
+      );
+    }
+
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        ENABLE_FLAGS,
+        subsystem,
+      )
+    ) {
+      throw new Error(
+        `TITech infrastructure definition contract is invalid: "${subsystem}" has no enablement flag.`,
+      );
+    }
+
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        DEFAULT_ENABLED,
+        subsystem,
+      )
+    ) {
+      throw new Error(
+        `TITech infrastructure definition contract is invalid: "${subsystem}" has no default enablement.`,
+      );
+    }
+
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        PRIORITIES,
+        subsystem,
+      )
+    ) {
+      throw new Error(
+        `TITech infrastructure definition contract is invalid: "${subsystem}" has no priority.`,
+      );
+    }
+  }
+
+  return true;
+}
 
 function validateExportContract() {
   const requiredFunctions = [
@@ -2845,6 +3626,9 @@ function validateExportContract() {
     "close",
     "registerInfrastructure",
     "registerBootstrapHooks",
+    "getInfrastructureStatus",
+    "getInfrastructureSummary",
+    "isInfrastructureReady",
   ];
 
   for (
@@ -2871,7 +3655,10 @@ function validateExportContract() {
  */
 
 module.exports = Object.freeze({
-  /* Primary lifecycle API */
+  /* ---------------------------------------------------------------------------
+   * Primary lifecycle API
+   * ------------------------------------------------------------------------- */
+
   initialize:
     initializeInfrastructure,
 
@@ -2902,12 +3689,18 @@ module.exports = Object.freeze({
 
   closeInfrastructure,
 
-  /* Hook / composition registration */
+  /* ---------------------------------------------------------------------------
+   * Composition / registration
+   * ------------------------------------------------------------------------- */
+
   registerBootstrapHooks,
 
   registerInfrastructure,
 
-  /* Explicit infrastructure adapters */
+  /* ---------------------------------------------------------------------------
+   * Explicit infrastructure adapters
+   * ------------------------------------------------------------------------- */
+
   registerDatabase,
 
   registerRedis,
@@ -2922,10 +3715,17 @@ module.exports = Object.freeze({
 
   registerApiGateway,
 
-  /* Diagnostics */
+  /* ---------------------------------------------------------------------------
+   * Diagnostics
+   * ------------------------------------------------------------------------- */
+
   getInfrastructureStatus,
 
   getInfrastructureSummary,
+
+  getRuntimeGeneration,
+
+  getLifecycleState,
 
   isInfrastructureRegistered,
 
@@ -2935,10 +3735,20 @@ module.exports = Object.freeze({
 
   isInfrastructureReady,
 
-  /* Test support */
+  /* ---------------------------------------------------------------------------
+   * Test support
+   * ------------------------------------------------------------------------- */
+
   resetInfrastructureRegistry,
 
-  /* Metadata */
+  /* ---------------------------------------------------------------------------
+   * Metadata
+   * ------------------------------------------------------------------------- */
+
+  SERVICE_NAME,
+
+  APPLICATION_NAME,
+
   INFRASTRUCTURE_MODULES,
 
   DEPENDENCIES,
@@ -2954,6 +3764,8 @@ module.exports = Object.freeze({
   START_METHODS,
 
   STOP_METHODS,
+
+  LIFECYCLE_STATES,
 });
 
 /* =============================================================================
@@ -2965,5 +3777,6 @@ if (
   process.env.NODE_ENV !==
   "production"
 ) {
+  validateInfrastructureDefinitionContract();
   validateExportContract();
 }

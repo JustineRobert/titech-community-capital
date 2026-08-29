@@ -9,58 +9,62 @@
  * File:
  *   backend/bootstrap/shutdown.js
  *
+ * Version:
+ *   Enterprise Production Shutdown Coordinator
+ *
  * Purpose:
- *   Enterprise production-grade application shutdown coordinator.
+ *   Canonical application shutdown orchestration boundary for the TITech
+ *   Community Capital backend runtime.
  *
  * Responsibilities:
  *   - Coordinate deterministic application shutdown.
  *   - Provide one canonical shutdown entry point.
  *   - Prevent duplicate/concurrent shutdown execution.
  *   - Support graceful shutdown on SIGTERM/SIGINT/SIGQUIT.
+ *   - Handle fatal process errors through controlled shutdown.
+ *   - Mark the application unready before traffic draining.
  *   - Drain HTTP/HTTPS traffic before infrastructure teardown.
- *   - Execute registered shutdown participants in reverse dependency order.
- *   - Enforce per-participant and global shutdown timeouts.
- *   - Support best-effort cleanup of non-critical components.
- *   - Preserve the original shutdown failure while continuing cleanup when
- *     policy permits.
- *   - Integrate readiness, runtime, lifecycleManager, lifecycle and hooks.
- *   - Flush observability/logging after application resources are stopped.
- *   - Expose safe shutdown diagnostics.
+ *   - Execute lifecycle-owned resources through the authoritative lifecycle
+ *     manager where available.
+ *   - Execute explicitly registered shutdown participants in reverse
+ *     dependency/priority order.
+ *   - Enforce participant and global shutdown deadlines.
+ *   - Continue best-effort cleanup according to shutdown policy.
+ *   - Preserve the original shutdown failure.
+ *   - Flush observability and logging after application resources stop.
+ *   - Expose safe operational diagnostics.
  *
  * Architectural position:
  *
- *   runtime.js
- *       ↓
- *   shutdown.js
- *       ↓
- *   readinessState.js
- *       ↓
- *   server.js
- *       ↓
- *   routes/services
- *       ↓
- *   queue/event-bus
- *       ↓
- *   Redis/idempotency
- *       ↓
- *   database
- *       ↓
- *   observability/logger
+ *   bootstrap/runtime
+ *          ↓
+ *   shutdown coordinator
+ *          ↓
+ *   readiness
+ *          ↓
+ *   HTTP/HTTPS server
+ *          ↓
+ *   lifecycle manager
+ *          ↓
+ *   registered shutdown participants
+ *          ↓
+ *   observability / logger
  *
  * IMPORTANT:
  *
- *   This file is a SHUTDOWN ORCHESTRATOR.
+ *   This module is an ORCHESTRATOR.
  *
  *   It does NOT:
- *     - implement finance logic
+ *     - implement financial logic
  *     - implement ledger logic
  *     - execute database queries
+ *     - own MongoDB
  *     - own Redis
  *     - process queue messages
  *     - implement HTTP routes
- *     - duplicate infrastructure cleanup logic
+ *     - duplicate subsystem cleanup logic
  *
- * Existing subsystems remain authoritative.
+ * Existing subsystems remain authoritative for their own resources.
  *
  * =============================================================================
  */
@@ -70,17 +74,16 @@ const {
 } = require('node:events');
 
 /**
- * -----------------------------------------------------------------------------
- * Optional lifecycle dependencies
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * Optional Lifecycle Dependencies
+ * =============================================================================
  */
 
 let hooksModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  hooksModule =
-    require('./hooks');
+  hooksModule = require('./hooks');
 } catch {
   hooksModule = null;
 }
@@ -89,19 +92,16 @@ let lifecycleModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  lifecycleModule =
-    require('./lifecycleManager');
+  lifecycleModule = require('./lifecycleManager');
 } catch {
   lifecycleModule = null;
 }
 
-let applicationLifecycleModule =
-  null;
+let applicationLifecycleModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  applicationLifecycleModule =
-    require('./lifecycle');
+  applicationLifecycleModule = require('./lifecycle');
 } catch {
   applicationLifecycleModule = null;
 }
@@ -110,8 +110,7 @@ let runtimeModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  runtimeModule =
-    require('./runtime');
+  runtimeModule = require('./runtime');
 } catch {
   runtimeModule = null;
 }
@@ -120,8 +119,7 @@ let readinessModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  readinessModule =
-    require('./readinessState');
+  readinessModule = require('./readinessState');
 } catch {
   readinessModule = null;
 }
@@ -130,8 +128,7 @@ let serverModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  serverModule =
-    require('./server');
+  serverModule = require('./server');
 } catch {
   serverModule = null;
 }
@@ -140,8 +137,7 @@ let observabilityModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  observabilityModule =
-    require('./observability');
+  observabilityModule = require('./observability');
 } catch {
   observabilityModule = null;
 }
@@ -150,66 +146,54 @@ let loggerModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  loggerModule =
-    require('./logger');
+  loggerModule = require('./logger');
 } catch {
   loggerModule = null;
 }
 
 /**
- * -----------------------------------------------------------------------------
+ * =============================================================================
  * Constants
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
-const COMPONENT =
-  'shutdown';
+const COMPONENT = 'shutdown';
 
 const SERVICE_NAME =
   process.env.SERVICE_NAME ||
   process.env.OTEL_SERVICE_NAME ||
-  'titech-backend';
+  'titech-community-capital-backend';
 
 const APPLICATION_NAME =
   process.env.APP_NAME ||
   'titech-community-capital';
 
 const DEFAULTS = Object.freeze({
-  timeoutMs:
-    30_000,
+  timeoutMs: 30_000,
 
-  participantTimeoutMs:
-    15_000,
+  participantTimeoutMs: 15_000,
 
-  signalGraceMs:
-    250,
+  signalGraceMs: 250,
 
-  forceExitOnTimeout:
-    false,
+  forceExitOnTimeout: false,
 
-  continueOnError:
-    true,
+  continueOnError: true,
 
-  installSignalHandlers:
-    false,
+  installSignalHandlers: false,
 
-  shutdownOnUncaughtException:
-    true,
+  shutdownOnUncaughtException: true,
 
-  shutdownOnUnhandledRejection:
-    true,
+  shutdownOnUnhandledRejection: true,
 
-  closeServerFirst:
-    true,
+  closeServerFirst: true,
 
-  markNotReadyFirst:
-    true,
+  markNotReadyFirst: true,
 
-  flushObservabilityLast:
-    true,
+  flushObservabilityLast: true,
 
-  flushLoggerLast:
-    true,
+  flushLoggerLast: true,
+
+  processErrorExitCode: 1,
 });
 
 const SIGNALS = Object.freeze([
@@ -219,43 +203,68 @@ const SIGNALS = Object.freeze([
 ]);
 
 const SHUTDOWN_STATES = Object.freeze({
-  CREATED:
-    'created',
+  CREATED: 'created',
+  REQUESTED: 'requested',
+  DRAINING: 'draining',
+  STOPPING: 'stopping',
+  FLUSHING: 'flushing',
+  STOPPED: 'stopped',
+  FAILED: 'failed',
+});
 
-  REQUESTED:
-    'requested',
+const TERMINAL_STATES = new Set([
+  SHUTDOWN_STATES.STOPPED,
+  SHUTDOWN_STATES.FAILED,
+]);
 
-  DRAINING:
-    'draining',
+const STATE_TRANSITIONS = Object.freeze({
+  [SHUTDOWN_STATES.CREATED]: new Set([
+    SHUTDOWN_STATES.REQUESTED,
+  ]),
 
-  STOPPING:
-    'stopping',
+  [SHUTDOWN_STATES.REQUESTED]: new Set([
+    SHUTDOWN_STATES.DRAINING,
+    SHUTDOWN_STATES.FAILED,
+  ]),
 
-  FLUSHING:
-    'flushing',
+  [SHUTDOWN_STATES.DRAINING]: new Set([
+    SHUTDOWN_STATES.STOPPING,
+    SHUTDOWN_STATES.FLUSHING,
+    SHUTDOWN_STATES.FAILED,
+  ]),
 
-  STOPPED:
-    'stopped',
+  [SHUTDOWN_STATES.STOPPING]: new Set([
+    SHUTDOWN_STATES.FLUSHING,
+    SHUTDOWN_STATES.FAILED,
+  ]),
 
-  FAILED:
-    'failed',
+  [SHUTDOWN_STATES.FLUSHING]: new Set([
+    SHUTDOWN_STATES.STOPPED,
+    SHUTDOWN_STATES.FAILED,
+  ]),
+
+  [SHUTDOWN_STATES.STOPPED]: new Set([
+    SHUTDOWN_STATES.REQUESTED,
+    SHUTDOWN_STATES.CREATED,
+  ]),
+
+  [SHUTDOWN_STATES.FAILED]: new Set([
+    SHUTDOWN_STATES.REQUESTED,
+    SHUTDOWN_STATES.CREATED,
+  ]),
 });
 
 /**
- * -----------------------------------------------------------------------------
+ * =============================================================================
  * Errors
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
 class ShutdownError extends Error {
-  constructor(
-    message,
-    options = {},
-  ) {
+  constructor(message, options = {}) {
     super(message);
 
-    this.name =
-      'ShutdownError';
+    this.name = 'ShutdownError';
 
     this.code =
       options.code ||
@@ -277,10 +286,9 @@ class ShutdownError extends Error {
       options.cause ||
       null;
 
-    this.details =
-      Object.freeze({
-        ...(options.details || {}),
-      });
+    this.details = Object.freeze({
+      ...(options.details || {}),
+    });
 
     Error.captureStackTrace?.(
       this,
@@ -290,15 +298,12 @@ class ShutdownError extends Error {
 }
 
 /**
- * -----------------------------------------------------------------------------
- * Utility
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * Utility Functions
+ * =============================================================================
  */
 
-function asBoolean(
-  value,
-  fallback,
-) {
+function asBoolean(value, fallback) {
   if (
     value === undefined ||
     value === null ||
@@ -307,10 +312,7 @@ function asBoolean(
     return fallback;
   }
 
-  if (
-    typeof value ===
-    'boolean'
-  ) {
+  if (typeof value === 'boolean') {
     return value;
   }
 
@@ -327,19 +329,16 @@ function asBoolean(
   );
 }
 
-function asPositiveInteger(
-  value,
-  fallback,
-) {
+function asPositiveInteger(value, fallback) {
   const parsed =
-    value === undefined
+    value === undefined ||
+    value === null ||
+    value === ''
       ? fallback
       : Number(value);
 
   if (
-    !Number.isInteger(
-      parsed,
-    ) ||
+    !Number.isInteger(parsed) ||
     parsed <= 0
   ) {
     return fallback;
@@ -348,15 +347,10 @@ function asPositiveInteger(
   return parsed;
 }
 
-function normalizeName(
-  value,
-  field = 'name',
-) {
+function normalizeName(value, field = 'name') {
   if (
-    typeof value !==
-      'string' ||
-    value.trim() ===
-      ''
+    typeof value !== 'string' ||
+    value.trim() === ''
   ) {
     throw new TypeError(
       `${field} must be a non-empty string.`,
@@ -366,30 +360,33 @@ function normalizeName(
   return value.trim();
 }
 
-function safeError(
-  error,
-) {
-  if (
-    !error
-  ) {
+function safeError(error) {
+  if (!error) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     name:
-      error.name,
+      error.name ||
+      'Error',
 
     code:
-      error.code,
+      error.code ||
+      undefined,
 
     message:
-      error.message,
-  };
+      typeof error.message === 'string'
+        ? error.message
+        : String(error),
+
+    stack:
+      process.env.NODE_ENV === 'production'
+        ? undefined
+        : error.stack,
+  });
 }
 
-function hrtimeMs(
-  start,
-) {
+function hrtimeMs(start) {
   return (
     Number(
       process.hrtime.bigint() -
@@ -398,10 +395,33 @@ function hrtimeMs(
   );
 }
 
+function createDeferred() {
+  let resolve;
+  let reject;
+
+  const promise = new Promise(
+    (res, rej) => {
+      resolve = res;
+      reject = rej;
+    },
+  );
+
+  return {
+    promise,
+    resolve,
+    reject,
+  };
+}
+
 /**
- * -----------------------------------------------------------------------------
+ * =============================================================================
  * Timeout Helper
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ *
+ * Promise.race alone does not cancel the underlying operation. That is
+ * intentional: shutdown participants must still be allowed to clean themselves
+ * up if possible, while the coordinator stops waiting after the deadline.
+ * =============================================================================
  */
 
 async function withTimeout(
@@ -409,31 +429,35 @@ async function withTimeout(
   timeoutMs,
   label,
 ) {
-  let timer;
-
-  const operation =
-    Promise.resolve().then(
-      fn,
+  const timeout =
+    asPositiveInteger(
+      timeoutMs,
+      DEFAULTS.participantTimeoutMs,
     );
 
-  const timeout =
+  let timer = null;
+
+  const operation = Promise.resolve().then(
+    fn,
+  );
+
+  const timeoutPromise =
     new Promise(
       (_, reject) => {
-        timer =
-          setTimeout(
-            () => {
-              reject(
-                new ShutdownError(
-                  `${label} timed out after ${timeoutMs}ms.`,
-                  {
-                    code:
-                      'SHUTDOWN_TIMEOUT',
-                  },
-                ),
-              );
-            },
-            timeoutMs,
-          );
+        timer = setTimeout(
+          () => {
+            reject(
+              new ShutdownError(
+                `${label} timed out after ${timeout}ms.`,
+                {
+                  code:
+                    'SHUTDOWN_TIMEOUT',
+                },
+              ),
+            );
+          },
+          timeout,
+        );
 
         timer.unref?.();
       },
@@ -442,12 +466,12 @@ async function withTimeout(
   try {
     return await Promise.race([
       operation,
-      timeout,
+      timeoutPromise,
     ]);
   } finally {
-    clearTimeout(
-      timer,
-    );
+    if (timer) {
+      clearTimeout(timer);
+    }
   }
 }
 
@@ -458,162 +482,145 @@ async function withTimeout(
  */
 
 class ShutdownCoordinator extends EventEmitter {
-  constructor(
-    options = {},
-  ) {
+  constructor(options = {}) {
     super();
 
-    this.options =
-      Object.freeze({
-        timeoutMs:
-          asPositiveInteger(
-            options.timeoutMs ??
-              process.env.SHUTDOWN_TIMEOUT_MS,
-            DEFAULTS.timeoutMs,
-          ),
+    this.options = Object.freeze({
+      timeoutMs:
+        asPositiveInteger(
+          options.timeoutMs ??
+            process.env.SHUTDOWN_TIMEOUT_MS,
+          DEFAULTS.timeoutMs,
+        ),
 
-        participantTimeoutMs:
-          asPositiveInteger(
-            options.participantTimeoutMs ??
-              process.env.SHUTDOWN_PARTICIPANT_TIMEOUT_MS,
-            DEFAULTS.participantTimeoutMs,
-          ),
+      participantTimeoutMs:
+        asPositiveInteger(
+          options.participantTimeoutMs ??
+            process.env.SHUTDOWN_PARTICIPANT_TIMEOUT_MS,
+          DEFAULTS.participantTimeoutMs,
+        ),
 
-        signalGraceMs:
-          asPositiveInteger(
-            options.signalGraceMs ??
-              process.env.SHUTDOWN_SIGNAL_GRACE_MS,
-            DEFAULTS.signalGraceMs,
-          ),
+      signalGraceMs:
+        asPositiveInteger(
+          options.signalGraceMs ??
+            process.env.SHUTDOWN_SIGNAL_GRACE_MS,
+          DEFAULTS.signalGraceMs,
+        ),
 
-        forceExitOnTimeout:
-          options.forceExitOnTimeout ??
-          asBoolean(
-            process.env.SHUTDOWN_FORCE_EXIT,
-            DEFAULTS.forceExitOnTimeout,
-          ),
+      forceExitOnTimeout:
+        options.forceExitOnTimeout ??
+        asBoolean(
+          process.env.SHUTDOWN_FORCE_EXIT,
+          DEFAULTS.forceExitOnTimeout,
+        ),
 
-        continueOnError:
-          options.continueOnError ??
-          asBoolean(
-            process.env.SHUTDOWN_CONTINUE_ON_ERROR,
-            DEFAULTS.continueOnError,
-          ),
+      continueOnError:
+        options.continueOnError ??
+        asBoolean(
+          process.env.SHUTDOWN_CONTINUE_ON_ERROR,
+          DEFAULTS.continueOnError,
+        ),
 
-        installSignalHandlers:
-          options.installSignalHandlers ??
-          asBoolean(
-            process.env.SHUTDOWN_INSTALL_SIGNALS,
-            DEFAULTS.installSignalHandlers,
-          ),
+      installSignalHandlers:
+        options.installSignalHandlers ??
+        asBoolean(
+          process.env.SHUTDOWN_INSTALL_SIGNALS,
+          DEFAULTS.installSignalHandlers,
+        ),
 
-        shutdownOnUncaughtException:
-          options.shutdownOnUncaughtException ??
-          asBoolean(
-            process.env.SHUTDOWN_ON_UNCAUGHT_EXCEPTION,
-            DEFAULTS.shutdownOnUncaughtException,
-          ),
+      shutdownOnUncaughtException:
+        options.shutdownOnUncaughtException ??
+        asBoolean(
+          process.env.SHUTDOWN_ON_UNCAUGHT_EXCEPTION,
+          DEFAULTS.shutdownOnUncaughtException,
+        ),
 
-        shutdownOnUnhandledRejection:
-          options.shutdownOnUnhandledRejection ??
-          asBoolean(
-            process.env.SHUTDOWN_ON_UNHANDLED_REJECTION,
-            DEFAULTS.shutdownOnUnhandledRejection,
-          ),
+      shutdownOnUnhandledRejection:
+        options.shutdownOnUnhandledRejection ??
+        asBoolean(
+          process.env.SHUTDOWN_ON_UNHANDLED_REJECTION,
+          DEFAULTS.shutdownOnUnhandledRejection,
+        ),
 
-        closeServerFirst:
-          options.closeServerFirst ??
-          DEFAULTS.closeServerFirst,
+      closeServerFirst:
+        options.closeServerFirst ??
+        DEFAULTS.closeServerFirst,
 
-        markNotReadyFirst:
-          options.markNotReadyFirst ??
-          DEFAULTS.markNotReadyFirst,
+      markNotReadyFirst:
+        options.markNotReadyFirst ??
+        DEFAULTS.markNotReadyFirst,
 
-        flushObservabilityLast:
-          options.flushObservabilityLast ??
-          DEFAULTS.flushObservabilityLast,
+      flushObservabilityLast:
+        options.flushObservabilityLast ??
+        DEFAULTS.flushObservabilityLast,
 
-        flushLoggerLast:
-          options.flushLoggerLast ??
-          DEFAULTS.flushLoggerLast,
-      });
+      flushLoggerLast:
+        options.flushLoggerLast ??
+        DEFAULTS.flushLoggerLast,
+
+      processErrorExitCode:
+        asPositiveInteger(
+          options.processErrorExitCode ??
+            process.env.SHUTDOWN_PROCESS_ERROR_EXIT_CODE,
+          DEFAULTS.processErrorExitCode,
+        ),
+    });
 
     this.state =
       SHUTDOWN_STATES.CREATED;
 
-    this.requestedAt =
-      null;
+    this.requestedAt = null;
+    this.startedAt = null;
+    this.completedAt = null;
 
-    this.startedAt =
-      null;
+    this.reason = null;
+    this.signal = null;
 
-    this.completedAt =
-      null;
+    this.failure = null;
 
-    this.reason =
-      null;
+    this.shutdownPromise = null;
 
-    this.signal =
-      null;
+    this.shutdownRequested = false;
 
-    this.failure =
-      null;
+    this.forceExitRequested = false;
 
-    this.shutdownPromise =
-      null;
+    this.signalHandlersInstalled = false;
 
-    this.shutdownRequested =
-      false;
+    this.processErrorHandlersInstalled = false;
 
-    this.forceExitRequested =
-      false;
+    this.participants = new Map();
 
-    this.signalHandlersInstalled =
-      false;
+    this.executionHistory = [];
 
-    this.processErrorHandlersInstalled =
-      false;
+    this.errors = [];
 
-    this.participants =
-      new Map();
+    this._fatalProcessError = false;
 
-    this.executionHistory =
-      [];
-
-    this.errors =
-      [];
+    this._forceExitTimer = null;
 
     this._installSignalHandlersIfConfigured();
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Logging
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
 
-  _log(
-    level,
-    payload,
-    message,
-  ) {
+  _log(level, payload = {}, message = '') {
     try {
       const logger =
         loggerModule?.getLogger?.();
 
       if (
         logger &&
-        typeof logger[level] ===
-          'function'
+        typeof logger[level] === 'function'
       ) {
         logger[level](
           {
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-
+            component: COMPONENT,
+            service: SERVICE_NAME,
+            application: APPLICATION_NAME,
             ...payload,
           },
           message,
@@ -622,11 +629,18 @@ class ShutdownCoordinator extends EventEmitter {
         return;
       }
     } catch {
-      // Shutdown must not depend on logging availability.
+      // Shutdown must never depend on logging.
     }
 
+    const serializedPayload =
+      Object.keys(payload).length
+        ? ` ${JSON.stringify(
+            this._sanitizePayload(payload),
+          )}`
+        : '';
+
     const output =
-      `[${COMPONENT}] ${message}`;
+      `[${COMPONENT}] ${message}${serializedPayload}`;
 
     if (
       level === 'error' ||
@@ -642,10 +656,44 @@ class ShutdownCoordinator extends EventEmitter {
     }
   }
 
+  _sanitizePayload(payload) {
+    const output = {};
+
+    for (
+      const [key, value] of Object.entries(
+        payload || {},
+      )
+    ) {
+      if (
+        key === 'error' ||
+        key === 'err' ||
+        key === 'cause'
+      ) {
+        output[key] =
+          safeError(value);
+
+        continue;
+      }
+
+      if (
+        typeof value === 'bigint'
+      ) {
+        output[key] =
+          value.toString();
+
+        continue;
+      }
+
+      output[key] = value;
+    }
+
+    return output;
+  }
+
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Observability
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
 
   _emitObservability(
@@ -653,6 +701,13 @@ class ShutdownCoordinator extends EventEmitter {
     payload = {},
   ) {
     try {
+      const normalizedPayload = {
+        component: COMPONENT,
+        service: SERVICE_NAME,
+        application: APPLICATION_NAME,
+        ...payload,
+      };
+
       if (
         observabilityModule
           ?.observability
@@ -662,15 +717,7 @@ class ShutdownCoordinator extends EventEmitter {
           .observability
           .emitEvent(
             event,
-            {
-              component:
-                COMPONENT,
-
-              service:
-                SERVICE_NAME,
-
-              ...payload,
-            },
+            normalizedPayload,
           );
       }
 
@@ -680,54 +727,37 @@ class ShutdownCoordinator extends EventEmitter {
       ) {
         return observabilityModule.emitEvent(
           event,
-          {
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-
-            ...payload,
-          },
+          normalizedPayload,
         );
       }
     } catch {
-      // Telemetry failure must never block shutdown.
+      // Telemetry must never block shutdown.
     }
 
     return null;
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Participant Registration
-   * ---------------------------------------------------------------------------
-   *
-   * Participants allow application-owned resources to join shutdown without
-   * creating duplicate shutdown logic in this module.
+   * ===========================================================================
    */
 
-  register(
-    options = {},
-  ) {
+  register(options = {}) {
     const name =
       normalizeName(
         options.name,
       );
 
     if (
-      this.participants.has(
-        name,
-      )
+      this.participants.has(name)
     ) {
       throw new ShutdownError(
         `Shutdown participant "${name}" is already registered.`,
         {
           code:
             'SHUTDOWN_PARTICIPANT_DUPLICATE',
-
-          participant:
-            name,
+          participant: name,
         },
       );
     }
@@ -750,12 +780,10 @@ class ShutdownCoordinator extends EventEmitter {
         ),
 
       critical:
-        options.critical !==
-        false,
+        options.critical !== false,
 
       enabled:
-        options.enabled !==
-        false,
+        options.enabled !== false,
 
       stop:
         typeof options.stop ===
@@ -764,8 +792,7 @@ class ShutdownCoordinator extends EventEmitter {
           : null,
 
       metadata: {
-        ...(options.metadata ||
-          {}),
+        ...(options.metadata || {}),
       },
 
       registeredAt:
@@ -777,29 +804,49 @@ class ShutdownCoordinator extends EventEmitter {
       participant,
     );
 
+    this._emitObservability(
+      'shutdown.participant_registered',
+      {
+        participant: name,
+        priority:
+          participant.priority,
+        critical:
+          participant.critical,
+      },
+    );
+
     return Object.freeze({
       ...participant,
+      metadata: {
+        ...participant.metadata,
+      },
     });
   }
 
-  unregister(
-    name,
-  ) {
+  unregister(name) {
     const normalized =
-      normalizeName(
-        name,
+      normalizeName(name);
+
+    const removed =
+      this.participants.delete(
+        normalized,
       );
 
-    return this.participants.delete(
-      normalized,
-    );
+    if (removed) {
+      this._emitObservability(
+        'shutdown.participant_unregistered',
+        {
+          participant: normalized,
+        },
+      );
+    }
+
+    return removed;
   }
 
-  has(
-    name,
-  ) {
+  has(name) {
     return this.participants.has(
-      name,
+      normalizeName(name),
     );
   }
 
@@ -807,18 +854,24 @@ class ShutdownCoordinator extends EventEmitter {
     return [
       ...this.participants.values(),
     ].map(
-      participant => ({
-        ...participant,
-      }),
+      participant =>
+        Object.freeze({
+          ...participant,
+          metadata: {
+            ...participant.metadata,
+          },
+        }),
     );
   }
 
   /**
-   * ---------------------------------------------------------------------------
-   * Participant Order
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
+   * Participant Ordering
+   * ===========================================================================
    *
-   * Higher startup priorities stop later. Shutdown is reverse-priority.
+   * Higher priority resources are considered later in startup and therefore
+   * are stopped first during shutdown.
+   * ===========================================================================
    */
 
   _resolveParticipantOrder() {
@@ -832,10 +885,7 @@ class ShutdownCoordinator extends EventEmitter {
             'function',
       )
       .sort(
-        (
-          a,
-          b,
-        ) => {
+        (a, b) => {
           if (
             a.priority !==
             b.priority
@@ -854,10 +904,37 @@ class ShutdownCoordinator extends EventEmitter {
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Signal Handling
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
+
+  _createSignalHandler(signal) {
+    return () => {
+      const request =
+        this.request(
+          `signal:${signal}`,
+          {
+            signal,
+          },
+        );
+
+      request.catch(
+        error => {
+          this._log(
+            'error',
+            {
+              signal,
+              error,
+            },
+            'TITech shutdown triggered by signal failed.',
+          );
+
+          this.forceExit();
+        },
+      );
+    };
+  }
 
   _installSignalHandlersIfConfigured() {
     if (
@@ -868,31 +945,7 @@ class ShutdownCoordinator extends EventEmitter {
       return;
     }
 
-    for (
-      const signal of
-        SIGNALS
-    ) {
-      const handler =
-        () => {
-          void this.request(
-            `signal:${signal}`,
-            {
-              signal,
-            },
-          );
-        };
-
-      process.once(
-        signal,
-        handler,
-      );
-
-      this[`_${signal}Handler`] =
-        handler;
-    }
-
-    this.signalHandlersInstalled =
-      true;
+    this.installSignalHandlers();
   }
 
   installSignalHandlers() {
@@ -902,24 +955,13 @@ class ShutdownCoordinator extends EventEmitter {
       return false;
     }
 
-    this.options =
-      Object.freeze({
-        ...this.options,
-      });
-
     for (
-      const signal of
-        SIGNALS
+      const signal of SIGNALS
     ) {
       const handler =
-        () => {
-          void this.request(
-            `signal:${signal}`,
-            {
-              signal,
-            },
-          );
-        };
+        this._createSignalHandler(
+          signal,
+        );
 
       process.once(
         signal,
@@ -933,20 +975,21 @@ class ShutdownCoordinator extends EventEmitter {
     this.signalHandlersInstalled =
       true;
 
+    this._emitObservability(
+      'shutdown.signal_handlers_installed',
+    );
+
     return true;
   }
 
   removeSignalHandlers() {
     for (
-      const signal of
-        SIGNALS
+      const signal of SIGNALS
     ) {
       const handler =
         this[`_${signal}Handler`];
 
-      if (
-        handler
-      ) {
+      if (handler) {
         process.removeListener(
           signal,
           handler,
@@ -964,9 +1007,9 @@ class ShutdownCoordinator extends EventEmitter {
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Fatal Process Error Handling
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
 
   installProcessErrorHandlers() {
@@ -985,10 +1028,29 @@ class ShutdownCoordinator extends EventEmitter {
           return;
         }
 
-        void this.request(
-          'uncaughtException',
-          {
-            error,
+        this._fatalProcessError =
+          true;
+
+        const request =
+          this.request(
+            'uncaughtException',
+            {
+              error,
+            },
+          );
+
+        request.catch(
+          shutdownError => {
+            this._log(
+              'error',
+              {
+                error:
+                  shutdownError,
+              },
+              'Shutdown after uncaught exception failed.',
+            );
+
+            this.forceExit();
           },
         );
       };
@@ -1002,18 +1064,36 @@ class ShutdownCoordinator extends EventEmitter {
           return;
         }
 
+        this._fatalProcessError =
+          true;
+
         const error =
-          reason instanceof
-          Error
+          reason instanceof Error
             ? reason
             : new Error(
                 String(reason),
               );
 
-        void this.request(
-          'unhandledRejection',
-          {
-            error,
+        const request =
+          this.request(
+            'unhandledRejection',
+            {
+              error,
+            },
+          );
+
+        request.catch(
+          shutdownError => {
+            this._log(
+              'error',
+              {
+                error:
+                  shutdownError,
+              },
+              'Shutdown after unhandled rejection failed.',
+            );
+
+            this.forceExit();
           },
         );
       };
@@ -1072,19 +1152,16 @@ class ShutdownCoordinator extends EventEmitter {
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Shutdown Request
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
 
   async request(
-    reason =
-      'application-request',
+    reason = 'application-request',
     metadata = {},
   ) {
-    if (
-      this.shutdownPromise
-    ) {
+    if (this.shutdownPromise) {
       return this.shutdownPromise;
     }
 
@@ -1095,11 +1172,13 @@ class ShutdownCoordinator extends EventEmitter {
       return true;
     }
 
-    this.shutdownRequested =
-      true;
+    this.shutdownRequested = true;
 
     this.reason =
-      reason;
+      typeof reason === 'string' &&
+      reason.trim()
+        ? reason.trim()
+        : 'application-request';
 
     this.signal =
       metadata.signal ||
@@ -1108,117 +1187,154 @@ class ShutdownCoordinator extends EventEmitter {
     this.requestedAt =
       new Date();
 
+    this.startedAt =
+      new Date();
+
+    this.failure =
+      null;
+
     this._transition(
       SHUTDOWN_STATES.REQUESTED,
       {
-        reason,
-        signal:
-          this.signal,
+        reason: this.reason,
+        signal: this.signal,
       },
     );
 
     this._emitObservability(
       'shutdown.requested',
       {
-        reason,
-
-        signal:
-          this.signal,
+        reason: this.reason,
+        signal: this.signal,
+        fatalProcessError:
+          this._fatalProcessError,
       },
     );
 
     this._log(
       'info',
       {
-        reason,
-
-        signal:
-          this.signal,
+        reason: this.reason,
+        signal: this.signal,
       },
       'TITech application shutdown requested.',
     );
 
-    this.shutdownPromise =
-      this._performShutdown(
-        metadata,
-      );
+    const deferred =
+      createDeferred();
 
-    return this.shutdownPromise;
+    this.shutdownPromise =
+      deferred.promise;
+
+    void this._performShutdown(
+      metadata,
+      deferred,
+    );
+
+    return deferred.promise;
   }
 
+  /**
+   * ===========================================================================
+   * Global Deadline
+   * ===========================================================================
+   */
+
+  async _runWithGlobalDeadline(
+    operation,
+    label,
+  ) {
+    return withTimeout(
+      operation,
+      this.options.timeoutMs,
+      label,
+    );
+  }
+
+  /**
+   * ===========================================================================
+   * Shutdown Execution
+   * ===========================================================================
+   */
+
   async _performShutdown(
-    metadata = {},
+    metadata,
+    deferred,
   ) {
     const started =
       process.hrtime.bigint();
+
+    let fatalError = null;
 
     try {
       this._transition(
         SHUTDOWN_STATES.DRAINING,
         {
-          reason:
-            this.reason,
-
-          signal:
-            this.signal,
+          reason: this.reason,
+          signal: this.signal,
         },
       );
 
-      /**
-       * -----------------------------------------------------------------------
-       * Phase 1: Mark application not ready.
-       * -----------------------------------------------------------------------
-       */
+      await this._runWithGlobalDeadline(
+        async () => {
+          /**
+           * -------------------------------------------------------------------
+           * Phase 1 — Readiness
+           * -------------------------------------------------------------------
+           */
 
-      if (
-        this.options
-          .markNotReadyFirst
-      ) {
-        await this._markNotReady();
-      }
+          if (
+            this.options
+              .markNotReadyFirst
+          ) {
+            await this._markNotReady();
+          }
 
-      /**
-       * -----------------------------------------------------------------------
-       * Phase 2: Stop accepting new network traffic.
-       * -----------------------------------------------------------------------
-       */
+          /**
+           * -------------------------------------------------------------------
+           * Phase 2 — Network Drain
+           * -------------------------------------------------------------------
+           */
 
-      if (
-        this.options
-          .closeServerFirst
-      ) {
-        await this._closeServer(
-          metadata,
-        );
-      }
+          if (
+            this.options
+              .closeServerFirst
+          ) {
+            await this._closeServer(
+              metadata,
+            );
+          }
 
-      /**
-       * -----------------------------------------------------------------------
-       * Phase 3: Stop the application lifecycle.
-       * -----------------------------------------------------------------------
-       */
+          /**
+           * -------------------------------------------------------------------
+           * Phase 3 — Application Lifecycle
+           * -------------------------------------------------------------------
+           */
 
-      this._transition(
-        SHUTDOWN_STATES.STOPPING,
+          this._transition(
+            SHUTDOWN_STATES.STOPPING,
+          );
+
+          await this._stopApplicationLifecycle(
+            metadata,
+          );
+
+          /**
+           * -------------------------------------------------------------------
+           * Phase 4 — Explicit Participants
+           * -------------------------------------------------------------------
+           */
+
+          await this._stopParticipants(
+            metadata,
+          );
+        },
+        'TITech global shutdown',
       );
 
-      await this._stopApplicationLifecycle(
-        metadata,
-      );
-
       /**
        * -----------------------------------------------------------------------
-       * Phase 4: Run explicitly registered shutdown participants.
-       * -----------------------------------------------------------------------
-       */
-
-      await this._stopParticipants(
-        metadata,
-      );
-
-      /**
-       * -----------------------------------------------------------------------
-       * Phase 5: Final telemetry/logging flush.
+       * Phase 5 — Flush telemetry/logging.
        * -----------------------------------------------------------------------
        */
 
@@ -1240,120 +1356,65 @@ class ShutdownCoordinator extends EventEmitter {
         await this._flushLogger();
       }
 
-      /**
-       * -----------------------------------------------------------------------
-       * Completed.
-       * -----------------------------------------------------------------------
-       */
-
       this.completedAt =
         new Date();
+
+      /**
+       * Fatal process errors must always produce a non-zero exit code even if
+       * resource cleanup itself succeeded.
+       */
+      if (
+        this._fatalProcessError
+      ) {
+        process.exitCode =
+          this.options
+            .processErrorExitCode;
+      }
 
       this._transition(
         SHUTDOWN_STATES.STOPPED,
         {
-          reason:
-            this.reason,
-
+          reason: this.reason,
           durationMs:
-            hrtimeMs(
-              started,
-            ),
+            hrtimeMs(started),
+          errorCount:
+            this.errors.length,
         },
       );
+
+      const durationMs =
+        hrtimeMs(started);
 
       this._emitObservability(
         'shutdown.completed',
         {
-          reason:
-            this.reason,
-
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
-
+          reason: this.reason,
+          signal: this.signal,
+          durationMs,
           participantCount:
             this.participants.size,
+          errorCount:
+            this.errors.length,
+          fatalProcessError:
+            this._fatalProcessError,
         },
       );
 
       this._log(
         'info',
         {
-          reason:
-            this.reason,
-
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
+          reason: this.reason,
+          signal: this.signal,
+          durationMs,
+          errorCount:
+            this.errors.length,
         },
         'TITech application shutdown completed.',
       );
 
-      return true;
+      deferred.resolve(true);
     } catch (error) {
-      this.failure =
-        error;
-
-      this._transition(
-        SHUTDOWN_STATES.FAILED,
-        {
-          reason:
-            this.reason,
-
-          error:
-            safeError(
-              error,
-            ),
-        },
-      );
-
-      this._emitObservability(
-        'shutdown.failed',
-        {
-          reason:
-            this.reason,
-
-          error:
-            safeError(
-              error,
-            ),
-
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
-        },
-      );
-
-      this._log(
-        'error',
-        {
-          reason:
-            this.reason,
-
-          err:
-            error,
-        },
-        'TITech application shutdown failed.',
-      );
-
-      if (
-        this.options
-          .forceExitOnTimeout &&
-        (
-          error?.code ===
-            'SHUTDOWN_TIMEOUT' ||
-          error?.code ===
-            'SHUTDOWN_GLOBAL_TIMEOUT'
-        )
-      ) {
-        this.forceExit();
-      }
-
-      throw (
+      fatalError =
         error instanceof
         ShutdownError
           ? error
@@ -1362,25 +1423,85 @@ class ShutdownCoordinator extends EventEmitter {
               {
                 code:
                   'SHUTDOWN_FAILED',
-
                 phase:
                   this.state,
-
                 signal:
                   this.signal,
-
                 cause:
                   error,
               },
-            )
+            );
+
+      this.failure =
+        fatalError;
+
+      this.completedAt =
+        new Date();
+
+      process.exitCode =
+        process.exitCode ||
+        this.options.processErrorExitCode;
+
+      this._transition(
+        SHUTDOWN_STATES.FAILED,
+        {
+          reason: this.reason,
+          signal: this.signal,
+          error:
+            safeError(fatalError),
+          durationMs:
+            hrtimeMs(started),
+        },
+      );
+
+      this._emitObservability(
+        'shutdown.failed',
+        {
+          reason: this.reason,
+          signal: this.signal,
+          error:
+            safeError(fatalError),
+          durationMs:
+            hrtimeMs(started),
+          errorCount:
+            this.errors.length,
+        },
+      );
+
+      this._log(
+        'error',
+        {
+          reason: this.reason,
+          signal: this.signal,
+          error: fatalError,
+        },
+        'TITech application shutdown failed.',
+      );
+
+      if (
+        this.options.forceExitOnTimeout &&
+        (
+          fatalError.code ===
+            'SHUTDOWN_TIMEOUT' ||
+          fatalError.code ===
+            'SHUTDOWN_GLOBAL_TIMEOUT'
+        )
+      ) {
+        this.forceExit();
+      }
+
+      deferred.reject(
+        fatalError,
       );
     }
+
+    return deferred.promise;
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Readiness
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
 
   async _markNotReady() {
@@ -1390,12 +1511,16 @@ class ShutdownCoordinator extends EventEmitter {
           ?.markNotReady ===
         'function'
       ) {
-        readinessModule.markNotReady(
+        await readinessModule.markNotReady(
           'application-shutdown',
           {
-            signal:
-              this.signal,
+            signal: this.signal,
+            reason: this.reason,
           },
+        );
+
+        this._emitObservability(
+          'shutdown.readiness_marked_not_ready',
         );
 
         return;
@@ -1409,41 +1534,35 @@ class ShutdownCoordinator extends EventEmitter {
           .markNotReady ===
         'function'
       ) {
-        readinessModule
+        await readinessModule
           .readinessState
           .markNotReady(
             'application-shutdown',
             {
-              signal:
-                this.signal,
+              signal: this.signal,
+              reason: this.reason,
             },
           );
+
+        this._emitObservability(
+          'shutdown.readiness_marked_not_ready',
+        );
       }
     } catch (error) {
-      /**
-       * Readiness failure should not prevent resource cleanup.
-       */
-      this.errors.push({
-        participant:
-          'readiness',
-
-        error:
-          safeError(
-            error,
-          ),
-      });
+      this._recordNonFatalError(
+        'readiness',
+        error,
+      );
     }
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Server
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
 
-  async _closeServer(
-    metadata,
-  ) {
+  async _closeServer(metadata) {
     try {
       if (
         typeof serverModule
@@ -1457,7 +1576,6 @@ class ShutdownCoordinator extends EventEmitter {
                 'application-shutdown',
               {
                 ...metadata,
-
                 signal:
                   this.signal,
               },
@@ -1465,6 +1583,11 @@ class ShutdownCoordinator extends EventEmitter {
           this.options
             .participantTimeoutMs,
           'TITech HTTP server shutdown',
+        );
+
+        this._recordSuccess(
+          'server',
+          0,
         );
 
         return;
@@ -1481,7 +1604,6 @@ class ShutdownCoordinator extends EventEmitter {
                 'application-shutdown',
               {
                 ...metadata,
-
                 signal:
                   this.signal,
               },
@@ -1490,17 +1612,17 @@ class ShutdownCoordinator extends EventEmitter {
             .participantTimeoutMs,
           'TITech HTTP server stop',
         );
+
+        this._recordSuccess(
+          'server',
+          0,
+        );
       }
     } catch (error) {
-      this.errors.push({
-        participant:
-          'server',
-
-        error:
-          safeError(
-            error,
-          ),
-      });
+      this._recordNonFatalError(
+        'server',
+        error,
+      );
 
       if (
         !this.options
@@ -1512,17 +1634,19 @@ class ShutdownCoordinator extends EventEmitter {
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Application Lifecycle
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
 
   async _stopApplicationLifecycle(
     metadata,
   ) {
     /**
-     * Prefer lifecycleManager because it owns manager dependency order.
+     * lifecycleManager is preferred because it should own dependency-aware
+     * lifecycle orchestration.
      */
+
     if (
       lifecycleModule
         ?.lifecycleManager &&
@@ -1539,10 +1663,8 @@ class ShutdownCoordinator extends EventEmitter {
               .shutdown(
                 {
                   ...metadata,
-
                   signal:
                     this.signal,
-
                   reason:
                     this.reason,
                 },
@@ -1550,21 +1672,21 @@ class ShutdownCoordinator extends EventEmitter {
                   'application-shutdown',
               ),
           this.options
-            .timeoutMs,
+            .participantTimeoutMs,
           'TITech lifecycle manager shutdown',
+        );
+
+        this._recordSuccess(
+          'lifecycleManager',
+          0,
         );
 
         return;
       } catch (error) {
-        this.errors.push({
-          participant:
-            'lifecycleManager',
-
-          error:
-            safeError(
-              error,
-            ),
-        });
+        this._recordNonFatalError(
+          'lifecycleManager',
+          error,
+        );
 
         if (
           !this.options
@@ -1576,8 +1698,9 @@ class ShutdownCoordinator extends EventEmitter {
     }
 
     /**
-     * Fallback to lifecycle.js.
+     * Fallback lifecycle implementation.
      */
+
     if (
       typeof applicationLifecycleModule
         ?.shutdown ===
@@ -1591,27 +1714,26 @@ class ShutdownCoordinator extends EventEmitter {
                 'application-shutdown',
               {
                 ...metadata,
-
                 signal:
                   this.signal,
               },
             ),
           this.options
-            .timeoutMs,
+            .participantTimeoutMs,
           'TITech application lifecycle shutdown',
+        );
+
+        this._recordSuccess(
+          'lifecycle',
+          0,
         );
 
         return;
       } catch (error) {
-        this.errors.push({
-          participant:
-            'lifecycle',
-
-          error:
-            safeError(
-              error,
-            ),
-        });
+        this._recordNonFatalError(
+          'lifecycle',
+          error,
+        );
 
         if (
           !this.options
@@ -1623,8 +1745,9 @@ class ShutdownCoordinator extends EventEmitter {
     }
 
     /**
-     * Final fallback to hooks.js.
+     * Final compatibility fallback.
      */
+
     if (
       typeof hooksModule?.stop ===
       'function'
@@ -1634,27 +1757,25 @@ class ShutdownCoordinator extends EventEmitter {
           () =>
             hooksModule.stop({
               ...metadata,
-
               signal:
                 this.signal,
-
               reason:
                 this.reason,
             }),
           this.options
-            .timeoutMs,
+            .participantTimeoutMs,
           'TITech bootstrap hooks shutdown',
         );
-      } catch (error) {
-        this.errors.push({
-          participant:
-            'hooks',
 
-          error:
-            safeError(
-              error,
-            ),
-        });
+        this._recordSuccess(
+          'hooks',
+          0,
+        );
+      } catch (error) {
+        this._recordNonFatalError(
+          'hooks',
+          error,
+        );
 
         if (
           !this.options
@@ -1667,42 +1788,53 @@ class ShutdownCoordinator extends EventEmitter {
   }
 
   /**
-   * ---------------------------------------------------------------------------
-   * Registered Participants
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
+   * Explicit Participants
+   * ===========================================================================
    */
 
-  async _stopParticipants(
-    metadata,
-  ) {
+  async _stopParticipants(metadata) {
     const participants =
       this._resolveParticipantOrder();
 
     for (
-      const participant of
-        participants
+      const participant of participants
     ) {
       const started =
         process.hrtime.bigint();
+
+      this._emitObservability(
+        'shutdown.participant_started',
+        {
+          participant:
+            participant.name,
+          priority:
+            participant.priority,
+          critical:
+            participant.critical,
+        },
+      );
 
       try {
         await withTimeout(
           () =>
             participant.stop({
               ...metadata,
-
               reason:
                 this.reason,
-
               signal:
                 this.signal,
-
               shutdown:
                 this,
+              participant:
+                participant.name,
             }),
           participant.timeoutMs,
           `shutdown participant "${participant.name}"`,
         );
+
+        const durationMs =
+          hrtimeMs(started);
 
         this.executionHistory.push({
           name:
@@ -1711,12 +1843,29 @@ class ShutdownCoordinator extends EventEmitter {
           status:
             'stopped',
 
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
+          critical:
+            participant.critical,
+
+          priority:
+            participant.priority,
+
+          durationMs,
         });
+
+        this._emitObservability(
+          'shutdown.participant_stopped',
+          {
+            participant:
+              participant.name,
+            critical:
+              participant.critical,
+            durationMs,
+          },
+        );
       } catch (error) {
+        const durationMs =
+          hrtimeMs(started);
+
         const record = {
           name:
             participant.name,
@@ -1724,15 +1873,16 @@ class ShutdownCoordinator extends EventEmitter {
           status:
             'failed',
 
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
+          critical:
+            participant.critical,
+
+          priority:
+            participant.priority,
+
+          durationMs,
 
           error:
-            safeError(
-              error,
-            ),
+            safeError(error),
         };
 
         this.executionHistory.push(
@@ -1747,9 +1897,7 @@ class ShutdownCoordinator extends EventEmitter {
             participant.critical,
 
           error:
-            safeError(
-              error,
-            ),
+            safeError(error),
         });
 
         this._emitObservability(
@@ -1757,17 +1905,34 @@ class ShutdownCoordinator extends EventEmitter {
           {
             participant:
               participant.name,
-
             critical:
               participant.critical,
-
+            durationMs,
             error:
-              safeError(
-                error,
-              ),
+              safeError(error),
           },
         );
 
+        this._log(
+          'error',
+          {
+            participant:
+              participant.name,
+            critical:
+              participant.critical,
+            durationMs,
+            error,
+          },
+          `Shutdown participant "${participant.name}" failed.`,
+        );
+
+        /**
+         * A critical participant failure is fatal when the policy is configured
+         * to stop immediately on errors.
+         *
+         * With continueOnError=true we preserve best-effort shutdown semantics
+         * and continue cleaning up remaining resources.
+         */
         if (
           participant.critical &&
           !this.options
@@ -1792,9 +1957,9 @@ class ShutdownCoordinator extends EventEmitter {
   }
 
   /**
-   * ---------------------------------------------------------------------------
-   * Flush Observability
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
+   * Observability Flush
+   * ===========================================================================
    */
 
   async _flushObservability() {
@@ -1834,26 +1999,17 @@ class ShutdownCoordinator extends EventEmitter {
         );
       }
     } catch (error) {
-      this.errors.push({
-        participant:
-          'observability',
-
-        error:
-          safeError(
-            error,
-          ),
-      });
-
-      /**
-       * Telemetry shutdown errors should not prevent process termination.
-       */
+      this._recordNonFatalError(
+        'observability',
+        error,
+      );
     }
   }
 
   /**
-   * ---------------------------------------------------------------------------
-   * Flush Logger
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
+   * Logger Flush
+   * ===========================================================================
    */
 
   async _flushLogger() {
@@ -1866,83 +2022,163 @@ class ShutdownCoordinator extends EventEmitter {
         typeof logger.flush ===
           'function'
       ) {
-        await new Promise(
-          resolve => {
-            try {
-              logger.flush(
-                () =>
-                  resolve(),
-              );
-            } catch {
-              resolve();
-            }
-          },
+        await withTimeout(
+          () =>
+            new Promise(resolve => {
+              try {
+                const result =
+                  logger.flush(
+                    () =>
+                      resolve(),
+                  );
+
+                /**
+                 * Support promise-returning logger implementations as well.
+                 */
+                if (
+                  result &&
+                  typeof result.then ===
+                    'function'
+                ) {
+                  result.then(
+                    resolve,
+                    resolve,
+                  );
+                }
+              } catch {
+                resolve();
+              }
+            }),
+          this.options
+            .participantTimeoutMs,
+          'TITech logger flush',
         );
       }
     } catch (error) {
-      /**
-       * Logging errors should never replace the original shutdown result.
-       */
-      this.errors.push({
-        participant:
-          'logger',
-
-        error:
-          safeError(
-            error,
-          ),
-      });
+      this._recordNonFatalError(
+        'logger',
+        error,
+      );
     }
   }
 
   /**
-   * ---------------------------------------------------------------------------
-   * Force Exit Request
-   * ---------------------------------------------------------------------------
-   *
-   * Deliberately sets process.exitCode rather than calling process.exit()
-   * immediately. This lets stdout/stderr and other event-loop cleanup finish.
+   * ===========================================================================
+   * Error Recording
+   * ===========================================================================
+   */
+
+  _recordNonFatalError(
+    participant,
+    error,
+  ) {
+    this.errors.push({
+      participant,
+      critical: false,
+      error:
+        safeError(error),
+    });
+
+    this._emitObservability(
+      'shutdown.non_fatal_error',
+      {
+        participant,
+        error:
+          safeError(error),
+      },
+    );
+
+    this._log(
+      'error',
+      {
+        participant,
+        error,
+      },
+      `Non-fatal shutdown error in "${participant}".`,
+    );
+  }
+
+  _recordSuccess(
+    participant,
+    durationMs,
+  ) {
+    this._emitObservability(
+      'shutdown.phase_completed',
+      {
+        participant,
+        durationMs,
+      },
+    );
+  }
+
+  /**
+   * ===========================================================================
+   * Force Exit
+   * ===========================================================================
    */
 
   forceExit() {
+    if (
+      this.forceExitRequested
+    ) {
+      return false;
+    }
+
     this.forceExitRequested =
       true;
 
     process.exitCode =
-      1;
+      process.exitCode || 1;
 
     this._emitObservability(
       'shutdown.force_exit_requested',
       {
         reason:
           this.reason,
+        signal:
+          this.signal,
       },
     );
 
-    setTimeout(
-      () => {
-        /**
-         * Last-resort termination.
-         *
-         * This should only be reachable when explicitly configured.
-         */
-        try {
-          process.exit(
-            1,
-          );
-        } catch {
-          // Nothing more can safely be done.
-        }
+    this._log(
+      'error',
+      {
+        reason:
+          this.reason,
+        signal:
+          this.signal,
       },
-      this.options
-        .signalGraceMs,
-    ).unref?.();
+      'TITech forced process termination requested.',
+    );
+
+    if (
+      this._forceExitTimer
+    ) {
+      return true;
+    }
+
+    this._forceExitTimer =
+      setTimeout(
+        () => {
+          try {
+            process.exit(1);
+          } catch {
+            // Last-resort termination.
+          }
+        },
+        this.options
+          .signalGraceMs,
+      );
+
+    this._forceExitTimer.unref?.();
+
+    return true;
   }
 
   /**
-   * ---------------------------------------------------------------------------
-   * State
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
+   * State Management
+   * ===========================================================================
    */
 
   _transition(
@@ -1951,6 +2187,79 @@ class ShutdownCoordinator extends EventEmitter {
   ) {
     const previous =
       this.state;
+
+    if (previous === state) {
+      return false;
+    }
+
+    const allowed =
+      STATE_TRANSITIONS[
+        previous
+      ];
+
+    if (
+      allowed &&
+      !allowed.has(state)
+    ) {
+      const transitionError =
+        new ShutdownError(
+          `Invalid shutdown state transition: "${previous}" → "${state}".`,
+          {
+            code:
+              'SHUTDOWN_INVALID_STATE_TRANSITION',
+
+            phase:
+              previous,
+
+            details: {
+              previousState:
+                previous,
+              nextState:
+                state,
+            },
+          },
+        );
+
+      /**
+       * Do not recursively transition to FAILED from an invalid FAILED
+       * transition.
+       */
+      if (
+        previous !==
+        SHUTDOWN_STATES.FAILED
+      ) {
+        this.failure =
+          transitionError;
+
+        this.state =
+          SHUTDOWN_STATES.FAILED;
+      }
+
+      this.emit(
+        'stateChanged',
+        {
+          previousState:
+            previous,
+
+          state:
+            this.state,
+
+          timestamp:
+            new Date().toISOString(),
+
+          metadata: {
+            ...metadata,
+
+            transitionError:
+              safeError(
+                transitionError,
+              ),
+          },
+        },
+      );
+
+      return false;
+    }
 
     this.state =
       state;
@@ -1971,22 +2280,36 @@ class ShutdownCoordinator extends EventEmitter {
         },
       },
     );
+
+    this._emitObservability(
+      'shutdown.state_changed',
+      {
+        previousState:
+          previous,
+
+        state,
+
+        metadata,
+      },
+    );
+
+    return true;
   }
 
   /**
-   * ---------------------------------------------------------------------------
-   * Health
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
+   * Health / State Queries
+   * ===========================================================================
    */
 
   isStopping() {
     return (
       this.state ===
-      SHUTDOWN_STATES.DRAINING ||
+        SHUTDOWN_STATES.DRAINING ||
       this.state ===
-      SHUTDOWN_STATES.STOPPING ||
+        SHUTDOWN_STATES.STOPPING ||
       this.state ===
-      SHUTDOWN_STATES.FLUSHING
+        SHUTDOWN_STATES.FLUSHING
     );
   }
 
@@ -2005,15 +2328,19 @@ class ShutdownCoordinator extends EventEmitter {
   }
 
   isRequested() {
-    return (
-      this.shutdownRequested
+    return this.shutdownRequested;
+  }
+
+  isTerminal() {
+    return TERMINAL_STATES.has(
+      this.state,
     );
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Snapshot
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    */
 
   snapshot() {
@@ -2042,8 +2369,14 @@ class ShutdownCoordinator extends EventEmitter {
       failed:
         this.isFailed(),
 
+      terminal:
+        this.isTerminal(),
+
       forceExitRequested:
         this.forceExitRequested,
+
+      fatalProcessError:
+        this._fatalProcessError,
 
       reason:
         this.reason,
@@ -2070,6 +2403,12 @@ class ShutdownCoordinator extends EventEmitter {
           this.errors.map(
             error => ({
               ...error,
+              error:
+                error.error
+                  ? {
+                      ...error.error,
+                    }
+                  : null,
             }),
           ),
         ),
@@ -2079,6 +2418,12 @@ class ShutdownCoordinator extends EventEmitter {
           this.executionHistory.map(
             item => ({
               ...item,
+              error:
+                item.error
+                  ? {
+                      ...item.error,
+                    }
+                  : undefined,
             }),
           ),
         ),
@@ -2091,15 +2436,21 @@ class ShutdownCoordinator extends EventEmitter {
   }
 
   /**
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
    * Reset
-   * ---------------------------------------------------------------------------
+   * ===========================================================================
+   *
+   * Reset is intended for controlled tests/reinitialization only.
+   *
+   * A production process should normally instantiate the singleton once and
+   * terminate after shutdown.
+   * ===========================================================================
    */
 
   reset() {
     if (
-      this.shutdownRequested &&
-      !this.isStopped()
+      this.shutdownPromise &&
+      !this.isTerminal()
     ) {
       throw new ShutdownError(
         'Cannot reset an active TITech shutdown coordinator.',
@@ -2108,6 +2459,17 @@ class ShutdownCoordinator extends EventEmitter {
             'SHUTDOWN_RESET_NOT_ALLOWED',
         },
       );
+    }
+
+    if (
+      this._forceExitTimer
+    ) {
+      clearTimeout(
+        this._forceExitTimer,
+      );
+
+      this._forceExitTimer =
+        null;
     }
 
     this.state =
@@ -2140,6 +2502,9 @@ class ShutdownCoordinator extends EventEmitter {
     this.forceExitRequested =
       false;
 
+    this._fatalProcessError =
+      false;
+
     this.errors =
       [];
 
@@ -2160,30 +2525,24 @@ const shutdownCoordinator =
   new ShutdownCoordinator();
 
 /**
- * -----------------------------------------------------------------------------
- * Convenience Functions
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * Convenience API
+ * =============================================================================
  */
 
-function register(
-  options,
-) {
+function register(options) {
   return shutdownCoordinator.register(
     options,
   );
 }
 
-function unregister(
-  name,
-) {
+function unregister(name) {
   return shutdownCoordinator.unregister(
     name,
   );
 }
 
-function has(
-  name,
-) {
+function has(name) {
   return shutdownCoordinator.has(
     name,
   );
@@ -2194,8 +2553,7 @@ function list() {
 }
 
 async function shutdown(
-  reason =
-    'application-request',
+  reason = 'application-request',
   metadata = {},
 ) {
   return shutdownCoordinator.request(
@@ -2205,8 +2563,7 @@ async function shutdown(
 }
 
 async function stop(
-  reason =
-    'application-request',
+  reason = 'application-request',
   metadata = {},
 ) {
   return shutdown(
@@ -2228,8 +2585,9 @@ function snapshot() {
  * Bootstrap Lifecycle Registration
  * =============================================================================
  *
- * shutdown.js itself is registered late in the lifecycle and acts as a
- * coordinator. Normal execution is initiated by runtime.js/process signals.
+ * shutdown.js participates in the existing TITech lifecycle system but does not
+ * attempt to become the owner of every infrastructure resource.
+ * =============================================================================
  */
 
 function registerBootstrapHooks(
@@ -2246,10 +2604,6 @@ function registerBootstrapHooks(
     );
   }
 
-  /**
-   * We use the existing hook/lifecycle system without making this module the
-   * owner of every individual subsystem.
-   */
   if (
     typeof hooksModule?.lifecycle !==
     'function'
@@ -2285,37 +2639,44 @@ function registerBootstrapHooks(
         options.timeoutMs ||
         DEFAULTS.timeoutMs,
 
-      start:
-        async () =>
-          shutdownCoordinator,
+      start: async () =>
+        shutdownCoordinator,
 
-      ready:
-        async () =>
-          !shutdownCoordinator
-            .isFailed(),
+      ready: async () =>
+        !shutdownCoordinator
+          .isFailed(),
 
-      health:
-        async () => ({
-          status:
-            shutdownCoordinator
-              .isFailed()
-              ? 'unhealthy'
+      health: async () => ({
+        status:
+          shutdownCoordinator
+            .isFailed()
+            ? 'unhealthy'
+            : shutdownCoordinator
+                  .isStopping()
+              ? 'stopping'
               : shutdownCoordinator
-                    .isStopping()
-                ? 'stopping'
+                    .isStopped()
+                ? 'stopped'
                 : 'healthy',
 
-          state:
-            shutdownCoordinator.state,
-        }),
+        state:
+          shutdownCoordinator.state,
 
-      stop:
-        async hookContext =>
-          shutdown(
-            hookContext?.reason ||
-              'bootstrap-shutdown',
-            hookContext,
-          ),
+        requested:
+          shutdownCoordinator
+            .shutdownRequested,
+
+        fatalProcessError:
+          shutdownCoordinator
+            ._fatalProcessError,
+      }),
+
+      stop: async hookContext =>
+        shutdown(
+          hookContext?.reason ||
+            'bootstrap-shutdown',
+          hookContext,
+        ),
 
       metadata: {
         component:
@@ -2332,9 +2693,9 @@ function registerBootstrapHooks(
 }
 
 /**
- * -----------------------------------------------------------------------------
+ * =============================================================================
  * Public Export
- * -----------------------------------------------------------------------------
+ * =============================================================================
  */
 
 module.exports =
@@ -2375,7 +2736,7 @@ module.exports =
       registerBootstrapHooks,
 
     /**
-     * Operational.
+     * Operational diagnostics.
      */
     snapshot,
 

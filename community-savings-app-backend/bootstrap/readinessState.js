@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 /**
  * =============================================================================
@@ -10,2712 +10,1603 @@
  *   backend/bootstrap/readinessState.js
  *
  * Purpose:
- *   Enterprise production-grade application readiness state manager.
+ *   Enterprise production-grade readiness coordinator.
  *
  * Responsibilities:
- *   - Maintain the canonical application readiness state.
- *   - Distinguish liveness, readiness and operational degradation.
- *   - Track bootstrap dependencies and their readiness.
- *   - Support dependency registration and health evaluation.
- *   - Prevent traffic from being marked ready before critical infrastructure
- *     is operational.
- *   - Support readiness transitions without process termination.
- *   - Provide safe diagnostics for operational endpoints.
- *   - Support startup grace periods and readiness stabilization.
- *   - Support degradation of non-critical dependencies.
- *   - Prevent stale readiness after shutdown.
- *   - Integrate with bootstrap/lifecycle.js and bootstrap/lifecycleManager.js.
+ *   - Coordinate application readiness evaluation.
+ *   - Maintain readiness blockers and checks.
+ *   - Delegate canonical lifecycle state to backend/runtime/state.js.
+ *   - Prevent readiness from being asserted during startup failure/shutdown.
+ *   - Provide deterministic readiness snapshots.
+ *   - Support dependency/service readiness checks.
+ *   - Support asynchronous readiness evaluators.
+ *   - Never perform infrastructure initialization itself.
  *
- * Readiness model:
+ * Architectural Principle
+ * -----------------------------------------------------------------------------
  *
- *   CREATED
- *      ↓
- *   INITIALIZING
- *      ↓
- *   WARMING
- *      ↓
- *   READY
- *      ├──────────────→ DEGRADED
- *      │                   │
- *      └───────────────────┘
- *      ↓
- *   STOPPING
- *      ↓
- *   STOPPED
+ * backend/runtime/state.js is the canonical process-local lifecycle authority.
  *
- * Fatal startup failures:
+ * This module is a readiness COORDINATOR, not a second lifecycle state machine.
  *
- *   INITIALIZING / WARMING
- *          ↓
- *        FAILED
- *
- * IMPORTANT:
- *
- *   Readiness is NOT liveness.
- *
- *   Liveness answers:
- *       "Is this process alive?"
- *
- *   Readiness answers:
- *       "Can this instance safely receive production traffic?"
- *
- *   A dependency failure may therefore cause:
- *
- *       READY → DEGRADED
- *
- *   or:
- *
- *       READY → NOT_READY
- *
- *   without killing the Node.js process.
+ * It MUST NOT:
+ *   - connect to MongoDB;
+ *   - connect to Redis;
+ *   - initialize queues;
+ *   - create HTTP servers;
+ *   - register Express middleware;
+ *   - register routes;
+ *   - own application dependencies;
+ *   - mutate Express application state;
+ *   - terminate the process.
  *
  * =============================================================================
  */
 
 const {
-  EventEmitter,
-} = require('node:events');
+  BOOTSTRAP_PHASES,
+  SERVICES,
+  SERVICE_STATES,
+  setReadinessState,
+  markApplicationReady,
+  getApplicationState,
+  getHealthState,
+  isReady,
+} = require("../runtime/state");
 
-/**
- * -----------------------------------------------------------------------------
- * Constants
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * CONSTANTS
+ * =============================================================================
  */
-
-const STATES = Object.freeze({
-  CREATED: 'created',
-
-  INITIALIZING: 'initializing',
-
-  WARMING: 'warming',
-
-  READY: 'ready',
-
-  DEGRADED: 'degraded',
-
-  NOT_READY: 'not_ready',
-
-  STOPPING: 'stopping',
-
-  STOPPED: 'stopped',
-
-  FAILED: 'failed',
-});
-
-const DEPENDENCY_STATES = Object.freeze({
-  UNKNOWN: 'unknown',
-
-  INITIALIZING: 'initializing',
-
-  HEALTHY: 'healthy',
-
-  DEGRADED: 'degraded',
-
-  UNHEALTHY: 'unhealthy',
-
-  DISABLED: 'disabled',
-
-  STOPPED: 'stopped',
-
-  FAILED: 'failed',
-});
-
-const SEVERITIES = Object.freeze({
-  CRITICAL: 'critical',
-
-  REQUIRED: 'required',
-
-  OPTIONAL: 'optional',
-});
 
 const DEFAULTS = Object.freeze({
-  startupGracePeriodMs: 10_000,
+  evaluationTimeoutMs: 5000,
 
-  readinessStabilizationMs: 1_000,
+  /**
+   * Readiness is intentionally conservative.
+   *
+   * An application must have completed the server bootstrap phase before this
+   * coordinator will allow application readiness to become true.
+   */
+  requireServerPhase: true,
 
-  checkTimeoutMs: 5_000,
+  /**
+   * Runtime startup state must be established before readiness.
+   */
+  requireStarted: true,
 
-  maxFailureCount: 3,
+  /**
+   * Health must be true before readiness.
+   */
+  requireHealthy: true,
 
-  failureWindowMs: 30_000,
+  /**
+   * Failed applications are never ready.
+   */
+  rejectWhenFailed: true,
 
-  requireCriticalDependencies: true,
+  /**
+   * Shutdown applications are never ready.
+   */
+  rejectWhenShuttingDown: true,
 
-  requireRequiredDependencies: true,
+  /**
+   * Terminated applications are never ready.
+   */
+  rejectWhenTerminated: true,
 
-  allowOptionalDegradation: true,
-
-  failClosedDuringStartup: true,
-
-  failClosedDuringShutdown: true,
+  /**
+   * Empty readiness checks are allowed only when explicitly requested.
+   */
+  requireChecks: false,
 });
 
-/**
- * -----------------------------------------------------------------------------
- * Errors
- * -----------------------------------------------------------------------------
+const INTERNAL_BLOCKERS = Object.freeze({
+  NOT_STARTED:
+    "application_not_started",
+
+  STARTING:
+    "application_starting",
+
+  SERVER_NOT_READY:
+    "server_not_ready",
+
+  FAILED:
+    "application_failed",
+
+  SHUTTING_DOWN:
+    "application_shutting_down",
+
+  TERMINATED:
+    "application_terminated",
+
+  UNHEALTHY:
+    "application_unhealthy",
+
+  CHECK_FAILED:
+    "readiness_check_failed",
+
+  CHECK_TIMEOUT:
+    "readiness_check_timeout",
+
+  CHECKS_REQUIRED:
+    "readiness_checks_required",
+});
+
+/* =============================================================================
+ * INTERNAL STATE
+ * =============================================================================
  */
 
-class ReadinessStateError extends Error {
-  constructor(
-    message,
-    options = {},
-  ) {
-    super(message);
+const readinessRuntime = {
+  initialized: false,
 
-    this.name =
-      'ReadinessStateError';
+  evaluating: false,
 
-    this.code =
-      options.code ||
-      'READINESS_STATE_ERROR';
+  evaluationSequence: 0,
 
-    this.dependency =
-      options.dependency ||
-      null;
+  lastEvaluationAt: null,
 
-    this.state =
-      options.state ||
-      null;
+  lastResult: null,
 
-    this.cause =
-      options.cause ||
-      null;
+  checks: new Map(),
+};
 
-    this.details =
-      Object.freeze({
-        ...(options.details || {}),
-      });
-
-    Error.captureStackTrace?.(
-      this,
-      ReadinessStateError,
-    );
-  }
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Utility Functions
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * UTILITY
+ * =============================================================================
  */
-
-function normalizeName(
-  value,
-  field = 'name',
-) {
-  if (
-    typeof value !== 'string' ||
-    value.trim() === ''
-  ) {
-    throw new TypeError(
-      `${field} must be a non-empty string.`,
-    );
-  }
-
-  return value.trim();
-}
-
-function normalizeSeverity(
-  value,
-) {
-  const severity =
-    String(
-      value ||
-        SEVERITIES.REQUIRED,
-    )
-      .trim()
-      .toLowerCase();
-
-  if (
-    !Object.values(
-      SEVERITIES,
-    ).includes(severity)
-  ) {
-    throw new TypeError(
-      `Unsupported readiness severity "${severity}".`,
-    );
-  }
-
-  return severity;
-}
-
-function normalizePositiveInteger(
-  value,
-  fallback,
-  field,
-) {
-  const resolved =
-    value === undefined
-      ? fallback
-      : value;
-
-  if (
-    !Number.isInteger(
-      resolved,
-    ) ||
-    resolved <= 0
-  ) {
-    throw new TypeError(
-      `${field} must be a positive integer.`,
-    );
-  }
-
-  return resolved;
-}
-
-function normalizeNonNegativeInteger(
-  value,
-  fallback,
-  field,
-) {
-  const resolved =
-    value === undefined
-      ? fallback
-      : value;
-
-  if (
-    !Number.isInteger(
-      resolved,
-    ) ||
-    resolved < 0
-  ) {
-    throw new TypeError(
-      `${field} must be a non-negative integer.`,
-    );
-  }
-
-  return resolved;
-}
-
-function safeError(
-  error,
-) {
-  if (!error) {
-    return null;
-  }
-
-  return {
-    name:
-      error.name,
-
-    code:
-      error.code,
-
-    message:
-      error.message,
-  };
-}
 
 function now() {
   return new Date();
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Timeout Helper
- * -----------------------------------------------------------------------------
- */
-
-async function withTimeout(
-  fn,
-  timeoutMs,
-  dependency,
-) {
-  let timer;
-
-  const operation =
-    Promise.resolve().then(
-      fn,
-    );
-
-  const timeout =
-    new Promise(
-      (_, reject) => {
-        timer =
-          setTimeout(
-            () => {
-              reject(
-                new ReadinessStateError(
-                  `Readiness check for "${dependency}" timed out after ${timeoutMs}ms.`,
-                  {
-                    code:
-                      'READINESS_CHECK_TIMEOUT',
-
-                    dependency,
-                  },
-                ),
-              );
-            },
-            timeoutMs,
-          );
-
-        timer.unref?.();
-      },
-    );
-
-  try {
-    return await Promise.race([
-      operation,
-      timeout,
-    ]);
-  } finally {
-    clearTimeout(timer);
+function toIso(value) {
+  if (!value) {
+    return null;
   }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const parsed = new Date(value);
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed.toISOString();
 }
 
-/**
- * =============================================================================
- * Readiness State Manager
+function normalizeString(value, maxLength = 500) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  return String(value)
+    .trim()
+    .slice(0, maxLength);
+}
+
+function uniqueStrings(values) {
+  return [
+    ...new Set(
+      values
+        .filter(Boolean)
+        .map((value) =>
+          normalizeString(value),
+        )
+        .filter(Boolean),
+    ),
+  ];
+}
+
+/* =============================================================================
+ * ERROR NORMALIZATION
  * =============================================================================
  */
 
-class ReadinessState extends EventEmitter {
-  constructor(
-    options = {},
-  ) {
-    super();
-
-    this.options =
-      Object.freeze({
-        startupGracePeriodMs:
-          normalizeNonNegativeInteger(
-            options.startupGracePeriodMs,
-            DEFAULTS.startupGracePeriodMs,
-            'startupGracePeriodMs',
-          ),
-
-        readinessStabilizationMs:
-          normalizeNonNegativeInteger(
-            options.readinessStabilizationMs,
-            DEFAULTS.readinessStabilizationMs,
-            'readinessStabilizationMs',
-          ),
-
-        checkTimeoutMs:
-          normalizePositiveInteger(
-            options.checkTimeoutMs,
-            DEFAULTS.checkTimeoutMs,
-            'checkTimeoutMs',
-          ),
-
-        maxFailureCount:
-          normalizePositiveInteger(
-            options.maxFailureCount,
-            DEFAULTS.maxFailureCount,
-            'maxFailureCount',
-          ),
-
-        failureWindowMs:
-          normalizePositiveInteger(
-            options.failureWindowMs,
-            DEFAULTS.failureWindowMs,
-            'failureWindowMs',
-          ),
-
-        requireCriticalDependencies:
-          options.requireCriticalDependencies ??
-          DEFAULTS.requireCriticalDependencies,
-
-        requireRequiredDependencies:
-          options.requireRequiredDependencies ??
-          DEFAULTS.requireRequiredDependencies,
-
-        allowOptionalDegradation:
-          options.allowOptionalDegradation ??
-          DEFAULTS.allowOptionalDegradation,
-
-        failClosedDuringStartup:
-          options.failClosedDuringStartup ??
-          DEFAULTS.failClosedDuringStartup,
-
-        failClosedDuringShutdown:
-          options.failClosedDuringShutdown ??
-          DEFAULTS.failClosedDuringShutdown,
-      });
-
-    this.state =
-      STATES.CREATED;
-
-    this.previousState =
-      null;
-
-    this.stateChangedAt =
-      now();
-
-    this.createdAt =
-      now();
-
-    this.initializingAt =
-      null;
-
-    this.warmingAt =
-      null;
-
-    this.readyAt =
-      null;
-
-    this.degradedAt =
-      null;
-
-    this.stoppingAt =
-      null;
-
-    this.stoppedAt =
-      null;
-
-    this.failedAt =
-      null;
-
-    this.startupCompletedAt =
-      null;
-
-    this.shutdownReason =
-      null;
-
-    this.failure =
-      null;
-
-    this.dependencies =
-      new Map();
-
-    this.transitionHistory =
-      [];
-
-    this._startupGraceTimer =
-      null;
-
-    this._stabilizationTimer =
-      null;
-
-    this._checkPromise =
-      null;
-
-    this._transitionLock =
-      false;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Dependency Registration
-   * ---------------------------------------------------------------------------
-   */
-
-  register(
-    options = {},
-  ) {
-    const name =
-      normalizeName(
-        options.name,
-      );
-
-    if (
-      this.dependencies.has(
-        name,
-      )
-    ) {
-      throw new ReadinessStateError(
-        `Readiness dependency "${name}" is already registered.`,
-        {
-          code:
-            'READINESS_DEPENDENCY_DUPLICATE',
-
-          dependency:
-            name,
-        },
-      );
-    }
-
-    const severity =
-      normalizeSeverity(
-        options.severity,
-      );
-
-    const dependency =
-      {
-        name,
-
-        severity,
-
-        critical:
-          severity ===
-          SEVERITIES.CRITICAL,
-
-        required:
-          severity ===
-            SEVERITIES.CRITICAL ||
-          severity ===
-            SEVERITIES.REQUIRED,
-
-        enabled:
-          options.enabled !== false,
-
-        ready:
-          false,
-
-        state:
-          options.enabled === false
-            ? DEPENDENCY_STATES.DISABLED
-            : DEPENDENCY_STATES.UNKNOWN,
-
-        health:
-          typeof options.health ===
-          'function'
-            ? options.health
-            : null,
-
-        readiness:
-          typeof options.readiness ===
-          'function'
-            ? options.readiness
-            : null,
-
-        timeoutMs:
-          normalizePositiveInteger(
-            options.timeoutMs,
-            this.options.checkTimeoutMs,
-            `dependency "${name}" timeout`,
-          ),
-
-        metadata:
-          Object.freeze({
-            ...(options.metadata || {}),
-          }),
-
-        failureCount:
-          0,
-
-        failureTimestamps:
-          [],
-
-        lastCheckedAt:
-          null,
-
-        lastHealthyAt:
-          null,
-
-        lastUnhealthyAt:
-          null,
-
-        lastDurationMs:
-          null,
-
-        lastError:
-          null,
-
-        registeredAt:
-          now(),
-      };
-
-    this.dependencies.set(
-      name,
-      dependency,
-    );
-
-    this.emit(
-      'dependencyRegistered',
-      this._dependencySnapshot(
-        dependency,
-      ),
-    );
-
-    return dependency;
-  }
-
-  unregister(
-    name,
-  ) {
-    const normalized =
-      normalizeName(name);
-
-    if (
-      !this.dependencies.has(
-        normalized,
-      )
-    ) {
-      return false;
-    }
-
-    this.dependencies.delete(
-      normalized,
-    );
-
-    this.emit(
-      'dependencyUnregistered',
-      {
-        name:
-          normalized,
-      },
-    );
-
-    if (
-      this.isReady() ||
-      this.isDegraded()
-    ) {
-      void this.evaluate();
-    }
-
-    return true;
-  }
-
-  has(
-    name,
-  ) {
-    return this.dependencies.has(
-      name,
-    );
-  }
-
-  get(
-    name,
-  ) {
-    return (
-      this.dependencies.get(
-        name,
-      ) ||
-      null
-    );
-  }
-
-  list() {
-    return [
-      ...this.dependencies.values(),
-    ];
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * State Transitions
-   * ---------------------------------------------------------------------------
-   */
-
-  transition(
-    nextState,
-    metadata = {},
-  ) {
-    if (
-      !Object.values(
-        STATES,
-      ).includes(
-        nextState,
-      )
-    ) {
-      throw new ReadinessStateError(
-        `Unsupported readiness state "${nextState}".`,
-        {
-          code:
-            'READINESS_INVALID_STATE',
-        },
-      );
-    }
-
-    if (
-      this.state ===
-      nextState
-    ) {
-      return this.state;
-    }
-
-    const previous =
-      this.state;
-
-    this.previousState =
-      previous;
-
-    this.state =
-      nextState;
-
-    this.stateChangedAt =
-      now();
-
-    this._recordTransition(
-      previous,
-      nextState,
-      metadata,
-    );
-
-    this._updateStateTimestamp(
-      nextState,
-    );
-
-    this.emit(
-      'stateChanged',
-      {
-        previousState:
-          previous,
-
-        state:
-          nextState,
-
-        timestamp:
-          this.stateChangedAt,
-
-        metadata: {
-          ...metadata,
-        },
-      },
-    );
-
-    return this.state;
-  }
-
-  _recordTransition(
-    previousState,
-    state,
-    metadata = {},
-  ) {
-    this.transitionHistory.push(
-      {
-        previousState,
-
-        state,
-
-        timestamp:
-          new Date(
-            this.stateChangedAt,
-          ).toISOString(),
-
-        metadata: {
-          ...metadata,
-        },
-      },
-    );
-
-    if (
-      this.transitionHistory.length >
-      500
-    ) {
-      this.transitionHistory.shift();
-    }
-  }
-
-  _updateStateTimestamp(
-    state,
-  ) {
-    const timestamp =
-      now();
-
-    switch (state) {
-      case STATES.INITIALIZING:
-        this.initializingAt =
-          timestamp;
-
-        break;
-
-      case STATES.WARMING:
-        this.warmingAt =
-          timestamp;
-
-        break;
-
-      case STATES.READY:
-        this.readyAt =
-          timestamp;
-
-        this.startupCompletedAt =
-          timestamp;
-
-        break;
-
-      case STATES.DEGRADED:
-        this.degradedAt =
-          timestamp;
-
-        break;
-
-      case STATES.STOPPING:
-        this.stoppingAt =
-          timestamp;
-
-        break;
-
-      case STATES.STOPPED:
-        this.stoppedAt =
-          timestamp;
-
-        break;
-
-      case STATES.FAILED:
-        this.failedAt =
-          timestamp;
-
-        break;
-
-      default:
-        break;
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Lifecycle State Helpers
-   * ---------------------------------------------------------------------------
-   */
-
-  beginInitialization(
-    metadata = {},
-  ) {
-    if (
-      this.state ===
-      STATES.STOPPING
-    ) {
-      throw new ReadinessStateError(
-        'Cannot initialize readiness state while shutdown is in progress.',
-        {
-          code:
-            'READINESS_INITIALIZE_DURING_SHUTDOWN',
-        },
-      );
-    }
-
-    if (
-      this.state ===
-      STATES.STOPPED
-    ) {
-      throw new ReadinessStateError(
-        'Cannot initialize readiness state after it has stopped.',
-        {
-          code:
-            'READINESS_ALREADY_STOPPED',
-        },
-      );
-    }
-
-    this.failure =
-      null;
-
-    this.transition(
-      STATES.INITIALIZING,
-      metadata,
-    );
-
-    return this;
-  }
-
-  beginWarming(
-    metadata = {},
-  ) {
-    if (
-      this.state !==
-        STATES.INITIALIZING &&
-      this.state !==
-        STATES.WARMING
-    ) {
-      throw new ReadinessStateError(
-        `Cannot enter warming state from "${this.state}".`,
-        {
-          code:
-            'READINESS_INVALID_WARMING_TRANSITION',
-        },
-      );
-    }
-
-    this.transition(
-      STATES.WARMING,
-      metadata,
-    );
-
-    this._startGracePeriod();
-
-    return this;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Startup Grace Period
-   * ---------------------------------------------------------------------------
-   */
-
-  _startGracePeriod() {
-    if (
-      this._startupGraceTimer
-    ) {
-      clearTimeout(
-        this._startupGraceTimer,
-      );
-    }
-
-    if (
-      this.options
-        .startupGracePeriodMs <= 0
-    ) {
-      return;
-    }
-
-    this._startupGraceTimer =
-      setTimeout(
-        () => {
-          this._startupGraceTimer =
-            null;
-
-          void this.evaluate();
-        },
-        this.options
-          .startupGracePeriodMs,
-      );
-
-    this._startupGraceTimer.unref?.();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Dependency Checks
-   * ---------------------------------------------------------------------------
-   */
-
-  async check(
-    name,
-  ) {
-    const dependency =
-      this.dependencies.get(
-        name,
-      );
-
-    if (!dependency) {
-      throw new ReadinessStateError(
-        `Unknown readiness dependency "${name}".`,
-        {
-          code:
-            'READINESS_DEPENDENCY_NOT_FOUND',
-
-          dependency:
-            name,
-        },
-      );
-    }
-
-    if (
-      !dependency.enabled
-    ) {
-      dependency.state =
-        DEPENDENCY_STATES.DISABLED;
-
-      dependency.ready =
-        false;
-
-      return this._dependencySnapshot(
-        dependency,
-      );
-    }
-
-    const started =
-      process.hrtime.bigint();
-
-    dependency.state =
-      DEPENDENCY_STATES.INITIALIZING;
-
-    dependency.lastCheckedAt =
-      now();
-
-    dependency.lastError =
-      null;
-
-    try {
-      let result =
-        true;
-
-      if (
-        dependency.readiness
-      ) {
-        result =
-          await withTimeout(
-            () =>
-              dependency.readiness({
-                dependency:
-                  this._dependencySnapshot(
-                    dependency,
-                  ),
-
-                readiness:
-                  this,
-              }),
-            dependency.timeoutMs,
-            dependency.name,
-          );
-      } else if (
-        dependency.health
-      ) {
-        result =
-          await withTimeout(
-            () =>
-              dependency.health({
-                dependency:
-                  this._dependencySnapshot(
-                    dependency,
-                  ),
-
-                readiness:
-                  this,
-              }),
-            dependency.timeoutMs,
-            dependency.name,
-          );
-      }
-
-      const normalized =
-        this._normalizeCheckResult(
-          result,
-        );
-
-      dependency.lastDurationMs =
-        Number(
-          process.hrtime.bigint() -
-            started,
-        ) /
-        1_000_000;
-
-      if (
-        normalized.ready
-      ) {
-        dependency.ready =
-          true;
-
-        dependency.state =
-          normalized.degraded
-            ? DEPENDENCY_STATES.DEGRADED
-            : DEPENDENCY_STATES.HEALTHY;
-
-        dependency.lastHealthyAt =
-          now();
-
-        dependency.lastError =
-          null;
-
-        dependency.failureCount =
-          0;
-
-        dependency.failureTimestamps =
-          [];
-      } else {
-        this._recordDependencyFailure(
-          dependency,
-          normalized.error,
-        );
-      }
-
-      this.emit(
-        'dependencyChecked',
-        this._dependencySnapshot(
-          dependency,
-        ),
-      );
-
-      return this._dependencySnapshot(
-        dependency,
-      );
-    } catch (error) {
-      dependency.lastDurationMs =
-        Number(
-          process.hrtime.bigint() -
-            started,
-        ) /
-        1_000_000;
-
-      this._recordDependencyFailure(
-        dependency,
-        error,
-      );
-
-      this.emit(
-        'dependencyChecked',
-        this._dependencySnapshot(
-          dependency,
-        ),
-      );
-
-      return this._dependencySnapshot(
-        dependency,
-      );
-    }
-  }
-
-  async checkAll() {
-    const dependencies =
-      this.list();
-
-    const results =
-      await Promise.all(
-        dependencies.map(
-          dependency =>
-            this.check(
-              dependency.name,
-            ),
-        ),
-      );
-
-    return results;
-  }
-
-  _normalizeCheckResult(
-    result,
-  ) {
-    if (
-      typeof result ===
-      'boolean'
-    ) {
-      return {
-        ready:
-          result,
-
-        degraded:
-          false,
-
-        error:
-          result
-            ? null
-            : new ReadinessStateError(
-                'Dependency readiness check returned false.',
-                {
-                  code:
-                    'DEPENDENCY_NOT_READY',
-                },
-              ),
-      };
-    }
-
-    if (
-      result === null ||
-      result === undefined
-    ) {
-      return {
-        ready:
-          true,
-
-        degraded:
-          false,
-
-        error:
-          null,
-      };
-    }
-
-    if (
-      typeof result ===
-      'object'
-    ) {
-      const ready =
-        result.ready !== false &&
-        result.status !==
-          'unhealthy' &&
-        result.status !==
-          'not_ready' &&
-        result.healthy !==
-          false;
-
-      const degraded =
-        result.degraded ===
-        true ||
-        result.status ===
-          'degraded';
-
-      return {
-        ready,
-
-        degraded,
-
-        error:
-          ready
-            ? null
-            : (
-                result.error ||
-                new ReadinessStateError(
-                  'Dependency reported an unhealthy readiness state.',
-                  {
-                    code:
-                      'DEPENDENCY_UNHEALTHY',
-                  },
-                )
-              ),
-      };
-    }
-
+function normalizeError(error) {
+  if (!error) {
     return {
-      ready:
-        Boolean(result),
-
-      degraded:
-        false,
-
-      error:
-        result
-          ? null
-          : new ReadinessStateError(
-              'Dependency readiness check failed.',
-              {
-                code:
-                  'DEPENDENCY_NOT_READY',
-              },
-            ),
+      name: "Error",
+      code: null,
+      message: "Unknown readiness error",
     };
   }
 
-  _recordDependencyFailure(
-    dependency,
-    error,
+  let message;
+
+  if (
+    typeof error.message ===
+    "string"
   ) {
-    const timestamp =
-      Date.now();
+    message = error.message;
+  } else if (
+    typeof error ===
+    "string"
+  ) {
+    message = error;
+  } else {
+    try {
+      message = JSON.stringify(error);
+    } catch {
+      message =
+        "Unserializable readiness error";
+    }
+  }
 
-    const cutoff =
-      timestamp -
-      this.options
-        .failureWindowMs;
+  return {
+    name:
+      typeof error.name ===
+      "string"
+        ? error.name.slice(0, 100)
+        : "Error",
 
-    dependency.failureTimestamps =
-      dependency.failureTimestamps.filter(
-        value =>
-          value >= cutoff,
-      );
+    code:
+      typeof error.code ===
+      "string"
+        ? error.code.slice(0, 100)
+        : null,
 
-    dependency.failureTimestamps.push(
-      timestamp,
+    message:
+      String(message).slice(0, 1000),
+  };
+}
+
+/* =============================================================================
+ * OPTIONAL LOGGER HELPERS
+ * =============================================================================
+ */
+
+function logInfo(logger, payload) {
+  try {
+    logger?.info?.(payload);
+  } catch {
+    // Readiness bookkeeping must never fail because logging failed.
+  }
+}
+
+function logWarn(logger, payload) {
+  try {
+    logger?.warn?.(payload);
+  } catch {
+    // Readiness bookkeeping must never fail because logging failed.
+  }
+}
+
+function logError(logger, payload) {
+  try {
+    logger?.error?.(payload);
+  } catch {
+    // Readiness bookkeeping must never fail because logging failed.
+  }
+}
+
+/* =============================================================================
+ * OPTIONAL EVENT HELPERS
+ * =============================================================================
+ */
+
+function emit(events, eventName, payload) {
+  try {
+    events?.emit?.(
+      eventName,
+      payload,
+    );
+  } catch {
+    // Event subscribers are observational only.
+  }
+}
+
+/* =============================================================================
+ * INITIALIZATION
+ * =============================================================================
+ */
+
+function initialize(options = {}) {
+  if (
+    readinessRuntime.initialized
+  ) {
+    return getReadinessState();
+  }
+
+  readinessRuntime.initialized =
+    true;
+
+  if (
+    options.resetChecks === true
+  ) {
+    readinessRuntime.checks.clear();
+  }
+
+  return getReadinessState();
+}
+
+/* =============================================================================
+ * CHECK REGISTRATION
+ * =============================================================================
+ */
+
+/**
+ * Register a named readiness check.
+ *
+ * A check may be:
+ *
+ *   () => boolean
+ *   () => Promise<boolean>
+ *   () => ({ ready, message, metadata })
+ *   () => Promise<...>
+ *
+ * The check itself owns the knowledge of how to inspect its dependency.
+ */
+function registerCheck(
+  name,
+  evaluator,
+  options = {},
+) {
+  const normalizedName =
+    normalizeString(name, 150);
+
+  if (!normalizedName) {
+    throw new TypeError(
+      "Readiness check name is required.",
+    );
+  }
+
+  if (
+    typeof evaluator !==
+    "function"
+  ) {
+    throw new TypeError(
+      `Readiness evaluator "${normalizedName}" must be a function.`,
+    );
+  }
+
+  const timeoutMs =
+    Number.isFinite(
+      options.timeoutMs,
+    ) &&
+    options.timeoutMs >= 0
+      ? options.timeoutMs
+      : DEFAULTS.evaluationTimeoutMs;
+
+  readinessRuntime.checks.set(
+    normalizedName,
+    {
+      name: normalizedName,
+
+      evaluator,
+
+      critical:
+        options.critical !==
+        false,
+
+      timeoutMs,
+
+      description:
+        normalizeString(
+          options.description,
+          500,
+        ),
+
+      metadata:
+        options.metadata &&
+        typeof options.metadata ===
+          "object"
+          ? {
+              ...options.metadata,
+            }
+          : {},
+    },
+  );
+
+  return getRegisteredCheck(
+    normalizedName,
+  );
+}
+
+/* =============================================================================
+ * CHECK REMOVAL
+ * =============================================================================
+ */
+
+function unregisterCheck(name) {
+  const normalizedName =
+    normalizeString(name, 150);
+
+  if (!normalizedName) {
+    return false;
+  }
+
+  return readinessRuntime.checks.delete(
+    normalizedName,
+  );
+}
+
+function clearChecks() {
+  readinessRuntime.checks.clear();
+}
+
+/* =============================================================================
+ * CHECK INSPECTION
+ * =============================================================================
+ */
+
+function getRegisteredCheck(name) {
+  const check =
+    readinessRuntime.checks.get(
+      normalizeString(name, 150),
     );
 
-    dependency.failureCount =
-      dependency.failureTimestamps.length;
+  if (!check) {
+    return null;
+  }
 
-    dependency.lastUnhealthyAt =
-      now();
+  return {
+    name: check.name,
 
-    dependency.lastError =
-      safeError(
-        error,
-      );
+    critical:
+      check.critical,
 
-    dependency.ready =
-      false;
+    timeoutMs:
+      check.timeoutMs,
 
-    if (
-      dependency.critical
-    ) {
-      dependency.state =
-        DEPENDENCY_STATES.FAILED;
-    } else if (
-      dependency.required
-    ) {
-      dependency.state =
-        DEPENDENCY_STATES.UNHEALTHY;
-    } else {
-      dependency.state =
-        DEPENDENCY_STATES.DEGRADED;
-    }
+    description:
+      check.description,
+
+    metadata: {
+      ...check.metadata,
+    },
+  };
+}
+
+function getRegisteredChecks() {
+  return [
+    ...readinessRuntime.checks.values(),
+  ].map((check) => ({
+    name: check.name,
+
+    critical:
+      check.critical,
+
+    timeoutMs:
+      check.timeoutMs,
+
+    description:
+      check.description,
+
+    metadata: {
+      ...check.metadata,
+    },
+  }));
+}
+
+/* =============================================================================
+ * PROMISE TIMEOUT
+ * =============================================================================
+ */
+
+function withTimeout(
+  promise,
+  timeoutMs,
+) {
+  if (
+    !Number.isFinite(timeoutMs) ||
+    timeoutMs <= 0
+  ) {
+    return Promise.resolve(
+      promise,
+    );
+  }
+
+  return new Promise(
+    (resolve, reject) => {
+      let settled = false;
+
+      const timer =
+        setTimeout(() => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+
+          const error =
+            new Error(
+              `Readiness check timed out after ${timeoutMs}ms.`,
+            );
+
+          error.code =
+            "READINESS_CHECK_TIMEOUT";
+
+          reject(error);
+        }, timeoutMs);
+
+      Promise.resolve(promise)
+        .then((value) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+
+          clearTimeout(timer);
+
+          resolve(value);
+        })
+        .catch((error) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+
+          clearTimeout(timer);
+
+          reject(error);
+        });
+    },
+  );
+}
+
+/* =============================================================================
+ * CHECK RESULT NORMALIZATION
+ * =============================================================================
+ */
+
+function normalizeCheckResult(
+  name,
+  rawResult,
+  durationMs,
+) {
+  if (
+    typeof rawResult ===
+    "boolean"
+  ) {
+    return {
+      name,
+
+      ready: rawResult,
+
+      critical: true,
+
+      durationMs,
+
+      message:
+        rawResult
+          ? null
+          : "Readiness check failed.",
+
+      error: null,
+
+      metadata: {},
+    };
+  }
+
+  if (
+    rawResult &&
+    typeof rawResult ===
+      "object"
+  ) {
+    return {
+      name,
+
+      ready:
+        rawResult.ready !==
+        false,
+
+      critical:
+        rawResult.critical !==
+        false,
+
+      durationMs,
+
+      message:
+        normalizeString(
+          rawResult.message,
+          500,
+        ),
+
+      error:
+        rawResult.error
+          ? normalizeError(
+              rawResult.error,
+            )
+          : null,
+
+      metadata:
+        rawResult.metadata &&
+        typeof rawResult.metadata ===
+          "object"
+          ? {
+              ...rawResult.metadata,
+            }
+          : {},
+    };
   }
 
   /**
-   * ---------------------------------------------------------------------------
-   * Readiness Evaluation
-   * ---------------------------------------------------------------------------
+   * Undefined/null is treated conservatively as failure.
    */
+  return {
+    name,
 
-  async evaluate(
-    options = {},
-  ) {
-    if (
-      this._checkPromise
-    ) {
-      return this._checkPromise;
-    }
+    ready: false,
 
-    this._checkPromise =
-      this._evaluate(
-        options,
+    critical: true,
+
+    durationMs,
+
+    message:
+      "Readiness check returned no result.",
+
+    error: null,
+
+    metadata: {},
+  };
+}
+
+/* =============================================================================
+ * RUN ONE CHECK
+ * =============================================================================
+ */
+
+async function evaluateCheck(
+  check,
+) {
+  const startedAt =
+    Date.now();
+
+  try {
+    const rawResult =
+      await withTimeout(
+        check.evaluator(),
+        check.timeoutMs,
       );
 
-    try {
-      return await this._checkPromise;
-    } finally {
-      this._checkPromise =
-        null;
+    const durationMs =
+      Math.max(
+        0,
+        Date.now() -
+          startedAt,
+      );
+
+    const result =
+      normalizeCheckResult(
+        check.name,
+        rawResult,
+        durationMs,
+      );
+
+    /**
+     * Registration-level criticality wins unless the evaluator explicitly
+     * provides a more restrictive failure.
+     */
+    result.critical =
+      check.critical &&
+      result.critical;
+
+    return result;
+  } catch (error) {
+    const durationMs =
+      Math.max(
+        0,
+        Date.now() -
+          startedAt,
+      );
+
+    const normalizedError =
+      normalizeError(error);
+
+    const timeout =
+      normalizedError.code ===
+        "READINESS_CHECK_TIMEOUT" ||
+      normalizedError.code ===
+        "ETIMEDOUT";
+
+    return {
+      name: check.name,
+
+      ready: false,
+
+      critical: check.critical,
+
+      durationMs,
+
+      message:
+        timeout
+          ? `Readiness check timed out after ${check.timeoutMs}ms.`
+          : normalizedError.message,
+
+      error:
+        normalizedError,
+
+      metadata: {
+        timeout,
+      },
+    };
+  }
+}
+
+/* =============================================================================
+ * RUNTIME PRECONDITION EVALUATION
+ * =============================================================================
+ */
+
+function evaluateRuntimePrerequisites(
+  options = {},
+) {
+  const runtime =
+    getApplicationState();
+
+  const blockers = [];
+
+  const checks = {};
+
+  if (
+    options.requireStarted !==
+      false &&
+    runtime.started !== true
+  ) {
+    blockers.push(
+      INTERNAL_BLOCKERS.NOT_STARTED,
+    );
+
+    checks.application = {
+      ready: false,
+
+      started:
+        runtime.started,
+
+      state:
+        runtime.bootstrapLifecycle,
+
+      phase:
+        runtime.bootstrapPhase,
+    };
+  } else {
+    checks.application = {
+      ready: true,
+
+      started:
+        runtime.started,
+
+      state:
+        runtime.bootstrapLifecycle,
+
+      phase:
+        runtime.bootstrapPhase,
+    };
+  }
+
+  if (
+    runtime.starting === true
+  ) {
+    blockers.push(
+      INTERNAL_BLOCKERS.STARTING,
+    );
+  }
+
+  if (
+    options.requireServerPhase !==
+      false &&
+    !runtime.completedPhases.includes(
+      BOOTSTRAP_PHASES.SERVER,
+    )
+  ) {
+    blockers.push(
+      INTERNAL_BLOCKERS.SERVER_NOT_READY,
+    );
+  }
+
+  if (
+    options.requireHealthy !==
+      false &&
+    runtime.healthy !== true
+  ) {
+    blockers.push(
+      INTERNAL_BLOCKERS.UNHEALTHY,
+    );
+  }
+
+  if (
+    options.rejectWhenFailed !==
+      false &&
+    runtime.failed === true
+  ) {
+    blockers.push(
+      INTERNAL_BLOCKERS.FAILED,
+    );
+  }
+
+  if (
+    options.rejectWhenShuttingDown !==
+      false &&
+    runtime.shuttingDown ===
+      true
+  ) {
+    blockers.push(
+      INTERNAL_BLOCKERS.SHUTTING_DOWN,
+    );
+  }
+
+  if (
+    options.rejectWhenTerminated !==
+      false &&
+    runtime.terminated ===
+      true
+  ) {
+    blockers.push(
+      INTERNAL_BLOCKERS.TERMINATED,
+    );
+  }
+
+  return {
+    blockers:
+      uniqueStrings(blockers),
+
+    checks,
+  };
+}
+
+/* =============================================================================
+ * SYNCHRONOUS READINESS EVALUATION
+ * =============================================================================
+ */
+
+function evaluateSync(
+  options = {},
+) {
+  const mergedOptions = {
+    ...DEFAULTS,
+    ...options,
+  };
+
+  const runtimeResult =
+    evaluateRuntimePrerequisites(
+      mergedOptions,
+    );
+
+  const registeredChecks =
+    [
+      ...readinessRuntime.checks.values(),
+    ];
+
+  const checks = {
+    ...runtimeResult.checks,
+  };
+
+  const blockers = [
+    ...runtimeResult.blockers,
+  ];
+
+  if (
+    mergedOptions.requireChecks &&
+    registeredChecks.length === 0
+  ) {
+    blockers.push(
+      INTERNAL_BLOCKERS.CHECKS_REQUIRED,
+    );
+  }
+
+  /**
+   * Sync evaluation cannot safely execute asynchronous checks. Therefore this
+   * method evaluates only runtime prerequisites.
+   */
+  if (
+    registeredChecks.length > 0
+  ) {
+    for (
+      const check of registeredChecks
+    ) {
+      checks[check.name] = {
+        ready: false,
+
+        critical:
+          check.critical,
+
+        message:
+          "Asynchronous readiness checks require evaluate().",
+
+        metadata: {},
+      };
+
+      if (
+        check.critical
+      ) {
+        blockers.push(
+          `${INTERNAL_BLOCKERS.CHECK_FAILED}:${check.name}`,
+        );
+      }
     }
   }
 
-  async _evaluate(
-    options = {},
+  const ready =
+    blockers.length === 0;
+
+  return {
+    ready,
+
+    blockers:
+      uniqueStrings(blockers),
+
+    checks,
+
+    evaluatedAt:
+      now().toISOString(),
+  };
+}
+
+/* =============================================================================
+ * ASYNCHRONOUS READINESS EVALUATION
+ * =============================================================================
+ */
+
+async function evaluate(
+  options = {},
+) {
+  const mergedOptions = {
+    ...DEFAULTS,
+    ...options,
+  };
+
+  if (
+    readinessRuntime.evaluating
   ) {
-    if (
-      this.state ===
-        STATES.STOPPING ||
-      this.state ===
-        STATES.STOPPED
-    ) {
-      return this.snapshot();
-    }
-
-    if (
-      this.state ===
-        STATES.FAILED &&
-      !options.allowRecovery
-    ) {
-      return this.snapshot();
-    }
-
-    if (
-      this.state ===
-      STATES.CREATED
-    ) {
-      if (
-        this.options
-          .failClosedDuringStartup
-      ) {
-        this.transition(
-          STATES.NOT_READY,
-          {
-            reason:
-              'not_initialized',
-          },
-        );
-      }
-
-      return this.snapshot();
-    }
-
-    await this.checkAll();
-
-    const evaluation =
-      this._evaluateDependencies();
-
-    if (
-      evaluation.criticalFailure
-    ) {
-      this.failure =
-        evaluation.error;
-
-      this.transition(
-        STATES.NOT_READY,
+    return {
+      ...(
+        readinessRuntime.lastResult ||
         {
-          reason:
-            'critical_dependency_failure',
+          ready: false,
+          blockers: [
+            "readiness_evaluation_in_progress",
+          ],
+          checks: {},
+        }
+      ),
 
-          failures:
-            evaluation.failures,
-        },
+      evaluationInProgress:
+        true,
+    };
+  }
+
+  readinessRuntime.evaluating =
+    true;
+
+  const sequence =
+    ++readinessRuntime.evaluationSequence;
+
+  const evaluatedAt =
+    now();
+
+  try {
+    const runtimeResult =
+      evaluateRuntimePrerequisites(
+        mergedOptions,
       );
 
-      this.emit(
-        'notReady',
-        evaluation,
-      );
+    const blockers = [
+      ...runtimeResult.blockers,
+    ];
 
-      return this.snapshot();
-    }
+    const checks = {
+      ...runtimeResult.checks,
+    };
+
+    const registeredChecks =
+      [
+        ...readinessRuntime.checks.values(),
+      ];
 
     if (
-      evaluation.requiredFailure
+      mergedOptions.requireChecks &&
+      registeredChecks.length === 0
     ) {
-      this.failure =
-        evaluation.error;
-
-      this.transition(
-        STATES.NOT_READY,
-        {
-          reason:
-            'required_dependency_failure',
-
-          failures:
-            evaluation.failures,
-        },
+      blockers.push(
+        INTERNAL_BLOCKERS.CHECKS_REQUIRED,
       );
-
-      this.emit(
-        'notReady',
-        evaluation,
-      );
-
-      return this.snapshot();
-    }
-
-    if (
-      evaluation.optionalDegradation &&
-      this.options
-        .allowOptionalDegradation
-    ) {
-      this.transition(
-        STATES.DEGRADED,
-        {
-          reason:
-            'optional_dependency_degradation',
-
-          failures:
-            evaluation.failures,
-        },
-      );
-
-      this.emit(
-        'degraded',
-        evaluation,
-      );
-
-      return this.snapshot();
     }
 
     /**
-     * No dependency failures.
+     * Run checks concurrently.
      *
-     * During startup we use a stabilization window so an instance does not
-     * immediately enter READY while infrastructure is still flapping.
+     * A slow dependency must not unnecessarily serialize all other checks.
      */
-    if (
-      this.state ===
-        STATES.INITIALIZING ||
-      this.state ===
-        STATES.WARMING ||
-      this.state ===
-        STATES.NOT_READY
-    ) {
-      return this._stabilizeReadiness();
-    }
-
-    if (
-      this.state ===
-      STATES.DEGRADED
-    ) {
-      this.transition(
-        STATES.READY,
-        {
-          reason:
-            'dependencies_recovered',
-        },
+    const results =
+      await Promise.all(
+        registeredChecks.map(
+          (check) =>
+            evaluateCheck(check),
+        ),
       );
-
-      this.emit(
-        'ready',
-        this.snapshot(),
-      );
-
-      return this.snapshot();
-    }
-
-    return this.snapshot();
-  }
-
-  _evaluateDependencies() {
-    const failures = [];
-
-    let criticalFailure =
-      false;
-
-    let requiredFailure =
-      false;
-
-    let optionalDegradation =
-      false;
 
     for (
-      const dependency of
-        this.dependencies.values()
+      const result of results
     ) {
-      if (
-        !dependency.enabled
-      ) {
-        continue;
-      }
-
-      const unhealthy =
-        !dependency.ready ||
-        dependency.state ===
-          DEPENDENCY_STATES.UNHEALTHY ||
-        dependency.state ===
-          DEPENDENCY_STATES.FAILED;
-
-      if (
-        !unhealthy
-      ) {
-        if (
-          dependency.state ===
-          DEPENDENCY_STATES.DEGRADED
-        ) {
-          optionalDegradation =
-            true;
-        }
-
-        continue;
-      }
-
-      const failure =
-        this._dependencySnapshot(
-          dependency,
-        );
-
-      failures.push(
-        failure,
-      );
-
-      if (
-        dependency.critical
-      ) {
-        criticalFailure =
-          true;
-      } else if (
-        dependency.required
-      ) {
-        requiredFailure =
-          true;
-      } else {
-        optionalDegradation =
-          true;
-      }
-    }
-
-    let error =
-      null;
-
-    if (
-      failures.length > 0
-    ) {
-      error =
-        new ReadinessStateError(
-          'One or more readiness dependencies are unavailable.',
-          {
-            code:
-              'READINESS_DEPENDENCY_FAILURE',
-            details: {
-              failures,
-            },
-          },
-        );
-    }
-
-    return {
-      criticalFailure,
-
-      requiredFailure,
-
-      optionalDegradation,
-
-      failures,
-
-      error,
-    };
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Readiness Stabilization
-   * ---------------------------------------------------------------------------
-   */
-
-  _stabilizeReadiness() {
-    if (
-      this.options
-        .readinessStabilizationMs <=
-      0
-    ) {
-      this.transition(
-        STATES.READY,
-        {
-          reason:
-            'dependencies_healthy',
-        },
-      );
-
-      this.emit(
-        'ready',
-        this.snapshot(),
-      );
-
-      return this.snapshot();
-    }
-
-    if (
-      this._stabilizationTimer
-    ) {
-      return this.snapshot();
-    }
-
-    this.transition(
-      STATES.WARMING,
-      {
-        reason:
-          'stabilizing',
-      },
-    );
-
-    this._stabilizationTimer =
-      setTimeout(
-        () => {
-          this._stabilizationTimer =
-            null;
-
-          void this.evaluate({
-            allowRecovery:
-              true,
-          });
-        },
-        this.options
-          .readinessStabilizationMs,
-      );
-
-    this._stabilizationTimer.unref?.();
-
-    return this.snapshot();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Explicit Ready
-   * ---------------------------------------------------------------------------
-   */
-
-  markReady(
-    metadata = {},
-  ) {
-    if (
-      this.state ===
-        STATES.STOPPING ||
-      this.state ===
-        STATES.STOPPED
-    ) {
-      throw new ReadinessStateError(
-        'Cannot mark the application ready after shutdown has started.',
-        {
-          code:
-            'READINESS_READY_AFTER_STOP',
-        },
-      );
-    }
-
-    this.failure =
-      null;
-
-    this.transition(
-      STATES.READY,
-      metadata,
-    );
-
-    this.emit(
-      'ready',
-      this.snapshot(),
-    );
-
-    return this.snapshot();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Explicit Degradation
-   * ---------------------------------------------------------------------------
-   */
-
-  markDegraded(
-    reason =
-      'manual-degradation',
-    metadata = {},
-  ) {
-    if (
-      this.state ===
-      STATES.STOPPED
-    ) {
-      throw new ReadinessStateError(
-        'Cannot degrade a stopped application.',
-        {
-          code:
-            'READINESS_DEGRADE_AFTER_STOP',
-        },
-      );
-    }
-
-    this.transition(
-      STATES.DEGRADED,
-      {
-        reason,
-        ...metadata,
-      },
-    );
-
-    this.emit(
-      'degraded',
-      this.snapshot(),
-    );
-
-    return this.snapshot();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Explicit Not Ready
-   * ---------------------------------------------------------------------------
-   */
-
-  markNotReady(
-    reason =
-      'manual-not-ready',
-    metadata = {},
-  ) {
-    this.transition(
-      STATES.NOT_READY,
-      {
-        reason,
-        ...metadata,
-      },
-    );
-
-    this.emit(
-      'notReady',
-      this.snapshot(),
-    );
-
-    return this.snapshot();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Failure
-   * ---------------------------------------------------------------------------
-   */
-
-  markFailed(
-    error,
-    metadata = {},
-  ) {
-    this.failure =
-      error instanceof Error
-        ? error
-        : new Error(
-            String(error),
-          );
-
-    this.transition(
-      STATES.FAILED,
-      {
-        ...metadata,
-
-        error:
-          safeError(
-            this.failure,
-          ),
-      },
-    );
-
-    this.emit(
-      'failed',
-      {
-        error:
-          safeError(
-            this.failure,
-          ),
-
-        snapshot:
-          this.snapshot(),
-      },
-    );
-
-    return this.snapshot();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Shutdown
-   * ---------------------------------------------------------------------------
-   */
-
-  beginShutdown(
-    reason =
-      'application-shutdown',
-  ) {
-    this.shutdownReason =
-      reason;
-
-    this._clearTimers();
-
-    this.transition(
-      STATES.STOPPING,
-      {
-        reason,
-      },
-    );
-
-    this.emit(
-      'stopping',
-      this.snapshot(),
-    );
-
-    return this.snapshot();
-  }
-
-  completeShutdown() {
-    this._clearTimers();
-
-    this.ready =
-      false;
-
-    this.transition(
-      STATES.STOPPED,
-      {
-        reason:
-          this.shutdownReason,
-      },
-    );
-
-    this.emit(
-      'stopped',
-      this.snapshot(),
-    );
-
-    return this.snapshot();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Predicates
-   * ---------------------------------------------------------------------------
-   */
-
-  isAlive() {
-    return (
-      this.state !==
-      STATES.STOPPED
-    );
-  }
-
-  isReady() {
-    return (
-      this.state ===
-      STATES.READY
-    );
-  }
-
-  isDegraded() {
-    return (
-      this.state ===
-      STATES.DEGRADED
-    );
-  }
-
-  isNotReady() {
-    return (
-      this.state ===
-      STATES.NOT_READY
-    );
-  }
-
-  isStopping() {
-    return (
-      this.state ===
-      STATES.STOPPING
-    );
-  }
-
-  isStopped() {
-    return (
-      this.state ===
-      STATES.STOPPED
-    );
-  }
-
-  isFailed() {
-    return (
-      this.state ===
-      STATES.FAILED
-    );
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Operational Health
-   * ---------------------------------------------------------------------------
-   */
-
-  async health() {
-    const evaluation =
-      await this.evaluate({
-        allowRecovery:
-          true,
-      });
-
-    const critical =
-      this.list().filter(
-        dependency =>
-          dependency.critical,
-      );
-
-    const required =
-      this.list().filter(
-        dependency =>
-          dependency.required &&
-          !dependency.critical,
-      );
-
-    const optional =
-      this.list().filter(
-        dependency =>
-          !dependency.required,
-      );
-
-    return {
-      status:
-        this.isReady()
-          ? 'healthy'
-          : this.isDegraded()
-            ? 'degraded'
-            : 'unhealthy',
-
-      ready:
-        this.isReady(),
-
-      state:
-        this.state,
-
-      service:
-        'titech-backend',
-
-      timestamp:
-        new Date().toISOString(),
-
-      dependencies: {
-        total:
-          this.dependencies.size,
-
-        healthy:
-          this.list().filter(
-            dependency =>
-              dependency.ready,
-          ).length,
+      checks[result.name] = {
+        ready:
+          result.ready,
 
         critical:
-          {
-            total:
-              critical.length,
+          result.critical,
 
-            healthy:
-              critical.filter(
-                dependency =>
-                  dependency.ready,
-              ).length,
-          },
+        durationMs:
+          result.durationMs,
 
-        required:
-          {
-            total:
-              required.length,
+        message:
+          result.message,
 
-            healthy:
-              required.filter(
-                dependency =>
-                  dependency.ready,
-              ).length,
-          },
+        error:
+          result.error,
 
-        optional:
-          {
-            total:
-              optional.length,
+        metadata:
+          result.metadata,
+      };
 
-            healthy:
-              optional.filter(
-                dependency =>
-                  dependency.ready,
-              ).length,
-          },
-      },
+      if (
+        !result.ready &&
+        result.critical
+      ) {
+        const blockerCode =
+          result.error?.code ===
+          "READINESS_CHECK_TIMEOUT"
+            ? INTERNAL_BLOCKERS.CHECK_TIMEOUT
+            : INTERNAL_BLOCKERS.CHECK_FAILED;
 
-      evaluation:
-        {
-          failures:
-            evaluation.failures,
-        },
-    };
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Dependency Snapshot
-   * ---------------------------------------------------------------------------
-   */
-
-  _dependencySnapshot(
-    dependency,
-  ) {
-    return {
-      name:
-        dependency.name,
-
-      severity:
-        dependency.severity,
-
-      critical:
-        dependency.critical,
-
-      required:
-        dependency.required,
-
-      enabled:
-        dependency.enabled,
-
-      ready:
-        dependency.ready,
-
-      state:
-        dependency.state,
-
-      failureCount:
-        dependency.failureCount,
-
-      lastCheckedAt:
-        dependency.lastCheckedAt,
-
-      lastHealthyAt:
-        dependency.lastHealthyAt,
-
-      lastUnhealthyAt:
-        dependency.lastUnhealthyAt,
-
-      lastDurationMs:
-        dependency.lastDurationMs,
-
-      lastError:
-        dependency.lastError,
-
-      metadata:
-        dependency.metadata,
-    };
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Snapshot
-   * ---------------------------------------------------------------------------
-   */
-
-  snapshot() {
-    return Object.freeze({
-      state:
-        this.state,
-
-      previousState:
-        this.previousState,
-
-      ready:
-        this.isReady(),
-
-      degraded:
-        this.isDegraded(),
-
-      alive:
-        this.isAlive(),
-
-      stopping:
-        this.isStopping(),
-
-      stopped:
-        this.isStopped(),
-
-      failed:
-        this.isFailed(),
-
-      createdAt:
-        this.createdAt,
-
-      initializingAt:
-        this.initializingAt,
-
-      warmingAt:
-        this.warmingAt,
-
-      readyAt:
-        this.readyAt,
-
-      degradedAt:
-        this.degradedAt,
-
-      stoppingAt:
-        this.stoppingAt,
-
-      stoppedAt:
-        this.stoppedAt,
-
-      failedAt:
-        this.failedAt,
-
-      startupCompletedAt:
-        this.startupCompletedAt,
-
-      stateChangedAt:
-        this.stateChangedAt,
-
-      shutdownReason:
-        this.shutdownReason,
-
-      failure:
-        safeError(
-          this.failure,
-        ),
-
-      dependencies:
-        Object.freeze(
-          Object.fromEntries(
-            [...this.dependencies.entries()]
-              .map(
-                ([
-                  name,
-                  dependency,
-                ]) => [
-                  name,
-                  this._dependencySnapshot(
-                    dependency,
-                  ),
-                ],
-              ),
-          ),
-        ),
-
-      transitionHistory:
-        Object.freeze(
-          this.transitionHistory.map(
-            item => ({
-              ...item,
-            }),
-          ),
-        ),
-
-      options:
-        Object.freeze({
-          ...this.options,
-        }),
-    });
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Timer Cleanup
-   * ---------------------------------------------------------------------------
-   */
-
-  _clearTimers() {
-    if (
-      this._startupGraceTimer
-    ) {
-      clearTimeout(
-        this._startupGraceTimer,
-      );
-
-      this._startupGraceTimer =
-        null;
+        blockers.push(
+          `${blockerCode}:${result.name}`,
+        );
+      }
     }
 
-    if (
-      this._stabilizationTimer
-    ) {
-      clearTimeout(
-        this._stabilizationTimer,
-      );
+    const normalizedBlockers =
+      uniqueStrings(blockers);
 
-      this._stabilizationTimer =
-        null;
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Reset
-   * ---------------------------------------------------------------------------
-   *
-   * Intended for tests/process isolation.
-   */
-
-  reset() {
-    if (
-      this.state ===
-        STATES.STOPPING ||
-      this.state ===
-        STATES.INITIALIZING ||
-      this.state ===
-        STATES.WARMING
-    ) {
-      throw new ReadinessStateError(
-        'Cannot reset readiness state while lifecycle execution is active.',
-        {
-          code:
-            'READINESS_RESET_NOT_ALLOWED',
-
-          state:
-            this.state,
-        },
-      );
-    }
-
-    this._clearTimers();
-
-    for (
-      const dependency of
-        this.dependencies.values()
-    ) {
-      dependency.ready =
-        dependency.enabled ===
-          false;
-
-      dependency.state =
-        dependency.enabled ===
-        false
-          ? DEPENDENCY_STATES
-              .DISABLED
-          : DEPENDENCY_STATES
-              .UNKNOWN;
-
-      dependency.failureCount =
+    const ready =
+      normalizedBlockers.length ===
+        0 &&
+      runtimeResult.blockers.length ===
         0;
 
-      dependency.failureTimestamps =
-        [];
+    const result = {
+      ready,
 
-      dependency.lastCheckedAt =
-        null;
+      blockers:
+        normalizedBlockers,
 
-      dependency.lastHealthyAt =
-        null;
+      checks,
 
-      dependency.lastUnhealthyAt =
-        null;
+      sequence,
 
-      dependency.lastDurationMs =
-        null;
+      evaluatedAt:
+        evaluatedAt.toISOString(),
 
-      dependency.lastError =
-        null;
-    }
+      evaluationDurationMs:
+        Math.max(
+          0,
+          Date.now() -
+            evaluatedAt.getTime(),
+        ),
 
-    this.state =
-      STATES.CREATED;
+      registeredCheckCount:
+        registeredChecks.length,
+    };
 
-    this.previousState =
-      null;
+    readinessRuntime.lastEvaluationAt =
+      evaluatedAt;
 
-    this.stateChangedAt =
-      now();
+    readinessRuntime.lastResult =
+      result;
 
-    this.initializingAt =
-      null;
-
-    this.warmingAt =
-      null;
-
-    this.readyAt =
-      null;
-
-    this.degradedAt =
-      null;
-
-    this.stoppingAt =
-      null;
-
-    this.stoppedAt =
-      null;
-
-    this.failedAt =
-      null;
-
-    this.startupCompletedAt =
-      null;
-
-    this.shutdownReason =
-      null;
-
-    this.failure =
-      null;
-
-    this.transitionHistory =
-      [];
-
-    return this;
+    return result;
+  } finally {
+    readinessRuntime.evaluating =
+      false;
   }
 }
 
-/**
- * =============================================================================
- * Default TITech Readiness Singleton
+/* =============================================================================
+ * APPLY READINESS
  * =============================================================================
  */
 
-const readinessState =
-  new ReadinessState();
-
-/**
- * -----------------------------------------------------------------------------
- * Convenience API
- * -----------------------------------------------------------------------------
- */
-
-function register(
-  options,
-) {
-  return readinessState.register(
-    options,
-  );
-}
-
-function unregister(
-  name,
-) {
-  return readinessState.unregister(
-    name,
-  );
-}
-
-function has(
-  name,
-) {
-  return readinessState.has(
-    name,
-  );
-}
-
-function get(
-  name,
-) {
-  return readinessState.get(
-    name,
-  );
-}
-
-function list() {
-  return readinessState.list();
-}
-
-function beginInitialization(
-  metadata,
-) {
-  return readinessState.beginInitialization(
-    metadata,
-  );
-}
-
-function beginWarming(
-  metadata,
-) {
-  return readinessState.beginWarming(
-    metadata,
-  );
-}
-
-async function check(
-  name,
-) {
-  return readinessState.check(
-    name,
-  );
-}
-
-async function checkAll() {
-  return readinessState.checkAll();
-}
-
-async function evaluate(
-  options,
-) {
-  return readinessState.evaluate(
-    options,
-  );
-}
-
-function markReady(
-  metadata,
-) {
-  return readinessState.markReady(
-    metadata,
-  );
-}
-
-function markDegraded(
-  reason,
-  metadata,
-) {
-  return readinessState.markDegraded(
-    reason,
-    metadata,
-  );
-}
-
-function markNotReady(
-  reason,
-  metadata,
-) {
-  return readinessState.markNotReady(
-    reason,
-    metadata,
-  );
-}
-
-function markFailed(
-  error,
-  metadata,
-) {
-  return readinessState.markFailed(
-    error,
-    metadata,
-  );
-}
-
-function beginShutdown(
-  reason,
-) {
-  return readinessState.beginShutdown(
-    reason,
-  );
-}
-
-function completeShutdown() {
-  return readinessState.completeShutdown();
-}
-
-function isAlive() {
-  return readinessState.isAlive();
-}
-
-function isReady() {
-  return readinessState.isReady();
-}
-
-function isDegraded() {
-  return readinessState.isDegraded();
-}
-
-function isNotReady() {
-  return readinessState.isNotReady();
-}
-
-function isStopping() {
-  return readinessState.isStopping();
-}
-
-function isStopped() {
-  return readinessState.isStopped();
-}
-
-function isFailed() {
-  return readinessState.isFailed();
-}
-
-async function health() {
-  return readinessState.health();
-}
-
-function snapshot() {
-  return readinessState.snapshot();
-}
-
-function reset() {
-  return readinessState.reset();
-}
-
-/**
- * =============================================================================
- * Bootstrap Lifecycle Integration
- * =============================================================================
- *
- * This adapter allows bootstrap/lifecycle.js and bootstrap/lifecycleManager.js
- * to use readinessState as the authoritative readiness source.
- */
-
-function registerBootstrapHooks(
-  context = {},
+function applyResult(
+  result,
+  events,
+  logger,
   options = {},
 ) {
-  const {
-    lifecycle,
-  } = require('./hooks');
-
   if (
-    require('./hooks').hooks.has(
-      'readiness',
-    )
+    !result ||
+    typeof result !==
+      "object"
   ) {
-    return require('./hooks').hooks.get(
-      'readiness',
+    throw new TypeError(
+      "A readiness evaluation result is required.",
     );
   }
 
-  return lifecycle(
-    'readiness',
+  const ready =
+    result.ready === true;
+
+  setReadinessState(
+    ready,
+    result.blockers || [],
+    result.checks || {},
+    events,
+    logger,
+  );
+
+  /**
+   * Only the canonical runtime state may transition the application to READY.
+   */
+  if (
+    ready &&
+    options.markApplicationReady !==
+      false
+  ) {
+    const runtime =
+      getApplicationState();
+
+    if (
+      runtime.started &&
+      runtime.healthy &&
+      !runtime.failed &&
+      !runtime.shuttingDown &&
+      !runtime.terminated
+    ) {
+      try {
+        return markApplicationReady(
+          events,
+          logger,
+        );
+      } catch (error) {
+        /**
+         * A race with shutdown/failure is expected to be safely rejected.
+         */
+        const normalizedError =
+          normalizeError(error);
+
+        logWarn(
+          logger,
+          {
+            section:
+              "readiness",
+
+            event:
+              "application_ready_transition_rejected",
+
+            error:
+              normalizedError,
+          },
+        );
+
+        setReadinessState(
+          false,
+          [
+            ...(result.blockers || []),
+            "application_ready_transition_rejected",
+          ],
+          result.checks || {},
+          events,
+          logger,
+        );
+
+        return false;
+      }
+    }
+  }
+
+  return ready;
+}
+
+/* =============================================================================
+ * EVALUATE + APPLY
+ * =============================================================================
+ */
+
+async function evaluateAndApply(
+  options = {},
+  events,
+  logger,
+) {
+  const result =
+    await evaluate(
+      options,
+    );
+
+  applyResult(
+    result,
+    events,
+    logger,
+    options,
+  );
+
+  return result;
+}
+
+/* =============================================================================
+ * FORCE NOT READY
+ * =============================================================================
+ *
+ * Used when a dependency becomes unavailable after startup.
+ *
+ * This function deliberately does NOT stop the application.
+ *
+ * A dependency outage may represent degraded availability rather than process
+ * failure. The owning health/readiness subsystem decides whether termination
+ * is appropriate.
+ * =============================================================================
+ */
+
+function markNotReady(
+  blockers = [],
+  checks = {},
+  events,
+  logger,
+) {
+  const normalizedBlockers =
+    uniqueStrings(
+      Array.isArray(blockers)
+        ? blockers
+        : [blockers],
+    );
+
+  return setReadinessState(
+    false,
+    normalizedBlockers,
+    checks,
+    events,
+    logger,
+  );
+}
+
+/* =============================================================================
+ * SERVICE READINESS HELPERS
+ * =============================================================================
+ */
+
+function checkServiceReady(
+  service,
+) {
+  if (
+    !Object.values(
+      SERVICES,
+    ).includes(service)
+  ) {
+    return {
+      ready: false,
+
+      critical: true,
+
+      message:
+        `Unknown TITech service: ${service}.`,
+    };
+  }
+
+  const runtime =
+    getApplicationState();
+
+  const state =
+    runtime.serviceStates[
+      service
+    ];
+
+  const ready =
+    state ===
+    SERVICE_STATES.READY;
+
+  return {
+    ready,
+
+    critical: true,
+
+    message:
+      ready
+        ? null
+        : `Service "${service}" is not ready.`,
+
+    metadata: {
+      service,
+
+      state,
+
+      enabled:
+        runtime.services[
+          service
+        ] === true,
+    },
+  };
+}
+
+function registerServiceCheck(
+  service,
+  options = {},
+) {
+  if (
+    !Object.values(
+      SERVICES,
+    ).includes(service)
+  ) {
+    throw new Error(
+      `Unknown TITech service: ${service}.`,
+    );
+  }
+
+  return registerCheck(
+    `service:${service}`,
+    () =>
+      checkServiceReady(
+        service,
+      ),
     {
-      priority:
-        options.priority ??
-        -700,
-
-      dependencies:
-        options.dependencies ||
-        [
-          'observability',
-        ],
-
       critical:
-        options.critical !== false,
+        options.critical !==
+        false,
 
       timeoutMs:
-        options.timeoutMs ||
-        30_000,
+        options.timeoutMs,
 
-      start:
-        async hookContext => {
-          beginInitialization({
-            source:
-              'bootstrap',
-
-            service:
-              'titech-backend',
-          });
-
-          beginWarming({
-            source:
-              'bootstrap',
-          });
-
-          /**
-           * Register any dependencies supplied by bootstrap context.
-           *
-           * Expected format:
-           *
-           *   context.readinessDependencies = [
-           *     {
-           *       name,
-           *       severity,
-           *       health,
-           *       readiness
-           *     }
-           *   ]
-           */
-          const dependencies =
-            hookContext
-              ?.readinessDependencies;
-
-          if (
-            Array.isArray(
-              dependencies,
-            )
-          ) {
-            for (
-              const dependency of
-                dependencies
-            ) {
-              if (
-                !has(
-                  dependency.name,
-                )
-              ) {
-                register(
-                  dependency,
-                );
-              }
-            }
-          }
-
-          await evaluate({
-            allowRecovery:
-              true,
-          });
-
-          hookContext.readiness =
-            readinessState;
-
-          return readinessState;
-        },
-
-      ready:
-        async () => {
-          return isReady();
-        },
-
-      health:
-        async () => {
-          return health();
-        },
-
-      stop:
-        async hookContext => {
-          beginShutdown(
-            hookContext?.reason ||
-              'bootstrap-shutdown',
-          );
-
-          completeShutdown();
-        },
+      description:
+        options.description ??
+        `Readiness of TITech ${service} service.`,
 
       metadata: {
-        component:
-          'readiness',
+        service,
 
-        service:
-          'titech-backend',
-
-        implementation:
-          'backend/bootstrap/readinessState.js',
+        ...(options.metadata || {}),
       },
     },
   );
 }
 
-/**
- =============================================================================
- * Export
+/* =============================================================================
+ * DATABASE READINESS
  * =============================================================================
  */
 
-module.exports =
-  Object.freeze({
-    /**
-     * Core implementation.
-     */
-    ReadinessState,
+function registerDatabaseCheck(
+  evaluator,
+  options = {},
+) {
+  if (
+    typeof evaluator !==
+    "function"
+  ) {
+    throw new TypeError(
+      "A database readiness evaluator function is required.",
+    );
+  }
 
-    ReadinessStateError,
+  return registerCheck(
+    "database",
+    evaluator,
+    {
+      critical:
+        options.critical !==
+        false,
 
-    STATES,
+      timeoutMs:
+        options.timeoutMs ??
+        DEFAULTS.evaluationTimeoutMs,
 
-    DEPENDENCY_STATES,
+      description:
+        options.description ??
+        "TITech database readiness check.",
 
-    SEVERITIES,
+      metadata: {
+        dependency:
+          "mongodb",
 
-    readinessState,
+        ...(options.metadata || {}),
+      },
+    },
+  );
+}
 
-    /**
-     * Dependency API.
-     */
-    register,
-    unregister,
-    has,
-    get,
-    list,
+/* =============================================================================
+ * REDIS READINESS
+ * =============================================================================
+ */
 
-    /**
-     * Lifecycle.
-     */
-    beginInitialization,
-    beginWarming,
+function registerRedisCheck(
+  evaluator,
+  options = {},
+) {
+  if (
+    typeof evaluator !==
+    "function"
+  ) {
+    throw new TypeError(
+      "A Redis readiness evaluator function is required.",
+    );
+  }
 
-    check,
-    checkAll,
-    evaluate,
+  return registerCheck(
+    "redis",
+    evaluator,
+    {
+      critical:
+        options.critical !==
+        false,
 
-    markReady,
-    markDegraded,
-    markNotReady,
-    markFailed,
+      timeoutMs:
+        options.timeoutMs ??
+        DEFAULTS.evaluationTimeoutMs,
 
-    beginShutdown,
-    completeShutdown,
+      description:
+        options.description ??
+        "TITech Redis readiness check.",
 
-    /**
-     * Predicates.
-     */
-    isAlive,
-    isReady,
-    isDegraded,
-    isNotReady,
-    isStopping,
-    isStopped,
-    isFailed,
+      metadata: {
+        dependency:
+          "redis",
 
-    /**
-     * Operational.
-     */
-    health,
-    snapshot,
+        ...(options.metadata || {}),
+      },
+    },
+  );
+}
 
-    /**
-     * Bootstrap integration.
-     */
-    registerBootstrapHooks,
+/* =============================================================================
+ * READINESS SNAPSHOT
+ * =============================================================================
+ */
 
-    /**
-     * Testing.
-     */
-    reset,
+function getReadinessState() {
+  const runtime =
+    getApplicationState();
+
+  return Object.freeze({
+    initialized:
+      readinessRuntime.initialized,
+
+    evaluating:
+      readinessRuntime.evaluating,
+
+    evaluationSequence:
+      readinessRuntime.evaluationSequence,
+
+    ready:
+      isReady(),
+
+    blockers:
+      [
+        ...(runtime.readiness?.blockers ||
+          []),
+      ],
+
+    checks: {
+      ...(runtime.readiness?.checks ||
+        {}),
+    },
+
+    lastEvaluation:
+      toIso(
+        runtime.readiness
+          ?.lastEvaluation,
+      ),
+
+    lastEvaluationAt:
+      toIso(
+        readinessRuntime.lastEvaluationAt,
+      ),
+
+    lastResult:
+      readinessRuntime.lastResult
+        ? {
+            ...readinessRuntime.lastResult,
+
+            blockers: [
+              ...readinessRuntime
+                .lastResult
+                .blockers,
+            ],
+
+            checks: {
+              ...readinessRuntime
+                .lastResult
+                .checks,
+            },
+          }
+        : null,
+
+    registeredChecks:
+      getRegisteredChecks(),
   });
+}
+
+/* =============================================================================
+ * HEALTH SNAPSHOT
+ * =============================================================================
+ */
+
+function getHealthSnapshot() {
+  return {
+    readiness:
+      getReadinessState(),
+
+    runtime:
+      getHealthState(),
+  };
+}
+
+/* =============================================================================
+ * RESET
+ * =============================================================================
+ *
+ * Intended for deterministic automated testing and controlled process
+ * reinitialization.
+ * =============================================================================
+ */
+
+function reset() {
+  readinessRuntime.initialized =
+    false;
+
+  readinessRuntime.evaluating =
+    false;
+
+  readinessRuntime.evaluationSequence =
+    0;
+
+  readinessRuntime.lastEvaluationAt =
+    null;
+
+  readinessRuntime.lastResult =
+    null;
+
+  readinessRuntime.checks.clear();
+
+  return getReadinessState();
+}
+
+/* =============================================================================
+ * PUBLIC API
+ * =============================================================================
+ */
+
+module.exports = {
+  DEFAULTS,
+
+  INTERNAL_BLOCKERS,
+
+  initialize,
+
+  registerCheck,
+
+  unregisterCheck,
+
+  clearChecks,
+
+  getRegisteredCheck,
+
+  getRegisteredChecks,
+
+  evaluateCheck,
+
+  evaluateSync,
+
+  evaluate,
+
+  applyResult,
+
+  evaluateAndApply,
+
+  markNotReady,
+
+  registerServiceCheck,
+
+  registerDatabaseCheck,
+
+  registerRedisCheck,
+
+  getReadinessState,
+
+  getHealthSnapshot,
+
+  reset,
+};

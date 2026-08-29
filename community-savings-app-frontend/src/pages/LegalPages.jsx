@@ -1,34 +1,63 @@
+'use strict';
+
 /**
  * ============================================================================
- * TITech Community Capital – Legal Pages
- * File: frontend/src/pages/LegalPages.jsx
+ * TITech Community Capital Ltd
+ * Enterprise Legal Pages
+ * ============================================================================
  *
- * Enterprise Production Grade
+ * File:
+ *   frontend/src/pages/LegalPages.jsx
+ *
+ * Version:
+ *   2026.3
+ *
+ * Classification:
+ *   Production / Enterprise
+ *
+ * Purpose
  * ----------------------------------------------------------------------------
- * Purpose:
- * - Centralized legal-document definitions and rendering
- * - Terms of Service
- * - Privacy Policy
- * - Financial Disclaimer
- * - Accessibility / WCAG-oriented structure
- * - Responsive document layout
- * - Deep-link friendly sections
- * - Sticky navigation
- * - Active section tracking
- * - Print support
- * - Scroll-to-top support
- * - Keyboard accessible navigation
- * - Reduced-motion awareness
- * - SEO-friendly document metadata
- * - Safe rendering of legal content
- * - TITech terminology consistency
+ * Centralized legal-document presentation layer for:
  *
- * IMPORTANT:
- * - Replace any legacy ACFOS terminology with TITech Community Capital.
- * - This component intentionally contains no authentication state.
- * - This component does not process financial transactions.
- * - Legal text should be reviewed and approved by qualified counsel before
- *   being treated as final legal documentation.
+ *   • Terms of Service
+ *   • Privacy Policy
+ *   • General Disclaimer
+ *   • Financial Disclaimer
+ *   • Legal Contact Information
+ *
+ * Design Principles
+ * ----------------------------------------------------------------------------
+ *   ✓ WCAG-oriented accessibility
+ *   ✓ Keyboard navigation
+ *   ✓ Screen-reader friendly landmarks
+ *   ✓ Responsive document layout
+ *   ✓ Mobile navigation drawer
+ *   ✓ Focus management
+ *   ✓ Deep-link / hash navigation
+ *   ✓ Browser back/forward hash support
+ *   ✓ Active-section tracking
+ *   ✓ Reduced-motion support
+ *   ✓ Print support
+ *   ✓ Scroll-to-top support
+ *   ✓ SEO metadata
+ *   ✓ Open Graph metadata
+ *   ✓ Twitter metadata
+ *   ✓ Canonical URL support
+ *   ✓ Safe static legal-content rendering
+ *   ✓ No authentication dependency
+ *   ✓ No financial transaction processing
+ *   ✓ No direct API/database access
+ *   ✓ TITech terminology consistency
+ *   ✓ SSR-safe browser API usage
+ *   ✓ Defensive DOM handling
+ *
+ * IMPORTANT LEGAL NOTICE
+ * ----------------------------------------------------------------------------
+ * The legal content contained in this component is application-facing
+ * documentation and should be reviewed, approved, and maintained by qualified
+ * legal/privacy professionals before being relied upon as final legal advice
+ * or contractual documentation.
+ *
  * ============================================================================
  */
 
@@ -39,35 +68,114 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+
+import {
+  Link,
+  useLocation,
+} from 'react-router-dom';
+
 import {
   AlertTriangle,
   ChevronUp,
   FileText,
   Home,
   Lock,
+  Menu,
   Printer,
   Scale,
   ShieldCheck,
+  X,
 } from 'lucide-react';
+
 import './Legal.css';
 
 /* ============================================================================
- * Constants
+ * APPLICATION / LEGAL METADATA
  * ========================================================================== */
 
-const BRAND_NAME = 'TITech Community Capital';
+const LEGAL_CONFIG = Object.freeze({
+  brandName:
+    'TITech Community Capital',
 
-const LEGAL_LAST_UPDATED = 'January 15, 2026';
-const LEGAL_VERSION = '1.0';
+  brandShortName:
+    'TITech Community Capital',
 
-const LEGAL_EMAIL = 'legal@titechcommunity.app';
-const LEGAL_PHONE = '+256782397907';
-const LEGAL_PHONE_DISPLAY = '+256 (782) 397907';
-const LEGAL_ADDRESS = 'Kampala, Uganda';
+  pageTitle:
+    'TITech Community Capital | Legal Information',
 
-const SCROLL_TOP_THRESHOLD = 420;
+  pageDescription:
+    'Terms of Service, Privacy Policy, financial disclaimer, and legal information for TITech Community Capital.',
 
+  legalVersion:
+    '1.0',
+
+  legalLastUpdated:
+    'January 15, 2026',
+
+  legalEffectiveDate:
+    'January 15, 2026',
+
+  legalEmail:
+    'legal@titechcommunity.app',
+
+  legalPhone:
+    '+256782397907',
+
+  legalPhoneDisplay:
+    '+256 (782) 397907',
+
+  legalAddress:
+    'Kampala, Uganda',
+
+  robots:
+    'index,follow',
+
+  canonicalPath:
+    '/legal',
+});
+
+/* ============================================================================
+ * BEHAVIOUR CONFIGURATION
+ * ========================================================================== */
+
+const LEGAL_UI_CONFIG = Object.freeze({
+  scrollTopThreshold:
+    420,
+
+  sectionScrollOffset:
+    20,
+
+  hashNavigationReleaseDelay:
+    650,
+
+  deepLinkDelay:
+    100,
+
+  focusDelay:
+    150,
+
+  activeSectionRootMargin:
+    '-8% 0px -70% 0px',
+
+  activeSectionThresholds:
+    Object.freeze([
+      0,
+      0.1,
+      0.25,
+      0.5,
+    ]),
+});
+
+/* ============================================================================
+ * SECTION ALLOW-LIST
+ * ========================================================================== */
+
+/**
+ * Explicit allow-list of navigable legal sections.
+ *
+ * This prevents arbitrary URL hash values from being interpreted as
+ * navigation targets.
+ */
 const SECTION_IDS = Object.freeze([
   'tos-1',
   'tos-2',
@@ -87,7 +195,7 @@ const SECTION_IDS = Object.freeze([
 ]);
 
 /* ============================================================================
- * Navigation Definition
+ * NAVIGATION DEFINITION
  * ========================================================================== */
 
 const NAV_SECTIONS = Object.freeze([
@@ -122,6 +230,7 @@ const NAV_SECTIONS = Object.freeze([
       },
     ],
   },
+
   {
     id: 'privacy',
     title: 'Privacy Policy',
@@ -153,6 +262,7 @@ const NAV_SECTIONS = Object.freeze([
       },
     ],
   },
+
   {
     id: 'disclaimer-section',
     title: 'Disclaimer',
@@ -175,23 +285,53 @@ const NAV_SECTIONS = Object.freeze([
 ]);
 
 /* ============================================================================
- * Utility Functions
+ * UTILITY FUNCTIONS
  * ========================================================================== */
 
+function isBrowser() {
+  return (
+    typeof window !== 'undefined' &&
+    typeof document !== 'undefined'
+  );
+}
+
 function prefersReducedMotion() {
-  if (typeof window === 'undefined') {
+  if (
+    !isBrowser() ||
+    typeof window.matchMedia !== 'function'
+  ) {
     return false;
   }
 
   return Boolean(
-    window.matchMedia?.(
-      '(prefers-reduced-motion: reduce)',
-    )?.matches,
+    window
+      .matchMedia(
+        '(prefers-reduced-motion: reduce)',
+      )
+      ?.matches,
   );
 }
 
+function isValidSectionId(id) {
+  return (
+    typeof id === 'string' &&
+    SECTION_IDS.includes(id)
+  );
+}
+
+function getLegalSection(id) {
+  if (
+    !isBrowser() ||
+    !isValidSectionId(id)
+  ) {
+    return null;
+  }
+
+  return document.getElementById(id);
+}
+
 function getLegalSectionElements() {
-  if (typeof document === 'undefined') {
+  if (!isBrowser()) {
     return [];
   }
 
@@ -200,26 +340,76 @@ function getLegalSectionElements() {
     .filter(Boolean);
 }
 
+function getCurrentHash() {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  const rawHash =
+    window.location.hash?.replace(
+      /^#/,
+      '',
+    );
+
+  if (!rawHash) {
+    return null;
+  }
+
+  try {
+    const decoded =
+      decodeURIComponent(rawHash);
+
+    return isValidSectionId(decoded)
+      ? decoded
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildCurrentUrl(hash = null) {
+  if (!isBrowser()) {
+    return '';
+  }
+
+  const base =
+    `${window.location.pathname}` +
+    `${window.location.search}`;
+
+  return hash
+    ? `${base}#${encodeURIComponent(hash)}`
+    : base;
+}
+
 function updateHash(id) {
   if (
-    typeof window === 'undefined' ||
-    !window.history?.replaceState
+    !isBrowser() ||
+    !window.history?.replaceState ||
+    !isValidSectionId(id)
   ) {
     return;
   }
 
-  const url = `${window.location.pathname}${window.location.search}#${id}`;
+  const nextUrl =
+    buildCurrentUrl(id);
+
+  if (
+    window.location.href ===
+    `${window.location.origin}${nextUrl}`
+  ) {
+    return;
+  }
 
   window.history.replaceState(
     window.history.state,
     '',
-    url,
+    nextUrl,
   );
 }
 
 function clearHash() {
   if (
-    typeof window === 'undefined' ||
+    !isBrowser() ||
     !window.history?.replaceState
   ) {
     return;
@@ -228,24 +418,340 @@ function clearHash() {
   window.history.replaceState(
     window.history.state,
     '',
-    `${window.location.pathname}${window.location.search}`,
+    buildCurrentUrl(),
   );
 }
 
 /* ============================================================================
- * Legal Page Header
+ * SEO / DOCUMENT METADATA
  * ========================================================================== */
 
-function LegalPageHeader() {
+function upsertMetaTag({
+  selector,
+  attributes,
+}) {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  let element =
+    document.head.querySelector(
+      selector,
+    );
+
+  if (!element) {
+    element =
+      document.createElement('meta');
+
+    Object.entries(attributes).forEach(
+      ([key, value]) => {
+        element.setAttribute(
+          key,
+          value,
+        );
+      },
+    );
+
+    document.head.appendChild(
+      element,
+    );
+  } else {
+    Object.entries(attributes).forEach(
+      ([key, value]) => {
+        element.setAttribute(
+          key,
+          value,
+        );
+      },
+    );
+  }
+
+  return element;
+}
+
+function upsertCanonicalLink(href) {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  let link =
+    document.head.querySelector(
+      'link[rel="canonical"]',
+    );
+
+  if (!link) {
+    link =
+      document.createElement('link');
+
+    link.setAttribute(
+      'rel',
+      'canonical',
+    );
+
+    document.head.appendChild(
+      link,
+    );
+  }
+
+  link.setAttribute(
+    'href',
+    href,
+  );
+
+  return link;
+}
+
+function useLegalMetadata() {
+  useEffect(() => {
+    if (!isBrowser()) {
+      return undefined;
+    }
+
+    const previousTitle =
+      document.title;
+
+    const managedMetaSelectors =
+      Object.freeze([
+        'meta[name="description"]',
+        'meta[name="robots"]',
+        'meta[property="og:title"]',
+        'meta[property="og:description"]',
+        'meta[property="og:type"]',
+        'meta[property="og:url"]',
+        'meta[name="twitter:card"]',
+        'meta[name="twitter:title"]',
+        'meta[name="twitter:description"]',
+      ]);
+
+    const previousMeta =
+      managedMetaSelectors.map(
+        (selector) => {
+          const element =
+            document.head.querySelector(
+              selector,
+            );
+
+          return {
+            selector,
+            element,
+            content:
+              element?.getAttribute(
+                'content',
+              ) ?? null,
+          };
+        },
+      );
+
+    const previousCanonical =
+      document.head.querySelector(
+        'link[rel="canonical"]',
+      );
+
+    const previousCanonicalHref =
+      previousCanonical?.getAttribute(
+        'href',
+      ) ?? null;
+
+    document.title =
+      LEGAL_CONFIG.pageTitle;
+
+    upsertMetaTag({
+      selector:
+        'meta[name="description"]',
+      attributes: {
+        name: 'description',
+        content:
+          LEGAL_CONFIG.pageDescription,
+      },
+    });
+
+    upsertMetaTag({
+      selector:
+        'meta[name="robots"]',
+      attributes: {
+        name: 'robots',
+        content:
+          LEGAL_CONFIG.robots,
+      },
+    });
+
+    upsertMetaTag({
+      selector:
+        'meta[property="og:title"]',
+      attributes: {
+        property: 'og:title',
+        content:
+          LEGAL_CONFIG.pageTitle,
+      },
+    });
+
+    upsertMetaTag({
+      selector:
+        'meta[property="og:description"]',
+      attributes: {
+        property: 'og:description',
+        content:
+          LEGAL_CONFIG.pageDescription,
+      },
+    });
+
+    upsertMetaTag({
+      selector:
+        'meta[property="og:type"]',
+      attributes: {
+        property: 'og:type',
+        content: 'website',
+      },
+    });
+
+    upsertMetaTag({
+      selector:
+        'meta[property="og:url"]',
+      attributes: {
+        property: 'og:url',
+        content:
+          `${window.location.origin}${LEGAL_CONFIG.canonicalPath}`,
+      },
+    });
+
+    upsertMetaTag({
+      selector:
+        'meta[name="twitter:card"]',
+      attributes: {
+        name: 'twitter:card',
+        content: 'summary',
+      },
+    });
+
+    upsertMetaTag({
+      selector:
+        'meta[name="twitter:title"]',
+      attributes: {
+        name: 'twitter:title',
+        content:
+          LEGAL_CONFIG.pageTitle,
+      },
+    });
+
+    upsertMetaTag({
+      selector:
+        'meta[name="twitter:description"]',
+      attributes: {
+        name: 'twitter:description',
+        content:
+          LEGAL_CONFIG.pageDescription,
+      },
+    });
+
+    upsertCanonicalLink(
+      `${window.location.origin}${LEGAL_CONFIG.canonicalPath}`,
+    );
+
+    return () => {
+      document.title =
+        previousTitle;
+
+      previousMeta.forEach(
+        ({
+          selector,
+          element,
+          content,
+        }) => {
+          if (element) {
+            if (content === null) {
+              element.removeAttribute(
+                'content',
+              );
+            } else {
+              element.setAttribute(
+                'content',
+                content,
+              );
+            }
+
+            return;
+          }
+
+          document.head
+            .querySelector(selector)
+            ?.remove();
+        },
+      );
+
+      const currentCanonical =
+        document.head.querySelector(
+          'link[rel="canonical"]',
+        );
+
+      if (previousCanonical) {
+        if (currentCanonical) {
+          if (
+            previousCanonicalHref ===
+            null
+          ) {
+            currentCanonical.removeAttribute(
+              'href',
+            );
+          } else {
+            currentCanonical.setAttribute(
+              'href',
+              previousCanonicalHref,
+            );
+          }
+        }
+      } else {
+        currentCanonical?.remove();
+      }
+    };
+  }, []);
+}
+
+/* ============================================================================
+ * LEGAL PAGE HEADER
+ * ========================================================================== */
+
+function LegalPageHeader({
+  onOpenMobileNavigation,
+}) {
   return (
     <header className="legal-header">
       <div className="legal-header-content">
-        <div
-          className="legal-header-badge"
-          aria-hidden="true"
-        >
-          <ShieldCheck size={20} />
-          <span>{BRAND_NAME}</span>
+        <div className="legal-header-top-row">
+          <div
+            className="legal-header-badge"
+            aria-label={
+              LEGAL_CONFIG.brandName
+            }
+          >
+            <ShieldCheck
+              size={20}
+              aria-hidden="true"
+            />
+
+            <span>
+              {LEGAL_CONFIG.brandShortName}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="legal-mobile-menu-button"
+            onClick={
+              onOpenMobileNavigation
+            }
+            aria-label="Open legal document navigation"
+            aria-controls="legal-mobile-navigation"
+            aria-expanded="false"
+          >
+            <Menu
+              size={22}
+              aria-hidden="true"
+            />
+
+            <span className="sr-only">
+              Open legal navigation
+            </span>
+          </button>
         </div>
 
         <h1 className="legal-title">
@@ -253,15 +759,17 @@ function LegalPageHeader() {
         </h1>
 
         <p className="legal-subtitle">
-          Terms of Service, Privacy Policy & Disclaimer
+          Terms of Service, Privacy Policy &amp;
+          Disclaimer
         </p>
 
         <p className="legal-description">
           Please review these legal documents carefully.
           They explain the terms governing your use of the{' '}
-          {BRAND_NAME} Platform, our approach to privacy
-          and data protection, and important financial,
-          operational, and technology-related disclaimers.
+          {LEGAL_CONFIG.brandName} Platform, our approach
+          to privacy and data protection, and important
+          financial, operational, and technology-related
+          disclaimers.
         </p>
 
         <div
@@ -269,15 +777,32 @@ function LegalPageHeader() {
           aria-label="Legal document metadata"
         >
           <span>
-            <strong>Last updated:</strong>{' '}
-            {LEGAL_LAST_UPDATED}
+            <strong>
+              Last updated:
+            </strong>{' '}
+            {LEGAL_CONFIG.legalLastUpdated}
           </span>
 
-          <span aria-hidden="true">•</span>
+          <span aria-hidden="true">
+            •
+          </span>
 
           <span>
-            <strong>Version:</strong>{' '}
-            {LEGAL_VERSION}
+            <strong>
+              Effective:
+            </strong>{' '}
+            {LEGAL_CONFIG.legalEffectiveDate}
+          </span>
+
+          <span aria-hidden="true">
+            •
+          </span>
+
+          <span>
+            <strong>
+              Version:
+            </strong>{' '}
+            {LEGAL_CONFIG.legalVersion}
           </span>
         </div>
       </div>
@@ -286,7 +811,7 @@ function LegalPageHeader() {
 }
 
 /* ============================================================================
- * Legal Navigation
+ * LEGAL NAVIGATION
  * ========================================================================== */
 
 function LegalNavigation({
@@ -294,67 +819,117 @@ function LegalNavigation({
   activeSection,
   onSectionNavigation,
   onPrint,
+  mobile = false,
+  onClose,
+  closeButtonRef,
 }) {
+  const navigationId =
+    mobile
+      ? 'legal-mobile-navigation'
+      : 'legal-desktop-navigation';
+
   return (
     <aside
-      className="legal-sidebar"
+      id={navigationId}
+      className={
+        mobile
+          ? 'legal-sidebar legal-sidebar-mobile'
+          : 'legal-sidebar'
+      }
       aria-label="Legal document navigation"
     >
+      {mobile && (
+        <div className="legal-mobile-nav-header">
+          <strong>
+            Legal Navigation
+          </strong>
+
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="legal-mobile-close-button"
+            onClick={onClose}
+            aria-label="Close legal document navigation"
+          >
+            <X
+              size={20}
+              aria-hidden="true"
+            />
+
+            <span className="sr-only">
+              Close legal navigation
+            </span>
+          </button>
+        </div>
+      )}
+
       <nav
         className="legal-nav"
         aria-label="Legal sections"
       >
-        {navigation.map((section) => {
-          const SectionIcon = section.icon;
+        {navigation.map(
+          (section) => {
+            const SectionIcon =
+              section.icon;
 
-          return (
-            <div
-              className="nav-section"
-              key={section.id}
-            >
-              <h2 className="nav-section-title">
-                <SectionIcon
-                  size={16}
-                  aria-hidden="true"
-                />
+            return (
+              <div
+                className="nav-section"
+                key={section.id}
+              >
+                <h2 className="nav-section-title">
+                  <SectionIcon
+                    size={16}
+                    aria-hidden="true"
+                  />
 
-                <span>{section.title}</span>
-              </h2>
+                  <span>
+                    {section.title}
+                  </span>
+                </h2>
 
-              <div className="nav-section-links">
-                {section.links.map((link) => {
-                  const isActive =
-                    activeSection === link.id;
+                <div className="nav-section-links">
+                  {section.links.map(
+                    (link) => {
+                      const isActive =
+                        activeSection ===
+                        link.id;
 
-                  return (
-                    <a
-                      key={link.id}
-                      href={`#${link.id}`}
-                      className={`nav-link${
-                        isActive
-                          ? ' active'
-                          : ''
-                      }`}
-                      aria-current={
-                        isActive
-                          ? 'location'
-                          : undefined
-                      }
-                      onClick={(event) =>
-                        onSectionNavigation(
-                          event,
-                          link.id,
-                        )
-                      }
-                    >
-                      {link.label}
-                    </a>
-                  );
-                })}
+                      return (
+                        <a
+                          key={link.id}
+                          href={`#${link.id}`}
+                          className={
+                            `nav-link${
+                              isActive
+                                ? ' active'
+                                : ''
+                            }`
+                          }
+                          aria-current={
+                            isActive
+                              ? 'location'
+                              : undefined
+                          }
+                          onClick={(
+                            event,
+                          ) =>
+                            onSectionNavigation(
+                              event,
+                              link.id,
+                            )
+                          }
+                        >
+                          {link.label}
+                        </a>
+                      );
+                    },
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          },
+        )}
       </nav>
 
       <div className="legal-nav-actions">
@@ -362,20 +937,28 @@ function LegalNavigation({
           to="/dashboard"
           className="nav-action-link"
           title="Return to dashboard"
-          aria-label={`Return to ${BRAND_NAME} dashboard`}
+          aria-label={
+            `Return to ${LEGAL_CONFIG.brandName} dashboard`
+          }
+          onClick={onClose}
         >
           <Home
             size={18}
             aria-hidden="true"
           />
 
-          <span>Dashboard</span>
+          <span>
+            Dashboard
+          </span>
         </Link>
 
         <button
           type="button"
           className="nav-action-link"
-          onClick={onPrint}
+          onClick={() => {
+            onPrint();
+            onClose?.();
+          }}
           title="Print legal documents"
           aria-label="Print legal documents"
         >
@@ -384,7 +967,9 @@ function LegalNavigation({
             aria-hidden="true"
           />
 
-          <span>Print</span>
+          <span>
+            Print
+          </span>
         </button>
       </div>
     </aside>
@@ -392,7 +977,7 @@ function LegalNavigation({
 }
 
 /* ============================================================================
- * Terms of Service
+ * TERMS OF SERVICE
  * ========================================================================== */
 
 function TermsOfService() {
@@ -418,7 +1003,8 @@ function TermsOfService() {
           </h2>
 
           <p className="section-update">
-            Last updated: {LEGAL_LAST_UPDATED}
+            Last updated:{' '}
+            {LEGAL_CONFIG.legalLastUpdated}
           </p>
         </div>
       </div>
@@ -427,25 +1013,28 @@ function TermsOfService() {
         id="tos-1"
         className="legal-section"
         aria-labelledby="tos-1-title"
+        tabIndex={-1}
       >
         <h3 id="tos-1-title">
           1. Acceptance of Terms
         </h3>
 
         <p>
-          By accessing or using the {BRAND_NAME} Platform,
-          you acknowledge that you have read, understood,
-          and agree to be bound by these Terms of Service
-          and applicable laws and regulations.
+          By accessing or using the{' '}
+          {LEGAL_CONFIG.brandName} Platform, you
+          acknowledge that you have read, understood, and
+          agree to be bound by these Terms of Service and
+          applicable laws and regulations.
         </p>
 
         <p>
           If you do not agree with these Terms, you should
-          discontinue use of the Platform. {BRAND_NAME} may
-          update these Terms from time to time. Continued
-          use following publication of material changes
-          constitutes acceptance of the revised Terms to
-          the extent permitted by applicable law.
+          discontinue use of the Platform.{' '}
+          {LEGAL_CONFIG.brandName} may update these Terms
+          from time to time. Continued use following
+          publication of material changes constitutes
+          acceptance of the revised Terms to the extent
+          permitted by applicable law.
         </p>
       </section>
 
@@ -453,18 +1042,22 @@ function TermsOfService() {
         id="tos-2"
         className="legal-section"
         aria-labelledby="tos-2-title"
+        tabIndex={-1}
       >
         <h3 id="tos-2-title">
-          2. User Rights & Responsibilities
+          2. User Rights &amp; Responsibilities
         </h3>
 
         <p>
-          Subject to these Terms, {BRAND_NAME} grants you
-          a limited, non-exclusive, non-transferable right
-          to access and use the Platform for lawful purposes.
+          Subject to these Terms,{' '}
+          {LEGAL_CONFIG.brandName} grants you a limited,
+          non-exclusive, non-transferable right to access
+          and use the Platform for lawful purposes.
         </p>
 
-        <h4>User Responsibilities</h4>
+        <h4>
+          User Responsibilities
+        </h4>
 
         <ul>
           <li>
@@ -489,7 +1082,8 @@ function TermsOfService() {
 
           <li>
             Avoid using the Platform for illegal,
-            fraudulent, deceptive, or unauthorized purposes.
+            fraudulent, deceptive, or unauthorized
+            purposes.
           </li>
 
           <li>
@@ -503,15 +1097,17 @@ function TermsOfService() {
         id="tos-3"
         className="legal-section"
         aria-labelledby="tos-3-title"
+        tabIndex={-1}
       >
         <h3 id="tos-3-title">
           3. User Conduct
         </h3>
 
         <p>
-          You agree not to misuse the Platform or interfere
-          with the rights, security, availability, integrity,
-          or operation of {BRAND_NAME} or its users.
+          You agree not to misuse the Platform or
+          interfere with the rights, security,
+          availability, integrity, or operation of{' '}
+          {LEGAL_CONFIG.brandName} or its users.
         </p>
 
         <ul>
@@ -526,8 +1122,8 @@ function TermsOfService() {
           </li>
 
           <li>
-            Attempt to gain unauthorized access to systems,
-            accounts, APIs, or data.
+            Attempt to gain unauthorized access to
+            systems, accounts, APIs, or data.
           </li>
 
           <li>
@@ -563,8 +1159,8 @@ function TermsOfService() {
           </li>
 
           <li>
-            Engage in unlawful discrimination, harassment,
-            or abusive conduct.
+            Engage in unlawful discrimination,
+            harassment, or abusive conduct.
           </li>
         </ul>
       </section>
@@ -573,20 +1169,23 @@ function TermsOfService() {
         id="tos-4"
         className="legal-section"
         aria-labelledby="tos-4-title"
+        tabIndex={-1}
       >
         <h3 id="tos-4-title">
           4. Payment Terms
         </h3>
 
         <p>
-          {BRAND_NAME} may provide technology that
-          facilitates or records financial activity between
-          authorized participants. Specific payment services
-          may depend on approved payment providers and
-          applicable regulatory requirements.
+          {LEGAL_CONFIG.brandName} may provide technology
+          that facilitates or records financial activity
+          between authorized participants. Specific
+          payment services may depend on approved payment
+          providers and applicable regulatory requirements.
         </p>
 
-        <h4>Payment Processing</h4>
+        <h4>
+          Payment Processing
+        </h4>
 
         <ul>
           <li>
@@ -611,32 +1210,36 @@ function TermsOfService() {
 
           <li>
             Users may be responsible for fees imposed by
-            their financial institution or payment provider.
+            their financial institution or payment
+            provider.
           </li>
 
           <li>
-            Transaction records should be reviewed promptly
-            and discrepancies reported through appropriate
-            support channels.
+            Transaction records should be reviewed
+            promptly and discrepancies reported through
+            appropriate support channels.
           </li>
         </ul>
 
-        <h4>Refunds & Reversals</h4>
+        <h4>
+          Refunds &amp; Reversals
+        </h4>
 
         <ul>
           <li>
-            Refunds or reversals are subject to the nature
-            of the transaction and applicable provider rules.
+            Refunds or reversals are subject to the
+            nature of the transaction and applicable
+            provider rules.
           </li>
 
           <li>
-            Certain completed financial transactions may
-            not be reversible.
+            Certain completed financial transactions
+            may not be reversible.
           </li>
 
           <li>
-            Transaction disputes should be reported as soon
-            as reasonably possible.
+            Transaction disputes should be reported as
+            soon as reasonably possible.
           </li>
 
           <li>
@@ -650,6 +1253,7 @@ function TermsOfService() {
         id="tos-5"
         className="legal-section"
         aria-labelledby="tos-5-title"
+        tabIndex={-1}
       >
         <h3 id="tos-5-title">
           5. Loan Agreements
@@ -674,8 +1278,9 @@ function TermsOfService() {
           </li>
 
           <li>
-            {BRAND_NAME} does not guarantee repayment unless
-            expressly stated in a separate binding agreement.
+            {LEGAL_CONFIG.brandName} does not guarantee
+            repayment unless expressly stated in a
+            separate binding agreement.
           </li>
 
           <li>
@@ -699,11 +1304,13 @@ function TermsOfService() {
           className="highlight"
           role="note"
         >
-          <strong>Important:</strong>{' '}
-          {BRAND_NAME} is a technology platform and does
-          not, by itself, constitute a licensed financial
-          institution or provider of personalized financial
-          or legal advice.
+          <strong>
+            Important:
+          </strong>{' '}
+          {LEGAL_CONFIG.brandName} is a technology
+          platform and does not, by itself, constitute a
+          licensed financial institution or provider of
+          personalized financial or legal advice.
         </div>
       </section>
 
@@ -711,31 +1318,32 @@ function TermsOfService() {
         id="tos-6"
         className="legal-section"
         aria-labelledby="tos-6-title"
+        tabIndex={-1}
       >
         <h3 id="tos-6-title">
           6. Limitation of Liability
         </h3>
 
         <p>
-          To the fullest extent permitted by applicable law,
-          {` ${BRAND_NAME}`} will not be liable for indirect,
-          incidental, special, consequential, or punitive
-          damages arising from use of the Platform, including
-          loss of profits, revenue, data, or business
-          opportunities.
+          To the fullest extent permitted by applicable
+          law, {LEGAL_CONFIG.brandName} will not be liable
+          for indirect, incidental, special, consequential,
+          or punitive damages arising from use of the
+          Platform, including loss of profits, revenue,
+          data, or business opportunities.
         </p>
 
         <p>
-          Nothing in these Terms excludes or limits liability
-          that cannot lawfully be excluded or limited under
-          applicable law.
+          Nothing in these Terms excludes or limits
+          liability that cannot lawfully be excluded or
+          limited under applicable law.
         </p>
 
         <p>
           Where a limitation of liability is legally
-          enforceable, {BRAND_NAME}'s aggregate liability
-          will be limited to the maximum extent permitted
-          by applicable law.
+          enforceable, {LEGAL_CONFIG.brandName}'s aggregate
+          liability will be limited to the maximum extent
+          permitted by applicable law.
         </p>
       </section>
     </section>
@@ -743,7 +1351,7 @@ function TermsOfService() {
 }
 
 /* ============================================================================
- * Privacy Policy
+ * PRIVACY POLICY
  * ========================================================================== */
 
 function PrivacyPolicy() {
@@ -769,7 +1377,8 @@ function PrivacyPolicy() {
           </h2>
 
           <p className="section-update">
-            Last updated: {LEGAL_LAST_UPDATED}
+            Last updated:{' '}
+            {LEGAL_CONFIG.legalLastUpdated}
           </p>
         </div>
       </div>
@@ -778,38 +1387,51 @@ function PrivacyPolicy() {
         id="pp-1"
         className="legal-section"
         aria-labelledby="pp-1-title"
+        tabIndex={-1}
       >
         <h3 id="pp-1-title">
           1. Information We Collect
         </h3>
 
         <p>
-          We collect information necessary to operate the
-          {` ${BRAND_NAME}`} Platform, provide requested
-          services, maintain security, and comply with
-          applicable legal obligations.
+          We collect information necessary to operate
+          the {LEGAL_CONFIG.brandName} Platform, provide
+          requested services, maintain security, and comply
+          with applicable legal obligations.
         </p>
 
-        <h4>Information You Provide</h4>
+        <h4>
+          Information You Provide
+        </h4>
 
         <ul>
-          <li>Name and contact information.</li>
-          <li>Phone number and address information.</li>
+          <li>
+            Name and contact information.
+          </li>
+
+          <li>
+            Phone number and address information.
+          </li>
+
           <li>
             Identification and verification information
             where required.
           </li>
+
           <li>
             Financial and transaction-related information
             necessary to provide requested services.
           </li>
+
           <li>
             Profile and account information you choose to
             provide.
           </li>
         </ul>
 
-        <h4>Automatically Collected Information</h4>
+        <h4>
+          Automatically Collected Information
+        </h4>
 
         <ul>
           <li>
@@ -842,12 +1464,15 @@ function PrivacyPolicy() {
         id="pp-2"
         className="legal-section"
         aria-labelledby="pp-2-title"
+        tabIndex={-1}
       >
         <h3 id="pp-2-title">
           2. How We Use Information
         </h3>
 
-        <p>We may use collected information to:</p>
+        <p>
+          We may use collected information to:
+        </p>
 
         <ul>
           <li>
@@ -865,9 +1490,8 @@ function PrivacyPolicy() {
           </li>
 
           <li>
-            Detect, investigate, and prevent fraud,
-            abuse, unauthorized activity, and security
-            incidents.
+            Detect, investigate, and prevent fraud, abuse,
+            unauthorized activity, and security incidents.
           </li>
 
           <li>
@@ -896,15 +1520,17 @@ function PrivacyPolicy() {
         id="pp-3"
         className="legal-section"
         aria-labelledby="pp-3-title"
+        tabIndex={-1}
       >
         <h3 id="pp-3-title">
           3. Data Security
         </h3>
 
         <p>
-          {BRAND_NAME} maintains technical and organizational
-          safeguards designed to protect personal information
-          against unauthorized access, alteration, disclosure,
+          {LEGAL_CONFIG.brandName} maintains technical
+          and organizational safeguards designed to
+          protect personal information against
+          unauthorized access, alteration, disclosure,
           destruction, and misuse.
         </p>
 
@@ -919,8 +1545,8 @@ function PrivacyPolicy() {
           </li>
 
           <li>
-            Access controls based on operational requirements
-            and authorization.
+            Access controls based on operational
+            requirements and authorization.
           </li>
 
           <li>
@@ -950,6 +1576,7 @@ function PrivacyPolicy() {
         id="pp-4"
         className="legal-section"
         aria-labelledby="pp-4-title"
+        tabIndex={-1}
       >
         <h3 id="pp-4-title">
           4. Your Privacy Rights
@@ -963,42 +1590,58 @@ function PrivacyPolicy() {
 
         <ul>
           <li>
-            <strong>Access:</strong> Request access to
-            personal information we hold about you.
+            <strong>
+              Access:
+            </strong>{' '}
+            Request access to personal information we hold
+            about you.
           </li>
 
           <li>
-            <strong>Rectification:</strong> Request
-            correction of inaccurate or incomplete
+            <strong>
+              Rectification:
+            </strong>{' '}
+            Request correction of inaccurate or incomplete
             information.
           </li>
 
           <li>
-            <strong>Erasure:</strong> Request deletion
-            where legally permitted.
+            <strong>
+              Erasure:
+            </strong>{' '}
+            Request deletion where legally permitted.
           </li>
 
           <li>
-            <strong>Restriction:</strong> Request
-            restriction of certain processing activities
-            where applicable.
+            <strong>
+              Restriction:
+            </strong>{' '}
+            Request restriction of certain processing
+            activities where applicable.
           </li>
 
           <li>
-            <strong>Portability:</strong> Request
-            applicable personal information in a portable
-            format.
+            <strong>
+              Portability:
+            </strong>{' '}
+            Request applicable personal information in a
+            portable format.
           </li>
 
           <li>
-            <strong>Withdrawal of Consent:</strong>{' '}
+            <strong>
+              Withdrawal of Consent:
+            </strong>{' '}
             Withdraw consent where processing relies on
             consent.
           </li>
 
           <li>
-            <strong>Complaint:</strong> Lodge a complaint
-            with the relevant data protection authority.
+            <strong>
+              Complaint:
+            </strong>{' '}
+            Lodge a complaint with the relevant data
+            protection authority.
           </li>
         </ul>
 
@@ -1013,9 +1656,10 @@ function PrivacyPolicy() {
         id="pp-5"
         className="legal-section"
         aria-labelledby="pp-5-title"
+        tabIndex={-1}
       >
         <h3 id="pp-5-title">
-          5. Cookies & Tracking
+          5. Cookies &amp; Tracking
         </h3>
 
         <p>
@@ -1024,28 +1668,40 @@ function PrivacyPolicy() {
           preferences, analytics, and service performance.
         </p>
 
-        <h4>Potential Cookie Categories</h4>
+        <h4>
+          Potential Cookie Categories
+        </h4>
 
         <ul>
           <li>
-            <strong>Essential:</strong> Required for
-            functionality, authentication, and security.
+            <strong>
+              Essential:
+            </strong>{' '}
+            Required for functionality, authentication,
+            and security.
           </li>
 
           <li>
-            <strong>Performance:</strong> Used to understand
-            service performance and usage.
+            <strong>
+              Performance:
+            </strong>{' '}
+            Used to understand service performance and
+            usage.
           </li>
 
           <li>
-            <strong>Functional:</strong> Used to remember
-            preferences and settings.
+            <strong>
+              Functional:
+            </strong>{' '}
+            Used to remember preferences and settings.
           </li>
 
           <li>
-            <strong>Marketing:</strong> Where applicable
-            and permitted, used for relevant communications
-            and measurement.
+            <strong>
+              Marketing:
+            </strong>{' '}
+            Where applicable and permitted, used for
+            relevant communications and measurement.
           </li>
         </ul>
 
@@ -1060,15 +1716,16 @@ function PrivacyPolicy() {
         id="pp-6"
         className="legal-section"
         aria-labelledby="pp-6-title"
+        tabIndex={-1}
       >
         <h3 id="pp-6-title">
           6. Third-Party Services
         </h3>
 
         <p>
-          {BRAND_NAME} may work with carefully selected
-          third-party providers that support Platform
-          operations.
+          {LEGAL_CONFIG.brandName} may work with carefully
+          selected third-party providers that support
+          Platform operations.
         </p>
 
         <ul>
@@ -1095,10 +1752,10 @@ function PrivacyPolicy() {
         </ul>
 
         <p>
-          Third-party providers may process information on
-          our behalf subject to applicable agreements,
-          security requirements, and legal obligations.
-          {` ${BRAND_NAME}`} does not sell personal
+          Third-party providers may process information
+          on our behalf subject to applicable agreements,
+          security requirements, and legal obligations.{' '}
+          {LEGAL_CONFIG.brandName} does not sell personal
           information as a business model.
         </p>
       </section>
@@ -1107,7 +1764,7 @@ function PrivacyPolicy() {
 }
 
 /* ============================================================================
- * Disclaimer
+ * DISCLAIMER
  * ========================================================================== */
 
 function Disclaimer() {
@@ -1131,6 +1788,11 @@ function Disclaimer() {
           >
             Disclaimer
           </h2>
+
+          <p className="section-update">
+            Last updated:{' '}
+            {LEGAL_CONFIG.legalLastUpdated}
+          </p>
         </div>
       </div>
 
@@ -1138,18 +1800,22 @@ function Disclaimer() {
         id="disclaimer"
         className="legal-section"
         aria-labelledby="general-disclaimer-title"
+        tabIndex={-1}
       >
         <h3 id="general-disclaimer-title">
           General Disclaimer
         </h3>
 
         <p>
-          The {BRAND_NAME} Platform is provided on an
-          “as-is” and “as-available” basis to the fullest
-          extent permitted by applicable law.
+          The {LEGAL_CONFIG.brandName} Platform is
+          provided on an “as-is” and “as-available” basis
+          to the fullest extent permitted by applicable
+          law.
         </p>
 
-        <h4>Warranty Disclaimers</h4>
+        <h4>
+          Warranty Disclaimers
+        </h4>
 
         <ul>
           <li>
@@ -1168,8 +1834,8 @@ function Disclaimer() {
           </li>
 
           <li>
-            Third-party services and content may be subject
-            to separate terms and risks.
+            Third-party services and content may be
+            subject to separate terms and risks.
           </li>
 
           <li>
@@ -1183,6 +1849,7 @@ function Disclaimer() {
         id="financial-disclaimer"
         className="legal-section"
         aria-labelledby="financial-disclaimer-title"
+        tabIndex={-1}
       >
         <h3 id="financial-disclaimer-title">
           Financial Disclaimer
@@ -1192,14 +1859,19 @@ function Disclaimer() {
           className="highlight"
           role="note"
         >
-          <strong>Important:</strong>{' '}
-          {BRAND_NAME} is a technology platform and does
-          not provide personalized financial, investment,
-          tax, or legal advice unless expressly stated
-          under a separate authorized service.
+          <strong>
+            Important:
+          </strong>{' '}
+          {LEGAL_CONFIG.brandName} is a technology
+          platform and does not provide personalized
+          financial, investment, tax, or legal advice
+          unless expressly stated under a separate
+          authorized service.
         </div>
 
-        <h4>Key Points</h4>
+        <h4>
+          Key Points
+        </h4>
 
         <ul>
           <li>
@@ -1215,9 +1887,9 @@ function Disclaimer() {
           </li>
 
           <li>
-            {BRAND_NAME} does not guarantee the
-            creditworthiness, reliability, or performance
-            of another participant.
+            {LEGAL_CONFIG.brandName} does not guarantee
+            the creditworthiness, reliability, or
+            performance of another participant.
           </li>
 
           <li>
@@ -1242,17 +1914,18 @@ function Disclaimer() {
         id="contact-legal"
         className="legal-section"
         aria-labelledby="contact-legal-title"
+        tabIndex={-1}
       >
         <h3 id="contact-legal-title">
           Contact Legal
         </h3>
 
         <p>
-          If you have questions regarding these documents,
-          privacy practices, or applicable user rights,
-          please contact the {BRAND_NAME} legal team
-          through the organization's approved contact
-          channels.
+          If you have questions regarding these
+          documents, privacy practices, or applicable user
+          rights, please contact the{' '}
+          {LEGAL_CONFIG.brandName} legal team through the
+          organization's approved contact channels.
         </p>
 
         <div
@@ -1260,26 +1933,38 @@ function Disclaimer() {
           aria-label="Legal contact information"
         >
           <p>
-            <strong>Email:</strong>{' '}
-            <a href={`mailto:${LEGAL_EMAIL}`}>
-              {LEGAL_EMAIL}
+            <strong>
+              Email:
+            </strong>{' '}
+            <a
+              href={`mailto:${LEGAL_CONFIG.legalEmail}`}
+            >
+              {LEGAL_CONFIG.legalEmail}
             </a>
           </p>
 
           <p>
-            <strong>Phone:</strong>{' '}
-            <a href={`tel:${LEGAL_PHONE}`}>
-              {LEGAL_PHONE_DISPLAY}
+            <strong>
+              Phone:
+            </strong>{' '}
+            <a
+              href={`tel:${LEGAL_CONFIG.legalPhone}`}
+            >
+              {LEGAL_CONFIG.legalPhoneDisplay}
             </a>
           </p>
 
           <p>
-            <strong>Address:</strong>{' '}
-            {LEGAL_ADDRESS}
+            <strong>
+              Address:
+            </strong>{' '}
+            {LEGAL_CONFIG.legalAddress}
           </p>
 
           <p>
-            <strong>Target response time:</strong>{' '}
+            <strong>
+              Target response time:
+            </strong>{' '}
             We aim to respond to legal and privacy
             inquiries within 5 business days, subject to
             complexity, verification requirements, and
@@ -1292,20 +1977,30 @@ function Disclaimer() {
 }
 
 /* ============================================================================
- * Document Footer
+ * DOCUMENT FOOTER
  * ========================================================================== */
 
 function LegalDocumentFooter() {
-  const currentYear = new Date().getFullYear();
+  const currentYear =
+    new Date().getFullYear();
 
   return (
-    <footer className="legal-footer-note">
+    <footer
+      className="legal-footer-note"
+      aria-label="Legal document footer"
+    >
       <p>
-        <strong>Last Updated:</strong>{' '}
-        {LEGAL_LAST_UPDATED}{' '}
-        <span aria-hidden="true">|</span>{' '}
-        <strong>Version:</strong>{' '}
-        {LEGAL_VERSION}
+        <strong>
+          Last Updated:
+        </strong>{' '}
+        {LEGAL_CONFIG.legalLastUpdated}{' '}
+        <span aria-hidden="true">
+          |
+        </span>{' '}
+        <strong>
+          Version:
+        </strong>{' '}
+        {LEGAL_CONFIG.legalVersion}
       </p>
 
       <p>
@@ -1317,162 +2012,269 @@ function LegalDocumentFooter() {
       </p>
 
       <p className="legal-footer-brand">
-        © {currentYear} {BRAND_NAME}. All rights reserved.
+        © {currentYear} {LEGAL_CONFIG.brandName}. All
+        rights reserved.
       </p>
     </footer>
   );
 }
 
 /* ============================================================================
- * Main Component
+ * MAIN COMPONENT
  * ========================================================================== */
 
 const LegalPages = () => {
-  const location = useLocation();
+  const location =
+    useLocation();
 
-  const contentRef = useRef(null);
-  const observerRef = useRef(null);
-  const hashNavigationRef = useRef(false);
+  const contentRef =
+    useRef(null);
 
-  const [activeSection, setActiveSection] =
-    useState('tos-1');
+  const observerRef =
+    useRef(null);
 
-  const [showScrollTop, setShowScrollTop] =
-    useState(false);
+  const releaseHashNavigationTimerRef =
+    useRef(null);
 
-  const navigation = useMemo(
-    () => NAV_SECTIONS,
-    [],
-  );
+  const deepLinkTimerRef =
+    useRef(null);
+
+  const mobileNavigationCloseButtonRef =
+    useRef(null);
+
+  const mobileNavigationTriggerRef =
+    useRef(null);
+
+  const [
+    activeSection,
+    setActiveSection,
+  ] = useState('tos-1');
+
+  const [
+    showScrollTop,
+    setShowScrollTop,
+  ] = useState(false);
+
+  const [
+    mobileNavigationOpen,
+    setMobileNavigationOpen,
+  ] = useState(false);
+
+  const navigation =
+    useMemo(
+      () => NAV_SECTIONS,
+      [],
+    );
+
+  useLegalMetadata();
 
   /* --------------------------------------------------------------------------
    * Scroll handling
    * ------------------------------------------------------------------------ */
 
-  const handleScroll = useCallback(() => {
-    const container = contentRef.current;
+  const handleScroll =
+    useCallback(() => {
+      const container =
+        contentRef.current;
 
-    if (!container) {
-      return;
-    }
+      if (!container) {
+        return;
+      }
 
-    setShowScrollTop(
-      container.scrollTop > SCROLL_TOP_THRESHOLD,
-    );
-  }, []);
+      setShowScrollTop(
+        container.scrollTop >
+          LEGAL_UI_CONFIG.scrollTopThreshold,
+      );
+    }, []);
 
   /* --------------------------------------------------------------------------
-   * Scroll to section
+   * Mobile navigation
    * ------------------------------------------------------------------------ */
 
-  const scrollToSection = useCallback((id) => {
-    if (
-      typeof document === 'undefined' ||
-      !SECTION_IDS.includes(id)
-    ) {
-      return;
-    }
+  const closeMobileNavigation =
+    useCallback(() => {
+      setMobileNavigationOpen(false);
+    }, []);
 
-    const target =
-      document.getElementById(id);
+  const openMobileNavigation =
+    useCallback(() => {
+      setMobileNavigationOpen(true);
+    }, []);
 
-    const container =
-      contentRef.current;
+  /* --------------------------------------------------------------------------
+   * Section scrolling
+   * ------------------------------------------------------------------------ */
 
-    if (!target || !container) {
-      return;
-    }
+  const scrollToSection =
+    useCallback(
+      (id) => {
+        if (
+          !isBrowser() ||
+          !isValidSectionId(id)
+        ) {
+          return;
+        }
 
-    hashNavigationRef.current = true;
+        const target =
+          getLegalSection(id);
 
-    const behavior = prefersReducedMotion()
-      ? 'auto'
-      : 'smooth';
+        const container =
+          contentRef.current;
 
-    /*
-     * scrollIntoView is intentionally avoided here because the page uses
-     * an internal scrolling container. Computing the relative offset keeps
-     * navigation deterministic across browsers.
-     */
-    const containerRect =
-      container.getBoundingClientRect();
+        if (
+          !target ||
+          !container
+        ) {
+          return;
+        }
 
-    const targetRect =
-      target.getBoundingClientRect();
+        if (
+          releaseHashNavigationTimerRef.current
+        ) {
+          window.clearTimeout(
+            releaseHashNavigationTimerRef.current,
+          );
+        }
 
-    const offset =
-      targetRect.top -
-      containerRect.top +
-      container.scrollTop -
-      16;
+        container.dataset.hashNavigation =
+          'true';
 
-    container.scrollTo({
-      top: Math.max(0, offset),
-      behavior,
-    });
+        const behavior =
+          prefersReducedMotion()
+            ? 'auto'
+            : 'smooth';
 
-    setActiveSection(id);
-    updateHash(id);
+        const containerRect =
+          container.getBoundingClientRect();
 
-    /*
-     * Allow the IntersectionObserver to resume normal tracking after the
-     * programmatic scroll has completed.
-     */
-    window.setTimeout(
-      () => {
-        hashNavigationRef.current = false;
+        const targetRect =
+          target.getBoundingClientRect();
+
+        const targetTop =
+          targetRect.top -
+          containerRect.top +
+          container.scrollTop -
+          LEGAL_UI_CONFIG.sectionScrollOffset;
+
+        container.scrollTo({
+          top: Math.max(
+            0,
+            targetTop,
+          ),
+          behavior,
+        });
+
+        setActiveSection(id);
+
+        updateHash(id);
+
+        closeMobileNavigation();
+
+        const focusDelay =
+          behavior === 'smooth'
+            ? LEGAL_UI_CONFIG.focusDelay
+            : 0;
+
+        window.setTimeout(
+          () => {
+            try {
+              target.focus({
+                preventScroll: true,
+              });
+            } catch {
+              target.focus();
+            }
+          },
+          focusDelay,
+        );
+
+        releaseHashNavigationTimerRef.current =
+          window.setTimeout(
+            () => {
+              delete container.dataset
+                .hashNavigation;
+            },
+            behavior === 'smooth'
+              ? LEGAL_UI_CONFIG.hashNavigationReleaseDelay
+              : 100,
+          );
       },
-      behavior === 'smooth' ? 500 : 50,
+      [
+        closeMobileNavigation,
+      ],
     );
-  }, []);
 
   /* --------------------------------------------------------------------------
-   * Navigation handler
+   * Section navigation
    * ------------------------------------------------------------------------ */
 
-  const handleSectionNavigation = useCallback(
-    (event, id) => {
-      event.preventDefault();
+  const handleSectionNavigation =
+    useCallback(
+      (event, id) => {
+        event.preventDefault();
 
-      scrollToSection(id);
-    },
-    [scrollToSection],
-  );
+        scrollToSection(id);
+      },
+      [scrollToSection],
+    );
 
   /* --------------------------------------------------------------------------
    * Scroll to top
    * ------------------------------------------------------------------------ */
 
-  const scrollToTop = useCallback(() => {
-    const container =
-      contentRef.current;
+  const scrollToTop =
+    useCallback(() => {
+      const container =
+        contentRef.current;
 
-    if (!container) {
-      return;
-    }
+      if (!container) {
+        return;
+      }
 
-    container.scrollTo({
-      top: 0,
-      behavior: prefersReducedMotion()
-        ? 'auto'
-        : 'smooth',
-    });
+      if (
+        releaseHashNavigationTimerRef.current &&
+        isBrowser()
+      ) {
+        window.clearTimeout(
+          releaseHashNavigationTimerRef.current,
+        );
+      }
 
-    setActiveSection('tos-1');
-    clearHash();
-  }, []);
+      container.scrollTo({
+        top: 0,
+        behavior:
+          prefersReducedMotion()
+            ? 'auto'
+            : 'smooth',
+      });
+
+      setActiveSection(
+        'tos-1',
+      );
+
+      clearHash();
+
+      try {
+        container.focus({
+          preventScroll: true,
+        });
+      } catch {
+        container.focus();
+      }
+    }, []);
 
   /* --------------------------------------------------------------------------
    * Print
    * ------------------------------------------------------------------------ */
 
-  const handlePrint = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
+  const handlePrint =
+    useCallback(() => {
+      if (!isBrowser()) {
+        return;
+      }
 
-    window.print();
-  }, []);
+      window.print();
+    }, []);
 
   /* --------------------------------------------------------------------------
    * Intersection Observer
@@ -1501,54 +2303,90 @@ const LegalPages = () => {
 
     observerRef.current =
       new IntersectionObserver(
-        (entries) => {
-          if (hashNavigationRef.current) {
+        () => {
+          if (
+            container.dataset.hashNavigation ===
+            'true'
+          ) {
             return;
           }
 
-          const visibleEntries =
-            entries
+          const containerRect =
+            container.getBoundingClientRect();
+
+          const visibleSections =
+            sections
+              .map((section) => {
+                const rect =
+                  section.getBoundingClientRect();
+
+                const top =
+                  rect.top -
+                  containerRect.top;
+
+                const bottom =
+                  rect.bottom -
+                  containerRect.top;
+
+                const isVisible =
+                  bottom > 0 &&
+                  top <
+                    container.clientHeight;
+
+                return {
+                  section,
+                  top,
+                  isVisible,
+                };
+              })
               .filter(
-                (entry) =>
-                  entry.isIntersecting,
+                ({
+                  isVisible,
+                }) =>
+                  isVisible,
               )
               .sort(
                 (a, b) =>
-                  a.boundingClientRect.top -
-                  b.boundingClientRect.top,
+                  Math.abs(a.top) -
+                  Math.abs(b.top),
               );
 
-          if (!visibleEntries.length) {
-            return;
-          }
+          const nextSection =
+            visibleSections[0]
+              ?.section;
 
-          const nextId =
-            visibleEntries[0]?.target?.id;
-
-          if (nextId) {
-            setActiveSection(nextId);
+          if (
+            nextSection?.id
+          ) {
+            setActiveSection(
+              nextSection.id,
+            );
           }
         },
         {
           root: container,
+
           rootMargin:
-            '-10% 0px -65% 0px',
-          threshold: [
-            0,
-            0.1,
-            0.25,
-            0.5,
-          ],
+            LEGAL_UI_CONFIG.activeSectionRootMargin,
+
+          threshold:
+            LEGAL_UI_CONFIG.activeSectionThresholds,
         },
       );
 
-    sections.forEach((section) => {
-      observerRef.current.observe(section);
-    });
+    sections.forEach(
+      (section) => {
+        observerRef.current.observe(
+          section,
+        );
+      },
+    );
 
     return () => {
       observerRef.current?.disconnect();
-      observerRef.current = null;
+
+      observerRef.current =
+        null;
     };
   }, []);
 
@@ -1587,37 +2425,87 @@ const LegalPages = () => {
    * ------------------------------------------------------------------------ */
 
   useEffect(() => {
-    if (
-      typeof window === 'undefined'
-    ) {
+    if (!isBrowser()) {
       return undefined;
     }
 
     const hash =
-      window.location.hash?.replace(
-        /^#/,
-        '',
-      );
+      getCurrentHash();
 
-    if (
-      !hash ||
-      !SECTION_IDS.includes(hash)
-    ) {
+    if (!hash) {
       return undefined;
     }
 
-    const timer =
-      window.setTimeout(() => {
-        scrollToSection(hash);
-      }, 80);
+    if (
+      deepLinkTimerRef.current
+    ) {
+      window.clearTimeout(
+        deepLinkTimerRef.current,
+      );
+    }
+
+    deepLinkTimerRef.current =
+      window.setTimeout(
+        () => {
+          scrollToSection(hash);
+        },
+        LEGAL_UI_CONFIG.deepLinkDelay,
+      );
 
     return () => {
-      window.clearTimeout(timer);
+      if (
+        deepLinkTimerRef.current
+      ) {
+        window.clearTimeout(
+          deepLinkTimerRef.current,
+        );
+
+        deepLinkTimerRef.current =
+          null;
+      }
     };
   }, [
     location.pathname,
     location.search,
+    location.hash,
     scrollToSection,
+  ]);
+
+  /* --------------------------------------------------------------------------
+   * Browser hash changes
+   * ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    if (!isBrowser()) {
+      return undefined;
+    }
+
+    const handleHashChange =
+      () => {
+        const hash =
+          getCurrentHash();
+
+        if (hash) {
+          scrollToSection(hash);
+        } else {
+          scrollToTop();
+        }
+      };
+
+    window.addEventListener(
+      'hashchange',
+      handleHashChange,
+    );
+
+    return () => {
+      window.removeEventListener(
+        'hashchange',
+        handleHashChange,
+      );
+    };
+  }, [
+    scrollToSection,
+    scrollToTop,
   ]);
 
   /* --------------------------------------------------------------------------
@@ -1625,23 +2513,30 @@ const LegalPages = () => {
    * ------------------------------------------------------------------------ */
 
   useEffect(() => {
-    const handleKeyDown = (event) => {
-      /*
-       * Escape provides a quick way back to the top after navigating deeply
-       * into the legal document.
-       */
-      if (
-        event.key === 'Escape' &&
-        showScrollTop
-      ) {
-        scrollToTop();
-      }
+    if (!isBrowser()) {
+      return undefined;
+    }
 
-      /*
-       * Ctrl/Cmd + P is intentionally left to the browser's native print
-       * handling. We do not intercept it.
-       */
-    };
+    const handleKeyDown =
+      (event) => {
+        if (
+          event.key !==
+          'Escape'
+        ) {
+          return;
+        }
+
+        if (
+          mobileNavigationOpen
+        ) {
+          closeMobileNavigation();
+          return;
+        }
+
+        if (showScrollTop) {
+          scrollToTop();
+        }
+      };
 
     window.addEventListener(
       'keydown',
@@ -1655,65 +2550,260 @@ const LegalPages = () => {
       );
     };
   }, [
+    closeMobileNavigation,
+    mobileNavigationOpen,
     scrollToTop,
     showScrollTop,
   ]);
 
   /* --------------------------------------------------------------------------
-   * Browser metadata
+   * Mobile navigation focus management
    * ------------------------------------------------------------------------ */
 
   useEffect(() => {
     if (
-      typeof document === 'undefined'
+      mobileNavigationOpen
     ) {
+      mobileNavigationCloseButtonRef
+        .current
+        ?.focus();
+
       return undefined;
     }
 
-    const previousTitle =
-      document.title;
+    mobileNavigationTriggerRef
+      .current
+      ?.focus();
 
-    document.title =
-      `${BRAND_NAME} | Legal Information`;
+    return undefined;
+  }, [
+    mobileNavigationOpen,
+  ]);
+
+  /* --------------------------------------------------------------------------
+   * Mobile body interaction lock
+   * ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    if (!isBrowser()) {
+      return undefined;
+    }
+
+    if (
+      mobileNavigationOpen
+    ) {
+      document.body.classList.add(
+        'legal-navigation-open',
+      );
+    } else {
+      document.body.classList.remove(
+        'legal-navigation-open',
+      );
+    }
 
     return () => {
-      document.title =
-        previousTitle;
+      document.body.classList.remove(
+        'legal-navigation-open',
+      );
+    };
+  }, [
+    mobileNavigationOpen,
+  ]);
+
+  /* --------------------------------------------------------------------------
+   * Cleanup timers
+   * ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    return () => {
+      if (!isBrowser()) {
+        return;
+      }
+
+      if (
+        releaseHashNavigationTimerRef.current
+      ) {
+        window.clearTimeout(
+          releaseHashNavigationTimerRef.current,
+        );
+      }
+
+      if (
+        deepLinkTimerRef.current
+      ) {
+        window.clearTimeout(
+          deepLinkTimerRef.current,
+        );
+      }
     };
   }, []);
 
   /* ==========================================================================
-   * Render
+   * RENDER
    * ======================================================================== */
 
   return (
     <div
       className="legal-page"
       data-brand="titech-community-capital"
-      data-document-version={LEGAL_VERSION}
+      data-document-version={
+        LEGAL_CONFIG.legalVersion
+      }
+      data-router-version="2026.3"
+      data-document-type="legal"
     >
-      <LegalPageHeader />
+      {/* ----------------------------------------------------------------------
+       * Accessibility skip link
+       * -------------------------------------------------------------------- */}
+      <a
+        href="#legal-document-content"
+        className="legal-skip-link"
+      >
+        Skip to legal documents
+      </a>
 
+      {/* ----------------------------------------------------------------------
+       * Page header
+       * -------------------------------------------------------------------- */}
+      <LegalPageHeader
+        onOpenMobileNavigation={() => {
+          mobileNavigationTriggerRef.current =
+            document.activeElement;
+
+          openMobileNavigation();
+        }}
+      />
+
+      {/* ----------------------------------------------------------------------
+       * Mobile navigation overlay
+       * -------------------------------------------------------------------- */}
+      {mobileNavigationOpen && (
+        <div
+          className="legal-mobile-navigation-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeMobileNavigation();
+            }
+          }}
+        >
+          <LegalNavigation
+            navigation={navigation}
+            activeSection={
+              activeSection
+            }
+            onSectionNavigation={
+              handleSectionNavigation
+            }
+            onPrint={
+              handlePrint
+            }
+            mobile
+            onClose={
+              closeMobileNavigation
+            }
+            closeButtonRef={
+              mobileNavigationCloseButtonRef
+            }
+          />
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------------------
+       * Main legal application layout
+       * -------------------------------------------------------------------- */}
       <div className="legal-container">
+        {/* Desktop navigation */}
         <LegalNavigation
           navigation={navigation}
-          activeSection={activeSection}
+          activeSection={
+            activeSection
+          }
           onSectionNavigation={
             handleSectionNavigation
           }
-          onPrint={handlePrint}
+          onPrint={
+            handlePrint
+          }
         />
 
+        {/* --------------------------------------------------------------------
+         * Legal document content
+         * ------------------------------------------------------------------ */}
         <main
+          id="legal-document-content"
           ref={contentRef}
           className="legal-content"
           tabIndex={-1}
-          aria-label={`${BRAND_NAME} legal documents`}
+          aria-label={
+            `${LEGAL_CONFIG.brandName} legal documents`
+          }
         >
           <article
             className="legal-article"
             aria-label="Legal documentation"
           >
+            {/* Document status / overview */}
+            <section
+              className="legal-document-overview"
+              aria-labelledby="legal-overview-title"
+            >
+              <div className="legal-document-overview-icon">
+                <FileText
+                  size={22}
+                  aria-hidden="true"
+                />
+              </div>
+
+              <div>
+                <h2 id="legal-overview-title">
+                  Legal Documents
+                </h2>
+
+                <p>
+                  This page contains the principal
+                  legal and policy documents governing
+                  use of the{' '}
+                  {LEGAL_CONFIG.brandName} Platform.
+                </p>
+
+                <p>
+                  <strong>
+                    Document version:
+                  </strong>{' '}
+                  {LEGAL_CONFIG.legalVersion}
+                  {' · '}
+                  <strong>
+                    Effective:
+                  </strong>{' '}
+                  {LEGAL_CONFIG.legalEffectiveDate}
+                  {' · '}
+                  <strong>
+                    Last updated:
+                  </strong>{' '}
+                  {LEGAL_CONFIG.legalLastUpdated}
+                </p>
+
+                <p
+                  className="legal-document-notice"
+                  role="note"
+                >
+                  <strong>
+                    Legal notice:
+                  </strong>{' '}
+                  These documents are application-facing
+                  legal and policy materials and should
+                  be reviewed by qualified legal and
+                  privacy professionals before being
+                  relied upon as final legal advice or
+                  contractual documentation.
+                </p>
+              </div>
+            </section>
+
             <TermsOfService />
 
             <PrivacyPolicy />
@@ -1721,13 +2811,31 @@ const LegalPages = () => {
             <Disclaimer />
 
             <LegalDocumentFooter />
+
+            <noscript>
+              <div
+                className="legal-document-overview"
+                role="alert"
+              >
+                JavaScript is disabled. The legal
+                documents remain available as page
+                content, but interactive navigation,
+                smooth scrolling, and print controls may
+                not be available.
+              </div>
+            </noscript>
           </article>
 
+          {/* ------------------------------------------------------------------
+           * Scroll-to-top
+           * ---------------------------------------------------------------- */}
           {showScrollTop && (
             <button
               type="button"
               className="scroll-top-btn"
-              onClick={scrollToTop}
+              onClick={
+                scrollToTop
+              }
               aria-label="Scroll to top of legal documents"
               title="Scroll to top"
             >
@@ -1735,6 +2843,10 @@ const LegalPages = () => {
                 size={20}
                 aria-hidden="true"
               />
+
+              <span className="sr-only">
+                Scroll to top
+              </span>
             </button>
           )}
         </main>
@@ -1742,5 +2854,9 @@ const LegalPages = () => {
     </div>
   );
 };
+
+/* ============================================================================
+ * EXPORT
+ * ========================================================================== */
 
 export default LegalPages;

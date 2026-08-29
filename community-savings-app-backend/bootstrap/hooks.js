@@ -27,45 +27,26 @@
  *       ↓
  *   infrastructure / services / middleware / routes / server
  *
- * Responsibilities:
- *   ✓ Hook registration
- *   ✓ Deterministic dependency resolution
- *   ✓ Topological startup ordering
- *   ✓ Reverse dependency shutdown ordering
- *   ✓ External bootstrap dependency support
- *   ✓ Per-hook timeout protection
- *   ✓ Startup rollback
- *   ✓ Partial-startup cleanup
- *   ✓ Lifecycle diagnostics/history
- *   ✓ Idempotent lifecycle operations
- *   ✓ Safe process signal handling
- *   ✓ Safe uncaughtException/unhandledRejection handling
- *   ✓ Deterministic test reset
- *   ✓ Compatibility with existing TITech registration APIs
- *   ✓ Compatibility with infrastructure.js startup(context)
+ * Design principles:
  *
- * IMPORTANT:
- *
- * This module MUST NOT:
- *
- *   - create Express applications;
- *   - create HTTP servers;
- *   - connect directly to MongoDB;
- *   - connect directly to Redis;
- *   - initialize queues directly;
- *   - initialize Socket.IO directly;
- *   - implement financial business logic;
- *   - own BootstrapContext lifecycle state;
- *   - replace BootstrapContext.state;
- *   - terminate the Node.js process.
- *
- * BootstrapContext remains the canonical application lifecycle authority.
+ *   - BootstrapContext remains the canonical application lifecycle authority.
+ *   - This module owns hook registration and orchestration only.
+ *   - No infrastructure is created directly here.
+ *   - No process termination is owned here.
+ *   - Startup order is deterministic.
+ *   - Shutdown order is dependency-safe.
+ *   - Failed startup is rolled back in reverse successful-start order.
+ *   - Lifecycle operations are concurrency-safe and idempotent.
+ *   - Timeouts abort cooperatively but never pretend JavaScript promises
+ *     can be forcibly cancelled.
+ *   - Diagnostics are structured and serialization-safe.
+ *   - Process listeners are opt-in and never installed merely by requiring
+ *     this module.
  *
  * =============================================================================
  */
 
-const crypto =
-  require("node:crypto");
+const crypto = require("node:crypto");
 
 const {
   runPhase,
@@ -76,167 +57,118 @@ const {
  * =============================================================================
  */
 
-const MODULE_NAME =
-  "TITechBootstrapHooks";
+const MODULE_NAME = "TITechBootstrapHooks";
 
-const HOOK_PHASES =
-  Object.freeze({
-    STARTUP:
-      "startup",
+const HOOK_PHASES = Object.freeze({
+  STARTUP: "startup",
+  SHUTDOWN: "shutdown",
+});
 
-    SHUTDOWN:
-      "shutdown",
-  });
+const LIFECYCLE_STATES = Object.freeze({
+  CREATED: "created",
+  INITIALIZING: "initializing",
+  READY: "ready",
+  STARTING: "starting",
+  RUNNING: "running",
+  STOPPING: "stopping",
+  STOPPED: "stopped",
+  FAILED: "failed",
+});
 
-const LIFECYCLE_STATES =
-  Object.freeze({
-    CREATED:
-      "created",
+const DEFAULTS = Object.freeze({
+  timeoutMs: 30_000,
+  shutdownTimeoutMs: 30_000,
 
-    INITIALIZING:
-      "initializing",
+  continueOnError: false,
 
-    READY:
-      "ready",
+  rollbackOnFailure: true,
 
-    STARTING:
-      "starting",
+  critical: true,
+  fatal: true,
 
-    RUNNING:
-      "running",
+  allowExternalDependencies: true,
 
-    STOPPING:
-      "stopping",
+  failOnUnknownExternalDependency: false,
 
-    STOPPED:
-      "stopped",
+  shutdownContinueOnError: true,
+});
 
-    FAILED:
-      "failed",
-  });
+const MAX_HOOK_NAME_LENGTH = 200;
 
-const DEFAULTS =
-  Object.freeze({
-    timeoutMs:
-      30_000,
+const TERMINAL_STATES = new Set([
+  LIFECYCLE_STATES.STOPPED,
+]);
 
-    shutdownTimeoutMs:
-      30_000,
+const ACTIVE_STATES = new Set([
+  LIFECYCLE_STATES.INITIALIZING,
+  LIFECYCLE_STATES.STARTING,
+  LIFECYCLE_STATES.STOPPING,
+]);
 
-    continueOnError:
-      false,
+const EXTERNAL_DEPENDENCY_ALIASES = Object.freeze({
+  environment: Object.freeze([
+    "environment",
+    "environmentBootstrap",
+  ]),
 
-    rollbackOnFailure:
-      true,
+  configuration: Object.freeze([
+    "configuration",
+    "config",
+  ]),
 
-    critical:
-      true,
+  logger: Object.freeze([
+    "logger",
+  ]),
 
-    fatal:
-      true,
+  observability: Object.freeze([
+    "observability",
+    "telemetry",
+  ]),
 
-    allowExternalDependencies:
-      true,
+  readiness: Object.freeze([
+    "readiness",
+  ]),
 
-    failOnUnknownExternalDependency:
-      false,
-  });
+  resilience: Object.freeze([
+    "resilience",
+  ]),
 
-const MAX_HOOK_NAME_LENGTH =
-  200;
+  infrastructure: Object.freeze([
+    "infrastructure",
+  ]),
 
-const TERMINAL_STATES =
-  new Set([
-    LIFECYCLE_STATES.STOPPED,
-  ]);
+  database: Object.freeze([
+    "database",
+    "db",
+  ]),
 
-const ACTIVE_STATES =
-  new Set([
-    LIFECYCLE_STATES.INITIALIZING,
-    LIFECYCLE_STATES.STARTING,
-    LIFECYCLE_STATES.RUNNING,
-    LIFECYCLE_STATES.STOPPING,
-  ]);
+  redis: Object.freeze([
+    "redis",
+  ]),
 
-const EXTERNAL_DEPENDENCY_ALIASES =
-  Object.freeze({
-    environment:
-      Object.freeze([
-        "environment",
-        "environmentBootstrap",
-      ]),
+  services: Object.freeze([
+    "services",
+    "serviceRegistry",
+  ]),
 
-    configuration:
-      Object.freeze([
-        "configuration",
-        "config",
-      ]),
+  middleware: Object.freeze([
+    "middleware",
+  ]),
 
-    logger:
-      Object.freeze([
-        "logger",
-      ]),
+  routes: Object.freeze([
+    "routes",
+  ]),
 
-    observability:
-      Object.freeze([
-        "observability",
-        "telemetry",
-      ]),
+  server: Object.freeze([
+    "server",
+    "httpServer",
+  ]),
 
-    readiness:
-      Object.freeze([
-        "readiness",
-      ]),
-
-    resilience:
-      Object.freeze([
-        "resilience",
-      ]),
-
-    infrastructure:
-      Object.freeze([
-        "infrastructure",
-      ]),
-
-    database:
-      Object.freeze([
-        "database",
-        "db",
-      ]),
-
-    redis:
-      Object.freeze([
-        "redis",
-      ]),
-
-    services:
-      Object.freeze([
-        "services",
-        "serviceRegistry",
-      ]),
-
-    middleware:
-      Object.freeze([
-        "middleware",
-      ]),
-
-    routes:
-      Object.freeze([
-        "routes",
-      ]),
-
-    server:
-      Object.freeze([
-        "server",
-        "httpServer",
-      ]),
-
-    runtime:
-      Object.freeze([
-        "runtime",
-        "runtimeReady",
-      ]),
-  });
+  runtime: Object.freeze([
+    "runtime",
+    "runtimeReady",
+  ]),
+});
 
 /* =============================================================================
  * Errors
@@ -244,20 +176,14 @@ const EXTERNAL_DEPENDENCY_ALIASES =
  */
 
 class BootstrapHookError extends Error {
-  constructor(
-    message,
-    options = {},
-  ) {
+  constructor(message, options = {}) {
     super(
-      typeof message ===
-        "string" &&
-      message.trim()
+      typeof message === "string" && message.trim()
         ? message
         : "TITech bootstrap hook error.",
     );
 
-    this.name =
-      "BootstrapHookError";
+    this.name = "BootstrapHookError";
 
     this.code =
       options.code ||
@@ -276,34 +202,25 @@ class BootstrapHookError extends Error {
       null;
 
     this.critical =
-      options.critical !==
-      undefined
-        ? Boolean(
-            options.critical,
-          )
+      options.critical !== undefined
+        ? Boolean(options.critical)
         : null;
 
     this.fatal =
-      options.fatal !==
-      undefined
-        ? Boolean(
-            options.fatal,
-          )
+      options.fatal !== undefined
+        ? Boolean(options.fatal)
         : null;
 
     this.retryable =
-      options.retryable ??
-      null;
+      options.retryable ?? null;
 
     this.cause =
       options.cause ||
       null;
 
-    this.details =
-      Object.freeze({
-        ...(options.details ||
-          {}),
-      });
+    this.details = Object.freeze({
+      ...(options.details || {}),
+    });
 
     Error.captureStackTrace?.(
       this,
@@ -312,82 +229,43 @@ class BootstrapHookError extends Error {
   }
 }
 
-class BootstrapHookTimeoutError
-  extends BootstrapHookError {
-  constructor(
-    hook,
-    timeoutMs,
-    phase = null,
-  ) {
+class BootstrapHookTimeoutError extends BootstrapHookError {
+  constructor(hook, timeoutMs, phase = null) {
     super(
       `TITech bootstrap hook "${hook.name}" timed out after ${timeoutMs}ms.`,
       {
-        code:
-          "BOOTSTRAP_HOOK_TIMEOUT",
-
-        hookId:
-          hook.id,
-
-        hookName:
-          hook.name,
-
-        phase:
-          phase ||
-          hook.phase,
-
-        critical:
-          hook.critical,
-
-        fatal:
-          hook.fatal,
-
-        retryable:
-          true,
-
+        code: "BOOTSTRAP_HOOK_TIMEOUT",
+        hookId: hook.id,
+        hookName: hook.name,
+        phase: phase || hook.phase,
+        critical: hook.critical,
+        fatal: hook.fatal,
+        retryable: true,
         details: {
           timeoutMs,
         },
       },
     );
 
-    this.timeoutMs =
-      timeoutMs;
+    this.timeoutMs = timeoutMs;
   }
 }
 
-class BootstrapDependencyError
-  extends BootstrapHookError {
-  constructor(
-    message,
-    details = {},
-  ) {
-    super(
-      message,
-      {
-        code:
-          "BOOTSTRAP_DEPENDENCY_ERROR",
-
-        details,
-      },
-    );
+class BootstrapDependencyError extends BootstrapHookError {
+  constructor(message, details = {}) {
+    super(message, {
+      code: "BOOTSTRAP_DEPENDENCY_ERROR",
+      details,
+    });
   }
 }
 
-class BootstrapLifecycleStateError
-  extends BootstrapHookError {
-  constructor(
-    message,
-    details = {},
-  ) {
-    super(
-      message,
-      {
-        code:
-          "BOOTSTRAP_INVALID_LIFECYCLE_STATE",
-
-        details,
-      },
-    );
+class BootstrapLifecycleStateError extends BootstrapHookError {
+  constructor(message, details = {}) {
+    super(message, {
+      code: "BOOTSTRAP_INVALID_LIFECYCLE_STATE",
+      details,
+    });
   }
 }
 
@@ -396,9 +274,7 @@ class BootstrapLifecycleStateError
  * =============================================================================
  */
 
-function createId(
-  name,
-) {
+function createId(name) {
   return crypto
     .createHash("sha256")
     .update(String(name))
@@ -406,13 +282,13 @@ function createId(
     .slice(0, 16);
 }
 
-function normalizeName(
-  value,
-  label = "Hook name",
-) {
+function createExecutionId() {
+  return crypto.randomUUID();
+}
+
+function normalizeName(value, label = "Hook name") {
   if (
-    typeof value !==
-      "string" ||
+    typeof value !== "string" ||
     !value.trim()
   ) {
     throw new TypeError(
@@ -420,8 +296,7 @@ function normalizeName(
     );
   }
 
-  const normalized =
-    value.trim();
+  const normalized = value.trim();
 
   if (
     normalized.length >
@@ -435,23 +310,15 @@ function normalizeName(
   return normalized;
 }
 
-function normalizeDependencies(
-  dependencies,
-) {
+function normalizeDependencies(dependencies) {
   if (
-    dependencies ===
-      undefined ||
-    dependencies ===
-      null
+    dependencies === undefined ||
+    dependencies === null
   ) {
     return [];
   }
 
-  if (
-    !Array.isArray(
-      dependencies,
-    )
-  ) {
+  if (!Array.isArray(dependencies)) {
     throw new TypeError(
       "TITech bootstrap hook dependencies must be an array.",
     );
@@ -459,34 +326,25 @@ function normalizeDependencies(
 
   return [
     ...new Set(
-      dependencies.map(
-        dependency =>
-          normalizeName(
-            dependency,
-            "TITech bootstrap hook dependency",
-          ),
+      dependencies.map((dependency) =>
+        normalizeName(
+          dependency,
+          "TITech bootstrap hook dependency",
+        ),
       ),
     ),
   ];
 }
 
-function normalizePriority(
-  priority,
-) {
+function normalizePriority(priority) {
   if (
-    priority ===
-      undefined ||
-    priority ===
-      null
+    priority === undefined ||
+    priority === null
   ) {
     return 0;
   }
 
-  if (
-    !Number.isInteger(
-      priority,
-    )
-  ) {
+  if (!Number.isInteger(priority)) {
     throw new TypeError(
       "TITech bootstrap hook priority must be an integer.",
     );
@@ -495,20 +353,14 @@ function normalizePriority(
   return priority;
 }
 
-function normalizeTimeout(
-  timeoutMs,
-  fallback,
-) {
+function normalizeTimeout(timeoutMs, fallback) {
   const value =
-    timeoutMs ===
-    undefined
+    timeoutMs === undefined
       ? fallback
       : timeoutMs;
 
   if (
-    !Number.isInteger(
-      value,
-    ) ||
+    !Number.isInteger(value) ||
     value <= 0
   ) {
     throw new TypeError(
@@ -519,15 +371,8 @@ function normalizeTimeout(
   return value;
 }
 
-function normalizeFunction(
-  fn,
-  name,
-  handlerName,
-) {
-  if (
-    typeof fn !==
-    "function"
-  ) {
+function normalizeFunction(fn, name, handlerName) {
+  if (typeof fn !== "function") {
     throw new TypeError(
       `TITech bootstrap hook "${name}" must provide a ${handlerName} function.`,
     );
@@ -536,23 +381,17 @@ function normalizeFunction(
   return fn;
 }
 
-function normalizeLogger(
-  logger,
-) {
+function normalizeLogger(logger) {
   if (
-    logger ===
-      null ||
-    logger ===
-      undefined
+    logger === null ||
+    logger === undefined
   ) {
     return null;
   }
 
   if (
-    typeof logger !==
-      "object" &&
-    typeof logger !==
-      "function"
+    typeof logger !== "object" &&
+    typeof logger !== "function"
   ) {
     return null;
   }
@@ -560,108 +399,68 @@ function normalizeLogger(
   return logger;
 }
 
-function isObjectLike(
-  value,
-) {
+function isObjectLike(value) {
   return (
-    value !==
-      null &&
-    typeof value ===
-      "object"
+    value !== null &&
+    typeof value === "object"
   );
 }
 
-function normalizeError(
-  thrown,
-) {
-  if (
-    thrown instanceof
-    Error
-  ) {
+function normalizeError(thrown) {
+  if (thrown instanceof Error) {
     return thrown;
   }
 
   if (
     thrown &&
-    typeof thrown ===
-      "object" &&
-    typeof thrown.message ===
-      "string"
+    typeof thrown === "object" &&
+    typeof thrown.message === "string"
   ) {
-    const error =
-      new Error(
-        thrown.message,
+    const error = new Error(
+      thrown.message,
+    );
+
+    if (typeof thrown.name === "string") {
+      error.name = thrown.name;
+    }
+
+    if (thrown.code !== undefined) {
+      error.code = thrown.code;
+    }
+
+    if (
+      typeof thrown.stack === "string"
+    ) {
+      error.stack = thrown.stack;
+    }
+
+    if (thrown.cause !== undefined) {
+      error.cause = thrown.cause;
+    }
+
+    if (thrown.retryable !== undefined) {
+      error.retryable = Boolean(
+        thrown.retryable,
       );
-
-    if (
-      typeof thrown.name ===
-      "string"
-    ) {
-      error.name =
-        thrown.name;
-    }
-
-    if (
-      thrown.code !==
-      undefined
-    ) {
-      error.code =
-        thrown.code;
-    }
-
-    if (
-      thrown.stack &&
-      typeof thrown.stack ===
-        "string"
-    ) {
-      error.stack =
-        thrown.stack;
-    }
-
-    if (
-      thrown.cause !==
-      undefined
-    ) {
-      error.cause =
-        thrown.cause;
-    }
-
-    if (
-      thrown.retryable !==
-      undefined
-    ) {
-      error.retryable =
-        Boolean(
-          thrown.retryable,
-        );
     }
 
     if (
       thrown.details &&
-      typeof thrown.details ===
-        "object"
+      typeof thrown.details === "object"
     ) {
-      error.details =
-        thrown.details;
+      error.details = thrown.details;
     }
 
     return error;
   }
 
-  if (
-    typeof thrown ===
-    "string"
-  ) {
-    return new Error(
-      thrown,
-    );
+  if (typeof thrown === "string") {
+    return new Error(thrown);
   }
 
   if (
-    thrown ===
-      undefined ||
-    thrown ===
-      null
+    thrown === undefined ||
+    thrown === null
   ) {
     return new Error(
       "Unknown TITech bootstrap lifecycle failure.",
@@ -674,21 +473,16 @@ function normalizeError(
     ),
     {
       details: {
-        type:
-          typeof thrown,
+        type: typeof thrown,
       },
     },
   );
 }
 
-function sanitizeText(
-  value,
-) {
+function sanitizeText(value) {
   if (
-    value ===
-      undefined ||
-    value ===
-      null
+    value === undefined ||
+    value === null
   ) {
     return value;
   }
@@ -696,35 +490,26 @@ function sanitizeText(
   let text;
 
   try {
-    text =
-      String(value);
+    text = String(value);
   } catch {
     return "[unserializable]";
   }
 
-  text =
-    text.replace(
-      /(mongodb(?:\+srv)?:\/\/)([^/\s:@]+)(?::[^@\s]*)?@/gi,
-      "$1***:***@",
-    );
+  text = text.replace(
+    /(mongodb(?:\+srv)?:\/\/)([^/\s:@]+)(?::[^@\s]*)?@/gi,
+    "$1***:***@",
+  );
 
-  text =
-    text.replace(
-      /([?&](?:password|passwd|pwd|secret|token|access_token)=)[^&\s]*/gi,
-      "$1***",
-    );
+  text = text.replace(
+    /([?&](?:password|passwd|pwd|secret|token|access_token)=)[^&\s]*/gi,
+    "$1***",
+  );
 
   return text;
 }
 
-function serializeError(
-  error,
-  options = {},
-) {
-  const normalized =
-    normalizeError(
-      error,
-    );
+function serializeError(error, options = {}) {
+  const normalized = normalizeError(error);
 
   const serialized = {
     name:
@@ -765,8 +550,7 @@ function serializeError(
   };
 
   if (
-    options.includeStack !==
-      false &&
+    options.includeStack !== false &&
     normalized.stack
   ) {
     serialized.stack =
@@ -775,9 +559,7 @@ function serializeError(
       );
   }
 
-  return Object.freeze(
-    serialized,
-  );
+  return Object.freeze(serialized);
 }
 
 function safeLog(
@@ -787,15 +569,11 @@ function safeLog(
   message,
 ) {
   const normalizedLogger =
-    normalizeLogger(
-      logger,
-    );
+    normalizeLogger(logger);
 
   if (
     !normalizedLogger ||
-    typeof normalizedLogger[
-      level
-    ] !==
+    typeof normalizedLogger[level] !==
       "function"
   ) {
     return;
@@ -808,7 +586,7 @@ function safeLog(
     );
   } catch {
     /*
-     * Logging must never replace lifecycle authority.
+     * Logging must never become lifecycle authority.
      */
   }
 }
@@ -817,17 +595,12 @@ async function safeCallback(
   callback,
   value,
 ) {
-  if (
-    typeof callback !==
-    "function"
-  ) {
+  if (typeof callback !== "function") {
     return;
   }
 
   try {
-    await callback(
-      value,
-    );
+    await callback(value);
   } catch {
     /*
      * Diagnostic callbacks are advisory only.
@@ -836,72 +609,46 @@ async function safeCallback(
 }
 
 /* =============================================================================
- * External Dependency Resolution
+ * Dependency Resolution
  * =============================================================================
  */
 
-function hasNestedProperty(
-  object,
-  propertyPath,
-) {
-  if (
-    !isObjectLike(
-      object,
-    )
-  ) {
+function hasNestedProperty(object, propertyPath) {
+  if (!isObjectLike(object)) {
     return false;
   }
 
   const segments =
-    String(
-      propertyPath,
-    ).split(".");
+    String(propertyPath).split(".");
 
-  let current =
-    object;
+  let current = object;
 
-  for (
-    const segment of
-      segments
-  ) {
+  for (const segment of segments) {
     if (
-      current ===
-        null ||
-      current ===
-        undefined ||
+      current === null ||
+      current === undefined ||
       !Object.prototype.hasOwnProperty.call(
-        Object(
-          current,
-        ),
+        Object(current),
         segment,
       )
     ) {
       return false;
     }
 
-    current =
-      current[
-        segment
-      ];
+    current = current[segment];
   }
 
   return (
-    current !==
-      undefined &&
-    current !==
-      null
+    current !== undefined &&
+    current !== null
   );
 }
 
-function getDependencyAliases(
-  dependency,
-) {
+function getDependencyAliases(dependency) {
   return (
     EXTERNAL_DEPENDENCY_ALIASES[
       dependency
-    ] || [
-      dependency,
-    ]
+    ] || [dependency]
   );
 }
 
@@ -909,9 +656,7 @@ function isExternallySatisfiedDependency(
   dependency,
   context,
 ) {
-  if (
-    !context
-  ) {
+  if (!context) {
     return false;
   }
 
@@ -929,20 +674,12 @@ function isExternallySatisfiedDependency(
     context.serviceRegistry,
   ];
 
-  for (
-    const candidate of
-      candidates
-  ) {
-    if (
-      !candidate
-    ) {
+  for (const candidate of candidates) {
+    if (!candidate) {
       continue;
     }
 
-    for (
-      const alias of
-        aliases
-    ) {
+    for (const alias of aliases) {
       if (
         hasNestedProperty(
           candidate,
@@ -964,10 +701,7 @@ function isExternallySatisfiedDependency(
       completedPhases,
     )
   ) {
-    for (
-      const alias of
-        aliases
-    ) {
+    for (const alias of aliases) {
       if (
         completedPhases.includes(
           alias,
@@ -985,32 +719,23 @@ function isExternallySatisfiedDependency(
 
   if (
     state &&
-    typeof state ===
-      "object"
+    typeof state === "object"
   ) {
-    for (
-      const alias of
-        aliases
-    ) {
+    for (const alias of aliases) {
       const stateEntry =
-        state[
-          alias
-        ];
+        state[alias];
 
       if (
-        stateEntry ===
-        "ready"
+        stateEntry === "ready"
       ) {
         return true;
       }
 
       if (
         stateEntry &&
-        typeof stateEntry ===
-          "object" &&
+        typeof stateEntry === "object" &&
         (
-          stateEntry.ready ===
-            true ||
+          stateEntry.ready === true ||
           stateEntry.state ===
             "ready"
         )
@@ -1026,8 +751,7 @@ function isExternallySatisfiedDependency(
       ?.isDependencySatisfied;
 
   if (
-    typeof resolver ===
-    "function"
+    typeof resolver === "function"
   ) {
     try {
       return Boolean(
@@ -1047,18 +771,6 @@ function isExternallySatisfiedDependency(
 
 /* =============================================================================
  * Timeout Execution
- * =============================================================================
- *
- * Important:
- *
- * JavaScript promises cannot be forcibly cancelled.
- *
- * The timeout therefore:
- *   1. prevents bootstrap from waiting forever;
- *   2. provides an AbortSignal to cooperative handlers;
- *   3. attaches a rejection observer to late promises;
- *   4. records deterministic timeout diagnostics.
- *
  * =============================================================================
  */
 
@@ -1081,34 +793,25 @@ async function executeWithTimeout(
   const controller =
     new AbortController();
 
-  let parentAbortHandler =
-    null;
-
+  let parentAbortHandler = null;
   let timer = null;
+  let timedOut = false;
 
-  let timedOut =
-    false;
+  if (parentSignal) {
+    parentAbortHandler = () => {
+      if (
+        !controller.signal.aborted
+      ) {
+        controller.abort(
+          parentSignal.reason ||
+            new Error(
+              "Parent bootstrap operation aborted.",
+            ),
+        );
+      }
+    };
 
-  if (
-    parentSignal
-  ) {
-    parentAbortHandler =
-      () => {
-        if (
-          !controller.signal.aborted
-        ) {
-          controller.abort(
-            parentSignal.reason ||
-              new Error(
-                "Parent bootstrap operation aborted.",
-              ),
-          );
-        }
-      };
-
-    if (
-      parentSignal.aborted
-    ) {
+    if (parentSignal.aborted) {
       parentAbortHandler();
     } else {
       parentSignal.addEventListener(
@@ -1123,65 +826,48 @@ async function executeWithTimeout(
 
   const executionContext =
     Object.freeze({
-      ...(
-        isObjectLike(
-          context,
-        )
-          ? context
-          : {}
-      ),
+      ...(isObjectLike(context)
+        ? context
+        : {}),
 
       signal:
         controller.signal,
     });
 
   const operation =
-    Promise.resolve().then(
-      () =>
-        fn(
-          executionContext,
-          {
-            phase,
-
-            signal:
-              controller.signal,
-
-            hook,
-          },
-        ),
+    Promise.resolve().then(() =>
+      fn(
+        executionContext,
+        {
+          phase,
+          signal:
+            controller.signal,
+          hook,
+        },
+      ),
     );
 
   const timeout =
-    new Promise(
-      (_, reject) => {
-        timer =
-          setTimeout(
-            () => {
-              timedOut =
-                true;
+    new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        timedOut = true;
 
-              controller.abort(
-                new BootstrapHookTimeoutError(
-                  hook,
-                  boundedTimeout,
-                  phase,
-                ),
-              );
-
-              reject(
-                new BootstrapHookTimeoutError(
-                  hook,
-                  boundedTimeout,
-                  phase,
-                ),
-              );
-            },
+        const timeoutError =
+          new BootstrapHookTimeoutError(
+            hook,
             boundedTimeout,
+            phase,
           );
 
-        timer.unref?.();
-      },
-    );
+        controller.abort(
+          timeoutError,
+        );
+
+        reject(timeoutError);
+      }, boundedTimeout);
+
+      timer.unref?.();
+    });
 
   try {
     return await Promise.race([
@@ -1189,12 +875,8 @@ async function executeWithTimeout(
       timeout,
     ]);
   } finally {
-    if (
-      timer
-    ) {
-      clearTimeout(
-        timer,
-      );
+    if (timer) {
+      clearTimeout(timer);
     }
 
     if (
@@ -1207,14 +889,14 @@ async function executeWithTimeout(
       );
     }
 
-    /**
-     * A timed-out promise may continue executing.
-     * Attach a terminal rejection observer so it cannot later become an
+    /*
+     * JavaScript promises cannot be forcibly cancelled.
+     *
+     * If the timeout wins, the underlying operation can still finish later.
+     * Attach a rejection observer so a late rejection does not become an
      * unhandled rejection.
      */
-    if (
-      timedOut
-    ) {
+    if (timedOut) {
       void operation.catch(
         () => undefined,
       );
@@ -1228,9 +910,7 @@ async function executeWithTimeout(
  */
 
 class BootstrapHookRegistry {
-  constructor(
-    options = {},
-  ) {
+  constructor(options = {}) {
     this.options =
       Object.freeze({
         timeoutMs:
@@ -1291,7 +971,17 @@ class BootstrapHookRegistry {
             ? Boolean(
                 options.failOnUnknownExternalDependency,
               )
-            : DEFAULTS.failOnUnknownExternalDependency,
+            : DEFAULTS
+                .failOnUnknownExternalDependency,
+
+        shutdownContinueOnError:
+          options.shutdownContinueOnError !==
+          undefined
+            ? Boolean(
+                options.shutdownContinueOnError,
+              )
+            : DEFAULTS
+                .shutdownContinueOnError,
 
         logger:
           normalizeLogger(
@@ -1311,112 +1001,114 @@ class BootstrapHookRegistry {
           options.onLifecycleChange,
       });
 
-    this._hooks =
-      new Map();
+    this._hooks = new Map();
 
-    this._startedHooks =
-      [];
+    this._startedHooks = [];
 
-    this._history =
-      [];
+    this._history = [];
 
     this._state =
       LIFECYCLE_STATES.CREATED;
 
-    this._initializePromise =
-      null;
+    this._initializePromise = null;
+    this._startPromise = null;
+    this._shutdownPromise = null;
 
-    this._startPromise =
-      null;
+    this._initialized = false;
+    this._started = false;
+    this._stopped = false;
+    this._shutdownStarted = false;
 
-    this._shutdownPromise =
-      null;
+    this._initializationError = null;
+    this._startupError = null;
+    this._shutdownError = null;
 
-    this._initialized =
-      false;
-
-    this._started =
-      false;
-
-    this._stopped =
-      false;
-
-    this._shutdownStarted =
-      false;
-
-    this._initializationError =
-      null;
-
-    this._startupError =
-      null;
-
-    this._shutdownError =
-      null;
-
-    this._createdAt =
-      new Date();
-
-    this._initializedAt =
-      null;
-
-    this._startedAt =
-      null;
-
-    this._stoppedAt =
-      null;
+    this._createdAt = new Date();
+    this._initializedAt = null;
+    this._startedAt = null;
+    this._stoppedAt = null;
   }
 
   /* ===========================================================================
    * Lifecycle State
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
-  _setState(
-    state,
-    metadata = {},
-  ) {
+  _setState(state, metadata = {}) {
     const previousState =
       this._state;
 
-    this._state =
-      state;
+    this._state = state;
 
     void safeCallback(
-      this.options
-        .onLifecycleChange,
+      this.options.onLifecycleChange,
       {
         previousState,
         state,
         metadata,
-        timestamp:
-          new Date(),
+        timestamp: new Date(),
       },
     );
 
     return state;
   }
 
+  _assertRegistrationAllowed() {
+    if (
+      ACTIVE_STATES.has(
+        this._state,
+      )
+    ) {
+      throw new BootstrapLifecycleStateError(
+        `TITech bootstrap hooks cannot be registered while lifecycle state is "${this._state}".`,
+        {
+          state: this._state,
+        },
+      );
+    }
+
+    if (
+      this._state ===
+      LIFECYCLE_STATES.FAILED
+    ) {
+      throw new BootstrapLifecycleStateError(
+        'TITech bootstrap hooks cannot be registered while lifecycle state is "failed". Reset the registry first.',
+        {
+          state: this._state,
+        },
+      );
+    }
+
+    if (
+      this._state ===
+      LIFECYCLE_STATES.STOPPED
+    ) {
+      throw new BootstrapLifecycleStateError(
+        'TITech bootstrap hooks cannot be registered after the registry has stopped.',
+        {
+          state: this._state,
+        },
+      );
+    }
+  }
+
   /* ===========================================================================
    * Registration
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
-  register(
-    options = {},
-  ) {
+  register(options = {}) {
+    this._assertRegistrationAllowed();
+
     const name =
       normalizeName(
         options.name,
         "TITech bootstrap hook name",
       );
 
-    if (
-      this._hooks.has(
-        name,
-      )
-    ) {
+    if (this._hooks.has(name)) {
       const existing =
-        this._hooks.get(
-          name,
-        );
+        this._hooks.get(name);
 
       throw new BootstrapHookError(
         `TITech bootstrap hook "${name}" is already registered.`,
@@ -1437,46 +1129,6 @@ class BootstrapHookRegistry {
             registeredAt:
               existing.registeredAt,
           },
-        },
-      );
-    }
-
-    if (
-      ACTIVE_STATES.has(
-        this._state,
-      )
-    ) {
-      throw new BootstrapLifecycleStateError(
-        `Cannot register TITech bootstrap hook "${name}" while lifecycle state is "${this._state}".`,
-        {
-          state:
-            this._state,
-        },
-      );
-    }
-
-    if (
-      this._state ===
-      LIFECYCLE_STATES.FAILED
-    ) {
-      throw new BootstrapLifecycleStateError(
-        `Cannot register TITech bootstrap hook "${name}" while lifecycle state is "failed". Reset the registry first.`,
-        {
-          state:
-            this._state,
-        },
-      );
-    }
-
-    if (
-      this._state ===
-      LIFECYCLE_STATES.STOPPED
-    ) {
-      throw new BootstrapLifecycleStateError(
-        `Cannot register TITech bootstrap hook "${name}" after the registry has stopped.`,
-        {
-          state:
-            this._state,
         },
       );
     }
@@ -1516,10 +1168,7 @@ class BootstrapHookRegistry {
             "stop",
           );
 
-    if (
-      !start &&
-      !stop
-    ) {
+    if (!start && !stop) {
       throw new TypeError(
         `TITech bootstrap hook "${name}" must provide at least a start or stop function.`,
       );
@@ -1534,9 +1183,7 @@ class BootstrapHookRegistry {
                 options.id,
                 "TITech bootstrap hook ID",
               )
-            : createId(
-                name,
-              ),
+            : createId(name),
 
         name,
 
@@ -1586,7 +1233,8 @@ class BootstrapHookRegistry {
             ? Boolean(
                 options.fatal,
               )
-            : this.options.fatal,
+            : this.options
+                .fatal,
 
         enabled:
           options.enabled !==
@@ -1609,10 +1257,9 @@ class BootstrapHookRegistry {
           Object.freeze({
             ...(options.metadata ||
               {}),
-          }),
+        }),
 
-        registeredAt:
-          new Date(),
+        registeredAt: new Date(),
       });
 
     this._hooks.set(
@@ -1630,11 +1277,8 @@ class BootstrapHookRegistry {
   ) {
     return this.register({
       ...options,
-
       name,
-
       start,
-
       phase:
         HOOK_PHASES.STARTUP,
     });
@@ -1659,11 +1303,8 @@ class BootstrapHookRegistry {
   ) {
     return this.register({
       ...options,
-
       name,
-
       stop,
-
       phase:
         HOOK_PHASES.SHUTDOWN,
     });
@@ -1691,93 +1332,72 @@ class BootstrapHookRegistry {
   ) {
     return this.register({
       ...options,
-
       name,
-
       start,
-
       stop,
     });
   }
 
   /* ===========================================================================
    * Lookup
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
-  get(
-    name,
-  ) {
+  get(name) {
     return (
-      this._hooks.get(
-        name,
-      ) ||
+      this._hooks.get(name) ||
       null
     );
   }
 
-  has(
-    name,
-  ) {
-    return this._hooks.has(
-      name,
-    );
+  has(name) {
+    return this._hooks.has(name);
   }
 
   list({
-    phase =
-      undefined,
-
-    includeDisabled =
-      false,
-
-    includeShutdownOnly =
-      true,
+    phase = undefined,
+    includeDisabled = false,
+    includeShutdownOnly = true,
   } = {}) {
     return [
       ...this._hooks.values(),
     ]
-      .filter(
-        hook => {
-          if (
-            phase !==
-              undefined &&
-            hook.phase !==
-              phase
-          ) {
-            return false;
-          }
+      .filter((hook) => {
+        if (
+          phase !== undefined &&
+          hook.phase !== phase
+        ) {
+          return false;
+        }
 
-          if (
-            !includeDisabled &&
-            !hook.enabled
-          ) {
-            return false;
-          }
+        if (
+          !includeDisabled &&
+          !hook.enabled
+        ) {
+          return false;
+        }
 
-          if (
-            !includeShutdownOnly &&
-            hook.phase ===
-              HOOK_PHASES.SHUTDOWN
-          ) {
-            return false;
-          }
+        if (
+          !includeShutdownOnly &&
+          hook.phase ===
+            HOOK_PHASES.SHUTDOWN
+        ) {
+          return false;
+        }
 
-          return true;
-        },
-      )
+        return true;
+      })
       .sort(
-        BootstrapHookRegistry
-          .compareHooks,
+        BootstrapHookRegistry.compareHooks,
       );
   }
 
   /* ===========================================================================
    * Dependency Resolution
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
-  _resolveStartupOrder(
-    context = {},
-  ) {
+  _resolveStartupOrder(context = {}) {
     const startupHooks =
       this.list({
         phase:
@@ -1786,9 +1406,9 @@ class BootstrapHookRegistry {
         includeDisabled:
           false,
       }).filter(
-        hook =>
+        (hook) =>
           typeof hook.start ===
-            "function",
+          "function",
       );
 
     return this._topologicalSort(
@@ -1808,24 +1428,26 @@ class BootstrapHookRegistry {
         includeDisabled:
           false,
       }).filter(
-        hook =>
+        (hook) =>
           typeof hook.stop ===
           "function",
       );
 
-    /**
-     * Shutdown dependencies must be interpreted using the same dependency
-     * relation and then reversed.
+    /*
+     * A shutdown graph is built from the same dependency relation as startup,
+     * then reversed.
      *
-     * Example:
+     * If:
      *
-     *   database → services
+     *   database ← services ← routes
+     *
+     * then:
      *
      * startup:
-     *   database, services
+     *   database → services → routes
      *
      * shutdown:
-     *   services, database
+     *   routes → services → database
      */
     return this._topologicalSort(
       hooks,
@@ -1842,7 +1464,7 @@ class BootstrapHookRegistry {
     const hookMap =
       new Map(
         hookList.map(
-          hook => [
+          (hook) => [
             hook.name,
             hook,
           ],
@@ -1855,10 +1477,7 @@ class BootstrapHookRegistry {
     const outgoing =
       new Map();
 
-    for (
-      const hook of
-        hookList
-    ) {
+    for (const hook of hookList) {
       incoming.set(
         hook.name,
         0,
@@ -1870,10 +1489,7 @@ class BootstrapHookRegistry {
       );
     }
 
-    for (
-      const hook of
-        hookList
-    ) {
+    for (const hook of hookList) {
       for (
         const dependency of
           hook.dependencies
@@ -1886,7 +1502,6 @@ class BootstrapHookRegistry {
             `TITech bootstrap hook "${hook.name}" cannot depend on itself.`,
             {
               phase,
-
               hook:
                 hook.name,
             },
@@ -1919,12 +1534,6 @@ class BootstrapHookRegistry {
               ],
             );
 
-          /**
-           * Unknown dependencies are configurable.
-           *
-           * Default behavior preserves compatibility with the current system:
-           * fail when a dependency cannot actually be resolved.
-           */
           if (
             !knownExternal ||
             this.options
@@ -1934,21 +1543,19 @@ class BootstrapHookRegistry {
               `TITech bootstrap hook "${hook.name}" depends on missing hook "${dependency}".`,
               {
                 phase,
-
                 hook:
                   hook.name,
-
                 dependency,
-
                 externalDependency:
                   knownExternal,
               },
             );
           }
 
-          /**
-           * Known external dependency, but current context has not explicitly
-           * proven it ready. Treat it as externally managed for compatibility.
+          /*
+           * Known external dependencies may be owned by BootstrapContext or
+           * another composition-layer component. Preserve compatibility by
+           * treating them as externally managed.
            */
           continue;
         }
@@ -1973,29 +1580,22 @@ class BootstrapHookRegistry {
     const queue =
       hookList
         .filter(
-          hook =>
+          (hook) =>
             incoming.get(
               hook.name,
             ) === 0,
         )
         .sort(
-          BootstrapHookRegistry
-            .compareHooks,
+          BootstrapHookRegistry.compareHooks,
         );
 
-    const ordered =
-      [];
+    const ordered = [];
 
-    while (
-      queue.length >
-      0
-    ) {
+    while (queue.length > 0) {
       const current =
         queue.shift();
 
-      ordered.push(
-        current,
-      );
+      ordered.push(current);
 
       for (
         const dependent of
@@ -2013,10 +1613,7 @@ class BootstrapHookRegistry {
           remaining,
         );
 
-        if (
-          remaining ===
-          0
-        ) {
+        if (remaining === 0) {
           queue.push(
             hookMap.get(
               dependent,
@@ -2024,8 +1621,7 @@ class BootstrapHookRegistry {
           );
 
           queue.sort(
-            BootstrapHookRegistry
-              .compareHooks,
+            BootstrapHookRegistry.compareHooks,
           );
         }
       }
@@ -2038,13 +1634,13 @@ class BootstrapHookRegistry {
       const cyclicHooks =
         hookList
           .filter(
-            hook =>
+            (hook) =>
               incoming.get(
                 hook.name,
               ) > 0,
           )
           .map(
-            hook =>
+            (hook) =>
               hook.name,
           );
 
@@ -2052,7 +1648,6 @@ class BootstrapHookRegistry {
         "A circular TITech bootstrap hook dependency was detected.",
         {
           phase,
-
           hooks:
             cyclicHooks,
         },
@@ -2062,10 +1657,7 @@ class BootstrapHookRegistry {
     return ordered;
   }
 
-  static compareHooks(
-    a,
-    b,
-  ) {
+  static compareHooks(a, b) {
     if (
       a.priority !==
       b.priority
@@ -2083,21 +1675,20 @@ class BootstrapHookRegistry {
 
   /* ===========================================================================
    * Hook Context
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
   _createHookContext(
     context,
     {
       hook,
       phase,
-      signal =
-        null,
+      signal = null,
+      executionId = null,
     },
   ) {
     const baseContext =
-      isObjectLike(
-        context,
-      )
+      isObjectLike(context)
         ? context
         : {};
 
@@ -2109,11 +1700,8 @@ class BootstrapHookRegistry {
 
       lifecycle:
         Object.freeze({
-          ...(
-            baseContext
-              .lifecycle ||
-            {}
-          ),
+          ...(baseContext.lifecycle ||
+            {}),
 
           hook:
             hook.name,
@@ -2126,6 +1714,8 @@ class BootstrapHookRegistry {
           state:
             this._state,
 
+          executionId,
+
           timestamp:
             new Date(),
         }),
@@ -2136,17 +1726,17 @@ class BootstrapHookRegistry {
 
   /* ===========================================================================
    * Hook Execution
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
   async _executeHook(
     hook,
     {
       phase,
       context,
-      signal =
-        null,
-      logger =
-        null,
+      signal = null,
+      logger = null,
+      executionId = null,
     },
   ) {
     const fn =
@@ -2155,12 +1745,15 @@ class BootstrapHookRegistry {
         ? hook.start
         : hook.stop;
 
-    if (
-      typeof fn !==
-      "function"
-    ) {
+    if (typeof fn !== "function") {
+      const now = Date.now();
+
       const record =
         Object.freeze({
+          executionId:
+            executionId ||
+            createExecutionId(),
+
           hook:
             hook.name,
 
@@ -2169,31 +1762,28 @@ class BootstrapHookRegistry {
 
           phase,
 
-          success:
-            true,
+          success: true,
 
-          skipped:
-            true,
+          skipped: true,
 
           reason:
             "no-handler",
 
-          durationMs:
-            0,
+          durationMs: 0,
 
-          startedAt:
-            Date.now(),
+          startedAt: now,
 
-          finishedAt:
-            Date.now(),
+          finishedAt: now,
         });
 
-      this._history.push(
-        record,
-      );
+      this._history.push(record);
 
       return record;
     }
+
+    const effectiveExecutionId =
+      executionId ||
+      createExecutionId();
 
     const startedAt =
       Date.now();
@@ -2208,6 +1798,8 @@ class BootstrapHookRegistry {
           hook,
           phase,
           signal,
+          executionId:
+            effectiveExecutionId,
         },
       );
 
@@ -2223,6 +1815,12 @@ class BootstrapHookRegistry {
       {
         module:
           MODULE_NAME,
+
+        event:
+          "bootstrap.hook.started",
+
+        executionId:
+          effectiveExecutionId,
 
         hook:
           hook.name,
@@ -2247,9 +1845,6 @@ class BootstrapHookRegistry {
           hook.fatal,
 
         timeoutMs,
-
-        event:
-          "bootstrap.hook.started",
       },
       `TITech bootstrap hook started: ${hook.name}`,
     );
@@ -2258,14 +1853,19 @@ class BootstrapHookRegistry {
       "started",
       hook,
       phase,
+      {
+        executionId:
+          effectiveExecutionId,
+      },
     );
 
     await safeCallback(
-      this.options
-        .onHookStart,
+      this.options.onHookStart,
       {
         hook,
         phase,
+        executionId:
+          effectiveExecutionId,
         startedAt,
       },
     );
@@ -2316,11 +1916,13 @@ class BootstrapHookRegistry {
         Number(
           process.hrtime.bigint() -
             startedNs,
-        ) /
-        1_000_000;
+        ) / 1_000_000;
 
       const record =
         Object.freeze({
+          executionId:
+            effectiveExecutionId,
+
           hook:
             hook.name,
 
@@ -2329,11 +1931,9 @@ class BootstrapHookRegistry {
 
           phase,
 
-          success:
-            true,
+          success: true,
 
-          skipped:
-            false,
+          skipped: false,
 
           result,
 
@@ -2346,9 +1946,7 @@ class BootstrapHookRegistry {
           finishedAt,
         });
 
-      this._history.push(
-        record,
-      );
+      this._history.push(record);
 
       safeLog(
         logger,
@@ -2356,6 +1954,12 @@ class BootstrapHookRegistry {
         {
           module:
             MODULE_NAME,
+
+          event:
+            "bootstrap.hook.completed",
+
+          executionId:
+            effectiveExecutionId,
 
           hook:
             hook.name,
@@ -2366,9 +1970,6 @@ class BootstrapHookRegistry {
           phase,
 
           durationMs,
-
-          event:
-            "bootstrap.hook.completed",
         },
         `TITech bootstrap hook completed: ${hook.name}`,
       );
@@ -2378,22 +1979,22 @@ class BootstrapHookRegistry {
         hook,
         phase,
         {
+          executionId:
+            effectiveExecutionId,
+
           durationMs,
         },
       );
 
       await safeCallback(
-        this.options
-          .onHookComplete,
+        this.options.onHookComplete,
         record,
       );
 
       return record;
     } catch (thrown) {
       const originalError =
-        normalizeError(
-          thrown,
-        );
+        normalizeError(thrown);
 
       const finishedAt =
         Date.now();
@@ -2461,6 +2062,7 @@ class BootstrapHookRegistry {
         startedAt,
         finishedAt,
         logger,
+        effectiveExecutionId,
       );
     }
   }
@@ -2473,29 +2075,22 @@ class BootstrapHookRegistry {
     startedAt,
     finishedAt,
     logger,
+    executionId,
   ) {
     const normalizedError =
-      normalizeError(
-        error,
-      );
+      normalizeError(error);
 
-    if (
-      !normalizedError.hookId
-    ) {
+    if (!normalizedError.hookId) {
       normalizedError.hookId =
         hook.id;
     }
 
-    if (
-      !normalizedError.hookName
-    ) {
+    if (!normalizedError.hookName) {
       normalizedError.hookName =
         hook.name;
     }
 
-    if (
-      !normalizedError.phase
-    ) {
+    if (!normalizedError.phase) {
       normalizedError.phase =
         phase;
     }
@@ -2518,6 +2113,8 @@ class BootstrapHookRegistry {
 
     const record =
       Object.freeze({
+        executionId,
+
         hook:
           hook.name,
 
@@ -2526,11 +2123,9 @@ class BootstrapHookRegistry {
 
         phase,
 
-        success:
-          false,
+        success: false,
 
-        skipped:
-          false,
+        skipped: false,
 
         error:
           normalizedError,
@@ -2542,9 +2137,7 @@ class BootstrapHookRegistry {
         finishedAt,
       });
 
-    this._history.push(
-      record,
-    );
+    this._history.push(record);
 
     safeLog(
       logger,
@@ -2552,6 +2145,11 @@ class BootstrapHookRegistry {
       {
         module:
           MODULE_NAME,
+
+        event:
+          "bootstrap.hook.failed",
+
+        executionId,
 
         hook:
           hook.name,
@@ -2568,9 +2166,6 @@ class BootstrapHookRegistry {
           hook.fatal,
 
         durationMs,
-
-        event:
-          "bootstrap.hook.failed",
 
         error:
           serializeError(
@@ -2589,8 +2184,8 @@ class BootstrapHookRegistry {
       hook,
       phase,
       {
+        executionId,
         durationMs,
-
         error:
           serializeError(
             normalizedError,
@@ -2603,8 +2198,7 @@ class BootstrapHookRegistry {
     );
 
     await safeCallback(
-      this.options
-        .onHookFailure,
+      this.options.onHookFailure,
       record,
     );
 
@@ -2613,20 +2207,15 @@ class BootstrapHookRegistry {
 
   /* ===========================================================================
    * Initialization
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
-  async initialize(
-    context = {},
-  ) {
-    if (
-      this._initialized
-    ) {
+  async initialize(context = {}) {
+    if (this._initialized) {
       return this;
     }
 
-    if (
-      this._initializePromise
-    ) {
+    if (this._initializePromise) {
       return this._initializePromise;
     }
 
@@ -2671,9 +2260,19 @@ class BootstrapHookRegistry {
           context,
         );
 
+      const shutdownCandidates =
+        this.list({
+          includeDisabled:
+            false,
+        }).filter(
+          (hook) =>
+            typeof hook.stop ===
+            "function",
+        );
+
       const shutdownOrder =
         this._resolveShutdownOrder(
-          null,
+          shutdownCandidates,
           context,
         );
 
@@ -2688,13 +2287,13 @@ class BootstrapHookRegistry {
         {
           startupOrder:
             startupOrder.map(
-              hook =>
+              (hook) =>
                 hook.name,
             ),
 
           shutdownOrder:
             shutdownOrder.map(
-              hook =>
+              (hook) =>
                 hook.name,
             ),
         },
@@ -2703,9 +2302,7 @@ class BootstrapHookRegistry {
       return this;
     } catch (error) {
       const normalized =
-        normalizeError(
-          error,
-        );
+        normalizeError(error);
 
       this._initializationError =
         normalized;
@@ -2715,6 +2312,15 @@ class BootstrapHookRegistry {
         {
           reason:
             "initialization-failed",
+
+          error:
+            serializeError(
+              normalized,
+              {
+                includeStack:
+                  true,
+              },
+            ),
         },
       );
 
@@ -2724,11 +2330,10 @@ class BootstrapHookRegistry {
 
   /* ===========================================================================
    * Startup
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
-  async start(
-    context = {},
-  ) {
+  async start(context = {}) {
     if (
       this._started &&
       this._state ===
@@ -2737,15 +2342,11 @@ class BootstrapHookRegistry {
       return this;
     }
 
-    if (
-      this._startPromise
-    ) {
+    if (this._startPromise) {
       return this._startPromise;
     }
 
-    if (
-      this._shutdownStarted
-    ) {
+    if (this._shutdownStarted) {
       throw new BootstrapLifecycleStateError(
         "TITech bootstrap cannot start after shutdown has begun.",
         {
@@ -2782,12 +2383,8 @@ class BootstrapHookRegistry {
     }
   }
 
-  async _startInternal(
-    context,
-  ) {
-    if (
-      !this._initialized
-    ) {
+  async _startInternal(context) {
+    if (!this._initialized) {
       await this.initialize(
         context,
       );
@@ -2812,6 +2409,9 @@ class BootstrapHookRegistry {
           this.options.logger,
       );
 
+    const lifecycleExecutionId =
+      createExecutionId();
+
     const startedAt =
       new Date();
 
@@ -2819,6 +2419,8 @@ class BootstrapHookRegistry {
       LIFECYCLE_STATES.STARTING,
       {
         startedAt,
+        executionId:
+          lifecycleExecutionId,
       },
     );
 
@@ -2827,8 +2429,7 @@ class BootstrapHookRegistry {
         context,
       );
 
-    this._startedHooks =
-      [];
+    this._startedHooks = [];
 
     safeLog(
       logger,
@@ -2840,12 +2441,15 @@ class BootstrapHookRegistry {
         event:
           "bootstrap.lifecycle.starting",
 
+        executionId:
+          lifecycleExecutionId,
+
         hookCount:
           ordered.length,
 
         order:
           ordered.map(
-            hook =>
+            (hook) =>
               hook.name,
           ),
       },
@@ -2853,9 +2457,7 @@ class BootstrapHookRegistry {
     );
 
     try {
-      for (
-        const hook of ordered
-      ) {
+      for (const hook of ordered) {
         try {
           const record =
             await this._executeHook(
@@ -2871,6 +2473,9 @@ class BootstrapHookRegistry {
                   null,
 
                 logger,
+
+                executionId:
+                  lifecycleExecutionId,
               },
             );
 
@@ -2884,21 +2489,26 @@ class BootstrapHookRegistry {
           }
         } catch (error) {
           const normalized =
-            normalizeError(
-              error,
-            );
+            normalizeError(error);
 
-          if (
+          const canContinue =
             !hook.critical &&
             this.options
-              .continueOnError
-          ) {
+              .continueOnError;
+
+          if (canContinue) {
             safeLog(
               logger,
               "warn",
               {
                 module:
                   MODULE_NAME,
+
+                event:
+                  "bootstrap.non_critical_hook_continued",
+
+                executionId:
+                  lifecycleExecutionId,
 
                 hook:
                   hook.name,
@@ -2908,9 +2518,6 @@ class BootstrapHookRegistry {
 
                 phase:
                   HOOK_PHASES.STARTUP,
-
-                event:
-                  "bootstrap.non_critical_hook_continued",
 
                 error:
                   serializeError(
@@ -2931,11 +2538,8 @@ class BootstrapHookRegistry {
         }
       }
 
-      this._started =
-        true;
-
-      this._stopped =
-        false;
+      this._started = true;
+      this._stopped = false;
 
       this._startedAt =
         new Date();
@@ -2946,9 +2550,11 @@ class BootstrapHookRegistry {
           startedAt:
             this._startedAt,
 
+          executionId:
+            lifecycleExecutionId,
+
           hookCount:
-            this._startedHooks
-              .length,
+            this._startedHooks.length,
         },
       );
 
@@ -2962,12 +2568,14 @@ class BootstrapHookRegistry {
           event:
             "bootstrap.lifecycle.running",
 
+          executionId:
+            lifecycleExecutionId,
+
           startedAt:
             this._startedAt,
 
           hookCount:
-            this._startedHooks
-              .length,
+            this._startedHooks.length,
         },
         "TITech bootstrap lifecycle is running.",
       );
@@ -2975,24 +2583,22 @@ class BootstrapHookRegistry {
       return this;
     } catch (error) {
       const normalized =
-        normalizeError(
-          error,
-        );
+        normalizeError(error);
 
       this._startupError =
         normalized;
 
-      this._started =
-        false;
-
-      this._stopped =
-        false;
+      this._started = false;
+      this._stopped = false;
 
       this._setState(
         LIFECYCLE_STATES.FAILED,
         {
           reason:
             "startup-failure",
+
+          executionId:
+            lifecycleExecutionId,
 
           error:
             serializeError(
@@ -3005,84 +2611,13 @@ class BootstrapHookRegistry {
         },
       );
 
-      let rollbackResult =
-        null;
-
       if (
         this.options
           .rollbackOnFailure
       ) {
-        try {
-          rollbackResult =
-            await this._rollback(
-              context,
-            );
-        } catch (rollbackError) {
-          const normalizedRollback =
-            normalizeError(
-              rollbackError,
-            );
-
-          safeLog(
-            logger,
-            "error",
-            {
-              module:
-                MODULE_NAME,
-
-              event:
-                "bootstrap.rollback.engine_failed",
-
-              error:
-                serializeError(
-                  normalizedRollback,
-                  {
-                    includeStack:
-                      true,
-                  },
-                ),
-
-              originalError:
-                serializeError(
-                  normalized,
-                  {
-                    includeStack:
-                      false,
-                  },
-                ),
-            },
-            "TITech bootstrap rollback engine failed.",
-          );
-        }
-      }
-
-      if (
-        rollbackResult?.failed >
-        0
-      ) {
-        safeLog(
-          logger,
-          "error",
-          {
-            module:
-              MODULE_NAME,
-
-            event:
-              "bootstrap.startup.rollback_partial_failure",
-
-            rollback:
-              rollbackResult,
-
-            originalError:
-              serializeError(
-                normalized,
-                {
-                  includeStack:
-                    false,
-                },
-              ),
-          },
-          "TITech bootstrap startup rollback completed with cleanup failures.",
+        await this._rollback(
+          context,
+          lifecycleExecutionId,
         );
       }
 
@@ -3092,10 +2627,12 @@ class BootstrapHookRegistry {
 
   /* ===========================================================================
    * Rollback
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
   async _rollback(
     context = {},
+    executionId = null,
   ) {
     const logger =
       normalizeLogger(
@@ -3108,12 +2645,27 @@ class BootstrapHookRegistry {
         ...this._startedHooks,
       ].reverse();
 
-    const rollbackErrors =
-      [];
+    const rollbackErrors = [];
 
-    for (
-      const hook of started
-    ) {
+    safeLog(
+      logger,
+      "warn",
+      {
+        module:
+          MODULE_NAME,
+
+        event:
+          "bootstrap.rollback.started",
+
+        executionId,
+
+        hookCount:
+          started.length,
+      },
+      "TITech bootstrap startup rollback started.",
+    );
+
+    for (const hook of started) {
       if (
         !hook.rollback ||
         typeof hook.stop !==
@@ -3130,23 +2682,20 @@ class BootstrapHookRegistry {
               HOOK_PHASES.SHUTDOWN,
 
             context: {
-              ...(
-                isObjectLike(
-                  context,
-                )
-                  ? context
-                  : {}
-              ),
+              ...(isObjectLike(
+                context,
+              )
+                ? context
+                : {}),
 
               lifecycle: {
-                ...(
-                  context
-                    ?.lifecycle ||
-                  {}
-                ),
+                ...(context?.lifecycle ||
+                  {}),
 
                 rollback:
                   true,
+
+                executionId,
               },
             },
 
@@ -3155,13 +2704,13 @@ class BootstrapHookRegistry {
               null,
 
             logger,
+
+            executionId,
           },
         );
       } catch (error) {
         const normalized =
-          normalizeError(
-            error,
-          );
+          normalizeError(error);
 
         rollbackErrors.push(
           normalized,
@@ -3174,6 +2723,11 @@ class BootstrapHookRegistry {
             module:
               MODULE_NAME,
 
+            event:
+              "bootstrap.rollback.failed",
+
+            executionId,
+
             hook:
               hook.name,
 
@@ -3182,9 +2736,6 @@ class BootstrapHookRegistry {
 
             phase:
               HOOK_PHASES.SHUTDOWN,
-
-            event:
-              "bootstrap.rollback.failed",
 
             error:
               serializeError(
@@ -3200,36 +2751,60 @@ class BootstrapHookRegistry {
       }
     }
 
-    this._startedHooks =
-      [];
+    this._startedHooks = [];
+    this._started = false;
 
-    this._started =
-      false;
+    const result =
+      Object.freeze({
+        attempted:
+          started.length,
 
-    return Object.freeze({
-      attempted:
-        started.length,
+        failed:
+          rollbackErrors.length,
 
-      failed:
-        rollbackErrors.length,
+        errors:
+          Object.freeze(
+            rollbackErrors,
+          ),
+      });
 
-      errors:
-        Object.freeze(
-          rollbackErrors,
-        ),
-    });
+    safeLog(
+      logger,
+      rollbackErrors.length > 0
+        ? "error"
+        : "info",
+      {
+        module:
+          MODULE_NAME,
+
+        event:
+          rollbackErrors.length > 0
+            ? "bootstrap.rollback.completed_with_errors"
+            : "bootstrap.rollback.completed",
+
+        executionId,
+
+        attempted:
+          result.attempted,
+
+        failed:
+          result.failed,
+      },
+      rollbackErrors.length > 0
+        ? "TITech bootstrap rollback completed with cleanup errors."
+        : "TITech bootstrap rollback completed successfully.",
+    );
+
+    return result;
   }
 
   /* ===========================================================================
    * Shutdown
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
-  async shutdown(
-    context = {},
-  ) {
-    if (
-      this._shutdownPromise
-    ) {
+  async shutdown(context = {}) {
+    if (this._shutdownPromise) {
       return this._shutdownPromise;
     }
 
@@ -3255,17 +2830,12 @@ class BootstrapHookRegistry {
     }
   }
 
-  async _shutdownInternal(
-    context,
-  ) {
-    if (
-      this._shutdownStarted
-    ) {
+  async _shutdownInternal(context) {
+    if (this._shutdownStarted) {
       return this;
     }
 
-    this._shutdownStarted =
-      true;
+    this._shutdownStarted = true;
 
     const logger =
       normalizeLogger(
@@ -3273,12 +2843,18 @@ class BootstrapHookRegistry {
           this.options.logger,
       );
 
+    const executionId =
+      context?.executionId ||
+      createExecutionId();
+
     this._setState(
       LIFECYCLE_STATES.STOPPING,
       {
         reason:
           context?.reason ||
           null,
+
+        executionId,
       },
     );
 
@@ -3292,6 +2868,8 @@ class BootstrapHookRegistry {
         event:
           "bootstrap.lifecycle.stopping",
 
+        executionId,
+
         reason:
           context?.reason ||
           null,
@@ -3299,33 +2877,33 @@ class BootstrapHookRegistry {
       "TITech bootstrap lifecycle stopping.",
     );
 
-    const errors =
-      [];
+    const errors = [];
 
     const activeNames =
       new Set(
         this._startedHooks.map(
-          hook =>
+          (hook) =>
             hook.name,
         ),
       );
 
-    /**
-     * Only execute shutdown handlers for:
+    /*
+     * Shutdown-only hooks are included deliberately.
      *
-     *   1. hooks that actually started;
-     *   2. explicitly registered shutdown-only hooks.
+     * Hooks that actually started are also included.
      *
-     * This avoids accidentally stopping services that never started.
+     * Dependencies between the selected hooks are resolved only against
+     * the selected set. This prevents a shutdown-only hook from requiring
+     * startup of an unrelated service during shutdown.
      */
     const registered =
       this.list({
         includeDisabled:
           false,
       }).filter(
-        hook =>
+        (hook) =>
           typeof hook.stop ===
-          "function" &&
+            "function" &&
           (
             activeNames.has(
               hook.name,
@@ -3345,9 +2923,7 @@ class BootstrapHookRegistry {
         );
     } catch (error) {
       const normalized =
-        normalizeError(
-          error,
-        );
+        normalizeError(error);
 
       this._shutdownError =
         normalized;
@@ -3357,6 +2933,8 @@ class BootstrapHookRegistry {
         {
           reason:
             "shutdown-order-resolution-failed",
+
+          executionId,
         },
       );
 
@@ -3376,18 +2954,18 @@ class BootstrapHookRegistry {
         event:
           "bootstrap.shutdown.order_resolved",
 
+        executionId,
+
         order:
           ordered.map(
-            hook =>
+            (hook) =>
               hook.name,
           ),
       },
       "TITech shutdown order resolved.",
     );
 
-    for (
-      const hook of ordered
-    ) {
+    for (const hook of ordered) {
       try {
         await this._executeHook(
           hook,
@@ -3402,13 +2980,13 @@ class BootstrapHookRegistry {
               null,
 
             logger,
+
+            executionId,
           },
         );
       } catch (error) {
         const normalized =
-          normalizeError(
-            error,
-          );
+          normalizeError(error);
 
         errors.push(
           normalized,
@@ -3421,6 +2999,11 @@ class BootstrapHookRegistry {
             module:
               MODULE_NAME,
 
+            event:
+              "bootstrap.shutdown.hook_failed",
+
+            executionId,
+
             hook:
               hook.name,
 
@@ -3429,9 +3012,6 @@ class BootstrapHookRegistry {
 
             phase:
               HOOK_PHASES.SHUTDOWN,
-
-            event:
-              "bootstrap.shutdown.hook_failed",
 
             critical:
               hook.critical,
@@ -3450,25 +3030,29 @@ class BootstrapHookRegistry {
           },
           `TITech shutdown hook failed: ${hook.name}`,
         );
+
+        /*
+         * Shutdown defaults to continuing so that a failure in one resource
+         * does not prevent later cleanup of independent resources.
+         *
+         * Consumers can opt into fail-fast behavior.
+         */
+        if (
+          !this.options
+            .shutdownContinueOnError &&
+          hook.critical
+        ) {
+          break;
+        }
       }
     }
 
-    this._startedHooks =
-      [];
+    this._startedHooks = [];
+    this._started = false;
+    this._stopped = true;
+    this._stoppedAt = new Date();
 
-    this._started =
-      false;
-
-    this._stopped =
-      true;
-
-    this._stoppedAt =
-      new Date();
-
-    if (
-      errors.length >
-      0
-    ) {
+    if (errors.length > 0) {
       this._shutdownError =
         new BootstrapHookError(
           "One or more TITech shutdown hooks failed.",
@@ -3485,7 +3069,7 @@ class BootstrapHookRegistry {
 
               errors:
                 errors.map(
-                  error =>
+                  (error) =>
                     serializeError(
                       error,
                       {
@@ -3503,6 +3087,11 @@ class BootstrapHookRegistry {
         {
           reason:
             "shutdown-cleanup-errors",
+
+          executionId,
+
+          errorCount:
+            errors.length,
         },
       );
 
@@ -3515,6 +3104,8 @@ class BootstrapHookRegistry {
 
           event:
             "bootstrap.lifecycle.shutdown_failed",
+
+          executionId,
 
           errorCount:
             errors.length,
@@ -3530,6 +3121,8 @@ class BootstrapHookRegistry {
       {
         stoppedAt:
           this._stoppedAt,
+
+        executionId,
       },
     );
 
@@ -3543,6 +3136,8 @@ class BootstrapHookRegistry {
         event:
           "bootstrap.lifecycle.stopped",
 
+        executionId,
+
         stoppedAt:
           this._stoppedAt,
       },
@@ -3554,7 +3149,8 @@ class BootstrapHookRegistry {
 
   /* ===========================================================================
    * State
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
   get state() {
     return this._state;
@@ -3602,7 +3198,8 @@ class BootstrapHookRegistry {
 
   /* ===========================================================================
    * Diagnostics
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
   snapshot() {
     return Object.freeze({
@@ -3648,7 +3245,7 @@ class BootstrapHookRegistry {
       startedHooks:
         Object.freeze(
           this._startedHooks.map(
-            hook =>
+            (hook) =>
               hook.name,
           ),
         ),
@@ -3658,9 +3255,8 @@ class BootstrapHookRegistry {
 
       failedHookCount:
         this._history.filter(
-          record =>
-            record.success ===
-            false,
+          (record) =>
+            record.success === false,
         ).length,
 
       createdAt:
@@ -3691,11 +3287,9 @@ class BootstrapHookRegistry {
         ),
 
       lastHistoryEntry:
-        this._history.length >
-        0
+        this._history.length > 0
           ? this._history[
-              this._history.length -
-                1
+              this._history.length - 1
             ]
           : null,
     });
@@ -3710,20 +3304,19 @@ class BootstrapHookRegistry {
   failures() {
     return Object.freeze(
       this._history.filter(
-        record =>
-          record.success ===
-          false,
+        (record) =>
+          record.success === false,
       ),
     );
   }
 
   /* ===========================================================================
    * Reset
-   * ========================================================================= */
+   * ===========================================================================
+   */
 
   reset({
-    clearHooks =
-      true,
+    clearHooks = true,
   } = {}) {
     if (
       ACTIVE_STATES.has(
@@ -3739,72 +3332,40 @@ class BootstrapHookRegistry {
       );
     }
 
-    if (
-      clearHooks
-    ) {
+    if (clearHooks) {
       this._hooks.clear();
     }
 
-    this._startedHooks =
-      [];
-
-    this._history =
-      [];
+    this._startedHooks = [];
+    this._history = [];
 
     this._setState(
       LIFECYCLE_STATES.CREATED,
     );
 
-    this._initialized =
-      false;
+    this._initialized = false;
+    this._started = false;
+    this._stopped = false;
+    this._shutdownStarted = false;
 
-    this._started =
-      false;
+    this._initializePromise = null;
+    this._startPromise = null;
+    this._shutdownPromise = null;
 
-    this._stopped =
-      false;
+    this._initializationError = null;
+    this._startupError = null;
+    this._shutdownError = null;
 
-    this._shutdownStarted =
-      false;
-
-    this._initializePromise =
-      null;
-
-    this._startPromise =
-      null;
-
-    this._shutdownPromise =
-      null;
-
-    this._initializationError =
-      null;
-
-    this._startupError =
-      null;
-
-    this._shutdownError =
-      null;
-
-    this._initializedAt =
-      null;
-
-    this._startedAt =
-      null;
-
-    this._stoppedAt =
-      null;
+    this._initializedAt = null;
+    this._startedAt = null;
+    this._stoppedAt = null;
 
     return this;
   }
 }
 
 /* =============================================================================
- * Optional Metrics Bridge
- * =============================================================================
- *
- * Metrics must remain advisory. This function intentionally supports the
- * observability implementations already used elsewhere in TITech without
- * requiring a specific metrics library here.
+ * Optional Observability Bridge
  * =============================================================================
  */
 
@@ -3815,16 +3376,17 @@ function emitHookMetric(
   payload = {},
 ) {
   try {
-    const module =
-      globalThis.__TITECH_OBSERVABILITY__ ||
+    const observability =
+      globalThis
+        .__TITECH_OBSERVABILITY__ ||
       null;
 
     if (
-      module &&
-      typeof module.emitEvent ===
+      observability &&
+      typeof observability.emitEvent ===
         "function"
     ) {
-      module.emitEvent(
+      observability.emitEvent(
         `bootstrap.hook.${event}`,
         {
           component:
@@ -3843,7 +3405,9 @@ function emitHookMetric(
       );
     }
   } catch {
-    // Advisory only.
+    /*
+     * Observability is advisory.
+     */
   }
 }
 
@@ -3857,14 +3421,11 @@ const hooks =
 
 /* =============================================================================
  * Public Registration API
- * ============================================================================= */
+ * =============================================================================
+ */
 
-function register(
-  options = {},
-) {
-  return hooks.register(
-    options,
-  );
+function register(options = {}) {
+  return hooks.register(options);
 }
 
 function registerStartupHook(
@@ -3908,9 +3469,7 @@ async function startup(
         null
     );
 
-  if (
-    isExecutionCall
-  ) {
+  if (isExecutionCall) {
     return hooks.start(
       nameOrContext || {},
     );
@@ -3959,78 +3518,59 @@ function lifecycle(
 
 /* =============================================================================
  * Explicit Orchestration Aliases
- * ============================================================================= */
+ * =============================================================================
+ */
 
 async function runStartup(
   context = {},
 ) {
-  return hooks.start(
-    context,
-  );
+  return hooks.start(context);
 }
 
 async function runShutdown(
   context = {},
 ) {
-  return hooks.shutdown(
-    context,
-  );
+  return hooks.shutdown(context);
 }
 
 /* =============================================================================
  * Public Lifecycle API
- * ============================================================================= */
+ * =============================================================================
+ */
 
 async function initialize(
   context = {},
 ) {
-  return hooks.initialize(
-    context,
-  );
+  return hooks.initialize(context);
 }
 
 async function start(
   context = {},
 ) {
-  return hooks.start(
-    context,
-  );
+  return hooks.start(context);
 }
 
 async function shutdown(
   context = {},
 ) {
-  return hooks.shutdown(
-    context,
-  );
+  return hooks.shutdown(context);
 }
 
 /* =============================================================================
  * Lookup / Diagnostics
- * ============================================================================= */
+ * =============================================================================
+ */
 
-function get(
-  name,
-) {
-  return hooks.get(
-    name,
-  );
+function get(name) {
+  return hooks.get(name);
 }
 
-function has(
-  name,
-) {
-  return hooks.has(
-    name,
-  );
+function has(name) {
+  return hooks.has(name);
 }
 
-function list(
-  options = {},
-) {
-  return hooks.list(
-    options,
-  );
+function list(options = {}) {
+  return hooks.list(options);
 }
 
 function snapshot() {
@@ -4057,15 +3597,20 @@ function getLifecycleState() {
  * Signal Management
  * =============================================================================
  *
- * Importing hooks.js NEVER installs process listeners.
+ * IMPORTANT:
+ *
+ * Requiring hooks.js NEVER installs process signal listeners.
+ *
+ * The composition root must explicitly invoke:
+ *
+ *   installSignalHandlers(...)
+ *
  * =============================================================================
  */
 
-let signalHandlersInstalled =
-  false;
+let signalHandlersInstalled = false;
 
-let signalHandlerReferences =
-  [];
+let signalHandlerReferences = [];
 
 function installSignalHandlers({
   signals = [
@@ -4081,18 +3626,13 @@ function installSignalHandlers({
 
   logger = null,
 } = {}) {
-  if (
-    signalHandlersInstalled
-  ) {
+  if (signalHandlersInstalled) {
     return false;
   }
 
   if (
-    !Array.isArray(
-      signals,
-    ) ||
-    signals.length ===
-      0
+    !Array.isArray(signals) ||
+    signals.length === 0
   ) {
     throw new TypeError(
       "TITech bootstrap signal list must be a non-empty array.",
@@ -4104,156 +3644,131 @@ function installSignalHandlers({
       ...new Set(
         signals
           .map(
-            signal =>
-              String(
-                signal,
-              ).trim(),
+            (signal) =>
+              String(signal).trim(),
           )
-          .filter(
-            Boolean,
-          ),
+          .filter(Boolean),
       ),
     ];
 
   if (
-    uniqueSignals.length ===
-    0
+    uniqueSignals.length === 0
   ) {
     throw new TypeError(
       "TITech bootstrap signal list must contain at least one valid signal.",
     );
   }
 
-  signalHandlersInstalled =
-    true;
+  signalHandlersInstalled = true;
 
-  let shuttingDown =
-    false;
+  let shuttingDown = false;
 
-  const handler =
-    async signal => {
-      if (
-        shuttingDown
-      ) {
-        return;
-      }
+  const handler = async (signal) => {
+    if (shuttingDown) {
+      return;
+    }
 
-      shuttingDown =
-        true;
+    shuttingDown = true;
 
-      const shutdownContext =
+    const shutdownContext = {
+      ...(isObjectLike(context)
+        ? context
+        : {}),
+
+      signal,
+
+      reason:
+        "process-signal",
+
+      logger:
+        context?.logger ||
+        logger ||
+        null,
+    };
+
+    safeLog(
+      logger ||
+        context?.logger ||
+        null,
+      "info",
+      {
+        module:
+          MODULE_NAME,
+
+        event:
+          "bootstrap.signal.received",
+
+        signal,
+      },
+      `TITech bootstrap received ${signal}.`,
+    );
+
+    try {
+      await safeCallback(
+        onShutdown,
         {
-          ...(
-            isObjectLike(
-              context,
-            )
-              ? context
-              : {}
-          ),
-
           signal,
+          context:
+            shutdownContext,
+        },
+      );
 
-          reason:
-            "process-signal",
+      await hooks.shutdown(
+        shutdownContext,
+      );
 
-          logger:
-            context?.logger ||
-            logger ||
-            null,
-        };
+      if (exit) {
+        /*
+         * This module intentionally does not call process.exit().
+         *
+         * Setting exitCode permits the composition root/runtime to own actual
+         * process termination.
+         */
+        process.exitCode = 0;
+      }
+    } catch (error) {
+      process.exitCode = 1;
 
       safeLog(
         logger ||
           context?.logger ||
           null,
-        "info",
+        "error",
         {
           module:
             MODULE_NAME,
 
           event:
-            "bootstrap.signal.received",
+            "bootstrap.signal_shutdown_failed",
 
           signal,
+
+          error:
+            serializeError(
+              error,
+              {
+                includeStack:
+                  true,
+              },
+            ),
         },
-        `TITech bootstrap received ${signal}.`,
+        `TITech graceful shutdown failed after ${signal}.`,
       );
+    } finally {
+      shuttingDown = false;
+    }
+  };
 
-      try {
-        await safeCallback(
-          onShutdown,
-          {
-            signal,
-
-            context:
-              shutdownContext,
-          },
-        );
-
-        await hooks.shutdown(
-          shutdownContext,
-        );
-
-        if (
-          exit
-        ) {
-          /**
-           * The database/bootstrap modules never terminate the process.
-           * The composition root owns process termination.
-           */
-          process.exitCode =
-            0;
-        }
-      } catch (error) {
-        process.exitCode =
-          1;
-
-        safeLog(
-          logger ||
-            context?.logger ||
-            null,
-          "error",
-          {
-            module:
-              MODULE_NAME,
-
-            event:
-              "bootstrap.signal_shutdown_failed",
-
-            signal,
-
-            error:
-              serializeError(
-                error,
-                {
-                  includeStack:
-                    true,
-                },
-              ),
-          },
-          `TITech graceful shutdown failed after ${signal}.`,
-        );
-      } finally {
-        shuttingDown =
-          false;
-      }
-    };
-
-  for (
-    const signal of
-      uniqueSignals
-  ) {
+  for (const signal of uniqueSignals) {
     process.once(
       signal,
       handler,
     );
 
-    signalHandlerReferences.push(
-      {
-        signal,
-        handler,
-      },
-    );
+    signalHandlerReferences.push({
+      signal,
+      handler,
+    });
   }
 
   return true;
@@ -4272,11 +3787,9 @@ function uninstallSignalHandlers() {
     );
   }
 
-  signalHandlerReferences =
-    [];
+  signalHandlerReferences = [];
 
-  signalHandlersInstalled =
-    false;
+  signalHandlersInstalled = false;
 
   return true;
 }
@@ -4293,34 +3806,25 @@ let processErrorHandlerReferences =
   [];
 
 function installProcessErrorHandlers({
-  onUncaughtException =
-    null,
+  onUncaughtException = null,
 
-  onUnhandledRejection =
-    null,
+  onUnhandledRejection = null,
 
-  shutdownOnError =
-    true,
+  shutdownOnError = true,
 
-  logger =
-    null,
+  logger = null,
 } = {}) {
-  if (
-    processErrorHandlersInstalled
-  ) {
+  if (processErrorHandlersInstalled) {
     return false;
   }
 
-  processErrorHandlersInstalled =
-    true;
+  processErrorHandlersInstalled = true;
 
   const handleUncaughtException =
-    error => {
+    (error) => {
       void (async () => {
         const normalized =
-          normalizeError(
-            error,
-          );
+          normalizeError(error);
 
         safeLog(
           logger,
@@ -4350,9 +3854,7 @@ function installProcessErrorHandlers({
             normalized,
           );
 
-          if (
-            shutdownOnError
-          ) {
+          if (shutdownOnError) {
             await hooks.shutdown({
               reason:
                 "uncaughtException",
@@ -4365,9 +3867,7 @@ function installProcessErrorHandlers({
                 null,
             });
           }
-        } catch (
-          shutdownError
-        ) {
+        } catch (shutdownError) {
           safeLog(
             logger,
             "error",
@@ -4399,19 +3899,21 @@ function installProcessErrorHandlers({
             "TITech shutdown after uncaught exception failed.",
           );
         } finally {
-          process.exitCode =
-            1;
+          /*
+           * Do not call process.exit().
+           *
+           * The composition root owns actual process termination.
+           */
+          process.exitCode = 1;
         }
       })();
     };
 
   const handleUnhandledRejection =
-    reason => {
+    (reason) => {
       void (async () => {
         const error =
-          normalizeError(
-            reason,
-          );
+          normalizeError(reason);
 
         safeLog(
           logger,
@@ -4441,9 +3943,7 @@ function installProcessErrorHandlers({
             error,
           );
 
-          if (
-            shutdownOnError
-          ) {
+          if (shutdownOnError) {
             await hooks.shutdown({
               reason:
                 "unhandledRejection",
@@ -4455,9 +3955,7 @@ function installProcessErrorHandlers({
                 null,
             });
           }
-        } catch (
-          shutdownError
-        ) {
+        } catch (shutdownError) {
           safeLog(
             logger,
             "error",
@@ -4489,8 +3987,7 @@ function installProcessErrorHandlers({
             "TITech shutdown after unhandled rejection failed.",
           );
         } finally {
-          process.exitCode =
-            1;
+          process.exitCode = 1;
         }
       })();
     };
@@ -4550,18 +4047,14 @@ function uninstallProcessErrorHandlers() {
 
 /* =============================================================================
  * Test Utilities
- * ============================================================================= */
+ * =============================================================================
+ */
 
-function resetForTests(
-  options = {},
-) {
+function resetForTests(options = {}) {
   uninstallSignalHandlers();
-
   uninstallProcessErrorHandlers();
 
-  return hooks.reset(
-    options,
-  );
+  return hooks.reset(options);
 }
 
 /* =============================================================================
@@ -4569,85 +4062,58 @@ function resetForTests(
  * =============================================================================
  */
 
-const publicApi =
-  {
-    /* Errors */
-    BootstrapHookError,
+const publicApi = {
+  /* Errors */
+  BootstrapHookError,
+  BootstrapHookTimeoutError,
+  BootstrapDependencyError,
+  BootstrapLifecycleStateError,
 
-    BootstrapHookTimeoutError,
+  /* Registry */
+  BootstrapHookRegistry,
+  hooks,
 
-    BootstrapDependencyError,
+  /* Constants */
+  HOOK_PHASES,
+  LIFECYCLE_STATES,
 
-    BootstrapLifecycleStateError,
+  /* Registration */
+  register,
+  startup,
+  registerStartupHook,
+  registerShutdownHook,
+  shutdownHook,
+  lifecycle,
 
-    /* Registry */
-    BootstrapHookRegistry,
+  /* Explicit lifecycle */
+  initialize,
+  start,
+  runStartup,
+  shutdown,
+  runShutdown,
 
-    hooks,
+  /* Lookup / diagnostics */
+  get,
+  has,
+  list,
+  snapshot,
+  history,
+  failures,
+  getState,
+  getLifecycleState,
 
-    /* Constants */
-    HOOK_PHASES,
+  /* Process lifecycle */
+  installSignalHandlers,
+  uninstallSignalHandlers,
+  installProcessErrorHandlers,
+  uninstallProcessErrorHandlers,
 
-    LIFECYCLE_STATES,
-
-    /* Registration */
-    register,
-
-    startup,
-
-    registerStartupHook,
-
-    registerShutdownHook,
-
-    shutdownHook,
-
-    lifecycle,
-
-    /* Explicit lifecycle */
-    initialize,
-
-    start,
-
-    runStartup,
-
-    shutdown,
-
-    runShutdown,
-
-    /* Lookup / diagnostics */
-    get,
-
-    has,
-
-    list,
-
-    snapshot,
-
-    history,
-
-    failures,
-
-    getState,
-
-    getLifecycleState,
-
-    /* Process lifecycle */
-    installSignalHandlers,
-
-    uninstallSignalHandlers,
-
-    installProcessErrorHandlers,
-
-    uninstallProcessErrorHandlers,
-
-    /* Test support */
-    resetForTests,
-  };
+  /* Test support */
+  resetForTests,
+};
 
 module.exports =
-  Object.freeze(
-    publicApi,
-  );
+  Object.freeze(publicApi);
 
 /* =============================================================================
  * Development Contract Self-Check
@@ -4658,32 +4124,20 @@ if (
   process.env.NODE_ENV !==
   "production"
 ) {
-  const requiredExports =
-    [
-      "register",
-
-      "startup",
-
-      "registerStartupHook",
-
-      "registerShutdownHook",
-
-      "shutdownHook",
-
-      "lifecycle",
-
-      "initialize",
-
-      "start",
-
-      "runStartup",
-
-      "shutdown",
-
-      "runShutdown",
-
-      "BootstrapHookRegistry",
-    ];
+  const requiredExports = [
+    "register",
+    "startup",
+    "registerStartupHook",
+    "registerShutdownHook",
+    "shutdownHook",
+    "lifecycle",
+    "initialize",
+    "start",
+    "runStartup",
+    "shutdown",
+    "runShutdown",
+    "BootstrapHookRegistry",
+  ];
 
   for (
     const exportName of
@@ -4692,8 +4146,7 @@ if (
     if (
       typeof module.exports[
         exportName
-      ] ===
-      "undefined"
+      ] === "undefined"
     ) {
       throw new Error(
         `TITech bootstrap hook export contract is invalid: "${exportName}" is missing.`,

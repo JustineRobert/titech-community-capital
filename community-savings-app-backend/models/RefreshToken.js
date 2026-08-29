@@ -1,49 +1,104 @@
-// ============================================================================
-// TITech Community Capital
-// Enterprise Refresh Token Model
-//
-// File:
-// backend/models/RefreshToken.js
-//
-// Production Grade
-// Opaque Refresh Tokens | SHA-256 Hashing
-// Rotation | Token Families | Reuse Detection
-// Atomic Revocation | Device Sessions | Audit Metadata
-// TTL Cleanup | Multi-Tenant Security | Concurrency Safety
-//
-// SECURITY MODEL
-//
-// - Raw refresh tokens are NEVER persisted.
-// - tokenHash contains only a SHA-256 digest.
-// - Refresh tokens are rotated on successful use.
-// - Every rotation remains inside the same token family.
-// - A previously rotated token can never become active again.
-// - Reuse detection can revoke the complete token family.
-// - Token rotation uses an atomic compare-and-set operation.
-// - Tenant ownership is retained at the session boundary.
-// - Access tokens are short-lived and are NOT represented here.
-//
-// IMPORTANT
-//
-// This model does NOT issue refresh tokens.
-// Token issuance, cookie management, authentication policy and transaction
-// orchestration belong in the authentication/session service.
-//
-// The backend remains authoritative for authentication and authorization.
-//
-// IMPORTANT TRANSACTION NOTE
-//
-// For highest assurance, the authentication service should perform:
-//
-//   1. Validate current refresh token.
-//   2. Atomically consume/rotate current token.
-//   3. Create replacement token.
-//   4. Commit both operations in one MongoDB transaction.
-//
-// A retry after a successful rotation must be treated as token reuse.
-// ============================================================================
-
 "use strict";
+
+/**
+ * ============================================================================
+ * TITech Community Capital
+ * Enterprise Refresh Token Model
+ * ============================================================================
+ *
+ * File:
+ *   backend/models/RefreshToken.js
+ *
+ * Purpose:
+ *   Persistent server-side state for opaque refresh-token sessions.
+ *
+ * Security Model:
+ *
+ *   Raw refresh tokens are NEVER persisted.
+ *   Only SHA-256 token digests are stored.
+ *
+ *   Refresh lifecycle:
+ *
+ *      raw refresh token
+ *             |
+ *             v
+ *        SHA-256 hash
+ *             |
+ *             v
+ *        tokenHash lookup
+ *             |
+ *             v
+ *        atomic rotation
+ *             |
+ *             +----------------------+
+ *             |                      |
+ *             v                      v
+ *         success                 failure
+ *             |                      |
+ *             v                      v
+ *       replacement             reuse detection
+ *                                  |
+ *                                  v
+ *                           revoke token family
+ *
+ * Token families:
+ *
+ *   Token A
+ *      |
+ *      +--> Token B
+ *              |
+ *              +--> Token C
+ *                      |
+ *                      +--> Token D
+ *
+ * Every rotated token remains in the same family.
+ *
+ * A previously rotated token must never become active again.
+ *
+ * IMPORTANT:
+ *
+ * This model DOES NOT:
+ *
+ *   - issue JWT access tokens;
+ *   - issue raw refresh tokens;
+ *   - set cookies;
+ *   - validate passwords;
+ *   - perform MFA;
+ *   - authenticate users;
+ *   - decide authentication policy;
+ *   - send authentication responses.
+ *
+ * Those responsibilities belong to the authentication/session service and
+ * controller layer.
+ *
+ * The canonical refresh endpoint remains:
+ *
+ *   POST /refresh
+ *
+ * Any legacy endpoint such as /refresh-token should delegate into the same
+ * authentication service rather than implementing a second refresh flow.
+ *
+ * MULTI-TENANT SECURITY:
+ *
+ * Tenant identity must originate from trusted server-side authentication or
+ * administrative context. It must never be trusted from arbitrary client
+ * query/body/header input.
+ *
+ * TRANSACTION MODEL:
+ *
+ * The authentication service should preferably execute:
+ *
+ *   1. Resolve and validate the presented refresh token.
+ *   2. Atomically consume/rotate the current token.
+ *   3. Persist the replacement token.
+ *   4. Commit the transaction.
+ *   5. Issue the new access/refresh credentials.
+ *
+ * Replaying a previously consumed token must be treated as a security event
+ * and should revoke the complete token family.
+ *
+ * ============================================================================
+ */
 
 const crypto = require("crypto");
 const mongoose = require("mongoose");
@@ -59,6 +114,10 @@ const TOKEN_HASH_ALGORITHM = "sha256";
 const TOKEN_ID_BYTES = 16;
 const TOKEN_FAMILY_BYTES = 16;
 
+const PUBLIC_ID_LENGTH = TOKEN_ID_BYTES * 2;
+const TOKEN_FAMILY_LENGTH = TOKEN_FAMILY_BYTES * 2;
+const TOKEN_HASH_LENGTH = 64;
+
 const MAX_REASON_LENGTH = 128;
 const MAX_DEVICE_NAME_LENGTH = 256;
 const MAX_DEVICE_ID_LENGTH = 256;
@@ -66,8 +125,50 @@ const MAX_USER_AGENT_LENGTH = 2048;
 const MAX_IP_LENGTH = 128;
 const MAX_ISSUED_BY_LENGTH = 128;
 
-const PUBLIC_ID_PATTERN = /^[a-f0-9]{32}$/;
-const TOKEN_FAMILY_PATTERN = /^[a-f0-9]{32}$/;
+const PUBLIC_ID_PATTERN =
+  /^[a-f0-9]{32}$/;
+
+const TOKEN_FAMILY_PATTERN =
+  /^[a-f0-9]{32}$/;
+
+const TOKEN_HASH_PATTERN =
+  /^[a-f0-9]{64}$/;
+
+// ============================================================================
+// Security Reasons
+// ============================================================================
+
+const REVOCATION_REASONS = Object.freeze([
+  "rotated",
+  "user_revoked",
+  "user_logout",
+  "user_logout_all",
+  "admin_revoked",
+  "device_revoked",
+  "security_revoked",
+  "refresh_token_reuse",
+  "session_expired",
+  "account_disabled",
+  "account_deleted",
+  "tenant_disabled",
+  "password_changed",
+  "mfa_reset",
+  "unspecified",
+]);
+
+// ============================================================================
+// Issuance Sources
+// ============================================================================
+
+const ISSUED_BY_VALUES = Object.freeze([
+  "password_login",
+  "refresh_rotation",
+  "mfa_login",
+  "passwordless_login",
+  "admin_session",
+  "system",
+  "unknown",
+]);
 
 // ============================================================================
 // Immutable Security Helpers
@@ -88,10 +189,14 @@ function generateTokenFamilyId() {
 /**
  * Hash a raw refresh token.
  *
- * SECURITY:
- * - The raw token exists only in request memory.
- * - The raw token is never persisted.
- * - The resulting digest is deterministic and suitable for indexed lookup.
+ * The raw token must never be written to:
+ *
+ *   - MongoDB;
+ *   - logs;
+ *   - audit records;
+ *   - metrics;
+ *   - traces;
+ *   - error messages.
  */
 function hashToken(rawToken) {
   if (
@@ -110,11 +215,11 @@ function hashToken(rawToken) {
 }
 
 /**
- * Constant-time comparison for token hashes.
+ * Constant-time digest comparison.
  *
- * Normally MongoDB performs the hash lookup directly. This helper is exposed
- * for authentication services that need an explicit comparison after loading
- * a candidate digest.
+ * MongoDB hash lookup is normally preferred. This helper exists for callers
+ * that have already loaded a candidate digest and require an explicit
+ * constant-time comparison.
  */
 function hashesEqual(left, right) {
   if (
@@ -124,11 +229,22 @@ function hashesEqual(left, right) {
     return false;
   }
 
-  const leftBuffer = Buffer.from(left, "utf8");
-  const rightBuffer = Buffer.from(right, "utf8");
+  if (
+    !TOKEN_HASH_PATTERN.test(left) ||
+    !TOKEN_HASH_PATTERN.test(right)
+  ) {
+    return false;
+  }
+
+  const leftBuffer =
+    Buffer.from(left, "utf8");
+
+  const rightBuffer =
+    Buffer.from(right, "utf8");
 
   if (
-    leftBuffer.length !== rightBuffer.length
+    leftBuffer.length !==
+    rightBuffer.length
   ) {
     return false;
   }
@@ -139,6 +255,9 @@ function hashesEqual(left, right) {
   );
 }
 
+/**
+ * Normalize bounded string input.
+ */
 function normalizeString(
   value,
   maxLength
@@ -150,22 +269,59 @@ function normalizeString(
     return null;
   }
 
-  const normalized = String(value)
-    .trim()
-    .slice(0, maxLength);
+  const normalized =
+    String(value)
+      .trim()
+      .slice(0, maxLength);
 
   return normalized || null;
 }
 
+/**
+ * Normalize a revocation/security reason.
+ */
 function normalizeReason(reason) {
-  return (
+  const normalized =
     normalizeString(
       reason,
       MAX_REASON_LENGTH
-    ) || "unspecified"
-  );
+    );
+
+  if (!normalized) {
+    return "unspecified";
+  }
+
+  return REVOCATION_REASONS.includes(
+    normalized
+  )
+    ? normalized
+    : "unspecified";
 }
 
+/**
+ * Normalize an issuance source.
+ */
+function normalizeIssuedBy(value) {
+  const normalized =
+    normalizeString(
+      value,
+      MAX_ISSUED_BY_LENGTH
+    );
+
+  if (!normalized) {
+    return "unknown";
+  }
+
+  return ISSUED_BY_VALUES.includes(
+    normalized
+  )
+    ? normalized
+    : "unknown";
+}
+
+/**
+ * Normalize date input.
+ */
 function normalizeDate(value) {
   if (!value) {
     return null;
@@ -187,8 +343,29 @@ function normalizeDate(value) {
   return date;
 }
 
+/**
+ * Validate an ObjectId.
+ */
+function isValidObjectId(value) {
+  return mongoose.isValidObjectId(
+    value
+  );
+}
+
+/**
+ * Return a query that can never match.
+ *
+ * Used instead of accepting malformed identifiers and accidentally producing
+ * broad database queries.
+ */
+function impossibleQuery() {
+  return {
+    _id: null,
+  };
+}
+
 // ============================================================================
-// Device Metadata
+// Device Information
 // ============================================================================
 
 const DeviceInfoSchema =
@@ -228,6 +405,7 @@ const DeviceInfoSchema =
     {
       _id: false,
       versionKey: false,
+      strict: true,
     }
   );
 
@@ -239,7 +417,7 @@ const RefreshTokenSchema =
   new Schema(
     {
       // ----------------------------------------------------------------------
-      // Public session/token-record identifier.
+      // Public record identifier.
       //
       // This is NOT the refresh token.
       // ----------------------------------------------------------------------
@@ -251,6 +429,8 @@ const RefreshTokenSchema =
         index: true,
         immutable: true,
         default: generatePublicId,
+        minlength: PUBLIC_ID_LENGTH,
+        maxlength: PUBLIC_ID_LENGTH,
         match: PUBLIC_ID_PATTERN,
       },
 
@@ -267,11 +447,11 @@ const RefreshTokenSchema =
       },
 
       // ----------------------------------------------------------------------
-      // Tenant boundary.
+      // Tenant ownership.
       //
-      // A null tenantId is permitted for installations where tenant scoping
-      // is not enabled. Authentication services should nevertheless enforce
-      // tenant consistency whenever tenantId is present.
+      // Null is allowed for installations that have not enabled tenant
+      // scoping. When tenant-aware authentication is enabled, services must
+      // always enforce tenant consistency.
       // ----------------------------------------------------------------------
 
       tenantId: {
@@ -283,10 +463,11 @@ const RefreshTokenSchema =
       },
 
       // ----------------------------------------------------------------------
-      // SHA-256 token digest.
+      // SHA-256 digest of the raw refresh token.
       //
-      // NEVER expose this field through API responses.
+      // NEVER return this through an API.
       // NEVER log this field.
+      // NEVER expose this field in normal queries.
       // ----------------------------------------------------------------------
 
       tokenHash: {
@@ -296,21 +477,13 @@ const RefreshTokenSchema =
         index: true,
         immutable: true,
         select: false,
-        minlength: 64,
-        maxlength: 64,
-        match: /^[a-f0-9]{64}$/,
+        minlength: TOKEN_HASH_LENGTH,
+        maxlength: TOKEN_HASH_LENGTH,
+        match: TOKEN_HASH_PATTERN,
       },
 
       // ----------------------------------------------------------------------
-      // Token family.
-      //
-      // Rotation preserves this value.
-      //
-      // token-1 -> token-2 -> token-3
-      //              |
-      //              +-- same family
-      //
-      // Reuse of an old token should revoke the family.
+      // Rotation family.
       // ----------------------------------------------------------------------
 
       familyId: {
@@ -318,13 +491,14 @@ const RefreshTokenSchema =
         required: true,
         index: true,
         immutable: true,
-        default:
-          generateTokenFamilyId,
+        default: generateTokenFamilyId,
+        minlength: TOKEN_FAMILY_LENGTH,
+        maxlength: TOKEN_FAMILY_LENGTH,
         match: TOKEN_FAMILY_PATTERN,
       },
 
       // ----------------------------------------------------------------------
-      // Lifecycle.
+      // Lifecycle timestamps.
       // ----------------------------------------------------------------------
 
       createdAt: {
@@ -349,7 +523,7 @@ const RefreshTokenSchema =
       },
 
       // ----------------------------------------------------------------------
-      // Revocation.
+      // Revocation state.
       // ----------------------------------------------------------------------
 
       revokedAt: {
@@ -362,19 +536,28 @@ const RefreshTokenSchema =
         type: String,
         default: null,
         trim: true,
-        maxlength:
-          MAX_REASON_LENGTH,
+        maxlength: MAX_REASON_LENGTH,
+        enum: [
+          null,
+          ...REVOCATION_REASONS,
+        ],
       },
 
       // ----------------------------------------------------------------------
       // Rotation lineage.
+      //
+      // replacedBy references the public id of the replacement token record.
+      //
+      // It NEVER contains a raw refresh token.
       // ----------------------------------------------------------------------
 
       replacedBy: {
         type: String,
         default: null,
+        maxlength: PUBLIC_ID_LENGTH,
+        match:
+          PUBLIC_ID_PATTERN,
         index: true,
-        maxlength: 64,
       },
 
       replacedAt: {
@@ -383,7 +566,7 @@ const RefreshTokenSchema =
       },
 
       // ----------------------------------------------------------------------
-      // Refresh-token reuse detection.
+      // Reuse detection.
       // ----------------------------------------------------------------------
 
       reuseDetectedAt: {
@@ -396,8 +579,7 @@ const RefreshTokenSchema =
         type: String,
         default: null,
         trim: true,
-        maxlength:
-          MAX_REASON_LENGTH,
+        maxlength: MAX_REASON_LENGTH,
       },
 
       // ----------------------------------------------------------------------
@@ -410,7 +592,7 @@ const RefreshTokenSchema =
       },
 
       // ----------------------------------------------------------------------
-      // Issuance metadata.
+      // Issuance source.
       // ----------------------------------------------------------------------
 
       issuedBy: {
@@ -419,10 +601,11 @@ const RefreshTokenSchema =
         trim: true,
         maxlength:
           MAX_ISSUED_BY_LENGTH,
+        enum: ISSUED_BY_VALUES,
       },
 
       // ----------------------------------------------------------------------
-      // Most recent activity metadata.
+      // Most recent request metadata.
       // ----------------------------------------------------------------------
 
       lastUsedIp: {
@@ -443,8 +626,11 @@ const RefreshTokenSchema =
     {
       versionKey: false,
       timestamps: false,
-
       strict: true,
+
+      // ----------------------------------------------------------------------
+      // Security-safe JSON representation.
+      // ----------------------------------------------------------------------
 
       toJSON: {
         transform(doc, ret) {
@@ -475,7 +661,7 @@ const RefreshTokenSchema =
   );
 
 // ============================================================================
-// Validation
+// Schema Validation
 // ============================================================================
 
 RefreshTokenSchema.pre(
@@ -483,55 +669,163 @@ RefreshTokenSchema.pre(
   function validateRefreshToken(
     next
   ) {
+    const validationError =
+      new mongoose.Error.ValidationError(
+        this
+      );
+
+    // ------------------------------------------------------------------------
+    // Expiration must occur after creation.
+    // ------------------------------------------------------------------------
+
     if (
       this.expiresAt &&
       this.createdAt &&
       this.expiresAt <=
         this.createdAt
     ) {
-      return next(
-        new mongoose.Error.ValidationError(
-          this
+      validationError.addError(
+        "expiresAt",
+        new mongoose.Error.ValidatorError(
+          {
+            path: "expiresAt",
+            message:
+              "expiresAt must be later than createdAt.",
+          }
         )
       );
     }
 
+    // ------------------------------------------------------------------------
+    // lastUsedAt cannot precede creation.
+    // ------------------------------------------------------------------------
+
     if (
-      this.revokedAt &&
-      this.replacedAt &&
-      this.replacedAt <
-        this.revokedAt
+      this.lastUsedAt &&
+      this.createdAt &&
+      this.lastUsedAt <
+        this.createdAt
     ) {
-      return next(
-        new mongoose.Error.ValidationError(
-          this
+      validationError.addError(
+        "lastUsedAt",
+        new mongoose.Error.ValidatorError(
+          {
+            path: "lastUsedAt",
+            message:
+              "lastUsedAt cannot precede createdAt.",
+          }
         )
       );
     }
+
+    // ------------------------------------------------------------------------
+    // Rotation lineage must be internally consistent.
+    // ------------------------------------------------------------------------
 
     if (
       this.replacedBy &&
       !this.replacedAt
     ) {
-      return next(
-        new mongoose.Error.ValidationError(
-          this
+      validationError.addError(
+        "replacedAt",
+        new mongoose.Error.ValidatorError(
+          {
+            path: "replacedAt",
+            message:
+              "replacedAt is required when replacedBy is set.",
+          }
         )
       );
     }
 
     if (
-      this.reuseDetectedAt &&
-      !this.revokedAt
+      this.replacedAt &&
+      !this.replacedBy
     ) {
-      return next(
-        new mongoose.Error.ValidationError(
-          this
+      validationError.addError(
+        "replacedBy",
+        new mongoose.Error.ValidatorError(
+          {
+            path: "replacedBy",
+            message:
+              "replacedBy is required when replacedAt is set.",
+          }
         )
       );
     }
 
-    next();
+    // ------------------------------------------------------------------------
+    // A rotated token must be revoked.
+    // ------------------------------------------------------------------------
+
+    if (
+      this.replacedBy &&
+      !this.revokedAt
+    ) {
+      validationError.addError(
+        "revokedAt",
+        new mongoose.Error.ValidatorError(
+          {
+            path: "revokedAt",
+            message:
+              "A rotated token must be revoked.",
+          }
+        )
+      );
+    }
+
+    // ------------------------------------------------------------------------
+    // Reuse detection must correspond to revocation.
+    // ------------------------------------------------------------------------
+
+    if (
+      this.reuseDetectedAt &&
+      !this.revokedAt
+    ) {
+      validationError.addError(
+        "revokedAt",
+        new mongoose.Error.ValidatorError(
+          {
+            path: "revokedAt",
+            message:
+              "Reuse detection requires token revocation.",
+          }
+        )
+      );
+    }
+
+    // ------------------------------------------------------------------------
+    // Reuse detection should have a reason.
+    // ------------------------------------------------------------------------
+
+    if (
+      this.reuseDetectedAt &&
+      !this.reuseDetectedReason
+    ) {
+      validationError.addError(
+        "reuseDetectedReason",
+        new mongoose.Error.ValidatorError(
+          {
+            path:
+              "reuseDetectedReason",
+            message:
+              "Reuse detection requires a reason.",
+          }
+        )
+      );
+    }
+
+    if (
+      Object.keys(
+        validationError.errors
+      ).length > 0
+    ) {
+      return next(
+        validationError
+      );
+    }
+
+    return next();
   }
 );
 
@@ -539,56 +833,111 @@ RefreshTokenSchema.pre(
 // Indexes
 // ============================================================================
 
+// -----------------------------------------------------------------------------
 // Active sessions for a user.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index({
   userId: 1,
   revokedAt: 1,
   expiresAt: 1,
 });
 
-// Active sessions for a tenant.
+// -----------------------------------------------------------------------------
+// Tenant-scoped active sessions.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index({
   tenantId: 1,
   revokedAt: 1,
   expiresAt: 1,
 });
 
-// Token family security operations.
+// -----------------------------------------------------------------------------
+// User + tenant session operations.
+// -----------------------------------------------------------------------------
+
+RefreshTokenSchema.index({
+  tenantId: 1,
+  userId: 1,
+  revokedAt: 1,
+  expiresAt: 1,
+});
+
+// -----------------------------------------------------------------------------
+// Token-family security operations.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index({
   familyId: 1,
   revokedAt: 1,
 });
 
-// User + token family operations.
+// -----------------------------------------------------------------------------
+// User + token-family operations.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index({
   userId: 1,
   familyId: 1,
 });
 
-// Device/session management.
+// -----------------------------------------------------------------------------
+// Device session management.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index({
   userId: 1,
   "deviceInfo.deviceId": 1,
   revokedAt: 1,
 });
 
+// -----------------------------------------------------------------------------
+// Tenant + device session management.
+// -----------------------------------------------------------------------------
+
+RefreshTokenSchema.index({
+  tenantId: 1,
+  userId: 1,
+  "deviceInfo.deviceId": 1,
+  revokedAt: 1,
+});
+
+// -----------------------------------------------------------------------------
 // Recently active sessions.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index({
   userId: 1,
   lastUsedAt: -1,
 });
 
+// -----------------------------------------------------------------------------
 // Rotation lineage.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index({
   replacedBy: 1,
 });
 
+// -----------------------------------------------------------------------------
 // Security incident lookup.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index({
   reuseDetectedAt: 1,
 });
 
+// -----------------------------------------------------------------------------
 // MongoDB TTL cleanup.
+//
+// MongoDB removes the record after expiresAt.
+//
+// Important:
+// TTL cleanup is eventual rather than an authorization mechanism.
+// Authentication queries MUST always check expiresAt explicitly.
+// -----------------------------------------------------------------------------
+
 RefreshTokenSchema.index(
   {
     expiresAt: 1,
@@ -606,6 +955,12 @@ RefreshTokenSchema.index(
 
 /**
  * Determine whether the token is currently usable.
+ *
+ * This method is intentionally strict:
+ *
+ *   - must not be revoked;
+ *   - must have a valid expiration;
+ *   - expiration must be in the future.
  */
 RefreshTokenSchema.methods.isActive =
   function isActive(
@@ -614,6 +969,9 @@ RefreshTokenSchema.methods.isActive =
     return (
       !this.revokedAt &&
       this.expiresAt instanceof Date &&
+      !Number.isNaN(
+        this.expiresAt.getTime()
+      ) &&
       this.expiresAt > now
     );
   };
@@ -632,7 +990,7 @@ RefreshTokenSchema.methods.isExpired =
   };
 
 /**
- * Determine whether this token has already been rotated.
+ * Determine whether the token has been rotated.
  */
 RefreshTokenSchema.methods.isRotated =
   function isRotated() {
@@ -644,23 +1002,38 @@ RefreshTokenSchema.methods.isRotated =
 };
 
 /**
- * Determine whether reuse was detected.
+ * Determine whether reuse has been detected.
  */
 RefreshTokenSchema.methods.hasReuseDetection =
   function hasReuseDetection() {
     return Boolean(
       this.reuseDetectedAt
     );
+};
+
+/**
+ * Determine whether this token is terminal.
+ *
+ * Terminal states cannot become active again.
+ */
+RefreshTokenSchema.methods.isTerminal =
+  function isTerminal() {
+    return Boolean(
+      this.revokedAt ||
+      this.replacedBy ||
+      this.reuseDetectedAt
+    );
   };
 
 /**
- * Revoke this token.
+ * Revoke this token atomically.
  *
- * The operation is intentionally idempotent.
+ * Idempotent:
+ * If already revoked, the current document is returned.
  */
 RefreshTokenSchema.methods.revoke =
   async function revoke(
-    reason = "revoked"
+    reason = "user_revoked"
   ) {
     if (this.revokedAt) {
       return this;
@@ -694,6 +1067,9 @@ RefreshTokenSchema.methods.revoke =
 // Statics: Token Lookup
 // ============================================================================
 
+/**
+ * Find a token record by public id.
+ */
 RefreshTokenSchema.statics.findByPublicId =
   function findByPublicId(
     id
@@ -711,10 +1087,13 @@ RefreshTokenSchema.statics.findByPublicId =
   };
 
 /**
- * Find by raw refresh token.
+ * Find a token by raw refresh token.
  *
  * SECURITY:
- * The raw token is immediately transformed into a SHA-256 digest.
+ *
+ * The raw token is transformed immediately into a SHA-256 digest.
+ *
+ * The query explicitly selects tokenHash because tokenHash is select:false.
  */
 RefreshTokenSchema.statics.findByRawToken =
   function findByRawToken(
@@ -738,7 +1117,7 @@ RefreshTokenSchema.statics.findByRawToken =
   };
 
 /**
- * Find by raw token with optional tenant boundary.
+ * Tenant-scoped raw token lookup.
  */
 RefreshTokenSchema.statics.findByRawTokenForTenant =
   function findByRawTokenForTenant(
@@ -753,8 +1132,7 @@ RefreshTokenSchema.statics.findByRawTokenForTenant =
     }
 
     if (
-      !tenantId ||
-      !mongoose.isValidObjectId(
+      !isValidObjectId(
         tenantId
       )
     ) {
@@ -776,11 +1154,24 @@ RefreshTokenSchema.statics.findByRawTokenForTenant =
 // Statics: Active Sessions
 // ============================================================================
 
+/**
+ * Find active sessions for a user.
+ */
 RefreshTokenSchema.statics.findActiveByUser =
   function findActiveByUser(
     userId,
     options = {}
   ) {
+    if (
+      !isValidObjectId(
+        userId
+      )
+    ) {
+      return this.find(
+        impossibleQuery()
+      );
+    }
+
     const query = {
       userId,
       revokedAt: null,
@@ -789,21 +1180,48 @@ RefreshTokenSchema.statics.findActiveByUser =
       },
     };
 
-    if (options.tenantId) {
+    if (
+      options.tenantId !==
+      undefined
+    ) {
+      if (
+        !isValidObjectId(
+          options.tenantId
+        )
+      ) {
+        return this.find(
+          impossibleQuery()
+        );
+      }
+
       query.tenantId =
         options.tenantId;
     }
 
-    return this.find(query).sort({
-      lastUsedAt: -1,
-      createdAt: -1,
-    });
+    return this.find(query)
+      .sort({
+        lastUsedAt: -1,
+        createdAt: -1,
+      });
   };
 
+/**
+ * Find active sessions for a tenant.
+ */
 RefreshTokenSchema.statics.findActiveByTenant =
   function findActiveByTenant(
     tenantId
   ) {
+    if (
+      !isValidObjectId(
+        tenantId
+      )
+    ) {
+      return this.find(
+        impossibleQuery()
+      );
+    }
+
     return this.find({
       tenantId,
       revokedAt: null,
@@ -816,28 +1234,55 @@ RefreshTokenSchema.statics.findActiveByTenant =
     });
   };
 
+/**
+ * Find active sessions belonging to a token family.
+ */
 RefreshTokenSchema.statics.findActiveByFamily =
   function findActiveByFamily(
-    familyId
+    familyId,
+    options = {}
   ) {
     if (
       typeof familyId !== "string" ||
-      !familyId
+      !TOKEN_FAMILY_PATTERN.test(
+        familyId
+      )
     ) {
-      return this.find({
-        _id: null,
-      });
+      return this.find(
+        impossibleQuery()
+      );
     }
 
-    return this.find({
+    const query = {
       familyId,
       revokedAt: null,
       expiresAt: {
         $gt: new Date(),
       },
-    }).sort({
-      createdAt: -1,
-    });
+    };
+
+    if (
+      options.tenantId !==
+      undefined
+    ) {
+      if (
+        !isValidObjectId(
+          options.tenantId
+        )
+      ) {
+        return this.find(
+          impossibleQuery()
+        );
+      }
+
+      query.tenantId =
+        options.tenantId;
+    }
+
+    return this.find(query)
+      .sort({
+        createdAt: -1,
+      });
   };
 
 // ============================================================================
@@ -854,7 +1299,7 @@ RefreshTokenSchema.statics.revokeById =
   ) {
     if (
       typeof id !== "string" ||
-      !id
+      !PUBLIC_ID_PATTERN.test(id)
     ) {
       return null;
     }
@@ -879,9 +1324,6 @@ RefreshTokenSchema.statics.revokeById =
 
 /**
  * Tenant-scoped atomic revocation.
- *
- * This prevents an administrator from accidentally revoking a session
- * belonging to another tenant.
  */
 RefreshTokenSchema.statics.revokeByIdForTenant =
   async function revokeByIdForTenant(
@@ -891,8 +1333,10 @@ RefreshTokenSchema.statics.revokeByIdForTenant =
   ) {
     if (
       typeof id !== "string" ||
-      !id ||
-      !tenantId
+      !PUBLIC_ID_PATTERN.test(id) ||
+      !isValidObjectId(
+        tenantId
+      )
     ) {
       return null;
     }
@@ -917,7 +1361,7 @@ RefreshTokenSchema.statics.revokeByIdForTenant =
   };
 
 /**
- * Revoke all active sessions belonging to a user.
+ * Revoke all active sessions for a user.
  */
 RefreshTokenSchema.statics.revokeAllForUser =
   function revokeAllForUser(
@@ -925,6 +1369,18 @@ RefreshTokenSchema.statics.revokeAllForUser =
     reason = "user_logout_all",
     options = {}
   ) {
+    if (
+      !isValidObjectId(
+        userId
+      )
+    ) {
+      return {
+        acknowledged: false,
+        matchedCount: 0,
+        modifiedCount: 0,
+      };
+    }
+
     const query = {
       userId,
       revokedAt: null,
@@ -933,7 +1389,22 @@ RefreshTokenSchema.statics.revokeAllForUser =
       },
     };
 
-    if (options.tenantId) {
+    if (
+      options.tenantId !==
+      undefined
+    ) {
+      if (
+        !isValidObjectId(
+          options.tenantId
+        )
+      ) {
+        return {
+          acknowledged: false,
+          matchedCount: 0,
+          modifiedCount: 0,
+        };
+      }
+
       query.tenantId =
         options.tenantId;
     }
@@ -951,9 +1422,10 @@ RefreshTokenSchema.statics.revokeAllForUser =
   };
 
 /**
- * Revoke every active token in a family.
+ * Revoke all active tokens in a family.
  *
- * This is the primary response to refresh-token reuse.
+ * This is the primary persistence operation used after refresh-token reuse
+ * detection.
  */
 RefreshTokenSchema.statics.revokeFamily =
   function revokeFamily(
@@ -963,7 +1435,9 @@ RefreshTokenSchema.statics.revokeFamily =
   ) {
     if (
       typeof familyId !== "string" ||
-      !familyId
+      !TOKEN_FAMILY_PATTERN.test(
+        familyId
+      )
     ) {
       return {
         acknowledged: false,
@@ -977,7 +1451,22 @@ RefreshTokenSchema.statics.revokeFamily =
       revokedAt: null,
     };
 
-    if (options.tenantId) {
+    if (
+      options.tenantId !==
+      undefined
+    ) {
+      if (
+        !isValidObjectId(
+          options.tenantId
+        )
+      ) {
+        return {
+          acknowledged: false,
+          matchedCount: 0,
+          modifiedCount: 0,
+        };
+      }
+
       query.tenantId =
         options.tenantId;
     }
@@ -999,24 +1488,28 @@ RefreshTokenSchema.statics.revokeFamily =
 // ============================================================================
 
 /**
- * Atomically consumes an active refresh token.
+ * Atomically consume an active refresh token.
  *
- * This is a compare-and-set operation:
+ * Compare-and-set semantics:
  *
- *     active token
- *          |
- *          v
- *       rotated
+ *   active
+ *      |
+ *      +---- request A ----> rotated
+ *      |
+ *      +---- request B ----> rejected
  *
- * Only ONE concurrent request can successfully perform this transition.
+ * MongoDB guarantees that only one update can satisfy:
  *
- * Returns:
- *   updated document -> rotation succeeded
- *   null             -> token was already revoked/expired/missing
+ *   revokedAt: null
+ *   expiresAt: { $gt: now }
  *
- * The authentication service MUST treat a null result carefully:
- * if the token exists and is already revoked because of rotation, that can
- * indicate refresh-token reuse.
+ * for the same document.
+ *
+ * IMPORTANT:
+ *
+ * This operation consumes the current token. The authentication service must
+ * create the replacement token as part of the same MongoDB transaction when
+ * transaction support is available.
  */
 RefreshTokenSchema.statics.markRotated =
   async function markRotated(
@@ -1025,12 +1518,25 @@ RefreshTokenSchema.statics.markRotated =
   ) {
     if (
       typeof tokenId !== "string" ||
-      !tokenId ||
-      typeof replacementId !== "string" ||
-      !replacementId
+      !PUBLIC_ID_PATTERN.test(
+        tokenId
+      ) ||
+      typeof replacementId !==
+        "string" ||
+      !PUBLIC_ID_PATTERN.test(
+        replacementId
+      )
     ) {
       throw new TypeError(
-        "tokenId and replacementId are required."
+        "Valid tokenId and replacementId are required."
+      );
+    }
+
+    if (
+      tokenId === replacementId
+    ) {
+      throw new TypeError(
+        "A token cannot replace itself."
       );
     }
 
@@ -1061,7 +1567,7 @@ RefreshTokenSchema.statics.markRotated =
   };
 
 /**
- * Stronger tenant-scoped rotation primitive.
+ * Tenant-scoped atomic rotation.
  */
 RefreshTokenSchema.statics.markRotatedForTenant =
   async function markRotatedForTenant(
@@ -1071,13 +1577,28 @@ RefreshTokenSchema.statics.markRotatedForTenant =
   ) {
     if (
       typeof tokenId !== "string" ||
-      !tokenId ||
-      typeof replacementId !== "string" ||
-      !replacementId ||
-      !tenantId
+      !PUBLIC_ID_PATTERN.test(
+        tokenId
+      ) ||
+      typeof replacementId !==
+        "string" ||
+      !PUBLIC_ID_PATTERN.test(
+        replacementId
+      ) ||
+      !isValidObjectId(
+        tenantId
+      )
     ) {
       throw new TypeError(
-        "tokenId, replacementId and tenantId are required."
+        "Valid tokenId, replacementId and tenantId are required."
+      );
+    }
+
+    if (
+      tokenId === replacementId
+    ) {
+      throw new TypeError(
+        "A token cannot replace itself."
       );
     }
 
@@ -1115,13 +1636,21 @@ RefreshTokenSchema.statics.markRotatedForTenant =
 /**
  * Record refresh-token reuse.
  *
- * This operation only records the security event.
+ * This operation records the incident against the consumed/replayed token.
  *
- * The authentication service should immediately follow this with:
+ * The authentication service should then revoke the complete token family.
  *
- *     revokeFamily(token.familyId)
+ * Example:
  *
- * preferably within the same transaction where operationally possible.
+ *   await RefreshToken.markReuseDetected(
+ *     token.id,
+ *     "refresh_token_reuse"
+ *   );
+ *
+ *   await RefreshToken.revokeFamily(
+ *     token.familyId,
+ *     "refresh_token_reuse"
+ *   );
  */
 RefreshTokenSchema.statics.markReuseDetected =
   async function markReuseDetected(
@@ -1130,7 +1659,9 @@ RefreshTokenSchema.statics.markReuseDetected =
   ) {
     if (
       typeof tokenId !== "string" ||
-      !tokenId
+      !PUBLIC_ID_PATTERN.test(
+        tokenId
+      )
     ) {
       return null;
     }
@@ -1159,12 +1690,58 @@ RefreshTokenSchema.statics.markReuseDetected =
     );
   };
 
+/**
+ * Atomically record reuse and ensure the token is revoked.
+ *
+ * This is useful when the service discovers a replayed token that somehow
+ * reached a state where revokedAt is not yet set.
+ */
+RefreshTokenSchema.statics.recordReuseAndRevoke =
+  async function recordReuseAndRevoke(
+    tokenId,
+    reason = "refresh_token_reuse"
+  ) {
+    if (
+      typeof tokenId !== "string" ||
+      !PUBLIC_ID_PATTERN.test(
+        tokenId
+      )
+    ) {
+      return null;
+    }
+
+    const now =
+      new Date();
+
+    const normalizedReason =
+      normalizeReason(reason);
+
+    return this.findOneAndUpdate(
+      {
+        id: tokenId,
+      },
+      {
+        $set: {
+          revokedAt: now,
+          revokedReason:
+            normalizedReason,
+          reuseDetectedAt: now,
+          reuseDetectedReason:
+            normalizedReason,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+  };
+
 // ============================================================================
 // Statics: Session Activity
 // ============================================================================
 
 /**
- * Update session activity only while the session is still active.
+ * Update session activity only if the token remains active.
  */
 RefreshTokenSchema.statics.touch =
   function touch(
@@ -1173,7 +1750,9 @@ RefreshTokenSchema.statics.touch =
   ) {
     if (
       typeof tokenId !== "string" ||
-      !tokenId
+      !PUBLIC_ID_PATTERN.test(
+        tokenId
+      )
     ) {
       return null;
     }
@@ -1230,8 +1809,12 @@ RefreshTokenSchema.statics.touchForTenant =
   ) {
     if (
       typeof tokenId !== "string" ||
-      !tokenId ||
-      !tenantId
+      !PUBLIC_ID_PATTERN.test(
+        tokenId
+      ) ||
+      !isValidObjectId(
+        tenantId
+      )
     ) {
       return null;
     }
@@ -1283,7 +1866,7 @@ RefreshTokenSchema.statics.touchForTenant =
 // ============================================================================
 
 /**
- * Find active sessions for a particular device.
+ * Find active sessions for a specific device.
  */
 RefreshTokenSchema.statics.findActiveByDevice =
   function findActiveByDevice(
@@ -1292,12 +1875,14 @@ RefreshTokenSchema.statics.findActiveByDevice =
     options = {}
   ) {
     if (
-      !userId ||
+      !isValidObjectId(
+        userId
+      ) ||
       !deviceId
     ) {
-      return this.find({
-        _id: null,
-      });
+      return this.find(
+        impossibleQuery()
+      );
     }
 
     const query = {
@@ -1310,18 +1895,32 @@ RefreshTokenSchema.statics.findActiveByDevice =
       },
     };
 
-    if (options.tenantId) {
+    if (
+      options.tenantId !==
+      undefined
+    ) {
+      if (
+        !isValidObjectId(
+          options.tenantId
+        )
+      ) {
+        return this.find(
+          impossibleQuery()
+        );
+      }
+
       query.tenantId =
         options.tenantId;
     }
 
-    return this.find(query).sort({
-      lastUsedAt: -1,
-    });
+    return this.find(query)
+      .sort({
+        lastUsedAt: -1,
+      });
   };
 
 /**
- * Revoke all sessions for one device.
+ * Revoke all sessions for a device.
  */
 RefreshTokenSchema.statics.revokeDevice =
   function revokeDevice(
@@ -1331,7 +1930,9 @@ RefreshTokenSchema.statics.revokeDevice =
     options = {}
   ) {
     if (
-      !userId ||
+      !isValidObjectId(
+        userId
+      ) ||
       !deviceId
     ) {
       return {
@@ -1351,7 +1952,125 @@ RefreshTokenSchema.statics.revokeDevice =
       },
     };
 
-    if (options.tenantId) {
+    if (
+      options.tenantId !==
+      undefined
+    ) {
+      if (
+        !isValidObjectId(
+          options.tenantId
+        )
+      ) {
+        return {
+          acknowledged: false,
+          matchedCount: 0,
+          modifiedCount: 0,
+        };
+      }
+
+      query.tenantId =
+        options.tenantId;
+    }
+
+    return this.updateMany(
+      query,
+      {
+        $set: {
+          revokedAt: new Date(),
+          revokedReason:
+            normalizeReason(reason),
+        },
+      }
+    );
+  };
+
+// ============================================================================
+// Statics: Account / Tenant Security
+// ============================================================================
+
+/**
+ * Revoke every session for a tenant.
+ *
+ * Intended for controlled administrative/security workflows.
+ */
+RefreshTokenSchema.statics.revokeAllForTenant =
+  function revokeAllForTenant(
+    tenantId,
+    reason = "tenant_disabled"
+  ) {
+    if (
+      !isValidObjectId(
+        tenantId
+      )
+    ) {
+      return {
+        acknowledged: false,
+        matchedCount: 0,
+        modifiedCount: 0,
+      };
+    }
+
+    return this.updateMany(
+      {
+        tenantId,
+        revokedAt: null,
+      },
+      {
+        $set: {
+          revokedAt: new Date(),
+          revokedReason:
+            normalizeReason(reason),
+        },
+      }
+    );
+  };
+
+/**
+ * Revoke every session for a user, including already-expiring sessions.
+ *
+ * Unlike revokeAllForUser(), this intentionally does not require expiresAt
+ * to be in the future. It is useful for account-security events where every
+ * persisted session record should be transitioned to revoked state.
+ */
+RefreshTokenSchema.statics.revokeEverySessionForUser =
+  function revokeEverySessionForUser(
+    userId,
+    reason = "security_revoked",
+    options = {}
+  ) {
+    if (
+      !isValidObjectId(
+        userId
+      )
+    ) {
+      return {
+        acknowledged: false,
+        matchedCount: 0,
+        modifiedCount: 0,
+      };
+    }
+
+    const query = {
+      userId,
+      revokedAt: null,
+    };
+
+    if (
+      options.tenantId !==
+      undefined
+    ) {
+      if (
+        !isValidObjectId(
+          options.tenantId
+        )
+      ) {
+        return {
+          acknowledged: false,
+          matchedCount: 0,
+          modifiedCount: 0,
+        };
+      }
+
       query.tenantId =
         options.tenantId;
     }
@@ -1373,11 +2092,11 @@ RefreshTokenSchema.statics.revokeDevice =
 // ============================================================================
 
 /**
- * MongoDB TTL handles normal expiration.
+ * Explicitly purge expired records.
  *
- * This explicit cleanup operation is useful for administrative jobs,
- * emergency cleanup and environments where operators want deterministic
- * purging.
+ * MongoDB TTL remains the primary automatic cleanup mechanism.
+ *
+ * Authentication must NEVER depend on TTL deletion.
  */
 RefreshTokenSchema.statics.purgeExpired =
   function purgeExpired(
@@ -1395,7 +2114,9 @@ RefreshTokenSchema.statics.purgeExpired =
   };
 
 /**
- * Backwards-compatible cleanup alias.
+ * Backwards-compatible cleanup method.
+ *
+ * Only expired + revoked records are removed.
  */
 RefreshTokenSchema.statics.purgeExpiredRevoked =
   function purgeExpiredRevoked(
@@ -1430,6 +2151,14 @@ RefreshTokenSchema.statics.generatePublicId =
 
 RefreshTokenSchema.statics.generateTokenFamilyId =
   generateTokenFamilyId;
+
+// Expose immutable constants to internal services/tests without exposing
+// secrets or mutable configuration.
+RefreshTokenSchema.statics.REVOCATION_REASONS =
+  REVOCATION_REASONS;
+
+RefreshTokenSchema.statics.ISSUED_BY_VALUES =
+  ISSUED_BY_VALUES;
 
 // ============================================================================
 // Model

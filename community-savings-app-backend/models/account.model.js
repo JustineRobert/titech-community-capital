@@ -1,1629 +1,2171 @@
 "use strict";
 
 /**
- * ============================================================================
- * TITech Community Capital LTD
- * Enterprise Financial Account Model
- * ============================================================================
- *
- * File:
- *   backend/models/account.model.js
- *
- * Purpose:
- *   Canonical MongoDB account model for TITech financial operations.
- *
- * ============================================================================
- * ARCHITECTURAL POSITION
- * ============================================================================
- *
- *   Financial Transaction Service
- *             │
- *             ├───────────────┐
- *             ▼               ▼
- *    Balance Repository   Ledger Repository
- *             │
- *             ▼
- *        Account Model
- *             │
- *             ▼
- *          MongoDB
- *
- * ============================================================================
- * FINANCIAL DESIGN PRINCIPLES
- * ============================================================================
- *
- * ✓ Monetary balances use MongoDB Decimal128.
- * ✓ Tenant ownership is mandatory.
- * ✓ Account currency is mandatory.
- * ✓ Account identity is immutable.
- * ✓ Account balance defaults to zero.
- * ✓ Negative balances are rejected at schema level where possible.
- * ✓ Account status is explicit and controlled.
- * ✓ Last financial transaction identity is persisted.
- * ✓ Balance mutation timestamp is persisted.
- * ✓ Created/updated timestamps are managed automatically.
- * ✓ Strict schema prevents accidental financial fields.
- * ✓ Tenant-scoped indexes support high-volume queries.
- * ✓ Duplicate account identities are prevented.
- * ✓ Sensitive operational metadata is separated from monetary state.
- *
- * ============================================================================
- * IMPORTANT
- * ============================================================================
- *
- * This model does NOT perform business authorization.
- *
- * It does NOT:
- *
- *   - approve withdrawals
- *   - approve loans
- *   - authorize transfers
- *   - create ledger entries
- *   - start MongoDB transactions
- *   - commit MongoDB transactions
- *   - abort MongoDB transactions
- *   - perform external payment-provider operations
- *
- * Those responsibilities belong to the appropriate service/repository layer.
- *
- * ============================================================================
- * MONEY
- * ============================================================================
- *
- * `balance` MUST NOT be a JavaScript Number.
- *
- * MongoDB Decimal128 is used to eliminate IEEE-754 floating-point precision
- * errors for monetary persistence.
- *
- * ============================================================================
- * TENANCY
- * ============================================================================
- *
- * Every account belongs to exactly one TITech tenant.
- *
- * Cross-tenant account access must be prevented at repository/service layers.
- *
- * ============================================================================
- * STATUS
- * ============================================================================
- *
- * ACTIVE:
- *   Account may participate in normal balance mutations.
- *
- * PENDING:
- *   Account has been created but is not yet operational.
- *
- * SUSPENDED:
- *   Account exists but financial activity is temporarily blocked.
- *
- * CLOSED:
- *   Account is permanently closed and should not accept normal mutations.
- *
- * FROZEN:
- *   Account is temporarily frozen for risk/compliance/security reasons.
- *
- * ============================================================================
- * TITech terminology
- * ============================================================================
- *
- * All legacy ACFOS references have been replaced with TITech terminology.
- *
- * ============================================================================
- */
 
-const mongoose =
-    require("mongoose");
+* ============================================================================
+* TITech Community Capital LTD
+* Enterprise Financial Account Model
+* ============================================================================
+*
+* File:
+* backend/models/account.model.js
+*
+* Purpose:
+* Canonical MongoDB account model for all TITech financial operations.
+*
+* ============================================================================
+* ARCHITECTURAL POSITION
+* ============================================================================
+*
+* Financial Transaction Service
+* ```
+           │
+  ```
+* ```
+           ├──────────────────────┐
+  ```
+* ```
+           ▼                      ▼
+  ```
+* ```
+    Balance Repository      Ledger Repository
+  ```
+* ```
+           │                      │
+  ```
+* ```
+           └──────────┬───────────┘
+  ```
+* ```
+                      ▼
+  ```
+* ```
+                Account Model
+  ```
+* ```
+                      │
+  ```
+* ```
+                      ▼
+  ```
+* ```
+                   MongoDB
+  ```
+*
+* ============================================================================
+* FINANCIAL DESIGN PRINCIPLES
+* ============================================================================
+*
+* ✓ Monetary values use MongoDB Decimal128.
+* ✓ JavaScript floating-point numbers are never used for persisted money.
+* ✓ Tenant ownership is mandatory and immutable.
+* ✓ Account identity is immutable.
+* ✓ Account currency is mandatory and immutable.
+* ✓ Account type is immutable.
+* ✓ Account balance defaults to zero.
+* ✓ Opening balance defaults to zero and is immutable.
+* ✓ Reserved balance defaults to zero.
+* ✓ Monetary balances must be finite and non-negative.
+* ✓ reservedBalance must not exceed balance for document-level validation.
+* ✓ Account status is explicit and controlled.
+* ✓ Financial mutation metadata is persisted.
+* ✓ Strict schema prevents accidental financial fields.
+* ✓ Tenant-aware indexes support high-volume queries.
+* ✓ Tenant-scoped account numbers are unique.
+* ✓ External provider references are indexed.
+* ✓ Decimal128 values serialize as strings.
+* ✓ Financial balance mutation is delegated to BalanceRepository.
+*
+* ============================================================================
+* IMPORTANT ARCHITECTURAL BOUNDARY
+* ============================================================================
+*
+* This model is a persistence boundary.
+*
+* It does NOT:
+*
+* * approve withdrawals
+* * approve loans
+* * authorize transfers
+* * create ledger entries
+* * start MongoDB transactions
+* * commit MongoDB transactions
+* * abort MongoDB transactions
+* * execute payment-provider operations
+* * perform business authorization
+* * calculate transaction fees
+* * calculate interest
+* * perform KYC/AML decisions
+*
+* Those responsibilities belong to the appropriate service/repository,
+* ledger, compliance, or payment-provider layers.
+*
+* ============================================================================
+* MONEY
+* ============================================================================
+*
+* `balance`, `openingBalance`, and `reservedBalance` MUST NOT be JavaScript
+* Numbers.
+*
+* MongoDB Decimal128 is used for exact monetary persistence.
+*
+* API serialization converts Decimal128 values to strings so that clients
+* never accidentally convert financial values into IEEE-754 floating point.
+*
+* ============================================================================
+* TENANCY
+* ============================================================================
+*
+* Every account belongs to exactly one TITech tenant.
+*
+* Cross-tenant access MUST be enforced by repositories/services.
+*
+* The model provides tenant-aware indexes and query helpers but does not
+* replace authorization middleware.
+*
+* ============================================================================
+* STATUS
+* ============================================================================
+*
+* PENDING:
+* Account has been created but is not yet operational.
+*
+* ACTIVE:
+* Account may participate in permitted financial operations.
+*
+* SUSPENDED:
+* Financial activity is temporarily blocked.
+*
+* FROZEN:
+* Account is frozen for risk, compliance, fraud, or security reasons.
+*
+* CLOSED:
+* Account is permanently closed.
+*
+* ============================================================================
+* TITech TERMINOLOGY
+* ============================================================================
+*
+* All legacy ACFOS terminology has been replaced with TITech terminology.
+*
+* ============================================================================
+  */
 
-const tenantConstants =
-    require(
-        "../tenancy/tenant.constants"
-    );
+const mongoose = require("mongoose");
+
+const tenantConstants = require("../tenancy/tenant.constants");
 
 /**
- * ============================================================================
- * Constants
- * ============================================================================
- */
+
+* ============================================================================
+* Constants
+* ============================================================================
+  */
 
 const ACCOUNT_STATUSES = Object.freeze([
-    "PENDING",
-    "ACTIVE",
-    "SUSPENDED",
-    "FROZEN",
-    "CLOSED"
+"PENDING",
+"ACTIVE",
+"SUSPENDED",
+"FROZEN",
+"CLOSED"
 ]);
 
 const ACCOUNT_TYPES = Object.freeze([
-    "WALLET",
-    "SAVINGS",
-    "GROUP_WALLET",
-    "LOAN",
-    "SHARE_CAPITAL",
-    "TREASURY",
-    "SETTLEMENT",
-    "ESCROW",
-    "FEE",
-    "CLEARING",
-    "CUSTOMER",
-    "OTHER"
+"WALLET",
+"SAVINGS",
+"GROUP_WALLET",
+"LOAN",
+"SHARE_CAPITAL",
+"TREASURY",
+"SETTLEMENT",
+"ESCROW",
+"FEE",
+"CLEARING",
+"CUSTOMER",
+"OTHER"
 ]);
 
 const OWNERSHIP_TYPES = Object.freeze([
-    "INDIVIDUAL",
-    "GROUP",
-    "ORGANIZATION",
-    "SYSTEM"
+"INDIVIDUAL",
+"GROUP",
+"ORGANIZATION",
+"SYSTEM"
+]);
+
+const RISK_LEVELS = Object.freeze([
+"LOW",
+"MEDIUM",
+"HIGH",
+"CRITICAL",
+"UNASSESSED"
 ]);
 
 const ACCOUNT_ID_MAX_LENGTH = 128;
 const TENANT_ID_MAX_LENGTH = 64;
-const TRANSACTION_ID_MAX_LENGTH_FALLBACK = 128;
+const ACCOUNT_NUMBER_MAX_LENGTH = 64;
+const OWNER_ID_MAX_LENGTH = 128;
+const TRANSACTION_ID_MAX_LENGTH = 128;
 const CURRENCY_MAX_LENGTH = 16;
 
 const CURRENCY_REGEX = /^[A-Z]{3,16}$/;
-const IDENTIFIER_REGEX = /^[a-zA-Z0-9._:-]+$/;
 
 /**
- * ============================================================================
- * Decimal128 Helper
- * ============================================================================
- */
 
-function decimal128Zero() {
-    return mongoose.Types.Decimal128.fromString(
-        "0.00"
-    );
-}
-
-function decimal128FromString(
-    value
-) {
-    return mongoose.Types.Decimal128.fromString(
-        String(value)
-    );
-}
+* Identifiers intentionally permit:
+*
+* letters
+* numbers
+* dot
+* underscore
+* colon
+* hyphen
+  */
+  const IDENTIFIER_REGEX = /^[a-zA-Z0-9._:-]+$/;
 
 /**
- * ============================================================================
- * Tenant ID Validator
- * ============================================================================
- */
 
-function validateTenantId(
-    value
-) {
-    if (
-        typeof value !==
-        "string"
-    ) {
-        return false;
-    }
-
-    const normalized =
-        value
-            .trim()
-            .toLowerCase();
-
-    if (
-        !normalized
-    ) {
-        return false;
-    }
-
-    if (
-        typeof tenantConstants
-            .isValidTenantId ===
-        "function"
-    ) {
-        return tenantConstants.isValidTenantId(
-            normalized
-        );
-    }
-
-    return (
-        normalized.length >=
-            3 &&
-        normalized.length <=
-            64 &&
-        /^[a-z0-9-]+$/.test(
-            normalized
-        )
-    );
-}
+* ============================================================================
+* Decimal128 Helpers
+* ============================================================================
+  */
 
 /**
- * ============================================================================
- * Identifier Validator
- * ============================================================================
- */
 
-function validateIdentifier(
-    value
+* Return an exact Decimal128 zero.
+  */
+  function decimal128Zero() {
+  return mongoose.Types.Decimal128.fromString("0");
+  }
+
+/**
+
+* Convert a value to Decimal128.
+*
+* This helper is intentionally strict. Callers should normally provide a
+* string rather than a JavaScript Number.
+  */
+  function decimal128FromString(value) {
+  if (value === undefined || value === null) {
+  throw new TypeError(
+  "Decimal128 value is required."
+  );
+  }
+
+  const normalized = String(value).trim();
+
+  if (!normalized) {
+  throw new TypeError(
+  "Decimal128 value cannot be empty."
+  );
+  }
+
+  return mongoose.Types.Decimal128.fromString(
+  normalized
+  );
+  }
+
+/**
+
+* ============================================================================
+* Tenant ID Validator
+* ============================================================================
+  */
+
+function validateTenantId(value) {
+if (typeof value !== "string") {
+return false;
+}
+
+
+const normalized = value
+    .trim()
+    .toLowerCase();
+
+if (!normalized) {
+    return false;
+}
+
+if (
+    typeof tenantConstants.isValidTenantId ===
+    "function"
 ) {
-    if (
-        typeof value !==
-        "string"
-    ) {
-        return false;
-    }
-
-    const normalized =
-        value.trim();
-
-    if (
-        !normalized
-    ) {
-        return false;
-    }
-
-    return IDENTIFIER_REGEX.test(
+    return tenantConstants.isValidTenantId(
         normalized
     );
 }
 
+return (
+    normalized.length >= 3 &&
+    normalized.length <= TENANT_ID_MAX_LENGTH &&
+    /^[a-z0-9-]+$/.test(normalized)
+);
+
+
+}
+
 /**
- * ============================================================================
- * Decimal128 Validator
- * ============================================================================
- *
- * The schema accepts Decimal128 only for monetary balance persistence.
- *
- * A Decimal128 value may technically contain a negative number; however,
- * account balances in this model are intentionally constrained to non-negative
- * values.
- *
- * The financial service can support overdraft/debt semantics using a dedicated
- * liability account instead of allowing arbitrary negative customer balances.
- * ============================================================================
- */
+
+* ============================================================================
+* Identifier Validator
+* ============================================================================
+  */
+
+function validateIdentifier(value) {
+if (typeof value !== "string") {
+return false;
+}
+
+
+const normalized = value.trim();
+
+if (!normalized) {
+    return false;
+}
+
+return (
+    normalized.length <= ACCOUNT_ID_MAX_LENGTH &&
+    IDENTIFIER_REGEX.test(normalized)
+);
+
+
+}
+
+/**
+
+* ============================================================================
+* Decimal Parsing / Comparison
+* ============================================================================
+*
+* Decimal128.toString() may return either ordinary decimal notation or
+* scientific notation.
+*
+* Example:
+*
+* "100.25"
+* "1E+3"
+* "1.25E-4"
+*
+* JavaScript Number arithmetic is deliberately avoided.
+  */
+
+/**
+
+* Parse a finite non-negative decimal string into:
+*
+* {
+* ```
+    coefficient: BigInt,
+  ```
+* ```
+    scale: number
+  ```
+* }
+*
+* representing:
+*
+* coefficient / 10^scale
+*
+* This is used ONLY for exact validation/comparison.
+  */
+  function parseDecimalToInteger(value) {
+  const text = String(value)
+  .trim()
+  .toLowerCase();
+
+  if (!text) {
+  throw new Error(
+  "Invalid decimal value."
+  );
+  }
+
+  /**
+
+  * Decimal128 special values are not valid monetary values.
+    */
+    if (
+    text === "nan" ||
+    text === "+nan" ||
+    text === "-nan" ||
+    text === "infinity" ||
+    text === "+infinity" ||
+    text === "-infinity" ||
+    text === "inf" ||
+    text === "+inf" ||
+    text === "-inf"
+    ) {
+    throw new Error(
+    "Non-finite decimal values are not valid monetary values."
+    );
+    }
+
+  const match = text.match(
+  /^([+-]?)(\d+(?:.\d+)?|.\d+)(?:e([+-]?\d+))?$/
+  );
+
+  if (!match) {
+  throw new Error(
+  "Invalid decimal value."
+  );
+  }
+
+  const sign = match[1];
+  const mantissa = match[2];
+  const exponent = Number(
+  match[3] || "0"
+  );
+
+  if (sign === "-") {
+  throw new Error(
+  "Negative decimal values are not permitted."
+  );
+  }
+
+  const parts = mantissa.split(".");
+
+  const integerPart = parts[0] || "0";
+  const fractionalPart = parts[1] || "";
+
+  const digits = (
+  integerPart +
+  fractionalPart
+  ).replace(/^0+(?=\d)/, "") || "0";
+
+  let scale =
+  fractionalPart.length -
+  exponent;
+
+  let coefficient = BigInt(digits);
+
+  if (scale < 0) {
+  coefficient *=
+  10n ** BigInt(-scale);
+  scale = 0;
+  }
+
+  return {
+  coefficient,
+  scale
+  };
+  }
+
+/**
+
+* Compare two non-negative decimal strings exactly.
+*
+* Returns:
+*
+* -1 => left < right
+* 0 => left === right
+* 1 => left > right
+  */
+  function compareNonNegativeDecimals(
+  left,
+  right
+  ) {
+  const a =
+  parseDecimalToInteger(left);
+
+
+const b =
+
+
+
+    parseDecimalToInteger(right);
+
+const scale = Math.max(
+    a.scale,
+    b.scale
+);
+
+const leftCoefficient =
+    a.coefficient *
+    10n ** BigInt(
+        scale - a.scale
+    );
+
+const rightCoefficient =
+    b.coefficient *
+    10n ** BigInt(
+        scale - b.scale
+    );
+
+if (
+    leftCoefficient <
+    rightCoefficient
+) {
+    return -1;
+}
+
+if (
+    leftCoefficient >
+    rightCoefficient
+) {
+    return 1;
+}
+
+return 0;
+
+
+}
+
+/**
+
+* ============================================================================
+* Decimal128 Validator
+* ============================================================================
+  */
 
 function validateNonNegativeDecimal128(
-    value
+value
 ) {
-    if (
-        value ===
-            undefined ||
-        value ===
-            null
-    ) {
+if (
+value === undefined ||
+value === null
+) {
+return true;
+}
+
+
+if (
+    !mongoose.isDecimal128(value)
+) {
+    return false;
+}
+
+try {
+    parseDecimalToInteger(
+        value.toString()
+    );
+
+    return true;
+} catch {
+    return false;
+}
+
+
+}
+
+/**
+
+* ============================================================================
+* Schema
+* ============================================================================
+  */
+
+const accountSchema =
+new mongoose.Schema(
+{
+/**
+* ------------------------------------------------------------------
+* Primary Account Identity
+* ------------------------------------------------------------------
+*
+* `_id` is the canonical internal account identifier.
+*
+* It is intentionally a String rather than ObjectId because TITech
+* supports stable business/application identifiers.
+*/
+
+
+        _id: {
+            type: String,
+
+            required: [
+                true,
+                "accountId is required."
+            ],
+
+            trim: true,
+
+            minlength: 3,
+
+            maxlength:
+                ACCOUNT_ID_MAX_LENGTH,
+
+            immutable: true,
+
+            validate: {
+                validator:
+                    validateIdentifier,
+
+                message:
+                    "Invalid account identifier."
+            }
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * External / Business Account Number
+         * ------------------------------------------------------------------
+         *
+         * This is the stable account number that may be displayed to
+         * members/customers.
+         *
+         * `_id` remains the internal immutable account identity.
+         */
+
+        accountNumber: {
+            type: String,
+
+            required: [
+                true,
+                "accountNumber is required."
+            ],
+
+            trim: true,
+
+            minlength: 3,
+
+            maxlength:
+                ACCOUNT_NUMBER_MAX_LENGTH,
+
+            immutable: true,
+
+            validate: {
+                validator:
+                    validateIdentifier,
+
+                message:
+                    "Invalid account number."
+            }
+        },
+
+        /**
+         * Human-readable account name.
+         */
+
+        name: {
+            type: String,
+
+            trim: true,
+
+            maxlength: 255,
+
+            default: null
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Tenancy
+         * ------------------------------------------------------------------
+         */
+
+        tenantId: {
+            type: String,
+
+            required: [
+                true,
+                "tenantId is required."
+            ],
+
+            trim: true,
+
+            lowercase: true,
+
+            minlength: 3,
+
+            maxlength:
+                TENANT_ID_MAX_LENGTH,
+
+            immutable: true,
+
+            validate: {
+                validator:
+                    validateTenantId,
+
+                message:
+                    "Invalid TITech tenant identifier."
+            }
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Ownership
+         * ------------------------------------------------------------------
+         */
+
+        ownershipType: {
+            type: String,
+
+            enum: {
+                values:
+                    OWNERSHIP_TYPES,
+
+                message:
+                    "Invalid account ownership type."
+            },
+
+            required: true,
+
+            default: "INDIVIDUAL"
+        },
+
+        /**
+         * Principal/member/customer owning the account.
+         *
+         * Stored as String to support:
+         *
+         *   - UUIDs
+         *   - Mongo IDs
+         *   - external identity IDs
+         *   - future identity providers
+         */
+
+        ownerId: {
+            type: String,
+
+            trim: true,
+
+            maxlength:
+                OWNER_ID_MAX_LENGTH,
+
+            default: null,
+
+            validate: {
+                validator:
+                    function (value) {
+                        if (
+                            value === null ||
+                            value === undefined ||
+                            value === ""
+                        ) {
+                            return true;
+                        }
+
+                        return validateIdentifier(
+                            value
+                        );
+                    },
+
+                message:
+                    "Invalid account owner identifier."
+            }
+        },
+
+        /**
+         * Optional member reference.
+         */
+
+        memberId: {
+            type: String,
+
+            trim: true,
+
+            maxlength:
+                OWNER_ID_MAX_LENGTH,
+
+            default: null,
+
+            validate: {
+                validator:
+                    function (value) {
+                        if (
+                            value === null ||
+                            value === undefined ||
+                            value === ""
+                        ) {
+                            return true;
+                        }
+
+                        return validateIdentifier(
+                            value
+                        );
+                    },
+
+                message:
+                    "Invalid member identifier."
+            }
+        },
+
+        /**
+         * Optional group reference.
+         */
+
+        groupId: {
+            type: String,
+
+            trim: true,
+
+            maxlength:
+                OWNER_ID_MAX_LENGTH,
+
+            default: null,
+
+            validate: {
+                validator:
+                    function (value) {
+                        if (
+                            value === null ||
+                            value === undefined ||
+                            value === ""
+                        ) {
+                            return true;
+                        }
+
+                        return validateIdentifier(
+                            value
+                        );
+                    },
+
+                message:
+                    "Invalid group identifier."
+            }
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Account Classification
+         * ------------------------------------------------------------------
+         */
+
+        accountType: {
+            type: String,
+
+            enum: {
+                values:
+                    ACCOUNT_TYPES,
+
+                message:
+                    "Invalid account type."
+            },
+
+            required: true,
+
+            default: "WALLET",
+
+            immutable: true
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Currency
+         * ------------------------------------------------------------------
+         *
+         * ISO-style alphabetic currency code.
+         *
+         * The system intentionally does not hard-code a three-letter-only
+         * requirement because future TITech settlement/ledger integrations
+         * may use extended currency identifiers.
+         */
+
+        currency: {
+            type: String,
+
+            required: [
+                true,
+                "currency is required."
+            ],
+
+            trim: true,
+
+            uppercase: true,
+
+            minlength: 3,
+
+            maxlength:
+                CURRENCY_MAX_LENGTH,
+
+            immutable: true,
+
+            validate: {
+                validator:
+                    function (value) {
+                        return CURRENCY_REGEX.test(
+                            String(value)
+                        );
+                    },
+
+                message:
+                    "Invalid account currency."
+            }
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Financial Balance
+         * ------------------------------------------------------------------
+         */
+
+        balance: {
+            type:
+                mongoose.Schema.Types.Decimal128,
+
+            required: true,
+
+            default:
+                decimal128Zero,
+
+            validate: {
+                validator:
+                    validateNonNegativeDecimal128,
+
+                message:
+                    "Account balance must be a finite, non-negative Decimal128 value."
+            }
+        },
+
+        /**
+         * Immutable lifecycle opening balance.
+         */
+
+        openingBalance: {
+            type:
+                mongoose.Schema.Types.Decimal128,
+
+            required: true,
+
+            default:
+                decimal128Zero,
+
+            immutable: true,
+
+            validate: {
+                validator:
+                    validateNonNegativeDecimal128,
+
+                message:
+                    "Opening balance must be a finite, non-negative Decimal128 value."
+            }
+        },
+
+        /**
+         * Reserved funds.
+         *
+         * Examples:
+         *
+         *   - pending withdrawals
+         *   - payment holds
+         *   - guarantees
+         *   - committed obligations
+         *
+         * Available balance:
+         *
+         *   balance - reservedBalance
+         */
+
+        reservedBalance: {
+            type:
+                mongoose.Schema.Types.Decimal128,
+
+            required: true,
+
+            default:
+                decimal128Zero,
+
+            validate: {
+                validator:
+                    validateNonNegativeDecimal128,
+
+                message:
+                    "Reserved balance must be a finite, non-negative Decimal128 value."
+            }
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Financial Mutation Revision
+         * ------------------------------------------------------------------
+         *
+         * Incremented by BalanceRepository during successful monetary
+         * mutations.
+         *
+         * This provides an inexpensive monotonic mutation sequence that
+         * can be used for diagnostics, reconciliation, and optimistic
+         * concurrency checks.
+         */
+
+        balanceRevision: {
+            type: Number,
+
+            required: true,
+
+            default: 0,
+
+            min: [
+                0,
+                "Balance revision cannot be negative."
+            ],
+
+            validate: {
+                validator:
+                    Number.isSafeInteger,
+
+                message:
+                    "Balance revision must be a safe integer."
+            }
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Account Status
+         * ------------------------------------------------------------------
+         */
+
+        status: {
+            type: String,
+
+            enum: {
+                values:
+                    ACCOUNT_STATUSES,
+
+                message:
+                    "Invalid financial account status."
+            },
+
+            required: true,
+
+            default: "PENDING",
+
+            index: true
+        },
+
+        /**
+         * Operational/compliance reason for status changes.
+         */
+
+        statusReason: {
+            type: String,
+
+            trim: true,
+
+            maxlength: 500,
+
+            default: null
+        },
+
+        /**
+         * Timestamp of the most recent lifecycle status change.
+         */
+
+        statusChangedAt: {
+            type: Date,
+
+            default: null
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Financial Mutation Tracking
+         * ------------------------------------------------------------------
+         */
+
+        lastTransactionId: {
+            type: String,
+
+            trim: true,
+
+            maxlength:
+                TRANSACTION_ID_MAX_LENGTH,
+
+            default: null,
+
+            validate: {
+                validator:
+                    function (value) {
+                        if (
+                            value === null ||
+                            value === undefined ||
+                            value === ""
+                        ) {
+                            return true;
+                        }
+
+                        return validateIdentifier(
+                            value
+                        );
+                    },
+
+                message:
+                    "Invalid last transaction identifier."
+            }
+        },
+
+        lastBalanceMutationAt: {
+            type: Date,
+
+            default: null
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * External References
+         * ------------------------------------------------------------------
+         */
+
+        externalReference: {
+            type: String,
+
+            trim: true,
+
+            maxlength: 256,
+
+            default: null
+        },
+
+        provider: {
+            type: String,
+
+            trim: true,
+
+            uppercase: true,
+
+            maxlength: 64,
+
+            default: null
+        },
+
+        providerAccountReference: {
+            type: String,
+
+            trim: true,
+
+            maxlength: 256,
+
+            default: null
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Operational Controls
+         * ------------------------------------------------------------------
+         */
+
+        allowDeposits: {
+            type: Boolean,
+
+            default: true
+        },
+
+        allowWithdrawals: {
+            type: Boolean,
+
+            default: true
+        },
+
+        allowTransfers: {
+            type: Boolean,
+
+            default: true
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Compliance / Risk
+         * ------------------------------------------------------------------
+         */
+
+        riskLevel: {
+            type: String,
+
+            enum: {
+                values:
+                    RISK_LEVELS,
+
+                message:
+                    "Invalid account risk level."
+            },
+
+            default: "UNASSESSED"
+        },
+
+        riskFlags: {
+            type: [
+                {
+                    type: String,
+
+                    trim: true,
+
+                    maxlength: 128
+                }
+            ],
+
+            default: []
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Metadata
+         * ------------------------------------------------------------------
+         *
+         * Metadata is intentionally non-financial.
+         *
+         * Monetary/accounting state MUST NOT be stored here.
+         */
+
+        metadata: {
+            type:
+                mongoose.Schema.Types.Mixed,
+
+            default: {}
+        },
+
+        tags: {
+            type: [
+                {
+                    type: String,
+
+                    trim: true,
+
+                    maxlength: 64
+                }
+            ],
+
+            default: []
+        },
+
+        /**
+         * ------------------------------------------------------------------
+         * Audit
+         * ------------------------------------------------------------------
+         */
+
+        createdBy: {
+            type: String,
+
+            trim: true,
+
+            maxlength:
+                OWNER_ID_MAX_LENGTH,
+
+            default: null,
+
+            immutable: true
+        },
+
+        updatedBy: {
+            type: String,
+
+            trim: true,
+
+            maxlength:
+                OWNER_ID_MAX_LENGTH,
+
+            default: null
+        }
+    },
+
+    {
+        /**
+         * Consistent TITech timestamps.
+         */
+
+        timestamps: true,
+
+        /**
+         * Prevent accidental unknown properties from being persisted.
+         */
+
+        strict: true,
+
+        /**
+         * Prevent unsafe query paths from silently being interpreted as
+         * arbitrary document fields.
+         */
+
+        strictQuery: true,
+
+        /**
+         * Financial account documents do not require Mongoose's default
+         * __v field.
+         *
+         * balanceRevision provides explicit financial mutation sequencing.
+         */
+
+        versionKey: false,
+
+        collection: "accounts"
+    }
+);
+
+
+/**
+
+* ============================================================================
+* Schema-Level Financial Invariants
+* ============================================================================
+*
+* Invariant:
+*
+* 0 <= reservedBalance <= balance
+*
+* This protects normal document validation/save operations.
+*
+* IMPORTANT:
+*
+* Atomic monetary mutations performed through BalanceRepository MUST enforce
+* the invariant in the MongoDB update filter itself.
+*
+* Mongoose document validators alone cannot guarantee correctness under
+* concurrent atomic updates.
+* ============================================================================
+  */
+
+accountSchema.path(
+"reservedBalance"
+).validate(
+function (value) {
+if (
+value === undefined ||
+value === null
+) {
+return true;
+}
+
+
+    if (!this.balance) {
         return true;
     }
 
-    if (
-        !mongoose.isDecimal128(
-            value
-        )
-    ) {
-        return false;
-    }
-
     try {
-        const normalized =
-            value
-                .toString()
-                .trim();
-
         return (
-            /^(?:0|[0-9]+(?:\.[0-9]+)?)$/.test(
-                normalized
-            )
+            compareNonNegativeDecimals(
+                value.toString(),
+                this.balance.toString()
+            ) <= 0
         );
     } catch {
         return false;
     }
-}
+},
+"Reserved balance cannot exceed account balance."
 
-/**
- * ============================================================================
- * Schema
- * ============================================================================
- */
 
-const accountSchema =
-    new mongoose.Schema(
-        {
-            /**
-             * ------------------------------------------------------------------
-             * Primary Account Identity
-             * ------------------------------------------------------------------
-             *
-             * The repository uses `_id` as accountId.
-             *
-             * Therefore `_id` is intentionally a String rather than a default
-             * MongoDB ObjectId.
-             */
-            _id: {
-                type: String,
-
-                required: [
-                    true,
-                    "accountId is required."
-                ],
-
-                trim: true,
-
-                minlength: 3,
-
-                maxlength: 128,
-
-                validate: {
-                    validator:
-                        validateIdentifier,
-
-                    message:
-                        "Invalid account identifier."
-                },
-
-                immutable: true
-            },
-
-            /**
-             * Stable external/business account number.
-             *
-             * This may be displayed to members, while `_id` remains the
-             * internal immutable account identity.
-             */
-            accountNumber: {
-                type: String,
-
-                required: [
-                    true,
-                    "accountNumber is required."
-                ],
-
-                trim: true,
-
-                minlength: 3,
-
-                maxlength: 64,
-
-                immutable: true,
-
-                index: true,
-
-                validate: {
-                    validator:
-                        validateIdentifier,
-
-                    message:
-                        "Invalid account number."
-                }
-            },
-
-            /**
-             * Optional human-readable account name.
-             */
-            name: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 255,
-
-                default: null
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Tenancy
-             * ------------------------------------------------------------------
-             */
-
-            tenantId: {
-                type: String,
-
-                required: [
-                    true,
-                    "tenantId is required."
-                ],
-
-                trim: true,
-
-                lowercase: true,
-
-                minlength: 3,
-
-                maxlength: 64,
-
-                immutable: true,
-
-                validate: {
-                    validator:
-                        validateTenantId,
-
-                    message:
-                        "Invalid TITech tenant identifier."
-                }
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Ownership
-             * ------------------------------------------------------------------
-             */
-
-            ownershipType: {
-                type: String,
-
-                enum: {
-                    values:
-                        OWNERSHIP_TYPES,
-
-                    message:
-                        "Invalid account ownership type."
-                },
-
-                required: true,
-
-                default:
-                    "INDIVIDUAL"
-            },
-
-            /**
-             * Principal/member/customer that owns the account.
-             *
-             * Stored as a string to support UUIDs, Mongo IDs, external IDs, or
-             * future identity providers.
-             */
-            ownerId: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 128,
-
-                default: null,
-
-                validate: {
-                    validator:
-                        function (
-                            value
-                        ) {
-                            if (
-                                value ===
-                                    null ||
-                                value ===
-                                    undefined ||
-                                value ===
-                                    ""
-                            ) {
-                                return true;
-                            }
-
-                            return validateIdentifier(
-                                value
-                            );
-                        },
-
-                    message:
-                        "Invalid account owner identifier."
-                }
-            },
-
-            /**
-             * Optional member reference.
-             */
-            memberId: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 128,
-
-                default: null
-            },
-
-            /**
-             * Optional group reference.
-             */
-            groupId: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 128,
-
-                default: null
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Account Classification
-             * ------------------------------------------------------------------
-             */
-
-            accountType: {
-                type: String,
-
-                enum: {
-                    values:
-                        ACCOUNT_TYPES,
-
-                    message:
-                        "Invalid account type."
-                },
-
-                required: true,
-
-                default:
-                    "WALLET",
-
-                immutable: true
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Currency
-             * ------------------------------------------------------------------
-             */
-
-            currency: {
-                type: String,
-
-                required: [
-                    true,
-                    "currency is required."
-                ],
-
-                trim: true,
-
-                uppercase: true,
-
-                minlength: 3,
-
-                maxlength:
-                    16,
-
-                immutable: true,
-
-                validate: {
-                    validator:
-                        function (
-                            value
-                        ) {
-                            return CURRENCY_REGEX.test(
-                                String(
-                                    value
-                                )
-                            );
-                        },
-
-                    message:
-                        "Invalid account currency."
-                }
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Financial Balance
-             * ------------------------------------------------------------------
-             *
-             * MongoDB Decimal128 prevents floating point precision errors.
-             */
-            balance: {
-                type:
-                    mongoose.Schema.Types.Decimal128,
-
-                required: true,
-
-                default:
-                    decimal128Zero,
-
-                validate: {
-                    validator:
-                        validateNonNegativeDecimal128,
-
-                    message:
-                        "Account balance must be a non-negative Decimal128 value."
-                }
-            },
-
-            /**
-             * Optional lifecycle opening balance.
-             *
-             * This is not mutated by normal balance operations.
-             */
-            openingBalance: {
-                type:
-                    mongoose.Schema.Types.Decimal128,
-
-                required: true,
-
-                default:
-                    decimal128Zero,
-
-                immutable: true,
-
-                validate: {
-                    validator:
-                        validateNonNegativeDecimal128,
-
-                    message:
-                        "Opening balance must be a non-negative Decimal128 value."
-                }
-            },
-
-            /**
-             * Reserved balance.
-             *
-             * Useful for pending withdrawals, holds, guarantees, or other
-             * committed-but-not-settled financial obligations.
-             *
-             * This is intentionally separate from `balance`.
-             */
-            reservedBalance: {
-                type:
-                    mongoose.Schema.Types.Decimal128,
-
-                required: true,
-
-                default:
-                    decimal128Zero,
-
-                validate: {
-                    validator:
-                        validateNonNegativeDecimal128,
-
-                    message:
-                        "Reserved balance must be a non-negative Decimal128 value."
-                }
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Account Status
-             * ------------------------------------------------------------------
-             */
-
-            status: {
-                type: String,
-
-                enum: {
-                    values:
-                        ACCOUNT_STATUSES,
-
-                    message:
-                        "Invalid financial account status."
-                },
-
-                required: true,
-
-                default:
-                    "PENDING",
-
-                index: true
-            },
-
-            /**
-             * Optional reason supplied by a compliance/operations workflow.
-             */
-            statusReason: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 500,
-
-                default: null
-            },
-
-            /**
-             * Timestamp when account was frozen/suspended/closed.
-             */
-            statusChangedAt: {
-                type: Date,
-
-                default: null
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Financial Mutation Tracking
-             * ------------------------------------------------------------------
-             */
-
-            lastTransactionId: {
-                type: String,
-
-                trim: true,
-
-                maxlength:
-                    TRANSACTION_ID_MAX_LENGTH_FALLBACK,
-
-                default: null,
-
-                validate: {
-                    validator:
-                        function (
-                            value
-                        ) {
-                            if (
-                                value ===
-                                    null ||
-                                value ===
-                                    undefined ||
-                                value ===
-                                    ""
-                            ) {
-                                return true;
-                            }
-
-                            return validateIdentifier(
-                                value
-                            );
-                        },
-
-                    message:
-                        "Invalid last transaction identifier."
-                }
-            },
-
-            lastBalanceMutationAt: {
-                type: Date,
-
-                default: null
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * External References
-             * ------------------------------------------------------------------
-             */
-
-            externalReference: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 256,
-
-                default: null
-            },
-
-            provider: {
-                type: String,
-
-                trim: true,
-
-                uppercase: true,
-
-                maxlength: 64,
-
-                default: null
-            },
-
-            providerAccountReference: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 256,
-
-                default: null
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Operational Controls
-             * ------------------------------------------------------------------
-             */
-
-            allowDeposits: {
-                type: Boolean,
-
-                default: true
-            },
-
-            allowWithdrawals: {
-                type: Boolean,
-
-                default: true
-            },
-
-            allowTransfers: {
-                type: Boolean,
-
-                default: true
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Compliance / Risk
-             * ------------------------------------------------------------------
-             */
-
-            riskLevel: {
-                type: String,
-
-                enum: [
-                    "LOW",
-                    "MEDIUM",
-                    "HIGH",
-                    "CRITICAL",
-                    "UNASSESSED"
-                ],
-
-                default:
-                    "UNASSESSED"
-            },
-
-            riskFlags: {
-                type: [
-                    {
-                        type: String,
-
-                        trim: true,
-
-                        maxlength:
-                            128
-                    }
-                ],
-
-                default: []
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Metadata
-             * ------------------------------------------------------------------
-             */
-
-            metadata: {
-                type: mongoose.Schema.Types.Mixed,
-
-                default: {}
-            },
-
-            tags: {
-                type: [
-                    {
-                        type: String,
-
-                        trim: true,
-
-                        maxlength:
-                            64
-                    }
-                ],
-
-                default: []
-            },
-
-            /**
-             * ------------------------------------------------------------------
-             * Audit
-             * ------------------------------------------------------------------
-             */
-
-            createdBy: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 128,
-
-                default: null,
-
-                immutable: true
-            },
-
-            updatedBy: {
-                type: String,
-
-                trim: true,
-
-                maxlength: 128,
-
-                default: null
-            }
-        },
-
-        {
-            /**
-             * Keep timestamps consistent with all TITech financial models.
-             */
-            timestamps: true,
-
-            /**
-             * Strict schema blocks accidental properties from being persisted.
-             */
-            strict: true,
-
-            /**
-             * Prevent Mongoose from modifying arbitrary unknown query fields.
-             */
-            strictQuery: true,
-
-            /**
-             * Do not create a collection-level `__v` field that has no value
-             * for the financial account persistence boundary.
-             */
-            versionKey: false,
-
-            collection:
-                "accounts"
-        }
-    );
-
-/**
- * ============================================================================
- * Correct Transaction ID Maximum
- * ============================================================================
- */
-
-const TRANSACTION_ID_MAX_LENGTH_FALLBACK =
-    128;
-
-/**
- * ============================================================================
- * Schema-Level Financial Invariants
- * ============================================================================
- */
-
-/**
- * Validate that:
- *
- *   reservedBalance <= balance
- *
- * This validator is useful for direct document saves.
- *
- * Important:
- *   Atomic repository mutations still remain responsible for preserving the
- *   appropriate financial invariant at update time.
- */
-accountSchema.path(
-    "reservedBalance"
-).validate(
-    function (
-        value
-    ) {
-        if (
-            value ===
-                undefined ||
-            value ===
-                null
-        ) {
-            return true;
-        }
-
-        if (
-            !this.balance
-        ) {
-            return true;
-        }
-
-        try {
-            return (
-                decimalToBigInt(
-                    value.toString(),
-                    18
-                ) <=
-                decimalToBigInt(
-                    this.balance.toString(),
-                    18
-                )
-            );
-        } catch {
-            return false;
-        }
-    },
-    "Reserved balance cannot exceed account balance."
 );
 
 /**
- * ============================================================================
- * Helper: exact decimal comparison
- * ============================================================================
- *
- * This helper is used only for validation and does not participate in monetary
- * mutation calculations.
- */
-function decimalToBigInt(
-    value,
-    scale
-) {
-    const text =
-        String(
-            value
-        ).trim();
 
-    if (
-        !/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(
-            text
-        )
-    ) {
-        throw new Error(
-            "Invalid decimal value."
-        );
-    }
+* ============================================================================
+* Document Middleware
+* ============================================================================
+*
+* The actual immutable fields are also protected by Mongoose's immutable
+* schema option.
+*
+* This middleware intentionally does not attempt to perform authorization.
+  */
 
-    let [
-        integerPart,
-        fractionalPart = ""
-    ] =
-        text.split(
-            "."
-        );
-
-    integerPart =
-        integerPart.replace(
-            /^0+(?=\d)/,
-            ""
-        ) ||
-        "0";
-
-    fractionalPart =
-        fractionalPart
-            .padEnd(
-                scale,
-                "0"
-            )
-            .slice(
-                0,
-                scale
-            );
-
-    return BigInt(
-        `${integerPart}${fractionalPart}`
-    );
-}
-
-/**
- * ============================================================================
- * Query Middleware
- * ============================================================================
- *
- * Prevent accidental retrieval of deleted/closed accounts in normal
- * operational code is intentionally NOT done globally because accounting,
- * reconciliation and compliance workflows may legitimately need them.
- *
- * Repositories should apply their own explicit lifecycle filters.
- * ============================================================================
- */
-
-/**
- * ============================================================================
- * Document Middleware
- * ============================================================================
- *
- * Prevent normal document mutation from silently changing immutable financial
- * identity fields.
- */
 accountSchema.pre(
-    "save",
-    function (
-        next
-    ) {
-        try {
-            if (
-                this.isNew
-            ) {
-                return next();
-            }
-
-            return next();
-        } catch (
-            error
-        ) {
-            return next(
-                error
-            );
-        }
-    }
+"save",
+function (next) {
+try {
+/**
+* No financial authorization belongs here.
+*
+* BalanceRepository is responsible for balance mutations.
+*/
+return next();
+} catch (error) {
+return next(error);
+}
+}
 );
 
 /**
- * ============================================================================
- * Query Middleware - Immutability Protection
- * ============================================================================
- *
- * Balance mutations should go through the dedicated BalanceRepository.
- *
- * This prevents arbitrary application code from using:
- *
- *   Account.updateOne()
- *   Account.updateMany()
- *   Account.findOneAndUpdate()
- *
- * to mutate the balance field accidentally.
- *
- * The dedicated BalanceRepository uses findOneAndUpdate directly, so the model
- * allows it only when an explicit internal mutation marker is supplied.
- * ============================================================================
- */
 
-const BLOCKED_MUTATION_OPERATIONS =
-    [
-        "updateOne",
-        "updateMany",
-        "findOneAndUpdate",
-        "findOneAndReplace",
-        "replaceOne"
-    ];
+* ============================================================================
+* Query Middleware - Financial Mutation Boundary
+* ============================================================================
+*
+* Direct application-level balance mutation is prohibited.
+*
+* BalanceRepository may explicitly opt into financial mutation using:
+*
+* {
+* ```
+    allowFinancialMutation: true
+  ```
+* }
+*
+* This is an application-level safety boundary, not an authorization system.
+*
+* MongoDB/database users must still be protected through proper credentials,
+* network controls, and least-privilege access.
+* ============================================================================
+  */
+
+const BLOCKED_MUTATION_OPERATIONS = Object.freeze([
+"updateOne",
+"updateMany",
+"findOneAndUpdate",
+"findOneAndReplace",
+"replaceOne"
+]);
+
+function updateTouchesPath(
+update,
+path
+) {
+if (!update || typeof update !== "object") {
+return false;
+}
+
+
+if (
+    Object.prototype.hasOwnProperty.call(
+        update,
+        path
+    )
+) {
+    return true;
+}
+
+const operators = [
+    "$set",
+    "$setOnInsert",
+    "$inc",
+    "$mul",
+    "$unset",
+    "$min",
+    "$max"
+];
+
+return operators.some(
+    (operator) =>
+        Boolean(
+            update[operator] &&
+            Object.prototype.hasOwnProperty.call(
+                update[operator],
+                path
+            )
+        )
+);
+
+
+}
 
 for (
-    const operation of
-    BLOCKED_MUTATION_OPERATIONS
+const operation of
+BLOCKED_MUTATION_OPERATIONS
 ) {
-    accountSchema.pre(
-        operation,
-        function (
-            next
+accountSchema.pre(
+operation,
+function (next) {
+const options =
+typeof this.getOptions ===
+"function"
+? this.getOptions() || {}
+: {};
+
+
+        /**
+         * Internal financial repository operations are explicitly allowed.
+         */
+        if (
+            options.allowFinancialMutation ===
+            true
         ) {
-            const options =
-                this.getOptions?.() ||
-                {};
-
-            if (
-                options.allowFinancialMutation ===
-                true
-            ) {
-                return next();
-            }
-
-            const update =
-                typeof this.getUpdate ===
-                "function"
-                    ? this.getUpdate()
-                    : {};
-
-            const touchesBalance =
-                Boolean(
-                    update?.balance
-                ) ||
-                Boolean(
-                    update?.$inc?.balance
-                ) ||
-                Boolean(
-                    update?.$set?.balance
-                ) ||
-                Boolean(
-                    update?.$unset?.balance
-                );
-
-            const touchesFinancialIdentity =
-                Boolean(
-                    update?.tenantId
-                ) ||
-                Boolean(
-                    update?.accountType
-                ) ||
-                Boolean(
-                    update?.currency
-                ) ||
-                Boolean(
-                    update?._id
-                );
-
-            if (
-                touchesBalance ||
-                touchesFinancialIdentity
-            ) {
-                return next(
-                    new Error(
-                        "Direct financial account mutation is prohibited. Use TITech BalanceRepository."
-                    )
-                );
-            }
-
             return next();
         }
-    );
-}
 
-/**
- * ============================================================================
- * Virtuals
- * ============================================================================
- */
+        const update =
+            typeof this.getUpdate ===
+            "function"
+                ? this.getUpdate() || {}
+                : {};
 
-/**
- * Available balance:
- *
- *   balance - reservedBalance
- *
- * This is a read-only presentation value.
- */
-accountSchema.virtual(
-    "availableBalance"
-).get(
-    function () {
-        try {
-            const balance =
-                this.balance
-                    ? decimalToBigInt(
-                        this.balance.toString(),
-                        18
-                    )
-                    : 0n;
+        const touchesBalance =
+            updateTouchesPath(
+                update,
+                "balance"
+            ) ||
+            updateTouchesPath(
+                update,
+                "reservedBalance"
+            ) ||
+            updateTouchesPath(
+                update,
+                "balanceRevision"
+            ) ||
+            updateTouchesPath(
+                update,
+                "lastTransactionId"
+            ) ||
+            updateTouchesPath(
+                update,
+                "lastBalanceMutationAt"
+            );
 
-            const reserved =
-                this.reservedBalance
-                    ? decimalToBigInt(
-                        this.reservedBalance.toString(),
-                        18
-                    )
-                    : 0n;
-
-            const available =
-                balance -
-                reserved;
-
-            return mongoose.Types
-                .Decimal128
-                .fromString(
-                    available.toString()
-                );
-        } catch {
-            return null;
-        }
-    }
-);
-
-/**
- * ============================================================================
- * Instance Helpers
- * ============================================================================
- */
-
-accountSchema.methods.isActive =
-    function () {
-        return (
-            this.status ===
-            "ACTIVE"
-        );
-    };
-
-accountSchema.methods.canReceiveDeposits =
-    function () {
-        return (
-            this.status ===
-                "ACTIVE" &&
-            this.allowDeposits ===
-                true
-        );
-    };
-
-accountSchema.methods.canWithdraw =
-    function () {
-        return (
-            this.status ===
-                "ACTIVE" &&
-            this.allowWithdrawals ===
-                true
-        );
-    };
-
-accountSchema.methods.canTransfer =
-    function () {
-        return (
-            this.status ===
-                "ACTIVE" &&
-            this.allowTransfers ===
-                true
-        );
-    };
-
-/**
- * ============================================================================
- * Static Helpers
- * ============================================================================
- */
-
-accountSchema.statics.findActiveById =
-    function ({
-        accountId,
-        tenantId,
-        currency,
-        session
-    } = {}) {
-        const query =
-            this.findOne(
-                {
-                    _id:
-                        accountId,
-
-                    tenantId:
-                        tenantId,
-
-                    currency:
-                        String(
-                            currency
-                        )
-                            .toUpperCase(),
-
-                    status:
-                        "ACTIVE"
-                }
+        const touchesFinancialIdentity =
+            updateTouchesPath(
+                update,
+                "_id"
+            ) ||
+            updateTouchesPath(
+                update,
+                "tenantId"
+            ) ||
+            updateTouchesPath(
+                update,
+                "accountType"
+            ) ||
+            updateTouchesPath(
+                update,
+                "currency"
             );
 
         if (
-            session
+            touchesBalance ||
+            touchesFinancialIdentity
         ) {
-            query.session(
-                session
+            return next(
+                new Error(
+                    "Direct financial account mutation is prohibited. Use TITech BalanceRepository."
+                )
             );
         }
 
-        return query;
-    };
-
-/**
- * ============================================================================
- * Indexes
- * ============================================================================
- *
- * These indexes are deliberately tenant-aware.
- */
-
-/**
- * Canonical account lookup.
- *
- * `_id` is already unique, but tenant/currency are included for fast scoped
- * access and query planning.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        currency: 1,
-        status: 1
+        return next();
     }
 );
 
+
+}
+
 /**
- * Business account number uniqueness is tenant-scoped.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        accountNumber: 1
-    },
-    {
-        unique: true,
-        name:
-            "uniq_titech_tenant_account_number"
+
+* ============================================================================
+* Virtuals
+* ============================================================================
+*
+* availableBalance:
+*
+* balance - reservedBalance
+*
+* The result is returned as Decimal128.
+  */
+
+accountSchema.virtual(
+"availableBalance"
+).get(
+function () {
+try {
+const balance =
+this.balance
+? this.balance
+: decimal128Zero();
+
+
+        const reserved =
+            this.reservedBalance
+                ? this.reservedBalance
+                : decimal128Zero();
+
+        const comparison =
+            compareNonNegativeDecimals(
+                reserved.toString(),
+                balance.toString()
+            );
+
+        /**
+         * A valid document should never reach this state.
+         *
+         * Return null rather than exposing a negative financial amount
+         * if the object has been manually corrupted in memory.
+         */
+        if (comparison > 0) {
+            return null;
+        }
+
+        /**
+         * Decimal128 arithmetic is intentionally delegated to the
+         * Decimal128 implementation rather than JavaScript Number math.
+         *
+         * MongoDB Decimal128 objects do not expose a portable subtraction
+         * API across all supported Mongoose versions, so exact subtraction
+         * is performed through decimal component normalization.
+         */
+
+        const balanceParts =
+            parseDecimalToInteger(
+                balance.toString()
+            );
+
+        const reservedParts =
+            parseDecimalToInteger(
+                reserved.toString()
+            );
+
+        const scale = Math.max(
+            balanceParts.scale,
+            reservedParts.scale
+        );
+
+        const balanceInteger =
+            balanceParts.coefficient *
+            10n ** BigInt(
+                scale -
+                    balanceParts.scale
+            );
+
+        const reservedInteger =
+            reservedParts.coefficient *
+            10n ** BigInt(
+                scale -
+                    reservedParts.scale
+            );
+
+        const availableInteger =
+            balanceInteger -
+            reservedInteger;
+
+        let result =
+            availableInteger.toString();
+
+        if (scale > 0) {
+            const negative =
+                result.startsWith("-");
+
+            const digits = negative
+                ? result.slice(1)
+                : result;
+
+            const padded =
+                digits.padStart(
+                    scale + 1,
+                    "0"
+                );
+
+            const splitIndex =
+                padded.length - scale;
+
+            const integerPart =
+                padded.slice(
+                    0,
+                    splitIndex
+                );
+
+            const fractionalPart =
+                padded.slice(
+                    splitIndex
+                );
+
+            result =
+                `${negative ? "-" : ""}${integerPart}.${fractionalPart}`;
+        }
+
+        return mongoose.Types.Decimal128.fromString(
+            result
+        );
+    } catch {
+        return null;
     }
+}
+
+
 );
 
 /**
- * Member account lookup.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        memberId: 1,
-        accountType: 1,
-        currency: 1,
-        status: 1
-    },
-    {
-        name:
-            "idx_titech_member_accounts"
-    }
+
+* ============================================================================
+* Instance Helpers
+* ============================================================================
+  */
+
+accountSchema.methods.isActive =
+function () {
+return (
+this.status ===
+"ACTIVE"
 );
+};
+
+accountSchema.methods.isOperational =
+function () {
+return (
+this.status ===
+"ACTIVE"
+);
+};
+
+accountSchema.methods.isFrozen =
+function () {
+return (
+this.status ===
+"FROZEN"
+);
+};
+
+accountSchema.methods.isSuspended =
+function () {
+return (
+this.status ===
+"SUSPENDED"
+);
+};
+
+accountSchema.methods.isClosed =
+function () {
+return (
+this.status ===
+"CLOSED"
+);
+};
+
+accountSchema.methods.canReceiveDeposits =
+function () {
+return (
+this.status ===
+"ACTIVE" &&
+this.allowDeposits ===
+true
+);
+};
+
+accountSchema.methods.canWithdraw =
+function () {
+return (
+this.status ===
+"ACTIVE" &&
+this.allowWithdrawals ===
+true
+);
+};
+
+accountSchema.methods.canTransfer =
+function () {
+return (
+this.status ===
+"ACTIVE" &&
+this.allowTransfers ===
+true
+);
+};
 
 /**
- * Group wallet lookup.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        groupId: 1,
-        accountType: 1,
-        currency: 1,
-        status: 1
-    },
-    {
-        name:
-            "idx_titech_group_wallet_accounts"
-    }
-);
+
+* Available balance as a Decimal128 value.
+  */
+  accountSchema.methods.getAvailableBalance =
+  function () {
+  return this.availableBalance;
+  };
 
 /**
- * Owner lookup.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        ownerId: 1,
-        accountType: 1,
-        currency: 1
-    },
-    {
-        name:
-            "idx_titech_owner_accounts"
-    }
-);
+
+* ============================================================================
+* Static Helpers
+* ============================================================================
+  */
 
 /**
- * Transaction traceability.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        lastTransactionId: 1
-    },
-    {
-        sparse: true,
-        name:
-            "idx_titech_last_transaction"
-    }
-);
+
+* Find an ACTIVE account within a specific tenant and currency.
+*
+* Repository/service layers remain responsible for authorization.
+  */
+  accountSchema.statics.findActiveById =
+  function ({
+  accountId,
+  tenantId,
+  currency,
+  session
+  } = {}) {
+  const normalizedCurrency =
+  currency === undefined ||
+  currency === null
+  ? null
+  : String(
+  currency
+  )
+  .trim()
+  .toUpperCase();
+
+  
+   const query =
+       this.findOne({
+           _id: accountId,
+           tenantId: tenantId,
+           currency:
+               normalizedCurrency,
+           status: "ACTIVE"
+       });
+
+   if (session) {
+       query.session(session);
+   }
+
+   return query;
+  
+
+  };
 
 /**
- * Operational status management.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        status: 1,
-        createdAt: -1
-    },
-    {
-        name:
-            "idx_titech_account_status"
-    }
-);
+
+* Find an account scoped to tenant.
+  */
+  accountSchema.statics.findByTenantAndId =
+  function ({
+  tenantId,
+  accountId,
+  session
+  } = {}) {
+  const query =
+  this.findOne({
+  _id: accountId,
+  tenantId
+  });
+
+  
+   if (session) {
+       query.session(session);
+   }
+
+   return query;
+  
+
+  };
 
 /**
- * Provider references.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        provider: 1,
-        providerAccountReference: 1
-    },
-    {
-        sparse: true,
-        name:
-            "idx_titech_provider_account"
-    }
-);
+
+* Find account by tenant-scoped business account number.
+  */
+  accountSchema.statics.findByAccountNumber =
+  function ({
+  tenantId,
+  accountNumber,
+  session
+  } = {}) {
+  const query =
+  this.findOne({
+  tenantId,
+  accountNumber
+  });
+
+  
+   if (session) {
+       query.session(session);
+   }
+
+   return query;
+  
+
+  };
 
 /**
- * External reference.
- */
-accountSchema.index(
-    {
-        tenantId: 1,
-        externalReference: 1
-    },
-    {
-        sparse: true,
-        name:
-            "idx_titech_external_reference"
-    }
-);
+
+* ============================================================================
+* Indexes
+* ============================================================================
+*
+* All high-volume operational indexes begin with tenantId wherever practical.
+*
+* This is important for:
+*
+* * multi-tenancy
+* * query selectivity
+* * tenant isolation
+* * operational reporting
+* * large-account datasets
+* ============================================================================
+  */
 
 /**
- * ============================================================================
- * JSON Serialization
- * ============================================================================
- *
- * Decimal128 values are converted to strings for API-safe serialization.
- *
- * This avoids leaking BSON Decimal128 implementation details into frontend
- * consumers and prevents accidental JavaScript floating-point conversion.
- * ============================================================================
- */
 
-function decimalToString(
-    value
+* Tenant + currency + status lookup.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  currency: 1,
+  status: 1
+  },
+  {
+  name:
+  "idx_titech_account_tenant_currency_status"
+  }
+  );
+
+/**
+
+* Tenant-scoped business account number uniqueness.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  accountNumber: 1
+  },
+  {
+  unique: true,
+
+  
+   name:
+       "uniq_titech_tenant_account_number"
+  
+
+  }
+  );
+
+/**
+
+* Member account lookup.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  memberId: 1,
+  accountType: 1,
+  currency: 1,
+  status: 1
+  },
+  {
+  name:
+  "idx_titech_member_accounts"
+  }
+  );
+
+/**
+
+* Group wallet/account lookup.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  groupId: 1,
+  accountType: 1,
+  currency: 1,
+  status: 1
+  },
+  {
+  name:
+  "idx_titech_group_accounts"
+  }
+  );
+
+/**
+
+* Owner lookup.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  ownerId: 1,
+  accountType: 1,
+  currency: 1
+  },
+  {
+  name:
+  "idx_titech_owner_accounts"
+  }
+  );
+
+/**
+
+* Transaction traceability.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  lastTransactionId: 1
+  },
+  {
+  sparse: true,
+
+  
+   name:
+       "idx_titech_last_transaction"
+  
+
+  }
+  );
+
+/**
+
+* Operational status management.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  status: 1,
+  createdAt: -1
+  },
+  {
+  name:
+  "idx_titech_account_status"
+  }
+  );
+
+/**
+
+* Provider account reference.
+*
+* Sparse because not every account is associated with an external provider.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  provider: 1,
+  providerAccountReference: 1
+  },
+  {
+  sparse: true,
+
+  
+   name:
+       "idx_titech_provider_account"
+  
+
+  }
+  );
+
+/**
+
+* External reference.
+  */
+  accountSchema.index(
+  {
+  tenantId: 1,
+  externalReference: 1
+  },
+  {
+  sparse: true,
+
+  
+   name:
+       "idx_titech_external_reference"
+  
+
+  }
+  );
+
+/**
+
+* ============================================================================
+* JSON Serialization
+* ============================================================================
+*
+* Decimal128 values MUST remain strings outside the persistence layer.
+*
+* This prevents:
+*
+* Decimal128 -> JavaScript Number -> precision loss
+*
+* from occurring accidentally in API responses.
+* ============================================================================
+  */
+
+function decimalToString(value) {
+if (
+value === undefined ||
+value === null
 ) {
-    if (
-        value ===
-            undefined ||
-        value ===
-            null
-    ) {
-        return value;
-    }
+return value;
+}
 
-    if (
-        mongoose.isDecimal128(
-            value
-        )
-    ) {
-        return value.toString();
-    }
 
-    return value;
+if (
+    mongoose.isDecimal128(value)
+) {
+    return value.toString();
+}
+
+return value;
+
+
 }
 
 accountSchema.set(
-    "toJSON",
-    {
-        virtuals: true,
+"toJSON",
+{
+virtuals: true,
 
-        transform:
-            (
-                doc,
-                ret
-            ) => {
-                if (
-                    ret.balance !==
-                    undefined
-                ) {
-                    ret.balance =
-                        decimalToString(
-                            ret.balance
-                        );
-                }
 
-                if (
-                    ret.openingBalance !==
-                    undefined
-                ) {
-                    ret.openingBalance =
-                        decimalToString(
-                            ret.openingBalance
-                        );
-                }
-
-                if (
-                    ret.reservedBalance !==
-                    undefined
-                ) {
-                    ret.reservedBalance =
-                        decimalToString(
-                            ret.reservedBalance
-                        );
-                }
-
-                if (
-                    ret.availableBalance !==
-                    undefined
-                ) {
-                    ret.availableBalance =
-                        decimalToString(
-                            ret.availableBalance
-                        );
-                }
-
-                return ret;
+    transform:
+        (
+            doc,
+            ret
+        ) => {
+            if (
+                ret.balance !==
+                undefined
+            ) {
+                ret.balance =
+                    decimalToString(
+                        ret.balance
+                    );
             }
-    }
+
+            if (
+                ret.openingBalance !==
+                undefined
+            ) {
+                ret.openingBalance =
+                    decimalToString(
+                        ret.openingBalance
+                    );
+            }
+
+            if (
+                ret.reservedBalance !==
+                undefined
+            ) {
+                ret.reservedBalance =
+                    decimalToString(
+                        ret.reservedBalance
+                    );
+            }
+
+            if (
+                ret.availableBalance !==
+                undefined
+            ) {
+                ret.availableBalance =
+                    decimalToString(
+                        ret.availableBalance
+                    );
+            }
+
+            return ret;
+        }
+}
+
+
 );
 
 accountSchema.set(
-    "toObject",
-    {
-        virtuals: true
-    }
+"toObject",
+{
+virtuals: true
+}
 );
 
 /**
- * ============================================================================
- * Model
- * ============================================================================
- */
+
+* ============================================================================
+* Model
+* ============================================================================
+  */
 
 const Account =
-    mongoose.models.Account ||
-    mongoose.model(
-        "Account",
-        accountSchema
-    );
+mongoose.models.Account ||
+mongoose.model(
+"Account",
+accountSchema
+);
 
 /**
- * ============================================================================
- * Exports
- * ============================================================================
- */
+
+* ============================================================================
+* Exports
+* ============================================================================
+  */
 
 module.exports = {
-    Account,
+Account,
 
-    accountSchema,
 
-    ACCOUNT_STATUSES,
+accountSchema,
 
-    ACCOUNT_TYPES,
+ACCOUNT_STATUSES,
 
-    OWNERSHIP_TYPES,
+ACCOUNT_TYPES,
 
-    decimal128Zero,
+OWNERSHIP_TYPES,
 
-    decimal128FromString
+RISK_LEVELS,
+
+decimal128Zero,
+
+decimal128FromString
+
+
 };

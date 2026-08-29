@@ -1,391 +1,1130 @@
+"use strict";
+
 /**
- * Password Reset Service
- * Handles password reset flows with secure token generation, validation, and password reset
- * Enforces strong password requirements and single-use tokens
+ * =============================================================================
+ * TITech Community Capital
+ * TITech Community Capital Operating System
+ * =============================================================================
+ *
+ * File:
+ *   backend/services/passwordResetService.js
+ *
+ * Purpose:
+ *   Enterprise password-reset orchestration service.
+ *
+ * Security Architecture:
+ *
+ *   Password Reset Request
+ *        |
+ *        v
+ *   Generate cryptographically random token
+ *        |
+ *        v
+ *   SHA-256 token hash
+ *        |
+ *        v
+ *   Revoke previous active tokens
+ *        |
+ *        v
+ *   Persist ONLY tokenHash
+ *        |
+ *        v
+ *   Deliver raw token through approved channel
+ *
+ *   Password Reset
+ *        |
+ *        v
+ *   Validate password policy
+ *        |
+ *        v
+ *   Resolve user + tenant context
+ *        |
+ *        v
+ *   Hash submitted token
+ *        |
+ *        v
+ *   MongoDB transaction
+ *        |
+ *        +---- Atomically consume token
+ *        |
+ *        +---- Change password
+ *        |
+ *        +---- Update passwordResetAt
+ *        |
+ *        v
+ *   Commit
+ *        |
+ *        v
+ *   Invalidate sessions / refresh tokens
+ *
+ * Security Requirements:
+ *   - Plaintext reset tokens are NEVER persisted.
+ *   - Plaintext tokens are NEVER logged.
+ *   - Reset tokens are cryptographically random.
+ *   - Only SHA-256 token hashes are stored.
+ *   - Tokens are single-use.
+ *   - Token consumption is atomic.
+ *   - Password update and token consumption are transactional.
+ *   - Existing active reset tokens are revoked when a new one is created.
+ *   - Expiration is verified at application level.
+ *   - Password strength is validated using deterministic rules + zxcvbn.
+ *   - Current password reuse is rejected.
+ *   - Tenant context is preserved where available.
+ *   - Session invalidation happens after successful password reset.
+ *   - Reset tokens are not exposed in logs.
+ *
+ * IMPORTANT:
+ *   MongoDB transactions require a replica set or MongoDB sharded deployment.
+ *   Production TITech deployments should run MongoDB in a transaction-capable
+ *   configuration.
+ *
+ * =============================================================================
  */
 
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-const PasswordResetToken = require('../models/PasswordResetToken');
-const User = require('../models/User');
-const logger = require('../utils/logger');
+const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
+const zxcvbn = require("zxcvbn");
 
+const PasswordResetToken = require("../models/PasswordResetToken");
+const User = require("../models/User");
+const logger = require("../utils/logger");
 
-const zxcvbn = require('zxcvbn');
+/**
+ * =============================================================================
+ * Constants
+ * =============================================================================
+ */
 
-// ✅ Common weak passwords (expandable)
-const COMMON_PASSWORDS = [
-  'password',
-  '123456',
-  '123456789',
-  'qwerty',
-  'welcome',
-  '12345678',
-  'abc123',
-  '111111',
-];
+const DEFAULT_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-// ✅ Enterprise-grade validator
+const DEFAULT_BCRYPT_ROUNDS = 12;
+
+const DEFAULT_RESET_TOKEN_BYTES = 32;
+
+const RAW_TOKEN_LENGTH = DEFAULT_RESET_TOKEN_BYTES * 2;
+
+const MIN_PASSWORD_LENGTH = 12;
+const REQUIRED_ZXCVBN_SCORE = 3;
+
+const METADATA_MAX_KEYS = 20;
+
+/**
+ * Common passwords.
+ *
+ * zxcvbn already contains a substantially larger dictionary, but these are
+ * cheap explicit checks and make the policy easy to understand.
+ */
+const COMMON_PASSWORDS = new Set([
+  "password",
+  "123456",
+  "123456789",
+  "qwerty",
+  "welcome",
+  "12345678",
+  "abc123",
+  "111111",
+  "password123",
+  "admin",
+  "admin123",
+  "letmein",
+  "iloveyou",
+]);
+
+/**
+ * =============================================================================
+ * Utility Functions
+ * =============================================================================
+ */
+
+/**
+ * Generate a cryptographically secure plaintext reset token.
+ *
+ * This value may be sent to the user but MUST NEVER be persisted.
+ */
+function generateResetToken() {
+  return crypto
+    .randomBytes(DEFAULT_RESET_TOKEN_BYTES)
+    .toString("hex");
+}
+
+/**
+ * Hash a plaintext reset token.
+ *
+ * The PasswordResetToken model expects a 64-character lowercase SHA-256 digest.
+ */
+function hashResetToken(token) {
+  if (typeof token !== "string") {
+    throw new TypeError("Reset token must be a string");
+  }
+
+  const normalizedToken = token.trim();
+
+  if (
+    normalizedToken.length !== RAW_TOKEN_LENGTH ||
+    !/^[a-f0-9]+$/i.test(normalizedToken)
+  ) {
+    throw new Error("Invalid password reset token format");
+  }
+
+  return crypto
+    .createHash("sha256")
+    .update(normalizedToken, "utf8")
+    .digest("hex");
+}
+
+/**
+ * Backward-compatible alias for existing imports.
+ */
+const HASH_TOKEN = hashResetToken;
+
+/**
+ * Safely return the user's email local-part.
+ */
+function getEmailLocalPart(email) {
+  if (typeof email !== "string") {
+    return "";
+  }
+
+  const normalized = email.trim().toLowerCase();
+
+  if (!normalized.includes("@")) {
+    return "";
+  }
+
+  return normalized.split("@")[0].trim();
+}
+
+/**
+ * Determine whether a value is a valid MongoDB ObjectId.
+ */
+function isValidObjectId(value) {
+  return mongoose.isValidObjectId(value);
+}
+
+/**
+ * Normalize optional audit metadata.
+ */
+function sanitizeMetadata(metadata = {}) {
+  if (
+    !metadata ||
+    typeof metadata !== "object" ||
+    Array.isArray(metadata)
+  ) {
+    return {};
+  }
+
+  const allowedKeys = [
+    "source",
+    "channel",
+    "locale",
+    "deliveryProvider",
+    "tenantId",
+  ];
+
+  const result = {};
+
+  for (const key of allowedKeys) {
+    if (
+      Object.prototype.hasOwnProperty.call(metadata, key) &&
+      metadata[key] != null
+    ) {
+      const value = String(metadata[key]);
+
+      if (value.length <= 256) {
+        result[key] = value;
+      }
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(result).slice(0, METADATA_MAX_KEYS)
+  );
+}
+
+/**
+ * =============================================================================
+ * Password Validation
+ * =============================================================================
+ */
+
+/**
+ * Enterprise password validator.
+ *
+ * Requirements:
+ *   - At least 12 characters.
+ *   - Uppercase.
+ *   - Lowercase.
+ *   - Numeric character.
+ *   - Special character.
+ *   - Not in known common-password list.
+ *   - Does not contain email local-part.
+ *   - zxcvbn score >= 3.
+ */
 function validatePasswordEnterprise(password, context = {}) {
-  const result = zxcvbn(password);
+  if (typeof password !== "string") {
+    return {
+      valid: false,
+      score: 0,
+      entropy: 0,
+      guesses: 0,
+      feedback: {
+        warning: "Password must be a string",
+        suggestions: [],
+      },
+      rules: {
+        minLength: false,
+        hasUpperCase: false,
+        hasLowerCase: false,
+        hasNumber: false,
+        hasSpecialChar: false,
+        notCommonPassword: false,
+        noUserInfo: false,
+      },
+      message: "Password does not meet security requirements",
+    };
+  }
+
+  const emailLocalPart = getEmailLocalPart(context.email);
+
+  const result = zxcvbn(password, [
+    context.email || "",
+    context.name || "",
+    emailLocalPart || "",
+  ]);
+
+  const normalizedPassword = password.toLowerCase();
 
   const rules = {
-    minLength: password.length >= 12,
-    hasUpperCase: /[A-Z]/.test(password),
-    hasLowerCase: /[a-z]/.test(password),
-    hasNumber: /[0-9]/.test(password),
-    hasSpecialChar: /[!@#$%^&*()_+\-={}[\]:";'<>?,./|\\]/.test(password),
+    minLength: password.length >= MIN_PASSWORD_LENGTH,
 
-    // ✅ New enterprise rules
-    notCommonPassword: !COMMON_PASSWORDS.includes(password.toLowerCase()),
-    noUserInfo: !password.toLowerCase().includes((context.email || '').split('@')[0] || ''),
+    hasUpperCase: /[A-Z]/.test(password),
+
+    hasLowerCase: /[a-z]/.test(password),
+
+    hasNumber: /[0-9]/.test(password),
+
+    hasSpecialChar:
+      /[!@#$%^&*()_+\-={}[\]:";'<>?,./|\\`~]/.test(password),
+
+    notCommonPassword:
+      !COMMON_PASSWORDS.has(normalizedPassword),
+
+    noUserInfo:
+      !emailLocalPart ||
+      !normalizedPassword.includes(emailLocalPart),
   };
 
   const allRulesPassed = Object.values(rules).every(Boolean);
 
-  // ✅ Adaptive scoring (zxcvbn: 0–4)
-  const adaptiveValid = result.score >= 3; // require strong password
+  const adaptiveValid =
+    result.score >= REQUIRED_ZXCVBN_SCORE;
 
   const valid = allRulesPassed && adaptiveValid;
 
   return {
     valid,
-    score: result.score, // 0–4
+    score: result.score,
     entropy: result.guesses,
-
+    guesses: result.guesses,
     feedback: result.feedback,
-
     rules,
-
     message: valid
-      ? 'Strong password'
+      ? null
       : buildPasswordErrorMessage(rules, result),
   };
 }
 
-// ✅ Human-readable error
+/**
+ * Build a deterministic and user-friendly password error.
+ */
 function buildPasswordErrorMessage(rules, result) {
-  if (!rules.minLength) return 'Password must be at least 12 characters';
-  if (!rules.hasUpperCase) return 'Add at least one uppercase letter';
-  if (!rules.hasLowerCase) return 'Add at least one lowercase letter';
-  if (!rules.hasNumber) return 'Add at least one number';
-  if (!rules.hasSpecialChar) return 'Add at least one special character';
-  if (!rules.notCommonPassword) return 'Password is too common';
-  if (!rules.noUserInfo) return 'Password must not contain personal information';
-
-  if (result.score < 3) {
-    return 'Password is too weak. Use a longer, more complex password.';
+  if (!rules.minLength) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
   }
 
-  return 'Password does not meet requirements';
+  if (!rules.hasUpperCase) {
+    return "Password must contain at least one uppercase letter";
+  }
+
+  if (!rules.hasLowerCase) {
+    return "Password must contain at least one lowercase letter";
+  }
+
+  if (!rules.hasNumber) {
+    return "Password must contain at least one number";
+  }
+
+  if (!rules.hasSpecialChar) {
+    return "Password must contain at least one special character";
+  }
+
+  if (!rules.notCommonPassword) {
+    return "Password is too common";
+  }
+
+  if (!rules.noUserInfo) {
+    return "Password must not contain personal information";
+  }
+
+  if (result.score < REQUIRED_ZXCVBN_SCORE) {
+    return "Password is too weak. Use a longer or more unpredictable password.";
+  }
+
+  return "Password does not meet security requirements";
 }
 
-module.exports = { validatePasswordEnterprise };
+/**
+ * Backward-compatible password validator.
+ */
+const validatePasswordStrength = (password, context = {}) =>
+  validatePasswordEnterprise(password, context);
 
-// Password strength validation using zxcvbn (if available) or custom rules
-const validatePasswordStrength = (password) => {
-  // Minimum 12 characters, must include uppercase, lowercase, number, special char
-  const rules = {
-    minLength: password.length >= 12,
-    hasUpperCase: /[A-Z]/.test(password),
-    hasLowerCase: /[a-z]/.test(password),
-    hasNumber: /[0-9]/.test(password),
-    hasSpecialChar: /[!@#$%^&*()_+\-={}[\]:";'<>?,./|\\]/.test(password),
-  };
-
-  const passedRules = Object.values(rules).filter(Boolean).length;
-  const allRulesPassed = Object.values(rules).every(Boolean);
-
-  return {
-    valid: allRulesPassed,
-    score: passedRules,
-    rules,
-    message: allRulesPassed
-      ? null
-      : 'Password must be at least 12 characters and include uppercase, lowercase, number, and special character',
-  };
-};
-
-// Hash token using SHA256 for secure storage
-const HASH_TOKEN = (token) => crypto.createHash('sha256').update(token).digest('hex');
+/**
+ * =============================================================================
+ * Password Reset Service
+ * =============================================================================
+ */
 
 class PasswordResetService {
   constructor(config = {}) {
-    this.tokenTTL = config.tokenTTL || 1 * 60 * 60 * 1000; // 1 hour default (shorter than email verification)
-    this.maxAttempts = config.maxAttempts || 5; // Max 5 attempts per token
-    this.attemptWindowMs = config.attemptWindowMs || 10 * 60 * 1000; // 10 minutes
+    this.tokenTTL =
+      Number.isFinite(config.tokenTTL) && config.tokenTTL > 0
+        ? config.tokenTTL
+        : DEFAULT_TOKEN_TTL_MS;
+
+    this.bcryptRounds =
+      Number.isInteger(config.bcryptRounds) &&
+      config.bcryptRounds >= 10 &&
+      config.bcryptRounds <= 15
+        ? config.bcryptRounds
+        : DEFAULT_BCRYPT_ROUNDS;
+
     this.emailService = config.emailService || null;
-    this.sessionService = config.sessionService || null; // For invalidating sessions after reset
+
+    this.sessionService = config.sessionService || null;
+
+    /**
+     * Enforce transaction usage by default.
+     *
+     * Set to false only for explicitly controlled environments where MongoDB
+     * transactions are unavailable. This is NOT recommended for production.
+     */
+    this.requireTransactions =
+      config.requireTransactions !== false;
   }
 
   /**
-   * Create password reset token and send email
-   * @param {Object} user - User document with _id, email, name
-   * @returns {string} - Plain token (send to user via email, never store)
+   * ===========================================================================
+   * Create Password Reset Token
+   * ===========================================================================
+   *
+   * Creates a new one-time reset token and revokes previous active tokens.
+   *
+   * @param {Object} user
+   * @param {Object} options
+   * @returns {Object}
    */
-  async createResetToken(user) {
+  async createResetToken(user, options = {}) {
+    if (!user || !user._id) {
+      throw new Error("A valid user is required");
+    }
+
+    if (!user.email) {
+      throw new Error("User email is required for password reset");
+    }
+
+    const userId = user._id;
+
+    const tenantId =
+      options.tenantId ||
+      user.tenantId ||
+      null;
+
+    if (
+      tenantId != null &&
+      !isValidObjectId(tenantId)
+    ) {
+      throw new Error("Invalid tenant context");
+    }
+
+    const rawToken = generateResetToken();
+
+    const tokenHash = HASH_TOKEN(rawToken);
+
+    const expiresAt = new Date(
+      Date.now() + this.tokenTTL
+    );
+
+    let tokenRecord;
+
     try {
-      // Generate cryptographically secure random token
-      const token = crypto.randomBytes(32).toString('hex');
-      const tokenHash = HASH_TOKEN(token);
-      const expiresAt = new Date(Date.now() + this.tokenTTL);
+      /**
+       * Revoke previous active reset tokens first.
+       */
+      await PasswordResetToken.revokeActiveForUser(
+        userId,
+        "superseded_by_new_request",
+        {
+          tenantId,
+        }
+      );
 
-      // Store hashed token (never raw token)
-      const record = await PasswordResetToken.create({
-        user: user._id,
+      tokenRecord = await PasswordResetToken.create({
+        user: userId,
+        tenantId,
+
+        purpose: "password_reset",
+
         tokenHash,
+
         expiresAt,
-        attempts: 0,
+
+        requestIp: options.requestIp || null,
+
+        userAgent: options.userAgent || null,
+
+        requestId: options.requestId || null,
+
+        metadata: sanitizeMetadata(options.metadata),
       });
 
-      logger.info('[PasswordResetService] Password reset token created', {
-        userId: user._id,
-        tokenId: record._id,
-        expiresAt,
-      });
+      logger.info(
+        "[PasswordResetService] Password reset token created",
+        {
+          userId,
+          tenantId,
+          tokenId: tokenRecord._id,
+          expiresAt,
+          requestId: options.requestId || null,
+        }
+      );
 
-      // Send email with reset link
+      /**
+       * Deliver plaintext token ONLY through the configured delivery service.
+       *
+       * Never log rawToken.
+       */
       if (this.emailService) {
-        await this.emailService.sendPasswordReset(user.email, {
-          userId: user._id,
-          name: user.name || user.email.split('@')[0],
-          token, // Send unhashed token in URL
-          frontendResetUrl: `${process.env.FRONTEND_URL}/reset-password?token=${token}&id=${user._id}`,
-          expiresInHours: Math.ceil(this.tokenTTL / (60 * 60 * 1000)),
-        });
+        try {
+          const frontendUrl =
+            process.env.FRONTEND_URL;
 
-        logger.info('[PasswordResetService] Password reset email sent', {
-          userId: user._id,
-          email: user.email,
-        });
+          if (!frontendUrl) {
+            throw new Error(
+              "FRONTEND_URL is not configured"
+            );
+          }
+
+          const resetUrl =
+            `${frontendUrl.replace(/\/+$/, "")}` +
+            `/reset-password?token=${encodeURIComponent(rawToken)}` +
+            `&id=${encodeURIComponent(String(userId))}`;
+
+          await this.emailService.sendPasswordReset(
+            user.email,
+            {
+              userId,
+              name:
+                user.name ||
+                getEmailLocalPart(user.email) ||
+                "User",
+              token: rawToken,
+              frontendResetUrl: resetUrl,
+              expiresInHours:
+                this.tokenTTL /
+                (60 * 60 * 1000),
+            }
+          );
+
+          logger.info(
+            "[PasswordResetService] Password reset delivery completed",
+            {
+              userId,
+              tokenId: tokenRecord._id,
+              expiresAt,
+            }
+          );
+        } catch (deliveryError) {
+          /**
+           * Do not leave an active token when delivery failed.
+           */
+          await PasswordResetToken.findOneAndUpdate(
+            {
+              _id: tokenRecord._id,
+              used: false,
+              revoked: false,
+            },
+            {
+              $set: {
+                revoked: true,
+                revokedAt: new Date(),
+                revocationReason:
+                  "delivery_failed",
+              },
+            }
+          );
+
+          logger.error(
+            "[PasswordResetService] Password reset delivery failed",
+            {
+              error: deliveryError.message,
+              userId,
+              tokenId: tokenRecord._id,
+            }
+          );
+
+          throw deliveryError;
+        }
+      } else {
+        logger.warn(
+          "[PasswordResetService] No password reset email service configured",
+          {
+            userId,
+            tokenId: tokenRecord._id,
+          }
+        );
       }
 
-      return token;
+      /**
+       * The raw token is returned strictly for orchestration/testing
+       * compatibility. Controllers must NEVER log or expose it except through
+       * the intended reset delivery channel.
+       */
+      return {
+        success: true,
+        token: rawToken,
+        tokenId: tokenRecord._id,
+        expiresAt,
+      };
     } catch (error) {
-      logger.error('[PasswordResetService] Error creating reset token', {
-        error: error.message,
-        userId: user._id,
-      });
+      /**
+       * Never include the raw token in logs or thrown error messages.
+       */
+      logger.error(
+        "[PasswordResetService] Error creating reset token",
+        {
+          error: error.message,
+          userId,
+          tenantId,
+        }
+      );
+
       throw error;
     }
   }
 
   /**
-   * Reset password using token
-   * Validates token, password strength, and updates user password
-   * @param {string} userId - User ID
-   * @param {string} token - Plain reset token from URL
-   * @param {string} newPassword - New password (will be validated for strength)
-   * @returns {Object} - { success, message, user }
+   * ===========================================================================
+   * Reset Password
+   * ===========================================================================
+   *
+   * Atomically:
+   *
+   *   1. Consumes reset token.
+   *   2. Updates password.
+   *   3. Updates passwordResetAt.
+   *
+   * The transaction prevents:
+   *
+   *   - password updated + token still reusable
+   *   - token consumed + password update failed
+   *
+   * @param {String} userId
+   * @param {String} token
+   * @param {String} newPassword
+   * @param {Object} options
    */
-  async resetPassword(userId, token, newPassword) {
-    try {
-      if (!userId || !token || !newPassword) {
-        throw new Error('User ID, token, and new password are required');
-      }
+  async resetPassword(
+    userId,
+    token,
+    newPassword,
+    options = {}
+  ) {
+    if (!userId || !token || !newPassword) {
+      throw new Error(
+        "User ID, reset token, and new password are required"
+      );
+    }
 
-      // Validate password strength first (before checking token)
-      const passwordStrength = validatePasswordStrength(newPassword);
-      if (!passwordStrength.valid) {
-        logger.warn('[PasswordResetService] Weak password provided', {
-          userId,
-          score: passwordStrength.score,
-        });
-        throw new Error(passwordStrength.message);
-      }
+    if (!isValidObjectId(userId)) {
+      throw new Error("Invalid user ID");
+    }
 
-      // Hash and lookup token
-      const tokenHash = HASH_TOKEN(token);
-      const tokenRecord = await PasswordResetToken.findOne({
-        user: userId,
-        tokenHash,
-        used: false,
-      });
+    /**
+     * Password validation is deliberately performed before database mutation.
+     */
+    const userForPasswordCheck =
+      await User.findById(userId)
+        .select(
+          "_id email name password tenantId"
+        )
+        .lean();
 
-      // Validate token exists
-      if (!tokenRecord) {
-        logger.warn('[PasswordResetService] Invalid reset token', {
-          userId,
-        });
-        throw new Error('Invalid reset token. Please request a new password reset.');
-      }
+    if (!userForPasswordCheck) {
+      /**
+       * Avoid revealing unnecessary account state details.
+       */
+      throw new Error(
+        "Unable to complete password reset"
+      );
+    }
 
-      // Check token expiration
-      if (tokenRecord.expiresAt < new Date()) {
-        logger.warn('[PasswordResetService] Reset token expired', {
-          userId,
-          expiresAt: tokenRecord.expiresAt,
-        });
-        throw new Error('Password reset token has expired. Please request a new one.');
-      }
-
-      // Check rate limiting (brute force prevention)
-      if ((tokenRecord.attempts || 0) >= this.maxAttempts) {
-        logger.error('[PasswordResetService] Max reset attempts exceeded', {
-          userId,
-          attempts: tokenRecord.attempts,
-        });
-        throw new Error('Maximum reset attempts exceeded. Please request a new password reset.');
-      }
-
-      // Increment attempts
-      tokenRecord.attempts = (tokenRecord.attempts || 0) + 1;
-      await tokenRecord.save();
-
-      // Hash new password with bcrypt
-      const salt = await bcrypt.genSalt(12);
-      const passwordHash = await bcrypt.hash(newPassword, salt);
-
-      // Update user's password
-      const user = await User.findByIdAndUpdate(
-        userId,
+    const passwordStrength =
+      validatePasswordEnterprise(
+        newPassword,
         {
-          password: passwordHash,
-          passwordResetAt: new Date(),
-          passwordResetAttempts: 0, // Clear any previous brute force attempts
-        },
-        { new: true }
+          email: userForPasswordCheck.email,
+          name: userForPasswordCheck.name,
+        }
       );
 
-      if (!user) {
-        throw new Error('User not found');
+    if (!passwordStrength.valid) {
+      logger.warn(
+        "[PasswordResetService] Password policy rejected",
+        {
+          userId,
+          score: passwordStrength.score,
+          rules: passwordStrength.rules,
+        }
+      );
+
+      throw new Error(
+        passwordStrength.message
+      );
+    }
+
+    /**
+     * Prevent immediate password reuse.
+     */
+    if (userForPasswordCheck.password) {
+      const isSamePassword =
+        await bcrypt.compare(
+          newPassword,
+          userForPasswordCheck.password
+        );
+
+      if (isSamePassword) {
+        throw new Error(
+          "New password must be different from the current password"
+        );
       }
+    }
 
-      // Mark token as used (single-use constraint)
-      tokenRecord.used = true;
-      tokenRecord.usedAt = new Date();
-      await tokenRecord.save();
+    const tokenHash = HASH_TOKEN(token);
 
-      logger.info('[PasswordResetService] Password reset successfully', {
-        userId,
-        email: user.email,
-        tokenUsedAfterAttempts: tokenRecord.attempts,
+    const tenantId =
+      options.tenantId ||
+      userForPasswordCheck.tenantId ||
+      null;
+
+    let session = null;
+
+    try {
+      /**
+       * -----------------------------------------------------------------------
+       * Transaction
+       * -----------------------------------------------------------------------
+       */
+
+      session = await mongoose.startSession();
+
+      let resetResult = null;
+
+      await session.withTransaction(async () => {
+        /**
+         * Consume token atomically.
+         *
+         * No separate "find token -> mark used" race window exists.
+         */
+        const consumedToken =
+          await PasswordResetToken.consumeAtomically(
+            tokenHash,
+            {
+              userId,
+              tenantId,
+              session,
+              ip: options.requestIp || null,
+              userAgent:
+                options.userAgent || null,
+              requestId:
+                options.requestId || null,
+            }
+          );
+
+        if (!consumedToken) {
+          logger.warn(
+            "[PasswordResetService] Invalid, expired, revoked, or already-used reset token",
+            {
+              userId,
+              tenantId,
+              requestId:
+                options.requestId || null,
+            }
+          );
+
+          throw new Error(
+            "Invalid or expired password reset token"
+          );
+        }
+
+        /**
+         * Strong password hash.
+         */
+        const passwordHash =
+          await bcrypt.hash(
+            newPassword,
+            this.bcryptRounds
+          );
+
+        /**
+         * Update password ONLY after successful atomic token consumption,
+         * inside the same transaction.
+         */
+        const updatedUser =
+          await User.findOneAndUpdate(
+            {
+              _id: userId,
+            },
+            {
+              $set: {
+                password: passwordHash,
+                passwordResetAt: new Date(),
+                passwordResetAttempts: 0,
+              },
+            },
+            {
+              new: true,
+              runValidators: true,
+              session,
+            }
+          ).select(
+            "_id email tenantId"
+          );
+
+        if (!updatedUser) {
+          throw new Error(
+            "Unable to complete password reset"
+          );
+        }
+
+        /**
+         * Revoke any other active reset tokens.
+         *
+         * The just-consumed token is already used and therefore excluded.
+         */
+        await PasswordResetToken.revokeActiveForUser(
+          userId,
+          "password_successfully_changed",
+          {
+            tenantId,
+            session,
+          }
+        );
+
+        resetResult = {
+          user: updatedUser,
+          tokenId: consumedToken._id,
+          attemptsMade: 1,
+        };
       });
 
-      // Invalidate all sessions for this user (force re-login)
-      if (this.sessionService && this.sessionService.invalidateUserSessions) {
-        await this.sessionService.invalidateUserSessions(userId);
-        logger.info('[PasswordResetService] User sessions invalidated after password reset', {
-          userId,
-        });
+      /**
+       * -----------------------------------------------------------------------
+       * Post-transaction security controls
+       * -----------------------------------------------------------------------
+       */
+
+      if (
+        this.sessionService &&
+        typeof this.sessionService
+          .invalidateUserSessions ===
+          "function"
+      ) {
+        try {
+          await this.sessionService.invalidateUserSessions(
+            userId
+          );
+
+          logger.info(
+            "[PasswordResetService] User sessions invalidated",
+            {
+              userId,
+            }
+          );
+        } catch (sessionError) {
+          /**
+           * Password reset has already committed.
+           *
+           * Session invalidation failure must be treated as a security
+           * incident / follow-up operation, not as a reason to pretend the
+           * password reset failed.
+           */
+          logger.error(
+            "[PasswordResetService] Session invalidation failed after password reset",
+            {
+              error: sessionError.message,
+              userId,
+            }
+          );
+        }
       }
+
+      logger.info(
+        "[PasswordResetService] Password reset successfully completed",
+        {
+          userId,
+          tenantId,
+          tokenId: resetResult.tokenId,
+          requestId:
+            options.requestId || null,
+        }
+      );
 
       return {
         success: true,
-        message: 'Password reset successfully. Please login with your new password.',
+        message:
+          "Password reset successfully. Please login with your new password.",
         user: {
-          id: user._id,
-          email: user.email,
+          id: resetResult.user._id,
+          email: resetResult.user.email,
         },
       };
     } catch (error) {
-      logger.error('[PasswordResetService] Error resetting password', {
-        error: error.message,
-        userId,
-      });
+      logger.error(
+        "[PasswordResetService] Password reset failed",
+        {
+          error: error.message,
+          userId,
+          tenantId,
+          requestId:
+            options.requestId || null,
+        }
+      );
+
       throw error;
+    } finally {
+      if (session) {
+        await session.endSession();
+      }
     }
   }
 
   /**
-   * Verify reset token without performing password change
-   * Useful for frontend validation before showing reset form
-   * @param {string} userId - User ID
-   * @param {string} token - Plain reset token
-   * @returns {Object} - { valid, expiresAt, remainingMinutes }
+   * ===========================================================================
+   * Verify Reset Token
+   * ===========================================================================
+   *
+   * Read-only validation used by the frontend before displaying the final
+   * password-change form.
    */
-  async verifyResetToken(userId, token) {
+  async verifyResetToken(
+    userId,
+    token,
+    options = {}
+  ) {
+    if (!userId || !token) {
+      return {
+        valid: false,
+        reason: "Invalid token",
+      };
+    }
+
+    if (!isValidObjectId(userId)) {
+      return {
+        valid: false,
+        reason: "Invalid token",
+      };
+    }
+
     try {
-      const tokenHash = HASH_TOKEN(token);
-      const tokenRecord = await PasswordResetToken.findOne({
-        user: userId,
-        tokenHash,
-        used: false,
-      });
+      const tokenHash =
+        HASH_TOKEN(token);
+
+      const tenantId =
+        options.tenantId || null;
+
+      const tokenRecord =
+        await PasswordResetToken.findActiveByHash(
+          tokenHash,
+          {
+            userId,
+            tenantId,
+          }
+        );
 
       if (!tokenRecord) {
         return {
           valid: false,
-          reason: 'Invalid token',
+          reason: "Invalid or expired token",
         };
       }
 
-      if (tokenRecord.expiresAt < new Date()) {
+      const remainingMs =
+        tokenRecord.expiresAt.getTime() -
+        Date.now();
+
+      if (remainingMs <= 0) {
         return {
           valid: false,
-          reason: 'Token expired',
+          reason: "Token expired",
           expiresAt: tokenRecord.expiresAt,
         };
       }
-
-      const remainingMs = tokenRecord.expiresAt.getTime() - Date.now();
-      const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
 
       return {
         valid: true,
         expiresAt: tokenRecord.expiresAt,
-        remainingMinutes,
-        attemptsMade: tokenRecord.attempts,
-        attemptsRemaining: this.maxAttempts - (tokenRecord.attempts || 0),
+        remainingMinutes: Math.ceil(
+          remainingMs / (60 * 1000)
+        ),
       };
     } catch (error) {
-      logger.error('[PasswordResetService] Error verifying reset token', {
-        error: error.message,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Clean up expired reset tokens (useful for scheduled jobs)
-   * @returns {number} - Number of deleted tokens
-   */
-  async cleanupExpiredTokens() {
-    try {
-      const result = await PasswordResetToken.deleteMany({
-        expiresAt: { $lt: new Date() },
-      });
-
-      logger.info('[PasswordResetService] Expired reset tokens cleaned up', {
-        deletedCount: result.deletedCount,
-      });
-
-      return result.deletedCount;
-    } catch (error) {
-      logger.error('[PasswordResetService] Error cleaning up expired tokens', {
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get password reset status for user
-   * @param {string} userId - User ID
-   * @returns {Object} - { hasPendingReset, expiresAt, attemptsMade }
-   */
-  async getResetStatus(userId) {
-    try {
-      const pendingToken = await PasswordResetToken.findOne(
-        { user: userId, used: false },
-        { expiresAt: 1, attempts: 1 }
+      /**
+       * Do not return implementation details to callers.
+       */
+      logger.warn(
+        "[PasswordResetService] Reset-token verification failed",
+        {
+          error: error.message,
+          userId,
+        }
       );
 
       return {
-        hasPendingReset: !!pendingToken,
-        expiresAt: pendingToken && pendingToken.expiresAt,
-        attemptsMade: pendingToken && (pendingToken.attempts || 0),
-        attemptsRemaining: pendingToken && this.maxAttempts - (pendingToken.attempts || 0),
+        valid: false,
+        reason: "Invalid or expired token",
+      };
+    }
+  }
+
+  /**
+   * ===========================================================================
+   * Cleanup Expired Tokens
+   * ===========================================================================
+   *
+   * MongoDB TTL already performs physical cleanup.
+   *
+   * This method remains useful as an explicit maintenance operation and for
+   * installations where operators want deterministic cleanup jobs.
+   */
+  async cleanupExpiredTokens() {
+    try {
+      const result =
+        await PasswordResetToken.deleteMany({
+          expiresAt: {
+            $lte: new Date(),
+          },
+        });
+
+      const deletedCount =
+        result.deletedCount || 0;
+
+      logger.info(
+        "[PasswordResetService] Expired reset tokens cleanup completed",
+        {
+          deletedCount,
+        }
+      );
+
+      return deletedCount;
+    } catch (error) {
+      logger.error(
+        "[PasswordResetService] Expired reset token cleanup failed",
+        {
+          error: error.message,
+        }
+      );
+
+      throw error;
+    }
+  }
+
+  /**
+   * ===========================================================================
+   * Get Reset Status
+   * ===========================================================================
+   *
+   * Administrative/application status only.
+   *
+   * Does not expose token hashes or plaintext tokens.
+   */
+  async getResetStatus(
+    userId,
+    options = {}
+  ) {
+    if (!isValidObjectId(userId)) {
+      throw new Error("Invalid user ID");
+    }
+
+    try {
+      const filter = {
+        user: userId,
+        purpose: "password_reset",
+        used: false,
+        revoked: false,
+        isDeleted: false,
+        expiresAt: {
+          $gt: new Date(),
+        },
+      };
+
+      if (options.tenantId != null) {
+        filter.tenantId =
+          options.tenantId;
+      }
+
+      const pendingToken =
+        await PasswordResetToken.findOne(
+          filter,
+          {
+            expiresAt: 1,
+          }
+        ).sort({
+          createdAt: -1,
+        });
+
+      return {
+        hasPendingReset: Boolean(
+          pendingToken
+        ),
+        expiresAt:
+          pendingToken?.expiresAt ||
+          null,
       };
     } catch (error) {
-      logger.error('[PasswordResetService] Error getting reset status', {
-        error: error.message,
-        userId,
-      });
+      logger.error(
+        "[PasswordResetService] Error getting reset status",
+        {
+          error: error.message,
+          userId,
+        }
+      );
+
       throw error;
     }
   }
 }
 
+/**
+ * =============================================================================
+ * Exports
+ * =============================================================================
+ */
+
 module.exports = PasswordResetService;
+
+/**
+ * Optional named exports retained for compatibility with existing imports.
+ */
+module.exports.validatePasswordEnterprise =
+  validatePasswordEnterprise;
+
+module.exports.validatePasswordStrength =
+  validatePasswordStrength;
+
+module.exports.HASH_TOKEN =
+  HASH_TOKEN;
+
+module.exports.hashResetToken =
+  hashResetToken;

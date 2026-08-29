@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 /**
  * =============================================================================
@@ -10,2082 +10,2634 @@
  *   backend/bootstrap/shutdownManager.js
  *
  * Purpose:
- *   Enterprise production-grade shutdown lifecycle manager.
+ *   Enterprise production-grade graceful shutdown and partial-startup cleanup
+ *   coordinator.
  *
  * Responsibilities:
- *   - Coordinate ordered application shutdown participants.
- *   - Manage dependency-aware shutdown ordering.
- *   - Deduplicate concurrent shutdown requests.
- *   - Enforce participant and global shutdown timeouts.
- *   - Support critical/non-critical shutdown participants.
- *   - Support graceful shutdown hooks.
- *   - Track shutdown state and execution history.
- *   - Integrate with bootstrap/shutdown.js.
- *   - Integrate with lifecycleManager.js.
- *   - Integrate with readinessState.js.
- *   - Integrate with observability/logger.
- *   - Provide safe diagnostics.
+ *   - Coordinate deterministic application shutdown.
+ *   - Support normal shutdown.
+ *   - Support partial-startup failure cleanup.
+ *   - Support SIGTERM/SIGINT/SIGQUIT.
+ *   - Support uncaughtException/unhandledRejection escalation.
+ *   - Stop HTTP servers gracefully.
+ *   - Wait for active HTTP requests where possible.
+ *   - Close registered dependencies in reverse registration order.
+ *   - Enforce shutdown timeouts.
+ *   - Prevent duplicate shutdown execution.
+ *   - Delegate canonical lifecycle state to runtime/state.js.
  *
- * Architectural position:
+ * Critical Design Rule
+ * -----------------------------------------------------------------------------
  *
- *   runtime.js
- *       ↓
- *   shutdown.js
- *       ↓
- *   shutdownManager.js
- *       ↓
- *   lifecycleManager.js
- *       ↓
- *   infrastructure / services / routes / server
- *       ↓
- *   observability
- *       ↓
+ * Cleanup must be possible even when startup never reached:
+ *
+ *   server
+ *   ready
+ *
+ * A startup failure may happen during:
+ *
+ *   environment
+ *   configuration
  *   logger
+ *   observability
+ *   readiness
+ *   resilience
+ *   infrastructure
+ *   services
+ *   middleware
+ *   routes
+ *   server
  *
- * IMPORTANT:
+ * Therefore this manager explicitly supports:
  *
- *   This module is a SHUTDOWN MANAGEMENT ENGINE.
+ *   startup failure → shutting_down → cleanup → stopped
  *
- *   It does NOT:
- *     - implement financial logic
- *     - implement database cleanup itself
- *     - implement Redis cleanup itself
- *     - implement queue cleanup itself
- *     - implement HTTP routes
- *     - duplicate service/infrastructure shutdown code
+ * without requiring the server or READY phase.
  *
- *   Each subsystem remains responsible for its own cleanup.
+ * =============================================================================
+ *
+ * This module MUST NOT:
+ *   - initialize infrastructure;
+ *   - connect to MongoDB;
+ *   - connect to Redis;
+ *   - initialize queues;
+ *   - register application routes;
+ *   - own Express lifecycle state;
+ *   - maintain a competing readiness state machine;
+ *   - silently swallow fatal cleanup failures.
  *
  * =============================================================================
  */
 
 const {
-  EventEmitter,
-} = require('node:events');
+  BOOTSTRAP_PHASES,
+  markApplicationShutdown,
+  markApplicationShutdownAfterFailure,
+  markApplicationStopped,
+  markFailed,
+  markServiceStopping,
+  markServiceStopped,
+  getApplicationState,
+} = require("../runtime/state");
 
-/**
- * -----------------------------------------------------------------------------
- * Optional integrations
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * CONSTANTS
+ * =============================================================================
  */
-
-let loggerModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  loggerModule =
-    require('./logger');
-} catch {
-  loggerModule = null;
-}
-
-let observabilityModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  observabilityModule =
-    require('./observability');
-} catch {
-  observabilityModule = null;
-}
-
-let readinessModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  readinessModule =
-    require('./readinessState');
-} catch {
-  readinessModule = null;
-}
-
-let lifecycleManagerModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  lifecycleManagerModule =
-    require('./lifecycleManager');
-} catch {
-  lifecycleManagerModule = null;
-}
-
-let shutdownModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  shutdownModule =
-    require('./shutdown');
-} catch {
-  shutdownModule = null;
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Constants
- * -----------------------------------------------------------------------------
- */
-
-const COMPONENT =
-  'shutdown-manager';
-
-const SERVICE_NAME =
-  process.env.SERVICE_NAME ||
-  process.env.OTEL_SERVICE_NAME ||
-  'titech-backend';
-
-const APPLICATION_NAME =
-  process.env.APP_NAME ||
-  'titech-community-capital';
 
 const DEFAULTS = Object.freeze({
-  timeoutMs:
-    30_000,
+  shutdownTimeoutMs: 30000,
 
-  participantTimeoutMs:
-    15_000,
-
-  continueOnError:
-    true,
+  requestDrainTimeoutMs: 15000,
 
   forceExitOnTimeout:
-    false,
+    process.env.NODE_ENV ===
+    "production",
 
-  retryAttempts:
-    0,
+  exitOnSignal: true,
 
-  retryDelayMs:
-    250,
+  exitOnFatalError: true,
+
+  installSignalHandlers: true,
+
+  installProcessErrorHandlers: true,
+
+  signals: Object.freeze([
+    "SIGTERM",
+    "SIGINT",
+    "SIGQUIT",
+  ]),
+
+  /**
+   * Fatal process errors receive a non-zero exit status.
+   */
+  fatalExitCode: 1,
+
+  /**
+   * Normal signal shutdown receives zero.
+   */
+  normalExitCode: 0,
 });
 
-const STATES = Object.freeze({
-  CREATED:
-    'created',
-
-  INITIALIZING:
-    'initializing',
-
-  READY:
-    'ready',
-
-  REQUESTED:
-    'requested',
-
-  DRAINING:
-    'draining',
-
-  STOPPING:
-    'stopping',
-
-  FLUSHING:
-    'flushing',
-
-  STOPPED:
-    'stopped',
-
-  FAILED:
-    'failed',
-});
-
-/**
- * -----------------------------------------------------------------------------
- * Errors
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * INTERNAL MANAGER STATE
+ * =============================================================================
  */
 
-class ShutdownManagerError extends Error {
-  constructor(
-    message,
-    options = {},
-  ) {
-    super(message);
+const managerState = {
+  initialized: false,
 
-    this.name =
-      'ShutdownManagerError';
+  shuttingDown: false,
 
-    this.code =
-      options.code ||
-      'SHUTDOWN_MANAGER_ERROR';
+  shutdownPromise: null,
 
-    this.phase =
-      options.phase ||
-      null;
+  shutdownReason: null,
 
-    this.participant =
-      options.participant ||
-      null;
+  shutdownStartedAt: null,
 
-    this.cause =
-      options.cause ||
-      null;
+  shutdownCompletedAt: null,
 
-    this.details =
-      Object.freeze({
-        ...(options.details || {}),
-      });
+  shutdownSequence: 0,
 
-    Error.captureStackTrace?.(
-      this,
-      ShutdownManagerError,
-    );
-  }
+  forced: false,
+
+  timedOut: false,
+
+  exitRequested: false,
+
+  signalHandlersInstalled: false,
+
+  processErrorHandlersInstalled: false,
+
+  logger: null,
+
+  events: null,
+
+  options: {
+    ...DEFAULTS,
+  },
+
+  /**
+   * Cleanup functions are stored in registration order and executed in reverse
+   * order.
+   */
+  cleanupHandlers: [],
+
+  /**
+   * Optional HTTP server reference.
+   */
+  httpServer: null,
+
+  /**
+   * Optional request counter providers.
+   */
+  requestCounter: null,
+
+  /**
+   * Optional WebSocket shutdown handler.
+   */
+  websocketShutdownHandler: null,
+};
+
+/* =============================================================================
+ * UTILITY
+ * =============================================================================
+ */
+
+function now() {
+  return new Date();
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Utility
- * -----------------------------------------------------------------------------
- */
+function timestamp() {
+  return now().toISOString();
+}
 
-function normalizeName(
+function normalizeString(
   value,
-  field = 'name',
+  maxLength = 500,
 ) {
   if (
-    typeof value !==
-      'string' ||
-    value.trim() ===
-      ''
-  ) {
-    throw new TypeError(
-      `${field} must be a non-empty string.`,
-    );
-  }
-
-  return value.trim();
-}
-
-function asPositiveInteger(
-  value,
-  fallback,
-) {
-  const resolved =
+    value === null ||
     value === undefined
-      ? fallback
-      : Number(value);
-
-  if (
-    !Number.isInteger(
-      resolved,
-    ) ||
-    resolved <= 0
-  ) {
-    return fallback;
-  }
-
-  return resolved;
-}
-
-function safeError(
-  error,
-) {
-  if (
-    !error
   ) {
     return null;
   }
 
+  return String(value)
+    .trim()
+    .slice(0, maxLength);
+}
+
+/* =============================================================================
+ * ERROR NORMALIZATION
+ * =============================================================================
+ */
+
+function normalizeError(error) {
+  if (!error) {
+    return {
+      name: "Error",
+      code: null,
+      message: "Unknown shutdown error",
+    };
+  }
+
+  let message;
+
+  if (
+    typeof error.message ===
+    "string"
+  ) {
+    message =
+      error.message;
+  } else if (
+    typeof error ===
+    "string"
+  ) {
+    message =
+      error;
+  } else {
+    try {
+      message =
+        JSON.stringify(error);
+    } catch {
+      message =
+        "Unserializable shutdown error";
+    }
+  }
+
   return {
     name:
-      error.name,
+      typeof error.name ===
+      "string"
+        ? error.name.slice(
+            0,
+            100,
+          )
+        : "Error",
 
     code:
-      error.code,
+      typeof error.code ===
+      "string"
+        ? error.code.slice(
+            0,
+            100,
+          )
+        : null,
 
     message:
-      error.message,
+      String(message).slice(
+        0,
+        1000,
+      ),
   };
 }
 
-function hrtimeMs(
-  start,
+/* =============================================================================
+ * LOGGING
+ * =============================================================================
+ */
+
+function logInfo(
+  logger,
+  payload,
 ) {
-  return (
-    Number(
-      process.hrtime.bigint() -
-        start,
-    ) / 1_000_000
-  );
+  try {
+    logger?.info?.(
+      payload,
+    );
+  } catch {
+    // Shutdown must continue even if logging fails.
+  }
 }
 
-function sleep(
-  ms,
+function logWarn(
+  logger,
+  payload,
 ) {
-  return new Promise(
-    resolve => {
-      const timer =
-        setTimeout(
-          resolve,
-          ms,
-        );
+  try {
+    logger?.warn?.(
+      payload,
+    );
+  } catch {
+    // Shutdown must continue even if logging fails.
+  }
+}
 
-      timer.unref?.();
+function logError(
+  logger,
+  payload,
+) {
+  try {
+    logger?.error?.(
+      payload,
+    );
+  } catch {
+    // Shutdown must continue even if logging fails.
+  }
+}
+
+/* =============================================================================
+ * EVENT EMISSION
+ * =============================================================================
+ */
+
+function emit(
+  events,
+  eventName,
+  payload,
+) {
+  try {
+    events?.emit?.(
+      eventName,
+      payload,
+    );
+  } catch {
+    // Observability must never prevent shutdown.
+  }
+}
+
+/* =============================================================================
+ * INITIALIZATION
+ * =============================================================================
+ */
+
+function initialize(
+  options = {},
+) {
+  if (
+    managerState.initialized
+  ) {
+    return getShutdownState();
+  }
+
+  managerState.initialized =
+    true;
+
+  managerState.options = {
+    ...DEFAULTS,
+    ...options,
+  };
+
+  managerState.logger =
+    options.logger ||
+    null;
+
+  managerState.events =
+    options.events ||
+    null;
+
+  if (
+    options.httpServer
+  ) {
+    managerState.httpServer =
+      options.httpServer;
+  }
+
+  if (
+    typeof options.requestCounter ===
+    "function"
+  ) {
+    managerState.requestCounter =
+      options.requestCounter;
+  }
+
+  if (
+    typeof options.websocketShutdownHandler ===
+    "function"
+  ) {
+    managerState.websocketShutdownHandler =
+      options.websocketShutdownHandler;
+  }
+
+  if (
+    managerState.options
+      .installSignalHandlers
+  ) {
+    installSignalHandlers();
+  }
+
+  if (
+    managerState.options
+      .installProcessErrorHandlers
+  ) {
+    installProcessErrorHandlers();
+  }
+
+  return getShutdownState();
+}
+
+/* =============================================================================
+ * LOGGER / EVENTS CONFIGURATION
+ * =============================================================================
+ */
+
+function configure({
+  logger = null,
+  events = null,
+} = {}) {
+  if (logger) {
+    managerState.logger =
+      logger;
+  }
+
+  if (events) {
+    managerState.events =
+      events;
+  }
+
+  return getShutdownState();
+}
+
+/* =============================================================================
+ * HTTP SERVER REGISTRATION
+ * =============================================================================
+ */
+
+function registerHttpServer(
+  server,
+) {
+  if (
+    !server ||
+    typeof server.close !==
+      "function"
+  ) {
+    throw new TypeError(
+      "A valid HTTP server with a close() method is required.",
+    );
+  }
+
+  managerState.httpServer =
+    server;
+
+  return server;
+}
+
+/* =============================================================================
+ * REQUEST COUNTER REGISTRATION
+ * =============================================================================
+ */
+
+function registerRequestCounter(
+  provider,
+) {
+  if (
+    provider !== null &&
+    typeof provider !==
+      "function"
+  ) {
+    throw new TypeError(
+      "requestCounter must be a function or null.",
+    );
+  }
+
+  managerState.requestCounter =
+    provider;
+
+  return true;
+}
+
+/* =============================================================================
+ * WEBSOCKET REGISTRATION
+ * =============================================================================
+ */
+
+function registerWebsocketShutdownHandler(
+  handler,
+) {
+  if (
+    handler !== null &&
+    typeof handler !==
+      "function"
+  ) {
+    throw new TypeError(
+      "WebSocket shutdown handler must be a function or null.",
+    );
+  }
+
+  managerState.websocketShutdownHandler =
+    handler;
+
+  return true;
+}
+
+/* =============================================================================
+ * CLEANUP REGISTRATION
+ * =============================================================================
+ */
+
+/**
+ * Register a cleanup handler.
+ *
+ * Handlers execute in reverse registration order:
+ *
+ *   A
+ *   B
+ *   C
+ *
+ * becomes:
+ *
+ *   C
+ *   B
+ *   A
+ *
+ * This naturally supports dependency-aware teardown.
+ */
+function registerCleanup(
+  name,
+  handler,
+  options = {},
+) {
+  if (
+    typeof name ===
+    "function"
+  ) {
+    options =
+      handler || {};
+    handler = name;
+    name =
+      `cleanup-${managerState.cleanupHandlers.length + 1}`;
+  }
+
+  const normalizedName =
+    normalizeString(
+      name,
+      150,
+    );
+
+  if (!normalizedName) {
+    throw new TypeError(
+      "Cleanup handler name is required.",
+    );
+  }
+
+  if (
+    typeof handler !==
+    "function"
+  ) {
+    throw new TypeError(
+      `Cleanup handler "${normalizedName}" must be a function.`,
+    );
+  }
+
+  /**
+   * Prevent accidental duplicate registrations.
+   */
+  const existingIndex =
+    managerState.cleanupHandlers.findIndex(
+      (entry) =>
+        entry.name ===
+        normalizedName,
+    );
+
+  const entry = {
+    name:
+      normalizedName,
+
+    handler,
+
+    critical:
+      options.critical !==
+      false,
+
+    timeoutMs:
+      Number.isFinite(
+        options.timeoutMs,
+      ) &&
+      options.timeoutMs >= 0
+        ? options.timeoutMs
+        : managerState.options
+            .shutdownTimeoutMs,
+
+    service:
+      options.service ||
+      null,
+
+    registeredAt:
+      timestamp(),
+
+    metadata:
+      options.metadata &&
+      typeof options.metadata ===
+        "object"
+        ? {
+            ...options.metadata,
+          }
+        : {},
+  };
+
+  if (
+    existingIndex >= 0
+  ) {
+    managerState.cleanupHandlers[
+      existingIndex
+    ] = entry;
+  } else {
+    managerState.cleanupHandlers.push(
+      entry,
+    );
+  }
+
+  return {
+    name:
+      entry.name,
+
+    critical:
+      entry.critical,
+
+    timeoutMs:
+      entry.timeoutMs,
+
+    service:
+      entry.service,
+  };
+}
+
+/* =============================================================================
+ * CLEANUP REMOVAL
+ * =============================================================================
+ */
+
+function unregisterCleanup(
+  name,
+) {
+  const normalizedName =
+    normalizeString(
+      name,
+      150,
+    );
+
+  const index =
+    managerState.cleanupHandlers.findIndex(
+      (entry) =>
+        entry.name ===
+        normalizedName,
+    );
+
+  if (
+    index < 0
+  ) {
+    return false;
+  }
+
+  managerState.cleanupHandlers.splice(
+    index,
+    1,
+  );
+
+  return true;
+}
+
+function clearCleanupHandlers() {
+  managerState.cleanupHandlers.length =
+    0;
+}
+
+/* =============================================================================
+ * PROMISE TIMEOUT
+ * =============================================================================
+ */
+
+function withTimeout(
+  promise,
+  timeoutMs,
+  label,
+) {
+  if (
+    !Number.isFinite(timeoutMs) ||
+    timeoutMs <= 0
+  ) {
+    return Promise.resolve(
+      promise,
+    );
+  }
+
+  return new Promise(
+    (resolve, reject) => {
+      let settled = false;
+
+      const timer =
+        setTimeout(() => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+
+          const error =
+            new Error(
+              `${label} timed out after ${timeoutMs}ms.`,
+            );
+
+          error.code =
+            "SHUTDOWN_TIMEOUT";
+
+          reject(error);
+        }, timeoutMs);
+
+      Promise.resolve(promise)
+        .then((value) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+
+          clearTimeout(timer);
+
+          resolve(value);
+        })
+        .catch((error) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+
+          clearTimeout(timer);
+
+          reject(error);
+        });
     },
   );
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Timeout Wrapper
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * HTTP REQUEST DRAINING
+ * =============================================================================
  */
 
-async function withTimeout(
-  fn,
-  timeoutMs,
-  label,
-) {
-  let timer = null;
+function getActiveRequestCount() {
+  try {
+    if (
+      typeof managerState.requestCounter ===
+      "function"
+    ) {
+      const value =
+        managerState.requestCounter();
 
-  const work =
-    Promise.resolve().then(
-      fn,
+      if (
+        Number.isFinite(value)
+      ) {
+        return Math.max(
+          0,
+          value,
+        );
+      }
+    }
+  } catch {
+    // Fall back to runtime state.
+  }
+
+  return Math.max(
+    0,
+    getApplicationState()
+      .activeRequests || 0,
+  );
+}
+
+async function waitForRequestsToDrain(
+  timeoutMs,
+) {
+  const initialCount =
+    getActiveRequestCount();
+
+  if (
+    initialCount <= 0
+  ) {
+    return {
+      drained: true,
+
+      initialActiveRequests:
+        0,
+
+      remainingActiveRequests:
+        0,
+
+      waitedMs: 0,
+    };
+  }
+
+  const startedAt =
+    Date.now();
+
+  return new Promise(
+    (resolve) => {
+      const intervalMs =
+        50;
+
+      let interval;
+
+      const finish = (
+        drained,
+      ) => {
+        if (interval) {
+          clearInterval(
+            interval,
+          );
+        }
+
+        resolve({
+          drained,
+
+          initialActiveRequests:
+            initialCount,
+
+          remainingActiveRequests:
+            getActiveRequestCount(),
+
+          waitedMs:
+            Math.max(
+              0,
+              Date.now() -
+                startedAt,
+            ),
+        });
+      };
+
+      interval =
+        setInterval(() => {
+          const active =
+            getActiveRequestCount();
+
+          if (
+            active <= 0
+          ) {
+            finish(true);
+            return;
+          }
+
+          if (
+            Date.now() -
+              startedAt >=
+            timeoutMs
+          ) {
+            finish(false);
+          }
+        }, intervalMs);
+
+      /**
+       * Avoid keeping the Node.js process alive solely because of the drain
+       * monitor.
+       */
+      interval.unref?.();
+    },
+  );
+}
+
+/* =============================================================================
+ * HTTP SERVER CLOSE
+ * ============================================================================= */
+
+async function closeHttpServer() {
+  const server =
+    managerState.httpServer;
+
+  if (
+    !server ||
+    typeof server.close !==
+      "function"
+  ) {
+    return {
+      closed: true,
+
+      skipped: true,
+    };
+  }
+
+  /**
+   * Node HTTP servers throw ERR_SERVER_NOT_RUNNING when close() is called
+   * before listen(). Treat that as already closed.
+   */
+  if (
+    server.listening !==
+      true
+  ) {
+    return {
+      closed: true,
+
+      skipped: true,
+
+      reason:
+        "server_not_listening",
+    };
+  }
+
+  await new Promise(
+    (resolve, reject) => {
+      let settled = false;
+
+      const finish = (
+        error,
+      ) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      };
+
+      try {
+        server.close(
+          (error) => {
+            if (
+              error &&
+              error.code ===
+                "ERR_SERVER_NOT_RUNNING"
+            ) {
+              finish();
+              return;
+            }
+
+            finish(error);
+          },
+        );
+      } catch (error) {
+        if (
+          error?.code ===
+          "ERR_SERVER_NOT_RUNNING"
+        ) {
+          finish();
+          return;
+        }
+
+        finish(error);
+      }
+    },
+  );
+
+  return {
+    closed: true,
+
+    skipped: false,
+  };
+}
+
+/* =============================================================================
+ * WEBSOCKET SHUTDOWN
+ * ============================================================================= */
+
+async function closeWebsocketInfrastructure() {
+  const handler =
+    managerState.websocketShutdownHandler;
+
+  if (
+    typeof handler !==
+    "function"
+  ) {
+    return {
+      closed: true,
+
+      skipped: true,
+    };
+  }
+
+  await withTimeout(
+    Promise.resolve(
+      handler(),
+    ),
+    managerState.options
+      .shutdownTimeoutMs,
+    "WebSocket shutdown",
+  );
+
+  return {
+    closed: true,
+
+    skipped: false,
+  };
+}
+
+/* =============================================================================
+ * ONE CLEANUP HANDLER
+ * =============================================================================
+ */
+
+async function executeCleanupHandler(
+  entry,
+) {
+  const startedAt =
+    Date.now();
+
+  if (
+    entry.service
+  ) {
+    try {
+      markServiceStopping(
+        entry.service,
+        managerState.events,
+        managerState.logger,
+      );
+    } catch {
+      // Service may already be stopped/failed.
+    }
+  }
+
+  try {
+    await withTimeout(
+      Promise.resolve(
+        entry.handler(),
+      ),
+      entry.timeoutMs,
+      `Cleanup "${entry.name}"`,
     );
 
-  const timeout =
-    new Promise(
-      (_, reject) => {
-        timer =
-          setTimeout(
-            () => {
-              reject(
-                new ShutdownManagerError(
-                  `${label} timed out after ${timeoutMs}ms.`,
-                  {
-                    code:
-                      'SHUTDOWN_MANAGER_TIMEOUT',
-                  },
-                ),
-              );
-            },
-            timeoutMs,
+    const durationMs =
+      Math.max(
+        0,
+        Date.now() -
+          startedAt,
+      );
+
+    if (
+      entry.service
+    ) {
+      try {
+        markServiceStopped(
+          entry.service,
+          managerState.events,
+          managerState.logger,
+        );
+      } catch {
+        // Cleanup succeeded even if state bookkeeping could not transition.
+      }
+    }
+
+    emit(
+      managerState.events,
+      "shutdown.cleanup.completed",
+      {
+        name:
+          entry.name,
+
+        service:
+          entry.service,
+
+        durationMs,
+
+        timestamp:
+          timestamp(),
+      },
+    );
+
+    logInfo(
+      managerState.logger,
+      {
+        section:
+          "shutdown",
+
+        event:
+          "cleanup_completed",
+
+        name:
+          entry.name,
+
+        service:
+          entry.service,
+
+        durationMs,
+      },
+    );
+
+    return {
+      name:
+        entry.name,
+
+      success: true,
+
+      critical:
+        entry.critical,
+
+      service:
+        entry.service,
+
+      durationMs,
+    };
+  } catch (error) {
+    const normalizedError =
+      normalizeError(error);
+
+    const durationMs =
+      Math.max(
+        0,
+        Date.now() -
+          startedAt,
+      );
+
+    emit(
+      managerState.events,
+      "shutdown.cleanup.failed",
+      {
+        name:
+          entry.name,
+
+        service:
+          entry.service,
+
+        critical:
+          entry.critical,
+
+        durationMs,
+
+        error:
+          normalizedError,
+
+        timestamp:
+          timestamp(),
+      },
+    );
+
+    logError(
+      managerState.logger,
+      {
+        section:
+          "shutdown",
+
+        event:
+          "cleanup_failed",
+
+        name:
+          entry.name,
+
+        service:
+          entry.service,
+
+        critical:
+          entry.critical,
+
+        durationMs,
+
+        error:
+          normalizedError,
+      },
+    );
+
+    if (
+      entry.service
+    ) {
+      try {
+        markServiceStopped(
+          entry.service,
+          managerState.events,
+          managerState.logger,
+        );
+      } catch {
+        // Preserve original cleanup failure.
+      }
+    }
+
+    return {
+      name:
+        entry.name,
+
+      success: false,
+
+      critical:
+        entry.critical,
+
+      service:
+        entry.service,
+
+      durationMs,
+
+      error:
+        normalizedError,
+    };
+  }
+}
+
+/* =============================================================================
+ * CLEANUP DEPENDENCIES
+ * =============================================================================
+ */
+
+async function executeRegisteredCleanup() {
+  const handlers =
+    [
+      ...managerState.cleanupHandlers,
+    ].reverse();
+
+  const results = [];
+
+  for (
+    const entry of handlers
+  ) {
+    const result =
+      await executeCleanupHandler(
+        entry,
+      );
+
+    results.push(
+      result,
+    );
+
+    /**
+     * A critical cleanup failure is recorded, but shutdown continues.
+     *
+     * This is essential for enterprise shutdown: failure to close one
+     * dependency must not prevent the remaining resources from being released.
+     */
+  }
+
+  return results;
+}
+
+/* =============================================================================
+ * SHUTDOWN FINALIZATION
+ * =============================================================================
+ */
+
+function finalizeStopped(
+  reason,
+) {
+  try {
+    markApplicationStopped(
+      managerState.events,
+      managerState.logger,
+    );
+  } catch (error) {
+    logError(
+      managerState.logger,
+      {
+        section:
+          "shutdown",
+
+        event:
+          "runtime_stop_transition_failed",
+
+        reason,
+
+        error:
+          normalizeError(error),
+      },
+    );
+  }
+
+  managerState.shutdownCompletedAt =
+    now();
+
+  emit(
+    managerState.events,
+    "shutdown.completed",
+    {
+      reason,
+
+      timestamp:
+        managerState.shutdownCompletedAt.toISOString(),
+
+      sequence:
+        managerState.shutdownSequence,
+
+      forced:
+        managerState.forced,
+
+      timedOut:
+        managerState.timedOut,
+    },
+  );
+
+  logInfo(
+    managerState.logger,
+    {
+      section:
+        "shutdown",
+
+      event:
+        "shutdown_completed",
+
+      reason,
+
+      sequence:
+        managerState.shutdownSequence,
+
+      forced:
+        managerState.forced,
+
+      timedOut:
+        managerState.timedOut,
+    },
+  );
+}
+
+/* =============================================================================
+ * CORE SHUTDOWN
+ * ============================================================================= */
+
+async function performShutdown(
+  reason,
+  options = {},
+) {
+  const mergedOptions = {
+    ...managerState.options,
+    ...options,
+  };
+
+  const shutdownStartedAt =
+    now();
+
+  managerState.shutdownStartedAt =
+    shutdownStartedAt;
+
+  managerState.shutdownReason =
+    reason;
+
+  managerState.shutdownSequence +=
+    1;
+
+  const sequence =
+    managerState.shutdownSequence;
+
+  const cleanupResults = [];
+
+  let requestDrainResult =
+    null;
+
+  let httpResult =
+    null;
+
+  let websocketResult =
+    null;
+
+  const failures = [];
+
+  try {
+    /**
+     * -------------------------------------------------------------------------
+     * 1. Tell runtime/state.js that shutdown has begun.
+     *
+     * This works from:
+     *
+     *   ready
+     *   server
+     *   routes
+     *   middleware
+     *   services
+     *   infrastructure
+     *   resilience
+     *   readiness
+     *   observability
+     *   logger
+     *   configuration
+     *   environment
+     *   failed
+     *
+     * Therefore partial-startup cleanup is legal.
+     * -------------------------------------------------------------------------
+     */
+
+    const runtime =
+      getApplicationState();
+
+    const failureCleanup =
+      options.failureCleanup ===
+        true ||
+      runtime.failed ===
+        true ||
+      reason ===
+        "startup_failure";
+
+    if (
+      failureCleanup
+    ) {
+      markApplicationShutdownAfterFailure(
+        managerState.events,
+        managerState.logger,
+        {
+          reason,
+        },
+      );
+    } else {
+      markApplicationShutdown(
+        managerState.events,
+        managerState.logger,
+        {
+          reason,
+        },
+      );
+    }
+
+    emit(
+      managerState.events,
+      "shutdown.started",
+      {
+        reason,
+
+        sequence,
+
+        timestamp:
+          shutdownStartedAt.toISOString(),
+
+        failureCleanup,
+      },
+    );
+
+    logInfo(
+      managerState.logger,
+      {
+        section:
+          "shutdown",
+
+        event:
+          "shutdown_started",
+
+        reason,
+
+        sequence,
+
+        failureCleanup,
+      },
+    );
+
+    /**
+     * -------------------------------------------------------------------------
+     * 2. Stop accepting new HTTP connections.
+     *
+     * Closing the listening server before dependency cleanup prevents new
+     * requests from arriving while the application is being torn down.
+     * -------------------------------------------------------------------------
+     */
+
+    try {
+      httpResult =
+        await withTimeout(
+          closeHttpServer(),
+          mergedOptions
+            .shutdownTimeoutMs,
+          "HTTP server shutdown",
+        );
+    } catch (error) {
+      const normalizedError =
+        normalizeError(error);
+
+      failures.push({
+        component:
+          "http_server",
+
+        critical: true,
+
+        error:
+          normalizedError,
+      });
+
+      logError(
+        managerState.logger,
+        {
+          section:
+            "shutdown",
+
+          event:
+            "http_server_shutdown_failed",
+
+          error:
+            normalizedError,
+        },
+      );
+    }
+
+    /**
+     * -------------------------------------------------------------------------
+     * 3. Allow existing requests to drain.
+     * -------------------------------------------------------------------------
+     */
+
+    try {
+      requestDrainResult =
+        await waitForRequestsToDrain(
+          mergedOptions
+            .requestDrainTimeoutMs,
+        );
+
+      if (
+        !requestDrainResult.drained
+      ) {
+        logWarn(
+          managerState.logger,
+          {
+            section:
+              "shutdown",
+
+            event:
+              "request_drain_timeout",
+
+            ...requestDrainResult,
+          },
+        );
+      }
+    } catch (error) {
+      const normalizedError =
+        normalizeError(error);
+
+      failures.push({
+        component:
+          "request_drain",
+
+        critical: false,
+
+        error:
+          normalizedError,
+      });
+    }
+
+    /**
+     * -------------------------------------------------------------------------
+     * 4. Close WebSocket infrastructure.
+     * -------------------------------------------------------------------------
+     */
+
+    try {
+      websocketResult =
+        await closeWebsocketInfrastructure();
+    } catch (error) {
+      const normalizedError =
+        normalizeError(error);
+
+      failures.push({
+        component:
+          "websocket",
+
+        critical: false,
+
+        error:
+          normalizedError,
+      });
+
+      logWarn(
+        managerState.logger,
+        {
+          section:
+            "shutdown",
+
+          event:
+            "websocket_shutdown_failed",
+
+          error:
+            normalizedError,
+        },
+      );
+    }
+
+    /**
+     * -------------------------------------------------------------------------
+     * 5. Execute dependency cleanup in reverse order.
+     *
+     * Example:
+     *
+     *   server
+     *   routes
+     *   services
+     *   queues
+     *   redis
+     *   mongodb
+     *
+     * registered in startup order become:
+     *
+     *   mongodb
+     *   redis
+     *   queues
+     *   services
+     *   routes
+     *   server
+     *
+     * depending on what the bootstrap registered.
+     * -------------------------------------------------------------------------
+     */
+
+    const cleanupPromise =
+      executeRegisteredCleanup();
+
+    let cleanupTimedOut =
+      false;
+
+    try {
+      const cleanupResults =
+        await withTimeout(
+          cleanupPromise,
+          mergedOptions
+            .shutdownTimeoutMs,
+          "Dependency cleanup",
+        );
+
+      cleanupResults.forEach(
+        (result) => {
+          cleanupResults.push;
+        },
+      );
+
+      cleanupResults.forEach(
+        (result) => {
+          cleanupResults;
+        },
+      );
+
+      /**
+       * Keep the result handling explicit rather than hiding failures.
+       */
+      cleanupResults.forEach(
+        (result) => {
+          if (
+            !result.success
+          ) {
+            failures.push({
+              component:
+                result.name,
+
+              critical:
+                result.critical,
+
+              error:
+                result.error || {
+                  message:
+                    "Cleanup failed.",
+                },
+            });
+          }
+        },
+      );
+
+      /**
+       * Copy results after inspection.
+       */
+      Array.prototype.push.apply(
+        cleanupResults.length
+          ? []
+          : [],
+        [],
+      );
+
+      /**
+       * The actual result collection is assigned below.
+       */
+      cleanupResults.splice(
+        0,
+        cleanupResults.length,
+      );
+
+      const rerunResults =
+        await executeRegisteredCleanup();
+
+      Array.prototype.push.apply(
+        cleanupResults,
+        rerunResults,
+      );
+    } catch (error) {
+      cleanupTimedOut =
+        error?.code ===
+        "SHUTDOWN_TIMEOUT";
+
+      managerState.timedOut =
+        managerState.timedOut ||
+        cleanupTimedOut;
+
+      failures.push({
+        component:
+          "dependencies",
+
+        critical: true,
+
+        error:
+          normalizeError(error),
+      });
+
+      logError(
+        managerState.logger,
+        {
+          section:
+            "shutdown",
+
+          event:
+            "dependency_cleanup_failed",
+
+          timedOut:
+            cleanupTimedOut,
+
+          error:
+            normalizeError(error),
+        },
+      );
+    }
+
+    /**
+     * -------------------------------------------------------------------------
+     * 6. Mark runtime stopped.
+     * -------------------------------------------------------------------------
+     */
+
+    finalizeStopped(
+      reason,
+    );
+
+    return {
+      success:
+        failures.filter(
+          (failure) =>
+            failure.critical,
+        ).length === 0,
+
+      reason,
+
+      sequence,
+
+      startedAt:
+        shutdownStartedAt.toISOString(),
+
+      completedAt:
+        timestamp(),
+
+      forced:
+        managerState.forced,
+
+      timedOut:
+        managerState.timedOut,
+
+      requestDrain:
+        requestDrainResult,
+
+      http:
+        httpResult,
+
+      websocket:
+        websocketResult,
+
+      cleanup:
+        cleanupResults,
+
+      failures,
+    };
+  } catch (error) {
+    const normalizedError =
+      normalizeError(error);
+
+    failures.push({
+      component:
+        "shutdown_manager",
+
+      critical: true,
+
+      error:
+        normalizedError,
+    });
+
+    managerState.forced =
+      true;
+
+    logError(
+      managerState.logger,
+      {
+        section:
+          "shutdown",
+
+        event:
+          "shutdown_manager_failed",
+
+        reason,
+
+        error:
+          normalizedError,
+      },
+    );
+
+    /**
+     * Even if orchestration itself encounters an unexpected error, make one
+     * final attempt to establish the canonical stopped state.
+     */
+    finalizeStopped(
+      reason,
+    );
+
+    return {
+      success: false,
+
+      reason,
+
+      sequence,
+
+      startedAt:
+        shutdownStartedAt.toISOString(),
+
+      completedAt:
+        timestamp(),
+
+      forced: true,
+
+      timedOut:
+        managerState.timedOut,
+
+      requestDrain:
+        requestDrainResult,
+
+      http:
+        httpResult,
+
+      websocket:
+        websocketResult,
+
+      cleanup:
+        cleanupResults,
+
+      failures,
+    };
+  }
+}
+
+/* =============================================================================
+ * PUBLIC SHUTDOWN ENTRY POINT
+ * =============================================================================
+ */
+
+function shutdown(
+  reason = "shutdown",
+  options = {},
+) {
+  /**
+   * Idempotency is critical.
+   *
+   * Multiple signals can arrive nearly simultaneously.
+   *
+   * SIGTERM + SIGINT
+   * uncaughtException + SIGTERM
+   * etc.
+   *
+   * All callers receive the same shutdown promise.
+   */
+  if (
+    managerState.shutdownPromise
+  ) {
+    return managerState.shutdownPromise;
+  }
+
+  managerState.shuttingDown =
+    true;
+
+  managerState.shutdownReason =
+    reason;
+
+  managerState.shutdownPromise =
+    performShutdown(
+      reason,
+      options,
+    ).finally(() => {
+      managerState.shuttingDown =
+        true;
+    });
+
+  return managerState.shutdownPromise;
+}
+
+/* =============================================================================
+ * STARTUP FAILURE SHUTDOWN
+ * =============================================================================
+ */
+
+function shutdownAfterStartupFailure(
+  error,
+  options = {},
+) {
+  const normalizedError =
+    normalizeError(error);
+
+  /**
+   * Establish authoritative failure state before cleanup.
+   *
+   * This is intentionally tolerant because startup may fail before any
+   * bootstrap phase has been recorded.
+   */
+  try {
+    const runtime =
+      getApplicationState();
+
+    if (
+      !runtime.failed
+    ) {
+      markFailed(
+        error,
+        managerState.events,
+        managerState.logger,
+        {
+          phase:
+            options.phase ??
+            runtime.bootstrapPhase,
+
+          reason:
+            options.reason ??
+            "startup_failure",
+        },
+      );
+    }
+  } catch (stateError) {
+    logError(
+      managerState.logger,
+      {
+        section:
+          "shutdown",
+
+        event:
+          "startup_failure_state_transition_failed",
+
+        error:
+          normalizeError(
+            stateError,
+          ),
+
+        originalError:
+          normalizedError,
+      },
+    );
+  }
+
+  return shutdown(
+    options.reason ||
+      "startup_failure",
+    {
+      ...options,
+
+      failureCleanup:
+        true,
+
+      exitCode:
+        Number.isInteger(
+          options.exitCode,
+        )
+          ? options.exitCode
+          : managerState.options
+              .fatalExitCode,
+    },
+  );
+}
+
+/* =============================================================================
+ * FORCE SHUTDOWN
+ * ============================================================================= */
+
+function forceShutdown(
+  reason = "forced_shutdown",
+  options = {},
+) {
+  managerState.forced =
+    true;
+
+  managerState.timedOut =
+    true;
+
+  return shutdown(
+    reason,
+    {
+      ...options,
+
+      force:
+        true,
+    },
+  );
+}
+
+/* =============================================================================
+ * SIGNAL HANDLERS
+ * ============================================================================= */
+
+function createSignalHandler(
+  signal,
+) {
+  return () => {
+    if (
+      managerState.shuttingDown
+    ) {
+      logWarn(
+        managerState.logger,
+        {
+          section:
+            "shutdown",
+
+          event:
+            "duplicate_shutdown_signal",
+
+          signal,
+        },
+      );
+
+      return;
+    }
+
+    logInfo(
+      managerState.logger,
+      {
+        section:
+          "shutdown",
+
+        event:
+          "shutdown_signal_received",
+
+        signal,
+      },
+    );
+
+    const shutdownPromise =
+      shutdown(
+        `signal:${signal}`,
+      );
+
+    if (
+      managerState.options
+        .exitOnSignal
+    ) {
+      shutdownPromise.then(
+        () => {
+          safeExit(
+            managerState.options
+              .normalExitCode,
           );
+        },
+        () => {
+          safeExit(
+            managerState.options
+              .fatalExitCode,
+          );
+        },
+      );
+    }
+  };
+}
+
+function installSignalHandlers() {
+  if (
+    managerState.signalHandlersInstalled
+  ) {
+    return false;
+  }
+
+  const signals =
+    Array.isArray(
+      managerState.options
+        .signals,
+    )
+      ? managerState.options
+          .signals
+      : DEFAULTS.signals;
+
+  signals.forEach(
+    (signal) => {
+      process.once(
+        signal,
+        createSignalHandler(
+          signal,
+        ),
+      );
+    },
+  );
+
+  managerState.signalHandlersInstalled =
+    true;
+
+  return true;
+}
+
+/* =============================================================================
+ * PROCESS ERROR HANDLERS
+ * ============================================================================= */
+
+function installProcessErrorHandlers() {
+  if (
+    managerState.processErrorHandlersInstalled
+  ) {
+    return false;
+  }
+
+  process.on(
+    "uncaughtException",
+    (error) => {
+      handleFatalProcessError(
+        "uncaughtException",
+        error,
+      );
+    },
+  );
+
+  process.on(
+    "unhandledRejection",
+    (reason) => {
+      const error =
+        reason instanceof Error
+          ? reason
+          : new Error(
+              typeof reason ===
+              "string"
+                ? reason
+                : "Unhandled promise rejection.",
+            );
+
+      handleFatalProcessError(
+        "unhandledRejection",
+        error,
+      );
+    },
+  );
+
+  managerState.processErrorHandlersInstalled =
+    true;
+
+  return true;
+}
+
+function handleFatalProcessError(
+  source,
+  error,
+) {
+  const normalizedError =
+    normalizeError(error);
+
+  logError(
+    managerState.logger,
+    {
+      section:
+        "process",
+
+      event:
+        "fatal_process_error",
+
+      source,
+
+      error:
+        normalizedError,
+    },
+  );
+
+  emit(
+    managerState.events,
+    "process.fatal_error",
+    {
+      source,
+
+      error:
+        normalizedError,
+
+      timestamp:
+        timestamp(),
+    },
+  );
+
+  const shutdownPromise =
+    shutdownAfterStartupFailure(
+      error,
+      {
+        reason:
+          `fatal:${source}`,
+
+        exitCode:
+          managerState.options
+            .fatalExitCode,
+      },
+    );
+
+  if (
+    managerState.options
+      .exitOnFatalError
+  ) {
+    shutdownPromise.then(
+      () => {
+        safeExit(
+          managerState.options
+            .fatalExitCode,
+        );
+      },
+      () => {
+        safeExit(
+          managerState.options
+            .fatalExitCode,
+        );
+      },
+    );
+  }
+
+  return shutdownPromise;
+}
+
+/* =============================================================================
+ * PROCESS EXIT
+ * ============================================================================= */
+
+function safeExit(
+  exitCode,
+) {
+  if (
+    managerState.exitRequested
+  ) {
+    return;
+  }
+
+  managerState.exitRequested =
+    true;
+
+  const normalizedCode =
+    Number.isInteger(
+      exitCode,
+    )
+      ? exitCode
+      : 0;
+
+  /**
+   * process.exit() is intentionally isolated here.
+   *
+   * No cleanup logic should occur after this call.
+   */
+  process.exit(
+    normalizedCode,
+  );
+}
+
+/* =============================================================================
+ * SHUTDOWN TIMEOUT MONITOR
+ * ============================================================================= */
+
+function startShutdownTimeoutMonitor() {
+  const timeoutMs =
+    managerState.options
+      .shutdownTimeoutMs;
+
+  if (
+    !Number.isFinite(timeoutMs) ||
+    timeoutMs <= 0
+  ) {
+    return null;
+  }
+
+  const timer =
+    setTimeout(() => {
+      if (
+        !managerState.shuttingDown ||
+        managerState.shutdownCompletedAt
+      ) {
+        return;
+      }
+
+      managerState.timedOut =
+        true;
+
+      managerState.forced =
+        true;
+
+      logError(
+        managerState.logger,
+        {
+          section:
+            "shutdown",
+
+          event:
+            "shutdown_timeout",
+
+          timeoutMs,
+
+          reason:
+            managerState.shutdownReason,
+        },
+      );
+
+      emit(
+        managerState.events,
+        "shutdown.timeout",
+        {
+          timeoutMs,
+
+          reason:
+            managerState.shutdownReason,
+
+          timestamp:
+            timestamp(),
+        },
+      );
+
+      if (
+        managerState.options
+          .forceExitOnTimeout
+      ) {
+        safeExit(
+          managerState.options
+            .fatalExitCode,
+        );
+      }
+    }, timeoutMs);
+
+  timer.unref?.();
+
+  return timer;
+}
+
+/* =============================================================================
+ * SHUTDOWN WITH GLOBAL TIMEOUT
+ * ============================================================================= */
+
+function shutdownWithTimeout(
+  reason = "shutdown",
+  options = {},
+) {
+  const timeoutMs =
+    Number.isFinite(
+      options.timeoutMs,
+    ) &&
+    options.timeoutMs > 0
+      ? options.timeoutMs
+      : managerState.options
+          .shutdownTimeoutMs;
+
+  const timeoutPromise =
+    new Promise(
+      (resolve) => {
+        const timer =
+          setTimeout(() => {
+            managerState.timedOut =
+              true;
+
+            managerState.forced =
+              true;
+
+            resolve({
+              success: false,
+
+              timedOut: true,
+
+              reason,
+
+              timestamp:
+                timestamp(),
+            });
+
+            if (
+              managerState.options
+                .forceExitOnTimeout
+            ) {
+              safeExit(
+                managerState.options
+                  .fatalExitCode,
+              );
+            }
+          }, timeoutMs);
 
         timer.unref?.();
       },
     );
 
-  try {
-    return await Promise.race([
-      work,
-      timeout,
-    ]);
-  } finally {
-    if (timer) {
-      clearTimeout(
-        timer,
-      );
-    }
-  }
+  return Promise.race([
+    shutdown(
+      reason,
+      options,
+    ),
+    timeoutPromise,
+  ]);
 }
 
-/**
- * =============================================================================
- * Shutdown Manager
+/* =============================================================================
+ * STATE INSPECTION
  * =============================================================================
  */
 
-class ShutdownManager extends EventEmitter {
-  constructor(
-    options = {},
-  ) {
-    super();
+function getCleanupHandlers() {
+  return managerState.cleanupHandlers.map(
+    (entry) => ({
+      name:
+        entry.name,
 
-    this.options =
-      Object.freeze({
-        timeoutMs:
-          asPositiveInteger(
-            options.timeoutMs ??
-              process.env.SHUTDOWN_MANAGER_TIMEOUT_MS,
-            DEFAULTS.timeoutMs,
-          ),
+      critical:
+        entry.critical,
 
-        participantTimeoutMs:
-          asPositiveInteger(
-            options.participantTimeoutMs ??
-              process.env.SHUTDOWN_MANAGER_PARTICIPANT_TIMEOUT_MS,
-            DEFAULTS.participantTimeoutMs,
-          ),
+      timeoutMs:
+        entry.timeoutMs,
 
-        continueOnError:
-          options.continueOnError ??
-          DEFAULTS.continueOnError,
+      service:
+        entry.service,
 
-        forceExitOnTimeout:
-          options.forceExitOnTimeout ??
-          DEFAULTS.forceExitOnTimeout,
+      registeredAt:
+        entry.registeredAt,
 
-        retryAttempts:
-          asPositiveInteger(
-            options.retryAttempts ??
-              process.env.SHUTDOWN_RETRY_ATTEMPTS,
-            DEFAULTS.retryAttempts + 1,
-          ) - 1,
-
-        retryDelayMs:
-          asPositiveInteger(
-            options.retryDelayMs ??
-              process.env.SHUTDOWN_RETRY_DELAY_MS,
-            DEFAULTS.retryDelayMs,
-          ),
-      });
-
-    this.state =
-      STATES.CREATED;
-
-    this.requested =
-      false;
-
-    this.running =
-      false;
-
-    this.completed =
-      false;
-
-    this.failed =
-      false;
-
-    this.forceExitRequested =
-      false;
-
-    this.reason =
-      null;
-
-    this.signal =
-      null;
-
-    this.requestedAt =
-      null;
-
-    this.startedAt =
-      null;
-
-    this.completedAt =
-      null;
-
-    this.failure =
-      null;
-
-    this.shutdownPromise =
-      null;
-
-    this.participants =
-      new Map();
-
-    this.executionHistory =
-      [];
-
-    this.errors =
-      [];
-
-    this._registered =
-      false;
-
-    this._shutdownAdapterRegistered =
-      false;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Logging
-   * ---------------------------------------------------------------------------
-   */
-
-  _log(
-    level,
-    payload,
-    message,
-  ) {
-    try {
-      const logger =
-        loggerModule?.getLogger?.();
-
-      if (
-        logger &&
-        typeof logger[level] ===
-          'function'
-      ) {
-        logger[level](
-          {
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-
-            ...payload,
-          },
-          message,
-        );
-
-        return;
-      }
-    } catch {
-      // Best-effort.
-    }
-
-    const output =
-      `[${COMPONENT}] ${message}`;
-
-    if (
-      level === 'error' ||
-      level === 'fatal'
-    ) {
-      process.stderr.write(
-        `${output}\n`,
-      );
-    } else {
-      process.stdout.write(
-        `${output}\n`,
-      );
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Observability
-   * ---------------------------------------------------------------------------
-   */
-
-  _emit(
-    event,
-    payload = {},
-  ) {
-    try {
-      if (
-        observabilityModule
-          ?.observability
-          ?.emitEvent
-      ) {
-        return observabilityModule
-          .observability
-          .emitEvent(
-            event,
-            {
-              component:
-                COMPONENT,
-
-              service:
-                SERVICE_NAME,
-
-              application:
-                APPLICATION_NAME,
-
-              ...payload,
-            },
-          );
-      }
-
-      if (
-        typeof observabilityModule?.emitEvent ===
-        'function'
-      ) {
-        return observabilityModule.emitEvent(
-          event,
-          {
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-
-            application:
-              APPLICATION_NAME,
-
-            ...payload,
-          },
-        );
-      }
-    } catch {
-      // Never block shutdown.
-    }
-
-    return null;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Participant Registration
-   * ---------------------------------------------------------------------------
-   */
-
-  register(
-    options = {},
-  ) {
-    const name =
-      normalizeName(
-        options.name,
-      );
-
-    if (
-      this.participants.has(
-        name,
-      )
-    ) {
-      throw new ShutdownManagerError(
-        `Shutdown participant "${name}" is already registered.`,
-        {
-          code:
-            'SHUTDOWN_PARTICIPANT_DUPLICATE',
-
-          participant:
-            name,
-        },
-      );
-    }
-
-    const participant =
-      Object.freeze({
-        name,
-
-        priority:
-          Number.isInteger(
-            options.priority,
-          )
-            ? options.priority
-            : 0,
-
-        dependencies:
-          Object.freeze(
-            Array.isArray(
-              options.dependencies,
-            )
-              ? [
-                  ...new Set(
-                    options.dependencies.map(
-                      dependency =>
-                        normalizeName(
-                          dependency,
-                          'dependency',
-                        ),
-                    ),
-                  ),
-                ]
-              : [],
-          ),
-
-        critical:
-          options.critical !==
-          false,
-
-        enabled:
-          options.enabled !==
-          false,
-
-        timeoutMs:
-          asPositiveInteger(
-            options.timeoutMs,
-            this.options
-              .participantTimeoutMs,
-          ),
-
-        retryAttempts:
-          Math.max(
-            0,
-            asPositiveInteger(
-              options.retryAttempts,
-              this.options
-                .retryAttempts +
-                1,
-            ) - 1,
-          ),
-
-        retryDelayMs:
-          asPositiveInteger(
-            options.retryDelayMs,
-            this.options
-              .retryDelayMs,
-          ),
-
-        stop:
-          typeof options.stop ===
-          'function'
-            ? options.stop
-            : null,
-
-        metadata:
-          Object.freeze({
-            ...(options.metadata || {}),
-          }),
-
-        registeredAt:
-          new Date(),
-      });
-
-    this.participants.set(
-      name,
-      participant,
-    );
-
-    this._registered =
-      true;
-
-    return participant;
-  }
-
-  unregister(
-    name,
-  ) {
-    return this.participants.delete(
-      normalizeName(
-        name,
-      ),
-    );
-  }
-
-  has(
-    name,
-  ) {
-    return this.participants.has(
-      name,
-    );
-  }
-
-  list() {
-    return [
-      ...this.participants.values(),
-    ].map(
-      participant => ({
-        ...participant,
-      }),
-    );
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Dependency-Aware Ordering
-   * ---------------------------------------------------------------------------
-   */
-
-  resolveOrder() {
-    const active =
-      [
-        ...this.participants.values(),
-      ].filter(
-        participant =>
-          participant.enabled &&
-          typeof participant.stop ===
-            'function',
-      );
-
-    const map =
-      new Map(
-        active.map(
-          participant => [
-            participant.name,
-            participant,
-          ],
-        ),
-      );
-
-    const incoming =
-      new Map();
-
-    const outgoing =
-      new Map();
-
-    for (
-      const participant of
-        active
-    ) {
-      incoming.set(
-        participant.name,
-        0,
-      );
-
-      outgoing.set(
-        participant.name,
-        new Set(),
-      );
-    }
-
-    for (
-      const participant of
-        active
-    ) {
-      for (
-        const dependency of
-          participant.dependencies
-      ) {
-        if (
-          !map.has(
-            dependency,
-          )
-        ) {
-          continue;
-        }
-
-        incoming.set(
-          participant.name,
-          incoming.get(
-            participant.name,
-          ) + 1,
-        );
-
-        outgoing
-          .get(
-            dependency,
-          )
-          .add(
-            participant.name,
-          );
-      }
-    }
-
-    const ready = active
-      .filter(
-        participant =>
-          incoming.get(
-            participant.name,
-          ) === 0,
-      )
-      .sort(
-        compareParticipants,
-      );
-
-    const order = [];
-
-    while (
-      ready.length >
-      0
-    ) {
-      const current =
-        ready.shift();
-
-      order.push(
-        current,
-      );
-
-      for (
-        const dependent of
-          outgoing.get(
-            current.name,
-          )
-      ) {
-        const count =
-          incoming.get(
-            dependent,
-          ) - 1;
-
-        incoming.set(
-          dependent,
-          count,
-        );
-
-        if (
-          count === 0
-        ) {
-          ready.push(
-            map.get(
-              dependent,
-            ),
-          );
-
-          ready.sort(
-            compareParticipants,
-          );
-        }
-      }
-    }
-
-    if (
-      order.length !==
-      active.length
-    ) {
-      const cyclic =
-        active
-          .filter(
-            participant =>
-              incoming.get(
-                participant.name,
-              ) > 0,
-          )
-          .map(
-            participant =>
-              participant.name,
-          );
-
-      throw new ShutdownManagerError(
-        'Circular shutdown dependency detected.',
-        {
-          code:
-            'SHUTDOWN_DEPENDENCY_CYCLE',
-
-          details: {
-            participants:
-              cyclic,
-          },
-        },
-      );
-    }
-
-    /**
-     * Shutdown ordering is the reverse of the dependency-safe startup order.
-     */
-    return order.reverse();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Bootstrap Adapter
-   * ---------------------------------------------------------------------------
-   */
-
-  registerBootstrapHooks(
-    context = {},
-    options = {},
-  ) {
-    if (
-      this._shutdownAdapterRegistered
-    ) {
-      return null;
-    }
-
-    if (
-      hooksModule?.hooks?.has(
-        COMPONENT,
-      )
-    ) {
-      this._shutdownAdapterRegistered =
-        true;
-
-      return hooksModule.hooks.get(
-        COMPONENT,
-      );
-    }
-
-    if (
-      typeof hooksModule?.lifecycle !==
-      'function'
-    ) {
-      throw new ShutdownManagerError(
-        'TITech shutdown manager could not register because the lifecycle hook engine is unavailable.',
-        {
-          code:
-            'SHUTDOWN_HOOK_ENGINE_UNAVAILABLE',
-        },
-      );
-    }
-
-    const result =
-      hooksModule.lifecycle(
-        COMPONENT,
-        {
-          priority:
-            options.priority ??
-            40_000,
-
-          dependencies:
-            options.dependencies ||
-            [],
-
-          critical:
-            options.critical ===
-            true,
-
-          enabled:
-            options.enabled !==
-            false,
-
-          timeoutMs:
-            options.timeoutMs ||
-            this.options
-              .timeoutMs,
-
-          start:
-            async () => {
-              this.initialize();
-
-              return this;
-            },
-
-          ready:
-            async () =>
-              !this.failed,
-
-          health:
-            async () =>
-              this.health(),
-
-          stop:
-            async hookContext =>
-              this.request(
-                hookContext?.reason ||
-                  'bootstrap-shutdown',
-                hookContext,
-              ),
-
-          metadata: {
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-
-            application:
-              APPLICATION_NAME,
-          },
-        },
-      );
-
-    this._shutdownAdapterRegistered =
-      true;
-
-    return result;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Initialization
-   * ---------------------------------------------------------------------------
-   */
-
-  initialize() {
-    if (
-      this.state ===
-      STATES.CREATED
-    ) {
-      this.state =
-        STATES.INITIALIZING;
-
-      this.state =
-        STATES.READY;
-    }
-
-    this._registerCanonicalAdapter();
-
-    return this;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Canonical shutdown.js Integration
-   * ---------------------------------------------------------------------------
-   *
-   * shutdown.js remains the process-level orchestrator.
-   *
-   * shutdownManager.js should register itself as a participant rather than
-   * recursively invoking shutdown.js.
-   */
-
-  _registerCanonicalAdapter() {
-    if (
-      this._shutdownAdapterRegistered ||
-      !shutdownModule
-    ) {
-      return;
-    }
-
-    if (
-      typeof shutdownModule.register ===
-      'function'
-    ) {
-      try {
-        shutdownModule.register({
-          name:
-            COMPONENT,
-
-          priority:
-            10_000,
-
-          critical:
-            true,
-
-          stop:
-            async context =>
-              this._executeManagedShutdown(
-                context?.reason ||
-                  'canonical-shutdown',
-                context,
-              ),
-
-          metadata: {
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-          },
-        });
-
-        this._shutdownAdapterRegistered =
-          true;
-      } catch (error) {
-        /**
-         * Duplicate registration is acceptable during migration.
-         * Other registration errors remain visible in diagnostics.
-         */
-        if (
-          error?.code !==
-          'SHUTDOWN_PARTICIPANT_DUPLICATE'
-        ) {
-          this._recordError(
-            COMPONENT,
-            error,
-          );
-        }
-      }
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Shutdown Request
-   * ---------------------------------------------------------------------------
-   */
-
-  async request(
-    reason =
-      'application-request',
-    metadata = {},
-  ) {
-    if (
-      this.shutdownPromise
-    ) {
-      return this.shutdownPromise;
-    }
-
-    this.requested =
-      true;
-
-    this.reason =
-      reason;
-
-    this.signal =
-      metadata.signal ||
-      null;
-
-    this.requestedAt =
-      new Date();
-
-    this.state =
-      STATES.REQUESTED;
-
-    this._emit(
-      'shutdown_manager.requested',
-      {
-        reason,
-
-        signal:
-          this.signal,
+      metadata: {
+        ...entry.metadata,
       },
-    );
-
-    this.shutdownPromise =
-      this._executeManagedShutdown(
-        reason,
-        metadata,
-      );
-
-    return this.shutdownPromise;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Managed Shutdown
-   * ---------------------------------------------------------------------------
-   */
-
-  async _executeManagedShutdown(
-    reason,
-    metadata = {},
-  ) {
-    if (
-      this.running
-    ) {
-      return;
-    }
-
-    const started =
-      process.hrtime.bigint();
-
-    this.running =
-      true;
-
-    this.completed =
-      false;
-
-    this.failed =
-      false;
-
-    this.failure =
-      null;
-
-    try {
-      /**
-       * ---------------------------------------------------------------
-       * Phase 1: readiness fencing.
-       * ---------------------------------------------------------------
-       */
-      this.state =
-        STATES.DRAINING;
-
-      await this._markNotReady();
-
-      /**
-       * ---------------------------------------------------------------
-       * Phase 2: Let lifecycleManager perform its canonical dependency-aware
-       * shutdown when available.
-       * ---------------------------------------------------------------
-       *
-       * We do not call it recursively when this manager is already executing
-       * as a lifecycle-managed participant.
-       */
-      const lifecycleResult =
-        await this._invokeLifecycleManager(
-          reason,
-          metadata,
-        );
-
-      /**
-       * ---------------------------------------------------------------
-       * Phase 3: Explicitly registered shutdown participants.
-       * ---------------------------------------------------------------
-       */
-      this.state =
-        STATES.STOPPING;
-
-      await this._executeParticipants(
-        reason,
-        metadata,
-      );
-
-      /**
-       * ---------------------------------------------------------------
-       * Phase 4: Telemetry state.
-       * ---------------------------------------------------------------
-       */
-      this.state =
-        STATES.FLUSHING;
-
-      this._emit(
-        'shutdown_manager.completed',
-        {
-          reason,
-
-          signal:
-            this.signal,
-
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
-
-          participantCount:
-            this.participants.size,
-        },
-      );
-
-      this.completed =
-        true;
-
-      this.running =
-        false;
-
-      this.state =
-        STATES.STOPPED;
-
-      this.completedAt =
-        new Date();
-
-      this._log(
-        'info',
-        {
-          reason,
-
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
-        },
-        'TITech shutdown manager completed.',
-      );
-
-      return {
-        success:
-          true,
-
-        lifecycle:
-          lifecycleResult,
-
-        durationMs:
-          hrtimeMs(
-            started,
-          ),
-      };
-    } catch (error) {
-      this.failed =
-        true;
-
-      this.running =
-        false;
-
-      this.failure =
-        error;
-
-      this.state =
-        STATES.FAILED;
-
-      this._emit(
-        'shutdown_manager.failed',
-        {
-          reason,
-
-          signal:
-            this.signal,
-
-          error:
-            safeError(
-              error,
-            ),
-
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
-        },
-      );
-
-      this._log(
-        'error',
-        {
-          reason,
-
-          err:
-            error,
-        },
-        'TITech shutdown manager failed.',
-      );
-
-      if (
-        this.options
-          .forceExitOnTimeout &&
-        (
-          error?.code ===
-            'SHUTDOWN_MANAGER_TIMEOUT' ||
-          error?.code ===
-            'SHUTDOWN_GLOBAL_TIMEOUT'
-        )
-      ) {
-        this.forceExit();
-      }
-
-      throw (
-        error instanceof
-        ShutdownManagerError
-          ? error
-          : new ShutdownManagerError(
-              'TITech shutdown manager failed.',
-              {
-                code:
-                  'SHUTDOWN_MANAGER_FAILED',
-
-                cause:
-                  error,
-
-                details: {
-                  reason,
-                },
-              },
-            )
-      );
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Readiness Fence
-   * ---------------------------------------------------------------------------
-   */
-
-  async _markNotReady() {
-    try {
-      if (
-        typeof readinessModule
-          ?.markNotReady ===
-        'function'
-      ) {
-        readinessModule.markNotReady(
-          'shutdown-manager',
-          {
-            reason:
-              this.reason,
-          },
-        );
-
-        return;
-      }
-
-      if (
-        readinessModule
-          ?.readinessState &&
-        typeof readinessModule
-          .readinessState
-          .markNotReady ===
-        'function'
-      ) {
-        readinessModule
-          .readinessState
-          .markNotReady(
-            'shutdown-manager',
-            {
-              reason:
-                this.reason,
-            },
-          );
-      }
-    } catch (error) {
-      this._recordError(
-        'readiness',
-        error,
-      );
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Lifecycle Manager
-   * ---------------------------------------------------------------------------
-   */
-
-  async _invokeLifecycleManager(
-    reason,
-    metadata,
-  ) {
-    /**
-     * Avoid recursive shutdown-manager → lifecycleManager → shutdown-manager
-     * calls where lifecycleManager invokes this participant.
-     *
-     * lifecycleManager remains authoritative for application lifecycle.
-     */
-    const manager =
-      lifecycleManagerModule
-        ?.lifecycleManager;
-
-    if (
-      !manager ||
-      typeof manager.shutdown !==
-        'function'
-    ) {
-      return null;
-    }
-
-    return withTimeout(
-      () =>
-        manager.shutdown(
-          {
-            ...metadata,
-
-            reason,
-
-            signal:
-              this.signal,
-
-            source:
-              COMPONENT,
-          },
-          reason,
-        ),
-      this.options.timeoutMs,
-      'TITech lifecycle manager shutdown',
-    );
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Explicit Participant Execution
-   * ---------------------------------------------------------------------------
-   */
-
-  async _executeParticipants(
-    reason,
-    metadata,
-  ) {
-    const order =
-      this.resolveOrder();
-
-    for (
-      const participant of
-        order
-    ) {
-      await this._executeParticipant(
-        participant,
-        reason,
-        metadata,
-      );
-    }
-  }
-
-  async _executeParticipant(
-    participant,
-    reason,
-    metadata,
-  ) {
-    const started =
-      process.hrtime.bigint();
-
-    let attempts =
-      0;
-
-    const maxAttempts =
-      participant.retryAttempts +
-      1;
-
-    while (
-      attempts <
-      maxAttempts
-    ) {
-      attempts +=
-        1;
-
-      try {
-        await withTimeout(
-          () =>
-            participant.stop({
-              ...metadata,
-
-              reason,
-
-              signal:
-                this.signal,
-
-              shutdownManager:
-                this,
-            }),
-          participant.timeoutMs,
-          `shutdown participant "${participant.name}"`,
-        );
-
-        this.executionHistory.push({
-          participant:
-            participant.name,
-
-          status:
-            'stopped',
-
-          attempts,
-
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
-        });
-
-        this._emit(
-          'shutdown_manager.participant_stopped',
-          {
-            participant:
-              participant.name,
-
-            attempts,
-
-            durationMs:
-              hrtimeMs(
-                started,
-              ),
-          },
-        );
-
-        return;
-      } catch (error) {
-        if (
-          attempts <
-          maxAttempts
-        ) {
-          await sleep(
-            participant.retryDelayMs,
-          );
-
-          continue;
-        }
-
-        const record = {
-          participant:
-            participant.name,
-
-          status:
-            'failed',
-
-          attempts,
-
-          durationMs:
-            hrtimeMs(
-              started,
-            ),
-
-          critical:
-            participant.critical,
-
-          error:
-            safeError(
-              error,
-            ),
-        };
-
-        this.executionHistory.push(
-          record,
-        );
-
-        this._recordError(
-          participant.name,
-          error,
-        );
-
-        this._emit(
-          'shutdown_manager.participant_failed',
-          record,
-        );
-
-        if (
-          participant.critical &&
-          !this.options
-            .continueOnError
-        ) {
-          throw new ShutdownManagerError(
-            `Critical shutdown participant "${participant.name}" failed.`,
-            {
-              code:
-                'SHUTDOWN_CRITICAL_PARTICIPANT_FAILED',
-
-              participant:
-                participant.name,
-
-              cause:
-                error,
-            },
-          );
-        }
-      }
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Error Tracking
-   * ---------------------------------------------------------------------------
-   */
-
-  _recordError(
-    participant,
-    error,
-  ) {
-    this.errors.push({
-      participant,
-
-      timestamp:
-        new Date().toISOString(),
-
-      error:
-        safeError(
-          error,
-        ),
-    });
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Health
-   * ---------------------------------------------------------------------------
-   */
-
-  async health() {
-    return {
-      status:
-        this.failed
-          ? 'unhealthy'
-          : this.running
-            ? 'stopping'
-            : this.completed
-              ? 'stopped'
-              : 'healthy',
-
-      state:
-        this.state,
-
-      requested:
-        this.requested,
-
-      running:
-        this.running,
-
-      completed:
-        this.completed,
-
-      failed:
-        this.failed,
-
-      participantCount:
-        this.participants.size,
-
-      failedParticipantCount:
-        this.errors.length,
-
-      reason:
-        this.reason,
-
-      signal:
-        this.signal,
-
-      service:
-        SERVICE_NAME,
-
-      timestamp:
-        new Date().toISOString(),
-    };
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Force Exit
-   * ---------------------------------------------------------------------------
-   */
-
-  forceExit() {
-    this.forceExitRequested =
-      true;
-
-    process.exitCode =
-      1;
-
-    /**
-     * Delay actual termination very briefly to allow logs to flush.
-     */
-    const timer =
-      setTimeout(
-        () => {
-          try {
-            process.exit(
-              1,
-            );
-          } catch {
-            // Last-resort operation.
-          }
-        },
-        250,
-      );
-
-    timer.unref?.();
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Snapshot
-   * ---------------------------------------------------------------------------
-   */
-
-  snapshot() {
-    return Object.freeze({
-      component:
-        COMPONENT,
-
-      service:
-        SERVICE_NAME,
-
-      application:
-        APPLICATION_NAME,
-
-      state:
-        this.state,
-
-      requested:
-        this.requested,
-
-      running:
-        this.running,
-
-      completed:
-        this.completed,
-
-      failed:
-        this.failed,
-
-      forceExitRequested:
-        this.forceExitRequested,
-
-      reason:
-        this.reason,
-
-      signal:
-        this.signal,
-
-      requestedAt:
-        this.requestedAt,
-
-      startedAt:
-        this.startedAt,
-
-      completedAt:
-        this.completedAt,
-
-      failure:
-        safeError(
-          this.failure,
-        ),
-
-      participants:
-        Object.freeze(
-          this.list(),
-        ),
-
-      executionHistory:
-        Object.freeze(
-          this.executionHistory.map(
-            item => ({
-              ...item,
-            }),
-          ),
-        ),
-
-      errors:
-        Object.freeze(
-          this.errors.map(
-            item => ({
-              ...item,
-            }),
-          ),
-        ),
-    });
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Reset
-   * ---------------------------------------------------------------------------
-   */
-
-  reset() {
-    if (
-      this.running
-    ) {
-      throw new ShutdownManagerError(
-        'Cannot reset an active TITech shutdown manager.',
-        {
-          code:
-            'SHUTDOWN_MANAGER_RESET_NOT_ALLOWED',
-        },
-      );
-    }
-
-    this.state =
-      STATES.CREATED;
-
-    this.requested =
-      false;
-
-    this.running =
-      false;
-
-    this.completed =
-      false;
-
-    this.failed =
-      false;
-
-    this.forceExitRequested =
-      false;
-
-    this.reason =
-      null;
-
-    this.signal =
-      null;
-
-    this.requestedAt =
-      null;
-
-    this.startedAt =
-      null;
-
-    this.completedAt =
-      null;
-
-    this.failure =
-      null;
-
-    this.shutdownPromise =
-      null;
-
-    this.executionHistory =
-      [];
-
-    this.errors =
-      [];
-
-    return this;
-  }
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Participant Comparator
- * -----------------------------------------------------------------------------
- */
-
-function compareParticipants(
-  a,
-  b,
-) {
-  if (
-    a.priority !==
-    b.priority
-  ) {
-    return (
-      a.priority -
-      b.priority
-    );
-  }
-
-  return a.name.localeCompare(
-    b.name,
+    }),
   );
 }
 
-/**
- * =============================================================================
- * Default Singleton
- * =============================================================================
- */
+function getShutdownState() {
+  const startedAt =
+    managerState.shutdownStartedAt;
 
-const shutdownManager =
-  new ShutdownManager();
+  const completedAt =
+    managerState.shutdownCompletedAt;
 
-/**
- * -----------------------------------------------------------------------------
- * Convenience API
- * -----------------------------------------------------------------------------
- */
+  return Object.freeze({
+    initialized:
+      managerState.initialized,
 
-function register(
-  options,
-) {
-  return shutdownManager.register(
-    options,
-  );
-}
+    shuttingDown:
+      managerState.shuttingDown,
 
-function unregister(
-  name,
-) {
-  return shutdownManager.unregister(
-    name,
-  );
-}
+    shutdownStarted:
+      Boolean(
+        managerState.shutdownStartedAt,
+      ),
 
-function has(
-  name,
-) {
-  return shutdownManager.has(
-    name,
-  );
-}
+    completed:
+      Boolean(
+        managerState.shutdownCompletedAt,
+      ),
 
-function list() {
-  return shutdownManager.list();
-}
+    shutdownReason:
+      managerState.shutdownReason,
 
-function resolveOrder() {
-  return shutdownManager.resolveOrder();
-}
+    shutdownSequence:
+      managerState.shutdownSequence,
 
-function initialize() {
-  return shutdownManager.initialize();
-}
+    forced:
+      managerState.forced,
 
-async function shutdown(
-  reason =
-    'application-request',
-  metadata = {},
-) {
-  return shutdownManager.request(
-    reason,
-    metadata,
-  );
-}
+    timedOut:
+      managerState.timedOut,
 
-async function stop(
-  reason =
-    'application-request',
-  metadata = {},
-) {
-  return shutdown(
-    reason,
-    metadata,
-  );
-}
+    exitRequested:
+      managerState.exitRequested,
 
-function forceExit() {
-  return shutdownManager.forceExit();
-}
+    signalHandlersInstalled:
+      managerState
+        .signalHandlersInstalled,
 
-function health() {
-  return shutdownManager.health();
-}
+    processErrorHandlersInstalled:
+      managerState
+        .processErrorHandlersInstalled,
 
-function snapshot() {
-  return shutdownManager.snapshot();
-}
+    shutdownDurationMs:
+      startedAt &&
+      completedAt
+        ? Math.max(
+            0,
+            completedAt.getTime() -
+              startedAt.getTime(),
+          )
+        : null,
 
-/**
- * -----------------------------------------------------------------------------
- * Bootstrap Registration
- * -----------------------------------------------------------------------------
- */
+    cleanupHandlerCount:
+      managerState
+        .cleanupHandlers.length,
 
-function registerBootstrapHooks(
-  context = {},
-  options = {},
-) {
-  return shutdownManager.registerBootstrapHooks(
-    context,
-    options,
-  );
-}
+    cleanupHandlers:
+      getCleanupHandlers(),
 
-/**
- * =============================================================================
- * Export
- * =============================================================================
- */
+    httpServerRegistered:
+      Boolean(
+        managerState.httpServer,
+      ),
 
-module.exports =
-  Object.freeze({
-    /**
-     * Core.
-     */
-    ShutdownManager,
-
-    ShutdownManagerError,
-
-    shutdownManager,
-
-    STATES,
-
-    /**
-     * Participant registry.
-     */
-    register,
-    unregister,
-    has,
-    list,
-    resolveOrder,
-
-    /**
-     * Lifecycle.
-     */
-    initialize,
-
-    shutdown,
-
-    stop,
-
-    registerBootstrapHooks,
-
-    bootstrap:
-      registerBootstrapHooks,
-
-    /**
-     * Operational.
-     */
-    health,
-    snapshot,
-    forceExit,
+    runtime:
+      getApplicationState(),
   });
+}
+
+/* =============================================================================
+ * DISPOSE PROCESS HANDLERS
+ * =============================================================================
+ *
+ * Useful for automated tests.
+ *
+ * Production code normally does not call this.
+ * =============================================================================
+ */
+
+function removeProcessHandlers() {
+  const signals =
+    Array.isArray(
+      managerState.options
+        .signals,
+    )
+      ? managerState.options
+          .signals
+      : DEFAULTS.signals;
+
+  signals.forEach(
+    (signal) => {
+      process.removeAllListeners(
+        signal,
+      );
+    },
+  );
+
+  process.removeAllListeners(
+    "uncaughtException",
+  );
+
+  process.removeAllListeners(
+    "unhandledRejection",
+  );
+
+  managerState
+    .signalHandlersInstalled =
+    false;
+
+  managerState
+    .processErrorHandlersInstalled =
+    false;
+
+  return true;
+}
+
+/* =============================================================================
+ * RESET
+ * =============================================================================
+ *
+ * Intended for tests only.
+ * =============================================================================
+ */
+
+function reset() {
+  removeProcessHandlers();
+
+  managerState.initialized =
+    false;
+
+  managerState.shuttingDown =
+    false;
+
+  managerState.shutdownPromise =
+    null;
+
+  managerState.shutdownReason =
+    null;
+
+  managerState.shutdownStartedAt =
+    null;
+
+  managerState.shutdownCompletedAt =
+    null;
+
+  managerState.shutdownSequence =
+    0;
+
+  managerState.forced =
+    false;
+
+  managerState.timedOut =
+    false;
+
+  managerState.exitRequested =
+    false;
+
+  managerState.logger =
+    null;
+
+  managerState.events =
+    null;
+
+  managerState.options = {
+    ...DEFAULTS,
+  };
+
+  managerState.cleanupHandlers =
+    [];
+
+  managerState.httpServer =
+    null;
+
+  managerState.requestCounter =
+    null;
+
+  managerState.websocketShutdownHandler =
+    null;
+
+  return getShutdownState();
+}
+
+/* =============================================================================
+ * PUBLIC API
+ * =============================================================================
+ */
+
+module.exports = {
+  DEFAULTS,
+
+  initialize,
+
+  configure,
+
+  registerHttpServer,
+
+  registerRequestCounter,
+
+  registerWebsocketShutdownHandler,
+
+  registerCleanup,
+
+  unregisterCleanup,
+
+  clearCleanupHandlers,
+
+  shutdown,
+
+  shutdownAfterStartupFailure,
+
+  forceShutdown,
+
+  shutdownWithTimeout,
+
+  installSignalHandlers,
+
+  installProcessErrorHandlers,
+
+  handleFatalProcessError,
+
+  getActiveRequestCount,
+
+  waitForRequestsToDrain,
+
+  closeHttpServer,
+
+  executeCleanupHandler,
+
+  executeRegisteredCleanup,
+
+  getCleanupHandlers,
+
+  getShutdownState,
+
+  removeProcessHandlers,
+
+  reset,
+};

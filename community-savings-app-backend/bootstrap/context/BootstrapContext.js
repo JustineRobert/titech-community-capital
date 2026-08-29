@@ -10,38 +10,17 @@
  *   backend/bootstrap/context/BootstrapContext.js
  *
  * Purpose:
- *   Canonical lifecycle and dependency context shared by every TITech
- *   Community Capital application bootstrap phase.
+ *   Canonical lifecycle, dependency, phase, diagnostics and shutdown context
+ *   shared by every TITech Community Capital application bootstrap phase.
  *
- * Enterprise guarantees
- * =============================================================================
+ * Design authority:
+ *   BootstrapContext is the SINGLE authoritative lifecycle state machine.
  *
- * ✓ ONE canonical lifecycle authority
- * ✓ Primitive context.state contract
- * ✓ Read-only public lifecycle state
- * ✓ Validated state-machine transitions
- * ✓ Failed startup can transition safely to shutdown
- * ✓ FAILED contexts cannot restart
- * ✓ STOPPED contexts cannot restart
- * ✓ Strict bootstrap phase ordering
- * ✓ Same context instance across every phase
- * ✓ Dependency registration and validation
- * ✓ Bounded lifecycle history
- * ✓ Safe metadata sanitization
- * ✓ Secret/credential redaction
- * ✓ Error normalization
- * ✓ AbortController support
- * ✓ Deterministic shutdown hooks
- * ✓ Priority-ordered shutdown hooks
- * ✓ Timeout-bounded shutdown hooks
- * ✓ Idempotent shutdown execution
- * ✓ Runtime readiness validation
- * ✓ Production-safe diagnostics
- * ✓ CommonJS compatibility
- * ✓ Node.js 20+ compatible
+ * Compatibility/read-model:
+ *   runtime/state.js may consume this context, but MUST NOT become the
+ *   canonical lifecycle authority.
  *
- * Canonical lifecycle
- * =============================================================================
+ * Canonical lifecycle:
  *
  *   created
  *      ↓
@@ -53,8 +32,7 @@
  *      ↓
  *   stopped
  *
- * Failure path
- * =============================================================================
+ * Failure lifecycle:
  *
  *   created
  *      ↓
@@ -66,43 +44,10 @@
  *      ↓
  *   stopped
  *
- * A FAILED context can be cleaned up, but MUST NOT be restarted.
+ * Critical invariant:
  *
- * Canonical bootstrap phases
- * =============================================================================
- *
- *   environment
- *      ↓
- *   configuration
- *      ↓
- *   logger
- *      ↓
- *   observability
- *      ↓
- *   readiness
- *      ↓
- *   resilience
- *      ↓
- *   infrastructure
- *      ↓
- *   services
- *      ↓
- *   middleware
- *      ↓
- *   routes
- *      ↓
- *   httpServer
- *      ↓
- *   runtimeReady
- *
- * Critical lifecycle invariant
- * =============================================================================
- *
- *   context.state
- *        → primitive lifecycle string
- *
- *   context.getState()
- *        → same primitive lifecycle string
+ *   context.state === primitive lifecycle string
+ *   context.getState() === same primitive lifecycle string
  *
  * Public code MUST NOT be able to replace:
  *
@@ -113,9 +58,41 @@
  *   runtime/state.js
  *   {}
  *   another context
- *   any non-string object
+ *   another object
+ *   another lifecycle model
  *
- * runtime/state.js remains compatibility/read-model state only.
+ * =============================================================================
+ *
+ * Enterprise guarantees
+ * =============================================================================
+ *
+ * ✓ One canonical lifecycle authority
+ * ✓ Primitive lifecycle state
+ * ✓ Read-only public lifecycle state
+ * ✓ Validated state-machine transitions
+ * ✓ Failed startup can safely enter shutdown
+ * ✓ FAILED contexts cannot restart
+ * ✓ STOPPED contexts cannot restart
+ * ✓ Strict canonical bootstrap phase ordering
+ * ✓ One context instance shared across phases
+ * ✓ Dependency registration
+ * ✓ Dependency validation
+ * ✓ Container registration
+ * ✓ Bounded lifecycle history
+ * ✓ Metadata sanitization
+ * ✓ Credential/secret redaction
+ * ✓ Error normalization
+ * ✓ AbortController support
+ * ✓ Deterministic shutdown
+ * ✓ Priority-ordered shutdown hooks
+ * ✓ Timeout-bounded shutdown hooks
+ * ✓ Idempotent shutdown execution
+ * ✓ Shutdown hook inspection
+ * ✓ Runtime readiness validation
+ * ✓ Production-safe diagnostics
+ * ✓ Defensive serialization
+ * ✓ CommonJS compatibility
+ * ✓ Node.js 20+ compatible
  *
  * =============================================================================
  */
@@ -145,22 +122,18 @@ const PHASE_STATES = Object.freeze({
 
 const CONTEXT_STATES = Object.freeze({
   CREATED: "created",
-
   STARTING: "starting",
 
   /**
    * Backward-compatible alias.
    *
-   * The value intentionally remains "starting".
+   * Value intentionally remains "starting".
    */
   BOOTSTRAPPING: "starting",
 
   READY: "ready",
-
   FAILED: "failed",
-
   SHUTTING_DOWN: "shutting_down",
-
   STOPPED: "stopped",
 });
 
@@ -196,6 +169,7 @@ const DEFAULT_HISTORY_LIMIT = 500;
 const DEFAULT_HISTORY_READ_LIMIT = 100;
 const DEFAULT_SHUTDOWN_HOOK_TIMEOUT_MS = 10_000;
 
+const MAX_ID_LENGTH = 200;
 const MAX_METADATA_DEPTH = 4;
 const MAX_METADATA_KEYS = 100;
 const MAX_EVENT_TYPE_LENGTH = 200;
@@ -205,9 +179,10 @@ const MAX_DEPENDENCY_NAME_LENGTH = 200;
 const MAX_ERROR_NAME_LENGTH = 100;
 const MAX_ERROR_MESSAGE_LENGTH = 1_000;
 const MAX_ERROR_CODE_LENGTH = 100;
+const MAX_HOOK_NAME_LENGTH = 200;
 
 const SENSITIVE_KEY_PATTERN =
-  /(password|passwd|secret|token|authorization|cookie|credential|private[_-]?key|api[_-]?key|access[_-]?key|refresh[_-]?token|client[_-]?secret|session[_-]?token|jwt|signature|encrypted|encryption[_-]?key|database[_-]?url|connection[_-]?string|mongo[_-]?uri|redis[_-]?url)/i;
+  /(password|passwd|secret|token|authorization|cookie|credential|private[_-]?key|api[_-]?key|access[_-]?key|refresh[_-]?token|client[_-]?secret|session[_-]?token|jwt|signature|encrypted|encryption[_-]?key|database[_-]?url|connection[_-]?string|mongo[_-]?uri|redis[_-]?url|dsn|passphrase)/i;
 
 
 /* =============================================================================
@@ -236,8 +211,7 @@ function isPlainObject(value) {
     return false;
   }
 
-  const prototype =
-    Object.getPrototypeOf(value);
+  const prototype = Object.getPrototypeOf(value);
 
   return (
     prototype === Object.prototype ||
@@ -259,19 +233,14 @@ function createPhaseRecord() {
 function createPhaseRegistry() {
   return BOOTSTRAP_PHASES.reduce(
     (registry, phase) => {
-      registry[phase] =
-        createPhaseRecord();
-
+      registry[phase] = createPhaseRecord();
       return registry;
     },
     {},
   );
 }
 
-function sanitizeString(
-  value,
-  maxLength = 1_000,
-) {
+function sanitizeString(value, maxLength = 1_000) {
   if (
     value === null ||
     value === undefined
@@ -279,39 +248,29 @@ function sanitizeString(
     return null;
   }
 
-  return String(value).slice(
-    0,
-    maxLength,
-  );
+  return String(value).slice(0, maxLength);
 }
 
 function isSensitiveKey(key) {
-  return SENSITIVE_KEY_PATTERN.test(
-    String(key),
-  );
+  return SENSITIVE_KEY_PATTERN.test(String(key));
 }
 
-function sanitizeMetadataValue(
-  value,
-  depth = 0,
-) {
+function sanitizeMetadataValue(value, depth = 0) {
   if (value === null) {
     return null;
   }
 
   if (
     typeof value === "string" ||
-    typeof value === "number" ||
     typeof value === "boolean"
   ) {
-    if (
-      typeof value === "number" &&
-      !Number.isFinite(value)
-    ) {
-      return String(value);
-    }
-
     return value;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value)
+      ? value
+      : String(value);
   }
 
   if (typeof value === "bigint") {
@@ -319,9 +278,7 @@ function sanitizeMetadataValue(
   }
 
   if (value instanceof Date) {
-    return Number.isNaN(
-      value.getTime(),
-    )
+    return Number.isNaN(value.getTime())
       ? "[InvalidDate]"
       : value.toISOString();
   }
@@ -366,40 +323,33 @@ function sanitizeMetadataValue(
     let entries;
 
     try {
-      entries = Object.entries(
-        value,
-      ).slice(0, MAX_METADATA_KEYS);
+      entries = Object.entries(value).slice(
+        0,
+        MAX_METADATA_KEYS,
+      );
     } catch {
       return "[UnserializableObject]";
     }
 
-    for (
-      const [key, childValue] of entries
-    ) {
+    for (const [key, childValue] of entries) {
       if (isSensitiveKey(key)) {
         result[key] = "[REDACTED]";
         continue;
       }
 
-      result[key] =
-        sanitizeMetadataValue(
-          childValue,
-          depth + 1,
-        );
+      result[key] = sanitizeMetadataValue(
+        childValue,
+        depth + 1,
+      );
     }
 
     return result;
   }
 
-  return sanitizeString(
-    value,
-    1_000,
-  );
+  return sanitizeString(value);
 }
 
-function cloneMetadata(
-  metadata = {},
-) {
+function cloneMetadata(metadata = {}) {
   if (
     !metadata ||
     typeof metadata !== "object" ||
@@ -408,10 +358,9 @@ function cloneMetadata(
     return {};
   }
 
-  const sanitized =
-    sanitizeMetadataValue(
-      metadata,
-    );
+  const sanitized = sanitizeMetadataValue(
+    metadata,
+  );
 
   if (
     !sanitized ||
@@ -459,8 +408,7 @@ function normalizeError(error) {
       ),
 
       message: sanitizeString(
-        error.message ||
-          "[ObjectError]",
+        error.message || "[ObjectError]",
         MAX_ERROR_MESSAGE_LENGTH,
       ),
 
@@ -473,38 +421,28 @@ function normalizeError(error) {
 
   return {
     name: "Error",
-
     message: sanitizeString(
       error,
       MAX_ERROR_MESSAGE_LENGTH,
     ),
-
     code: null,
   };
 }
 
 function assertValidPhase(phase) {
-  if (
-    !BOOTSTRAP_PHASES.includes(
-      phase,
-    )
-  ) {
+  if (!BOOTSTRAP_PHASES.includes(phase)) {
     throw new Error(
       `Unknown TITech bootstrap phase "${phase}". ` +
-        `Expected one of: ${BOOTSTRAP_PHASES.join(
-          ", ",
-        )}`,
+        `Expected one of: ${BOOTSTRAP_PHASES.join(", ")}`,
     );
   }
 }
 
-function assertValidContextState(
-  state,
-) {
+function assertValidContextState(state) {
   if (
-    !Object.values(
-      CONTEXT_STATES,
-    ).includes(state)
+    !Object.values(CONTEXT_STATES).includes(
+      state,
+    )
   ) {
     throw new Error(
       `Unknown TITech bootstrap context state "${state}".`,
@@ -513,20 +451,10 @@ function assertValidContextState(
 }
 
 function getPhaseIndex(phase) {
-  return BOOTSTRAP_PHASES.indexOf(
-    phase,
-  );
+  return BOOTSTRAP_PHASES.indexOf(phase);
 }
 
-function isLifecycleTerminalPhase(
-  phase,
-) {
-  return phase === "runtimeReady";
-}
-
-function normalizeContextState(
-  value,
-) {
+function normalizeContextState(value) {
   if (
     typeof value !== "string" ||
     value.trim() === ""
@@ -543,24 +471,18 @@ function normalizePositiveInteger(
   value,
   fallback,
 ) {
-  return Number.isFinite(value) &&
-    value > 0
+  return Number.isFinite(value) && value > 0
     ? Math.floor(value)
     : fallback;
 }
 
 function createAbortController() {
   if (
-    typeof AbortController ===
-    "function"
+    typeof AbortController === "function"
   ) {
     return new AbortController();
   }
 
-  /**
-   * Node.js 20+ always provides AbortController, but retaining this fallback
-   * keeps the context easy to instantiate in constrained test environments.
-   */
   return {
     signal: {
       aborted: false,
@@ -571,10 +493,20 @@ function createAbortController() {
 
     abort(reason) {
       this.signal.aborted = true;
-      this.signal.reason =
-        reason;
+      this.signal.reason = reason;
     },
   };
+}
+
+function freezeShallow(value) {
+  if (
+    value &&
+    typeof value === "object"
+  ) {
+    return Object.freeze(value);
+  }
+
+  return value;
 }
 
 
@@ -602,7 +534,7 @@ class BootstrapContext {
     this.id =
       sanitizeString(
         options.id,
-        200,
+        MAX_ID_LENGTH,
       ) || createContextId();
 
     this.createdAt = now();
@@ -615,23 +547,7 @@ class BootstrapContext {
 
     /* -------------------------------------------------------------------------
      * Canonical lifecycle state
-     * ----------------------------------------------------------------------- *
-     *
-     * IMPORTANT:
-     *
-     * _state is the private internal storage.
-     *
-     * Public context.state is intentionally exposed as a read-only property.
-     * This prevents:
-     *
-     *   context.state = runtimeState
-     *
-     * and also prevents:
-     *
-     *   context.state = {}
-     *
-     * from corrupting the canonical lifecycle model.
-     */
+     * ----------------------------------------------------------------------- */
 
     this._state =
       CONTEXT_STATES.CREATED;
@@ -641,7 +557,6 @@ class BootstrapContext {
       "state",
       {
         enumerable: true,
-
         configurable: false,
 
         get: () => this._state,
@@ -689,17 +604,14 @@ class BootstrapContext {
         "bootstrap",
 
       version:
-        suppliedMetadata.version ||
-        null,
+        suppliedMetadata.version || null,
 
       nodeVersion:
         process.version,
 
       nodeMajor:
         Number(
-          process.versions.node.split(
-            ".",
-          )[0],
+          process.versions.node.split(".")[0],
         ),
 
       platform:
@@ -769,57 +681,35 @@ class BootstrapContext {
      * ----------------------------------------------------------------------- */
 
     this.container =
-      isPlainObject(
-        options.container,
-      )
+      isPlainObject(options.container)
         ? options.container
         : {};
 
     /* -------------------------------------------------------------------------
-     * Runtime/readiness state
+     * Runtime state
      * ----------------------------------------------------------------------- */
 
     this.runtime = {
       ready: false,
-
       acceptingTraffic: false,
-
       shuttingDown: false,
-
       shutdownComplete: false,
-
       degraded: false,
-
       startupDurationMs: null,
-
       shutdownDurationMs: null,
     };
 
-    if (
-      isPlainObject(
-        options.runtime,
-      )
-    ) {
-      for (
-        const [
-          key,
-          value,
-        ] of Object.entries(
-          options.runtime,
-        )
-      ) {
-        /**
-         * "state" is forbidden here because lifecycle state belongs exclusively
-         * to this._state / read-only context.state.
-         */
+    if (isPlainObject(options.runtime)) {
+      for (const [
+        key,
+        value,
+      ] of Object.entries(options.runtime)) {
         if (key === "state") {
           continue;
         }
 
         this.runtime[key] =
-          sanitizeMetadataValue(
-            value,
-          );
+          sanitizeMetadataValue(value);
       }
     }
 
@@ -837,19 +727,18 @@ class BootstrapContext {
       createPhaseRegistry();
 
     /* -------------------------------------------------------------------------
-     * History
+     * Diagnostics history
      * ----------------------------------------------------------------------- */
 
     this.history = [];
 
     /* -------------------------------------------------------------------------
-     * Shutdown hooks
+     * Shutdown orchestration
      * ----------------------------------------------------------------------- */
 
     this.shutdownHooks = [];
 
-    this.shutdownExecutionPromise =
-      null;
+    this.shutdownExecutionPromise = null;
 
     /* -------------------------------------------------------------------------
      * Abort controller
@@ -870,11 +759,8 @@ class BootstrapContext {
       "isTITechBootstrapContext",
       {
         enumerable: false,
-
         configurable: false,
-
         writable: false,
-
         value: true,
       },
     );
@@ -885,24 +771,29 @@ class BootstrapContext {
    * ===========================================================================
    */
 
-  /**
-   * Return canonical lifecycle state.
-   *
-   * @returns {string}
-   */
   getState() {
     return this._state;
   }
 
-  /**
-   * Internal lifecycle transition.
-   *
-   * Public callers should use the explicit lifecycle methods.
-   *
-   * @param {string} state
-   * @param {Object} options
-   * @returns {BootstrapContext}
-   */
+  isValidTransition(
+    nextState,
+  ) {
+    const normalized =
+      normalizeContextState(
+        nextState,
+      );
+
+    assertValidContextState(
+      normalized,
+    );
+
+    return (
+      this.getAllowedNextStates().includes(
+        normalized,
+      )
+    );
+  }
+
   _setState(
     state,
     options = {},
@@ -944,9 +835,7 @@ class BootstrapContext {
     this._state =
       normalizedState;
 
-    if (
-      options.record !== false
-    ) {
+    if (options.record !== false) {
       this.recordEvent(
         "lifecycle_state_changed",
         {
@@ -962,11 +851,6 @@ class BootstrapContext {
     return this;
   }
 
-  /**
-   * Return whether lifecycle is starting.
-   *
-   * @returns {boolean}
-   */
   isStarting() {
     return (
       this.getState() ===
@@ -974,11 +858,6 @@ class BootstrapContext {
     );
   }
 
-  /**
-   * Return whether runtime is ready.
-   *
-   * @returns {boolean}
-   */
   isReady() {
     return (
       this.getState() ===
@@ -991,25 +870,14 @@ class BootstrapContext {
     );
   }
 
-  /**
-   * Return whether shutdown has begun.
-   *
-   * @returns {boolean}
-   */
   isShuttingDown() {
     return (
       this.getState() ===
         CONTEXT_STATES.SHUTTING_DOWN ||
-      this.runtime.shuttingDown ===
-        true
+      this.runtime.shuttingDown === true
     );
   }
 
-  /**
-   * Return whether startup failed.
-   *
-   * @returns {boolean}
-   */
   isFailed() {
     return (
       this.getState() ===
@@ -1017,11 +885,6 @@ class BootstrapContext {
     );
   }
 
-  /**
-   * Return whether execution is stopped.
-   *
-   * @returns {boolean}
-   */
   isStopped() {
     return (
       this.getState() ===
@@ -1029,27 +892,13 @@ class BootstrapContext {
     );
   }
 
-  /**
-   * Return whether state is terminal for this context.
-   *
-   * FAILED is terminal for startup but can be followed by cleanup/shutdown.
-   *
-   * @returns {boolean}
-   */
   isTerminal() {
     return (
-      this.getState() ===
-        CONTEXT_STATES.FAILED ||
-      this.getState() ===
-        CONTEXT_STATES.STOPPED
+      this.isFailed() ||
+      this.isStopped()
     );
   }
 
-  /**
-   * Return valid next states.
-   *
-   * @returns {Array<string>}
-   */
   getAllowedNextStates() {
     return [
       ...(
@@ -1065,11 +914,6 @@ class BootstrapContext {
    * ===========================================================================
    */
 
-  /**
-   * CREATED → STARTING.
-   *
-   * @returns {BootstrapContext}
-   */
   start() {
     if (
       this.getState() !==
@@ -1102,6 +946,14 @@ class BootstrapContext {
     this.runtime.startupDurationMs = null;
     this.runtime.shutdownDurationMs = null;
 
+    if (this.signal.aborted) {
+      this.abortController =
+        createAbortController();
+
+      this.signal =
+        this.abortController.signal;
+    }
+
     this.recordEvent(
       "bootstrap_started",
       {
@@ -1113,11 +965,6 @@ class BootstrapContext {
     return this;
   }
 
-  /**
-   * STARTING → READY.
-   *
-   * @returns {BootstrapContext}
-   */
   markReady() {
     if (
       this.getState() !==
@@ -1128,6 +975,12 @@ class BootstrapContext {
       );
     }
 
+    /**
+     * runtimeReady is a bootstrap phase, not a dependency.
+     *
+     * It must already have been completed by the composition root before the
+     * context can become READY.
+     */
     this.validateRuntimeReady();
 
     this._setState(
@@ -1165,21 +1018,15 @@ class BootstrapContext {
     return this;
   }
 
-  /**
-   * Mark startup failed.
-   *
-   * STARTING/READY → FAILED.
-   *
-   * @param {*} error
-   * @param {string|null} phase
-   * @returns {BootstrapContext}
-   */
   markFailed(
     error,
     phase = null,
   ) {
+    const currentState =
+      this.getState();
+
     if (
-      this.getState() ===
+      currentState ===
       CONTEXT_STATES.STOPPED
     ) {
       throw new Error(
@@ -1188,7 +1035,7 @@ class BootstrapContext {
     }
 
     if (
-      this.getState() ===
+      currentState ===
       CONTEXT_STATES.SHUTTING_DOWN
     ) {
       throw new Error(
@@ -1197,7 +1044,7 @@ class BootstrapContext {
     }
 
     if (
-      this.getState() ===
+      currentState ===
       CONTEXT_STATES.FAILED
     ) {
       return this;
@@ -1243,13 +1090,15 @@ class BootstrapContext {
   }
 
   /**
-   * Begin shutdown.
-   *
-   * STARTING / READY / FAILED → SHUTTING_DOWN.
-   *
-   * @param {string} reason
-   * @returns {BootstrapContext}
+   * Compatibility alias.
    */
+  fail(error, phase = null) {
+    return this.markFailed(
+      error,
+      phase,
+    );
+  }
+
   beginShutdown(
     reason = "shutdown_requested",
   ) {
@@ -1316,33 +1165,20 @@ class BootstrapContext {
   }
 
   /**
-   * Explicit alias used by the composition root for failed startup cleanup.
-   *
-   * @param {string} reason
-   * @returns {BootstrapContext}
+   * Compatibility alias.
    */
+  shutdown(reason = "shutdown_requested") {
+    return this.beginShutdown(reason);
+  }
+
   beginShutdownAfterFailure(
     reason = "startup_failure",
   ) {
-    if (
-      this.getState() !==
-      CONTEXT_STATES.FAILED
-    ) {
-      return this.beginShutdown(
-        reason,
-      );
-    }
-
     return this.beginShutdown(
       reason,
     );
   }
 
-  /**
-   * SHUTTING_DOWN → STOPPED.
-   *
-   * @returns {BootstrapContext}
-   */
   markStopped() {
     if (
       this.getState() ===
@@ -1408,13 +1244,45 @@ class BootstrapContext {
    * ===========================================================================
    */
 
-  /**
-   * Start a phase in strict canonical order.
-   *
-   * @param {string} phase
-   * @param {Object} metadata
-   * @returns {Object}
-   */
+  getNextPhase() {
+    for (const phase of BOOTSTRAP_PHASES) {
+      const state =
+        this.phases[phase].state;
+
+      if (
+        state ===
+        PHASE_STATES.PENDING
+      ) {
+        return phase;
+      }
+
+      if (
+        state ===
+        PHASE_STATES.RUNNING
+      ) {
+        return phase;
+      }
+    }
+
+    return null;
+  }
+
+  assertNextPhase(phase) {
+    assertValidPhase(phase);
+
+    const nextPhase =
+      this.getNextPhase();
+
+    if (nextPhase !== phase) {
+      throw new Error(
+        `TITech bootstrap phase "${phase}" is not the next canonical phase. ` +
+          `Expected "${nextPhase}".`,
+      );
+    }
+
+    return true;
+  }
+
   startPhase(
     phase,
     metadata = {},
@@ -1429,6 +1297,8 @@ class BootstrapContext {
         `Cannot start TITech bootstrap phase "${phase}" while context is "${this.getState()}".`,
       );
     }
+
+    this.assertNextPhase(phase);
 
     const record =
       this.phases[phase];
@@ -1446,73 +1316,13 @@ class BootstrapContext {
       record.state ===
         PHASE_STATES.COMPLETED ||
       record.state ===
-        PHASE_STATES.FAILED
+        PHASE_STATES.FAILED ||
+      record.state ===
+        PHASE_STATES.SKIPPED
     ) {
       throw new Error(
-        `TITech bootstrap phase "${phase}" has already reached terminal state "${record.state}".`,
+        `TITech bootstrap phase "${phase}" has already reached state "${record.state}".`,
       );
-    }
-
-    const phaseIndex =
-      getPhaseIndex(phase);
-
-    const previousPhase =
-      phaseIndex > 0
-        ? BOOTSTRAP_PHASES[
-            phaseIndex - 1
-          ]
-        : null;
-
-    if (previousPhase) {
-      const previousState =
-        this.phases[
-          previousPhase
-        ].state;
-
-      if (
-        previousState !==
-          PHASE_STATES.COMPLETED &&
-        previousState !==
-          PHASE_STATES.SKIPPED
-      ) {
-        throw new Error(
-          `Cannot start TITech bootstrap phase "${phase}" before prerequisite phase "${previousPhase}" is completed or skipped.`,
-        );
-      }
-    }
-
-    if (
-      isLifecycleTerminalPhase(
-        phase,
-      )
-    ) {
-      const allPreviousPhasesComplete =
-        BOOTSTRAP_PHASES.filter(
-          (candidate) =>
-            candidate !==
-            "runtimeReady",
-        ).every(
-          (candidate) => {
-            const state =
-              this.phases[candidate]
-                .state;
-
-            return (
-              state ===
-                PHASE_STATES.COMPLETED ||
-              state ===
-                PHASE_STATES.SKIPPED
-            );
-          },
-        );
-
-      if (
-        !allPreviousPhasesComplete
-      ) {
-        throw new Error(
-          "Cannot start TITech runtimeReady before all prerequisite bootstrap phases are complete.",
-        );
-      }
     }
 
     const timestamp = now();
@@ -1548,13 +1358,6 @@ class BootstrapContext {
     return record;
   }
 
-  /**
-   * Complete a running phase.
-   *
-   * @param {string} phase
-   * @param {Object} metadata
-   * @returns {Object}
-   */
   completePhase(
     phase,
     metadata = {},
@@ -1592,7 +1395,6 @@ class BootstrapContext {
 
     record.metadata = {
       ...record.metadata,
-
       ...cloneMetadata(metadata),
     };
 
@@ -1612,14 +1414,6 @@ class BootstrapContext {
     return record;
   }
 
-  /**
-   * Fail a bootstrap phase and fail the current context.
-   *
-   * @param {string} phase
-   * @param {*} error
-   * @param {Object} metadata
-   * @returns {Object}
-   */
   failPhase(
     phase,
     error,
@@ -1663,7 +1457,6 @@ class BootstrapContext {
 
     record.metadata = {
       ...record.metadata,
-
       ...cloneMetadata(metadata),
     };
 
@@ -1691,14 +1484,6 @@ class BootstrapContext {
     return record;
   }
 
-  /**
-   * Skip an optional phase.
-   *
-   * @param {string} phase
-   * @param {string} reason
-   * @param {Object} metadata
-   * @returns {Object}
-   */
   skipPhase(
     phase,
     reason = "not_required",
@@ -1715,54 +1500,24 @@ class BootstrapContext {
       );
     }
 
-    const record =
-      this.phases[phase];
-
-    if (
-      record.state ===
-        PHASE_STATES.COMPLETED ||
-      record.state ===
-        PHASE_STATES.RUNNING ||
-      record.state ===
-        PHASE_STATES.FAILED
-    ) {
-      throw new Error(
-        `Cannot skip TITech bootstrap phase "${phase}" from state "${record.state}".`,
-      );
-    }
-
-    if (
-      phase === "runtimeReady"
-    ) {
+    if (phase === "runtimeReady") {
       throw new Error(
         "The TITech runtimeReady phase cannot be skipped.",
       );
     }
 
-    const phaseIndex =
-      getPhaseIndex(phase);
+    this.assertNextPhase(phase);
 
-    if (phaseIndex > 0) {
-      const previousPhase =
-        BOOTSTRAP_PHASES[
-          phaseIndex - 1
-        ];
+    const record =
+      this.phases[phase];
 
-      const previousState =
-        this.phases[
-          previousPhase
-        ].state;
-
-      if (
-        previousState !==
-          PHASE_STATES.COMPLETED &&
-        previousState !==
-          PHASE_STATES.SKIPPED
-      ) {
-        throw new Error(
-          `Cannot skip TITech bootstrap phase "${phase}" before prerequisite phase "${previousPhase}" is complete.`,
-        );
-      }
+    if (
+      record.state !==
+      PHASE_STATES.PENDING
+    ) {
+      throw new Error(
+        `Cannot skip TITech bootstrap phase "${phase}" from state "${record.state}".`,
+      );
     }
 
     record.state =
@@ -1860,97 +1615,87 @@ class BootstrapContext {
    * ===========================================================================
    */
 
-  setEnvironment(
-    environment,
+  _setDependency(
+    name,
+    value,
   ) {
-    this.environment =
-      environment;
+    this[name] =
+      value;
 
     return this;
   }
 
-  setConfiguration(
-    configuration,
-  ) {
-    this.configuration =
-      configuration;
+  setEnvironment(environment) {
+    return this._setDependency(
+      "environment",
+      environment,
+    );
+  }
 
-    return this;
+  setConfiguration(configuration) {
+    return this._setDependency(
+      "configuration",
+      configuration,
+    );
   }
 
   setLogger(logger) {
-    this.logger =
-      logger;
-
-    return this;
+    return this._setDependency(
+      "logger",
+      logger,
+    );
   }
 
-  setObservability(
-    observability,
-  ) {
-    this.observability =
-      observability;
-
-    return this;
+  setObservability(observability) {
+    return this._setDependency(
+      "observability",
+      observability,
+    );
   }
 
-  setReadiness(
-    readiness,
-  ) {
-    this.readiness =
-      readiness;
-
-    return this;
+  setReadiness(readiness) {
+    return this._setDependency(
+      "readiness",
+      readiness,
+    );
   }
 
-  setResilience(
-    resilience,
-  ) {
-    this.resilience =
-      resilience;
-
-    return this;
+  setResilience(resilience) {
+    return this._setDependency(
+      "resilience",
+      resilience,
+    );
   }
 
-  setInfrastructure(
-    infrastructure,
-  ) {
-    this.infrastructure =
-      infrastructure;
-
-    return this;
+  setInfrastructure(infrastructure) {
+    return this._setDependency(
+      "infrastructure",
+      infrastructure,
+    );
   }
 
-  setServices(
-    services,
-  ) {
-    this.services =
-      services;
-
-    return this;
+  setServices(services) {
+    return this._setDependency(
+      "services",
+      services,
+    );
   }
 
-  setMiddleware(
-    middleware,
-  ) {
-    this.middleware =
-      middleware;
-
-    return this;
+  setMiddleware(middleware) {
+    return this._setDependency(
+      "middleware",
+      middleware,
+    );
   }
 
-  setRoutes(
-    routes,
-  ) {
-    this.routes =
-      routes;
-
-    return this;
+  setRoutes(routes) {
+    return this._setDependency(
+      "routes",
+      routes,
+    );
   }
 
-  setHttpServer(
-    httpServer,
-  ) {
+  setHttpServer(httpServer) {
     this.httpServer =
       httpServer || null;
 
@@ -1966,24 +1711,19 @@ class BootstrapContext {
     );
   }
 
-  setApplication(
-    application,
-  ) {
-    this.application =
-      application;
-
-    return this;
+  setApplication(application) {
+    return this._setDependency(
+      "application",
+      application,
+    );
   }
 
-  setContainer(
-    container,
-  ) {
+  setContainer(container) {
     if (
       container === null ||
       container === undefined
     ) {
       this.container = {};
-
       return this;
     }
 
@@ -2001,10 +1741,79 @@ class BootstrapContext {
     return this;
   }
 
-  /* ===========================================================================
-   * DEPENDENCY VALIDATION
-   * ===========================================================================
-   */
+  registerDependency(
+    name,
+    value,
+    options = {},
+  ) {
+    if (
+      typeof name !== "string" ||
+      name.trim() === ""
+    ) {
+      throw new TypeError(
+        "TITech dependency name must be a non-empty string.",
+      );
+    }
+
+    const normalizedName =
+      name
+        .trim()
+        .slice(
+          0,
+          MAX_DEPENDENCY_NAME_LENGTH,
+        );
+
+    if (
+      !normalizedName
+    ) {
+      throw new TypeError(
+        "TITech dependency name cannot be empty.",
+      );
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        this.container,
+        normalizedName,
+      ) &&
+      options.overwrite !== true
+    ) {
+      throw new Error(
+        `TITech dependency "${normalizedName}" is already registered.`,
+      );
+    }
+
+    this.container[
+      normalizedName
+    ] = value;
+
+    this.recordEvent(
+      "dependency_registered",
+      {
+        name:
+          normalizedName,
+
+        available:
+          value !== null &&
+          value !== undefined,
+      },
+    );
+
+    return this;
+  }
+
+  resolveDependency(name) {
+    if (
+      typeof name !== "string" ||
+      name.trim() === ""
+    ) {
+      return undefined;
+    }
+
+    return this.container[
+      name.trim()
+    ];
+  }
 
   hasDependency(name) {
     if (
@@ -2015,25 +1824,36 @@ class BootstrapContext {
     }
 
     const normalizedName =
-      name.slice(
-        0,
-        MAX_DEPENDENCY_NAME_LENGTH,
-      );
+      name
+        .trim()
+        .slice(
+          0,
+          MAX_DEPENDENCY_NAME_LENGTH,
+        );
 
     if (
-      !Object.prototype.hasOwnProperty.call(
+      Object.prototype.hasOwnProperty.call(
         this,
         normalizedName,
       )
     ) {
-      return false;
+      return (
+        this[normalizedName] !== null &&
+        this[normalizedName] !== undefined
+      );
     }
 
     return (
-      this[normalizedName] !==
-        null &&
-      this[normalizedName] !==
-        undefined
+      Object.prototype.hasOwnProperty.call(
+        this.container,
+        normalizedName,
+      ) &&
+      this.container[
+        normalizedName
+      ] !== null &&
+      this.container[
+        normalizedName
+      ] !== undefined
     );
   }
 
@@ -2049,12 +1869,19 @@ class BootstrapContext {
       );
     }
 
-    return this[name];
+    if (
+      Object.prototype.hasOwnProperty.call(
+        this,
+        name,
+      )
+    ) {
+      return this[name];
+    }
+
+    return this.container[name];
   }
 
-  requireAnyDependency(
-    names = [],
-  ) {
+  requireAnyDependency(names = []) {
     if (
       !Array.isArray(names) ||
       names.length === 0
@@ -2064,13 +1891,13 @@ class BootstrapContext {
       );
     }
 
-    for (
-      const name of names
-    ) {
+    for (const name of names) {
       if (
         this.hasDependency(name)
       ) {
-        return this[name];
+        return this.requireDependency(
+          name,
+        );
       }
     }
 
@@ -2103,14 +1930,12 @@ class BootstrapContext {
       throw new TypeError(
         `Shutdown hook "${sanitizeString(
           name,
-          200,
+          MAX_HOOK_NAME_LENGTH,
         )}" must provide a function handler.`,
       );
     }
 
-    if (
-      this.isStopped()
-    ) {
+    if (this.isStopped()) {
       throw new Error(
         "Cannot register a shutdown hook on a stopped TITech bootstrap context.",
       );
@@ -2119,7 +1944,7 @@ class BootstrapContext {
     const normalizedName =
       sanitizeString(
         name,
-        200,
+        MAX_HOOK_NAME_LENGTH,
       ) ||
       `shutdown-hook-${
         this.shutdownHooks.length + 1
@@ -2173,24 +1998,7 @@ class BootstrapContext {
       hook,
     );
 
-    this.shutdownHooks.sort(
-      (a, b) => {
-        if (
-          b.priority !==
-          a.priority
-        ) {
-          return (
-            b.priority -
-            a.priority
-          );
-        }
-
-        return (
-          a.registeredAt.getTime() -
-          b.registeredAt.getTime()
-        );
-      },
-    );
+    this._sortShutdownHooks();
 
     this.recordEvent(
       "shutdown_hook_registered",
@@ -2211,22 +2019,90 @@ class BootstrapContext {
     );
   }
 
-  /**
-   * Execute all registered hooks once.
-   *
-   * @returns {Promise<Array>}
-   */
+  _sortShutdownHooks() {
+    this.shutdownHooks.sort(
+      (a, b) => {
+        if (
+          b.priority !==
+          a.priority
+        ) {
+          return (
+            b.priority -
+            a.priority
+          );
+        }
+
+        return (
+          a.registeredAt.getTime() -
+          b.registeredAt.getTime()
+        );
+      },
+    );
+  }
+
+  unregisterShutdownHook(name) {
+    const normalizedName =
+      sanitizeString(
+        name,
+        MAX_HOOK_NAME_LENGTH,
+      );
+
+    const index =
+      this.shutdownHooks.findIndex(
+        (hook) =>
+          hook.name ===
+          normalizedName,
+      );
+
+    if (index === -1) {
+      return false;
+    }
+
+    const hook =
+      this.shutdownHooks[index];
+
+    if (
+      hook.status ===
+        "running" ||
+      hook.status ===
+        "completed"
+    ) {
+      throw new Error(
+        `Cannot unregister TITech shutdown hook "${normalizedName}" after execution has begun.`,
+      );
+    }
+
+    this.shutdownHooks.splice(
+      index,
+      1,
+    );
+
+    this.recordEvent(
+      "shutdown_hook_unregistered",
+      {
+        name:
+          normalizedName,
+      },
+    );
+
+    return true;
+  }
+
+  getShutdownHooks() {
+    return this.shutdownHooks.map(
+      (hook) =>
+        this._serializeShutdownHook(
+          hook,
+        ),
+    );
+  }
+
   async executeShutdownHooks() {
     if (
       this.getState() ===
       CONTEXT_STATES.STOPPED
     ) {
-      return this.shutdownHooks.map(
-        (hook) =>
-          this._serializeShutdownHook(
-            hook,
-          ),
-      );
+      return this.getShutdownHooks();
     }
 
     if (
@@ -2245,87 +2121,7 @@ class BootstrapContext {
     }
 
     this.shutdownExecutionPromise =
-      (async () => {
-        for (
-          const hook of
-            this.shutdownHooks
-        ) {
-          if (
-            hook.status ===
-              "completed" ||
-            hook.status ===
-              "running"
-          ) {
-            continue;
-          }
-
-          hook.status =
-            "running";
-
-          try {
-            await this.executeWithTimeout(
-              hook.handler,
-              hook.timeoutMs,
-              `TITech shutdown hook "${hook.name}" timed out after ${hook.timeoutMs}ms.`,
-            );
-
-            hook.status =
-              "completed";
-
-            hook.executedAt =
-              now();
-
-            this.recordEvent(
-              "shutdown_hook_completed",
-              {
-                name:
-                  hook.name,
-
-                priority:
-                  hook.priority,
-              },
-            );
-          } catch (error) {
-            hook.status =
-              "failed";
-
-            hook.executedAt =
-              now();
-
-            hook.error =
-              normalizeError(
-                error,
-              );
-
-            this.runtime.degraded =
-              true;
-
-            this.recordEvent(
-              "shutdown_hook_failed",
-              {
-                name:
-                  hook.name,
-
-                error:
-                  hook.error,
-              },
-            );
-          }
-        }
-
-        /**
-         * Even if individual hooks fail, the context must reach STOPPED after
-         * shutdown orchestration completes.
-         */
-        this.markStopped();
-
-        return this.shutdownHooks.map(
-          (hook) =>
-            this._serializeShutdownHook(
-              hook,
-            ),
-        );
-      })();
+      this._executeShutdownHooksInternal();
 
     try {
       return await this
@@ -2334,6 +2130,74 @@ class BootstrapContext {
       this.shutdownExecutionPromise =
         null;
     }
+  }
+
+  async _executeShutdownHooksInternal() {
+    for (const hook of this.shutdownHooks) {
+      if (
+        hook.status ===
+          "completed" ||
+        hook.status ===
+          "failed"
+      ) {
+        continue;
+      }
+
+      hook.status =
+        "running";
+
+      try {
+        await this.executeWithTimeout(
+          hook.handler,
+          hook.timeoutMs,
+          `TITech shutdown hook "${hook.name}" timed out after ${hook.timeoutMs}ms.`,
+        );
+
+        hook.status =
+          "completed";
+
+        hook.executedAt =
+          now();
+
+        this.recordEvent(
+          "shutdown_hook_completed",
+          {
+            name:
+              hook.name,
+
+            priority:
+              hook.priority,
+          },
+        );
+      } catch (error) {
+        hook.status =
+          "failed";
+
+        hook.executedAt =
+          now();
+
+        hook.error =
+          normalizeError(error);
+
+        this.runtime.degraded =
+          true;
+
+        this.recordEvent(
+          "shutdown_hook_failed",
+          {
+            name:
+              hook.name,
+
+            error:
+              hook.error,
+          },
+        );
+      }
+    }
+
+    this.markStopped();
+
+    return this.getShutdownHooks();
   }
 
   async executeWithTimeout(
@@ -2378,9 +2242,7 @@ class BootstrapContext {
 
         Promise.resolve()
           .then(() =>
-            handler(
-              this,
-            ),
+            handler(this),
           )
           .then(
             (result) => {
@@ -2413,9 +2275,7 @@ class BootstrapContext {
   abort(
     reason = "bootstrap_aborted",
   ) {
-    if (
-      !this.signal.aborted
-    ) {
+    if (!this.signal.aborted) {
       const safeReason =
         sanitizeString(
           reason,
@@ -2440,7 +2300,7 @@ class BootstrapContext {
   }
 
   /* ===========================================================================
-   * PHASE / BOOTSTRAP STATUS
+   * BOOTSTRAP STATUS
    * ===========================================================================
    */
 
@@ -2501,61 +2361,41 @@ class BootstrapContext {
   }
 
   validateBootstrapOrder() {
-    for (
-      let index = 0;
-      index <
-      BOOTSTRAP_PHASES.length;
-      index += 1
-    ) {
-      const phase =
-        BOOTSTRAP_PHASES[index];
+    let encounteredPending =
+      false;
 
-      const record =
-        this.phases[phase];
+    for (
+      const phase of BOOTSTRAP_PHASES
+    ) {
+      const state =
+        this.phases[phase].state;
 
       if (
-        record.state ===
-        PHASE_STATES.COMPLETED
+        state ===
+        PHASE_STATES.PENDING
       ) {
-        for (
-          let previous = 0;
-          previous < index;
-          previous += 1
-        ) {
-          const previousPhase =
-            BOOTSTRAP_PHASES[
-              previous
-            ];
+        encounteredPending = true;
+        continue;
+      }
 
-          const previousState =
-            this.phases[
-              previousPhase
-            ].state;
-
-          if (
-            previousState !==
-              PHASE_STATES.COMPLETED &&
-            previousState !==
-              PHASE_STATES.SKIPPED
-          ) {
-            throw new Error(
-              `TITech bootstrap phase "${phase}" completed before prerequisite phase "${previousPhase}".`,
-            );
-          }
-        }
+      if (
+        encounteredPending &&
+        (
+          state ===
+            PHASE_STATES.COMPLETED ||
+          state ===
+            PHASE_STATES.SKIPPED
+        )
+      ) {
+        throw new Error(
+          `TITech bootstrap phase "${phase}" completed after a later pending phase, violating canonical order.`,
+        );
       }
     }
 
     return true;
   }
 
-  /**
-   * Validate production runtime readiness.
-   *
-   * The final phase must be complete before markReady() can succeed.
-   *
-   * @returns {boolean}
-   */
   validateRuntimeReady() {
     const missingDependencies =
       [];
@@ -2590,8 +2430,7 @@ class BootstrapContext {
     }
 
     if (
-      missingDependencies.length >
-      0
+      missingDependencies.length > 0
     ) {
       const error =
         new Error(
@@ -2625,8 +2464,7 @@ class BootstrapContext {
       );
 
     if (
-      incompletePhases.length >
-      0
+      incompletePhases.length > 0
     ) {
       const error =
         new Error(
@@ -2753,21 +2591,11 @@ class BootstrapContext {
     };
   }
 
-  /**
-   * Return production-safe diagnostics.
-   *
-   * No live infrastructure objects or handler functions are serialized.
-   *
-   * @returns {Object}
-   */
   getDiagnostics() {
-    return {
+    const diagnostics = {
       id:
         this.id,
 
-      /**
-       * Canonical primitive lifecycle state.
-       */
       state:
         this.getState(),
 
@@ -2789,16 +2617,18 @@ class BootstrapContext {
       stoppedAt:
         this.stoppedAt,
 
-      runtime: {
-        ...this.runtime,
-      },
+      runtime:
+        {
+          ...this.runtime,
+        },
 
-      application: {
-        available:
-          Boolean(
-            this.application,
-          ),
-      },
+      application:
+        {
+          available:
+            Boolean(
+              this.application,
+            ),
+        },
 
       phases:
         Object.entries(
@@ -2854,70 +2684,77 @@ class BootstrapContext {
       skippedPhases:
         this.getSkippedPhases(),
 
-      dependencies: {
-        environment:
-          this.hasDependency(
-            "environment",
-          ),
+      nextPhase:
+        this.getNextPhase(),
 
-        configuration:
-          this.hasDependency(
-            "configuration",
-          ),
+      bootstrapComplete:
+        this.isBootstrapComplete(),
 
-        logger:
-          this.hasDependency(
-            "logger",
-          ),
+      dependencies:
+        {
+          environment:
+            this.hasDependency(
+              "environment",
+            ),
 
-        observability:
-          this.hasDependency(
-            "observability",
-          ),
+          configuration:
+            this.hasDependency(
+              "configuration",
+            ),
 
-        readiness:
-          this.hasDependency(
-            "readiness",
-          ),
+          logger:
+            this.hasDependency(
+              "logger",
+            ),
 
-        resilience:
-          this.hasDependency(
-            "resilience",
-          ),
+          observability:
+            this.hasDependency(
+              "observability",
+            ),
 
-        infrastructure:
-          this.hasDependency(
-            "infrastructure",
-          ),
+          readiness:
+            this.hasDependency(
+              "readiness",
+            ),
 
-        services:
-          this.hasDependency(
-            "services",
-          ),
+          resilience:
+            this.hasDependency(
+              "resilience",
+            ),
 
-        middleware:
-          this.hasDependency(
-            "middleware",
-          ),
+          infrastructure:
+            this.hasDependency(
+              "infrastructure",
+            ),
 
-        routes:
-          this.hasDependency(
-            "routes",
-          ),
+          services:
+            this.hasDependency(
+              "services",
+            ),
 
-        httpServer:
-          this.hasDependency(
-            "httpServer",
-          ),
-      },
+          middleware:
+            this.hasDependency(
+              "middleware",
+            ),
+
+          routes:
+            this.hasDependency(
+              "routes",
+            ),
+
+          httpServer:
+            this.hasDependency(
+              "httpServer",
+            ),
+        },
+
+      containerDependencies:
+        Object.keys(
+          this.container,
+        ),
 
       shutdownHooks:
-        this.shutdownHooks.map(
-          (hook) =>
-            this._serializeShutdownHook(
-              hook,
-            ),
-        ),
+        this.getShutdownHooks(),
 
       historySize:
         this.history.length,
@@ -2925,18 +2762,19 @@ class BootstrapContext {
       historyLimit:
         this.historyLimit,
 
-      signal: {
-        aborted:
-          this.signal.aborted,
+      signal:
+        {
+          aborted:
+            this.signal.aborted,
 
-        reason:
-          this.signal.aborted
-            ? sanitizeString(
-                this.signal.reason,
-                MAX_REASON_LENGTH,
-              )
-            : null,
-      },
+          reason:
+            this.signal.aborted
+              ? sanitizeString(
+                  this.signal.reason,
+                  MAX_REASON_LENGTH,
+                )
+              : null,
+        },
 
       error:
         this.error
@@ -2950,6 +2788,8 @@ class BootstrapContext {
           this.metadata,
         ),
     };
+
+    return diagnostics;
   }
 
   toJSON() {

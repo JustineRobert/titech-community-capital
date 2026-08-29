@@ -1,0 +1,1742 @@
+/**
+ * ============================================================================
+ * TITech Community Capital Ltd
+ * Enterprise TITech Chat — Support Threads Styles
+ * ============================================================================
+ *
+ * File:
+ *   frontend/src/pages/TITechChat/SupportThreads.css
+ *
+ * Version:
+ *   3.0.0
+ *
+ * Purpose:
+ *   Production-grade presentation system for the TITech Community Capital
+ *   support-thread workspace.
+ *
+ * Design goals:
+ *   - Enterprise financial-services UX
+ *   - Accessible keyboard navigation
+ *   - Responsive/mobile-first behavior
+ *   - Clear support-thread hierarchy
+ *   - Strong loading, empty and error states
+ *   - Safe long-content handling
+ *   - Reduced-motion support
+ *   - High-contrast compatibility
+ *   - Print-friendly output
+ *   - No dependency on backend implementation details
+ *
+ * Branding:
+ *   TITech Community Capital
+ *
+ * IMPORTANT:
+ *   This stylesheet intentionally avoids ACFOS terminology.
+ *
+ * ============================================================================
+ */
+
+/* ============================================================================
+ * 1. DESIGN TOKENS
+ * ========================================================================== */
+
+.support-threads {
+  --st-color-primary: #14532d;
+  --st-color-primary-hover: #166534;
+  --st-color-primary-active: #15803d;
+  --st-color-primary-soft: #f0fdf4;
+
+  --st-color-secondary: #1e3a8a;
+  --st-color-secondary-soft: #eff6ff;
+
+  --st-color-success: #166534;
+  --st-color-success-soft: #f0fdf4;
+
+  --st-color-warning: #92400e;
+  --st-color-warning-soft: #fffbeb;
+
+  --st-color-danger: #b91c1c;
+  --st-color-danger-soft: #fef2f2;
+
+  --st-color-info: #075985;
+  --st-color-info-soft: #f0f9ff;
+
+  --st-color-text: #172033;
+  --st-color-text-muted: #5b6472;
+  --st-color-text-subtle: #737d8c;
+  --st-color-text-inverse: #ffffff;
+
+  --st-color-surface: #ffffff;
+  --st-color-surface-subtle: #f8fafc;
+  --st-color-surface-muted: #f1f5f9;
+
+  --st-color-border: #dbe2ea;
+  --st-color-border-strong: #c7d0db;
+
+  --st-color-overlay: rgb(15 23 42 / 0.45);
+
+  --st-radius-xs: 0.25rem;
+  --st-radius-sm: 0.375rem;
+  --st-radius-md: 0.625rem;
+  --st-radius-lg: 0.875rem;
+  --st-radius-xl: 1.125rem;
+  --st-radius-pill: 999px;
+
+  --st-shadow-sm:
+    0 1px 2px rgb(15 23 42 / 0.06);
+
+  --st-shadow-md:
+    0 4px 12px rgb(15 23 42 / 0.08);
+
+  --st-shadow-lg:
+    0 12px 32px rgb(15 23 42 / 0.12);
+
+  --st-focus-ring:
+    0 0 0 3px rgb(37 99 235 / 0.22);
+
+  --st-transition-fast:
+    120ms ease;
+
+  --st-transition:
+    180ms ease;
+
+  --st-transition-slow:
+    280ms ease;
+
+  --st-content-max-width: 1440px;
+
+  --st-control-height: 42px;
+
+  --st-page-padding: clamp(
+    1rem,
+    2.5vw,
+    2rem
+  );
+
+  color: var(--st-color-text);
+  background: var(--st-color-surface-subtle);
+  box-sizing: border-box;
+}
+
+.support-threads *,
+.support-threads *::before,
+.support-threads *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+ * 2. PAGE SHELL
+ * ========================================================================== */
+
+.support-threads-page,
+.support-threads__page {
+  width: 100%;
+  min-height: 100%;
+  padding: var(--st-page-padding);
+}
+
+.support-threads__container,
+.support-threads-page__container {
+  width: min(
+    100%,
+    var(--st-content-max-width)
+  );
+  margin-inline: auto;
+}
+
+/* ============================================================================
+ * 3. PAGE HEADER
+ * ========================================================================== */
+
+.support-threads__header,
+.support-threads-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.support-threads__header-content {
+  min-width: 0;
+}
+
+.support-threads__eyebrow {
+  margin: 0 0 0.3rem;
+  color: var(--st-color-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.support-threads__title,
+.support-threads-page__title {
+  margin: 0;
+  color: var(--st-color-text);
+  font-size: clamp(
+    1.45rem,
+    2.5vw,
+    2rem
+  );
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.support-threads__subtitle,
+.support-threads-page__subtitle {
+  max-width: 760px;
+  margin: 0.55rem 0 0;
+  color: var(--st-color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.support-threads__header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+/* ============================================================================
+ * 4. BUTTONS
+ * ========================================================================== */
+
+.support-threads button,
+.support-threads input,
+.support-threads select,
+.support-threads textarea {
+  font: inherit;
+}
+
+.support-threads button {
+  cursor: pointer;
+}
+
+.support-threads__button {
+  display: inline-flex;
+  min-height: var(--st-control-height);
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.625rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: var(--st-radius-md);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color var(--st-transition),
+    border-color var(--st-transition),
+    box-shadow var(--st-transition),
+    color var(--st-transition),
+    transform var(--st-transition-fast);
+}
+
+.support-threads__button:hover {
+  transform: translateY(-1px);
+}
+
+.support-threads__button:active {
+  transform: translateY(0);
+}
+
+.support-threads__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.support-threads__button:focus-visible,
+.support-threads button:focus-visible,
+.support-threads input:focus-visible,
+.support-threads select:focus-visible,
+.support-threads textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--st-focus-ring);
+}
+
+.support-threads__button--primary {
+  color: var(--st-color-text-inverse);
+  background: var(--st-color-primary);
+  border-color: var(--st-color-primary);
+}
+
+.support-threads__button--primary:hover {
+  background: var(--st-color-primary-hover);
+  border-color: var(--st-color-primary-hover);
+}
+
+.support-threads__button--secondary {
+  color: var(--st-color-text);
+  background: var(--st-color-surface);
+  border-color: var(--st-color-border);
+}
+
+.support-threads__button--secondary:hover {
+  background: var(--st-color-surface-muted);
+  border-color: var(--st-color-border-strong);
+}
+
+.support-threads__button--danger {
+  color: var(--st-color-danger);
+  background: var(--st-color-danger-soft);
+  border-color: #fecaca;
+}
+
+.support-threads__button--ghost {
+  color: var(--st-color-text-muted);
+  background: transparent;
+  border-color: transparent;
+}
+
+.support-threads__button--ghost:hover {
+  color: var(--st-color-text);
+  background: var(--st-color-surface-muted);
+}
+
+.support-threads__button--small {
+  min-height: 34px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+/* ============================================================================
+ * 5. SUMMARY / KPI CARDS
+ * ========================================================================== */
+
+.support-threads__summary,
+.support-threads__stats {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(170px, 1fr)
+    );
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.support-threads__stat,
+.support-threads__summary-card {
+  min-width: 0;
+  padding: 1rem;
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-sm);
+}
+
+.support-threads__stat-label,
+.support-threads__summary-label {
+  margin: 0;
+  color: var(--st-color-text-subtle);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.support-threads__stat-value,
+.support-threads__summary-value {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--st-color-text);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.support-threads__stat--open
+.support-threads__stat-value {
+  color: var(--st-color-primary);
+}
+
+.support-threads__stat--urgent
+.support-threads__stat-value {
+  color: var(--st-color-danger);
+}
+
+/* ============================================================================
+ * 6. FILTER / SEARCH TOOLBAR
+ * ========================================================================== */
+
+.support-threads__toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-sm);
+}
+
+.support-threads__toolbar-main {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns:
+    minmax(220px, 2fr)
+    repeat(2, minmax(140px, 1fr));
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.support-threads__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.support-threads__field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.support-threads__label {
+  color: var(--st-color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.support-threads__input,
+.support-threads__select,
+.support-threads__textarea {
+  width: 100%;
+  color: var(--st-color-text);
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-md);
+  transition:
+    border-color var(--st-transition),
+    box-shadow var(--st-transition);
+}
+
+.support-threads__input,
+.support-threads__select {
+  height: var(--st-control-height);
+  padding: 0 0.75rem;
+}
+
+.support-threads__textarea {
+  min-height: 120px;
+  padding: 0.75rem;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.support-threads__input::placeholder,
+.support-threads__textarea::placeholder {
+  color: var(--st-color-text-subtle);
+}
+
+.support-threads__input:hover,
+.support-threads__select:hover,
+.support-threads__textarea:hover {
+  border-color: var(--st-color-border-strong);
+}
+
+.support-threads__input:focus,
+.support-threads__select:focus,
+.support-threads__textarea:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: var(--st-focus-ring);
+}
+
+/* Search field with optional icon wrapper */
+
+.support-threads__search {
+  position: relative;
+  min-width: 0;
+}
+
+.support-threads__search .support-threads__input {
+  padding-inline-start: 2.35rem;
+}
+
+.support-threads__search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.8rem;
+  width: 1rem;
+  height: 1rem;
+  color: var(--st-color-text-subtle);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+/* ============================================================================
+ * 7. THREAD LIST
+ * ========================================================================== */
+
+.support-threads__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.support-threads__list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.support-threads__list-title {
+  margin: 0;
+  color: var(--st-color-text);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.support-threads__list-count {
+  color: var(--st-color-text-muted);
+  font-size: 0.8rem;
+}
+
+/* ============================================================================
+ * 8. THREAD CARD
+ * ========================================================================== */
+
+.support-thread,
+.support-threads__thread {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1rem;
+  overflow: hidden;
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-sm);
+  transition:
+    border-color var(--st-transition),
+    box-shadow var(--st-transition),
+    transform var(--st-transition);
+}
+
+.support-thread:hover,
+.support-threads__thread:hover {
+  border-color: var(--st-color-border-strong);
+  box-shadow: var(--st-shadow-md);
+  transform: translateY(-1px);
+}
+
+.support-thread:focus-within,
+.support-threads__thread:focus-within {
+  border-color: #93c5fd;
+  box-shadow: var(--st-focus-ring);
+}
+
+.support-thread__main,
+.support-threads__thread-main {
+  min-width: 0;
+}
+
+.support-thread__aside,
+.support-threads__thread-aside {
+  display: flex;
+  min-width: 90px;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+/* Clickable card support */
+
+.support-thread--clickable,
+.support-threads__thread--clickable {
+  cursor: pointer;
+}
+
+/* Selected thread */
+
+.support-thread.is-selected,
+.support-threads__thread.is-selected {
+  border-color: #60a5fa;
+  box-shadow:
+    0 0 0 2px rgb(37 99 235 / 0.12),
+    var(--st-shadow-md);
+}
+
+/* ============================================================================
+ * 9. THREAD HEADER
+ * ========================================================================== */
+
+.support-thread__header,
+.support-threads__thread-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.support-thread__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.support-thread__avatar {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--st-color-primary);
+  background: var(--st-color-primary-soft);
+  border: 1px solid #bbf7d0;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.support-thread__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.support-thread__author {
+  min-width: 0;
+}
+
+.support-thread__author-name {
+  overflow: hidden;
+  color: var(--st-color-text);
+  font-size: 0.875rem;
+  font-weight: 750;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-thread__author-meta {
+  margin-top: 0.15rem;
+  overflow: hidden;
+  color: var(--st-color-text-subtle);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-thread__timestamp {
+  flex: 0 0 auto;
+  color: var(--st-color-text-subtle);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+ * 10. THREAD SUBJECT / CONTENT
+ * ========================================================================== */
+
+.support-thread__subject,
+.support-threads__thread-subject {
+  margin: 0.7rem 0 0;
+  color: var(--st-color-text);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.support-thread__preview,
+.support-threads__thread-preview {
+  display: -webkit-box;
+  margin: 0.45rem 0 0;
+  overflow: hidden;
+  color: var(--st-color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+}
+
+.support-thread__content,
+.support-threads__thread-content {
+  color: var(--st-color-text);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.support-thread__content p,
+.support-threads__thread-content p {
+  margin: 0 0 0.65rem;
+}
+
+.support-thread__content p:last-child,
+.support-threads__thread-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================================================
+ * 11. THREAD TAGS / BADGES
+ * ========================================================================== */
+
+.support-thread__badges,
+.support-threads__thread-badges,
+.support-thread__tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.support-thread__badge,
+.support-threads__badge,
+.support-thread__tag {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0.22rem 0.55rem;
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-pill);
+  color: var(--st-color-text-muted);
+  background: var(--st-color-surface-muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.support-thread__badge--open,
+.support-threads__badge--open {
+  color: var(--st-color-success);
+  background: var(--st-color-success-soft);
+  border-color: #bbf7d0;
+}
+
+.support-thread__badge--pending,
+.support-threads__badge--pending {
+  color: var(--st-color-warning);
+  background: var(--st-color-warning-soft);
+  border-color: #fde68a;
+}
+
+.support-thread__badge--resolved,
+.support-threads__badge--resolved,
+.support-thread__badge--closed {
+  color: var(--st-color-text-muted);
+  background: var(--st-color-surface-muted);
+  border-color: var(--st-color-border);
+}
+
+.support-thread__badge--urgent,
+.support-threads__badge--urgent,
+.support-thread__badge--critical {
+  color: var(--st-color-danger);
+  background: var(--st-color-danger-soft);
+  border-color: #fecaca;
+}
+
+.support-thread__badge--info,
+.support-threads__badge--info {
+  color: var(--st-color-info);
+  background: var(--st-color-info-soft);
+  border-color: #bae6fd;
+}
+
+/* ============================================================================
+ * 12. THREAD METADATA
+ * ========================================================================== */
+
+.support-thread__meta,
+.support-threads__thread-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  margin-top: 0.7rem;
+  color: var(--st-color-text-subtle);
+  font-size: 0.75rem;
+}
+
+.support-thread__meta-item,
+.support-threads__thread-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.support-thread__meta-item strong,
+.support-threads__thread-meta-item strong {
+  color: var(--st-color-text-muted);
+  font-weight: 700;
+}
+
+/* ============================================================================
+ * 13. PRIORITY INDICATORS
+ * ========================================================================== */
+
+.support-thread--priority-high,
+.support-threads__thread--priority-high {
+  border-inline-start: 4px solid var(--st-color-warning);
+}
+
+.support-thread--priority-urgent,
+.support-threads__thread--priority-urgent {
+  border-inline-start: 4px solid var(--st-color-danger);
+}
+
+.support-thread--priority-normal,
+.support-threads__thread--priority-normal {
+  border-inline-start: 4px solid transparent;
+}
+
+/* ============================================================================
+ * 14. THREAD ACTIONS
+ * ========================================================================== */
+
+.support-thread__actions,
+.support-threads__thread-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.support-thread__action {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: var(--st-radius-sm);
+  color: var(--st-color-text-muted);
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.support-thread__action:hover {
+  color: var(--st-color-text);
+  background: var(--st-color-surface-muted);
+}
+
+.support-thread__action--danger:hover {
+  color: var(--st-color-danger);
+  background: var(--st-color-danger-soft);
+}
+
+/* ============================================================================
+ * 15. EMPTY STATE
+ * ========================================================================== */
+
+.support-threads__empty,
+.support-threads__empty-state {
+  display: flex;
+  min-height: 280px;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  background: var(--st-color-surface);
+  border: 1px dashed var(--st-color-border-strong);
+  border-radius: var(--st-radius-lg);
+}
+
+.support-threads__empty-content {
+  width: min(
+    100%,
+    520px
+  );
+}
+
+.support-threads__empty-icon {
+  display: inline-flex;
+  width: 52px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.85rem;
+  color: var(--st-color-primary);
+  background: var(--st-color-primary-soft);
+  border-radius: 50%;
+}
+
+.support-threads__empty-title {
+  margin: 0;
+  color: var(--st-color-text);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.support-threads__empty-description {
+  margin: 0.5rem 0 1rem;
+  color: var(--st-color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+ * 16. LOADING STATE
+ * ========================================================================== */
+
+.support-threads__loading {
+  display: flex;
+  min-height: 280px;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-lg);
+}
+
+.support-threads__loading-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--st-color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.support-threads__spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--st-color-border);
+  border-top-color: var(--st-color-primary);
+  border-radius: 50%;
+  animation:
+    support-threads-spin
+    0.8s linear infinite;
+}
+
+@keyframes support-threads-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Skeleton */
+
+.support-threads__skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--st-color-surface-muted);
+  border-radius: var(--st-radius-sm);
+}
+
+.support-threads__skeleton::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.55),
+      transparent
+    );
+  transform: translateX(-100%);
+  animation:
+    support-threads-skeleton
+    1.4s ease-in-out infinite;
+}
+
+@keyframes support-threads-skeleton {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.support-threads__skeleton--avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.support-threads__skeleton--title {
+  width: 55%;
+  height: 18px;
+}
+
+.support-threads__skeleton--text {
+  width: 90%;
+  height: 13px;
+  margin-top: 0.6rem;
+}
+
+.support-threads__skeleton--short {
+  width: 65%;
+}
+
+/* ============================================================================
+ * 17. ERROR STATE
+ * ========================================================================== */
+
+.support-threads__error,
+.support-threads__error-state {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--st-color-danger-soft);
+  border: 1px solid #fecaca;
+  border-radius: var(--st-radius-lg);
+}
+
+.support-threads__error-content {
+  width: min(
+    100%,
+    620px
+  );
+  text-align: center;
+}
+
+.support-threads__error-icon {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+  color: var(--st-color-danger);
+  background: #fee2e2;
+  border-radius: 50%;
+}
+
+.support-threads__error-title {
+  margin: 0;
+  color: var(--st-color-danger);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.support-threads__error-message {
+  margin: 0.5rem 0 1rem;
+  color: #7f1d1d;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+ * 18. ALERTS / STATUS MESSAGES
+ * ========================================================================== */
+
+.support-threads__alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid;
+  border-radius: var(--st-radius-md);
+  font-size: 0.825rem;
+  line-height: 1.5;
+}
+
+.support-threads__alert--info {
+  color: var(--st-color-info);
+  background: var(--st-color-info-soft);
+  border-color: #bae6fd;
+}
+
+.support-threads__alert--success {
+  color: var(--st-color-success);
+  background: var(--st-color-success-soft);
+  border-color: #bbf7d0;
+}
+
+.support-threads__alert--warning {
+  color: var(--st-color-warning);
+  background: var(--st-color-warning-soft);
+  border-color: #fde68a;
+}
+
+.support-threads__alert--error {
+  color: var(--st-color-danger);
+  background: var(--st-color-danger-soft);
+  border-color: #fecaca;
+}
+
+/* ============================================================================
+ * 19. THREAD DETAIL / CONVERSATION
+ * ========================================================================== */
+
+.support-threads__detail {
+  min-width: 0;
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-sm);
+}
+
+.support-threads__detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--st-color-border);
+}
+
+.support-threads__detail-body {
+  min-width: 0;
+  padding: 1rem;
+}
+
+.support-threads__detail-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--st-color-border);
+}
+
+/* ============================================================================
+ * 20. MESSAGE STREAM
+ * ========================================================================== */
+
+.support-threads__messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.support-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.support-message--mine {
+  justify-content: flex-end;
+}
+
+.support-message__avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.support-message__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.support-message__bubble {
+  width: fit-content;
+  max-width: min(
+    80%,
+    760px
+  );
+  padding: 0.75rem 0.85rem;
+  color: var(--st-color-text);
+  background: var(--st-color-surface-subtle);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-lg);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.support-message--mine .support-message__bubble {
+  color: var(--st-color-text);
+  background: var(--st-color-primary-soft);
+  border-color: #bbf7d0;
+}
+
+.support-message__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+  color: var(--st-color-text-subtle);
+  font-size: 0.7rem;
+}
+
+.support-message__author {
+  color: var(--st-color-text-muted);
+  font-weight: 750;
+}
+
+.support-message__content {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+ * 21. REPLY / COMPOSER
+ * ========================================================================== */
+
+.support-threads__composer {
+  padding: 1rem;
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-sm);
+}
+
+.support-threads__composer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.support-threads__composer-title {
+  margin: 0;
+  color: var(--st-color-text);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.support-threads__composer-counter {
+  color: var(--st-color-text-subtle);
+  font-size: 0.7rem;
+}
+
+.support-threads__composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.65rem;
+}
+
+.support-threads__composer-hint {
+  margin: 0;
+  color: var(--st-color-text-subtle);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+/* ============================================================================
+ * 22. ATTACHMENTS
+ * ========================================================================== */
+
+.support-threads__attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+.support-threads__attachment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  background: var(--st-color-surface-subtle);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-md);
+}
+
+.support-threads__attachment-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--st-color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-threads__attachment-remove {
+  flex: 0 0 auto;
+  color: var(--st-color-danger);
+  background: transparent;
+  border: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* ============================================================================
+ * 23. PAGINATION
+ * ========================================================================== */
+
+.support-threads__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.8rem 0;
+}
+
+.support-threads__pagination-info {
+  color: var(--st-color-text-muted);
+  font-size: 0.75rem;
+}
+
+.support-threads__pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.support-threads__pagination-button {
+  display: inline-flex;
+  min-width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.55rem;
+  color: var(--st-color-text-muted);
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.support-threads__pagination-button:hover:not(:disabled) {
+  color: var(--st-color-text);
+  background: var(--st-color-surface-muted);
+  border-color: var(--st-color-border-strong);
+}
+
+.support-threads__pagination-button.is-active {
+  color: var(--st-color-text-inverse);
+  background: var(--st-color-primary);
+  border-color: var(--st-color-primary);
+}
+
+.support-threads__pagination-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* ============================================================================
+ * 24. LAYOUT VARIANTS
+ * ========================================================================== */
+
+.support-threads__workspace {
+  display: grid;
+  grid-template-columns:
+    minmax(280px, 0.85fr)
+    minmax(0, 1.7fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.support-threads__sidebar {
+  min-width: 0;
+}
+
+.support-threads__content {
+  min-width: 0;
+}
+
+.support-threads__panel {
+  min-width: 0;
+  padding: 1rem;
+  background: var(--st-color-surface);
+  border: 1px solid var(--st-color-border);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-sm);
+}
+
+/* ============================================================================
+ * 25. VISUALLY HIDDEN ACCESSIBILITY UTILITY
+ * ========================================================================== */
+
+.support-threads .sr-only,
+.support-threads .visually-hidden,
+.support-threads__visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* ============================================================================
+ * 26. RESPONSIVE — LARGE TABLETS
+ * ========================================================================== */
+
+@media (max-width: 1100px) {
+  .support-threads__toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .support-threads__toolbar-main {
+    grid-template-columns:
+      minmax(180px, 2fr)
+      repeat(2, minmax(130px, 1fr));
+  }
+
+  .support-threads__toolbar-actions {
+    justify-content: flex-end;
+  }
+
+  .support-threads__workspace {
+    grid-template-columns:
+      minmax(240px, 0.8fr)
+      minmax(0, 1.5fr);
+  }
+}
+
+/* ============================================================================
+ * 27. RESPONSIVE — TABLET
+ * ========================================================================== */
+
+@media (max-width: 850px) {
+  .support-threads__header,
+  .support-threads-page__header {
+    flex-direction: column;
+  }
+
+  .support-threads__header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .support-threads__toolbar-main {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .support-threads__search {
+    grid-column: 1 / -1;
+  }
+
+  .support-threads__workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .support-threads__sidebar {
+    order: 2;
+  }
+
+  .support-threads__content {
+    order: 1;
+  }
+}
+
+/* ============================================================================
+ * 28. RESPONSIVE — MOBILE
+ * ========================================================================== */
+
+@media (max-width: 640px) {
+  .support-threads-page,
+  .support-threads__page {
+    padding: 0.75rem;
+  }
+
+  .support-threads__header {
+    margin-bottom: 0.9rem;
+  }
+
+  .support-threads__title,
+  .support-threads-page__title {
+    font-size: 1.35rem;
+  }
+
+  .support-threads__header-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .support-threads__header-actions
+  .support-threads__button {
+    width: 100%;
+  }
+
+  .support-threads__summary,
+  .support-threads__stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .support-threads__toolbar {
+    padding: 0.7rem;
+  }
+
+  .support-threads__toolbar-main {
+    grid-template-columns: 1fr;
+  }
+
+  .support-threads__search {
+    grid-column: auto;
+  }
+
+  .support-threads__toolbar-actions {
+    width: 100%;
+  }
+
+  .support-threads__toolbar-actions
+  .support-threads__button {
+    flex: 1 1 auto;
+  }
+
+  .support-thread,
+  .support-threads__thread {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .support-thread__aside,
+  .support-threads__thread-aside {
+    align-items: flex-start;
+  }
+
+  .support-thread__header,
+  .support-threads__thread-header {
+    flex-direction: column;
+  }
+
+  .support-thread__timestamp {
+    white-space: normal;
+  }
+
+  .support-thread__actions,
+  .support-threads__thread-actions {
+    justify-content: flex-start;
+  }
+
+  .support-message__bubble {
+    max-width: 92%;
+  }
+
+  .support-threads__pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .support-threads__pagination-controls {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+  }
+
+  .support-threads__composer-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .support-threads__composer-actions
+  .support-threads__button {
+    width: 100%;
+  }
+}
+
+/* ============================================================================
+ * 29. VERY SMALL MOBILE DEVICES
+ * ========================================================================== */
+
+@media (max-width: 390px) {
+  .support-threads__summary,
+  .support-threads__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .support-thread,
+  .support-threads__thread,
+  .support-threads__panel,
+  .support-threads__detail,
+  .support-threads__composer {
+    border-radius: var(--st-radius-md);
+  }
+
+  .support-thread__badges,
+  .support-threads__thread-badges {
+    gap: 0.3rem;
+  }
+}
+
+/* ============================================================================
+ * 30. REDUCED MOTION
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .support-threads *,
+  .support-threads *::before,
+  .support-threads *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .support-thread:hover,
+  .support-threads__thread:hover,
+  .support-threads__button:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+ * 31. HIGH-CONTRAST / FORCED COLORS
+ * ========================================================================== */
+
+@media (forced-colors: active) {
+  .support-threads__button,
+  .support-threads__input,
+  .support-threads__select,
+  .support-threads__textarea,
+  .support-thread,
+  .support-threads__thread,
+  .support-threads__panel,
+  .support-threads__detail,
+  .support-threads__composer,
+  .support-threads__stat,
+  .support-threads__summary-card {
+    border: 1px solid CanvasText;
+  }
+
+  .support-threads__button--primary {
+    color: ButtonText;
+    background: ButtonFace;
+  }
+
+  .support-thread__badge,
+  .support-threads__badge {
+    border: 1px solid CanvasText;
+  }
+
+  .support-threads button:focus-visible,
+  .support-threads input:focus-visible,
+  .support-threads select:focus-visible,
+  .support-threads textarea:focus-visible {
+    outline: 2px solid Highlight;
+    box-shadow: none;
+  }
+}
+
+/* ============================================================================
+ * 32. PRINT
+ * ========================================================================== */
+
+@media print {
+  .support-threads {
+    color: #000;
+    background: #fff;
+  }
+
+  .support-threads__header-actions,
+  .support-threads__toolbar,
+  .support-threads__pagination,
+  .support-thread__actions,
+  .support-threads__thread-actions,
+  .support-threads__composer {
+    display: none !important;
+  }
+
+  .support-threads-page,
+  .support-threads__page {
+    padding: 0;
+  }
+
+  .support-thread,
+  .support-threads__thread,
+  .support-threads__panel,
+  .support-threads__detail {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .support-thread:hover,
+  .support-threads__thread:hover {
+    transform: none;
+  }
+
+  .support-threads__workspace {
+    display: block;
+  }
+
+  .support-threads__sidebar {
+    display: none;
+  }
+
+  a {
+    color: #000;
+    text-decoration: underline;
+  }
+}
+
+/* ============================================================================
+ * 33. DARK THEME
+ *
+ * Uses a class/data attribute so the application can opt in without
+ * forcing dark mode globally.
+ * ========================================================================== */
+
+.support-threads[data-theme='dark'],
+.dark .support-threads,
+.dark-mode .support-threads {
+  --st-color-primary: #4ade80;
+  --st-color-primary-hover: #86efac;
+  --st-color-primary-active: #22c55e;
+  --st-color-primary-soft: #052e16;
+
+  --st-color-secondary: #93c5fd;
+  --st-color-secondary-soft: #172554;
+
+  --st-color-success: #86efac;
+  --st-color-success-soft: #052e16;
+
+  --st-color-warning: #fcd34d;
+  --st-color-warning-soft: #451a03;
+
+  --st-color-danger: #fca5a5;
+  --st-color-danger-soft: #450a0a;
+
+  --st-color-info: #7dd3fc;
+  --st-color-info-soft: #082f49;
+
+  --st-color-text: #f1f5f9;
+  --st-color-text-muted: #cbd5e1;
+  --st-color-text-subtle: #94a3b8;
+  --st-color-text-inverse: #052e16;
+
+  --st-color-surface: #0f172a;
+  --st-color-surface-subtle: #111c2f;
+  --st-color-surface-muted: #1e293b;
+
+  --st-color-border: #334155;
+  --st-color-border-strong: #475569;
+
+  --st-color-overlay: rgb(0 0 0 / 0.65);
+
+  --st-shadow-sm:
+    0 1px 2px rgb(0 0 0 / 0.25);
+
+  --st-shadow-md:
+    0 4px 12px rgb(0 0 0 / 0.3);
+
+  --st-shadow-lg:
+    0 12px 32px rgb(0 0 0 / 0.4);
+}
+
+/* ============================================================================
+ * END OF FILE
+ * ============================================================================
+ */

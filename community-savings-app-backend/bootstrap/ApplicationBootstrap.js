@@ -10,137 +10,369 @@
  *   backend/bootstrap/ApplicationBootstrap.js
  *
  * Purpose:
- *   Enterprise production-grade application bootstrap orchestrator.
+ *   Canonical enterprise application bootstrap orchestrator.
  *
- * Responsibilities:
- *   - Coordinate the complete TITech application startup lifecycle.
- *   - Coordinate the complete TITech application shutdown lifecycle.
- *   - Provide a single composition boundary for dependency registration.
- *   - Integrate dependency registry, lifecycle, readiness and shutdown systems.
- *   - Prevent duplicate/concurrent startup.
- *   - Prevent duplicate/concurrent shutdown.
- *   - Normalize startup failures.
- *   - Fence readiness until all required startup dependencies are healthy.
- *   - Propagate a shared bootstrap context to every subsystem.
- *   - Support critical and optional dependencies.
- *   - Preserve deterministic startup ordering.
- *   - Support graceful partial-startup cleanup.
- *   - Provide safe operational diagnostics.
+ * Architectural responsibility:
+ * -----------------------------------------------------------------------------
  *
- * Architectural position:
- *
- *   backend/bootstrap/app.js
- *          ↓
+ *   backend/server.js
+ *          │
+ *          ▼
  *   ApplicationBootstrap
- *          ↓
- *   ┌─────────────────────────────────────────────┐
- *   │ DependencyRegistry                           │
- *   │ LifecycleManager                             │
- *   │ ReadinessState                               │
- *   │ ShutdownManager                              │
- *   └─────────────────────────────────────────────┘
- *          ↓
- *   environment
- *          ↓
- *   configuration
- *          ↓
- *   logger
- *          ↓
- *   observability
- *          ↓
- *   readiness
- *          ↓
- *   resilience
- *          ↓
- *   infrastructure
- *          ↓
- *   services
- *          ↓
- *   middleware
- *          ↓
- *   routes
- *          ↓
- *   server
- *          ↓
- *   READY
+ *          │
+ *          ├── environment
+ *          ├── configuration
+ *          ├── logger
+ *          ├── observability
+ *          ├── readiness
+ *          ├── resilience
+ *          ├── infrastructure
+ *          ├── services
+ *          ├── middleware
+ *          ├── routes
+ *          └── HTTP server adapter
+ *                         │
+ *                         ▼
+ *                      READY
+ *
+ * This module is the canonical application composition and lifecycle
+ * orchestrator.
+ *
+ * It does NOT:
+ *   - implement Express routes;
+ *   - implement controllers;
+ *   - implement financial logic;
+ *   - implement ledger logic;
+ *   - implement authentication;
+ *   - implement database drivers;
+ *   - implement Redis;
+ *   - implement queues;
+ *   - implement resilience algorithms;
+ *   - implement HTTP transport internals.
+ *
+ * Those responsibilities remain owned by their respective modules.
  *
  * IMPORTANT:
+ * -----------------------------------------------------------------------------
  *
- *   This module orchestrates lifecycle.
+ * `backend/bootstrap/server.js` is treated as the canonical HTTP transport
+ * adapter.
  *
- *   It does NOT:
- *     - implement business logic
- *     - implement financial transactions
- *     - implement ledger operations
- *     - own database connections
- *     - own Redis connections
- *     - own queue processing
- *     - implement HTTP routes
- *     - implement resilience algorithms
+ * ApplicationBootstrap prepares the application and delegates network startup
+ * and shutdown to that adapter.
  *
  * =============================================================================
  */
 
-const DependencyRegistryModule =
-  require('./dependencyRegistry');
+const path = require('node:path');
+const os = require('node:os');
+const crypto = require('node:crypto');
+const { EventEmitter } = require('node:events');
 
-const LifecycleManagerModule =
-  require('./lifecycleManager');
-
-const ShutdownManagerModule =
-  require('./shutdownManager');
-
-const ReadinessStateModule =
-  require('./readinessState');
-
-const ServicesContextModule =
-  require('./servicesContext');
-
-const startupErrors =
-  require('./startupErrors');
-
-/**
- * -----------------------------------------------------------------------------
- * Constants
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * METADATA
+ * =============================================================================
  */
 
 const COMPONENT =
   'application-bootstrap';
 
+const APPLICATION_NAME =
+  process.env.APPLICATION_NAME ||
+  'TITech Community Capital';
+
 const SERVICE_NAME =
   process.env.SERVICE_NAME ||
   process.env.OTEL_SERVICE_NAME ||
-  'titech-backend';
+  'titech-community-capital-backend';
 
-const APPLICATION_NAME =
-  process.env.APP_NAME ||
-  'titech-community-capital';
+const VERSION =
+  process.env.APP_BOOTSTRAP_VERSION ||
+  '2026.1';
+
+/* =============================================================================
+ * DEFAULTS
+ * =============================================================================
+ */
 
 const DEFAULTS = Object.freeze({
   startupTimeoutMs:
     120_000,
 
   shutdownTimeoutMs:
-    60_000,
-
-  dependencyTimeoutMs:
     30_000,
 
-  failOnOptionalDependency:
+  phaseTimeoutMs:
+    60_000,
+
+  requireApplication:
+    true,
+
+  autoDiscoverPhases:
+    true,
+
+  startServer:
+    true,
+
+  registerServerHooks:
+    true,
+
+  failOnOptionalPhaseError:
     false,
 
-  autoRegisterShutdown:
+  allowPartialShutdown:
     true,
 
-  requireReadiness:
-    true,
+  allowRestart:
+    false,
+
+  maxEventListeners:
+    50,
 });
 
-/**
- * -----------------------------------------------------------------------------
- * Errors
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * CANONICAL PHASE DEFINITIONS
+ * =============================================================================
+ */
+
+const DEFAULT_PHASES = Object.freeze([
+  Object.freeze({
+    name:
+      'environment',
+
+    priority:
+      100,
+
+    required:
+      true,
+
+    dependencies:
+      [],
+  }),
+
+  Object.freeze({
+    name:
+      'configuration',
+
+    priority:
+      200,
+
+    required:
+      true,
+
+    dependencies:
+      ['environment'],
+  }),
+
+  Object.freeze({
+    name:
+      'logger',
+
+    priority:
+      300,
+
+    required:
+      true,
+
+    dependencies:
+      ['configuration'],
+  }),
+
+  Object.freeze({
+    name:
+      'observability',
+
+    priority:
+      400,
+
+    required:
+      false,
+
+    dependencies:
+      ['logger'],
+  }),
+
+  Object.freeze({
+    name:
+      'readiness',
+
+    priority:
+      500,
+
+    required:
+      true,
+
+    dependencies:
+      ['configuration'],
+  }),
+
+  Object.freeze({
+    name:
+      'resilience',
+
+    priority:
+      600,
+
+    required:
+      false,
+
+    dependencies:
+      ['configuration'],
+    }),
+
+  Object.freeze({
+    name:
+      'infrastructure',
+
+    priority:
+      700,
+
+    required:
+      true,
+
+    dependencies:
+      ['configuration'],
+  }),
+
+  Object.freeze({
+    name:
+      'services',
+
+    priority:
+      800,
+
+    required:
+      true,
+
+    dependencies:
+      ['infrastructure'],
+  }),
+
+  Object.freeze({
+    name:
+      'middleware',
+
+    priority:
+      900,
+
+    required:
+      true,
+
+    dependencies:
+      ['services'],
+  }),
+
+  Object.freeze({
+    name:
+      'routes',
+
+    priority:
+      950,
+
+    required:
+      true,
+
+    dependencies:
+      ['middleware'],
+  }),
+
+  Object.freeze({
+    name:
+      'server',
+
+    priority:
+      1000,
+
+    required:
+      true,
+
+    dependencies:
+      ['routes'],
+  }),
+]);
+
+/* =============================================================================
+ * PHASE MODULE CANDIDATES
+ * =============================================================================
+ */
+
+const PHASE_MODULE_CANDIDATES =
+  Object.freeze({
+    environment:
+      Object.freeze([
+        './environment',
+        './environmentLoader',
+        '../config/environment',
+        '../config/env',
+      ]),
+
+    configuration:
+      Object.freeze([
+        './configuration',
+        './config',
+        '../config',
+        '../config/index',
+      ]),
+
+    logger:
+      Object.freeze([
+        './logger',
+        '../utils/logger',
+        '../utils/logger/index',
+      ]),
+
+    observability:
+      Object.freeze([
+        './observability',
+        '../observability',
+        '../monitoring/observability',
+      ]),
+
+    readiness:
+      Object.freeze([
+        './readinessState',
+        './readiness',
+      ]),
+
+    resilience:
+      Object.freeze([
+        './resilience',
+        '../resilience',
+      ]),
+
+    infrastructure:
+      Object.freeze([
+        './infrastructure',
+        '../infrastructure',
+      ]),
+
+    services:
+      Object.freeze([
+        './services',
+        '../services',
+      ]),
+
+    middleware:
+      Object.freeze([
+        './middleware',
+        '../middleware',
+      ]),
+
+    routes:
+      Object.freeze([
+        './routes',
+        '../routes',
+      ]),
+
+    server:
+      Object.freeze([
+        './server',
+      ]),
+  });
+
+/* =============================================================================
+ * ERRORS
+ * =============================================================================
  */
 
 class ApplicationBootstrapError extends Error {
@@ -161,10 +393,6 @@ class ApplicationBootstrapError extends Error {
       options.phase ||
       null;
 
-    this.component =
-      options.component ||
-      COMPONENT;
-
     this.cause =
       options.cause ||
       null;
@@ -181,32 +409,10 @@ class ApplicationBootstrapError extends Error {
   }
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Helpers
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * UTILITY FUNCTIONS
+ * =============================================================================
  */
-
-function asPositiveInteger(
-  value,
-  fallback,
-) {
-  const parsed =
-    value === undefined
-      ? fallback
-      : Number(value);
-
-  if (
-    !Number.isInteger(
-      parsed,
-    ) ||
-    parsed <= 0
-  ) {
-    return fallback;
-  }
-
-  return parsed;
-}
 
 function asBoolean(
   value,
@@ -214,7 +420,8 @@ function asBoolean(
 ) {
   if (
     value === undefined ||
-    value === null
+    value === null ||
+    value === ''
   ) {
     return fallback;
   }
@@ -239,6 +446,72 @@ function asBoolean(
   );
 }
 
+function asPositiveInteger(
+  value,
+  fallback,
+) {
+  const parsed =
+    value === undefined ||
+    value === null ||
+    value === ''
+      ? fallback
+      : Number(value);
+
+  if (
+    !Number.isInteger(
+      parsed,
+    ) ||
+    parsed <= 0
+  ) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function now() {
+  return new Date();
+}
+
+function elapsedMs(
+  startedAt,
+) {
+  if (
+    !startedAt
+  ) {
+    return 0;
+  }
+
+  const timestamp =
+    startedAt instanceof Date
+      ? startedAt.getTime()
+      : Number(startedAt);
+
+  if (
+    !Number.isFinite(
+      timestamp,
+    )
+  ) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Date.now() -
+      timestamp,
+  );
+}
+
+function isPromiseLike(
+  value,
+) {
+  return Boolean(
+    value &&
+      typeof value.then ===
+        'function',
+  );
+}
+
 function safeError(
   error,
 ) {
@@ -250,325 +523,369 @@ function safeError(
 
   return {
     name:
-      error.name,
+      error.name ||
+      'Error',
 
     code:
-      error.code,
+      error.code ||
+      null,
 
     message:
-      error.message,
+      error.message ||
+      String(error),
+
+    phase:
+      error.phase ||
+      null,
   };
 }
 
-function withTimeout(
-  promiseOrFactory,
-  timeoutMs,
-  label,
+function moduleExists(
+  modulePath,
 ) {
-  let timer;
-
-  const operation =
-    Promise.resolve().then(
-      () =>
-        typeof promiseOrFactory ===
-        'function'
-          ? promiseOrFactory()
-          : promiseOrFactory,
+  try {
+    require.resolve(
+      modulePath,
     );
 
-  const timeout =
-    new Promise(
-      (_, reject) => {
-        timer =
-          setTimeout(
-            () => {
-              reject(
-                new ApplicationBootstrapError(
-                  `${label} timed out after ${timeoutMs}ms.`,
-                  {
-                    code:
-                      'APPLICATION_BOOTSTRAP_TIMEOUT',
-                  },
-                ),
-              );
-            },
-            timeoutMs,
-          );
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-        timer.unref?.();
+function loadModule(
+  modulePath,
+) {
+  try {
+    // eslint-disable-next-line global-require, import/no-dynamic-require
+    return require(
+      modulePath,
+    );
+  } catch (error) {
+    throw new ApplicationBootstrapError(
+      `Unable to load bootstrap module: ${modulePath}`,
+      {
+        code:
+          'BOOTSTRAP_MODULE_LOAD_FAILED',
+
+        cause:
+          error,
+
+        details: {
+          modulePath,
+        },
       },
     );
-
-  return Promise.race([
-    operation,
-    timeout,
-  ]).finally(
-    () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-    },
-  );
+  }
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Module Resolution
- * -----------------------------------------------------------------------------
- *
- * Supports both:
- *
- *   module.exports = Class
- *
- * and:
- *
- *   module.exports = {
- *     Class,
- *     instance,
- *     singleton
- *   }
- *
- * This allows the bootstrap architecture to evolve without breaking this
- * composition root.
- * -----------------------------------------------------------------------------
- */
-
-function resolveConstructor(
-  moduleValue,
-  names = [],
+function unwrapModule(
+  value,
 ) {
   if (
-    typeof moduleValue ===
-    'function'
+    value &&
+    typeof value ===
+      'object' &&
+    value.default
   ) {
-    return moduleValue;
+    return value.default;
   }
 
-  for (
-    const name of names
-  ) {
-    if (
-      typeof moduleValue?.[
-        name
-      ] === 'function'
-    ) {
-      return moduleValue[name];
-    }
-  }
-
-  return null;
+  return value;
 }
 
-function resolveInstance(
-  moduleValue,
-  names = [],
+function freezeCopy(
+  value,
 ) {
-  for (
-    const name of names
-  ) {
-    if (
-      moduleValue?.[
-        name
-      ]
-    ) {
-      return moduleValue[name];
-    }
-  }
-
   if (
-    moduleValue &&
-    typeof moduleValue ===
+    !value ||
+    typeof value !==
       'object'
   ) {
-    return moduleValue;
+    return value;
   }
 
-  return null;
+  if (
+    Array.isArray(
+      value,
+    )
+  ) {
+    return Object.freeze([
+      ...value,
+    ]);
+  }
+
+  return Object.freeze({
+    ...value,
+  });
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Dependency Registry Adapter
- * -----------------------------------------------------------------------------
- */
+function createFallbackLogger() {
+  const prefix =
+    `[${COMPONENT}]`;
 
-function createDependencyRegistry() {
-  const Constructor =
-    resolveConstructor(
-      DependencyRegistryModule,
-      [
-        'DependencyRegistry',
-      ],
-    );
-
-  if (
-    Constructor
-  ) {
-    return new Constructor();
-  }
-
-  const singleton =
-    resolveInstance(
-      DependencyRegistryModule,
-      [
-        'dependencyRegistry',
-        'registry',
-      ],
-    );
-
-  if (
-    singleton
-  ) {
-    return singleton;
-  }
-
-  throw new ApplicationBootstrapError(
-    'TITech dependency registry implementation is unavailable.',
-    {
-      code:
-        'DEPENDENCY_REGISTRY_UNAVAILABLE',
+  return Object.freeze({
+    debug(
+      message,
+      metadata,
+    ) {
+      if (
+        process.env.NODE_ENV !==
+        'test'
+      ) {
+        console.debug(
+          prefix,
+          message,
+          metadata || '',
+        );
+      }
     },
-  );
-}
 
-/**
- * -----------------------------------------------------------------------------
- * Lifecycle Adapter
- * -----------------------------------------------------------------------------
- */
-
-function createLifecycleManager() {
-  const Constructor =
-    resolveConstructor(
-      LifecycleManagerModule,
-      [
-        'LifecycleManager',
-      ],
-    );
-
-  if (
-    Constructor
-  ) {
-    return new Constructor();
-  }
-
-  const singleton =
-    resolveInstance(
-      LifecycleManagerModule,
-      [
-        'lifecycleManager',
-        'manager',
-      ],
-    );
-
-  if (
-    singleton
-  ) {
-    return singleton;
-  }
-
-  throw new ApplicationBootstrapError(
-    'TITech lifecycle manager implementation is unavailable.',
-    {
-      code:
-        'LIFECYCLE_MANAGER_UNAVAILABLE',
+    info(
+      message,
+      metadata,
+    ) {
+      console.info(
+        prefix,
+        message,
+        metadata || '',
+      );
     },
-  );
-}
 
-/**
- * -----------------------------------------------------------------------------
- * Shutdown Adapter
- * -----------------------------------------------------------------------------
- */
-
-function createShutdownManager() {
-  const Constructor =
-    resolveConstructor(
-      ShutdownManagerModule,
-      [
-        'ShutdownManager',
-      ],
-    );
-
-  if (
-    Constructor
-  ) {
-    return new Constructor();
-  }
-
-  const singleton =
-    resolveInstance(
-      ShutdownManagerModule,
-      [
-        'shutdownManager',
-        'manager',
-      ],
-    );
-
-  if (
-    singleton
-  ) {
-    return singleton;
-  }
-
-  throw new ApplicationBootstrapError(
-    'TITech shutdown manager implementation is unavailable.',
-    {
-      code:
-        'SHUTDOWN_MANAGER_UNAVAILABLE',
+    warn(
+      message,
+      metadata,
+    ) {
+      console.warn(
+        prefix,
+        message,
+        metadata || '',
+      );
     },
-  );
-}
 
-/**
- * -----------------------------------------------------------------------------
- * Readiness Adapter
- * -----------------------------------------------------------------------------
- */
-
-function createReadinessState() {
-  const Constructor =
-    resolveConstructor(
-      ReadinessStateModule,
-      [
-        'ReadinessState',
-      ],
-    );
-
-  if (
-    Constructor
-  ) {
-    return new Constructor();
-  }
-
-  const singleton =
-    resolveInstance(
-      ReadinessStateModule,
-      [
-        'readinessState',
-        'state',
-      ],
-    );
-
-  if (
-    singleton
-  ) {
-    return singleton;
-  }
-
-  throw new ApplicationBootstrapError(
-    'TITech readiness state implementation is unavailable.',
-    {
-      code:
-        'READINESS_STATE_UNAVAILABLE',
+    error(
+      message,
+      metadata,
+    ) {
+      console.error(
+        prefix,
+        message,
+        metadata || '',
+      );
     },
-  );
+  });
 }
 
-/**
+/* =============================================================================
+ * TIMEOUT / CANCELLATION
  * =============================================================================
- * ApplicationBootstrap
+ */
+
+function withTimeout(
+  operation,
+  timeoutMs,
+  phase,
+  options = {},
+) {
+  const timeout =
+    asPositiveInteger(
+      timeoutMs,
+      DEFAULTS.phaseTimeoutMs,
+    );
+
+  const parentSignal =
+    options.signal || null;
+
+  const controller =
+    new AbortController();
+
+  const signal =
+    controller.signal;
+
+  if (
+    parentSignal
+  ) {
+    if (
+      parentSignal.aborted
+    ) {
+      controller.abort(
+        parentSignal.reason,
+      );
+    } else {
+      parentSignal.addEventListener(
+        'abort',
+        () => {
+          controller.abort(
+            parentSignal.reason,
+          );
+        },
+        {
+          once:
+            true,
+        },
+      );
+    }
+  }
+
+  return new Promise(
+    (
+      resolve,
+      reject,
+    ) => {
+      let settled =
+        false;
+
+      const cleanup =
+        () => {
+          clearTimeout(
+            timer,
+          );
+
+          parentSignal?.removeEventListener?.(
+            'abort',
+            abortParent,
+          );
+        };
+
+      const abortParent =
+        () => {
+          if (
+            settled
+          ) {
+            return;
+          }
+
+          controller.abort(
+            parentSignal.reason,
+          );
+
+          settled =
+            true;
+
+          cleanup();
+
+          reject(
+            new ApplicationBootstrapError(
+              `Bootstrap phase "${phase}" was aborted.`,
+              {
+                code:
+                  'BOOTSTRAP_PHASE_ABORTED',
+
+                phase,
+
+                cause:
+                  parentSignal.reason,
+
+                details: {
+                  timeoutMs:
+                    timeout,
+                },
+              },
+            ),
+          );
+        };
+
+      const timer =
+        setTimeout(
+          () => {
+            if (
+              settled
+            ) {
+              return;
+            }
+
+            controller.abort();
+
+            settled =
+              true;
+
+            cleanup();
+
+            reject(
+              new ApplicationBootstrapError(
+                `Bootstrap phase "${phase}" exceeded its ${timeout}ms timeout.`,
+                {
+                  code:
+                    'BOOTSTRAP_PHASE_TIMEOUT',
+
+                  phase,
+
+                  details: {
+                    timeoutMs:
+                      timeout,
+                  },
+                },
+              ),
+            );
+          },
+          timeout,
+        );
+
+      timer.unref?.();
+
+      if (
+        parentSignal
+      ) {
+        parentSignal.addEventListener(
+          'abort',
+          abortParent,
+          {
+            once:
+              true,
+          },
+        );
+      }
+
+      Promise.resolve()
+        .then(
+          () =>
+            operation(
+              signal,
+            ),
+        )
+        .then(
+          value => {
+            if (
+              settled
+            ) {
+              return;
+            }
+
+            settled =
+              true;
+
+            cleanup();
+
+            resolve(
+              value,
+            );
+          },
+        )
+        .catch(
+          error => {
+            if (
+              settled
+            ) {
+              return;
+            }
+
+            settled =
+              true;
+
+            cleanup();
+
+            reject(
+              error,
+            );
+          },
+        );
+    },
+  );
+}
+
+/* =============================================================================
+ * APPLICATION BOOTSTRAP
  * =============================================================================
  */
 
@@ -577,90 +894,51 @@ class ApplicationBootstrap {
     options = {},
   ) {
     this.options =
-      Object.freeze({
-        startupTimeoutMs:
-          asPositiveInteger(
-            options.startupTimeoutMs ??
-              process.env.APPLICATION_STARTUP_TIMEOUT_MS,
-            DEFAULTS.startupTimeoutMs,
-          ),
+      this.normalizeOptions(
+        options,
+      );
 
-        shutdownTimeoutMs:
-          asPositiveInteger(
-            options.shutdownTimeoutMs ??
-              process.env.APPLICATION_SHUTDOWN_TIMEOUT_MS,
-            DEFAULTS.shutdownTimeoutMs,
-          ),
+    this.events =
+      new EventEmitter();
 
-        dependencyTimeoutMs:
-          asPositiveInteger(
-            options.dependencyTimeoutMs ??
-              process.env.APPLICATION_DEPENDENCY_TIMEOUT_MS,
-            DEFAULTS.dependencyTimeoutMs,
-          ),
+    this.events.setMaxListeners(
+      this.options.maxEventListeners,
+    );
 
-        failOnOptionalDependency:
-          asBoolean(
-            options.failOnOptionalDependency,
-            DEFAULTS.failOnOptionalDependency,
-          ),
-
-        autoRegisterShutdown:
-          options.autoRegisterShutdown ??
-          DEFAULTS.autoRegisterShutdown,
-
-        requireReadiness:
-          options.requireReadiness ??
-          DEFAULTS.requireReadiness,
-      });
-
-    /**
-     * -------------------------------------------------------------------------
-     * Core lifecycle engines
-     * -------------------------------------------------------------------------
-     */
-
-    this.dependencies =
-      options.dependencies ||
-      createDependencyRegistry();
-
-    this.lifecycle =
-      options.lifecycle ||
-      createLifecycleManager();
-
-    this.shutdown =
-      options.shutdown ||
-      createShutdownManager();
-
-    this.readiness =
-      options.readiness ||
-      createReadinessState();
-
-    /**
-     * -------------------------------------------------------------------------
-     * Runtime/application context
-     * -------------------------------------------------------------------------
-     */
+    this.logger =
+      createFallbackLogger();
 
     this.context =
       null;
 
-    this.servicesContext =
+    this.application =
       null;
 
-    this.state =
-      'created';
+    this.server =
+      null;
+
+    this.serverModule =
+      null;
+
+    this.phaseDefinitions =
+      new Map();
+
+    this.phaseStates =
+      new Map();
+
+    this.completedPhases =
+      [];
 
     this.startPromise =
       null;
 
-    this.shutdownPromise =
+    this.stopPromise =
       null;
 
-    this.started =
+    this.starting =
       false;
 
-    this.ready =
+    this.started =
       false;
 
     this.stopping =
@@ -672,1783 +950,2881 @@ class ApplicationBootstrap {
     this.failed =
       false;
 
-    this.startingAt =
+    this.lastError =
       null;
 
     this.startedAt =
       null;
 
-    this.readyAt =
-      null;
-
-    this.stoppingAt =
-      null;
-
     this.stoppedAt =
       null;
 
-    this.failure =
-      null;
-
-    this.shutdownReason =
-      null;
-
-    this.dependenciesStarted =
-      new Set();
-
-    this.dependencyMetadata =
-      new Map();
-
-    this._shutdownRegistered =
+    this.initialized =
       false;
 
-    this._initialized =
+    this.initializedAt =
+      null;
+
+    this.destroyed =
       false;
+
+    this.bootstrapId =
+      this.createBootstrapId();
+
+    this.lifecycleAbortController =
+      new AbortController();
+
+    this.registerDefaultPhases();
+
+    this.registerCustomPhases(
+      this.options.phases,
+    );
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Initialization
-   * ---------------------------------------------------------------------------
-   */
+  /* ===========================================================================
+   * OPTIONS
+   * =========================================================================== */
+
+  normalizeOptions(
+    options,
+  ) {
+    const source =
+      options &&
+      typeof options ===
+        'object'
+        ? options
+        : {};
+
+    return Object.freeze({
+      ...source,
+
+      startupTimeoutMs:
+        asPositiveInteger(
+          source.startupTimeoutMs,
+          DEFAULTS.startupTimeoutMs,
+        ),
+
+      shutdownTimeoutMs:
+        asPositiveInteger(
+          source.shutdownTimeoutMs,
+          DEFAULTS.shutdownTimeoutMs,
+        ),
+
+      phaseTimeoutMs:
+        asPositiveInteger(
+          source.phaseTimeoutMs,
+          DEFAULTS.phaseTimeoutMs,
+        ),
+
+      requireApplication:
+        source.requireApplication !==
+        undefined
+          ? asBoolean(
+              source.requireApplication,
+              DEFAULTS.requireApplication,
+            )
+          : DEFAULTS.requireApplication,
+
+      autoDiscoverPhases:
+        source.autoDiscoverPhases !==
+        undefined
+          ? asBoolean(
+              source.autoDiscoverPhases,
+              DEFAULTS.autoDiscoverPhases,
+            )
+          : DEFAULTS.autoDiscoverPhases,
+
+      startServer:
+        source.startServer !==
+        undefined
+          ? asBoolean(
+              source.startServer,
+              DEFAULTS.startServer,
+            )
+          : DEFAULTS.startServer,
+
+      registerServerHooks:
+        source.registerServerHooks !==
+        undefined
+          ? asBoolean(
+              source.registerServerHooks,
+              DEFAULTS.registerServerHooks,
+            )
+          : DEFAULTS.registerServerHooks,
+
+      failOnOptionalPhaseError:
+        source.failOnOptionalPhaseError !==
+        undefined
+          ? asBoolean(
+              source.failOnOptionalPhaseError,
+              DEFAULTS.failOnOptionalPhaseError,
+            )
+          : DEFAULTS.failOnOptionalPhaseError,
+
+      allowPartialShutdown:
+        source.allowPartialShutdown !==
+        undefined
+          ? asBoolean(
+              source.allowPartialShutdown,
+              DEFAULTS.allowPartialShutdown,
+            )
+          : DEFAULTS.allowPartialShutdown,
+
+      allowRestart:
+        source.allowRestart !==
+        undefined
+          ? asBoolean(
+              source.allowRestart,
+              DEFAULTS.allowRestart,
+            )
+          : DEFAULTS.allowRestart,
+
+      maxEventListeners:
+        asPositiveInteger(
+          source.maxEventListeners,
+          DEFAULTS.maxEventListeners,
+        ),
+    });
+  }
+
+  createBootstrapId() {
+    let entropy;
+
+    try {
+      entropy =
+        crypto.randomUUID();
+    } catch {
+      entropy =
+        Math.random()
+          .toString(36)
+          .slice(2);
+    }
+
+    return [
+      SERVICE_NAME,
+      process.pid,
+      Date.now().toString(36),
+      entropy,
+    ].join(
+      '-',
+    );
+  }
+
+  /* ===========================================================================
+   * INITIALIZATION
+   * =========================================================================== */
 
   initialize(
-    context = {},
+    suppliedContext = {},
   ) {
     if (
-      this._initialized
+      this.destroyed
     ) {
-      return this;
-    }
-
-    this.context =
-      this._createContext(
-        context,
-      );
-
-    this._registerDefaultLifecycleIntegration();
-
-    this._initialized =
-      true;
-
-    this.state =
-      'initialized';
-
-    return this;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Context
-   * ---------------------------------------------------------------------------
-   */
-
-  _createContext(
-    context = {},
-  ) {
-    const base = {
-      ...context,
-
-      application:
-        context.application ||
-        null,
-
-      service:
-        context.service ||
-        SERVICE_NAME,
-
-      applicationName:
-        context.applicationName ||
-        APPLICATION_NAME,
-
-      bootstrap:
-        this,
-
-      dependencies:
-        this.dependencies,
-
-      lifecycle:
-        this.lifecycle,
-
-      shutdown:
-        this.shutdown,
-
-      readiness:
-        this.readiness,
-    };
-
-    /**
-     * Prefer servicesContext when available.
-     */
-    if (
-      ServicesContextModule?.createServicesContext
-    ) {
-      try {
-        this.servicesContext =
-          ServicesContextModule.createServicesContext(
-            {
-              config:
-                context.config ||
-                context.configuration,
-
-              environment:
-                context.environment,
-
-              logger:
-                context.logger,
-
-              observability:
-                context.observability,
-
-              readiness:
-                this.readiness,
-
-              resilience:
-                context.resilience,
-
-              infrastructure:
-                context.infrastructure,
-
-              services:
-                context.services ||
-                context.serviceRegistry,
-
-              container:
-                context.container,
-
-              metadata: {
-                component:
-                  COMPONENT,
-
-                service:
-                  SERVICE_NAME,
-
-                application:
-                  APPLICATION_NAME,
-              },
-            },
-          );
-
-        base.servicesContext =
-          this.servicesContext;
-
-        base.serviceContext =
-          this.servicesContext;
-      } catch {
-        /**
-         * ServicesContext is an enhancement, not a reason to prevent the
-         * dependency lifecycle from operating if context creation fails.
-         */
-      }
-    }
-
-    return base;
-  }
-
-  getContext() {
-    return this.context;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Dependency Registration
-   * ---------------------------------------------------------------------------
-   *
-   * Supports:
-   *
-   *   registerDependency(name, initializer, options)
-   *
-   * Options:
-   *
-   *   critical
-   *   priority
-   *   dependencies
-   *   timeoutMs
-   *   enabled
-   *   metadata
-   */
-
-  registerDependency(
-    name,
-    initializer,
-    options = {},
-  ) {
-    if (
-      typeof initializer !==
-      'function'
-    ) {
-      throw new TypeError(
-        `TITech dependency "${name}" initializer must be a function.`,
-      );
-    }
-
-    const normalizedName =
-      String(
-        name,
-      ).trim();
-
-    if (
-      normalizedName ===
-      ''
-    ) {
-      throw new TypeError(
-        'TITech dependency name must be a non-empty string.',
-      );
-    }
-
-    const dependencyOptions = {
-      ...options,
-
-      timeoutMs:
-        options.timeoutMs ||
-        this.options
-          .dependencyTimeoutMs,
-
-      critical:
-        options.critical !==
-        false,
-
-      enabled:
-        options.enabled !==
-        false,
-
-      metadata: {
-        component:
-          COMPONENT,
-
-        service:
-          SERVICE_NAME,
-
-        dependency:
-          normalizedName,
-
-        ...(options.metadata ||
-          {}),
-      },
-    };
-
-    /**
-     * -------------------------------------------------------------------------
-     * Readiness registration
-     * -------------------------------------------------------------------------
-     */
-
-    this._registerReadinessDependency(
-      normalizedName,
-      dependencyOptions,
-    );
-
-    /**
-     * -------------------------------------------------------------------------
-     * Dependency Registry
-     * -------------------------------------------------------------------------
-     *
-     * Support both a rich register API and the simpler registry contract.
-     */
-
-    const wrappedInitializer =
-      async dependencyContext => {
-        const childContext =
-          this._createDependencyContext(
-            normalizedName,
-            dependencyContext,
-          );
-
-        const startedAt =
-          process.hrtime.bigint();
-
-        this._setDependencyState(
-          normalizedName,
-          'starting',
-        );
-
-        try {
-          const result =
-            await withTimeout(
-              () =>
-                initializer(
-                  childContext,
-                ),
-              dependencyOptions.timeoutMs,
-              `TITech dependency "${normalizedName}" startup`,
-            );
-
-          this.dependenciesStarted.add(
-            normalizedName,
-          );
-
-          this._setDependencyState(
-            normalizedName,
-            'ready',
-          );
-
-          this._updateDependencyMetadata(
-            normalizedName,
-            {
-              durationMs:
-                Number(
-                  process.hrtime.bigint() -
-                    startedAt,
-                ) /
-                1_000_000,
-
-              startedAt:
-                new Date(),
-            },
-          );
-
-          this._markDependencyReady(
-            normalizedName,
-            true,
-          );
-
-          /**
-           * Publish the initialized dependency into the shared bootstrap
-           * context.
-           */
-          this._publishDependency(
-            normalizedName,
-            result,
-          );
-
-          return result;
-        } catch (error) {
-          const normalized =
-            startupErrors.normalizeStartupError(
-              error,
-              {
-                phase:
-                  dependencyOptions.phase ||
-                  'bootstrap',
-
-                operation:
-                  `initialize-${normalizedName}`,
-
-                component:
-                  COMPONENT,
-
-                service:
-                  SERVICE_NAME,
-
-                dependency:
-                  normalizedName,
-
-                critical:
-                  dependencyOptions.critical,
-
-                fatal:
-                  dependencyOptions.critical,
-
-                durationMs:
-                  Number(
-                    process.hrtime.bigint() -
-                      startedAt,
-                  ) /
-                  1_000_000,
-              },
-            );
-
-          this._setDependencyState(
-            normalizedName,
-            'failed',
-          );
-
-          this._updateDependencyMetadata(
-            normalizedName,
-            {
-              durationMs:
-                Number(
-                  process.hrtime.bigint() -
-                    startedAt,
-                ) /
-                1_000_000,
-
-              error:
-                safeError(
-                  normalized,
-                ),
-            },
-          );
-
-          this._markDependencyReady(
-            normalizedName,
-            false,
-            normalized,
-          );
-
-          throw normalized;
-        }
-      };
-
-    /**
-     * Avoid registering the same dependency twice where the underlying
-     * registry exposes a presence check.
-     */
-    try {
-      if (
-        typeof this.dependencies.has ===
-          'function' &&
-        this.dependencies.has(
-          normalizedName,
-        )
-      ) {
-        return this;
-      }
-
-      this.dependencies.register(
-        normalizedName,
-        wrappedInitializer,
-        dependencyOptions,
-      );
-    } catch (error) {
-      if (
-        error?.code ===
-        'DEPENDENCY_DUPLICATE'
-      ) {
-        return this;
-      }
-
-      throw startupErrors.normalizeStartupError(
-        error,
+      throw new ApplicationBootstrapError(
+        'Cannot initialize a destroyed TITech application bootstrap.',
         {
-          phase:
-            'bootstrap',
-
-          operation:
-            `register-${normalizedName}`,
-
-          component:
-            COMPONENT,
-
-          service:
-            SERVICE_NAME,
-
-          dependency:
-            normalizedName,
-
-          critical:
-            dependencyOptions.critical,
-
-          fatal:
-            dependencyOptions.critical,
+          code:
+            'BOOTSTRAP_DESTROYED',
         },
       );
     }
 
-    this._updateDependencyMetadata(
-      normalizedName,
+    if (
+      this.started ||
+      this.starting
+    ) {
+      throw new ApplicationBootstrapError(
+        'Cannot initialize application bootstrap after startup has begun.',
+        {
+          code:
+            'BOOTSTRAP_INITIALIZATION_LOCKED',
+        },
+      );
+    }
+
+    const incoming =
+      suppliedContext &&
+      typeof suppliedContext ===
+        'object'
+        ? {
+            ...suppliedContext,
+          }
+        : {};
+
+    if (
+      incoming.application
+    ) {
+      this.setApplication(
+        incoming.application,
+      );
+    }
+
+    this.context =
+      this.createContext(
+        incoming,
+      );
+
+    if (
+      this.context.logger
+    ) {
+      this.setLogger(
+        this.context.logger,
+      );
+    }
+
+    this.initialized =
+      true;
+
+    this.initializedAt =
+      now();
+
+    this.emit(
+      'initialized',
       {
-        critical:
-          dependencyOptions.critical,
-
-        enabled:
-          dependencyOptions.enabled,
-
-        priority:
-          dependencyOptions.priority ??
-          0,
-
-        dependencies:
-          dependencyOptions.dependencies ||
-          [],
+        applicationAvailable:
+          Boolean(
+            this.application ||
+              this.context.application,
+          ),
       },
     );
+
+    return this.context;
+  }
+
+  /* ===========================================================================
+   * CONTEXT
+   * =========================================================================== */
+
+  createContext(
+    suppliedContext = {},
+  ) {
+    const context =
+      suppliedContext &&
+      typeof suppliedContext ===
+        'object'
+        ? {
+            ...suppliedContext,
+          }
+        : {};
+
+    if (
+      !context.environment
+    ) {
+      context.environment =
+        this.resolveEnvironment();
+    }
+
+    if (
+      !context.config
+    ) {
+      context.config =
+        this.resolveConfiguration();
+    }
+
+    if (
+      !context.application &&
+      this.application
+    ) {
+      context.application =
+        this.application;
+    }
+
+    context.bootstrap =
+      this;
+
+    context.bootstrapId =
+      this.bootstrapId;
+
+    context.applicationName =
+      APPLICATION_NAME;
+
+    context.serviceName =
+      SERVICE_NAME;
+
+    context.component =
+      COMPONENT;
+
+    context.version =
+      VERSION;
+
+    context.signal =
+      this.lifecycleAbortController.signal;
+
+    return context;
+  }
+
+  /* ===========================================================================
+   * ENVIRONMENT
+   * =========================================================================== */
+
+  resolveEnvironment() {
+    return Object.freeze({
+      nodeEnv:
+        process.env.NODE_ENV ||
+        'development',
+
+      serviceName:
+        SERVICE_NAME,
+
+      applicationName:
+        APPLICATION_NAME,
+
+      nodeVersion:
+        process.version,
+
+      platform:
+        process.platform,
+
+      architecture:
+        process.arch,
+
+      pid:
+        process.pid,
+
+      ppid:
+        process.ppid,
+
+      hostname:
+        os.hostname(),
+
+      cpuCount:
+        os.cpus()?.length ||
+        1,
+    });
+  }
+
+  /* ===========================================================================
+   * CONFIGURATION
+   * =========================================================================== */
+
+  resolveConfiguration() {
+    return Object.freeze({
+      environment:
+        process.env.NODE_ENV ||
+        'development',
+
+      serviceName:
+        SERVICE_NAME,
+
+      applicationName:
+        APPLICATION_NAME,
+
+      port:
+        asPositiveInteger(
+          process.env.PORT,
+          3000,
+        ),
+
+      host:
+        process.env.HOST ||
+        '0.0.0.0',
+    });
+  }
+
+  /* ===========================================================================
+   * APPLICATION
+   * =========================================================================== */
+
+  setApplication(
+    application,
+  ) {
+    this.assertApplication(
+      application,
+    );
+
+    if (
+      this.started ||
+      this.starting ||
+      this.stopping
+    ) {
+      throw new ApplicationBootstrapError(
+        'The Express application cannot be replaced while the application lifecycle is active.',
+        {
+          code:
+            'APPLICATION_LOCKED',
+        },
+      );
+    }
+
+    this.application =
+      application;
+
+    if (
+      this.context
+    ) {
+      this.context.application =
+        application;
+    }
+
+    return application;
+  }
+
+  getApplication() {
+    return (
+      this.application ||
+      this.context?.application ||
+      null
+    );
+  }
+
+  assertApplication(
+    application,
+  ) {
+    if (
+      !application ||
+      typeof application !==
+        'function'
+    ) {
+      throw new ApplicationBootstrapError(
+        'A valid Express-compatible application is required.',
+        {
+          code:
+            'APPLICATION_INVALID',
+        },
+      );
+    }
+  }
+
+  /* ===========================================================================
+   * LOGGER
+   * =========================================================================== */
+
+  setLogger(
+    logger,
+  ) {
+    if (
+      !logger ||
+      typeof logger !==
+        'object'
+    ) {
+      return this.logger;
+    }
+
+    this.logger =
+      Object.freeze({
+        ...createFallbackLogger(),
+        ...logger,
+      });
+
+    return this.logger;
+  }
+
+  log(
+    level,
+    message,
+    metadata = {},
+  ) {
+    try {
+      const target =
+        this.logger ||
+        createFallbackLogger();
+
+      if (
+        typeof target[level] ===
+        'function'
+      ) {
+        target[level](
+          message,
+          {
+            component:
+              COMPONENT,
+
+            service:
+              SERVICE_NAME,
+
+            bootstrapId:
+              this.bootstrapId,
+
+            ...metadata,
+          },
+        );
+
+        return;
+      }
+    } catch {
+      // Logging must never break lifecycle execution.
+    }
+
+    try {
+      const fallback =
+        createFallbackLogger();
+
+      fallback[level]?.(
+        message,
+        metadata,
+      );
+    } catch {
+      // Deliberately ignored.
+    }
+  }
+
+  /* ===========================================================================
+   * PHASE REGISTRATION
+   * =========================================================================== */
+
+  registerDefaultPhases() {
+    for (
+      const definition of
+        DEFAULT_PHASES
+    ) {
+      this.registerPhase(
+        definition,
+      );
+    }
 
     return this;
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Readiness Integration
-   * ---------------------------------------------------------------------------
-   */
-
-  _registerReadinessDependency(
-    name,
-    options,
+  registerCustomPhases(
+    phases,
   ) {
     if (
-      !this.readiness ||
-      typeof this.readiness.register !==
-        'function'
+      !Array.isArray(
+        phases,
+      )
     ) {
-      return;
+      return this;
     }
-
-    try {
-      if (
-        typeof this.readiness.has ===
-          'function' &&
-        this.readiness.has(name)
-      ) {
-        return;
-      }
-
-      this.readiness.register({
-        name,
-
-        severity:
-          options.severity ||
-          (
-            options.critical
-              ? 'critical'
-              : 'optional'
-          ),
-
-        critical:
-          options.critical,
-
-        required:
-          options.critical,
-
-        enabled:
-          options.enabled,
-
-        timeoutMs:
-          options.timeoutMs,
-
-        readiness:
-          async () => {
-            const metadata =
-              this.dependencyMetadata.get(
-                name,
-              );
-
-            return {
-              ready:
-                metadata?.state ===
-                'ready',
-
-              status:
-                metadata?.state ===
-                'ready'
-                  ? 'healthy'
-                  : 'not_ready',
-            };
-          },
-
-        metadata:
-          options.metadata,
-      });
-    } catch {
-      /**
-       * Dependency registry remains authoritative if readiness registration
-       * cannot be duplicated safely.
-       */
-    }
-  }
-
-  _markDependencyReady(
-    name,
-    ready,
-    error = null,
-  ) {
-    try {
-      if (
-        ready &&
-        typeof this.readiness.markReady ===
-          'function'
-      ) {
-        this.readiness.markReady({
-          dependency:
-            name,
-        });
-      }
-
-      if (
-        !ready &&
-        typeof this.readiness.markNotReady ===
-          'function'
-      ) {
-        this.readiness.markNotReady(
-          `dependency:${name}`,
-          {
-            error:
-              safeError(
-                error,
-              ),
-          },
-        );
-      }
-    } catch {
-      // Readiness integration is best-effort here.
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Dependency Context
-   * ---------------------------------------------------------------------------
-   */
-
-  _createDependencyContext(
-    name,
-    dependencyContext = {},
-  ) {
-    const base = {
-      ...this.context,
-
-      ...dependencyContext,
-
-      bootstrap:
-        this,
-
-      dependency:
-        name,
-
-      dependencies:
-        this.dependencies,
-
-      lifecycle:
-        this.lifecycle,
-
-      shutdown:
-        this.shutdown,
-
-      readiness:
-        this.readiness,
-
-      bootstrapContext:
-        this.context,
-    };
-
-    if (
-      this.servicesContext?.forService
-    ) {
-      try {
-        const child =
-          this.servicesContext.forService(
-            name,
-            {
-              metadata: {
-                dependency:
-                  name,
-              },
-            },
-          );
-
-        base.servicesContext =
-          child;
-
-        base.serviceContext =
-          child;
-
-        base.service =
-          child;
-      } catch {
-        // Preserve base context.
-      }
-    }
-
-    return base;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Dependency publication
-   * ---------------------------------------------------------------------------
-   */
-
-  _publishDependency(
-    name,
-    value,
-  ) {
-    if (
-      !this.context ||
-      value === undefined
-    ) {
-      return;
-    }
-
-    const existing =
-      this.context.dependencies &&
-      typeof this.context.dependencies ===
-        'object'
-        ? {
-            ...this.context.dependencies,
-          }
-        : {};
-
-    existing[name] =
-      value;
-
-    this.context.dependencies =
-      existing;
-
-    /**
-     * Infrastructure/service consumers commonly use named context properties.
-     */
-    this.context[name] =
-      value;
-
-    /**
-     * ServicesContext can receive the dependency without allowing mutation of
-     * the existing context object.
-     */
-    if (
-      ServicesContextModule?.addInfrastructure
-    ) {
-      try {
-        ServicesContextModule.addInfrastructure(
-          name,
-          value,
-        );
-      } catch {
-        // The resource may be an application service rather than infrastructure.
-      }
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * State
-   * ---------------------------------------------------------------------------
-   */
-
-  _setDependencyState(
-    name,
-    state,
-  ) {
-    const current =
-      this.dependencyMetadata.get(
-        name,
-      ) || {};
-
-    this.dependencyMetadata.set(
-      name,
-      {
-        ...current,
-
-        state,
-
-        updatedAt:
-          new Date(),
-      },
-    );
-  }
-
-  _updateDependencyMetadata(
-    name,
-    metadata,
-  ) {
-    const current =
-      this.dependencyMetadata.get(
-        name,
-      ) || {};
-
-    this.dependencyMetadata.set(
-      name,
-      {
-        ...current,
-
-        ...metadata,
-      },
-    );
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Lifecycle Integration
-   * ---------------------------------------------------------------------------
-   */
-
-  _registerDefaultLifecycleIntegration() {
-    if (
-      !this.lifecycle
-    ) {
-      return;
-    }
-
-    /**
-     * Do not assume one exact lifecycle implementation.
-     */
-    if (
-      typeof this.lifecycle.register !==
-        'function'
-    ) {
-      return;
-    }
-
-    const hooks = [
-      {
-        phase:
-          'beforeStart',
-
-        name:
-          'application-bootstrap.beforeStart',
-
-        handler:
-          async context => {
-            return this._executeLifecycleHook(
-              'beforeStart',
-              context,
-            );
-          },
-      },
-
-      {
-        phase:
-          'afterStart',
-
-        name:
-          'application-bootstrap.afterStart',
-
-        handler:
-          async context => {
-            return this._executeLifecycleHook(
-              'afterStart',
-              context,
-            );
-          },
-      },
-    ];
 
     for (
-      const hook of hooks
+      const phase of
+        phases
     ) {
-      try {
-        this.lifecycle.register(
-          hook.name,
-          hook.handler,
+      this.registerPhase(
+        phase,
+      );
+    }
+
+    return this;
+  }
+
+  registerPhase(
+    definition,
+  ) {
+    if (
+      !definition ||
+      typeof definition !==
+        'object'
+    ) {
+      throw new ApplicationBootstrapError(
+        'Bootstrap phase definition must be an object.',
+        {
+          code:
+            'BOOTSTRAP_PHASE_INVALID',
+        },
+      );
+    }
+
+    const name =
+      String(
+        definition.name ||
+          '',
+      ).trim();
+
+    if (
+      !name
+    ) {
+      throw new ApplicationBootstrapError(
+        'Bootstrap phase requires a name.',
+        {
+          code:
+            'BOOTSTRAP_PHASE_NAME_REQUIRED',
+        },
+      );
+    }
+
+    const priority =
+      Number(
+        definition.priority,
+      );
+
+    const dependencies =
+      Array.isArray(
+        definition.dependencies,
+      )
+        ? [
+            ...new Set(
+              definition.dependencies
+                .map(
+                  dependency =>
+                    String(
+                      dependency,
+                    ).trim(),
+                )
+                .filter(
+                  Boolean,
+                ),
+            ),
+          ]
+        : [];
+
+    const normalized =
+      {
+        name,
+
+        priority:
+          Number.isFinite(
+            priority,
+          )
+            ? priority
+            : 500,
+
+        required:
+          definition.required !==
+          false,
+
+        enabled:
+          definition.enabled !==
+          false,
+
+        dependencies,
+
+        timeoutMs:
+          asPositiveInteger(
+            definition.timeoutMs,
+            this.options
+              .phaseTimeoutMs,
+          ),
+
+        start:
+          typeof definition.start ===
+          'function'
+            ? definition.start
+            : null,
+
+        stop:
+          typeof definition.stop ===
+          'function'
+            ? definition.stop
+            : null,
+
+        health:
+          typeof definition.health ===
+          'function'
+            ? definition.health
+            : null,
+
+        readiness:
+          typeof definition.readiness ===
+          'function'
+            ? definition.readiness
+            : null,
+
+        modulePath:
+          definition.modulePath ||
+          null,
+
+        module:
+          definition.module ||
+          null,
+
+        metadata:
+          freezeCopy(
+            definition.metadata ||
+              {},
+          ),
+      };
+
+    this.phaseDefinitions.set(
+      name,
+      Object.freeze(
+        normalized,
+      ),
+    );
+
+    if (
+      !this.phaseStates.has(
+        name,
+      )
+    ) {
+      this.phaseStates.set(
+        name,
+        this.createPhaseState(
+          normalized,
+        ),
+      );
+    }
+
+    return this;
+  }
+
+  unregisterPhase(
+    name,
+  ) {
+    const phaseName =
+      String(
+        name || '',
+      ).trim();
+
+    if (
+      !phaseName
+    ) {
+      return false;
+    }
+
+    const state =
+      this.phaseStates.get(
+        phaseName,
+      );
+
+    if (
+      state &&
+      (
+        state.status ===
+          'starting' ||
+        state.status ===
+          'started'
+      )
+    ) {
+      throw new ApplicationBootstrapError(
+        `Cannot unregister active bootstrap phase "${phaseName}".`,
+        {
+          code:
+            'BOOTSTRAP_ACTIVE_PHASE',
+
+          phase:
+            phaseName,
+        },
+      );
+    }
+
+    this.phaseDefinitions.delete(
+      phaseName,
+    );
+
+    this.phaseStates.delete(
+      phaseName,
+    );
+
+    return true;
+  }
+
+  createPhaseState(
+    definition,
+  ) {
+    return {
+      name:
+        definition.name,
+
+      priority:
+        definition.priority,
+
+      required:
+        definition.required !==
+        false,
+
+      enabled:
+        definition.enabled !==
+        false,
+
+      status:
+        'pending',
+
+      startedAt:
+        null,
+
+      completedAt:
+        null,
+
+      durationMs:
+        0,
+
+      error:
+        null,
+
+      module:
+        null,
+
+      result:
+        null,
+
+      rollbackAttempted:
+        false,
+
+      rollbackCompleted:
+        false,
+
+      rollbackError:
+        null,
+    };
+  }
+
+  /* ===========================================================================
+   * MODULE DISCOVERY
+   * =========================================================================== */
+
+  resolveCandidate(
+    candidate,
+  ) {
+    if (
+      path.isAbsolute(
+        candidate,
+      )
+    ) {
+      return moduleExists(
+        candidate,
+      )
+        ? candidate
+        : null;
+    }
+
+    const absolute =
+      path.resolve(
+        __dirname,
+        candidate,
+      );
+
+    return moduleExists(
+      absolute,
+    )
+      ? absolute
+      : null;
+  }
+
+  discoverPhaseModule(
+    phaseName,
+    definition,
+  ) {
+    if (
+      definition.module
+    ) {
+      return unwrapModule(
+        definition.module,
+      );
+    }
+
+    if (
+      definition.modulePath
+    ) {
+      if (
+        !moduleExists(
+          this.resolveCandidate(
+            definition.modulePath,
+          ) ||
+            definition.modulePath,
+        )
+      ) {
+        return null;
+      }
+
+      return unwrapModule(
+        loadModule(
+          this.resolveCandidate(
+            definition.modulePath,
+          ) ||
+            definition.modulePath,
+        ),
+      );
+    }
+
+    if (
+      !this.options
+        .autoDiscoverPhases
+    ) {
+      return null;
+    }
+
+    const candidates =
+      PHASE_MODULE_CANDIDATES[
+        phaseName
+      ] || [];
+
+    for (
+      const candidate of
+        candidates
+    ) {
+      const resolved =
+        this.resolveCandidate(
+          candidate,
+        );
+
+      if (
+        resolved
+      ) {
+        return unwrapModule(
+          loadModule(
+            resolved,
+          ),
+        );
+      }
+    }
+
+    return null;
+  }
+
+  resolveModuleFunction(
+    module,
+    names,
+  ) {
+    for (
+      const name of
+        names
+    ) {
+      if (
+        typeof module?.[name] ===
+        'function'
+      ) {
+        return module[name].bind(
+          module,
+        );
+      }
+    }
+
+    if (
+      typeof module ===
+      'function'
+    ) {
+      return module;
+    }
+
+    return null;
+  }
+
+  resolvePhaseImplementation(
+    phaseName,
+    definition,
+  ) {
+    /**
+     * Explicitly supplied handlers always win.
+     */
+    const explicit =
+      {
+        start:
+          definition.start,
+
+        stop:
+          definition.stop,
+
+        health:
+          definition.health,
+
+        readiness:
+          definition.readiness,
+      };
+
+    const needsModule =
+      !explicit.start ||
+      !explicit.stop ||
+      !explicit.health ||
+      !explicit.readiness;
+
+    if (
+      !needsModule
+    ) {
+      return {
+        module:
+          null,
+
+        ...explicit,
+      };
+    }
+
+    const module =
+      this.discoverPhaseModule(
+        phaseName,
+        definition,
+      );
+
+    if (
+      !module
+    ) {
+      return {
+        module:
+          null,
+
+        ...explicit,
+      };
+    }
+
+    return {
+      module,
+
+      start:
+        explicit.start ||
+        this.resolveModuleFunction(
+          module,
+          [
+            'initialize',
+            'init',
+            'start',
+            'bootstrap',
+            'setup',
+          ],
+        ),
+
+      stop:
+        explicit.stop ||
+        this.resolveModuleFunction(
+          module,
+          [
+            'shutdown',
+            'stop',
+            'close',
+            'dispose',
+          ],
+        ),
+
+      health:
+        explicit.health ||
+        this.resolveModuleFunction(
+          module,
+          [
+            'health',
+            'getHealth',
+          ],
+        ),
+
+      readiness:
+        explicit.readiness ||
+        this.resolveModuleFunction(
+          module,
+          [
+            'readiness',
+            'isReady',
+          ],
+        ),
+    };
+  }
+
+  /* ===========================================================================
+   * PHASE ORDER
+   * =========================================================================== */
+
+  resolvePhaseOrder() {
+    const definitions =
+      Array.from(
+        this.phaseDefinitions.values(),
+      ).filter(
+        definition =>
+          definition.enabled,
+      );
+
+    const byName =
+      new Map(
+        definitions.map(
+          definition => [
+            definition.name,
+            definition,
+          ],
+        ),
+      );
+
+    const visiting =
+      new Set();
+
+    const visited =
+      new Set();
+
+    const ordered =
+      [];
+
+    const visit =
+      name => {
+        if (
+          visited.has(
+            name,
+          )
+        ) {
+          return;
+        }
+
+        if (
+          visiting.has(
+            name,
+          )
+        ) {
+          throw new ApplicationBootstrapError(
+            `Circular bootstrap phase dependency detected at "${name}".`,
+            {
+              code:
+                'BOOTSTRAP_PHASE_CYCLE',
+
+              phase:
+                name,
+            },
+          );
+        }
+
+        const definition =
+          byName.get(
+            name,
+          );
+
+        if (
+          !definition
+        ) {
+          throw new ApplicationBootstrapError(
+            `Bootstrap phase "${name}" depends on an unavailable phase "${name}".`,
+            {
+              code:
+                'BOOTSTRAP_PHASE_DEPENDENCY_MISSING',
+
+              phase:
+                name,
+            },
+          );
+        }
+
+        visiting.add(
+          name,
+        );
+
+        for (
+          const dependency of
+            definition.dependencies
+        ) {
+          if (
+            !byName.has(
+              dependency,
+            )
+          ) {
+            throw new ApplicationBootstrapError(
+              `Bootstrap phase "${name}" depends on unknown phase "${dependency}".`,
+              {
+                code:
+                  'BOOTSTRAP_PHASE_DEPENDENCY_MISSING',
+
+                phase:
+                  name,
+
+                details: {
+                  dependency,
+                },
+              },
+            );
+          }
+
+          visit(
+            dependency,
+          );
+        }
+
+        visiting.delete(
+          name,
+        );
+
+        visited.add(
+          name,
+        );
+
+        ordered.push(
+          definition,
+        );
+      };
+
+    const sorted =
+      [...definitions].sort(
+        (
+          left,
+          right,
+        ) =>
+          left.priority -
+            right.priority ||
+          left.name.localeCompare(
+            right.name,
+          ),
+      );
+
+    for (
+      const definition of
+        sorted
+    ) {
+      visit(
+        definition.name,
+      );
+    }
+
+    return ordered;
+  }
+
+  /* ===========================================================================
+   * PHASE EXECUTION
+   * =========================================================================== */
+
+  async executePhase(
+    definition,
+  ) {
+    const state =
+      this.phaseStates.get(
+        definition.name,
+      ) ||
+      this.createPhaseState(
+        definition,
+      );
+
+    this.phaseStates.set(
+      definition.name,
+      state,
+    );
+
+    state.status =
+      'starting';
+
+    state.startedAt =
+      now();
+
+    state.completedAt =
+      null;
+
+    state.error =
+      null;
+
+    state.rollbackAttempted =
+      false;
+
+    state.rollbackCompleted =
+      false;
+
+    state.rollbackError =
+      null;
+
+    this.emit(
+      'phase.starting',
+      {
+        phase:
+          definition.name,
+      },
+    );
+
+    const implementation =
+      this.resolvePhaseImplementation(
+        definition.name,
+        definition,
+      );
+
+    state.module =
+      implementation.module;
+
+    const phaseStart =
+      Date.now();
+
+    try {
+      if (
+        !implementation.start
+      ) {
+        /**
+         * Optional phases may legitimately be absent.
+         *
+         * Required phases fail only when no valid implementation exists and
+         * the phase cannot be satisfied by already prepared application state.
+         */
+        if (
+          definition.required &&
+          !this.canSatisfyPhaseWithoutImplementation(
+            definition.name,
+          )
+        ) {
+          throw new ApplicationBootstrapError(
+            `Required bootstrap phase "${definition.name}" is not available.`,
+            {
+              code:
+                'BOOTSTRAP_REQUIRED_PHASE_UNAVAILABLE',
+
+              phase:
+                definition.name,
+            },
+          );
+        }
+
+        state.status =
+          'skipped';
+
+        state.completedAt =
+          now();
+
+        state.durationMs =
+          elapsedMs(
+            phaseStart,
+          );
+
+        this.emit(
+          'phase.skipped',
           {
             phase:
-              hook.phase,
-
-            priority:
-              hook.phase ===
-              'beforeStart'
-                ? -10_000
-                : 10_000,
-
-            metadata: {
-              component:
-                COMPONENT,
-            },
+              definition.name,
           },
         );
-      } catch {
-        /**
-         * Some lifecycle managers expose `execute()` only and do not require
-         * explicit hook registration. start() handles that contract below.
-         */
+
+        return null;
       }
+
+      const result =
+        await withTimeout(
+          signal =>
+            implementation.start(
+              this.context,
+              this,
+              signal,
+            ),
+          definition.timeoutMs,
+          definition.name,
+          {
+            signal:
+              this.lifecycleAbortController
+                .signal,
+          },
+        );
+
+      /**
+       * Modules are permitted to populate application, logger and other
+       * canonical context members.
+       */
+      if (
+        result &&
+        typeof result ===
+          'object'
+      ) {
+        if (
+          result.application &&
+          !this.application
+        ) {
+          this.setApplication(
+            result.application,
+          );
+        }
+
+        if (
+          result.logger
+        ) {
+          this.setLogger(
+            result.logger,
+          );
+        }
+
+        if (
+          result.context &&
+          typeof result.context ===
+            'object'
+        ) {
+          Object.assign(
+            this.context,
+            result.context,
+          );
+        }
+      }
+
+      if (
+        this.context?.application &&
+        !this.application
+      ) {
+        this.application =
+          this.context.application;
+      }
+
+      if (
+        this.context?.logger
+      ) {
+        this.setLogger(
+          this.context.logger,
+        );
+      }
+
+      state.result =
+        result;
+
+      state.status =
+        'started';
+
+      state.completedAt =
+        now();
+
+      state.durationMs =
+        elapsedMs(
+          phaseStart,
+        );
+
+      this.completedPhases.push(
+        definition.name,
+      );
+
+      this.emit(
+        'phase.completed',
+        {
+          phase:
+            definition.name,
+
+          durationMs:
+            state.durationMs,
+        },
+      );
+
+      return result;
+    } catch (error) {
+      state.status =
+        'failed';
+
+      state.error =
+        safeError(
+          error,
+        );
+
+      state.completedAt =
+        now();
+
+      state.durationMs =
+        elapsedMs(
+          phaseStart,
+        );
+
+      this.emit(
+        'phase.failed',
+        {
+          phase:
+            definition.name,
+
+          error:
+            safeError(
+              error,
+            ),
+        },
+      );
+
+      throw this.wrapPhaseError(
+        error,
+        definition.name,
+      );
     }
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Lifecycle Execution
-   * ---------------------------------------------------------------------------
-   */
+  canSatisfyPhaseWithoutImplementation(
+    phaseName,
+  ) {
+    switch (
+      phaseName
+    ) {
+      case 'environment':
+        return Boolean(
+          this.context?.environment,
+        );
 
-  async _executeLifecycleHook(
+      case 'configuration':
+        return Boolean(
+          this.context?.config,
+        );
+
+      case 'logger':
+        return Boolean(
+          this.logger,
+        );
+
+      case 'readiness':
+        return true;
+
+      case 'infrastructure':
+      case 'services':
+      case 'middleware':
+      case 'routes':
+        return Boolean(
+          this.context?.application ||
+            this.application,
+        );
+
+      case 'server':
+        return Boolean(
+          this.context?.server ||
+            this.server,
+        );
+
+      default:
+        return false;
+    }
+  }
+
+  wrapPhaseError(
+    error,
     phase,
+  ) {
+    if (
+      error instanceof
+      ApplicationBootstrapError
+    ) {
+      if (
+        !error.phase
+      ) {
+        error.phase =
+          phase;
+      }
+
+      return error;
+    }
+
+    return new ApplicationBootstrapError(
+      `Application bootstrap phase "${phase}" failed.`,
+      {
+        code:
+          'BOOTSTRAP_PHASE_FAILED',
+
+        phase,
+
+        cause:
+          error,
+      },
+    );
+  }
+
+  /* ===========================================================================
+   * SERVER ADAPTER
+   * =========================================================================== */
+
+  resolveServerModule(
     context,
   ) {
     if (
-      this.lifecycle &&
-      typeof this.lifecycle.execute ===
-        'function'
+      context?.serverModule
     ) {
-      return this.lifecycle.execute(
-        phase,
-        context,
+      return unwrapModule(
+        context.serverModule,
+      );
+    }
+
+    if (
+      this.options.serverModule
+    ) {
+      return unwrapModule(
+        this.options.serverModule,
+      );
+    }
+
+    const candidate =
+      path.resolve(
+        __dirname,
+        'server.js',
+      );
+
+    if (
+      moduleExists(
+        candidate,
+      )
+    ) {
+      return unwrapModule(
+        loadModule(
+          candidate,
+        ),
       );
     }
 
     return null;
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Startup
-   * ---------------------------------------------------------------------------
-   */
-
-  async start(
-    context = {},
-  ) {
+  async startServer() {
     if (
-      this.startPromise
+      !this.options.startServer
     ) {
-      return this.startPromise;
+      return null;
     }
 
     if (
-      this.ready &&
-      this.started &&
-      !this.stopping
+      !this.application
     ) {
-      return this.snapshot();
+      throw new ApplicationBootstrapError(
+        'Cannot start the TITech HTTP server before an application has been composed.',
+        {
+          code:
+            'SERVER_APPLICATION_UNAVAILABLE',
+
+          phase:
+            'server',
+        },
+      );
+    }
+
+    const serverModule =
+      this.serverModule ||
+      this.resolveServerModule(
+        this.context,
+      );
+
+    if (
+      !serverModule
+    ) {
+      throw new ApplicationBootstrapError(
+        'HTTP server bootstrap adapter is unavailable.',
+        {
+          code:
+            'SERVER_BOOTSTRAP_UNAVAILABLE',
+
+          phase:
+            'server',
+        },
+      );
+    }
+
+    this.serverModule =
+      serverModule;
+
+    const serverOptions =
+      {
+        ...(this.options.serverOptions ||
+          {}),
+      };
+
+    /**
+     * Canonical application injection.
+     */
+    serverOptions.app =
+      this.application;
+
+    serverOptions.application =
+      this.application;
+
+    serverOptions.applicationName =
+      APPLICATION_NAME;
+
+    serverOptions.serviceName =
+      SERVICE_NAME;
+
+    serverOptions.environment =
+      this.context?.environment;
+
+    serverOptions.config =
+      this.context?.config;
+
+    serverOptions.bootstrap =
+      this;
+
+    serverOptions.bootstrapId =
+      this.bootstrapId;
+
+    if (
+      typeof serverModule.registerServerHooks ===
+        'function' &&
+      this.options.registerServerHooks
+    ) {
+      try {
+        serverModule.registerServerHooks(
+          this.context,
+          serverOptions,
+        );
+      } catch (error) {
+        throw new ApplicationBootstrapError(
+          'Unable to register TITech HTTP server lifecycle hooks.',
+          {
+            code:
+              'SERVER_HOOK_REGISTRATION_FAILED',
+
+            phase:
+              'server',
+
+            cause:
+              error,
+          },
+        );
+      }
+    }
+
+    const startFunction =
+      serverModule.start ||
+      serverModule.initialize;
+
+    if (
+      typeof startFunction !==
+      'function'
+    ) {
+      throw new ApplicationBootstrapError(
+        'TITech HTTP server bootstrap adapter does not expose start() or initialize().',
+        {
+          code:
+            'SERVER_START_API_UNAVAILABLE',
+
+          phase:
+            'server',
+        },
+      );
+    }
+
+    const result =
+      await startFunction(
+        this.context,
+        serverOptions,
+      );
+
+    this.server =
+      result?.server ||
+      result?.httpServer ||
+      result?.httpsServer ||
+      serverModule.getServer?.() ||
+      null;
+
+    this.context.server =
+      this.server;
+
+    this.context.serverModule =
+      serverModule;
+
+    this.context.serverResult =
+      result;
+
+    return result;
+  }
+
+  async stopServer(
+    reason,
+    metadata = {},
+  ) {
+    const serverModule =
+      this.serverModule ||
+      this.context?.serverModule;
+
+    if (
+      !serverModule
+    ) {
+      return true;
+    }
+
+    const stopFunction =
+      serverModule.stop ||
+      serverModule.shutdown ||
+      serverModule.close;
+
+    if (
+      typeof stopFunction !==
+      'function'
+    ) {
+      this.server =
+        null;
+
+      if (
+        this.context
+      ) {
+        this.context.server =
+          null;
+      }
+
+      return true;
+    }
+
+    await stopFunction(
+      reason,
+      metadata,
+    );
+
+    this.server =
+      null;
+
+    if (
+      this.context
+    ) {
+      this.context.server =
+        null;
+    }
+
+    return true;
+  }
+
+  /* ===========================================================================
+   * STARTUP
+   * =========================================================================== */
+
+  async start(
+    suppliedContext = {},
+  ) {
+    if (
+      this.destroyed
+    ) {
+      throw new ApplicationBootstrapError(
+        'Cannot start a destroyed TITech application bootstrap.',
+        {
+          code:
+            'BOOTSTRAP_DESTROYED',
+        },
+      );
+    }
+
+    if (
+      this.started
+    ) {
+      return this.getSnapshot();
+    }
+
+    if (
+      this.startPromise
+    ) {
+      await this.startPromise;
+
+      return this.getSnapshot();
     }
 
     if (
       this.stopping
     ) {
       throw new ApplicationBootstrapError(
-        'TITech application cannot start while shutdown is in progress.',
+        'Cannot start application bootstrap while shutdown is in progress.',
         {
           code:
-            'APPLICATION_START_DURING_SHUTDOWN',
+            'BOOTSTRAP_START_DURING_SHUTDOWN',
         },
       );
     }
 
     if (
-      this.stopped
+      this.stopped &&
+      !this.options.allowRestart
     ) {
       throw new ApplicationBootstrapError(
-        'TITech application cannot be restarted after shutdown.',
+        'Application bootstrap cannot be restarted after shutdown.',
         {
           code:
-            'APPLICATION_ALREADY_STOPPED',
+            'BOOTSTRAP_ALREADY_STOPPED',
         },
       );
     }
 
-    this.startPromise =
-      (async () => {
-        const startedAt =
-          process.hrtime.bigint();
+    if (
+      this.stopped &&
+      this.options.allowRestart
+    ) {
+      this.prepareForRestart();
+    }
 
-        this.startingAt =
-          new Date();
+    this.starting =
+      true;
 
-        this.state =
-          'starting';
+    this.failed =
+      false;
 
-        this.failed =
-          false;
+    this.lastError =
+      null;
 
-        this.failure =
-          null;
+    this.startedAt =
+      now();
 
-        this.initialize(
-          context,
+    this.completedPhases =
+      [];
+
+    if (
+      !this.context
+    ) {
+      this.context =
+        this.createContext(
+          suppliedContext,
         );
+    } else {
+      Object.assign(
+        this.context,
+        suppliedContext || {},
+      );
 
-        /**
-         * Merge caller context with existing bootstrap context.
-         */
-        this.context =
-          this._createContext({
-            ...this.context,
+      this.context =
+        this.createContext(
+          this.context,
+        );
+    }
 
-            ...context,
-          });
+    if (
+      this.context.application
+    ) {
+      this.setApplication(
+        this.context.application,
+      );
+    }
 
-        try {
-          /**
-           * ---------------------------------------------------------------
-           * beforeStart
-           * ---------------------------------------------------------------
-           */
-          await withTimeout(
-            () =>
-              this._executeLifecycleHook(
-                'beforeStart',
-                this.context,
-              ),
-            this.options
-              .startupTimeoutMs,
-            'TITech beforeStart lifecycle',
-          );
+    if (
+      !this.initialized
+    ) {
+      this.initialized =
+        true;
 
-          /**
-           * ---------------------------------------------------------------
-           * Dependency initialization
-           * ---------------------------------------------------------------
-           */
-          if (
-            !this.dependencies ||
-            typeof this.dependencies.initialize !==
-              'function'
-          ) {
-            throw new ApplicationBootstrapError(
-              'TITech dependency registry does not expose initialize().',
-              {
-                code:
-                  'DEPENDENCY_REGISTRY_INITIALIZE_UNAVAILABLE',
-              },
-            );
-          }
+      this.initializedAt =
+        now();
+    }
 
-          const result =
-            await withTimeout(
-              () =>
-                this.dependencies.initialize(
-                  this.context,
-                ),
-              this.options
-                .startupTimeoutMs,
-              'TITech dependency initialization',
-            );
+    this.lifecycleAbortController =
+      new AbortController();
 
-          /**
-           * Publish returned registry state.
-           */
-          if (
-            result &&
-            typeof result ===
-              'object'
-          ) {
-            this.context.dependencies =
-              result;
-          }
+    this.context.signal =
+      this.lifecycleAbortController
+        .signal;
 
-          /**
-           * ---------------------------------------------------------------
-           * Dependency readiness
-           * ---------------------------------------------------------------
-           */
-          if (
-            this.options
-              .requireReadiness
-          ) {
-            await this._evaluateReadiness();
-          }
-
-          /**
-           * ---------------------------------------------------------------
-           * afterStart
-           * ---------------------------------------------------------------
-           */
-          await withTimeout(
-            () =>
-              this._executeLifecycleHook(
-                'afterStart',
-                this.context,
-              ),
-            this.options
-              .startupTimeoutMs,
-            'TITech afterStart lifecycle',
-          );
-
-          /**
-           * ---------------------------------------------------------------
-           * Final readiness gate
-           * ---------------------------------------------------------------
-           */
-          if (
-            this.options
-              .requireReadiness
-          ) {
-            await this._evaluateReadiness();
-          }
-
-          this.started =
-            true;
-
-          this.stopping =
-            false;
-
-          this.stopped =
-            false;
-
-          this.failed =
-            false;
-
-          this.ready =
-            true;
-
-          this.state =
-            'ready';
-
-          this.startedAt =
-            new Date();
-
-          this.readyAt =
-            new Date();
-
-          this._registerCanonicalShutdownParticipant();
-
-          return this.snapshot({
-            startupDurationMs:
-              Number(
-                process.hrtime.bigint() -
-                  startedAt,
-              ) /
-              1_000_000,
-          });
-        } catch (error) {
-          const normalized =
-            startupErrors.normalizeStartupError(
-              error,
-              {
-                phase:
-                  error?.phase ||
-                  'bootstrap',
-
-                component:
-                  COMPONENT,
-
-                service:
-                  SERVICE_NAME,
-
-                critical:
-                  true,
-
-                fatal:
-                  true,
-
-                preserveCauseStack:
-                  true,
-              },
-            );
-
-          this.failed =
-            true;
-
-          this.started =
-            false;
-
-          this.ready =
-            false;
-
-          this.state =
-            'failed';
-
-          this.failure =
-            normalized;
-
-          /**
-           * Partial startup cleanup is mandatory.
-           *
-           * The shutdown manager remains the authoritative cleanup mechanism.
-           */
-          try {
-            await this.shutdownInternal(
-              normalized.message,
-              {
-                startupFailure:
-                  true,
-
-                error:
-                  normalized,
-              },
-            );
-          } catch {
-            /**
-             * Preserve the original startup failure.
-             */
-          }
-
-          throw normalized;
-        }
-      })();
+    this.startPromise =
+      withTimeout(
+        signal =>
+          this.performStartup(
+            signal,
+          ),
+        this.options
+          .startupTimeoutMs,
+        'application-bootstrap',
+      );
 
     try {
-      return await this.startPromise;
+      await this.startPromise;
+
+      this.starting =
+        false;
+
+      this.started =
+        true;
+
+      this.stopped =
+        false;
+
+      this.failed =
+        false;
+
+      this.emit(
+        'started',
+        this.getSnapshot(),
+      );
+
+      this.log(
+        'info',
+        'TITech application bootstrap completed.',
+        {
+          application:
+            APPLICATION_NAME,
+
+          durationMs:
+            elapsedMs(
+              this.startedAt,
+            ),
+        },
+      );
+
+      return this.getSnapshot();
+    } catch (error) {
+      this.starting =
+        false;
+
+      this.started =
+        false;
+
+      this.failed =
+        true;
+
+      this.lastError =
+        error;
+
+      this.emit(
+        'failed',
+        {
+          error:
+            safeError(
+              error,
+            ),
+        },
+      );
+
+      throw error;
     } finally {
       this.startPromise =
         null;
     }
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Readiness Evaluation
-   * ---------------------------------------------------------------------------
-   */
+  async performStartup(
+    signal,
+  ) {
+    const order =
+      this.resolvePhaseOrder();
 
-  async _evaluateReadiness() {
-    if (
-      !this.readiness
+    this.emit(
+      'starting',
+      {
+        phases:
+          order.map(
+            phase =>
+              phase.name,
+          ),
+      },
+    );
+
+    this.log(
+      'info',
+      'Starting TITech application bootstrap.',
+      {
+        phases:
+          order.map(
+            phase =>
+              phase.name,
+          ),
+      },
+    );
+
+    try {
+      for (
+        const definition of
+          order
+      ) {
+        if (
+          signal?.aborted
+        ) {
+          throw new ApplicationBootstrapError(
+            'TITech application bootstrap was aborted.',
+            {
+              code:
+                'BOOTSTRAP_ABORTED',
+
+              cause:
+                signal.reason,
+            },
+          );
+        }
+
+        if (
+          definition.name ===
+          'server'
+        ) {
+          const state =
+            this.phaseStates.get(
+              'server',
+            ) ||
+            this.createPhaseState(
+              definition,
+            );
+
+          this.phaseStates.set(
+            'server',
+            state,
+          );
+
+          if (
+            !this.options.startServer
+          ) {
+            state.status =
+              'skipped';
+
+            state.completedAt =
+              now();
+
+            continue;
+          }
+
+          state.status =
+            'starting';
+
+          state.startedAt =
+            now();
+
+          this.emit(
+            'phase.starting',
+            {
+              phase:
+                'server',
+            },
+          );
+
+          const serverStart =
+            Date.now();
+
+          try {
+            const result =
+              await withTimeout(
+                () =>
+                  this.startServer(),
+                definition.timeoutMs,
+                'server',
+                {
+                  signal:
+                    this.lifecycleAbortController
+                      .signal,
+                },
+              );
+
+            state.result =
+              result;
+
+            state.status =
+              'started';
+
+            state.completedAt =
+              now();
+
+            state.durationMs =
+              elapsedMs(
+                serverStart,
+              );
+
+            this.completedPhases.push(
+              'server',
+            );
+
+            this.emit(
+              'phase.completed',
+              {
+                phase:
+                  'server',
+
+                durationMs:
+                  state.durationMs,
+              },
+            );
+          } catch (error) {
+            state.status =
+              'failed';
+
+            state.error =
+              safeError(
+                error,
+              );
+
+            state.completedAt =
+              now();
+
+            state.durationMs =
+              elapsedMs(
+                serverStart,
+              );
+
+            this.emit(
+              'phase.failed',
+              {
+                phase:
+                  'server',
+
+                error:
+                  safeError(
+                    error,
+                  ),
+              },
+            );
+
+            throw this.wrapPhaseError(
+              error,
+              'server',
+            );
+          }
+
+          continue;
+        }
+
+        await this.executePhase(
+          definition,
+        );
+
+        if (
+          this.context?.application &&
+          !this.application
+        ) {
+          this.application =
+            this.context.application;
+        }
+
+        if (
+          this.context?.logger
+        ) {
+          this.setLogger(
+            this.context.logger,
+          );
+        }
+      }
+
+      if (
+        this.options
+          .requireApplication
+      ) {
+        this.assertApplication(
+          this.application ||
+            this.context?.application,
+        );
+      }
+
+      this.application =
+        this.application ||
+        this.context?.application ||
+        null;
+
+      return this.getSnapshot();
+    } catch (error) {
+      this.log(
+        'error',
+        'TITech application startup failed. Beginning transactional rollback.',
+        {
+          error:
+            safeError(
+              error,
+            ),
+        },
+      );
+
+      const rollbackErrors =
+        await this.rollback(
+          error,
+        );
+
+      if (
+        rollbackErrors.length > 0
+      ) {
+        this.log(
+          'error',
+          'TITech startup rollback completed with errors.',
+          {
+            rollbackErrors:
+              rollbackErrors.map(
+                safeError,
+              ),
+          },
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  /* ===========================================================================
+   * ROLLBACK
+   * =========================================================================== */
+
+  async rollback(
+    cause,
+  ) {
+    const definitions =
+      this.resolvePhaseOrder();
+
+    const completedSet =
+      new Set(
+        this.completedPhases,
+      );
+
+    const errors =
+      [];
+
+    for (
+      const definition of
+        [...definitions].reverse()
     ) {
-      return true;
+      if (
+        !completedSet.has(
+          definition.name,
+        )
+      ) {
+        continue;
+      }
+
+      try {
+        if (
+          definition.name ===
+          'server'
+        ) {
+          await this.stopServer(
+            'bootstrap-rollback',
+            {
+              cause,
+            },
+          );
+
+          const state =
+            this.phaseStates.get(
+              'server',
+            );
+
+          if (
+            state
+          ) {
+            state.rollbackAttempted =
+              true;
+
+            state.rollbackCompleted =
+              true;
+
+            state.status =
+              'stopped';
+          }
+
+          continue;
+        }
+
+        await this.stopPhase(
+          definition,
+        );
+      } catch (error) {
+        errors.push(
+          error,
+        );
+      }
     }
 
+    this.emit(
+      'rollback.completed',
+      {
+        cause:
+          safeError(
+            cause,
+          ),
+
+        errors:
+          errors.map(
+            safeError,
+          ),
+      },
+    );
+
+    return errors;
+  }
+
+  /* ===========================================================================
+   * PHASE SHUTDOWN
+   * =========================================================================== */
+
+  async stopPhase(
+    definition,
+  ) {
+    const state =
+      this.phaseStates.get(
+        definition.name,
+      );
+
     if (
-      typeof this.readiness.evaluate ===
-        'function'
+      !state ||
+      state.status !==
+        'started'
     ) {
-      await this.readiness.evaluate({
-        allowRecovery:
-          true,
-      });
+      return;
     }
 
-    let ready =
+    state.rollbackAttempted =
       true;
 
-    if (
-      typeof this.readiness.isReady ===
-        'function'
-    ) {
-      ready =
-        this.readiness.isReady();
-    } else if (
-      typeof this.readiness.snapshot ===
-        'function'
-    ) {
-      const snapshot =
-        this.readiness.snapshot();
+    const implementation =
+      this.resolvePhaseImplementation(
+        definition.name,
+        definition,
+      );
 
-      ready =
-        snapshot.ready !==
-          false &&
-        snapshot.state !==
-          'failed' &&
-        snapshot.state !==
-          'not_ready';
+    if (
+      !implementation.stop
+    ) {
+      state.rollbackCompleted =
+        true;
+
+      state.status =
+        'stopped';
+
+      return;
     }
 
-    if (
-      !ready
-    ) {
+    try {
+      await withTimeout(
+        signal =>
+          implementation.stop(
+            this.context,
+            this,
+            signal,
+          ),
+        Math.min(
+          definition.timeoutMs ||
+            this.options
+              .shutdownTimeoutMs,
+          this.options
+            .shutdownTimeoutMs,
+        ),
+        `${definition.name}-shutdown`,
+        {
+          signal:
+            this.lifecycleAbortController
+              .signal,
+        },
+      );
+
+      state.rollbackCompleted =
+        true;
+
+      state.status =
+        'stopped';
+    } catch (error) {
+      state.rollbackCompleted =
+        false;
+
+      state.rollbackError =
+        safeError(
+          error,
+        );
+
+      state.status =
+        'failed';
+
+      this.emit(
+        'phase.shutdown_failed',
+        {
+          phase:
+            definition.name,
+
+          error:
+            safeError(
+              error,
+            ),
+        },
+      );
+
       throw new ApplicationBootstrapError(
-        'TITech application readiness requirements were not satisfied.',
+        `Shutdown of bootstrap phase "${definition.name}" failed.`,
         {
           code:
-            'APPLICATION_NOT_READY',
+            'BOOTSTRAP_PHASE_SHUTDOWN_FAILED',
+
+          phase:
+            definition.name,
+
+          cause:
+            error,
         },
       );
     }
-
-    return true;
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Shutdown Registration
-   * ---------------------------------------------------------------------------
-   */
+  /* ===========================================================================
+   * SHUTDOWN
+   * =========================================================================== */
 
-  _registerCanonicalShutdownParticipant() {
-    if (
-      this._shutdownRegistered ||
-      !this.options
-        .autoRegisterShutdown
-    ) {
-      return;
-    }
-
-    if (
-      !this.shutdown
-    ) {
-      return;
-    }
-
-    const handler =
-      async context => {
-        return this.shutdownInternal(
-          context?.reason ||
-            'application-shutdown',
-          context,
-        );
-      };
-
-    try {
-      if (
-        typeof this.shutdown.has ===
-          'function' &&
-        this.shutdown.has(
-          COMPONENT,
-        )
-      ) {
-        this._shutdownRegistered =
-          true;
-
-        return;
-      }
-    } catch {
-      // Continue registration attempt.
-    }
-
-    try {
-      if (
-        typeof this.shutdown.register ===
-          'function'
-      ) {
-        this.shutdown.register({
-          name:
-            COMPONENT,
-
-          priority:
-            50_000,
-
-          critical:
-            true,
-
-          dependencies:
-            [],
-
-          timeoutMs:
-            this.options
-              .shutdownTimeoutMs,
-
-          stop:
-            handler,
-
-          metadata: {
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-          },
-        });
-
-        this._shutdownRegistered =
-          true;
-      }
-    } catch (error) {
-      if (
-        error?.code !==
-        'SHUTDOWN_PARTICIPANT_DUPLICATE'
-      ) {
-        throw error;
-      }
-
-      this._shutdownRegistered =
-        true;
-    }
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Shutdown
-   * ---------------------------------------------------------------------------
-   */
-
-  async shutdown(
-    reason =
-      'application-request',
-  ) {
-    return this.shutdownInternal(
-      reason,
-      {},
-    );
-  }
-
-  async shutdownInternal(
+  async stop(
     reason =
       'application-request',
     metadata = {},
   ) {
     if (
-      this.shutdownPromise
+      this.stopPromise
     ) {
-      return this.shutdownPromise;
+      return this.stopPromise;
     }
 
     if (
       this.stopped
     ) {
-      return this.snapshot();
+      return true;
     }
 
-    this.shutdownPromise =
-      (async () => {
-        this.stopping =
-          true;
-
-        this.ready =
-          false;
-
-        this.state =
-          'stopping';
-
-        this.stoppingAt =
-          new Date();
-
-        this.shutdownReason =
-          reason;
-
-        /**
-         * Fence traffic before tearing down resources.
-         */
-        try {
-          if (
-            typeof this.readiness.markNotReady ===
-              'function'
-          ) {
-            this.readiness.markNotReady(
-              'application-shutdown',
-              {
-                reason,
-              },
-            );
-          }
-        } catch {
-          // Continue.
-        }
-
-        /**
-         * Prefer the canonical shutdown manager.
-         */
-        try {
-          if (
-            typeof this.shutdown.request ===
-              'function'
-          ) {
-            await withTimeout(
-              () =>
-                this.shutdown.request(
-                  reason,
-                  {
-                    ...metadata,
-
-                    bootstrap:
-                      this,
-
-                    context:
-                      this.context,
-                  },
-                ),
-              this.options
-                .shutdownTimeoutMs,
-              'TITech shutdown manager',
-            );
-          } else if (
-            typeof this.shutdown.shutdown ===
-              'function'
-          ) {
-            await withTimeout(
-              () =>
-                this.shutdown.shutdown(
-                  reason,
-                ),
-              this.options
-                .shutdownTimeoutMs,
-              'TITech shutdown manager',
-            );
-          } else if (
-            typeof this.shutdown.stop ===
-              'function'
-          ) {
-            await withTimeout(
-              () =>
-                this.shutdown.stop(
-                  reason,
-                ),
-              this.options
-                .shutdownTimeoutMs,
-              'TITech shutdown manager',
-            );
-          } else {
-            await this._fallbackShutdown(
-              reason,
-              metadata,
-            );
-          }
-        } catch (error) {
-          this.failure =
-            error;
-
-          this.failed =
-            true;
-
-          this.state =
-            'failed';
-
-          throw error;
-        }
-
-        this.started =
-          false;
-
-        this.ready =
-          false;
-
-        this.stopping =
-          false;
-
-        this.stopped =
-          true;
-
-        this.failed =
-          false;
-
-        this.state =
-          'stopped';
-
-        this.stoppedAt =
-          new Date();
-
-        return this.snapshot();
-      })();
+    this.stopPromise =
+      this.performShutdown(
+        reason,
+        metadata,
+      );
 
     try {
-      return await this.shutdownPromise;
+      return await this.stopPromise;
     } finally {
-      this.shutdownPromise =
+      this.stopPromise =
         null;
     }
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Fallback Shutdown
-   * ---------------------------------------------------------------------------
-   *
-   * Only used when an older/simple shutdown manager implementation does not
-   * expose the canonical request/stop contract.
-   */
-
-  async _fallbackShutdown(
-    reason,
-    metadata,
+  async shutdown(
+    reason =
+      'application-request',
+    metadata = {},
   ) {
-    /**
-     * Prefer dependency registry shutdown when available.
-     */
-    if (
-      this.dependencies &&
-      typeof this.dependencies.shutdown ===
-        'function'
-    ) {
-      await this.dependencies.shutdown({
-        reason,
-
-        ...metadata,
-      });
-
-      return;
-    }
-
-    if (
-      this.dependencies &&
-      typeof this.dependencies.stop ===
-        'function'
-    ) {
-      await this.dependencies.stop({
-        reason,
-
-        ...metadata,
-      });
-    }
+    return this.stop(
+      reason,
+      metadata,
+    );
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Shutdown Registration API
-   * ---------------------------------------------------------------------------
-   */
-
-  registerShutdown(
-    name,
-    handler,
-    options = {},
+  async performShutdown(
+    reason,
+    metadata = {},
   ) {
     if (
-      typeof handler !==
-      'function'
+      this.stopping
     ) {
-      throw new TypeError(
-        `Shutdown handler "${name}" must be a function.`,
-      );
+      return false;
     }
 
-    if (
-      !this.shutdown ||
-      typeof this.shutdown.register !==
-        'function'
-    ) {
-      throw new ApplicationBootstrapError(
-        'TITech shutdown manager does not support participant registration.',
-        {
-          code:
-            'SHUTDOWN_REGISTRATION_UNAVAILABLE',
-        },
-      );
+    this.stopping =
+      true;
+
+    this.started =
+      false;
+
+    try {
+      this.lifecycleAbortController
+        .abort(
+          new Error(
+            `Application shutdown requested: ${reason}`,
+          ),
+        );
+    } catch {
+      // Abort is best effort.
     }
 
-    this.shutdown.register({
-      name,
+    this.emit(
+      'stopping',
+      {
+        reason,
 
-      stop:
-        handler,
+        signal:
+          metadata?.signal ||
+          null,
+      },
+    );
 
-      priority:
-        options.priority ??
-        0,
+    this.log(
+      'info',
+      'Stopping TITech application bootstrap.',
+      {
+        reason,
 
-      critical:
-        options.critical !==
-        false,
+        signal:
+          metadata?.signal ||
+          null,
+      },
+    );
 
-      dependencies:
-        options.dependencies ||
-        [],
+    let shutdownError =
+      null;
 
-      timeoutMs:
-        options.timeoutMs ||
+    /**
+     * Transport stops first.
+     */
+    try {
+      await withTimeout(
+        () =>
+          this.stopServer(
+            reason,
+            metadata,
+          ),
         this.options
           .shutdownTimeoutMs,
-
-      metadata: {
-        component:
-          COMPONENT,
-
-        ...(options.metadata ||
-          {}),
-      },
-    });
-
-    return this;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Service Access
-   * ---------------------------------------------------------------------------
-   */
-
-  getDependency(
-    name,
-  ) {
-    const normalized =
-      String(
-        name,
-      ).trim();
-
-    if (
-      this.context?.dependencies &&
-      Object.prototype.hasOwnProperty.call(
-        this.context.dependencies,
-        normalized,
-      )
-    ) {
-      return this.context.dependencies[
-        normalized
-      ];
+        'server-shutdown',
+      );
+    } catch (error) {
+      shutdownError =
+        error;
     }
 
-    if (
-      this.servicesContext?.has?.(
-        normalized,
-      )
+    /**
+     * Only stop phases that actually completed, in exact reverse completion
+     * order.
+     */
+    const completed =
+      [
+        ...this.completedPhases,
+      ].reverse();
+
+    for (
+      const phaseName of
+        completed
     ) {
-      return this.servicesContext.get(
-        normalized,
-      );
+      if (
+        phaseName ===
+        'server'
+      ) {
+        continue;
+      }
+
+      const definition =
+        this.phaseDefinitions.get(
+          phaseName,
+        );
+
+      if (
+        !definition
+      ) {
+        continue;
+      }
+
+      try {
+        await this.stopPhase(
+          definition,
+        );
+      } catch (error) {
+        shutdownError =
+          shutdownError ||
+          error;
+      }
     }
 
-    return undefined;
-  }
+    this.stopping =
+      false;
 
-  requireDependency(
-    name,
-  ) {
-    const dependency =
-      this.getDependency(
-        name,
+    this.stopped =
+      !shutdownError;
+
+    this.failed =
+      Boolean(
+        shutdownError,
       );
 
+    this.stoppedAt =
+      now();
+
     if (
-      dependency ===
-        undefined ||
-      dependency ===
-        null
+      shutdownError
     ) {
-      throw new ApplicationBootstrapError(
-        `TITech dependency "${name}" is unavailable.`,
+      this.lastError =
+        shutdownError;
+
+      this.emit(
+        'shutdown.failed',
         {
-          code:
-            'APPLICATION_DEPENDENCY_NOT_FOUND',
-          details: {
-            dependency:
-              name,
-          },
+          reason,
+
+          error:
+            safeError(
+              shutdownError,
+            ),
         },
       );
+
+      this.log(
+        'error',
+        'TITech application bootstrap shutdown completed with errors.',
+        {
+          reason,
+
+          error:
+            safeError(
+              shutdownError,
+            ),
+        },
+      );
+
+      if (
+        !this.options
+          .allowPartialShutdown
+      ) {
+        throw shutdownError;
+      }
+
+      return false;
     }
 
-    return dependency;
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * State
-   * ---------------------------------------------------------------------------
-   */
-
-  isStarting() {
-    return (
-      this.state ===
-      'starting'
+    this.emit(
+      'stopped',
+      {
+        reason,
+      },
     );
-  }
 
-  isStarted() {
-    return (
-      this.started
+    this.log(
+      'info',
+      'TITech application bootstrap stopped.',
+      {
+        reason,
+
+        durationMs:
+          this.startedAt
+            ? elapsedMs(
+                this.startedAt,
+              )
+            : 0,
+      },
     );
+
+    return true;
   }
 
-  isReady() {
-    return (
-      this.ready
-    );
-  }
+  /* ===========================================================================
+   * READINESS
+   * =========================================================================== */
 
-  isStopping() {
-    return (
-      this.stopping
-    );
-  }
-
-  isStopped() {
-    return (
-      this.stopped
-    );
-  }
-
-  isFailed() {
-    return (
-      this.failed
-    );
-  }
-
-  /**
-   * ---------------------------------------------------------------------------
-   * Snapshot
-   * ---------------------------------------------------------------------------
-   */
-
-  snapshot(
-    additional = {},
-  ) {
-    const dependencies =
+  async readiness() {
+    const phaseResults =
       {};
 
     for (
-      const [
-        name,
-        metadata,
-      ] of this
-        .dependencyMetadata
+      const definition of
+        this.resolvePhaseOrder()
     ) {
-      dependencies[name] =
-        {
-          ...metadata,
+      const state =
+        this.phaseStates.get(
+          definition.name,
+        );
 
-          started:
-            this.dependenciesStarted.has(
-              name,
+      /**
+       * Do not claim readiness from phases that never started.
+       */
+      if (
+        state?.status !==
+          'started' &&
+        definition.name !==
+          'readiness'
+      ) {
+        continue;
+      }
+
+      const implementation =
+        this.resolvePhaseImplementation(
+          definition.name,
+          definition,
+        );
+
+      if (
+        typeof implementation.readiness !==
+        'function'
+      ) {
+        continue;
+      }
+
+      try {
+        const result =
+          await implementation.readiness(
+            this.context,
+            this,
+          );
+
+        phaseResults[
+          definition.name
+        ] =
+          typeof result ===
+          'boolean'
+            ? {
+                ready:
+                  result,
+              }
+            : result;
+      } catch (error) {
+        phaseResults[
+          definition.name
+        ] = {
+          ready:
+            false,
+
+          error:
+            safeError(
+              error,
             ),
         };
+      }
     }
 
-    return Object.freeze({
+    const failedRequired =
+      Object.entries(
+        phaseResults,
+      ).filter(
+        ([
+          phaseName,
+          result,
+        ]) => {
+          const definition =
+            this.phaseDefinitions.get(
+              phaseName,
+            );
+
+          return (
+            definition?.required !==
+              false &&
+            result &&
+            result.ready ===
+              false
+          );
+        },
+      );
+
+    const ready =
+      this.started &&
+      !this.stopping &&
+      !this.failed &&
+      failedRequired.length ===
+        0;
+
+    return {
+      ready,
+
+      status:
+        ready
+          ? 'ready'
+          : 'not_ready',
+
+      application:
+        APPLICATION_NAME,
+
       component:
         COMPONENT,
 
       service:
         SERVICE_NAME,
 
+      bootstrapId:
+        this.bootstrapId,
+
+      phases:
+        phaseResults,
+
+      timestamp:
+        new Date().toISOString(),
+    };
+  }
+
+  /* ===========================================================================
+   * HEALTH
+   * =========================================================================== */
+
+  async health() {
+    const phaseResults =
+      {};
+
+    for (
+      const definition of
+        this.resolvePhaseOrder()
+    ) {
+      const state =
+        this.phaseStates.get(
+          definition.name,
+        );
+
+      if (
+        state?.status !==
+        'started'
+      ) {
+        continue;
+      }
+
+      const implementation =
+        this.resolvePhaseImplementation(
+          definition.name,
+          definition,
+        );
+
+      if (
+        typeof implementation.health !==
+        'function'
+      ) {
+        continue;
+      }
+
+      try {
+        phaseResults[
+          definition.name
+        ] =
+          await implementation.health(
+            this.context,
+            this,
+          );
+      } catch (error) {
+        phaseResults[
+          definition.name
+        ] = {
+          status:
+            'unhealthy',
+
+          healthy:
+            false,
+
+          error:
+            safeError(
+              error,
+            ),
+        };
+      }
+    }
+
+    const unhealthy =
+      Object.values(
+        phaseResults,
+      ).some(
+        result =>
+          result &&
+          (
+            result.status ===
+              'unhealthy' ||
+            result.healthy ===
+              false
+          ),
+      );
+
+    return {
+      status:
+        !this.started
+          ? 'degraded'
+          : unhealthy ||
+              this.failed
+            ? 'unhealthy'
+            : 'healthy',
+
       application:
         APPLICATION_NAME,
 
-      state:
-        this.state,
-
       started:
         this.started,
-
-      ready:
-        this.ready,
 
       stopping:
         this.stopping,
@@ -2459,57 +3835,351 @@ class ApplicationBootstrap {
       failed:
         this.failed,
 
+      component:
+        COMPONENT,
+
+      service:
+        SERVICE_NAME,
+
+      bootstrapId:
+        this.bootstrapId,
+
+      applicationAvailable:
+        Boolean(
+          this.application,
+        ),
+
+      serverAvailable:
+        Boolean(
+          this.server,
+        ),
+
+      phases:
+        phaseResults,
+
+      timestamp:
+        new Date().toISOString(),
+    };
+  }
+
+  /* ===========================================================================
+   * SNAPSHOT
+   * =========================================================================== */
+
+  getSnapshot() {
+    const phases =
+      {};
+
+    for (
+      const [
+        name,
+        state,
+      ] of this.phaseStates
+    ) {
+      phases[name] =
+        Object.freeze({
+          name:
+            state.name,
+
+          priority:
+            state.priority,
+
+          required:
+            state.required,
+
+          enabled:
+            state.enabled,
+
+          status:
+            state.status,
+
+          startedAt:
+            state.startedAt,
+
+          completedAt:
+            state.completedAt,
+
+          durationMs:
+            state.durationMs,
+
+          error:
+            state.error,
+
+          rollbackAttempted:
+            state.rollbackAttempted,
+
+          rollbackCompleted:
+            state.rollbackCompleted,
+
+          rollbackError:
+            state.rollbackError,
+        });
+    }
+
+    return Object.freeze({
+      application:
+        APPLICATION_NAME,
+
+      component:
+        COMPONENT,
+
+      service:
+        SERVICE_NAME,
+
+      version:
+        VERSION,
+
+      bootstrapId:
+        this.bootstrapId,
+
       initialized:
-        this._initialized,
+        this.initialized,
 
-      shutdownRegistered:
-        this._shutdownRegistered,
+      initializedAt:
+        this.initializedAt,
 
-      startingAt:
-        this.startingAt,
+      starting:
+        this.starting,
+
+      started:
+        this.started,
+
+      stopping:
+        this.stopping,
+
+      stopped:
+        this.stopped,
+
+      failed:
+        this.failed,
+
+      destroyed:
+        this.destroyed,
+
+      applicationAvailable:
+        Boolean(
+          this.application,
+        ),
+
+      serverAvailable:
+        Boolean(
+          this.server,
+        ),
 
       startedAt:
         this.startedAt,
 
-      readyAt:
-        this.readyAt,
-
-      stoppingAt:
-        this.stoppingAt,
-
       stoppedAt:
         this.stoppedAt,
 
-      shutdownReason:
-        this.shutdownReason,
-
-      failure:
+      lastError:
         safeError(
-          this.failure,
+          this.lastError,
         ),
 
-      dependencies,
-      
-      servicesContext:
-        this.servicesContext
-          ?.snapshot?.() ||
-        null,
+      completedPhases:
+        Object.freeze([
+          ...this.completedPhases,
+        ]),
 
-      additional:
-        {
-          ...additional,
-        },
+      phases:
+        Object.freeze(
+          phases,
+        ),
     });
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Reset
-   * ---------------------------------------------------------------------------
-   */
+  snapshot() {
+    return this.getSnapshot();
+  }
+
+  getState() {
+    return this.getSnapshot();
+  }
+
+  /* ===========================================================================
+   * PREDICATES
+   * =========================================================================== */
+
+  isInitialized() {
+    return this.initialized;
+  }
+
+  isStarting() {
+    return this.starting;
+  }
+
+  isStarted() {
+    return this.started;
+  }
+
+  isStopping() {
+    return this.stopping;
+  }
+
+  isStopped() {
+    return this.stopped;
+  }
+
+  isFailed() {
+    return this.failed;
+  }
+
+  isDestroyed() {
+    return this.destroyed;
+  }
+
+  isReady() {
+    return (
+      this.started &&
+      !this.stopping &&
+      !this.failed
+    );
+  }
+
+  /* ===========================================================================
+   * EVENTS
+   * =========================================================================== */
+
+  on(
+    event,
+    listener,
+  ) {
+    this.events.on(
+      event,
+      listener,
+    );
+
+    return this;
+  }
+
+  once(
+    event,
+    listener,
+  ) {
+    this.events.once(
+      event,
+      listener,
+    );
+
+    return this;
+  }
+
+  off(
+    event,
+    listener,
+  ) {
+    this.events.off(
+      event,
+      listener,
+    );
+
+    return this;
+  }
+
+  emit(
+    event,
+    payload = {},
+  ) {
+    try {
+      this.events.emit(
+        event,
+        {
+          application:
+            APPLICATION_NAME,
+
+          component:
+            COMPONENT,
+
+          service:
+            SERVICE_NAME,
+
+          bootstrapId:
+            this.bootstrapId,
+
+          timestamp:
+            new Date().toISOString(),
+
+          ...payload,
+        },
+      );
+    } catch {
+      /**
+       * Event subscribers must never break lifecycle execution.
+       */
+    }
+  }
+
+  /* ===========================================================================
+   * RESTART SUPPORT
+   * =========================================================================== */
+
+  prepareForRestart() {
+    if (
+      this.starting ||
+      this.started ||
+      this.stopping
+    ) {
+      throw new ApplicationBootstrapError(
+        'Cannot prepare TITech bootstrap for restart while active.',
+        {
+          code:
+            'BOOTSTRAP_RESTART_ACTIVE',
+        },
+      );
+    }
+
+    this.stopped =
+      false;
+
+    this.failed =
+      false;
+
+    this.lastError =
+      null;
+
+    this.startedAt =
+      null;
+
+    this.stoppedAt =
+      null;
+
+    this.completedPhases =
+      [];
+
+    this.lifecycleAbortController =
+      new AbortController();
+
+    if (
+      this.context
+    ) {
+      this.context.signal =
+        this.lifecycleAbortController
+          .signal;
+    }
+
+    for (
+      const definition of
+        this.phaseDefinitions.values()
+    ) {
+      this.phaseStates.set(
+        definition.name,
+        this.createPhaseState(
+          definition,
+        ),
+      );
+    }
+
+    return true;
+  }
+
+  /* ===========================================================================
+   * RESET
+   * =========================================================================== */
 
   reset() {
     if (
+      this.starting ||
       this.started ||
       this.stopping
     ) {
@@ -2517,7 +4187,7 @@ class ApplicationBootstrap {
         'Cannot reset an active TITech application bootstrap.',
         {
           code:
-            'APPLICATION_BOOTSTRAP_RESET_NOT_ALLOWED',
+            'BOOTSTRAP_RESET_NOT_ALLOWED',
         },
       );
     }
@@ -2525,22 +4195,31 @@ class ApplicationBootstrap {
     this.context =
       null;
 
-    this.servicesContext =
+    this.application =
       null;
 
-    this.state =
-      'created';
+    this.server =
+      null;
+
+    this.serverModule =
+      null;
+
+    this.phaseStates =
+      new Map();
+
+    this.completedPhases =
+      [];
 
     this.startPromise =
       null;
 
-    this.shutdownPromise =
+    this.stopPromise =
       null;
 
-    this.started =
+    this.starting =
       false;
 
-    this.ready =
+    this.started =
       false;
 
     this.stopping =
@@ -2552,45 +4231,197 @@ class ApplicationBootstrap {
     this.failed =
       false;
 
-    this.startingAt =
+    this.lastError =
       null;
 
     this.startedAt =
       null;
 
-    this.readyAt =
-      null;
-
-    this.stoppingAt =
-      null;
-
     this.stoppedAt =
       null;
 
-    this.failure =
-      null;
-
-    this.shutdownReason =
-      null;
-
-    this.dependenciesStarted.clear();
-
-    this.dependencyMetadata.clear();
-
-    this._shutdownRegistered =
+    this.initialized =
       false;
 
-    this._initialized =
+    this.initializedAt =
+      null;
+
+    this.destroyed =
       false;
 
-    return this;
+    this.bootstrapId =
+      this.createBootstrapId();
+
+    this.lifecycleAbortController =
+      new AbortController();
+
+    for (
+      const definition of
+        this.phaseDefinitions.values()
+    ) {
+      this.phaseStates.set(
+        definition.name,
+        this.createPhaseState(
+          definition,
+        ),
+      );
+    }
+
+    return true;
+  }
+
+  /* ===========================================================================
+   * DESTROY
+   * =========================================================================== */
+
+  async destroy() {
+    if (
+      this.destroyed
+    ) {
+      return true;
+    }
+
+    if (
+      this.started ||
+      this.starting ||
+      this.stopping
+    ) {
+      await this.stop(
+        'bootstrap-destroy',
+      );
+    }
+
+    try {
+      this.lifecycleAbortController
+        .abort(
+          new Error(
+            'TITech application bootstrap destroyed.',
+          ),
+        );
+    } catch {
+      // Best effort.
+    }
+
+    this.events.removeAllListeners();
+
+    this.destroyed =
+      true;
+
+    return true;
   }
 }
 
-/**
- * -----------------------------------------------------------------------------
- * Export
- * -----------------------------------------------------------------------------
+/* =============================================================================
+ * FACTORY
+ * =============================================================================
+ */
+
+function createApplicationBootstrap(
+  options = {},
+) {
+  return new ApplicationBootstrap(
+    options,
+  );
+}
+
+/* =============================================================================
+ * LAZY SINGLETON
+ * ============================================================================= */
+
+let defaultBootstrap =
+  null;
+
+function getApplicationBootstrap(
+  options = {},
+) {
+  if (
+    !defaultBootstrap
+  ) {
+    defaultBootstrap =
+      new ApplicationBootstrap(
+        options,
+      );
+  }
+
+  return defaultBootstrap;
+}
+
+/* =============================================================================
+ * CONVENIENCE API
+ * ============================================================================= */
+
+async function startApplication(
+  context = {},
+  options = {},
+) {
+  const bootstrap =
+    getApplicationBootstrap(
+      options,
+    );
+
+  if (
+    context?.application
+  ) {
+    bootstrap.setApplication(
+      context.application,
+    );
+  }
+
+  return bootstrap.start(
+    context,
+  );
+}
+
+async function shutdownApplication(
+  reason =
+    'application-request',
+  metadata = {},
+) {
+  if (
+    !defaultBootstrap
+  ) {
+    return true;
+  }
+
+  return defaultBootstrap.stop(
+    reason,
+    metadata,
+  );
+}
+
+function getApplication() {
+  return (
+    defaultBootstrap
+      ?.getApplication() ||
+    null
+  );
+}
+
+function getBootstrapState() {
+  return (
+    defaultBootstrap
+      ?.getSnapshot() || {
+        application:
+          APPLICATION_NAME,
+
+        component:
+          COMPONENT,
+
+        service:
+          SERVICE_NAME,
+
+        started:
+          false,
+
+        stopped:
+          false,
+      }
+  );
+}
+
+/* =============================================================================
+ * EXPORTS
+ * =============================================================================
  */
 
 module.exports =
@@ -2598,4 +4429,28 @@ module.exports =
     ApplicationBootstrap,
 
     ApplicationBootstrapError,
+
+    createApplicationBootstrap,
+
+    getApplicationBootstrap,
+
+    startApplication,
+
+    shutdownApplication,
+
+    getApplication,
+
+    getBootstrapState,
+
+    APPLICATION_NAME,
+
+    COMPONENT,
+
+    SERVICE_NAME,
+
+    VERSION,
+
+    DEFAULTS,
+
+    DEFAULT_PHASES,
   });

@@ -10,21 +10,8 @@
  *   backend/bootstrap/services.js
  *
  * Purpose:
- *   Enterprise production-grade application services bootstrap adapter.
- *
- * Responsibilities:
- *   - Compose application service lifecycle into the TITech bootstrap pipeline.
- *   - Initialize service registries/factories after infrastructure is ready.
- *   - Validate service contracts before the application accepts traffic.
- *   - Support dependency-aware service startup and shutdown.
- *   - Support service readiness and health reporting.
- *   - Prevent duplicate/concurrent service initialization.
- *   - Bound every externally controlled startup/shutdown operation with timeouts.
- *   - Roll back partially started services when startup fails.
- *   - Detect service dependency cycles before startup.
- *   - Preserve existing domain/service implementations.
- *   - Keep service composition out of app.js.
- *   - Provide safe diagnostics.
+ *   Enterprise production-grade application service composition and lifecycle
+ *   adapter for the TITech Community Capital backend.
  *
  * Architectural position:
  *
@@ -50,45 +37,47 @@
  *       ↓
  *   HTTP server
  *
- * IMPORTANT:
+ * Design principles:
  *
- *   This file is a SERVICE COMPOSITION ADAPTER.
+ *   - Service implementations remain authoritative.
+ *   - Business logic does not belong here.
+ *   - Database queries do not belong here.
+ *   - Payment-provider logic does not belong here.
+ *   - HTTP controllers/routes do not belong here.
+ *   - Service composition remains outside app.js.
+ *   - Startup is deterministic and dependency-aware.
+ *   - Shutdown is reverse dependency-aware.
+ *   - Startup operations are bounded by timeouts.
+ *   - Shutdown operations are bounded by timeouts.
+ *   - Partial startup is rolled back.
+ *   - Dependency cycles are rejected before startup.
+ *   - Critical and optional services are distinguished.
+ *   - Concurrent lifecycle calls are serialized.
+ *   - Runtime state is observable and diagnosable.
+ *   - Sensitive error information is sanitized.
+ *   - Readiness and health are first-class operational contracts.
+ *   - Existing service contracts remain supported.
  *
- *   It does NOT:
- *     - implement business rules
- *     - implement finance logic
- *     - implement ledger logic
- *     - execute database queries directly
- *     - implement payment providers
- *     - process queues directly
- *     - implement controllers
- *     - implement HTTP routes
- *
- * Existing services remain authoritative.
- *
- * Supported service module contracts:
+ * Supported service contracts:
  *
  *   registerServices(context)
  *   registerServices(container, context)
  *   initializeServices(context)
  *   createServices(context)
+ *   initialize(context)
+ *   init(context)
+ *   bootstrap(context)
  *   start(context)
  *   stop(context)
- *
- * A service registry/container may additionally expose:
- *
- *   initialize()
- *   init()
- *   bootstrap()
- *   start()
- *   shutdown()
- *   close()
- *   stop()
- *   destroy()
- *   readiness()
- *   isReady()
- *   health()
- *   checkHealth()
+ *   shutdown(context)
+ *   close(context)
+ *   destroy(context)
+ *   readiness(context)
+ *   ready(context)
+ *   isReady(context)
+ *   health(context)
+ *   checkHealth(context)
+ *   getHealth(context)
  *
  * =============================================================================
  */
@@ -108,8 +97,7 @@ let readinessModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  readinessModule =
-    require('./readinessState');
+  readinessModule = require('./readinessState');
 } catch {
   readinessModule = null;
 }
@@ -118,8 +106,7 @@ let observabilityModule = null;
 
 try {
   // eslint-disable-next-line global-require
-  observabilityModule =
-    require('./observability');
+  observabilityModule = require('./observability');
 } catch {
   observabilityModule = null;
 }
@@ -128,24 +115,19 @@ let loggerModule = null;
 
 try {
   /**
-   * Canonical TITech application logger.
+   * Prefer the canonical application logger.
    *
-   * Keeping this compatible with both:
+   * Compatibility is intentionally maintained with both:
    *
-   *   backend/bootstrap/logger
    *   backend/utils/logger
-   *
-   * prevents bootstrap logger path differences from becoming service startup
-   * failures.
+   *   backend/bootstrap/logger
    */
   try {
     // eslint-disable-next-line global-require
-    loggerModule =
-      require('../utils/logger');
+    loggerModule = require('../utils/logger');
   } catch {
     // eslint-disable-next-line global-require
-    loggerModule =
-      require('./logger');
+    loggerModule = require('./logger');
   }
 } catch {
   loggerModule = null;
@@ -157,8 +139,7 @@ try {
  * =============================================================================
  */
 
-const COMPONENT =
-  'services';
+const COMPONENT = 'services';
 
 const SERVICE_NAME =
   process.env.OTEL_SERVICE_NAME ||
@@ -169,76 +150,60 @@ const APPLICATION_NAME =
   process.env.APP_NAME ||
   'TITech Community Capital';
 
-const DEFAULT_PRIORITY =
-  0;
+const DEFAULT_PRIORITY = 0;
 
-const DEFAULT_TIMEOUT_MS =
-  60_000;
+const DEFAULT_TIMEOUT_MS = 60_000;
 
-const DEFAULT_EXTERNAL_INITIALIZE_TIMEOUT_MS =
-  30_000;
+const DEFAULT_EXTERNAL_INITIALIZE_TIMEOUT_MS = 30_000;
 
-const DEFAULT_EXTERNAL_START_TIMEOUT_MS =
-  30_000;
+const DEFAULT_EXTERNAL_START_TIMEOUT_MS = 30_000;
 
-const DEFAULT_EXTERNAL_STOP_TIMEOUT_MS =
-  30_000;
+const DEFAULT_EXTERNAL_STOP_TIMEOUT_MS = 30_000;
 
-const DEFAULT_READINESS_TIMEOUT_MS =
-  10_000;
+const DEFAULT_READINESS_TIMEOUT_MS = 10_000;
 
-const DEFAULT_HEALTH_TIMEOUT_MS =
-  5_000;
+const DEFAULT_HEALTH_TIMEOUT_MS = 5_000;
 
-const DEFAULT_DEPENDENCIES =
-  Object.freeze([
-    'database',
-    'redis',
-    'resilience',
-  ]);
+/**
+ * Infrastructure lifecycle owners.
+ *
+ * These dependencies are intentionally excluded from the local service graph
+ * because infrastructure is owned by an earlier bootstrap phase.
+ */
+const DEFAULT_DEPENDENCIES = Object.freeze([
+  'database',
+  'redis',
+  'resilience',
+]);
 
-const SERVICE_MODULE_CANDIDATES =
-  Object.freeze([
-    '../services',
-    '../services/index',
-    '../application/services',
-    '../domain/services',
-    '../service',
-    '../service/index',
-  ]);
+const SERVICE_MODULE_CANDIDATES = Object.freeze([
+  '../services',
+  '../services/index',
+  '../application/services',
+  '../domain/services',
+  '../service',
+  '../service/index',
+]);
 
-const SERVICE_STATES =
-  Object.freeze({
-    REGISTERED:
-      'registered',
+const SERVICE_STATES = Object.freeze({
+  REGISTERED: 'registered',
+  DISABLED: 'disabled',
+  INITIALIZING: 'initializing',
+  STARTING: 'starting',
+  STARTED: 'started',
+  READY: 'ready',
+  NOT_READY: 'not_ready',
+  STOPPING: 'stopping',
+  STOPPED: 'stopped',
+  FAILED: 'failed',
+});
 
-    DISABLED:
-      'disabled',
-
-    INITIALIZING:
-      'initializing',
-
-    STARTING:
-      'starting',
-
-    STARTED:
-      'started',
-
-    READY:
-      'ready',
-
-    NOT_READY:
-      'not_ready',
-
-    STOPPING:
-      'stopping',
-
-    STOPPED:
-      'stopped',
-
-    FAILED:
-      'failed',
-  });
+const OPERATION_STATES = Object.freeze({
+  IDLE: 'idle',
+  INITIALIZING: 'initializing',
+  STARTING: 'starting',
+  STOPPING: 'stopping',
+});
 
 /**
  * =============================================================================
@@ -247,20 +212,14 @@ const SERVICE_STATES =
  */
 
 class ServicesBootstrapError extends Error {
-  constructor(
-    message,
-    options = {},
-  ) {
+  constructor(message, options = {}) {
     super(
-      typeof message ===
-        'string' &&
-        message.trim()
+      typeof message === 'string' && message.trim()
         ? message
         : 'TITech services bootstrap error.',
     );
 
-    this.name =
-      'ServicesBootstrapError';
+    this.name = 'ServicesBootstrapError';
 
     this.code =
       options.code ||
@@ -282,10 +241,13 @@ class ServicesBootstrapError extends Error {
       options.retryable ??
       null;
 
-    this.details =
-      Object.freeze({
-        ...(options.details || {}),
-      });
+    this.generation =
+      options.generation ??
+      null;
+
+    this.details = Object.freeze({
+      ...(options.details || {}),
+    });
 
     Error.captureStackTrace?.(
       this,
@@ -300,74 +262,64 @@ class ServicesBootstrapError extends Error {
  * =============================================================================
  */
 
-let servicesImplementation =
-  null;
+let servicesImplementation = null;
 
-let servicesModulePath =
-  null;
+let servicesModulePath = null;
 
-let servicesRegistry =
-  null;
+let servicesRegistry = null;
 
-let externalServiceContract =
-  null;
+let externalServiceContract = null;
 
-let registered =
-  false;
+let registered = false;
 
-let started =
-  false;
+let started = false;
 
-let stopped =
-  false;
+let stopped = false;
 
-let failed =
-  false;
+let failed = false;
 
-let degraded =
-  false;
+let degraded = false;
 
-let registrationResult =
-  null;
+let registrationResult = null;
 
-let startPromise =
-  null;
+let startPromise = null;
 
-let stopPromise =
-  null;
+let stopPromise = null;
 
-let lastError =
-  null;
+let lastError = null;
 
-let startedAt =
-  null;
+let startedAt = null;
 
-let stoppedAt =
-  null;
+let stoppedAt = null;
 
-let serviceCount =
-  0;
+let serviceCount = 0;
 
-let startupGeneration =
-  0;
+let startupGeneration = 0;
+
+let lifecycleOperation = OPERATION_STATES.IDLE;
+
+let lifecycleStartedAt = null;
+
+let lifecycleCompletedAt = null;
+
+let lastLifecycleDurationMs = null;
 
 /**
  * Services successfully started during the current startup transaction.
  *
- * This is deliberately maintained separately from serviceDefinitions because
- * failed startup must be able to roll back only what was actually started.
+ * Only services actually started are eligible for rollback.
  */
-const startedServiceNames =
-  new Set();
+const startedServiceNames = new Set();
 
 /**
- * Individual service registry.
+ * Individual service definitions.
  */
-const serviceDefinitions =
-  new Map();
+const serviceDefinitions = new Map();
 
-const serviceStates =
-  new Map();
+/**
+ * Runtime state for individual services.
+ */
+const serviceStates = new Map();
 
 /**
  * =============================================================================
@@ -375,19 +327,14 @@ const serviceStates =
  * =============================================================================
  */
 
-function asPositiveInteger(
-  value,
-  fallback,
-) {
+function asPositiveInteger(value, fallback) {
   const resolved =
     value === undefined
       ? fallback
       : Number(value);
 
   if (
-    !Number.isInteger(
-      resolved,
-    ) ||
+    !Number.isInteger(resolved) ||
     resolved <= 0
   ) {
     return fallback;
@@ -396,15 +343,10 @@ function asPositiveInteger(
   return resolved;
 }
 
-function normalizeName(
-  value,
-  field = 'name',
-) {
+function normalizeName(value, field = 'name') {
   if (
-    typeof value !==
-      'string' ||
-    value.trim() ===
-      ''
+    typeof value !== 'string' ||
+    value.trim() === ''
   ) {
     throw new TypeError(
       `${field} must be a non-empty string.`,
@@ -414,14 +356,9 @@ function normalizeName(
   return value.trim();
 }
 
-function moduleExists(
-  modulePath,
-) {
+function moduleExists(modulePath) {
   try {
-    require.resolve(
-      modulePath,
-    );
-
+    require.resolve(modulePath);
     return true;
   } catch (error) {
     if (
@@ -435,14 +372,11 @@ function moduleExists(
   }
 }
 
-function unwrapModule(
-  value,
-) {
+function unwrapModule(value) {
   if (
     value &&
     value.default &&
-    typeof value.default ===
-      'object'
+    typeof value.default === 'object'
   ) {
     return value.default;
   }
@@ -450,18 +384,11 @@ function unwrapModule(
   return value;
 }
 
-function isFunction(
-  value,
-) {
-  return (
-    typeof value ===
-    'function'
-  );
+function isFunction(value) {
+  return typeof value === 'function';
 }
 
-function elapsedMs(
-  startedAtNs,
-) {
+function elapsedMs(startedAtNs) {
   return (
     Number(
       process.hrtime.bigint() -
@@ -476,12 +403,9 @@ function elapsedMs(
  * =============================================================================
  */
 
-function sanitizeSensitiveText(
-  value,
-) {
+function sanitizeSensitiveText(value) {
   if (
-    value ===
-      undefined ||
+    value === undefined ||
     value === null
   ) {
     return value;
@@ -490,47 +414,57 @@ function sanitizeSensitiveText(
   let text;
 
   try {
-    text =
-      String(value);
+    text = String(value);
   } catch {
     return '[unserializable]';
   }
 
   /**
-   * Hide common credentials.
+   * MongoDB credentials.
    */
-  text =
-    text.replace(
-      /(mongodb(?:\+srv)?:\/\/)([^/\s:@]+)(?::[^@\s]*)?@/gi,
-      '$1***:***@',
-    );
+  text = text.replace(
+    /(mongodb(?:\+srv)?:\/\/)([^/\s:@]+)(?::[^@\s]*)?@/gi,
+    '$1***:***@',
+  );
 
-  text =
-    text.replace(
-      /([?&](?:password|passwd|pwd|secret|token|access_token)=)[^&\s]*/gi,
-      '$1***',
-    );
+  /**
+   * Query-string credentials.
+   */
+  text = text.replace(
+    /([?&](?:password|passwd|pwd|secret|token|access_token)=)[^&\s]*/gi,
+    '$1***',
+  );
+
+  /**
+   * Common authorization headers.
+   */
+  text = text.replace(
+    /(authorization\s*[:=]\s*)(bearer\s+)?[^\s,;]+)/gi,
+    '$1$2***',
+  );
+
+  /**
+   * Common API key assignments.
+   */
+  text = text.replace(
+    /((?:api[_-]?key|client[_-]?secret|private[_-]?key)\s*[:=]\s*)[^\s,;]+/gi,
+    '$1***',
+  );
 
   return text;
 }
 
-function safeError(
-  error,
-  options = {},
-) {
+function safeError(error, options = {}) {
   try {
     if (
-      error ===
-        null ||
-      error ===
-        undefined
+      error === null ||
+      error === undefined
     ) {
       return null;
     }
 
     if (
-      typeof error ===
-        'object'
+      typeof error === 'object'
     ) {
       return Object.freeze({
         name:
@@ -564,6 +498,11 @@ function safeError(
           error.retryable ??
           null,
 
+        generation:
+          options.generation ??
+          error.generation ??
+          null,
+
         ...(options.includeStack &&
         error.stack
           ? {
@@ -577,11 +516,9 @@ function safeError(
     }
 
     return Object.freeze({
-      name:
-        'Error',
+      name: 'Error',
 
-      code:
-        null,
+      code: null,
 
       message:
         sanitizeSensitiveText(
@@ -599,11 +536,14 @@ function safeError(
       retryable:
         options.retryable ??
         null,
+
+      generation:
+        options.generation ??
+        null,
     });
   } catch {
     return Object.freeze({
-      name:
-        'Error',
+      name: 'Error',
 
       code:
         'SERVICE_ERROR_SERIALIZATION_FAILED',
@@ -619,7 +559,10 @@ function safeError(
         options.phase ??
         null,
 
-      retryable:
+      retryable: null,
+
+      generation:
+        options.generation ??
         null,
     });
   }
@@ -650,22 +593,17 @@ function log(
   payload = {},
   message = undefined,
 ) {
-  const logger =
-    resolveLogger();
+  const logger = resolveLogger();
 
   const metadata = {
-    component:
-      COMPONENT,
+    component: COMPONENT,
 
-    service:
-      SERVICE_NAME,
+    service: SERVICE_NAME,
 
-    application:
-      APPLICATION_NAME,
+    application: APPLICATION_NAME,
 
     ...(payload &&
-    typeof payload ===
-      'object' &&
+    typeof payload === 'object' &&
     !Array.isArray(payload)
       ? payload
       : {}),
@@ -674,12 +612,10 @@ function log(
   try {
     if (
       logger &&
-      typeof logger[level] ===
-        'function'
+      typeof logger[level] === 'function'
     ) {
       if (
-        message !==
-        undefined
+        message !== undefined
       ) {
         logger[level](
           metadata,
@@ -694,13 +630,14 @@ function log(
       return;
     }
   } catch {
-    // Logging must never break service lifecycle.
+    /**
+     * Logging must never break lifecycle management.
+     */
   }
 
   try {
     const output =
-      message !==
-      undefined
+      message !== undefined
         ? message
         : metadata;
 
@@ -710,8 +647,7 @@ function log(
     ) {
       console.error(
         output,
-        message !==
-          undefined
+        message !== undefined
           ? metadata
           : '',
       );
@@ -720,22 +656,22 @@ function log(
     ) {
       console.warn(
         output,
-        message !==
-          undefined
+        message !== undefined
           ? metadata
           : '',
       );
     } else {
       console.log(
         output,
-        message !==
-          undefined
+        message !== undefined
           ? metadata
           : '',
       );
     }
   } catch {
-    // Final logging fallback is intentionally best-effort.
+    /**
+     * Final fallback intentionally ignored.
+     */
   }
 }
 
@@ -751,11 +687,12 @@ function emitObservabilityEvent(
 ) {
   try {
     const data = {
-      component:
-        COMPONENT,
+      component: COMPONENT,
 
-      service:
-        SERVICE_NAME,
+      service: SERVICE_NAME,
+
+      application:
+        APPLICATION_NAME,
 
       ...payload,
     };
@@ -784,11 +721,52 @@ function emitObservabilityEvent(
     }
   } catch {
     /**
-     * Telemetry must never become the reason the TITech application fails.
+     * Telemetry must never become the reason the application fails.
      */
   }
 
   return null;
+}
+
+/**
+ * =============================================================================
+ * Context Helpers
+ * =============================================================================
+ */
+
+function enrichContext(
+  context = {},
+  extras = {},
+) {
+  const base =
+    context &&
+    typeof context === 'object'
+      ? context
+      : {};
+
+  return {
+    ...base,
+
+    services:
+      servicesRegistry,
+
+    serviceRegistry:
+      servicesRegistry,
+
+    component:
+      COMPONENT,
+
+    application:
+      APPLICATION_NAME,
+
+    serviceName:
+      SERVICE_NAME,
+
+    serviceStartupGeneration:
+      startupGeneration,
+
+    ...extras,
+  };
 }
 
 /**
@@ -803,8 +781,7 @@ function normalizeDependencies(
   if (
     dependencies ===
       undefined ||
-    dependencies ===
-      null
+    dependencies === null
   ) {
     return [];
   }
@@ -847,9 +824,7 @@ function normalizeServiceDefinition(
     );
 
   if (
-    serviceDefinitions.has(
-      name,
-    )
+    serviceDefinitions.has(name)
   ) {
     throw new ServicesBootstrapError(
       `Service "${name}" is already registered.`,
@@ -876,12 +851,10 @@ function normalizeServiceDefinition(
         null,
 
       enabled:
-        options.enabled !==
-        false,
+        options.enabled !== false,
 
       critical:
-        options.critical !==
-        false,
+        options.critical !== false,
 
       priority:
         Number.isInteger(
@@ -948,8 +921,7 @@ function normalizeServiceDefinition(
 
       metadata:
         Object.freeze({
-          ...(options.metadata ||
-            {}),
+          ...(options.metadata || {}),
         }),
 
       registeredAt:
@@ -973,9 +945,7 @@ function normalizeServiceDefinition(
         'destroy',
         'readiness',
         'health',
-      ].includes(
-        field,
-      ) &&
+      ].includes(field) &&
       value !== null &&
       !isFunction(value)
     ) {
@@ -996,9 +966,6 @@ function normalizeServiceDefinition(
     }
   }
 
-  /**
-   * Prevent a service from depending on itself.
-   */
   if (
     definition.dependencies.includes(
       definition.name,
@@ -1046,32 +1013,23 @@ function registerService(
           ? SERVICE_STATES.REGISTERED
           : SERVICE_STATES.DISABLED,
 
-      started:
-        false,
+      started: false,
 
-      ready:
-        false,
+      ready: false,
 
-      failed:
-        false,
+      failed: false,
 
-      startedAt:
-        null,
+      startedAt: null,
 
-      readyAt:
-        null,
+      readyAt: null,
 
-      stoppedAt:
-        null,
+      stoppedAt: null,
 
-      lastError:
-        null,
+      durationMs: null,
 
-      durationMs:
-        null,
+      lastError: null,
 
-      generation:
-        null,
+      generation: null,
     },
   );
 
@@ -1090,10 +1048,11 @@ function registerService(
       critical:
         definition.critical,
 
+      priority:
+        definition.priority,
+
       dependencies:
-        [
-          ...definition.dependencies,
-        ],
+        [...definition.dependencies],
     },
   );
 
@@ -1106,17 +1065,13 @@ function registerService(
  * =============================================================================
  */
 
-function hasService(
-  name,
-) {
+function hasService(name) {
   return serviceDefinitions.has(
     name,
   );
 }
 
-function getService(
-  name,
-) {
+function getService(name) {
   const definition =
     serviceDefinitions.get(
       name,
@@ -1154,10 +1109,7 @@ function listServices({
  * =============================================================================
  */
 
-function compareServices(
-  a,
-  b,
-) {
+function compareServices(a, b) {
   if (
     a.priority !==
     b.priority
@@ -1178,13 +1130,11 @@ function resolveServiceOrder(
 ) {
   const services =
     listServices({
-      enabledOnly:
-        true,
+      enabledOnly: true,
     });
 
   if (
-    services.length ===
-    0
+    services.length === 0
   ) {
     return [];
   }
@@ -1199,11 +1149,9 @@ function resolveServiceOrder(
       ),
     );
 
-  const incoming =
-    new Map();
+  const incoming = new Map();
 
-  const outgoing =
-    new Map();
+  const outgoing = new Map();
 
   for (
     const service of
@@ -1229,10 +1177,16 @@ function resolveServiceOrder(
         service.dependencies
     ) {
       /**
-       * Dependencies such as database/redis/resilience are usually owned by
-       * the infrastructure lifecycle and therefore do not belong to this
-       * local service graph.
+       * Infrastructure dependencies are owned by the infrastructure phase.
        */
+      if (
+        DEFAULT_DEPENDENCIES.includes(
+          dependency,
+        )
+      ) {
+        continue;
+      }
+
       if (
         !serviceMap.has(
           dependency,
@@ -1249,9 +1203,7 @@ function resolveServiceOrder(
       );
 
       outgoing
-        .get(
-          dependency,
-        )
+        .get(dependency)
         .add(
           service.name,
         );
@@ -1273,8 +1225,7 @@ function resolveServiceOrder(
   const order = [];
 
   while (
-    queue.length >
-    0
+    queue.length > 0
   ) {
     const current =
       queue.shift();
@@ -1300,8 +1251,7 @@ function resolveServiceOrder(
       );
 
       if (
-        remaining ===
-        0
+        remaining === 0
       ) {
         queue.push(
           serviceMap.get(
@@ -1336,6 +1286,8 @@ function resolveServiceOrder(
     emitObservabilityEvent(
       'services.dependency_cycle_detected',
       {
+        direction,
+
         services:
           cyclic,
       },
@@ -1357,8 +1309,7 @@ function resolveServiceOrder(
     );
   }
 
-  return direction ===
-    'shutdown'
+  return direction === 'shutdown'
     ? order.reverse()
     : order;
 }
@@ -1381,11 +1332,9 @@ async function withTimeout(
       DEFAULT_TIMEOUT_MS,
     );
 
-  let timer =
-    null;
+  let timer = null;
 
-  let timedOut =
-    false;
+  let timedOut = false;
 
   const work =
     Promise.resolve().then(
@@ -1398,8 +1347,7 @@ async function withTimeout(
         timer =
           setTimeout(
             () => {
-              timedOut =
-                true;
+              timedOut = true;
 
               reject(
                 new ServicesBootstrapError(
@@ -1416,8 +1364,11 @@ async function withTimeout(
                       options.phase ||
                       null,
 
-                    retryable:
-                      true,
+                    retryable: true,
+
+                    generation:
+                      options.generation ??
+                      null,
 
                     details: {
                       timeoutMs:
@@ -1440,22 +1391,11 @@ async function withTimeout(
       timeout,
     ]);
   } finally {
-    if (
-      timer
-    ) {
-      clearTimeout(
-        timer,
-      );
+    if (timer) {
+      clearTimeout(timer);
     }
 
-    /**
-     * If the operation timed out, its underlying promise may still reject
-     * later. Attach a terminal rejection handler so its rejection cannot become
-     * an unhandled rejection at process level.
-     */
-    if (
-      timedOut
-    ) {
+    if (timedOut) {
       void work.catch(
         () => undefined,
       );
@@ -1465,7 +1405,7 @@ async function withTimeout(
 
 /**
  * =============================================================================
- * Generic Service Method Discovery
+ * Generic Lifecycle Method Discovery
  * =============================================================================
  */
 
@@ -1473,9 +1413,7 @@ function findLifecycleMethod(
   target,
   candidates,
 ) {
-  if (
-    !target
-  ) {
+  if (!target) {
     return null;
   }
 
@@ -1520,9 +1458,7 @@ function resolveServicesImplementation() {
       SERVICE_MODULE_CANDIDATES
   ) {
     if (
-      !moduleExists(
-        candidate,
-      )
+      !moduleExists(candidate)
     ) {
       continue;
     }
@@ -1576,17 +1512,10 @@ function resolveServicesImplementation() {
     }
   }
 
-  /**
-   * No external service registry is not automatically fatal.
-   *
-   * The locally registered serviceDefinitions map may still be authoritative.
-   */
   return {
-    implementation:
-      null,
+    implementation: null,
 
-    path:
-      null,
+    path: null,
   };
 }
 
@@ -1599,23 +1528,15 @@ function resolveServicesImplementation() {
 function resolveExternalServiceContract(
   implementation,
 ) {
-  if (
-    !implementation
-  ) {
+  if (!implementation) {
     return null;
   }
 
-  const candidates = [
-    implementation,
-    implementation.services,
-    implementation.registry,
-    implementation.container,
-    implementation.manager,
-    implementation.default,
-  ].filter(Boolean);
-
   const target =
-    candidates[0] ||
+    implementation.services ||
+    implementation.registry ||
+    implementation.container ||
+    implementation.manager ||
     implementation;
 
   return {
@@ -1714,16 +1635,14 @@ async function initializeExternalServiceRegistry(
       resolved.implementation,
     );
 
-  if (
-    !contract
-  ) {
+  if (!contract) {
     return null;
   }
 
   servicesModulePath =
     resolved.path;
 
-  const startedNs =
+  const timer =
     process.hrtime.bigint();
 
   log(
@@ -1755,18 +1674,18 @@ async function initializeExternalServiceRegistry(
       const initializeResult =
         await withTimeout(
           () =>
-            contract.initialize({
-              ...context,
+            contract.initialize(
+              enrichContext(
+                context,
+                {
+                  services:
+                    servicesRegistry,
 
-              services:
-                servicesRegistry,
-
-              component:
-                COMPONENT,
-
-              serviceRegistry:
-                servicesRegistry,
-            }),
+                  serviceRegistry:
+                    servicesRegistry,
+                },
+              ),
+            ),
           options.initializeTimeoutMs ||
             DEFAULT_EXTERNAL_INITIALIZE_TIMEOUT_MS,
           'external service registry initialization',
@@ -1796,9 +1715,7 @@ async function initializeExternalServiceRegistry(
       };
 
     const durationMs =
-      elapsedMs(
-        startedNs,
-      );
+      elapsedMs(timer);
 
     emitObservabilityEvent(
       'services.registry.initialized',
@@ -1846,6 +1763,8 @@ async function initializeExternalServiceRegistry(
             {
               phase:
                 'initialization',
+
+              includeStack: true,
             },
           ),
       },
@@ -1867,8 +1786,7 @@ async function initializeExternalServiceRegistry(
               phase:
                 'initialization',
 
-              includeStack:
-                true,
+              includeStack: true,
             },
           ),
       },
@@ -1890,15 +1808,11 @@ async function startExternalRegistry(
   context,
   options = {},
 ) {
-  if (
-    !contract
-  ) {
+  if (!contract) {
     return null;
   }
 
-  if (
-    !contract.start
-  ) {
+  if (!contract.start) {
     log(
       'debug',
       {
@@ -1911,7 +1825,7 @@ async function startExternalRegistry(
     return null;
   }
 
-  const startedNs =
+  const timer =
     process.hrtime.bigint();
 
   log(
@@ -1927,18 +1841,18 @@ async function startExternalRegistry(
     const result =
       await withTimeout(
         () =>
-          contract.start({
-            ...context,
+          contract.start(
+            enrichContext(
+              context,
+              {
+                services:
+                  servicesRegistry,
 
-            services:
-              servicesRegistry,
-
-            component:
-              COMPONENT,
-
-            serviceRegistry:
-              servicesRegistry,
-          }),
+                serviceRegistry:
+                  servicesRegistry,
+              },
+            ),
+          ),
         options.startTimeoutMs ||
           DEFAULT_EXTERNAL_START_TIMEOUT_MS,
         'external service registry startup',
@@ -1949,9 +1863,7 @@ async function startExternalRegistry(
       );
 
     const durationMs =
-      elapsedMs(
-        startedNs,
-      );
+      elapsedMs(timer);
 
     emitObservabilityEvent(
       'services.registry.started',
@@ -1994,8 +1906,7 @@ async function startExternalRegistry(
               phase:
                 'startup',
 
-              includeStack:
-                true,
+              includeStack: true,
             },
           ),
       },
@@ -2011,26 +1922,24 @@ async function stopExternalRegistry(
   context,
   options = {},
 ) {
-  if (
-    !contract?.stop
-  ) {
+  if (!contract?.stop) {
     return null;
   }
 
   return withTimeout(
     () =>
-      contract.stop({
-        ...context,
+      contract.stop(
+        enrichContext(
+          context,
+          {
+            services:
+              servicesRegistry,
 
-        services:
-          servicesRegistry,
-
-        component:
-          COMPONENT,
-
-        serviceRegistry:
-          servicesRegistry,
-      }),
+            serviceRegistry:
+              servicesRegistry,
+          },
+        ),
+      ),
     options.stopTimeoutMs ||
       DEFAULT_EXTERNAL_STOP_TIMEOUT_MS,
     'external service registry shutdown',
@@ -2048,12 +1957,14 @@ async function stopExternalRegistry(
  */
 
 function validateServiceDependencies() {
+  const enabledServices =
+    listServices({
+      enabledOnly: true,
+    });
+
   const knownServices =
     new Set(
-      listServices({
-        enabledOnly:
-          true,
-      }).map(
+      enabledServices.map(
         service =>
           service.name,
       ),
@@ -2061,10 +1972,7 @@ function validateServiceDependencies() {
 
   for (
     const definition of
-      listServices({
-        enabledOnly:
-          true,
-      })
+      enabledServices
   ) {
     for (
       const dependency of
@@ -2086,12 +1994,6 @@ function validateServiceDependencies() {
         continue;
       }
 
-      /**
-       * Unknown service dependencies are not automatically fatal because the
-       * service may refer to an external lifecycle owner.
-       *
-       * Emit diagnostics rather than silently hiding the dependency.
-       */
       log(
         'warn',
         {
@@ -2109,7 +2011,8 @@ function validateServiceDependencies() {
   }
 
   /**
-   * Resolve order here so dependency cycles fail BEFORE any service starts.
+   * Resolve the graph now so cycles are detected before any lifecycle method
+   * executes.
    */
   resolveServiceOrder(
     'startup',
@@ -2160,11 +2063,11 @@ async function startRegisteredService(
   state.startedAt =
     new Date();
 
-  state.failed =
-    false;
+  state.failed = false;
 
-  state.lastError =
-    null;
+  state.ready = false;
+
+  state.lastError = null;
 
   state.generation =
     generation;
@@ -2185,6 +2088,9 @@ async function startRegisteredService(
           ...definition.dependencies,
         ],
 
+      critical:
+        definition.critical,
+
       timeoutMs:
         definition.timeoutMs,
     },
@@ -2198,33 +2104,70 @@ async function startRegisteredService(
         definition.name,
 
       generation,
+
+      critical:
+        definition.critical,
     },
   );
 
   try {
-    const lifecycleHandler =
-      definition.initialize ||
-      definition.start;
-
+    /**
+     * Compatibility contract:
+     *
+     * 1. initialize() if supplied
+     * 2. start() if supplied
+     *
+     * Unlike the previous implementation, a service may expose BOTH methods.
+     */
     if (
-      lifecycleHandler
+      definition.initialize
     ) {
       await withTimeout(
         () =>
-          lifecycleHandler({
-            ...context,
+          definition.initialize(
+            enrichContext(
+              context,
+              {
+                service:
+                  definition,
 
-            services:
-              servicesRegistry,
+                generation,
+              },
+            ),
+          ),
+        definition.timeoutMs,
+        `service "${definition.name}" initialization`,
+        {
+          service:
+            definition.name,
 
-            service:
-              definition,
+          phase:
+            'initialization',
 
-            serviceRegistry:
-              servicesRegistry,
+          generation,
+        },
+      );
+    }
 
-            generation,
-          }),
+    if (
+      definition.start
+    ) {
+      state.state =
+        SERVICE_STATES.STARTING;
+
+      await withTimeout(
+        () =>
+          definition.start(
+            enrichContext(
+              context,
+              {
+                service:
+                  definition,
+
+                generation,
+              },
+            ),
+          ),
         definition.timeoutMs,
         `service "${definition.name}" startup`,
         {
@@ -2233,23 +2176,25 @@ async function startRegisteredService(
 
           phase:
             'startup',
+
+          generation,
         },
       );
     }
 
+    /**
+     * A service with neither initialize nor start is considered a valid
+     * passive registration.
+     */
     state.state =
       SERVICE_STATES.STARTED;
 
-    state.started =
-      true;
+    state.started = true;
 
-    state.ready =
-      false;
+    state.ready = false;
 
     state.durationMs =
-      elapsedMs(
-        timer,
-      );
+      elapsedMs(timer);
 
     startedServiceNames.add(
       definition.name,
@@ -2288,19 +2233,14 @@ async function startRegisteredService(
     state.state =
       SERVICE_STATES.FAILED;
 
-    state.failed =
-      true;
+    state.failed = true;
 
-    state.started =
-      false;
+    state.started = false;
 
-    state.ready =
-      false;
+    state.ready = false;
 
     state.durationMs =
-      elapsedMs(
-        timer,
-      );
+      elapsedMs(timer);
 
     state.lastError =
       safeError(
@@ -2310,10 +2250,12 @@ async function startRegisteredService(
             definition.name,
 
           phase:
+            error?.phase ||
             'startup',
 
-          includeStack:
-            true,
+          generation,
+
+          includeStack: true,
         },
       );
 
@@ -2366,6 +2308,7 @@ async function startRegisteredService(
           definition.name,
 
         phase:
+          error?.phase ||
           'startup',
 
         cause:
@@ -2374,6 +2317,8 @@ async function startRegisteredService(
         retryable:
           error?.retryable ??
           null,
+
+        generation,
 
         details: {
           generation,
@@ -2429,6 +2374,7 @@ async function stopRegisteredService(
         definition.name,
 
       timeoutMs:
+        options.serviceStopTimeoutMs ||
         definition.timeoutMs,
     },
     `TITech service "${definition.name}" shutdown started.`,
@@ -2440,24 +2386,20 @@ async function stopRegisteredService(
       definition.shutdown ||
       definition.destroy;
 
-    if (
-      stopHandler
-    ) {
+    if (stopHandler) {
       await withTimeout(
         () =>
-          stopHandler({
-            ...context,
-
-            services:
-              servicesRegistry,
-
-            service:
-              definition,
-
-            serviceRegistry:
-              servicesRegistry,
-          }),
-        definition.timeoutMs,
+          stopHandler(
+            enrichContext(
+              context,
+              {
+                service:
+                  definition,
+              },
+            ),
+          ),
+        options.serviceStopTimeoutMs ||
+          definition.timeoutMs,
         `service "${definition.name}" shutdown`,
         {
           service:
@@ -2465,6 +2407,9 @@ async function stopRegisteredService(
 
           phase:
             'shutdown',
+
+          generation:
+            state.generation,
         },
       );
     }
@@ -2472,19 +2417,17 @@ async function stopRegisteredService(
     state.state =
       SERVICE_STATES.STOPPED;
 
-    state.started =
-      false;
+    state.started = false;
 
-    state.ready =
-      false;
+    state.ready = false;
+
+    state.failed = false;
 
     state.stoppedAt =
       new Date();
 
     state.durationMs =
-      elapsedMs(
-        timer,
-      );
+      elapsedMs(timer);
 
     startedServiceNames.delete(
       definition.name,
@@ -2519,11 +2462,9 @@ async function stopRegisteredService(
     state.state =
       SERVICE_STATES.FAILED;
 
-    state.failed =
-      true;
+    state.failed = true;
 
-    state.ready =
-      false;
+    state.ready = false;
 
     state.lastError =
       safeError(
@@ -2535,15 +2476,15 @@ async function stopRegisteredService(
           phase:
             'shutdown',
 
-          includeStack:
-            true,
+          includeStack: true,
+
+          generation:
+            state.generation,
         },
       );
 
     state.durationMs =
-      elapsedMs(
-        timer,
-      );
+      elapsedMs(timer);
 
     emitObservabilityEvent(
       'service.stop_failed',
@@ -2595,6 +2536,10 @@ async function stopRegisteredService(
         cause:
           error,
 
+        retryable:
+          error?.retryable ??
+          null,
+
         details: {
           durationMs:
             state.durationMs,
@@ -2619,12 +2564,9 @@ async function checkRegisteredServiceReadiness(
       definition.name,
     );
 
-  if (
-    !state
-  ) {
+  if (!state) {
     return {
-      ready:
-        false,
+      ready: false,
 
       state:
         SERVICE_STATES.FAILED,
@@ -2639,36 +2581,28 @@ async function checkRegisteredServiceReadiness(
     };
   }
 
-  if (
-    !definition.enabled
-  ) {
-    state.ready =
-      true;
+  if (!definition.enabled) {
+    state.ready = true;
 
     state.state =
       SERVICE_STATES.DISABLED;
 
     return {
-      ready:
-        true,
+      ready: true,
 
       state:
         SERVICE_STATES.DISABLED,
     };
   }
 
-  if (
-    !state.started
-  ) {
-    state.ready =
-      false;
+  if (!state.started) {
+    state.ready = false;
 
     state.state =
       SERVICE_STATES.NOT_READY;
 
     return {
-      ready:
-        false,
+      ready: false,
 
       state:
         SERVICE_STATES.NOT_READY,
@@ -2684,8 +2618,7 @@ async function checkRegisteredServiceReadiness(
   }
 
   try {
-    let ready =
-      state.started;
+    let ready = true;
 
     if (
       definition.readiness
@@ -2693,18 +2626,15 @@ async function checkRegisteredServiceReadiness(
       const result =
         await withTimeout(
           () =>
-            definition.readiness({
-              ...context,
-
-              service:
-                definition,
-
-              services:
-                servicesRegistry,
-
-              serviceRegistry:
-                servicesRegistry,
-            }),
+            definition.readiness(
+              enrichContext(
+                context,
+                {
+                  service:
+                    definition,
+                },
+              ),
+            ),
           definition.readinessTimeoutMs,
           `service "${definition.name}" readiness check`,
           {
@@ -2713,6 +2643,9 @@ async function checkRegisteredServiceReadiness(
 
             phase:
               'readiness',
+
+            generation:
+              state.generation,
           },
         );
 
@@ -2722,8 +2655,7 @@ async function checkRegisteredServiceReadiness(
         );
     }
 
-    state.ready =
-      ready;
+    state.ready = ready;
 
     state.state =
       ready
@@ -2745,8 +2677,7 @@ async function checkRegisteredServiceReadiness(
         state.state,
     };
   } catch (error) {
-    state.ready =
-      false;
+    state.ready = false;
 
     state.state =
       SERVICE_STATES.NOT_READY;
@@ -2760,12 +2691,14 @@ async function checkRegisteredServiceReadiness(
 
           phase:
             'readiness',
+
+          generation:
+            state.generation,
         },
       );
 
     return {
-      ready:
-        false,
+      ready: false,
 
       state:
         SERVICE_STATES.NOT_READY,
@@ -2776,9 +2709,7 @@ async function checkRegisteredServiceReadiness(
   }
 }
 
-function normalizeReadiness(
-  result,
-) {
+function normalizeReadiness(result) {
   if (
     typeof result ===
     'boolean'
@@ -2787,15 +2718,9 @@ function normalizeReadiness(
   }
 
   if (
-    result ===
-      null ||
-    result ===
-      undefined
+    result === null ||
+    result === undefined
   ) {
-    /**
-     * A successfully resolved readiness method with no explicit value is
-     * treated as ready for compatibility.
-     */
     return true;
   }
 
@@ -2804,8 +2729,7 @@ function normalizeReadiness(
     'object'
   ) {
     return (
-      result.ready !==
-        false &&
+      result.ready !== false &&
       result.status !==
         'not_ready' &&
       result.status !==
@@ -2813,10 +2737,14 @@ function normalizeReadiness(
     );
   }
 
-  return Boolean(
-    result,
-  );
+  return Boolean(result);
 }
+
+/**
+ * =============================================================================
+ * External Registry Readiness
+ * =============================================================================
+ */
 
 async function checkExternalRegistryReadiness(
   context,
@@ -2825,12 +2753,9 @@ async function checkExternalRegistryReadiness(
   const contract =
     externalServiceContract;
 
-  if (
-    !contract
-  ) {
+  if (!contract) {
     return {
-      ready:
-        true,
+      ready: true,
 
       status:
         'not_configured',
@@ -2838,8 +2763,7 @@ async function checkExternalRegistryReadiness(
   }
 
   try {
-    let result =
-      true;
+    let result = true;
 
     if (
       contract.readiness
@@ -2847,15 +2771,11 @@ async function checkExternalRegistryReadiness(
       result =
         await withTimeout(
           () =>
-            contract.readiness({
-              ...context,
-
-              services:
-                servicesRegistry,
-
-              component:
-                COMPONENT,
-            }),
+            contract.readiness(
+              enrichContext(
+                context,
+              ),
+            ),
           options.readinessTimeoutMs ||
             DEFAULT_READINESS_TIMEOUT_MS,
           'external service registry readiness check',
@@ -2870,15 +2790,11 @@ async function checkExternalRegistryReadiness(
       result =
         await withTimeout(
           () =>
-            contract.isReady({
-              ...context,
-
-              services:
-                servicesRegistry,
-
-              component:
-                COMPONENT,
-            }),
+            contract.isReady(
+              enrichContext(
+                context,
+              ),
+            ),
           options.readinessTimeoutMs ||
             DEFAULT_READINESS_TIMEOUT_MS,
           'external service registry readiness check',
@@ -2900,8 +2816,7 @@ async function checkExternalRegistryReadiness(
     };
   } catch (error) {
     return {
-      ready:
-        false,
+      ready: false,
 
       status:
         'not_ready',
@@ -2931,15 +2846,12 @@ async function checkExternalRegistryHealth(
   const contract =
     externalServiceContract;
 
-  if (
-    !contract?.health
-  ) {
+  if (!contract?.health) {
     return {
       status:
         'unknown',
 
-      healthy:
-        true,
+      healthy: true,
     };
   }
 
@@ -2947,15 +2859,11 @@ async function checkExternalRegistryHealth(
     const result =
       await withTimeout(
         () =>
-          contract.health({
-            ...context,
-
-            services:
-              servicesRegistry,
-
-            component:
-              COMPONENT,
-          }),
+          contract.health(
+            enrichContext(
+              context,
+            ),
+          ),
         options.healthTimeoutMs ||
           DEFAULT_HEALTH_TIMEOUT_MS,
         'external service registry health check',
@@ -2965,19 +2873,15 @@ async function checkExternalRegistryHealth(
         },
       );
 
-    const normalized =
-      normalizeHealth(
-        result,
-      );
-
-    return normalized;
+    return normalizeHealth(
+      result,
+    );
   } catch (error) {
     return {
       status:
         'unhealthy',
 
-      healthy:
-        false,
+      healthy: false,
 
       error:
         safeError(
@@ -2991,9 +2895,7 @@ async function checkExternalRegistryHealth(
   }
 }
 
-function normalizeHealth(
-  result,
-) {
+function normalizeHealth(result) {
   if (
     typeof result ===
     'boolean'
@@ -3004,8 +2906,7 @@ function normalizeHealth(
           ? 'healthy'
           : 'unhealthy',
 
-      healthy:
-        result,
+      healthy: result,
     };
   }
 
@@ -3018,8 +2919,7 @@ function normalizeHealth(
       status:
         'unknown',
 
-      healthy:
-        true,
+      healthy: true,
     };
   }
 
@@ -3028,14 +2928,13 @@ function normalizeHealth(
 
     healthy:
       result.healthy !==
-        undefined
+      undefined
         ? Boolean(
             result.healthy,
           )
         : result.status ===
             'healthy' ||
-          result.ready ===
-            true,
+          result.ready === true,
   };
 }
 
@@ -3051,29 +2950,26 @@ async function checkAllServices(
 ) {
   const enabled =
     listServices({
-      enabledOnly:
-        true,
+      enabledOnly: true,
     });
 
-  const results =
-    {};
+  const results = {};
 
-  const requiredFailures =
-    [];
+  const requiredFailures = [];
 
-  const optionalFailures =
-    [];
+  const optionalFailures = [];
 
-  /**
-   * External registry is checked separately because it may have its own
-   * internal service graph.
-   */
   const external =
     await checkExternalRegistryReadiness(
       context,
       options,
     );
 
+  /**
+   * An external registry that is explicitly configured but not ready is
+   * considered required because the local composition root delegated service
+   * ownership to it.
+   */
   if (
     !external.ready &&
     external.status !==
@@ -3128,8 +3024,7 @@ async function checkAllServices(
   return {
     external,
 
-    services:
-      results,
+    services: results,
 
     requiredFailures,
 
@@ -3148,19 +3043,25 @@ async function rollbackStartedServices(
   generation,
   options = {},
 ) {
-  const rollbackErrors =
-    [];
+  const rollbackErrors = [];
 
+  /**
+   * Only services belonging to this startup generation are eligible for
+   * rollback.
+   */
   const startedDefinitions =
     listServices({
-      enabledOnly:
-        true,
+      enabledOnly: true,
     })
       .filter(
         definition =>
           startedServiceNames.has(
             definition.name,
-          ),
+          ) &&
+          serviceStates.get(
+            definition.name,
+          )?.generation ===
+            generation,
       )
       .sort(
         compareServices,
@@ -3168,7 +3069,30 @@ async function rollbackStartedServices(
       .reverse();
 
   /**
-   * Stop external registry before locally registered services.
+   * Stop local services first.
+   *
+   * This is safer than stopping the registry first because the registry may
+   * itself depend upon local services during its shutdown.
+   */
+  for (
+    const definition of
+      startedDefinitions
+  ) {
+    try {
+      await stopRegisteredService(
+        definition,
+        context,
+        options,
+      );
+    } catch (error) {
+      rollbackErrors.push(
+        error,
+      );
+    }
+  }
+
+  /**
+   * External registry is stopped after local services.
    */
   if (
     externalServiceContract
@@ -3182,22 +3106,6 @@ async function rollbackStartedServices(
             options.externalStopTimeoutMs ||
             DEFAULT_EXTERNAL_STOP_TIMEOUT_MS,
         },
-      );
-    } catch (error) {
-      rollbackErrors.push(
-        error,
-      );
-    }
-  }
-
-  for (
-    const definition of
-      startedDefinitions
-  ) {
-    try {
-      await stopRegisteredService(
-        definition,
-        context,
       );
     } catch (error) {
       rollbackErrors.push(
@@ -3222,7 +3130,7 @@ async function rollbackStartedServices(
 }
 
 /**
- * =============================================================================
+ =============================================================================
  * Readiness Registration
  * =============================================================================
  */
@@ -3240,8 +3148,7 @@ function registerReadinessDependency(
   const {
     register,
     has,
-  } =
-    readinessModule;
+  } = readinessModule;
 
   if (
     typeof register !==
@@ -3260,8 +3167,7 @@ function registerReadinessDependency(
 
   try {
     return register({
-      name:
-        COMPONENT,
+      name: COMPONENT,
 
       severity:
         options.readinessSeverity ||
@@ -3289,12 +3195,14 @@ function registerReadinessDependency(
               started &&
               !stopped &&
               !failed &&
-              result.requiredFailures
+              result
+                .requiredFailures
                 .length ===
                 0,
 
             degraded:
-              result.optionalFailures
+              result
+                .optionalFailures
                 .length >
               0,
 
@@ -3326,8 +3234,7 @@ function registerReadinessDependency(
       },
     });
   } catch (error) {
-    lastError =
-      error;
+    lastError = error;
 
     log(
       'warn',
@@ -3353,6 +3260,41 @@ function registerReadinessDependency(
 
 /**
  * =============================================================================
+ * Lifecycle Transaction
+ * =============================================================================
+ */
+
+function beginLifecycleOperation(
+  operation,
+) {
+  lifecycleOperation =
+    operation;
+
+  lifecycleStartedAt =
+    new Date();
+
+  lifecycleCompletedAt =
+    null;
+
+  lastLifecycleDurationMs =
+    null;
+}
+
+function completeLifecycleOperation(
+  startedNs,
+) {
+  lifecycleCompletedAt =
+    new Date();
+
+  lastLifecycleDurationMs =
+    elapsedMs(startedNs);
+
+  lifecycleOperation =
+    OPERATION_STATES.IDLE;
+}
+
+/**
+ * =============================================================================
  * Bootstrap Registration
  * =============================================================================
  */
@@ -3362,17 +3304,12 @@ function registerServicesHooks(
   options = {},
 ) {
   if (
-    hooks.has(
-      COMPONENT,
-    )
+    hooks.has(COMPONENT)
   ) {
-    registered =
-      true;
+    registered = true;
 
     registrationResult =
-      hooks.get(
-        COMPONENT,
-      );
+      hooks.get(COMPONENT);
 
     return registrationResult;
   }
@@ -3440,19 +3377,36 @@ function registerServicesHooks(
               return startPromise;
             }
 
+            if (
+              lifecycleOperation ===
+              OPERATION_STATES.STOPPING
+            ) {
+              throw new ServicesBootstrapError(
+                'TITech services cannot start while shutdown is in progress.',
+                {
+                  code:
+                    'SERVICES_START_DURING_SHUTDOWN',
+                },
+              );
+            }
+
             const runtimeContext =
               hookContext ||
               context ||
               {};
 
+            beginLifecycleOperation(
+              OPERATION_STATES.STARTING,
+            );
+
             const generation =
               ++startupGeneration;
 
+            const timer =
+              process.hrtime.bigint();
+
             startPromise =
               (async () => {
-                const timer =
-                  process.hrtime.bigint();
-
                 try {
                   log(
                     'info',
@@ -3465,15 +3419,13 @@ function registerServicesHooks(
                     'TITech application services bootstrap started.',
                   );
 
-                  /**
-                   * Validate the local service graph BEFORE executing any
-                   * service startup logic.
-                   */
                   validateServiceDependencies();
 
                   /**
-                   * Initialize the external service registry with a bounded
-                   * operation.
+                   * IMPORTANT:
+                   *
+                   * External registry initialization happens exactly once
+                   * for this startup transaction.
                    */
                   const externalContract =
                     await initializeExternalServiceRegistry(
@@ -3488,9 +3440,6 @@ function registerServicesHooks(
                   externalServiceContract =
                     externalContract;
 
-                  /**
-                   * Resolve deterministic startup order.
-                   */
                   const order =
                     resolveServiceOrder(
                       'startup',
@@ -3516,12 +3465,6 @@ function registerServicesHooks(
                     'TITech service startup order resolved.',
                   );
 
-                  /**
-                   * Start every local service sequentially.
-                   *
-                   * This intentionally favors deterministic dependency-safe
-                   * startup over unrestricted parallelism.
-                   */
                   for (
                     const definition of
                       order
@@ -3534,15 +3477,11 @@ function registerServicesHooks(
                   }
 
                   /**
-                   * Start external registry only after local services are
-                   * successfully initialized.
-                   *
-                   * This prevents registry start from hiding a failed local
-                   * service and also avoids circular lifecycle behavior.
+                   * Start external registry after local service initialization
+                   * has completed.
                    */
                   if (
-                    externalContract
-                      ?.start
+                    externalContract?.start
                   ) {
                     await startExternalRegistry(
                       externalContract,
@@ -3555,9 +3494,6 @@ function registerServicesHooks(
                     );
                   }
 
-                  /**
-                   * Verify readiness before declaring the phase complete.
-                   */
                   const readinessResult =
                     await checkAllServices(
                       runtimeContext,
@@ -3579,6 +3515,8 @@ function registerServicesHooks(
                         phase:
                           'readiness',
 
+                        generation,
+
                         details: {
                           generation,
 
@@ -3597,14 +3535,11 @@ function registerServicesHooks(
                   serviceCount =
                     serviceDefinitions.size;
 
-                  started =
-                    true;
+                  started = true;
 
-                  stopped =
-                    false;
+                  stopped = false;
 
-                  failed =
-                    false;
+                  failed = false;
 
                   degraded =
                     readinessResult
@@ -3615,28 +3550,14 @@ function registerServicesHooks(
                   startedAt =
                     new Date();
 
-                  lastError =
-                    null;
+                  lastError = null;
 
-                  if (
-                    runtimeContext &&
-                    typeof runtimeContext ===
-                      'object'
-                  ) {
-                    runtimeContext.services =
-                      servicesRegistry;
-
-                    runtimeContext.serviceRegistry =
-                      servicesRegistry;
-
-                    runtimeContext.serviceStartupGeneration =
-                      generation;
-                  }
+                  registerIntoContext(
+                    runtimeContext,
+                  );
 
                   const durationMs =
-                    elapsedMs(
-                      timer,
-                    );
+                    elapsedMs(timer);
 
                   emitObservabilityEvent(
                     'services.started',
@@ -3694,24 +3615,23 @@ function registerServicesHooks(
                       readinessResult,
                   };
                 } catch (error) {
-                  failed =
-                    true;
+                  failed = true;
 
-                  started =
-                    false;
+                  started = false;
 
-                  degraded =
-                    true;
+                  degraded = true;
 
-                  lastError =
-                    error;
+                  lastError = error;
 
                   const normalized =
                     safeError(
                       error,
                       {
                         phase:
+                          error?.phase ||
                           'startup',
+
+                        generation,
 
                         includeStack:
                           true,
@@ -3742,13 +3662,6 @@ function registerServicesHooks(
                     'TITech application services bootstrap failed; rolling back partial startup.',
                   );
 
-                  /**
-                   * Critical improvement:
-                   *
-                   * If service N fails after services 1..N-1 started, those
-                   * services are stopped before the failure escapes into the
-                   * global bootstrap pipeline.
-                   */
                   const rollbackErrors =
                     await rollbackStartedServices(
                       runtimeContext,
@@ -3757,6 +3670,9 @@ function registerServicesHooks(
                         externalStopTimeoutMs:
                           options.externalStopTimeoutMs ||
                           DEFAULT_EXTERNAL_STOP_TIMEOUT_MS,
+
+                        serviceStopTimeoutMs:
+                          options.serviceStopTimeoutMs,
                       },
                     );
 
@@ -3786,9 +3702,6 @@ function registerServicesHooks(
                                 {
                                   phase:
                                     'rollback',
-
-                                  includeStack:
-                                    false,
                                 },
                               ),
                           ),
@@ -3809,18 +3722,17 @@ function registerServicesHooks(
                         rollbackErrors.length,
                     },
                   );
+                } finally {
+                  completeLifecycleOperation(
+                    timer,
+                  );
                 }
               })();
 
             try {
               return await startPromise;
             } finally {
-              /**
-               * A successful startPromise is cleared after completion so a
-               * later explicit lifecycle call can proceed safely.
-               */
-              startPromise =
-                null;
+              startPromise = null;
             }
           },
 
@@ -3842,7 +3754,8 @@ function registerServicesHooks(
                 );
 
               if (
-                result.requiredFailures
+                result
+                  .requiredFailures
                   .length >
                 0
               ) {
@@ -3850,14 +3763,18 @@ function registerServicesHooks(
               }
 
               degraded =
-                result.optionalFailures
+                result
+                  .optionalFailures
                   .length >
                 0;
 
-              return true;
+              return (
+                started &&
+                !stopped &&
+                !failed
+              );
             } catch (error) {
-              lastError =
-                error;
+              lastError = error;
 
               log(
                 'error',
@@ -3913,8 +3830,7 @@ function registerServicesHooks(
       },
     );
 
-  registered =
-    true;
+  registered = true;
 
   return registrationResult;
 }
@@ -3954,19 +3870,37 @@ async function initialize(
   }
 
   if (
+    stopPromise ||
+    lifecycleOperation ===
+      OPERATION_STATES.STOPPING
+  ) {
+    throw new ServicesBootstrapError(
+      'TITech services cannot initialize while shutdown is in progress.',
+      {
+        code:
+          'SERVICES_INITIALIZATION_DURING_SHUTDOWN',
+      },
+    );
+  }
+
+  if (
     startPromise
   ) {
     return startPromise;
   }
 
+  beginLifecycleOperation(
+    OPERATION_STATES.INITIALIZING,
+  );
+
   const generation =
     ++startupGeneration;
 
+  const timer =
+    process.hrtime.bigint();
+
   startPromise =
     (async () => {
-      const timer =
-        process.hrtime.bigint();
-
       try {
         validateServiceDependencies();
 
@@ -4034,6 +3968,8 @@ async function initialize(
               phase:
                 'readiness',
 
+              generation,
+
               details: {
                 requiredFailures:
                   readinessResult
@@ -4047,14 +3983,11 @@ async function initialize(
           );
         }
 
-        started =
-          true;
+        started = true;
 
-        stopped =
-          false;
+        stopped = false;
 
-        failed =
-          false;
+        failed = false;
 
         degraded =
           readinessResult
@@ -4068,20 +4001,11 @@ async function initialize(
         serviceCount =
           serviceDefinitions.size;
 
-        if (
-          context &&
-          typeof context ===
-            'object'
-        ) {
-          context.services =
-            servicesRegistry;
+        lastError = null;
 
-          context.serviceRegistry =
-            servicesRegistry;
-
-          context.serviceStartupGeneration =
-            generation;
-        }
+        registerIntoContext(
+          context,
+        );
 
         emitObservabilityEvent(
           'services.initialized',
@@ -4090,26 +4014,22 @@ async function initialize(
 
             serviceCount,
 
+            degraded,
+
             durationMs:
-              elapsedMs(
-                timer,
-              ),
+              elapsedMs(timer),
           },
         );
 
         return servicesRegistry;
       } catch (error) {
-        failed =
-          true;
+        failed = true;
 
-        started =
-          false;
+        started = false;
 
-        degraded =
-          true;
+        degraded = true;
 
-        lastError =
-          error;
+        lastError = error;
 
         const rollbackErrors =
           await rollbackStartedServices(
@@ -4119,6 +4039,9 @@ async function initialize(
               externalStopTimeoutMs:
                 options.externalStopTimeoutMs ||
                 DEFAULT_EXTERNAL_STOP_TIMEOUT_MS,
+
+              serviceStopTimeoutMs:
+                options.serviceStopTimeoutMs,
             },
           );
 
@@ -4136,13 +4059,15 @@ async function initialize(
             },
           );
 
-        lastError =
-          wrapped;
+        lastError = wrapped;
 
         throw wrapped;
       } finally {
-        startPromise =
-          null;
+        completeLifecycleOperation(
+          timer,
+        );
+
+        startPromise = null;
       }
     })();
 
@@ -4172,38 +4097,47 @@ async function shutdown(
     return stopPromise;
   }
 
+  if (
+    startPromise
+  ) {
+    /**
+     * Do not race shutdown against an active startup transaction.
+     *
+     * Wait for startup to settle, then perform a deterministic shutdown.
+     */
+    try {
+      await startPromise;
+    } catch {
+      /**
+       * Startup failure is handled by its own rollback path.
+       */
+    }
+  }
+
+  if (
+    lifecycleOperation ===
+    OPERATION_STATES.STOPPING
+  ) {
+    return stopPromise;
+  }
+
+  beginLifecycleOperation(
+    OPERATION_STATES.STOPPING,
+  );
+
+  const timer =
+    process.hrtime.bigint();
+
   stopPromise =
     (async () => {
-      const errors =
-        [];
+      const errors = [];
 
       try {
         /**
-         * External registry must be stopped first because it may depend on the
-         * local services that are about to be shut down.
-         */
-        if (
-          externalServiceContract
-        ) {
-          try {
-            await stopExternalRegistry(
-              externalServiceContract,
-              context,
-              {
-                stopTimeoutMs:
-                  options.externalStopTimeoutMs ||
-                  DEFAULT_EXTERNAL_STOP_TIMEOUT_MS,
-              },
-            );
-          } catch (error) {
-            errors.push(
-              error,
-            );
-          }
-        }
-
-        /**
-         * Then stop locally registered services in reverse dependency order.
+         * Stop local services first.
+         *
+         * Dependency order is reversed so dependents are stopped before the
+         * services they depend upon.
          */
         const order =
           resolveServiceOrder(
@@ -4227,26 +4161,44 @@ async function shutdown(
           }
         }
 
-        started =
-          false;
+        /**
+         * Stop external registry after local service teardown.
+         */
+        if (
+          externalServiceContract
+        ) {
+          try {
+            await stopExternalRegistry(
+              externalServiceContract,
+              context,
+              {
+                stopTimeoutMs:
+                  options.externalStopTimeoutMs ||
+                  DEFAULT_EXTERNAL_STOP_TIMEOUT_MS,
+              },
+            );
+          } catch (error) {
+            errors.push(
+              error,
+            );
+          }
+        }
+
+        started = false;
 
         stopped =
-          errors.length ===
-          0;
+          errors.length === 0;
 
         failed =
-          errors.length >
-          0;
+          errors.length > 0;
 
-        degraded =
-          false;
+        degraded = false;
 
         stoppedAt =
           new Date();
 
         if (
-          errors.length >
-          0
+          errors.length > 0
         ) {
           lastError =
             errors[0];
@@ -4294,6 +4246,9 @@ async function shutdown(
           'services.stopped',
           {
             serviceCount,
+
+            durationMs:
+              elapsedMs(timer),
           },
         );
 
@@ -4304,17 +4259,18 @@ async function shutdown(
               'services.stopped',
 
             serviceCount,
+
+            durationMs:
+              elapsedMs(timer),
           },
           'TITech application services stopped.',
         );
 
         return true;
       } catch (error) {
-        failed =
-          true;
+        failed = true;
 
-        lastError =
-          error;
+        lastError = error;
 
         throw (
           error instanceof
@@ -4328,8 +4284,11 @@ async function shutdown(
               )
         );
       } finally {
-        stopPromise =
-          null;
+        completeLifecycleOperation(
+          timer,
+        );
+
+        stopPromise = null;
       }
     })();
 
@@ -4366,14 +4325,14 @@ async function readiness(
     started &&
     !stopped &&
     !failed &&
-    results.requiredFailures
-      .length ===
-    0;
+    results
+      .requiredFailures
+      .length === 0;
 
   degraded =
-    results.optionalFailures
-      .length >
-    0;
+    results
+      .optionalFailures
+      .length > 0;
 
   return {
     status:
@@ -4409,6 +4368,9 @@ async function readiness(
 
     generation:
       startupGeneration,
+
+    lifecycle:
+      lifecycleOperation,
 
     timestamp:
       new Date().toISOString(),
@@ -4469,14 +4431,13 @@ async function health(
     services:
       result.services,
 
-    external:
-      {
-        readiness:
-          result.external,
+    external: {
+      readiness:
+        result.external,
 
-        health:
-          externalHealth,
-      },
+      health:
+        externalHealth,
+    },
 
     requiredFailures:
       result.requiredFailures,
@@ -4489,6 +4450,9 @@ async function health(
 
     generation:
       startupGeneration,
+
+    lifecycle:
+      lifecycleOperation,
 
     timestamp:
       new Date().toISOString(),
@@ -4550,8 +4514,7 @@ function getImplementation() {
  */
 
 function snapshot() {
-  const services =
-    {};
+  const services = {};
 
   for (
     const [
@@ -4564,73 +4527,72 @@ function snapshot() {
         name,
       );
 
-    services[name] =
-      {
-        name,
+    services[name] = {
+      name,
 
-        description:
-          definition.description,
+      description:
+        definition.description,
 
-        version:
-          definition.version,
+      version:
+        definition.version,
 
-        enabled:
-          definition.enabled,
+      enabled:
+        definition.enabled,
 
-        critical:
-          definition.critical,
+      critical:
+        definition.critical,
 
-        priority:
-          definition.priority,
+      priority:
+        definition.priority,
 
-        dependencies:
-          [
-            ...definition.dependencies,
-          ],
+      dependencies:
+        [
+          ...definition.dependencies,
+        ],
 
-        state:
-          state?.state ||
-          'unknown',
+      state:
+        state?.state ||
+        'unknown',
 
-        started:
-          state?.started ||
-          false,
+      started:
+        state?.started ||
+        false,
 
-        ready:
-          state?.ready ||
-          false,
+      ready:
+        state?.ready ||
+        false,
 
-        failed:
-          state?.failed ||
-          false,
+      failed:
+        state?.failed ||
+        false,
 
-        generation:
-          state?.generation ||
-          null,
+      generation:
+        state?.generation ??
+        null,
 
-        startedAt:
-          state?.startedAt ||
-          null,
+      startedAt:
+        state?.startedAt ||
+        null,
 
-        readyAt:
-          state?.readyAt ||
-          null,
+      readyAt:
+        state?.readyAt ||
+        null,
 
-        stoppedAt:
-          state?.stoppedAt ||
-          null,
+      stoppedAt:
+        state?.stoppedAt ||
+        null,
 
-        durationMs:
-          state?.durationMs ||
-          null,
+      durationMs:
+        state?.durationMs ??
+        null,
 
-        lastError:
-          state?.lastError ||
-          null,
+      lastError:
+        state?.lastError ||
+        null,
 
-        metadata:
-          definition.metadata,
-      };
+      metadata:
+        definition.metadata,
+    };
   }
 
   return Object.freeze({
@@ -4639,6 +4601,9 @@ function snapshot() {
 
     service:
       SERVICE_NAME,
+
+    application:
+      APPLICATION_NAME,
 
     registered,
 
@@ -4653,6 +4618,9 @@ function snapshot() {
     ready:
       isReady(),
 
+    lifecycle:
+      lifecycleOperation,
+
     serviceCount,
 
     generation:
@@ -4665,6 +4633,12 @@ function snapshot() {
       Boolean(
         servicesRegistry,
       ),
+
+    lifecycleStartedAt,
+
+    lifecycleCompletedAt,
+
+    lastLifecycleDurationMs,
 
     services:
       Object.freeze(
@@ -4714,6 +4688,24 @@ function registerIntoContext(
   context.serviceStartupGeneration =
     startupGeneration;
 
+  context.serviceBootstrap =
+    Object.freeze({
+      component:
+        COMPONENT,
+
+      service:
+        SERVICE_NAME,
+
+      generation:
+        startupGeneration,
+
+      ready:
+        isReady(),
+
+      degraded:
+        isDegraded(),
+    });
+
   return context;
 }
 
@@ -4722,12 +4714,16 @@ function registerIntoContext(
  * Reset
  * =============================================================================
  *
- * Intended for isolated tests/process reinitialization.
+ * Intended for isolated tests and process-level reinitialization.
+ * Never call while services are active.
+ * =============================================================================
  */
 
 function reset() {
   if (
-    started
+    started ||
+    lifecycleOperation !==
+      OPERATION_STATES.IDLE
   ) {
     throw new ServicesBootstrapError(
       'Cannot reset active TITech services.',
@@ -4750,44 +4746,41 @@ function reset() {
   externalServiceContract =
     null;
 
-  registered =
-    false;
+  registered = false;
 
-  started =
-    false;
+  started = false;
 
-  stopped =
-    false;
+  stopped = false;
 
-  failed =
-    false;
+  failed = false;
 
-  degraded =
-    false;
+  degraded = false;
 
   registrationResult =
     null;
 
-  startPromise =
-    null;
+  startPromise = null;
 
-  stopPromise =
-    null;
+  stopPromise = null;
 
-  lastError =
-    null;
+  lastError = null;
 
-  startedAt =
-    null;
+  startedAt = null;
 
-  stoppedAt =
-    null;
+  stoppedAt = null;
 
-  serviceCount =
-    0;
+  serviceCount = 0;
 
-  startupGeneration =
-    0;
+  startupGeneration = 0;
+
+  lifecycleOperation =
+    OPERATION_STATES.IDLE;
+
+  lifecycleStartedAt = null;
+
+  lifecycleCompletedAt = null;
+
+  lastLifecycleDurationMs = null;
 
   startedServiceNames.clear();
 
@@ -4813,7 +4806,7 @@ function wrapError(
 ) {
   if (
     error instanceof
-      ServicesBootstrapError
+    ServicesBootstrapError
   ) {
     return error;
   }
@@ -4830,6 +4823,10 @@ function wrapError(
 
       retryable:
         error?.retryable ??
+        null,
+
+      generation:
+        details.generation ??
         null,
 
       details,

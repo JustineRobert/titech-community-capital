@@ -1,8 +1,8 @@
-'use strict';
+"use strict";
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital Ltd
  * TITech Community Capital Operating System
  * =============================================================================
  *
@@ -13,50 +13,44 @@
  *   Enterprise backend process entry point.
  *
  * Architectural Role:
- *   `server.js` is intentionally thin.
- *
- *   It is responsible ONLY for:
- *
- *     1. Loading process environment.
- *     2. Validating the Node.js runtime.
- *     3. Installing process-level fatal-error protection.
- *     4. Loading the canonical TITech bootstrap orchestrator.
- *     5. Starting the application.
- *     6. Providing safe diagnostic helpers.
- *
- * Canonical Startup:
+ * -----------------------------------------------------------------------------
  *
  *   server.js
  *       │
  *       ▼
- *   bootstrap/app.js
+ *   ApplicationBootstrap
  *       │
- *       ▼
- *   BootstrapContext
- *       │
- *       ├── environment
- *       ├── configuration
- *       ├── logger
- *       ├── observability
- *       ├── readiness
- *       ├── resilience
- *       ├── infrastructure
- *       ├── services
- *       ├── middleware
- *       ├── routes
- *       ├── server
- *       └── runtime
+ *       ├── DependencyRegistry
+ *       ├── LifecycleManager
+ *       ├── ReadinessState
+ *       ├── ShutdownManager
+ *       ├── ServicesContext
+ *       └── BootstrapContext
  *              │
  *              ▼
- *           READY
+ *        TITech Runtime
+ *              │
+ *              ▼
+ *             READY
+ *
+ * This module is intentionally THIN.
+ *
+ * It is responsible ONLY for:
+ *
+ *   1. Loading process environment.
+ *   2. Validating the Node.js runtime.
+ *   3. Installing process-level fatal-error protection.
+ *   4. Loading the canonical TITech bootstrap orchestrator.
+ *   5. Supplying optional composition context.
+ *   6. Starting the canonical application lifecycle.
+ *   7. Providing safe operational diagnostics.
  *
  * IMPORTANT:
  *
  * This file MUST NOT:
  *
  *   - create an Express application;
- *   - register Express middleware;
- *   - register routes;
+ *   - register Express middleware directly;
  *   - connect directly to MongoDB;
  *   - connect directly to Redis;
  *   - initialize queues;
@@ -65,18 +59,11 @@
  *   - execute bootstrap phases itself;
  *   - duplicate lifecycle hooks;
  *   - duplicate shutdown orchestration;
- *   - maintain an independent bootstrap state machine.
+ *   - maintain an independent application state machine.
  *
- * Those responsibilities belong to:
+ * Canonical bootstrap ownership remains inside:
  *
- *   backend/bootstrap/
- *
- * Specifically:
- *
- *   backend/bootstrap/app.js
- *   backend/bootstrap/context/
- *   backend/bootstrap/lifecycle/
- *   backend/bootstrap/hooks.js
+ *   backend/bootstrap/ApplicationBootstrap.js
  *
  * Runtime:
  *   Node.js 20+
@@ -87,80 +74,110 @@
  * =============================================================================
  */
 
-const path = require('node:path');
-const crypto = require('node:crypto');
-const os = require('node:os');
-const dotenv = require('dotenv');
+"use strict";
 
-/**
- * =============================================================================
- * Environment Loading
- * =============================================================================
- *
- * Environment loading happens before the bootstrap composition root is loaded
- * so configuration can consume process.env deterministically.
- *
- * This does NOT constitute application bootstrap.
- */
+const path = require("node:path");
+const crypto = require("node:crypto");
+const os = require("node:os");
+const dotenv = require("dotenv");
 
-const ENV_FILE = path.resolve(
-  process.cwd(),
-  '.env',
-);
-
-const dotenvResult = dotenv.config({
-  path: ENV_FILE,
-});
-
-/**
- * dotenv intentionally does not fail the process when `.env` is absent.
- *
- * Production environments may provide environment variables through:
- *
- *   - container runtime;
- *   - Kubernetes;
- *   - CI/CD;
- *   - cloud secret managers;
- *   - process supervisors;
- *   - infrastructure configuration.
- *
- * The bootstrap configuration layer remains responsible for validating
- * required application configuration.
- */
-
-/**
- * =============================================================================
- * Constants
+/* =============================================================================
+ * CONSTANTS
  * =============================================================================
  */
 
-const MIN_NODE_MAJOR = 20;
+const APPLICATION_NAME =
+  "TITech Community Capital";
 
+const DEFAULT_SERVICE_NAME =
+  "titech-community-capital-backend";
+
+const DEFAULT_NODE_ENV =
+  "development";
+
+const MIN_NODE_MAJOR =
+  20;
+
+const FATAL_EXIT_CODE =
+  1;
+
+const ENV_FILE =
+  path.resolve(
+    process.cwd(),
+    ".env",
+  );
+
+/**
+ * Canonical bootstrap implementation.
+ *
+ * Do NOT silently fall back to an alternative application factory.
+ */
+const BOOTSTRAP_MODULE_PATH =
+  "./bootstrap/ApplicationBootstrap";
+
+/**
+ * Signals are documented here for observability.
+ *
+ * Signal registration itself belongs to the canonical bootstrap lifecycle.
+ */
+const PROCESS_SIGNALS =
+  Object.freeze([
+    "SIGTERM",
+    "SIGINT",
+  ]);
+
+/**
+ * Environment values that should never be logged directly.
+ */
+const SENSITIVE_KEY_PATTERN =
+  /password|passwd|passcode|pin|otp|secret|token|authorization|cookie|api[-_]?key|private[-_]?key|client[-_]?secret|jwt|mongo(uri)?|mongodb|redis|database|connection|string/i;
+
+/* =============================================================================
+ * ENVIRONMENT LOADING
+ * =============================================================================
+ */
+
+let dotenvResult;
+
+try {
+  dotenvResult =
+    dotenv.config({
+      path: ENV_FILE,
+    });
+} catch (error) {
+  dotenvResult = {
+    error,
+  };
+}
+
+/**
+ * Resolve identity AFTER dotenv has been loaded.
+ *
+ * This allows SERVICE_NAME / OTEL_SERVICE_NAME / NODE_ENV to be supplied
+ * through .env while still supporting externally injected process variables.
+ */
 const SERVICE_NAME =
   process.env.SERVICE_NAME ||
   process.env.OTEL_SERVICE_NAME ||
-  'titech-community-capital-backend';
+  DEFAULT_SERVICE_NAME;
 
 const NODE_ENV =
   process.env.NODE_ENV ||
-  'development';
+  DEFAULT_NODE_ENV;
 
-const FATAL_EXIT_CODE = 1;
-
-const PROCESS_SIGNALS = Object.freeze([
-  'SIGTERM',
-  'SIGINT',
-]);
-
-/**
- * =============================================================================
- * Runtime State
+/* =============================================================================
+ * PROCESS-LOCAL STATE
  * =============================================================================
  *
- * These variables intentionally represent only process-entry concerns.
+ * This is NOT an application state machine.
  *
- * Application lifecycle state belongs to BootstrapContext.
+ * Application lifecycle state remains owned by ApplicationBootstrap.
+ *
+ * These variables only describe this process-entry module's local bookkeeping.
+ * =============================================================================
  */
+
+let bootstrapInstance = null;
 
 let bootstrapModule = null;
 
@@ -170,110 +187,196 @@ let processHandlersInstalled = false;
 
 let fatalHandlingStarted = false;
 
+let startupPromise = null;
+
+/* =============================================================================
+ * SAFE SERIALIZATION
+ * =============================================================================
+ */
+
 /**
- * =============================================================================
- * Sensitive Metadata Protection
- * =============================================================================
+ * Convert diagnostic values into safe, JSON-compatible values.
  *
- * Never expose credentials or connection material through process-entry
- * diagnostics.
+ * This function intentionally favors observability safety over perfect
+ * serialization fidelity.
+ *
+ * @param {*} value
+ * @param {number} depth
+ * @param {WeakSet<object>} seen
+ * @returns {*}
  */
+function sanitizeValue(
+  value,
+  depth = 0,
+  seen = new WeakSet(),
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
 
-const SENSITIVE_KEY_PATTERN =
-  /password|passwd|passcode|pin|otp|secret|token|authorization|cookie|api[-_]?key|private[-_]?key|client[-_]?secret|jwt|mongo(uri)?|mongodb|redis|database|connection|string/i;
+  if (
+    typeof value === "bigint"
+  ) {
+    return value.toString();
+  }
+
+  if (
+    typeof value === "function" ||
+    typeof value === "symbol"
+  ) {
+    return `[${typeof value}]`;
+  }
+
+  if (
+    depth >= 5
+  ) {
+    return "[max-depth]";
+  }
+
+  if (
+    value instanceof Error
+  ) {
+    return {
+      name:
+        value.name,
+
+      message:
+        value.message,
+
+      code:
+        value.code,
+
+      ...(NODE_ENV !== "production" &&
+      value.stack
+        ? {
+            stack:
+              value.stack,
+          }
+        : {}),
+    };
+  }
+
+  if (
+    typeof value === "object"
+  ) {
+    if (
+      seen.has(value)
+    ) {
+      return "[circular]";
+    }
+
+    seen.add(value);
+
+    if (
+      Array.isArray(value)
+    ) {
+      return value.map(
+        item =>
+          sanitizeValue(
+            item,
+            depth + 1,
+            seen,
+          ),
+      );
+    }
+
+    const output = {};
+
+    for (
+      const [
+        key,
+        nestedValue,
+      ] of Object.entries(value)
+    ) {
+      if (
+        SENSITIVE_KEY_PATTERN.test(
+          String(key),
+        )
+      ) {
+        continue;
+      }
+
+      output[key] =
+        sanitizeValue(
+          nestedValue,
+          depth + 1,
+          seen,
+        );
+    }
+
+    return output;
+  }
+
+  return "[unserializable]";
+}
 
 /**
- * =============================================================================
- * Safe Metadata Sanitization
- * =============================================================================
+ * Sanitize an object containing diagnostic metadata.
+ *
+ * @param {*} metadata
+ * @returns {object}
  */
-
-function sanitizeMetadata(metadata) {
+function sanitizeMetadata(
+  metadata,
+) {
   if (
     !metadata ||
-    typeof metadata !== 'object'
+    typeof metadata !== "object"
   ) {
     return {};
   }
 
-  const output = {};
-
-  for (
-    const [key, value] of Object.entries(
+  const sanitized =
+    sanitizeValue(
       metadata,
-    )
+    );
+
+  if (
+    sanitized &&
+    typeof sanitized === "object" &&
+    !Array.isArray(sanitized)
   ) {
-    if (
-      SENSITIVE_KEY_PATTERN.test(
-        String(key),
-      )
-    ) {
-      continue;
-    }
-
-    if (
-      value instanceof Error
-    ) {
-      output[key] = {
-        name:
-          value.name,
-
-        message:
-          value.message,
-
-        code:
-          value.code,
-      };
-
-      continue;
-    }
-
-    if (
-      value === null ||
-      value === undefined ||
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean'
-    ) {
-      output[key] = value;
-      continue;
-    }
-
-    try {
-      output[key] = JSON.parse(
-        JSON.stringify(value),
-      );
-    } catch {
-      output[key] =
-        '[unserializable]';
-    }
+    return sanitized;
   }
 
-  return output;
+  return {};
 }
 
-/**
+/* =============================================================================
+ * SAFE LOGGING
  * =============================================================================
- * Safe Logging
- * =============================================================================
- *
- * Logging must never become the reason that the process cannot report a
- * startup/shutdown failure.
  */
 
-function logInfo(
+/**
+ * Generic safe logger dispatcher.
+ *
+ * @param {"info"|"warn"|"error"} level
+ * @param {string} message
+ * @param {object} metadata
+ */
+function writeLog(
+  level,
   message,
   metadata = {},
 ) {
   const safeMetadata =
-    sanitizeMetadata(metadata);
+    sanitizeMetadata(
+      metadata,
+    );
 
   try {
     if (
       logger &&
-      typeof logger.info === 'function'
+      typeof logger[level] ===
+        "function"
     ) {
-      logger.info(
+      logger[level](
         message,
         safeMetadata,
       );
@@ -285,92 +388,64 @@ function logInfo(
   }
 
   try {
-    console.info(
-      message,
-      safeMetadata,
-    );
+    if (
+      typeof console[level] ===
+      "function"
+    ) {
+      console[level](
+        message,
+        safeMetadata,
+      );
+    }
   } catch {
-    // Logging must never crash the process.
+    // Diagnostics must never crash the process.
   }
+}
+
+function logInfo(
+  message,
+  metadata = {},
+) {
+  writeLog(
+    "info",
+    message,
+    metadata,
+  );
 }
 
 function logWarn(
   message,
   metadata = {},
 ) {
-  const safeMetadata =
-    sanitizeMetadata(metadata);
-
-  try {
-    if (
-      logger &&
-      typeof logger.warn === 'function'
-    ) {
-      logger.warn(
-        message,
-        safeMetadata,
-      );
-
-      return;
-    }
-  } catch {
-    // Fall through to console.
-  }
-
-  try {
-    console.warn(
-      message,
-      safeMetadata,
-    );
-  } catch {
-    // Logging must never crash the process.
-  }
+  writeLog(
+    "warn",
+    message,
+    metadata,
+  );
 }
 
 function logError(
   message,
   metadata = {},
 ) {
-  const safeMetadata =
-    sanitizeMetadata(metadata);
-
-  try {
-    if (
-      logger &&
-      typeof logger.error === 'function'
-    ) {
-      logger.error(
-        message,
-        safeMetadata,
-      );
-
-      return;
-    }
-  } catch {
-    // Fall through to console.
-  }
-
-  try {
-    console.error(
-      message,
-      safeMetadata,
-    );
-  } catch {
-    // Logging must never crash the process.
-  }
+  writeLog(
+    "error",
+    message,
+    metadata,
+  );
 }
 
-/**
+/* =============================================================================
+ * RUNTIME VALIDATION
  * =============================================================================
- * Runtime Validation
- * =============================================================================
- *
- * This validates only process/runtime prerequisites.
- *
- * Application configuration is deliberately NOT validated here.
- * That belongs to the canonical bootstrap configuration phase.
  */
 
+/**
+ * Validate the minimum Node.js runtime contract required by TITech.
+ *
+ * @returns {Readonly<object>}
+ * @throws {Error}
+ */
 function validateRuntime() {
   const nodeVersion =
     process.versions?.node ||
@@ -378,43 +453,51 @@ function validateRuntime() {
 
   const nodeMajor =
     Number(
-      nodeVersion.split('.')[0],
+      String(nodeVersion)
+        .split(".")[0],
     );
 
   if (
     !Number.isInteger(nodeMajor) ||
     nodeMajor < MIN_NODE_MAJOR
   ) {
-    throw new Error(
-      `TITech requires Node.js ${MIN_NODE_MAJOR}+. Current runtime: ${process.version}`,
-    );
+    const error =
+      new Error(
+        `${APPLICATION_NAME} requires Node.js ${MIN_NODE_MAJOR}+. ` +
+          `Current runtime: ${process.version}`,
+      );
+
+    error.code =
+      "TITECH_UNSUPPORTED_NODE_VERSION";
+
+    throw error;
   }
 
   const requiredFeatures =
     Object.freeze({
       randomUUID:
         typeof crypto.randomUUID ===
-        'function',
+        "function",
 
       structuredClone:
         typeof global.structuredClone ===
-        'function',
+        "function",
 
       fetch:
         typeof global.fetch ===
-        'function',
+        "function",
 
       AbortController:
         typeof global.AbortController ===
-        'function',
+        "function",
 
       URL:
         typeof global.URL ===
-        'function',
+        "function",
 
       setTimeout:
         typeof global.setTimeout ===
-        'function',
+        "function",
     });
 
   const missingFeatures =
@@ -426,24 +509,34 @@ function validateRuntime() {
           !available,
       )
       .map(
-        ([name]) => name,
+        ([name]) =>
+          name,
       );
 
   if (
     missingFeatures.length > 0
   ) {
-    throw new Error(
-      `Required TITech runtime features are unavailable: ${missingFeatures.join(
-        ', ',
-      )}`,
-    );
+    const error =
+      new Error(
+        "Required TITech runtime features are unavailable: " +
+          missingFeatures.join(", "),
+      );
+
+    error.code =
+      "TITECH_RUNTIME_FEATURES_UNAVAILABLE";
+
+    error.details = {
+      missingFeatures,
+    };
+
+    throw error;
   }
 
   const supportedPlatforms =
     new Set([
-      'win32',
-      'linux',
-      'darwin',
+      "win32",
+      "linux",
+      "darwin",
     ]);
 
   if (
@@ -451,15 +544,21 @@ function validateRuntime() {
       process.platform,
     )
   ) {
-    throw new Error(
-      `Unsupported platform: ${process.platform}`,
-    );
+    const error =
+      new Error(
+        `Unsupported platform: ${process.platform}`,
+      );
+
+    error.code =
+      "TITECH_UNSUPPORTED_PLATFORM";
+
+    throw error;
   }
 
   const supportedArchitectures =
     new Set([
-      'x64',
-      'arm64',
+      "x64",
+      "arm64",
     ]);
 
   if (
@@ -467,9 +566,15 @@ function validateRuntime() {
       process.arch,
     )
   ) {
-    throw new Error(
-      `Unsupported architecture: ${process.arch}`,
-    );
+    const error =
+      new Error(
+        `Unsupported architecture: ${process.arch}`,
+      );
+
+    error.code =
+      "TITECH_UNSUPPORTED_ARCHITECTURE";
+
+    throw error;
   }
 
   return Object.freeze({
@@ -494,86 +599,267 @@ function validateRuntime() {
   });
 }
 
-/**
+/* =============================================================================
+ * ENVIRONMENT STATE
  * =============================================================================
- * Canonical Bootstrap Module Loader
- * =============================================================================
- *
- * NEVER load backend/app.js here.
- *
- * backend/app.js is the Express application factory.
- *
- * backend/bootstrap/app.js is the canonical lifecycle composition root.
  */
 
+/**
+ * Return non-secret environment diagnostics.
+ *
+ * @returns {Readonly<object>}
+ */
+function getEnvironmentState() {
+  return Object.freeze({
+    application:
+      APPLICATION_NAME,
+
+    nodeEnv:
+      NODE_ENV,
+
+    serviceName:
+      SERVICE_NAME,
+
+    envFile:
+      ENV_FILE,
+
+    envFileLoaded:
+      Boolean(
+        dotenvResult &&
+        !dotenvResult.error,
+      ),
+
+    envFileError:
+      dotenvResult?.error
+        ? {
+            name:
+              dotenvResult.error.name,
+
+            code:
+              dotenvResult.error.code,
+
+            message:
+              dotenvResult.error.message,
+          }
+        : null,
+  });
+}
+
+/* =============================================================================
+ * ROUTE COMPOSITION CONTRACT
+ * =============================================================================
+ */
+
+/**
+ * Route composition remains owned by ApplicationBootstrap.
+ *
+ * The server entry point exposes only a declarative composition contract.
+ * It does not register routes.
+ *
+ * @returns {Readonly<object>}
+ */
+function createRouteComposition() {
+  return Object.freeze({
+    version:
+      "1.0",
+
+    register:
+      null,
+
+    description:
+      "Canonical route composition is owned by the TITech application bootstrap layer.",
+  });
+}
+
+/* =============================================================================
+ * CANONICAL BOOTSTRAP LOADER
+ * =============================================================================
+ */
+
+/**
+ * Load the single canonical application bootstrap implementation.
+ *
+ * Supported export:
+ *
+ *   module.exports = {
+ *     ApplicationBootstrap,
+ *     ApplicationBootstrapError
+ *   }
+ *
+ * @returns {object}
+ * @throws {Error}
+ */
 function loadBootstrapModule() {
-  if (bootstrapModule) {
+  if (
+    bootstrapModule
+  ) {
     return bootstrapModule;
   }
 
-  const loaded =
-    require('./bootstrap/app');
+  let loaded;
+
+  try {
+    loaded =
+      require(
+        BOOTSTRAP_MODULE_PATH,
+      );
+  } catch (error) {
+    const diagnostic =
+      new Error(
+        "Unable to load TITech canonical bootstrap module.",
+        {
+          cause:
+            error,
+        },
+      );
+
+    diagnostic.code =
+      "TITECH_BOOTSTRAP_MODULE_LOAD_FAILED";
+
+    diagnostic.details = {
+      module:
+        BOOTSTRAP_MODULE_PATH,
+
+      originalError: {
+        name:
+          error?.name,
+
+        code:
+          error?.code,
+
+        message:
+          error?.message,
+      },
+    };
+
+    throw diagnostic;
+  }
 
   if (
     !loaded ||
-    typeof loaded !== 'object'
+    typeof loaded !== "object"
   ) {
-    throw new TypeError(
-      'TITech bootstrap/app.js did not export the expected bootstrap object.',
-    );
+    const error =
+      new TypeError(
+        "TITech canonical bootstrap module must export an object.",
+      );
+
+    error.code =
+      "TITECH_BOOTSTRAP_INVALID_EXPORT";
+
+    throw error;
   }
 
-  if (
-    typeof loaded.startApplication !==
-    'function'
-  ) {
-    throw new TypeError(
-      'TITech bootstrap/app.js does not expose startApplication().',
-    );
-  }
+  const ApplicationBootstrap =
+    loaded.ApplicationBootstrap;
 
   if (
-    typeof loaded.shutdownApplication !==
-    'function'
+    typeof ApplicationBootstrap !==
+    "function"
   ) {
-    logWarn(
-      'TITech bootstrap/app.js does not expose shutdownApplication().',
-    );
+    const error =
+      new TypeError(
+        "TITech canonical bootstrap module must export ApplicationBootstrap.",
+      );
+
+    error.code =
+      "TITECH_APPLICATION_BOOTSTRAP_EXPORT_MISSING";
+
+    throw error;
   }
 
   bootstrapModule =
     loaded;
 
-  /**
-   * Prefer the canonical bootstrap logger when one is available.
-   */
-  if (
-    loaded.logger &&
-    typeof loaded.logger === 'object'
-  ) {
-    logger =
-      loaded.logger;
-  }
-
   return bootstrapModule;
 }
 
-/**
+/* =============================================================================
+ * BOOTSTRAP INSTANCE
  * =============================================================================
- * Fatal Process Error Handling
- * =============================================================================
- *
- * Uncaught exceptions and unhandled rejections are process-level failures.
- *
- * The application receives one final opportunity to perform graceful
- * shutdown, after which the process exits non-zero.
  */
 
+/**
+ * Create the singleton ApplicationBootstrap instance.
+ *
+ * The singleton belongs to this process entry point only.
+ * Application lifecycle state remains owned by ApplicationBootstrap.
+ *
+ * @param {object} options
+ * @returns {object}
+ */
+function getBootstrapInstance(
+  options = {},
+) {
+  if (
+    bootstrapInstance
+  ) {
+    return bootstrapInstance;
+  }
+
+  const {
+    ApplicationBootstrap,
+  } =
+    loadBootstrapModule();
+
+  try {
+    bootstrapInstance =
+      new ApplicationBootstrap({
+        ...options,
+      });
+  } catch (error) {
+    const diagnostic =
+      new Error(
+        "Unable to instantiate TITech ApplicationBootstrap.",
+        {
+          cause:
+            error,
+        },
+      );
+
+    diagnostic.code =
+      "TITECH_BOOTSTRAP_INSTANCE_CREATE_FAILED";
+
+    diagnostic.details = {
+      originalError: {
+        name:
+          error?.name,
+
+        code:
+          error?.code,
+
+        message:
+          error?.message,
+      },
+    };
+
+    throw diagnostic;
+  }
+
+  return bootstrapInstance;
+}
+
+/* =============================================================================
+ * FATAL PROCESS ERROR HANDLING
+ * =============================================================================
+ */
+
+/**
+ * Handle an unrecoverable process-level error.
+ *
+ * ApplicationBootstrap remains responsible for graceful application shutdown.
+ *
+ * @param {string} type
+ * @param {*} reason
+ * @returns {Promise<void>}
+ */
 async function handleFatalProcessError(
   type,
   reason,
 ) {
-  if (fatalHandlingStarted) {
+  if (
+    fatalHandlingStarted
+  ) {
     return;
   }
 
@@ -588,8 +874,17 @@ async function handleFatalProcessError(
         );
 
   logError(
-    `TITech ${type} detected.`,
+    `TITech Community Capital ${type} detected.`,
     {
+      application:
+        APPLICATION_NAME,
+
+      serviceName:
+        SERVICE_NAME,
+
+      environment:
+        NODE_ENV,
+
       name:
         error.name,
 
@@ -599,35 +894,31 @@ async function handleFatalProcessError(
       code:
         error.code,
 
-      stack:
-        NODE_ENV !== 'production'
-          ? error.stack
-          : undefined,
+      ...(NODE_ENV !== "production"
+        ? {
+            stack:
+              error.stack,
+          }
+        : {}),
     },
   );
 
   try {
     const bootstrap =
-      loadBootstrapModule();
+      bootstrapInstance;
 
     if (
-      typeof bootstrap.shutdownApplication ===
-      'function'
+      bootstrap &&
+      typeof bootstrap.shutdown ===
+        "function"
     ) {
-      await bootstrap.shutdownApplication({
-        reason: type,
-
-        exit: false,
-
-        exitCode:
-          FATAL_EXIT_CODE,
-      });
+      await bootstrap.shutdown(
+        type,
+      );
     }
-  } catch (
-    shutdownError
-  ) {
+  } catch (shutdownError) {
     logError(
-      'TITech fatal-error shutdown failed.',
+      "TITech Community Capital fatal-error shutdown failed.",
       {
         name:
           shutdownError?.name,
@@ -637,6 +928,13 @@ async function handleFatalProcessError(
 
         code:
           shutdownError?.code,
+
+        ...(NODE_ENV !== "production"
+          ? {
+              stack:
+                shutdownError?.stack,
+            }
+          : {}),
       },
     );
   }
@@ -645,50 +943,55 @@ async function handleFatalProcessError(
     FATAL_EXIT_CODE;
 
   /**
-   * Fatal process errors must terminate the process.
+   * Do not throw here.
    *
-   * This prevents the backend from remaining alive in an unknown or partially
-   * corrupted state.
+   * This handler is invoked because the process is already in an
+   * unrecoverable state. Explicit termination prevents the process from
+   * continuing in an undefined condition.
    */
   process.exit(
     FATAL_EXIT_CODE,
   );
 }
 
-/**
+/* =============================================================================
+ * PROCESS HANDLERS
  * =============================================================================
- * Process Handler Installation
- * =============================================================================
- *
- * Process-level fatal handlers are intentionally owned here.
- *
- * SIGTERM/SIGINT are deliberately delegated to bootstrap/app.js so there is
- * exactly one application shutdown controller.
  */
 
+/**
+ * Install process-level protection exactly once.
+ *
+ * Signal handlers are intentionally NOT installed here.
+ * SIGTERM/SIGINT lifecycle ownership remains inside ApplicationBootstrap.
+ *
+ * @returns {boolean}
+ */
 function installProcessHandlers() {
-  if (processHandlersInstalled) {
+  if (
+    processHandlersInstalled
+  ) {
     return false;
   }
 
   processHandlersInstalled =
     true;
 
-  process.once(
-    'uncaughtException',
-    (error) => {
+  process.on(
+    "uncaughtException",
+    error => {
       void handleFatalProcessError(
-        'uncaught exception',
+        "uncaught exception",
         error,
       );
     },
   );
 
-  process.once(
-    'unhandledRejection',
-    (reason) => {
+  process.on(
+    "unhandledRejection",
+    reason => {
       void handleFatalProcessError(
-        'unhandled promise rejection',
+        "unhandled promise rejection",
         reason,
       );
     },
@@ -697,150 +1000,275 @@ function installProcessHandlers() {
   return true;
 }
 
-/**
+/* =============================================================================
+ * START APPLICATION
  * =============================================================================
- * Start Application
- * =============================================================================
- *
- * This is the only normal startup entry point exposed by server.js.
- *
- * All application lifecycle phases are delegated to bootstrap/app.js.
  */
 
+/**
+ * Start the TITech application through the canonical bootstrap orchestrator.
+ *
+ * Multiple concurrent calls return the same startup promise.
+ *
+ * @returns {Promise<*>}
+ */
 async function startServer() {
-  const runtime =
-    validateRuntime();
+  if (
+    startupPromise
+  ) {
+    return startupPromise;
+  }
 
-  logInfo(
-    'Starting TITech Community Capital backend process.',
-    {
-      serviceName:
-        SERVICE_NAME,
+  startupPromise =
+    (async () => {
+      const runtime =
+        validateRuntime();
 
-      environment:
-        NODE_ENV,
+      const routeComposition =
+        createRouteComposition();
 
-      nodeVersion:
-        runtime.nodeVersion,
+      logInfo(
+        "Starting TITech Community Capital backend process.",
+        {
+          application:
+            APPLICATION_NAME,
 
-      nodeMajor:
-        runtime.nodeMajor,
+          serviceName:
+            SERVICE_NAME,
 
-      platform:
-        runtime.platform,
+          environment:
+            NODE_ENV,
 
-      architecture:
-        runtime.architecture,
+          nodeVersion:
+            runtime.nodeVersion,
 
-      hostname:
-        runtime.hostname,
+          nodeMajor:
+            runtime.nodeMajor,
 
-      pid:
-        runtime.pid,
+          platform:
+            runtime.platform,
 
-      envFileLoaded:
-        Boolean(
-          dotenvResult &&
-          !dotenvResult.error,
-        ),
-    },
-  );
+          architecture:
+            runtime.architecture,
 
-  const bootstrap =
-    loadBootstrapModule();
+          hostname:
+            runtime.hostname,
 
-  /**
-   * Canonical application lifecycle.
-   *
-   * bootstrap/app.js is responsible for coordinating:
-   *
-   *   environment
-   *   configuration
-   *   logger
-   *   observability
-   *   readiness
-   *   resilience
-   *   infrastructure
-   *   services
-   *   middleware
-   *   routes
-   *   server
-   *   runtime
-   *
-   * The resulting BootstrapContext is expected to report READY only after all
-   * mandatory phases have completed successfully.
-   */
-  const result =
-    await bootstrap.startApplication();
+          cpuCount:
+            runtime.cpuCount,
 
-  logInfo(
-    'TITech Community Capital backend startup completed.',
-    {
-      serviceName:
-        SERVICE_NAME,
+          pid:
+            runtime.pid,
 
-      environment:
-        NODE_ENV,
+          envFileLoaded:
+            Boolean(
+              dotenvResult &&
+              !dotenvResult.error,
+            ),
 
-      pid:
-        process.pid,
-    },
-  );
+          supportedSignals:
+            PROCESS_SIGNALS,
+        },
+      );
 
-  return result;
+      /**
+       * A missing .env file is not automatically fatal.
+       *
+       * Environment variables may have been injected by:
+       *
+       *   - Docker;
+       *   - Kubernetes;
+       *   - systemd;
+       *   - CI/CD;
+       *   - cloud runtime;
+       *   - process manager;
+       *   - hosting platform.
+       */
+      if (
+        dotenvResult?.error
+      ) {
+        logWarn(
+          "TITech .env file was not loaded. " +
+            "Startup will rely on the process environment and bootstrap configuration.",
+          {
+            envFile:
+              ENV_FILE,
+
+            error:
+              dotenvResult.error,
+          },
+        );
+      }
+
+      const bootstrap =
+        getBootstrapInstance();
+
+      /**
+       * Establish the canonical bootstrap context BEFORE dependency
+       * initialization begins.
+       *
+       * Awaiting the result is safe whether initialize() is synchronous
+       * or asynchronous.
+       */
+      await bootstrap.initialize({
+        application:
+          APPLICATION_NAME,
+
+        service:
+          SERVICE_NAME,
+
+        environment:
+          NODE_ENV,
+
+        routeComposition,
+      });
+
+      /**
+       * Canonical application lifecycle.
+       *
+       * ApplicationBootstrap owns:
+       *
+       *   - dependency initialization;
+       *   - lifecycle hooks;
+       *   - readiness;
+       *   - shutdown registration;
+       *   - startup failure cleanup;
+       *   - application state transitions.
+       */
+      const result =
+        await bootstrap.start({
+          application:
+            APPLICATION_NAME,
+
+          service:
+            SERVICE_NAME,
+
+          environment:
+            NODE_ENV,
+
+          routeComposition,
+        });
+
+      /**
+       * Adopt the canonical application logger only after bootstrap has
+       * successfully initialized.
+       */
+      logger =
+        result?.logger ||
+        bootstrap.context?.logger ||
+        logger;
+
+      logInfo(
+        "TITech Community Capital backend startup completed.",
+        {
+          application:
+            APPLICATION_NAME,
+
+          serviceName:
+            SERVICE_NAME,
+
+          environment:
+            NODE_ENV,
+
+          pid:
+            process.pid,
+
+          state:
+            bootstrap.state,
+
+          ready:
+            bootstrap.ready,
+        },
+      );
+
+      return result;
+    })();
+
+  try {
+    return await startupPromise;
+  } catch (error) {
+    /**
+     * Permit a future explicit retry in environments where the process
+     * remains alive after a startup failure.
+     *
+     * ApplicationBootstrap remains responsible for cleaning up anything
+     * it initialized before the failure.
+     */
+    startupPromise =
+      null;
+
+    logError(
+      "TITech Community Capital backend startup failed.",
+      {
+        application:
+          APPLICATION_NAME,
+
+        serviceName:
+          SERVICE_NAME,
+
+        environment:
+          NODE_ENV,
+
+        name:
+          error?.name,
+
+        message:
+          error?.message,
+
+        code:
+          error?.code,
+
+        phase:
+          error?.phase,
+
+        component:
+          error?.component,
+
+        ...(NODE_ENV !== "production"
+          ? {
+              stack:
+                error?.stack,
+            }
+          : {}),
+      },
+    );
+
+    throw error;
+  }
 }
 
-/**
+/* =============================================================================
+ * OPERATIONAL STATE
  * =============================================================================
- * Operational State
- * =============================================================================
- *
- * Diagnostic helper only.
- *
- * It never creates or initializes application state.
  */
 
+/**
+ * Return canonical bootstrap state where available.
+ *
+ * This function never creates or mutates application state.
+ *
+ * @returns {Readonly<object>}
+ */
 function getServerState() {
-  try {
-    const bootstrap =
-      loadBootstrapModule();
-
-    if (
-      typeof bootstrap.getRuntimeState ===
-      'function'
-    ) {
-      return bootstrap.getRuntimeState();
-    }
-
-    if (
-      typeof bootstrap.getHealthState ===
-      'function'
-    ) {
-      return bootstrap.getHealthState();
-    }
-
-    if (
-      typeof bootstrap.getBootstrapContext ===
-      'function'
-    ) {
-      const context =
-        bootstrap.getBootstrapContext();
-
+  if (
+    bootstrapInstance
+  ) {
+    try {
       if (
-        context &&
-        typeof context.snapshot ===
-          'function'
+        typeof bootstrapInstance.snapshot ===
+        "function"
       ) {
-        return context.snapshot();
+        return bootstrapInstance.snapshot();
       }
+    } catch {
+      // Fall through to process-entry state.
     }
-  } catch {
-    /**
-     * Diagnostics must never become another source of process failure.
-     */
   }
 
   return Object.freeze({
+    application:
+      APPLICATION_NAME,
+
     serviceName:
       SERVICE_NAME,
 
@@ -849,43 +1277,133 @@ function getServerState() {
 
     running:
       false,
+
+    pid:
+      process.pid,
+
+    processHandlersInstalled:
+      processHandlersInstalled,
+
+    fatalHandlingStarted:
+      fatalHandlingStarted,
+
+    bootstrapLoaded:
+      Boolean(
+        bootstrapModule,
+      ),
+
+    bootstrapInstantiated:
+      Boolean(
+        bootstrapInstance,
+      ),
   });
 }
 
+/* =============================================================================
+ * PROCESS STATE
+ * =============================================================================
+ */
+
 /**
- * =============================================================================
- * Process Initialization
+ * Return process-local diagnostics.
+ *
+ * This is intentionally separate from application lifecycle state.
+ *
+ * @returns {Readonly<object>}
+ */
+function getProcessState() {
+  return Object.freeze({
+    application:
+      APPLICATION_NAME,
+
+    pid:
+      process.pid,
+
+    ppid:
+      process.ppid,
+
+    uptimeSeconds:
+      process.uptime(),
+
+    platform:
+      process.platform,
+
+    architecture:
+      process.arch,
+
+    nodeVersion:
+      process.version,
+
+    nodeEnv:
+      NODE_ENV,
+
+    serviceName:
+      SERVICE_NAME,
+
+    processHandlersInstalled:
+      processHandlersInstalled,
+
+    fatalHandlingStarted:
+      fatalHandlingStarted,
+
+    bootstrapLoaded:
+      Boolean(
+        bootstrapModule,
+      ),
+
+    bootstrapInstantiated:
+      Boolean(
+        bootstrapInstance,
+      ),
+
+    startupInProgress:
+      Boolean(
+        startupPromise,
+      ),
+  });
+}
+
+/* =============================================================================
+ * PROCESS INITIALIZATION
  * =============================================================================
  *
- * Install only process-fatal handlers.
+ * Install only fatal-error protection here.
  *
- * Application lifecycle signal handlers remain owned by bootstrap/app.js.
+ * SIGTERM/SIGINT ownership remains inside the canonical bootstrap lifecycle.
+ * =============================================================================
  */
 
 installProcessHandlers();
 
-/**
+/* =============================================================================
+ * DIRECT EXECUTION
  * =============================================================================
- * Direct Process Execution
- * =============================================================================
- *
- * When imported by tests, no application startup occurs.
- *
- * When executed directly:
- *
- *   node backend/server.js
- *
- * the canonical bootstrap composition root is started.
  */
 
 if (
   require.main === module
 ) {
   startServer().catch(
-    (error) => {
+    error => {
+      /**
+       * startServer() already performs structured logging.
+       *
+       * This final boundary exists only for direct process execution so
+       * Node does not silently leave the process alive after a fatal
+       * startup failure.
+       */
       logError(
-        'TITech Community Capital backend startup failed.',
+        "TITech Community Capital backend process could not start.",
         {
+          application:
+            APPLICATION_NAME,
+
+          serviceName:
+            SERVICE_NAME,
+
+          environment:
+            NODE_ENV,
+
           name:
             error?.name,
 
@@ -895,12 +1413,17 @@ if (
           code:
             error?.code,
 
-          stack:
-            NODE_ENV !== 'production'
-              ? error?.stack
-              : undefined,
+          ...(NODE_ENV !== "production"
+            ? {
+                stack:
+                  error?.stack,
+              }
+            : {}),
         },
       );
+
+      process.exitCode =
+        FATAL_EXIT_CODE;
 
       process.exit(
         FATAL_EXIT_CODE,
@@ -909,15 +1432,9 @@ if (
   );
 }
 
-/**
+/* =============================================================================
+ * PUBLIC API
  * =============================================================================
- * Public API
- * =============================================================================
- *
- * Keep the public surface deliberately small.
- *
- * No internal bootstrap implementation is exported from this process entry
- * point.
  */
 
 module.exports =
@@ -926,7 +1443,17 @@ module.exports =
 
     validateRuntime,
 
+    getEnvironmentState,
+
+    getProcessState,
+
     getServerState,
 
     installProcessHandlers,
+
+    createRouteComposition,
+
+    loadBootstrapModule,
+
+    getBootstrapInstance,
   });
