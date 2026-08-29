@@ -1,6 +1,7 @@
 # 🏦 TITech Community Capital
 
-**A Production-Ready Full-Stack TITech Community Capital Platform**
+**Getting ready - Africa's community finance sector manages enormous amounts of economic activity but much of it remains invisible, fragmented and difficult for formal capital to underwrite. TITech is building the financial operating system connecting SACCOs, VSLAs and community enterprises to payments, accounting, risk intelligence and institutional capital.**
+**Every institution joining TITech strengthens a permissioned financial data network that makes previously invisible community cash flows measurable and financeable.**
 
 [![CI/CD Pipeline](https://github.com/JustineRobert/society-community-savings-app/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/JustineRobert/society-community-savings-app/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
