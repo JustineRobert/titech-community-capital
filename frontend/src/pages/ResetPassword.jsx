@@ -630,6 +630,11 @@ export default function ResetPassword() {
       .get("token")
       ?.trim() || "";
 
+  const userId =
+    searchParams
+      .get("id")
+      ?.trim() || "";
+
   // ==========================================================================
   // Cleanup
   // ==========================================================================
@@ -802,6 +807,7 @@ export default function ResetPassword() {
             RESET_ENDPOINT,
             {
               token,
+              id: userId,
               password:
                 values.password,
               confirmPassword:
@@ -906,7 +912,7 @@ export default function ResetPassword() {
         }
       }
     },
-    [navigate, token]
+    [navigate, token, userId]
   );
 
   // ==========================================================================

@@ -15,6 +15,39 @@ const User = require('../models/User');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
 const EmailAudit = require('../models/EmailAudit');
+const PasswordResetService = require('../services/passwordResetService');
+
+const passwordResetService = new PasswordResetService({
+  emailService: {
+    async sendPasswordReset(email, options = {}) {
+      return emailService.sendEmail({
+        to: email,
+        subject: 'Password Reset',
+        template: 'password_reset',
+        data: {
+          userName: options.name || email.split('@')[0],
+          resetUrl: options.frontendResetUrl,
+          expiresIn: `${options.expiresInHours || 1} hour(s)`,
+        },
+      });
+    },
+  },
+  sessionService: {
+    async invalidateUserSessions(userId) {
+      const RefreshToken = require('../models/RefreshToken');
+
+      await RefreshToken.updateMany(
+        { userId, revokedAt: null },
+        {
+          $set: {
+            revokedAt: new Date(),
+            revokedReason: 'password_changed',
+          },
+        }
+      );
+    },
+  },
+});
 
 const {
   sendVerificationEmail,
@@ -348,7 +381,8 @@ async function sendVerificationEmailRequest(req, res, next) {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       // Don't reveal user existence (security best practice)
@@ -528,15 +562,12 @@ async function requestPasswordReset(req, res, next) {
       });
     }
 
-    // Generate reset token
-    const resetToken = user.generateResetToken();
-    await user.save({ validateBeforeSave: false });
-
-    // Send email
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-
     try {
-      await sendPasswordResetEmail(user.email, user.name, resetUrl);
+      await passwordResetService.createResetToken(user, {
+        requestIp: req.ip,
+        userAgent: req.get('User-Agent'),
+        requestId: req.requestId,
+      });
 
       await auditEmailEvent(
         'request_password_reset',
@@ -558,11 +589,6 @@ async function requestPasswordReset(req, res, next) {
         message: 'Password reset link has been sent to your email.',
       });
     } catch (emailError) {
-      // Rollback token if email fails
-      user.resetPasswordToken = null;
-      user.resetPasswordExpires = null;
-      await user.save({ validateBeforeSave: false });
-
       await auditEmailEvent(
         'request_password_reset',
         user._id,
@@ -598,7 +624,13 @@ async function requestPasswordReset(req, res, next) {
  */
 async function resetPassword(req, res, next) {
   try {
-    const { token, password, confirmPassword } = req.body;
+    const {
+      token,
+      password,
+      confirmPassword,
+      id,
+      userId,
+    } = req.body;
 
     if (!token || !password || !confirmPassword) {
       return res.status(400).json({
@@ -612,72 +644,30 @@ async function resetPassword(req, res, next) {
       });
     }
 
-    if (password.length < 8) {
+    const resetUserId = id || userId;
+
+    if (!resetUserId || !mongoose.isValidObjectId(resetUserId)) {
       return res.status(400).json({
-        message: 'Password must be at least 8 characters.',
+        message: 'A valid password reset link is required.',
       });
     }
 
-    // Hash token to match against stored hashed token
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      await auditEmailEvent(
-        'reset_password',
-        null,
-        null,
-        {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-          reason: 'Invalid or expired token',
-        },
-        false
-      );
-
-      return res.status(400).json({
-        message: 'Invalid or expired password reset token.',
-      });
-    }
-
-    // Update password
-    user.password = password;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
-
-    // Reset failed login attempts on successful password change
-    user.failedLoginAttempts = 0;
-    user.lockUntil = null;
-
-    await user.save();
-
-    await auditEmailEvent(
-      'reset_password',
-      user._id,
-      user.email,
+    const result = await passwordResetService.resetPassword(
+      resetUserId,
+      token,
+      password,
       {
-        ipAddress: req.ip,
+        requestIp: req.ip,
         userAgent: req.get('User-Agent'),
-      },
-      true
+        requestId: req.requestId,
+      }
     );
 
-    logger.info('[EmailController] Password reset successfully', {
-      userId: user._id,
-      email: user.email,
-    });
-
-    return res.status(200).json({
-      message: 'Password reset successfully. You can now log in with your new password.',
-    });
+    return res.status(200).json(result);
   } catch (err) {
     logger.error('[EmailController] resetPassword error', err);
-    return res.status(500).json({
-      message: 'Server error. Please try again later.',
+    return res.status(400).json({
+      message: err.message || 'Unable to reset password.',
     });
   }
 }
