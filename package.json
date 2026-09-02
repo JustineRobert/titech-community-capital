@@ -1,94 +1,176 @@
 {
-  "name": "community-savings-app",
-  "version": "1.0.0",
-  "description": "Community Savings App - MERN Stack Application",
-  "keywords": [
-    "community",
-    "savings",
-    "group",
-    "contribution",
-    "loan"
-  ],
-  "homepage": "https://github.com/JustineRobert/society-community-savings-app#readme",
-  "bugs": {
-    "url": "https://github.com/JustineRobert/society-community-savings-app/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/JustineRobert/society-community-savings-app.git"
-  },
-  "license": "ISC",
-  "author": "Igune Justine Robert, TITech Community Capital LTD",
-  "type": "module",
-  "main": "community-savings-app-backend/server.js",
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
-  "scripts": {
-    "start": "concurrently \"npm --prefix community-savings-app-backend run dev\" \"npm --prefix community-savings-app-frontend start\"",
-    "backend": "npm --prefix community-savings-app-backend run dev",
-    "frontend": "npm --prefix community-savings-app-frontend start",
-    "build": "npm --prefix community-savings-app-frontend run build",
-    "test": "npm --prefix community-savings-app-backend test && npm --prefix community-savings-app-frontend test && jest --watchAll=false && jest",
-    "install-all": "npm install && npm --prefix community-savings-app-backend install && npm --prefix community-savings-app-frontend install",
-    "postman:test": "newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli,json --reporter-json-export postman/reports/newman-report.json",
-    "seed-admin": "npm --prefix community-savings-app-backend run seed-admin",
-    "seed-admin-cli": "node scripts/seed-admin-cli.js",
-    "install:all": "bash scripts/setup.sh",
-    "start:backend": "cd community-savings-app-backend && npm run start",
-    "start:frontend": "cd community-savings-app-frontend && npm run dev",
-    "dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
-    "lint:frontend": "eslint community-savings-app-frontend/src",
-    "lint:backend": "eslint community-savings-app-backend",
-    "lint": "npm run lint:backend && npm run lint:frontend && eslint .",
-    "lint:fix": "npm run lint:backend -- --fix && npm run lint:frontend -- --fix",
-    "lint:all": "npm run lint --prefix community-savings-app-backend && npm run lint --prefix community-savings-app-frontend",
-    "check:all": "npm run lint:all && npm run format:check",  
-    "test:coverage": "jest --coverage",
-    "test:providers": "jest tests/providers",  
-    "test:ci": "jest --runInBand --coverage && jest --runInBand --ci",
-    "format": "prettier --write \"community-savings-app-backend/**/*.{js,json,md}\" \"community-savings-app-frontend/src/**/*.{js,jsx,json,css,md}\"",
-    "format:check": "prettier --check \"community-savings-app-backend/**/*.{js,json,md}\" \"community-savings-app-frontend/src/**/*.{js,jsx,json,css,md}\"",
-    "quality": "npm run lint && npm run format:check && npm run test"
-  },
-  "dependencies": {
-    "crypto-js": "^4.2.0",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "flatted": "^3.4.2",
-    "handlebars": "^4.7.9",
-    "ioredis": "^5.10.1",
-    "jose": "^6.2.3",
-    "jquery": "^4.0.0",
-    "lodash": "^4.18.1",
-    "mongodb": "^7.2.0",
-    "mongoose": "^9.6.2",
-    "node-forge": "^1.4.0",
-    "ping": "^1.0.0",
-    "http-status": "^2.x.x",
-    "prettier": "^3.8.3",
-    "qs": "^6.15.2",
-    "redis-cli": "^2.1.2",
-    "underscore": "^1.13.8",
-    "uuid": "^14.0.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@typescript-eslint/eslint-plugin": "^8.60.0",
-    "@typescript-eslint/parser": "^8.60.0",
-    "concurrently": "^10.0.0",
-    "eslint": "^9.39.4",
-    "husky": "^9.1.7",
-    "jest": "^30.4.2",
-    "lint-staged": "^17.0.6",
-    "newman": "^6.2.2",
-    "supertest": "^7.2.2",
-    "vite": "^8.0.13"
-  },
-  "newman": {
-    "collection": "postman/Community-auth-tests.postman_collection.json",
-    "environment": "postman/Group-env.postman_environment.json"
-  }
+"name": "titech-community-capital",
+"version": "1.0.0",
+"description": "TITech Community Capital - The operating infrastructure for Africa's community finance. A production-grade MERN platform for community savings, groups, wallets, ledgers, payments, reconciliation, lending, risk, fraud prevention, KYC/AML, compliance, offline/USSD services, analytics, and financial partner connectivity.",
+"private": true,
+"keywords": [
+"TITech",
+"TITech Community Capital",
+"community finance",
+"community savings",
+"group management",
+"contributions",
+"wallet",
+"ledger",
+"double-entry accounting",
+"payments",
+"reconciliation",
+"lending",
+"risk",
+"fraud",
+"KYC",
+"AML",
+"compliance",
+"USSD",
+"offline finance",
+"APIs",
+"analytics",
+"financial infrastructure",
+"financial partner connectivity",
+"SACCO",
+"VSLA",
+"cooperative",
+"microfinance",
+"Africa fintech",
+"fintech"
+],
+"homepage": "https://github.com/JustineRobert/society-community-savings-app#readme",
+"bugs": {
+"url": "https://github.com/JustineRobert/society-community-savings-app/issues"
+},
+"repository": {
+"type": "git",
+"url": "git+https://github.com/JustineRobert/society-community-savings-app.git"
+},
+"license": "ISC",
+"author": "Igune Justine Robert, TITech Community Capital LTD",
+"type": "module",
+"main": "backend/server.js",
+"directories": {
+"doc": "docs",
+"test": "tests"
+},
+
+"engines": {
+"node": ">=24.0.0",
+"npm": ">=11.0.0"
+},
+
+"scripts": {
+"start": "npm run dev",
+
+
+"dev": "concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+
+"dev:backend": "npm --prefix backend run dev",
+"dev:frontend": "npm --prefix frontend run dev",
+
+"backend": "npm run dev:backend",
+"frontend": "npm run dev:frontend",
+
+"start:backend": "npm --prefix backend run start",
+"start:frontend": "npm --prefix frontend run start",
+
+"build": "npm run build:frontend",
+"build:frontend": "npm --prefix frontend run build",
+"build:backend": "npm --prefix backend run build",
+
+"preview": "npm --prefix frontend run preview",
+
+"install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
+"setup": "npm run install:all",
+
+"clean": "node scripts/clean.js",
+"prepare": "husky",
+
+"lint": "npm run lint:backend && npm run lint:frontend",
+"lint:backend": "npm --prefix backend run lint",
+"lint:frontend": "npm --prefix frontend run lint",
+"lint:root": "eslint .",
+"lint:fix": "npm run lint:backend -- --fix && npm run lint:frontend -- --fix && npm run lint:root -- --fix",
+
+"format": "prettier --write \"backend/**/*.{js,mjs,cjs,json,md,yml,yaml}\" \"frontend/**/*.{js,jsx,mjs,cjs,json,css,scss,md,yml,yaml}\" \"scripts/**/*.{js,mjs,cjs,json,md}\" \"*.{json,md,yml,yaml}\"",
+"format:check": "prettier --check \"backend/**/*.{js,mjs,cjs,json,md,yml,yaml}\" \"frontend/**/*.{js,jsx,mjs,cjs,json,css,scss,md,yml,yaml}\" \"scripts/**/*.{js,mjs,cjs,json,md}\" \"*.{json,md,yml,yaml}\"",
+
+"check": "npm run lint && npm run format:check",
+"check:all": "npm run check && npm run test",
+
+"test": "npm run test:backend && npm run test:frontend",
+"test:backend": "npm --prefix backend test",
+"test:frontend": "npm --prefix frontend test",
+
+"test:watch": "npm run test:backend:watch",
+"test:backend:watch": "npm --prefix backend test -- --watch",
+"test:frontend:watch": "npm --prefix frontend test -- --watch",
+
+"test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
+"test:backend:coverage": "npm --prefix backend run test:coverage",
+"test:frontend:coverage": "npm --prefix frontend run test:coverage",
+
+"test:ci": "npm run test:backend:ci && npm run test:frontend:ci",
+"test:backend:ci": "npm --prefix backend run test:ci",
+"test:frontend:ci": "npm --prefix frontend run test:ci",
+
+"test:providers": "npm --prefix backend run test:providers",
+"test:integration": "npm --prefix backend run test:integration",
+"test:e2e": "npm --prefix frontend run test:e2e",
+
+"postman:test": "newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli,json --reporter-json-export postman/reports/newman-report.json",
+
+"seed-admin": "npm --prefix backend run seed-admin",
+"seed-admin-cli": "node scripts/seed-admin-cli.js",
+
+"health": "npm --prefix backend run health",
+"health:backend": "npm --prefix backend run health",
+
+"security:audit": "npm audit --audit-level=high",
+"security:audit:fix": "npm audit fix",
+
+"outdated": "npm outdated",
+
+"ci": "npm run check && npm run test:ci && npm run build",
+
+"quality": "npm run check:all",
+
+"install:script": "bash scripts/setup.sh"
+
+
+},
+
+"dependencies": {},
+
+"devDependencies": {
+"@eslint/js": "^10.0.1",
+"@testing-library/jest-dom": "^6.9.1",
+"@typescript-eslint/eslint-plugin": "^8.60.0",
+"@typescript-eslint/parser": "^8.60.0",
+"concurrently": "^10.0.0",
+"eslint": "^9.39.4",
+"husky": "^9.1.7",
+"jest": "^30.4.2",
+"lint-staged": "^17.0.6",
+"newman": "^6.2.2",
+"prettier": "^3.8.3",
+"supertest": "^7.2.2",
+"vite": "^8.0.13"
+},
+
+"lint-staged": {
+"backend/**/*.{js,mjs,cjs}": [
+"eslint --fix",
+"prettier --write"
+],
+"frontend/**/*.{js,jsx,mjs,cjs}": [
+"eslint --fix",
+"prettier --write"
+],
+"*.{json,md,yml,yaml,css,scss}": [
+"prettier --write"
+]
+},
+
+"newman": {
+"collection": "postman/Community-auth-tests.postman_collection.json",
+"environment": "postman/Group-env.postman_environment.json"
+}
 }

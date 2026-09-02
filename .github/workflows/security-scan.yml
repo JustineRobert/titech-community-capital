@@ -1,37 +1,191 @@
-name: Enterprise Security Scan
+################################################################################
+# TITech Community Capital LTD
+# Enterprise Security Scan
+#
+# File:
+#   .github/workflows/security-scan.yml
+#
+# Purpose:
+#   Centralized enterprise security validation for TITech Community Capital.
+#
+# Canonical project structure:
+#
+#   backend/
+#   frontend/
+#   postman/
+#   deployment/
+#
+# Security controls:
+#
+#   01. CodeQL
+#   02. Dependency Review
+#   03. Backend npm audit
+#   04. Frontend npm audit
+#   05. Trivy filesystem scan
+#   06. Gitleaks secret detection
+#   07. OSV dependency vulnerability scan
+#   08. Security report aggregation
+#
+# Policy:
+#
+#   - HIGH / CRITICAL vulnerabilities block CI
+#   - Leaked secrets block CI
+#   - CodeQL is blocking
+#   - Dependency Review blocks MODERATE+ dependency vulnerabilities
+#   - Scheduled scans do not deploy
+#   - Pull requests receive dependency/security feedback
+#
+################################################################################
+
+name: TITech Enterprise Security Scan
+
+################################################################################
+# RUN NAME
+################################################################################
+
+run-name: >
+  Security Scan • ${{ github.ref_name }} •
+  ${{ github.actor }} •
+  #${{ github.run_number }}
+
+################################################################################
+# TRIGGERS
+################################################################################
 
 on:
+
+  ##########################################################################
+  # Branch pushes
+  ##########################################################################
+
   push:
+
     branches:
       - main
       - develop
       - release/**
+      - feature/**
+      - hotfix/**
+
+    tags:
+      - "v*"
+
+  ##########################################################################
+  # Pull requests
+  ##########################################################################
+
   pull_request:
+
     branches:
       - "**"
+
+  ##########################################################################
+  # Scheduled security scan
+  #
+  # Runs independently of deployment workflows.
+  ##########################################################################
+
   schedule:
+
     # Every Monday at 02:00 UTC
     - cron: "0 2 * * 1"
+
+  ##########################################################################
+  # Manual execution
+  ##########################################################################
+
   workflow_dispatch:
 
+################################################################################
+# DEFAULT PERMISSIONS
+################################################################################
+
 permissions:
-  actions: read
+
   contents: read
-  security-events: write
-  pull-requests: write
-
-concurrency:
-  group: security-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  NODE_ENV: production
 
 ################################################################################
-# CodeQL Analysis
+# CONCURRENCY
+################################################################################
+
+concurrency:
+
+  group: >
+    titech-security-${{ github.ref }}
+
+  cancel-in-progress: true
+
+################################################################################
+# GLOBAL ENVIRONMENT
+################################################################################
+
+env:
+
+  ##########################################################################
+  # Application
+  ##########################################################################
+
+  APP_NAME: titech-community-capital
+
+  COMPANY_NAME: TITech Community Capital LTD
+
+  PRODUCT_NAME: Community Capital
+
+  NODE_ENV: production
+
+  CI: true
+
+  TZ: UTC
+
+  ##########################################################################
+  # Runtime
+  ##########################################################################
+
+  NODE_VERSION: "24.15.0"
+
+  ##########################################################################
+  # Canonical repository structure
+  ##########################################################################
+
+  ROOT_DIR: .
+
+  BACKEND_DIR: backend
+
+  FRONTEND_DIR: frontend
+
+  POSTMAN_DIR: postman
+
+  DEPLOYMENT_DIR: deployment
+
+  REPORTS_DIR: reports
+
+  SECURITY_REPORTS_DIR: reports/security
+
+  ##########################################################################
+  # Security policy
+  ##########################################################################
+
+  NPM_AUDIT_LEVEL: high
+
+  DEPENDENCY_REVIEW_LEVEL: moderate
+
+  TRIVY_SEVERITY: HIGH,CRITICAL
+
+  ##########################################################################
+  # Artifact retention
+  ##########################################################################
+
+  ARTIFACT_RETENTION_DAYS: "30"
+
+################################################################################
+# JOBS
 ################################################################################
 
 jobs:
+
+  ##############################################################################
+  # 01. CODEQL
+  ##############################################################################
 
   codeql:
 
@@ -39,156 +193,403 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 30
+
     permissions:
-      actions: read
+
       contents: read
+
       security-events: write
 
     strategy:
+
       fail-fast: false
+
       matrix:
+
         language:
           - javascript
 
     steps:
 
-      - uses: actions/checkout@v4
+      ##########################################################################
+      # Checkout
+      ##########################################################################
+
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+        with:
+
+          fetch-depth: 0
+
+      ##########################################################################
+      # CodeQL initialization
+      ##########################################################################
 
       - name: Initialize CodeQL
+
         uses: github/codeql-action/init@v3
+
         with:
+
           languages: ${{ matrix.language }}
 
-      - name: Autobuild
+      ##########################################################################
+      # CodeQL build
+      ##########################################################################
+
+      - name: CodeQL Autobuild
+
         uses: github/codeql-action/autobuild@v3
 
+      ##########################################################################
+      # Analysis
+      ##########################################################################
+
       - name: Perform CodeQL Analysis
+
         uses: github/codeql-action/analyze@v3
 
-################################################################################
-# Dependency Review
-################################################################################
+        with:
+
+          category: >
+            /language:${{ matrix.language }}
+
+  ##############################################################################
+  # 02. DEPENDENCY REVIEW
+  #
+  # This job only runs on pull requests because Dependency Review evaluates
+  # dependencies introduced/changed by the PR.
+  ##############################################################################
 
   dependency-review:
 
-    if: github.event_name == 'pull_request'
-
     name: Dependency Review
+
+    if: ${{ github.event_name == 'pull_request' }}
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 15
+
     permissions:
+
       contents: read
+
       pull-requests: write
 
     steps:
 
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
 
-      - name: Dependency Review
+        uses: actions/checkout@v4
+
+      - name: Review Dependencies
+
         uses: actions/dependency-review-action@v4
 
-################################################################################
-# Frontend Security Audit
-################################################################################
-
-  frontend-audit:
-
-    name: Frontend Security Audit
-
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node: [20, 22]
-
-    defaults:
-      run:
-        working-directory: community-savings-app-frontend
-
-    steps:
-
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-          cache-dependency-path: community-savings-app-frontend/package-lock.json
 
-      - run: npm ci
+          # Prevent introduction of moderate or worse vulnerabilities.
+          fail-on-severity: moderate
 
-      - name: npm Audit
-        run: npm audit --audit-level=moderate
-
-################################################################################
-# Backend Security Audit
-################################################################################
+  ##############################################################################
+  # 03. BACKEND NPM SECURITY
+  ##############################################################################
 
   backend-audit:
 
-    name: Backend Security Audit
+    name: Backend Dependency Security
 
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node: [20, 22]
+    timeout-minutes: 20
 
-    defaults:
-      run:
-        working-directory: community-savings-app-backend
+    permissions:
+
+      contents: read
 
     steps:
 
-      - uses: actions/checkout@v4
+      ##########################################################################
+      # Checkout
+      ##########################################################################
 
-      - uses: actions/setup-node@v4
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+      ##########################################################################
+      # Node
+      ##########################################################################
+
+      - name: Setup Node.js
+
+        uses: actions/setup-node@v4
+
         with:
-          node-version: ${{ matrix.node }}
+
+          node-version: ${{ env.NODE_VERSION }}
+
           cache: npm
-          cache-dependency-path: community-savings-app-backend/package-lock.json
 
-      - run: npm ci
+          cache-dependency-path: backend/package-lock.json
 
-      - name: npm Audit
-        run: npm audit --audit-level=moderate
+      ##########################################################################
+      # Install
+      ##########################################################################
 
-################################################################################
-# Trivy Filesystem Scan
-################################################################################
+      - name: Install Backend Dependencies
 
-  trivy:
+        working-directory: ${{ env.BACKEND_DIR }}
 
-    name: Trivy Filesystem Scan
+        run: npm ci
+
+      ##########################################################################
+      # Audit
+      ##########################################################################
+
+      - name: Run Backend npm Audit
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          npm audit \
+            --audit-level="${NPM_AUDIT_LEVEL}"
+
+      ##########################################################################
+      # Dependency tree metadata
+      ##########################################################################
+
+      - name: Generate Backend Dependency Report
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          mkdir -p "../${SECURITY_REPORTS_DIR}"
+
+          npm ls \
+            --all \
+            --json \
+            > "../${SECURITY_REPORTS_DIR}/backend-dependency-tree.json" \
+            || true
+
+      ##########################################################################
+      # Upload report
+      ##########################################################################
+
+      - name: Upload Backend Security Report
+
+        if: ${{ always() }}
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: backend-security-report
+
+          path: reports/security/backend-dependency-tree.json
+
+          if-no-files-found: ignore
+
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+  ##############################################################################
+  # 04. FRONTEND NPM SECURITY
+  ##############################################################################
+
+  frontend-audit:
+
+    name: Frontend Dependency Security
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 20
+
     permissions:
+
       contents: read
+
+    steps:
+
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+
+        uses: actions/setup-node@v4
+
+        with:
+
+          node-version: ${{ env.NODE_VERSION }}
+
+          cache: npm
+
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+
+        working-directory: ${{ env.FRONTEND_DIR }}
+
+        run: npm ci
+
+      - name: Run Frontend npm Audit
+
+        working-directory: ${{ env.FRONTEND_DIR }}
+
+        run: |
+
+          npm audit \
+            --audit-level="${NPM_AUDIT_LEVEL}"
+
+      - name: Generate Frontend Dependency Report
+
+        working-directory: ${{ env.FRONTEND_DIR }}
+
+        run: |
+
+          mkdir -p "../${SECURITY_REPORTS_DIR}"
+
+          npm ls \
+            --all \
+            --json \
+            > "../${SECURITY_REPORTS_DIR}/frontend-dependency-tree.json" \
+            || true
+
+      - name: Upload Frontend Security Report
+
+        if: ${{ always() }}
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: frontend-security-report
+
+          path: reports/security/frontend-dependency-tree.json
+
+          if-no-files-found: ignore
+
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+  ##############################################################################
+  # 05. TRIVY FILESYSTEM SCAN
+  ##############################################################################
+
+  trivy:
+
+    name: Trivy Filesystem Security Scan
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+
+    permissions:
+
+      contents: read
+
       security-events: write
 
     steps:
 
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
 
-      - name: Run Trivy Scanner
+        uses: actions/checkout@v4
+
+        with:
+
+          fetch-depth: 0
+
+      ##########################################################################
+      # Human-readable scan
+      ##########################################################################
+
+      - name: Trivy High/Critical Scan
+
         uses: aquasecurity/trivy-action@0.24.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH,MEDIUM
 
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
         with:
+
+          scan-type: fs
+
+          scan-ref: .
+
+          format: table
+
+          exit-code: "1"
+
+          ignore-unfixed: true
+
+          severity: ${{ env.TRIVY_SEVERITY }}
+
+      ##########################################################################
+      # SARIF scan
+      #
+      # This report is uploaded from the same runner that generated it.
+      ##########################################################################
+
+      - name: Generate Trivy SARIF
+
+        if: ${{ always() }}
+
+        uses: aquasecurity/trivy-action@0.24.0
+
+        with:
+
+          scan-type: fs
+
+          scan-ref: .
+
+          format: sarif
+
+          output: trivy-results.sarif
+
+          exit-code: "0"
+
+          ignore-unfixed: true
+
+          severity: ${{ env.TRIVY_SEVERITY }}
+
+      - name: Upload Trivy SARIF to GitHub
+
+        if: ${{ always() }}
+
+        uses: github/codeql-action/upload-sarif@v3
+
+        with:
+
           sarif_file: trivy-results.sarif
 
-################################################################################
-# Secret Detection
-################################################################################
+          category: trivy-filesystem
+
+      ##########################################################################
+      # Artifact copy
+      ##########################################################################
+
+      - name: Upload Trivy Artifact
+
+        if: ${{ always() }}
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: trivy-security-report
+
+          path: trivy-results.sarif
+
+          if-no-files-found: ignore
+
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+  ##############################################################################
+  # 06. GITLEAKS
+  ##############################################################################
 
   gitleaks:
 
@@ -196,85 +597,482 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 20
+
     permissions:
+
       contents: read
-      security-events: write
 
     steps:
 
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
         with:
+
           fetch-depth: 0
 
+      ##########################################################################
+      # Gitleaks
+      ##########################################################################
+
       - name: Run Gitleaks
+
         uses: gitleaks/gitleaks-action@v2
 
-################################################################################
-# OSV Vulnerability Scan
-################################################################################
+        env:
+
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      ##########################################################################
+      # Configuration visibility
+      ##########################################################################
+
+      - name: Verify Security Configuration Files
+
+        run: |
+
+          echo "Checking repository security configuration..."
+
+          test -f SECURITY.md || \
+            echo "WARNING: SECURITY.md is not present."
+
+          test -f .gitignore || \
+            echo "WARNING: .gitignore is not present."
+
+  ##############################################################################
+  # 07. OSV SCANNER
+  ##############################################################################
 
   osv:
 
-    name: OSV Scanner
+    name: OSV Vulnerability Scan
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 30
+
+    permissions:
+
+      contents: read
+
     steps:
 
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+        with:
+
+          fetch-depth: 0
+
+      ##########################################################################
+      # OSV
+      ##########################################################################
 
       - name: Run OSV Scanner
+
         uses: google/osv-scanner-action/osv-scanner-action@v1
+
         with:
+
           scan-args: |-
             --recursive
             .
 
-################################################################################
-# Upload Security Reports
-################################################################################
+  ##############################################################################
+  # 08. SECURITY CONFIGURATION VALIDATION
+  #
+  # Verifies that the expected TITech directories/files exist.
+  ##############################################################################
 
-  reports:
+  security-configuration:
 
-    name: Publish Security Reports
+    name: Security Configuration Validation
 
     runs-on: ubuntu-latest
 
-    if: always()
+    timeout-minutes: 10
 
-    needs:
-      - codeql
-      - frontend-audit
-      - backend-audit
-      - trivy
-      - gitleaks
-      - osv
+    permissions:
+
+      contents: read
 
     steps:
 
-      - name: Create Summary
-        run: |
-          {
-            echo "# Enterprise Security Scan Summary"
-            echo ""
-            echo "| Check | Status |"
-            echo "|------|--------|"
-            echo "| CodeQL | Completed |"
-            echo "| Dependency Review | Completed (PR only) |"
-            echo "| npm Audit (Frontend) | Completed |"
-            echo "| npm Audit (Backend) | Completed |"
-            echo "| Trivy Filesystem Scan | Completed |"
-            echo "| Gitleaks Secret Scan | Completed |"
-            echo "| OSV Vulnerability Scan | Completed |"
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Checkout Repository
 
-      - name: Upload Security Artifacts
+        uses: actions/checkout@v4
+
+      - name: Validate Canonical Project Structure
+
+        run: |
+
+          set -euo pipefail
+
+          echo "Validating canonical TITech repository structure..."
+
+          test -d backend
+          test -d frontend
+
+          test -f backend/package.json
+          test -f backend/package-lock.json
+
+          test -f frontend/package.json
+          test -f frontend/package-lock.json
+
+          echo "backend/ verified."
+          echo "frontend/ verified."
+
+      ##########################################################################
+      # Reject stale directory references
+      #
+      # This is especially useful during the repository migration from the old
+      # community-savings-app-* directory names.
+      ##########################################################################
+
+      - name: Detect Legacy Directory References
+
+        run: |
+
+          set -euo pipefail
+
+          LEGACY_PATTERN="community-savings-app-backend|community-savings-app-frontend"
+
+          if git grep -n -E "${LEGACY_PATTERN}" \
+            -- \
+            ':!.git/**' \
+            ':!reports/**'
+          then
+
+            echo ""
+            echo "ERROR: Legacy application directory references detected."
+            echo ""
+            echo "Use:"
+            echo "  backend/"
+            echo "  frontend/"
+            echo ""
+
+            exit 1
+
+          else
+
+            echo "No legacy application directory references detected."
+
+          fi
+
+      ##########################################################################
+      # Dangerous local environment files
+      ##########################################################################
+
+      - name: Detect Tracked Environment Files
+
+        run: |
+
+          set -euo pipefail
+
+          DANGEROUS_FILES=(
+            ".env"
+            ".env.production"
+            ".env.prod"
+            ".env.local"
+          )
+
+          FOUND="false"
+
+          for file in "${DANGEROUS_FILES[@]}"
+          do
+
+            if git ls-files --error-unmatch "${file}" >/dev/null 2>&1
+            then
+
+              echo "ERROR: tracked environment file detected: ${file}"
+
+              FOUND="true"
+
+            fi
+
+          done
+
+          if [[ "${FOUND}" == "true" ]]
+          then
+
+            exit 1
+          fi
+
+          echo "No dangerous tracked environment files detected."
+
+  ##############################################################################
+  # 09. SECURITY GATE
+  #
+  # This job becomes the branch-protection security check.
+  ##############################################################################
+
+  security-gate:
+
+    name: Enterprise Security Gate
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 10
+
+    if: ${{ always() }}
+
+    needs:
+
+      - codeql
+      - dependency-review
+      - backend-audit
+      - frontend-audit
+      - trivy
+      - gitleaks
+      - osv
+      - security-configuration
+
+    permissions:
+
+      contents: read
+
+    steps:
+
+      - name: Evaluate Security Results
+
+        env:
+
+          CODEQL_RESULT: ${{ needs.codeql.result }}
+
+          DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+
+          BACKEND_AUDIT_RESULT: ${{ needs.backend-audit.result }}
+
+          FRONTEND_AUDIT_RESULT: ${{ needs.frontend-audit.result }}
+
+          TRIVY_RESULT: ${{ needs.trivy.result }}
+
+          GITLEAKS_RESULT: ${{ needs.gitleaks.result }}
+
+          OSV_RESULT: ${{ needs.osv.result }}
+
+          CONFIG_RESULT: ${{ needs.security-configuration.result }}
+
+          EVENT_NAME: ${{ github.event_name }}
+
+        run: |
+
+          set -euo pipefail
+
+          echo "Security gate evaluation:"
+          echo ""
+          echo "CodeQL:               ${CODEQL_RESULT}"
+          echo "Dependency Review:   ${DEPENDENCY_RESULT}"
+          echo "Backend Audit:       ${BACKEND_AUDIT_RESULT}"
+          echo "Frontend Audit:      ${FRONTEND_AUDIT_RESULT}"
+          echo "Trivy:               ${TRIVY_RESULT}"
+          echo "Gitleaks:             ${GITLEAKS_RESULT}"
+          echo "OSV:                  ${OSV_RESULT}"
+          echo "Configuration:       ${CONFIG_RESULT}"
+          echo ""
+
+          FAILURES=()
+
+          [[ "${CODEQL_RESULT}" == "success" ]] ||
+            FAILURES+=("CodeQL")
+
+          # Dependency Review is skipped on non-PR events by design.
+          if [[ "${EVENT_NAME}" == "pull_request" ]]
+          then
+
+            [[ "${DEPENDENCY_RESULT}" == "success" ]] ||
+              FAILURES+=("Dependency Review")
+
+          fi
+
+          [[ "${BACKEND_AUDIT_RESULT}" == "success" ]] ||
+            FAILURES+=("Backend npm audit")
+
+          [[ "${FRONTEND_AUDIT_RESULT}" == "success" ]] ||
+            FAILURES+=("Frontend npm audit")
+
+          [[ "${TRIVY_RESULT}" == "success" ]] ||
+            FAILURES+=("Trivy")
+
+          [[ "${GITLEAKS_RESULT}" == "success" ]] ||
+            FAILURES+=("Gitleaks")
+
+          [[ "${OSV_RESULT}" == "success" ]] ||
+            FAILURES+=("OSV")
+
+          [[ "${CONFIG_RESULT}" == "success" ]] ||
+            FAILURES+=("Security configuration")
+
+          if (( ${#FAILURES[@]} > 0 ))
+          then
+
+            echo "SECURITY GATE FAILED."
+
+            echo ""
+
+            printf 'Failure: %s\n' "${FAILURES[@]}"
+
+            exit 1
+
+          fi
+
+          echo "SECURITY GATE PASSED."
+
+      ##########################################################################
+      # Security gate summary
+      ##########################################################################
+
+      - name: Publish Security Gate Summary
+
+        if: ${{ always() }}
+
+        run: |
+
+          {
+            echo "# Enterprise Security Gate"
+            echo ""
+            echo "| Security Control | Result |"
+            echo "|---|---|"
+            echo "| CodeQL | ${{ needs.codeql.result }} |"
+            echo "| Dependency Review | ${{ needs.dependency-review.result }} |"
+            echo "| Backend npm Audit | ${{ needs.backend-audit.result }} |"
+            echo "| Frontend npm Audit | ${{ needs.frontend-audit.result }} |"
+            echo "| Trivy | ${{ needs.trivy.result }} |"
+            echo "| Gitleaks | ${{ needs.gitleaks.result }} |"
+            echo "| OSV | ${{ needs.osv.result }} |"
+            echo "| Security Configuration | ${{ needs.security-configuration.result }} |"
+            echo ""
+            echo "Security policy:"
+            echo "- npm audit: HIGH/CRITICAL blocking"
+            echo "- Dependency Review: MODERATE+ blocking on PRs"
+            echo "- Trivy: HIGH/CRITICAL blocking"
+            echo "- Secrets: blocking"
+            echo "- CodeQL: blocking"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  ##############################################################################
+  # 10. SECURITY REPORT
+  #
+  # This job is informational/reporting. It does not replace the security gate.
+  ##############################################################################
+
+  reports:
+
+    name: Publish Security Summary
+
+    runs-on: ubuntu-latest
+
+    if: ${{ always() }}
+
+    needs:
+
+      - codeql
+      - dependency-review
+      - backend-audit
+      - frontend-audit
+      - trivy
+      - gitleaks
+      - osv
+      - security-configuration
+      - security-gate
+
+    permissions:
+
+      contents: read
+
+    steps:
+
+      - name: Generate Enterprise Security Summary
+
+        run: |
+
+          {
+            echo "# TITech Enterprise Security Scan"
+            echo ""
+            echo "## Scan Metadata"
+            echo ""
+            echo "| Property | Value |"
+            echo "|---|---|"
+            echo "| Application | ${APP_NAME} |"
+            echo "| Company | ${COMPANY_NAME} |"
+            echo "| Product | ${PRODUCT_NAME} |"
+            echo "| Node | ${NODE_VERSION} |"
+            echo "| Event | ${GITHUB_EVENT_NAME} |"
+            echo "| Ref | ${GITHUB_REF_NAME} |"
+            echo "| Commit | ${GITHUB_SHA} |"
+            echo "| Run | ${GITHUB_RUN_NUMBER} |"
+            echo ""
+            echo "## Security Controls"
+            echo ""
+            echo "| Control | Result |"
+            echo "|---|---|"
+            echo "| CodeQL | ${{ needs.codeql.result }} |"
+            echo "| Dependency Review | ${{ needs.dependency-review.result }} |"
+            echo "| Backend npm Audit | ${{ needs.backend-audit.result }} |"
+            echo "| Frontend npm Audit | ${{ needs.frontend-audit.result }} |"
+            echo "| Trivy | ${{ needs.trivy.result }} |"
+            echo "| Gitleaks | ${{ needs.gitleaks.result }} |"
+            echo "| OSV | ${{ needs.osv.result }} |"
+            echo "| Configuration | ${{ needs.security-configuration.result }} |"
+            echo "| Enterprise Security Gate | ${{ needs.security-gate.result }} |"
+            echo ""
+            echo "## Canonical Structure"
+            echo ""
+            echo "- backend/"
+            echo "- frontend/"
+            echo "- postman/"
+            echo "- deployment/"
+            echo ""
+            echo "Security scan completed."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      ##########################################################################
+      # Upload security summary
+      ##########################################################################
+
+      - name: Generate Security Summary File
+
+        run: |
+
+          mkdir -p "${SECURITY_REPORTS_DIR}"
+
+          cat > "${SECURITY_REPORTS_DIR}/security-summary.json" <<EOF
+          {
+            "application": "${APP_NAME}",
+            "company": "${COMPANY_NAME}",
+            "product": "${PRODUCT_NAME}",
+            "node": "${NODE_VERSION}",
+            "event": "${GITHUB_EVENT_NAME}",
+            "ref": "${GITHUB_REF}",
+            "commit": "${GITHUB_SHA}",
+            "runNumber": "${GITHUB_RUN_NUMBER}",
+            "results": {
+              "codeql": "${{ needs.codeql.result }}",
+              "dependencyReview": "${{ needs.dependency-review.result }}",
+              "backendAudit": "${{ needs.backend-audit.result }}",
+              "frontendAudit": "${{ needs.frontend-audit.result }}",
+              "trivy": "${{ needs.trivy.result }}",
+              "gitleaks": "${{ needs.gitleaks.result }}",
+              "osv": "${{ needs.osv.result }}",
+              "configuration": "${{ needs.security-configuration.result }}",
+              "securityGate": "${{ needs.security-gate.result }}"
+            }
+          }
+          EOF
+
+      - name: Upload Security Summary
+
         uses: actions/upload-artifact@v4
-        if: always()
+
         with:
-          name: security-scan-artifacts
-          path: |
-            *.sarif
-            trivy-results.sarif
+
+          name: enterprise-security-summary
+
+          path: reports/security/security-summary.json
+
           if-no-files-found: ignore
-          
+
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}

@@ -1,92 +1,351 @@
-name: Enterprise API Integration Tests (Newman)
+################################################################################
+# TITech Community Capital LTD
+# Enterprise API Integration Test Pipeline
+#
+# File:
+#   .github/workflows/newman.yml
+#
+# Purpose:
+#   Enterprise-grade API integration testing using Postman + Newman.
+#
+# Canonical repository structure:
+#
+#   backend/
+#   frontend/
+#   postman/
+#
+# This workflow is TEST-ONLY.
+#
+# It does NOT:
+#   - Deploy staging
+#   - Deploy production
+#   - Build/push production containers
+#   - Modify Kubernetes clusters
+#
+# Deployment is owned by:
+#
+#   .github/workflows/deploy.yml
+#
+################################################################################
+
+name: TITech Enterprise API Integration Tests
+
+################################################################################
+# RUN NAME
+################################################################################
+
+run-name: >
+  Newman API Tests • ${{ github.ref_name }} •
+  ${{ github.actor }} •
+  #${{ github.run_number }}
+
+################################################################################
+# TRIGGERS
+################################################################################
 
 on:
+
+  ##########################################################################
+  # Branch pushes
+  ##########################################################################
+
   push:
+
     branches:
       - main
       - develop
       - release/**
       - feature/**
+      - hotfix/**
+
+  ##########################################################################
+  # Pull requests
+  ##########################################################################
+
   pull_request:
+
     branches:
       - "**"
+
+  ##########################################################################
+  # Manual execution
+  ##########################################################################
+
   workflow_dispatch:
+
+  ##########################################################################
+  # Daily API regression
+  ##########################################################################
+
   schedule:
+
     - cron: "0 3 * * *"
 
+################################################################################
+# DEFAULT TOKEN PERMISSIONS
+################################################################################
+
 permissions:
+
   contents: read
 
+################################################################################
+# CONCURRENCY
+################################################################################
+
 concurrency:
-  group: newman-${{ github.ref }}
+
+  group: >
+    titech-newman-${{ github.ref }}
+
   cancel-in-progress: true
 
+################################################################################
+# GLOBAL ENVIRONMENT
+################################################################################
+
 env:
+
+  ##########################################################################
+  # Application
+  ##########################################################################
+
+  APP_NAME: titech-community-capital
+
+  COMPANY_NAME: TITech Community Capital LTD
+
+  PRODUCT_NAME: Community Capital
+
   NODE_ENV: test
+
+  CI: true
+
+  TZ: UTC
+
+  ##########################################################################
+  # Runtime
+  ##########################################################################
+
+  NODE_VERSION: "24.15.0"
+
+  PORT: "5000"
+
+  ##########################################################################
+  # Canonical directories
+  ##########################################################################
+
+  ROOT_DIR: .
+
+  BACKEND_DIR: backend
+
+  FRONTEND_DIR: frontend
+
+  POSTMAN_DIR: postman
+
+  REPORTS_DIR: reports
+
+  NEWMAN_REPORTS_DIR: postman/reports
+
+  ##########################################################################
+  # Local integration services
+  ##########################################################################
+
+  MONGODB_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+  MONGO_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+  REDIS_URL: redis://127.0.0.1:6379
+
+  ##########################################################################
+  # Local API
+  ##########################################################################
+
+  API_BASE_URL: http://127.0.0.1:5000
+
+  API_HEALTH_URL: http://127.0.0.1:5000/health
+
+  API_READY_URL: http://127.0.0.1:5000/ready
+
+  API_VERSION_URL: http://127.0.0.1:5000/version
+
+  ##########################################################################
+  # Postman assets
+  ##########################################################################
+
+  POSTMAN_COLLECTION:
+    postman/Community-Savings.postman_collection.json
+
+  POSTMAN_ENVIRONMENT:
+    postman/Test.postman_environment.json
+
+  ##########################################################################
+  # Reports
+  ##########################################################################
+
+  NEWMAN_JSON_REPORT:
+    postman/reports/newman.json
+
+  NEWMAN_JUNIT_REPORT:
+    postman/reports/junit.xml
+
+  NEWMAN_HTML_REPORT:
+    postman/reports/report.html
+
+  BACKEND_LOG:
+    backend/backend.log
+
+  ##########################################################################
+  # CI test credentials
+  #
+  # These credentials are only for the disposable GitHub Actions test DB.
+  # They must never be used outside CI.
+  ##########################################################################
+
+  TEST_ADMIN_EMAIL: admin@titech-ci.local
+
+  TEST_ADMIN_PASSWORD: TITECH-CI-Admin-${{ github.run_id }}
+
+  TEST_ADMIN_FORCE: "true"
+
+################################################################################
+# DEFAULT SHELL
+################################################################################
+
+defaults:
+
+  run:
+
+    shell: bash
+
+################################################################################
+# JOBS
+################################################################################
 
 jobs:
 
-################################################################################
-# Newman Integration Tests
-################################################################################
+  ##############################################################################
+  # NEWMAN API INTEGRATION TESTS
+  ##############################################################################
 
   newman:
 
-    name: Newman API Tests (Node ${{ matrix.node }})
+    name: Newman API Tests • Node ${{ matrix.node }}
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     strategy:
 
       fail-fast: false
 
       matrix:
-        node: [20,22]
+
+        node:
+          - "24.15.0"
+
+    ##########################################################################
+    # Disposable test services
+    ##########################################################################
 
     services:
 
+      ########################################################################
+      # MongoDB
+      ########################################################################
+
       mongodb:
 
-        image: mongo:7
+        image: mongo:7.0
 
         ports:
+
           - 27017:27017
 
         options: >-
+
           --health-cmd="mongosh --eval 'db.adminCommand({ ping: 1 })'"
+
           --health-interval=10s
+
           --health-timeout=5s
+
           --health-retries=20
+
+      ########################################################################
+      # Redis
+      ########################################################################
 
       redis:
 
-        image: redis:7
+        image: redis:7-alpine
 
         ports:
+
           - 6379:6379
 
         options: >-
+
           --health-cmd="redis-cli ping"
+
           --health-interval=10s
+
           --health-timeout=5s
+
           --health-retries=20
+
+    ##########################################################################
+    # Job environment
+    ##########################################################################
+
+    env:
+
+      NODE_ENV: test
+
+      CI: true
+
+      PORT: 5000
+
+      MONGODB_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+      MONGO_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+      REDIS_URL: redis://127.0.0.1:6379
+
+      JWT_SECRET: titech-github-actions-test-jwt-secret
+
+      JWT_REFRESH_SECRET: titech-github-actions-test-refresh-secret
+
+      SESSION_SECRET: titech-github-actions-test-session-secret
+
+      LOG_LEVEL: error
+
+      TEST_ADMIN_EMAIL: admin@titech-ci.local
+
+      TEST_ADMIN_PASSWORD: TITECH-CI-Admin-${{ github.run_id }}
+
+      TEST_ADMIN_FORCE: "true"
 
     steps:
 
-################################################################################
-# Checkout
-################################################################################
+      ##########################################################################
+      # Checkout
+      ##########################################################################
 
       - name: Checkout Repository
+
         uses: actions/checkout@v4
 
-################################################################################
-# Node
-################################################################################
+        with:
 
-      - name: Setup Node
+          fetch-depth: 1
+
+      ##########################################################################
+      # Node
+      ##########################################################################
+
+      - name: Setup Node.js
+
         uses: actions/setup-node@v4
 
         with:
@@ -97,128 +356,105 @@ jobs:
 
           cache-dependency-path: |
             package-lock.json
-            community-savings-app-backend/package-lock.json
+            backend/package-lock.json
 
-################################################################################
-# Install
-################################################################################
+      ##########################################################################
+      # Repository structure
+      ##########################################################################
+
+      - name: Verify Canonical Repository Structure
+
+        run: |
+
+          set -euo pipefail
+
+          test -d backend
+          test -d postman
+
+          test -f backend/package.json
+          test -f backend/package-lock.json
+
+          test -f "${POSTMAN_COLLECTION}"
+          test -f "${POSTMAN_ENVIRONMENT}"
+
+          echo "Canonical integration-test structure verified."
+
+      ##########################################################################
+      # Root dependency installation
+      ##########################################################################
 
       - name: Install Root Dependencies
-        run: npm ci
+
+        run: |
+
+          if test -f package-lock.json
+          then
+
+            npm ci
+
+          else
+
+            echo "Root package-lock.json not present."
+
+          fi
+
+      ##########################################################################
+      # Backend dependencies
+      ##########################################################################
 
       - name: Install Backend Dependencies
-        working-directory: community-savings-app-backend
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
         run: npm ci
 
-################################################################################
-# Install Newman Reporters
-################################################################################
+      ##########################################################################
+      # Environment validation
+      ##########################################################################
 
-      - name: Install Newman Reporters
-
-        run: |
-
-          npm install -g newman
-
-          npm install -g newman-reporter-htmlextra
-
-          npm install -g newman-reporter-junitfull
-
-################################################################################
-# Environment Validation
-################################################################################
-
-      - name: Validate Environment
+      - name: Validate Test Environment
 
         run: |
 
+          set -euo pipefail
+
+          echo "Node:"
           node --version
 
+          echo "npm:"
           npm --version
 
-          mongosh --version || true
+          echo "MongoDB client:"
+          mongosh --version
 
-################################################################################
-# Seed Database
-################################################################################
+          echo "Redis client:"
+          redis-cli --version
 
-      - name: Seed Admin User
+          echo "Git:"
+          git --version
 
-        working-directory: community-savings-app-backend
+      ##########################################################################
+      # MongoDB readiness
+      ##########################################################################
 
-        env:
-
-          MONGO_URI: mongodb://127.0.0.1:27017/community-savings-test
-
-          REDIS_URL: redis://127.0.0.1:6379
-
-          ADMIN_EMAIL: admin@example.com
-
-          ADMIN_PASS: AdminPass123!
-
-          ADMIN_FORCE: "true"
+      - name: Wait for MongoDB
 
         run: |
 
-          npm run seed-admin --silent
+          set -euo pipefail
 
-################################################################################
-# Build Backend
-################################################################################
+          echo "Waiting for MongoDB..."
 
-      - name: Verify Backend Builds
-
-        working-directory: community-savings-app-backend
-
-        run: |
-
-          npm run lint --if-present
-
-          npm run build --if-present
-
-################################################################################
-# Start API
-################################################################################
-
-      - name: Start Backend
-
-        working-directory: community-savings-app-backend
-
-        env:
-
-          PORT: 5000
-
-          NODE_ENV: test
-
-          JWT_SECRET: github-actions-secret
-
-          JWT_REFRESH_SECRET: github-refresh-secret
-
-          MONGO_URI: mongodb://127.0.0.1:27017/community-savings-test
-
-          REDIS_URL: redis://127.0.0.1:6379
-
-        run: |
-
-          npm run dev > backend.log 2>&1 &
-
-################################################################################
-# Wait For API
-################################################################################
-
-      - name: Wait For API
-
-        run: |
-
-          echo "Waiting for backend..."
-
-          for i in {1..90}
-
+          for i in {1..60}
           do
 
-            if curl -fs http://127.0.0.1:5000/health >/dev/null 2>&1; then
+            if mongosh \
+              "${MONGODB_URI}" \
+              --eval "db.adminCommand({ ping: 1 })" \
+              >/dev/null 2>&1
+            then
 
-              echo "Backend Ready"
+              echo "MongoDB ready."
 
               exit 0
 
@@ -228,105 +464,754 @@ jobs:
 
           done
 
-          echo "Backend failed to start"
-
-          cat community-savings-app-backend/backend.log || true
+          echo "ERROR: MongoDB did not become ready."
 
           exit 1
 
-################################################################################
-# Run Newman
-################################################################################
+      ##########################################################################
+      # Redis readiness
+      ##########################################################################
 
-      - name: Execute Postman Collection
+      - name: Wait for Redis
 
         run: |
 
-          mkdir -p postman/reports
+          set -euo pipefail
 
-          newman run postman/Community-Savings.postman_collection.json \
-            -e postman/Test.postman_environment.json \
+          echo "Waiting for Redis..."
+
+          for i in {1..60}
+          do
+
+            if redis-cli \
+              -u "${REDIS_URL}" \
+              ping | grep -q PONG
+            then
+
+              echo "Redis ready."
+
+              exit 0
+
+            fi
+
+            sleep 2
+
+          done
+
+          echo "ERROR: Redis did not become ready."
+
+          exit 1
+
+      ##########################################################################
+      # Backend package validation
+      ##########################################################################
+
+      - name: Validate Backend Test Scripts
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          node <<'NODE'
+          const pkg = require("./package.json");
+
+          const required = [
+            "start",
+          ];
+
+          const preferred = [
+            "dev",
+            "migrate",
+            "seed-admin"
+          ];
+
+          for (const script of required) {
+
+            if (!pkg.scripts?.[script]) {
+
+              console.error(
+                `ERROR: Required backend script "${script}" is missing.`
+              );
+
+              process.exit(1);
+
+            }
+
+          }
+
+          for (const script of preferred) {
+
+            if (pkg.scripts?.[script]) {
+
+              console.log(
+                `Configured backend script: ${script}`
+              );
+
+            }
+
+          }
+          NODE
+
+      ##########################################################################
+      # Backend lint
+      ##########################################################################
+
+      - name: Backend Lint
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          if npm run | grep -q "lint"
+          then
+
+            npm run lint
+
+          else
+
+            echo "Backend lint script not configured."
+
+          fi
+
+      ##########################################################################
+      # Backend build
+      ##########################################################################
+
+      - name: Verify Backend Build
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          if npm run | grep -q "build"
+          then
+
+            npm run build
+
+          else
+
+            echo "Backend build script not configured."
+
+          fi
+
+      ##########################################################################
+      # Database migrations
+      ##########################################################################
+
+      - name: Validate Migration Script
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          node <<'NODE'
+          const pkg = require("./package.json");
+
+          if (!pkg.scripts?.migrate) {
+
+            console.error(
+              "ERROR: backend/package.json must define migrate."
+            );
+
+            process.exit(1);
+
+          }
+          NODE
+
+      - name: Run Database Migrations
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        env:
+
+          MONGODB_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+          MONGO_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+          REDIS_URL: redis://127.0.0.1:6379
+
+          NODE_ENV: test
+
+        run: |
+
+          npm run migrate
+
+      ##########################################################################
+      # Seed admin
+      ##########################################################################
+
+      - name: Seed CI Admin User
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        env:
+
+          MONGODB_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+          MONGO_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+          REDIS_URL: redis://127.0.0.1:6379
+
+          NODE_ENV: test
+
+          ADMIN_EMAIL: admin@titech-ci.local
+
+          ADMIN_PASS: TITECH-CI-Admin-${{ github.run_id }}
+
+          ADMIN_FORCE: "true"
+
+        run: |
+
+          if npm run | grep -q "seed-admin"
+          then
+
+            npm run seed-admin --silent
+
+          elif npm run | grep -q "seed:test"
+          then
+
+            npm run seed:test
+
+          else
+
+            echo "WARNING: no supported test seed script configured."
+
+          fi
+
+      ##########################################################################
+      # Verify seed account exists
+      ##########################################################################
+
+      - name: Verify CI Test Database
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        env:
+
+          MONGODB_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+          MONGO_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+        run: |
+
+          node <<'NODE'
+          const mongoose = require("mongoose");
+
+          const uri =
+            process.env.MONGODB_URI ||
+            process.env.MONGO_URI;
+
+          if (!uri) {
+            console.error("MongoDB URI is missing.");
+            process.exit(1);
+          }
+
+          (async () => {
+
+            try {
+
+              await mongoose.connect(uri);
+
+              await mongoose.connection.db.command({
+                ping: 1
+              });
+
+              console.log(
+                "Database connectivity verification passed."
+              );
+
+            } catch (error) {
+
+              console.error(
+                "Database verification failed:",
+                error?.message || error
+              );
+
+              process.exitCode = 1;
+
+            } finally {
+
+              await mongoose.disconnect();
+
+            }
+
+          })();
+          NODE
+
+      ##########################################################################
+      # Start backend
+      ##########################################################################
+
+      - name: Start Backend API
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        env:
+
+          PORT: 5000
+
+          NODE_ENV: test
+
+          MONGODB_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+          MONGO_URI: mongodb://127.0.0.1:27017/community_savings_test
+
+          REDIS_URL: redis://127.0.0.1:6379
+
+          JWT_SECRET: titech-github-actions-test-jwt-secret
+
+          JWT_REFRESH_SECRET: titech-github-actions-test-refresh-secret
+
+          SESSION_SECRET: titech-github-actions-test-session-secret
+
+          LOG_LEVEL: error
+
+        run: |
+
+          set -euo pipefail
+
+          mkdir -p ../reports
+
+          echo "Starting TITech backend API..."
+
+          if npm run | grep -q "^  dev"
+          then
+
+            nohup npm run dev > backend.log 2>&1 &
+
+          else
+
+            nohup npm start > backend.log 2>&1 &
+
+          fi
+
+          echo $! > backend.pid
+
+          sleep 3
+
+          echo "Backend process started."
+
+      ##########################################################################
+      # Wait for backend
+      ##########################################################################
+
+      - name: Wait for Backend API
+
+        run: |
+
+          set -euo pipefail
+
+          echo "Waiting for backend API..."
+
+          for i in {1..90}
+          do
+
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              --max-time 10 \
+              "${API_HEALTH_URL}" \
+              >/dev/null 2>&1
+            then
+
+              echo "Backend API ready."
+
+              exit 0
+
+            fi
+
+            if test -f "${BACKEND_LOG}"
+            then
+
+              echo "--- Backend log tail ---"
+
+              tail -n 30 "${BACKEND_LOG}" || true
+
+              echo "-----------------------"
+
+            fi
+
+            sleep 2
+
+          done
+
+          echo "ERROR: Backend failed to become ready."
+
+          cat "${BACKEND_LOG}" || true
+
+          exit 1
+
+      ##########################################################################
+      # Verify readiness
+      ##########################################################################
+
+      - name: Verify Backend Readiness
+
+        run: |
+
+          if curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 15 \
+            "${API_READY_URL}" \
+            >/dev/null 2>&1
+          then
+
+            echo "Backend readiness endpoint passed."
+
+          else
+
+            echo "Readiness endpoint unavailable or not configured."
+
+          fi
+
+      ##########################################################################
+      # Verify version endpoint
+      ##########################################################################
+
+      - name: Verify Backend Version
+
+        run: |
+
+          if curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 15 \
+            "${API_VERSION_URL}"
+          then
+
+            echo
+
+          else
+
+            echo "Version endpoint unavailable or not configured."
+
+          fi
+
+      ##########################################################################
+      # Install Newman
+      #
+      # Versions are pinned for reproducible CI execution.
+      ##########################################################################
+
+      - name: Install Newman Toolchain
+
+        run: |
+
+          npm install --global \
+            newman@6.2.2 \
+            newman-reporter-htmlextra@1.23.1 \
+            newman-reporter-junitfull@1.1.1
+
+      ##########################################################################
+      # Verify Newman
+      ##########################################################################
+
+      - name: Verify Newman Installation
+
+        run: |
+
+          newman --version
+
+          node --version
+
+      ##########################################################################
+      # Validate Postman assets
+      ##########################################################################
+
+      - name: Validate Postman Collection
+
+        run: |
+
+          set -euo pipefail
+
+          test -f "${POSTMAN_COLLECTION}"
+
+          test -f "${POSTMAN_ENVIRONMENT}"
+
+          node <<'NODE'
+          const fs = require("fs");
+
+          const files = [
+            process.env.POSTMAN_COLLECTION,
+            process.env.POSTMAN_ENVIRONMENT
+          ];
+
+          for (const file of files) {
+
+            const parsed =
+              JSON.parse(fs.readFileSync(file, "utf8"));
+
+            if (!parsed ||
+                typeof parsed !== "object") {
+
+              console.error(
+                `Invalid JSON/Postman file: ${file}`
+              );
+
+              process.exit(1);
+
+            }
+
+            console.log(`Validated: ${file}`);
+          }
+          NODE
+
+      ##########################################################################
+      # Prepare reports
+      ##########################################################################
+
+      - name: Prepare Newman Reports
+
+        run: |
+
+          rm -rf "${NEWMAN_REPORTS_DIR}"
+
+          mkdir -p "${NEWMAN_REPORTS_DIR}"
+
+      ##########################################################################
+      # Newman execution
+      ##########################################################################
+
+      - name: Execute Postman Collection
+
+        id: newman
+
+        run: |
+
+          set -o pipefail
+
+          newman run \
+            "${POSTMAN_COLLECTION}" \
+            --environment "${POSTMAN_ENVIRONMENT}" \
             --timeout-request 60000 \
             --timeout-script 60000 \
             --delay-request 100 \
             --bail \
-            -r cli,json,junitfull,htmlextra \
-            --reporter-json-export postman/reports/newman.json \
-            --reporter-junitfull-export postman/reports/junit.xml \
-            --reporter-htmlextra-export postman/reports/report.html
+            --color on \
+            --reporters cli,json,junitfull,htmlextra \
+            --reporter-json-export "${NEWMAN_JSON_REPORT}" \
+            --reporter-junitfull-export "${NEWMAN_JUNIT_REPORT}" \
+            --reporter-htmlextra-export "${NEWMAN_HTML_REPORT}"
 
-################################################################################
-# Upload Reports
-################################################################################
+      ##########################################################################
+      # API process information
+      ##########################################################################
+
+      - name: Capture Backend Process State
+
+        if: ${{ always() }}
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          ps aux | grep -E "node|npm" | grep -v grep || true
+
+          if test -f backend.pid
+          then
+
+            PID="$(cat backend.pid)"
+
+            echo "Backend PID: ${PID}"
+
+            ps -fp "${PID}" || true
+
+          fi
+
+      ##########################################################################
+      # Upload Newman reports
+      ##########################################################################
 
       - name: Upload Newman Reports
 
-        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
 
-        if: always()
+        uses: actions/upload-artifact@v4
 
         with:
 
-          name: newman-reports-node-${{ matrix.node }}
+          name: newman-reports-node-${{ matrix.node }}-${{ github.run_number }}
 
           path: |
 
-            postman/reports
+            postman/reports/**
 
-################################################################################
-# Upload Backend Logs
-################################################################################
+          if-no-files-found: warn
+
+          retention-days: 30
+
+      ##########################################################################
+      # Upload backend logs
+      ##########################################################################
 
       - name: Upload Backend Logs
 
-        if: failure()
+        if: ${{ failure() }}
 
         uses: actions/upload-artifact@v4
 
         with:
 
-          name: backend-logs-node-${{ matrix.node }}
+          name: backend-logs-node-${{ matrix.node }}-${{ github.run_number }}
 
           path: |
 
-            community-savings-app-backend/backend.log
+            backend/backend.log
 
-################################################################################
-# Summary
-################################################################################
+          if-no-files-found: warn
 
-      - name: Publish Summary
+          retention-days: 30
 
-        if: always()
+      ##########################################################################
+      # Upload test reports
+      ##########################################################################
+
+      - name: Upload Integration Test Reports
+
+        if: ${{ always() }}
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: api-integration-test-artifacts-${{ matrix.node }}-${{ github.run_number }}
+
+          path: |
+
+            postman/reports/newman.json
+            postman/reports/junit.xml
+            postman/reports/report.html
+
+          if-no-files-found: ignore
+
+          retention-days: 30
+
+      ##########################################################################
+      # Shutdown backend
+      ##########################################################################
+
+      - name: Stop Backend
+
+        if: ${{ always() }}
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          if test -f backend.pid
+          then
+
+            PID="$(cat backend.pid)"
+
+            kill "${PID}" 2>/dev/null || true
+
+            sleep 3
+
+          fi
+
+          pkill -f "node.*5000" 2>/dev/null || true
+
+      ##########################################################################
+      # Newman summary
+      ##########################################################################
+
+      - name: Publish Newman Summary
+
+        if: ${{ always() }}
 
         run: |
 
           {
-
-            echo "# Newman Integration Test Summary"
-
+            echo "# Newman API Integration Tests"
             echo ""
+            echo "| Property | Value |"
+            echo "|---|---|"
+            echo "| Application | ${APP_NAME} |"
+            echo "| Product | ${PRODUCT_NAME} |"
+            echo "| Backend Directory | ${BACKEND_DIR}/ |"
+            echo "| Postman Directory | ${POSTMAN_DIR}/ |"
+            echo "| Node | ${{ matrix.node }} |"
+            echo "| MongoDB | mongo:7.0 |"
+            echo "| Redis | redis:7-alpine |"
+            echo "| API | ${API_BASE_URL} |"
+            echo "| Collection | ${POSTMAN_COLLECTION} |"
+            echo "| Environment | ${POSTMAN_ENVIRONMENT} |"
+            echo "| Newman | $(newman --version) |"
+            echo "| Newman Result | ${{ steps.newman.outcome }} |"
+            echo ""
+            echo "## Reports"
+            echo ""
+            echo "- JSON: ${NEWMAN_JSON_REPORT}"
+            echo "- JUnit: ${NEWMAN_JUNIT_REPORT}"
+            echo "- HTML: ${NEWMAN_HTML_REPORT}"
+            echo ""
+            echo "Commit: ${GITHUB_SHA}"
+            echo "Branch/Tag: ${GITHUB_REF_NAME}"
+            echo "Run: ${GITHUB_RUN_NUMBER}"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
-            echo "| Item | Status |"
+  ##############################################################################
+  # POST-RUN VALIDATION
+  #
+  # This makes the workflow's overall result visible as a final CI gate.
+  ##############################################################################
 
-            echo "|------|--------|"
+  integration-gate:
 
-            echo "| Backend Started | ✅ |"
+    name: Newman Integration Gate
 
-            echo "| MongoDB | ✅ |"
+    needs:
 
-            echo "| Redis | ✅ |"
+      - newman
 
-            echo "| Admin Seed | ✅ |"
+    runs-on: ubuntu-latest
 
-            echo "| Postman Collection | Executed |"
+    if: ${{ always() }}
 
-            echo "| HTML Report | Generated |"
+    permissions:
 
-            echo "| JSON Report | Generated |"
+      contents: read
 
-            echo "| JUnit Report | Generated |"
+    steps:
 
-            echo "| Artifacts | Uploaded |"
+      - name: Evaluate Newman Result
 
-          } >> $GITHUB_STEP_SUMMARY
+        run: |
+
+          set -euo pipefail
+
+          RESULT="${{ needs.newman.result }}"
+
+          echo "Newman matrix result: ${RESULT}"
+
+          if [[ "${RESULT}" != "success" ]]
+          then
+
+            echo "ERROR: Newman API integration gate failed."
+
+            exit 1
+
+          fi
+
+          echo "Newman API integration gate passed."
+
+      - name: Publish Integration Gate Summary
+
+        if: ${{ always() }}
+
+        run: |
+
+          {
+            echo "# Newman Integration Gate"
+            echo ""
+            echo "| Gate | Result |"
+            echo "|---|---|"
+            echo "| Newman Matrix | ${{ needs.newman.result }} |"
+            echo "| Integration Gate | ${{ job.status }} |"
+            echo ""
+            echo "The API integration test workflow is authoritative for Postman/Newman validation."
+          } >> "${GITHUB_STEP_SUMMARY}"

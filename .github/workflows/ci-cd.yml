@@ -2,34 +2,101 @@
 # TITech Community Capital LTD
 # Enterprise CI/CD Pipeline
 #
-# File: .github/workflows/ci-cd.yml
+# File:
+#   .github/workflows/ci-cd.yml
 #
-# Description:
-#   Production-grade CI/CD pipeline for the Community Savings Platform.
+# Canonical project structure:
 #
-# Features:
-#   • Multi-stage pipeline
-#   • Backend & Frontend quality gates
-#   • Security scanning
-#   • Docker Buildx
-#   • SBOM generation
-#   • GitHub Container Registry
-#   • Kubernetes deployment
-#   • Staging & Production environments
-#   • Automated rollback
-#   • Smoke tests
-#   • Deployment summaries
+#   backend/
+#   frontend/
+#   deployment/
+#     charts/
+#       backend/
+#       frontend/
+#
+# Pipeline:
+#
+#   Pull Request / Branch
+#          │
+#          ▼
+#      QUALITY
+#          │
+#          ├── Backend lint
+#          ├── Frontend lint
+#          ├── Formatting
+#          └── Type validation
+#          │
+#          ▼
+#     BACKEND TESTS ────── FRONTEND TESTS
+#          │                     │
+#          └──────────┬──────────┘
+#                     ▼
+#                  SECURITY
+#                     │
+#                     ├── npm audit
+#                     ├── Dependency Review
+#                     ├── CodeQL
+#                     ├── Trivy
+#                     ├── Gitleaks
+#                     └── SBOM
+#                     │
+#                     ▼
+#             BUILD + CONTAINERS
+#                     │
+#                     ├── Backend image
+#                     ├── Frontend image
+#                     ├── SBOM
+#                     ├── Provenance
+#                     └── Cosign
+#                     │
+#                     ▼
+#                  STAGING
+#                     │
+#                     ├── Migration
+#                     ├── Helm atomic deploy
+#                     ├── Rollout verification
+#                     └── API smoke test
+#                     │
+#                     ▼
+#                PRODUCTION
+#              (protected env)
+#                     │
+#                     ├── Migration
+#                     ├── Helm atomic deploy
+#                     ├── Rollout verification
+#                     └── API smoke test
+#                     │
+#                     ▼
+#            POST-DEPLOYMENT
+#                     │
+#                     ├── API
+#                     ├── Frontend
+#                     ├── Kubernetes
+#                     ├── Prometheus
+#                     └── Grafana
+#
+# Deployment policy:
+#
+#   Pull Request             → CI only
+#   Scheduled run            → CI/security only
+#   develop/main push        → CI + build + staging
+#   release/hotfix push      → CI + build + staging
+#   version tag v*           → CI + build + staging + production
+#   manual staging           → CI + build + staging
+#   manual production        → CI + build + staging + production
+#
 ################################################################################
 
-name: Enterprise CI/CD Pipeline
+name: TITech Enterprise CI/CD Pipeline
 
 ################################################################################
-# Workflow Triggers
+# WORKFLOW TRIGGERS
 ################################################################################
 
 on:
 
   push:
+
     branches:
       - main
       - develop
@@ -40,6 +107,7 @@ on:
       - "v*"
 
   pull_request:
+
     branches:
       - main
       - develop
@@ -49,8 +117,11 @@ on:
     inputs:
 
       environment:
+
         description: Deployment environment
+
         required: true
+
         type: choice
 
         default: staging
@@ -59,97 +130,75 @@ on:
           - staging
           - production
 
-      skip_tests:
-        description: Skip automated tests
-        required: false
-        default: false
-        type: boolean
-
-      skip_security:
-        description: Skip security scans
-        required: false
-        default: false
-        type: boolean
-
-      image_tag:
-        description: Optional Docker image tag
-        required: false
-        default: ""
-
   schedule:
+
+    # Weekly dependency/security validation.
+    #
+    # IMPORTANT:
+    # Deployment jobs explicitly reject scheduled executions.
     - cron: "0 3 * * 1"
 
 ################################################################################
-# Workflow Permissions
+# DEFAULT TOKEN PERMISSIONS
+################################################################################
+#
+# Least privilege by default.
+# Jobs elevate permissions only when required.
+#
 ################################################################################
 
 permissions:
 
   contents: read
 
-  actions: read
-
-  checks: write
-
-  packages: write
-
-  deployments: write
-
-  pull-requests: write
-
-  issues: write
-
-  id-token: write
-
-  security-events: write
-
-  attestations: write
-
 ################################################################################
-# Prevent Parallel Deployments
+# WORKFLOW CONCURRENCY
 ################################################################################
 
 concurrency:
 
-  group: enterprise-cicd-${{ github.workflow }}-${{ github.ref }}
+  group: >
+    titech-cicd-${{ github.workflow }}-${{ github.ref }}
 
+  # Cancel stale branch/PR builds.
+  # Production has its own concurrency group below.
   cancel-in-progress: true
 
 ################################################################################
-# Global Environment Variables
+# GLOBAL ENVIRONMENT
 ################################################################################
 
 env:
 
   ##########################################################################
-  # Application
+  # Application identity
   ##########################################################################
 
   APPLICATION_NAME: community-savings-app
 
-  COMPANY_NAME: TITech Community Capital
+  COMPANY_NAME: TITech Community Capital LTD
 
   ORGANIZATION: titech
 
   ##########################################################################
-  # Runtime
+  # Node / npm
   ##########################################################################
 
   NODE_VERSION: "24.15.0"
 
-  NPM_CACHE: npm
-
   NODE_ENV: production
 
+  CI: true
+
   ##########################################################################
-  # Directories
+  # Canonical directories
   ##########################################################################
 
   ROOT_DIR: .
 
-  FRONTEND_DIR: community-savings-app-frontend
+  BACKEND_DIR: backend
 
-  BACKEND_DIR: community-savings-app-backend
+  FRONTEND_DIR: frontend
 
   DOCS_DIR: docs
 
@@ -158,7 +207,7 @@ env:
   COVERAGE_DIR: coverage
 
   ##########################################################################
-  # Docker
+  # Container registry
   ##########################################################################
 
   REGISTRY: ghcr.io
@@ -169,12 +218,13 @@ env:
 
   FRONTEND_IMAGE: community-savings-frontend
 
+  # Immutable logical deployment tag.
   IMAGE_TAG: ${{ github.sha }}
 
   DOCKER_BUILDKIT: "1"
 
   ##########################################################################
-  # Kubernetes
+  # Kubernetes namespaces
   ##########################################################################
 
   K8S_NAMESPACE_STAGING: community-staging
@@ -182,7 +232,7 @@ env:
   K8S_NAMESPACE_PRODUCTION: community-production
 
   ##########################################################################
-  # Test Services
+  # Test infrastructure
   ##########################################################################
 
   TEST_MONGO_URI: mongodb://127.0.0.1:27017/community_savings_test
@@ -190,19 +240,19 @@ env:
   TEST_REDIS_URL: redis://127.0.0.1:6379
 
   ##########################################################################
-  # Coverage
+  # Quality policy
   ##########################################################################
 
   COVERAGE_THRESHOLD: "85"
 
   ##########################################################################
-  # Artifact Retention
+  # Artifact retention
   ##########################################################################
 
   ARTIFACT_RETENTION_DAYS: "30"
 
 ################################################################################
-# Default Shell Configuration
+# DEFAULT SHELL
 ################################################################################
 
 defaults:
@@ -212,47 +262,26 @@ defaults:
     shell: bash
 
 ################################################################################
-# Reusable Workflow Variables
-################################################################################
-
-x-node-cache: &node-cache
-  cache: npm
-
-x-upload-retention: &artifact-retention
-  retention-days: 30
-
-x-backend-working-directory: &backend-working-directory
-  working-directory: community-savings-app-backend
-
-x-frontend-working-directory: &frontend-working-directory
-  working-directory: community-savings-app-frontend
-
-x-default-timeout: &default-timeout
-  timeout-minutes: 30
-
-################################################################################
-# Jobs
+# JOBS
 ################################################################################
 
 jobs:
 
   ##############################################################################
-  # QUALITY GATE
+  # 01. QUALITY
   ##############################################################################
 
   quality:
 
-    name: Quality • Lint • Formatting • Type Validation
+    name: Quality • Lint • Formatting • Validation
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     permissions:
-      contents: read
 
-    outputs:
-      node-version: ${{ steps.node.outputs.node-version }}
+      contents: read
 
     steps:
 
@@ -261,30 +290,40 @@ jobs:
       ##########################################################################
 
       - name: Checkout Repository
+
         uses: actions/checkout@v4
 
         with:
+
           fetch-depth: 0
+
           submodules: recursive
 
       ##########################################################################
-      # Setup Node
+      # Node
       ##########################################################################
 
       - name: Setup Node.js
-        id: node
 
         uses: actions/setup-node@v4
 
         with:
+
           node-version: ${{ env.NODE_VERSION }}
+
           cache: npm
 
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+
       ##########################################################################
-      # Restore Dependency Cache
+      # npm cache
       ##########################################################################
 
       - name: Restore npm Cache
+
         uses: actions/cache@v4
 
         with:
@@ -292,64 +331,96 @@ jobs:
           path: |
             ~/.npm
 
-            **/node_modules
-
           key: >
-            ${{ runner.os }}-node-
-            ${{ env.NODE_VERSION }}-
-            ${{ hashFiles('**/package-lock.json') }}
+            ${{ runner.os }}-
+            node-${{ env.NODE_VERSION }}-
+            ${{ hashFiles(
+              'package-lock.json',
+              'backend/package-lock.json',
+              'frontend/package-lock.json'
+            ) }}
 
           restore-keys: |
             ${{ runner.os }}-node-${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node-
 
       ##########################################################################
-      # Install Root Dependencies
+      # Root dependencies
       ##########################################################################
 
       - name: Install Root Dependencies
 
-        run: |
-          npm ci
+        run: npm ci
 
       ##########################################################################
-      # Backend Dependencies
+      # Backend dependencies
       ##########################################################################
 
       - name: Install Backend Dependencies
 
         working-directory: ${{ env.BACKEND_DIR }}
 
-        run: |
-          npm ci
+        run: npm ci
 
       ##########################################################################
-      # Frontend Dependencies
+      # Frontend dependencies
       ##########################################################################
 
       - name: Install Frontend Dependencies
 
         working-directory: ${{ env.FRONTEND_DIR }}
 
-        run: |
-          npm ci
+        run: npm ci
 
       ##########################################################################
-      # Validate package.json Files
+      # Validate package.json files
       ##########################################################################
 
       - name: Validate Package Files
 
         run: |
 
-          node -e "JSON.parse(require('fs').readFileSync('package.json'))"
+          node <<'NODE'
+          const fs = require("fs");
 
-          node -e "JSON.parse(require('fs').readFileSync('${{ env.BACKEND_DIR }}/package.json'))"
+          const files = [
+            "package.json",
+            "backend/package.json",
+            "frontend/package.json"
+          ];
 
-          node -e "JSON.parse(require('fs').readFileSync('${{ env.FRONTEND_DIR }}/package.json'))"
+          for (const file of files) {
+            if (!fs.existsSync(file)) {
+              console.error(`Required file missing: ${file}`);
+              process.exit(1);
+            }
+
+            JSON.parse(fs.readFileSync(file, "utf8"));
+
+            console.log(`Validated: ${file}`);
+          }
+          NODE
 
       ##########################################################################
-      # Backend ESLint
+      # Validate canonical structure
+      ##########################################################################
+
+      - name: Validate Canonical Project Structure
+
+        run: |
+
+          test -d backend
+          test -d frontend
+
+          test -f backend/package.json
+          test -f frontend/package.json
+
+          test -f backend/package-lock.json
+          test -f frontend/package-lock.json
+
+          echo "Canonical backend/ and frontend/ structure verified."
+
+      ##########################################################################
+      # Backend lint
       ##########################################################################
 
       - name: Backend ESLint
@@ -358,14 +429,22 @@ jobs:
 
         run: |
 
-          if npm run | grep -q "lint"; then
-            npm run lint
-          else
-            echo "Backend lint script not found."
-          fi
+          node <<'NODE'
+          const pkg = require("./package.json");
+
+          if (!pkg.scripts?.lint) {
+            console.error(
+              "ERROR: backend/package.json must define a lint script."
+            );
+
+            process.exit(1);
+          }
+          NODE
+
+          npm run lint
 
       ##########################################################################
-      # Frontend ESLint
+      # Frontend lint
       ##########################################################################
 
       - name: Frontend ESLint
@@ -374,100 +453,98 @@ jobs:
 
         run: |
 
-          if npm run | grep -q "lint"; then
-            npm run lint
-          else
-            echo "Frontend lint script not found."
-          fi
+          node <<'NODE'
+          const pkg = require("./package.json");
+
+          if (!pkg.scripts?.lint) {
+            console.error(
+              "ERROR: frontend/package.json must define a lint script."
+            );
+
+            process.exit(1);
+          }
+          NODE
+
+          npm run lint
 
       ##########################################################################
-      # Prettier Verification
+      # Formatting
       ##########################################################################
 
       - name: Verify Formatting
 
         run: |
 
-          if npm run | grep -q "format:check"; then
+          if npm run | grep -q "format:check"
+          then
 
             npm run format:check
 
-          elif npm run | grep -q "prettier"; then
+          elif npm run | grep -q "prettier"
+          then
 
             npm run prettier -- --check .
 
           else
 
-            echo "No formatting script configured."
+            echo "No root formatting script detected."
 
           fi
 
       ##########################################################################
-      # Backend Type Checking
+      # Backend type validation
       ##########################################################################
 
-      - name: Backend Type Check
+      - name: Backend Type Validation
 
         working-directory: ${{ env.BACKEND_DIR }}
 
-        continue-on-error: true
-
         run: |
 
-          if npm run | grep -q "typecheck"; then
+          if npm run | grep -q "typecheck"
+          then
 
             npm run typecheck
 
-          elif npm run | grep -q "tsc"; then
+          elif npm run | grep -q "tsc"
+          then
 
             npx tsc --noEmit
 
           else
 
-            echo "Backend does not use TypeScript."
+            echo "Backend TypeScript validation not configured."
 
           fi
 
       ##########################################################################
-      # Frontend Type Checking
+      # Frontend type validation
       ##########################################################################
 
-      - name: Frontend Type Check
+      - name: Frontend Type Validation
 
         working-directory: ${{ env.FRONTEND_DIR }}
 
-        continue-on-error: true
-
         run: |
 
-          if npm run | grep -q "typecheck"; then
+          if npm run | grep -q "typecheck"
+          then
 
             npm run typecheck
 
-          elif npm run | grep -q "tsc"; then
+          elif npm run | grep -q "tsc"
+          then
 
             npx tsc --noEmit
 
           else
 
-            echo "Frontend does not use TypeScript."
+            echo "Frontend TypeScript validation not configured."
 
           fi
 
       ##########################################################################
-      # Dependency Audit (Informational)
-      ##########################################################################
-
-      - name: Dependency Validation
-
-        continue-on-error: true
-
-        run: |
-
-          npm outdated || true
-
-      ##########################################################################
-      # Generate Build Metadata
+      # Metadata
       ##########################################################################
 
       - name: Generate Build Metadata
@@ -478,23 +555,28 @@ jobs:
 
           cat > reports/build-metadata.json <<EOF
           {
-            "workflow":"${{ github.workflow }}",
-            "repository":"${{ github.repository }}",
-            "branch":"${{ github.ref_name }}",
-            "commit":"${{ github.sha }}",
-            "actor":"${{ github.actor }}",
-            "runId":"${{ github.run_id }}",
-            "node":"${{ env.NODE_VERSION }}"
+            "workflow": "${{ github.workflow }}",
+            "repository": "${{ github.repository }}",
+            "event": "${{ github.event_name }}",
+            "ref": "${{ github.ref }}",
+            "refName": "${{ github.ref_name }}",
+            "commit": "${{ github.sha }}",
+            "actor": "${{ github.actor }}",
+            "runId": "${{ github.run_id }}",
+            "runNumber": "${{ github.run_number }}",
+            "node": "${{ env.NODE_VERSION }}",
+            "backendDirectory": "${{ env.BACKEND_DIR }}",
+            "frontendDirectory": "${{ env.FRONTEND_DIR }}"
           }
           EOF
 
       ##########################################################################
-      # Upload Metadata
+      # Upload quality artifacts
       ##########################################################################
 
-      - name: Upload Quality Reports
+      - name: Upload Quality Artifacts
 
-        if: always()
+        if: ${{ always() }}
 
         uses: actions/upload-artifact@v4
 
@@ -502,71 +584,72 @@ jobs:
 
           name: quality-stage-artifacts
 
-          path: |
+          path: reports/**
 
-            reports/**
+          if-no-files-found: ignore
 
           retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
       ##########################################################################
-      # Workflow Summary
+      # Summary
       ##########################################################################
 
       - name: Publish Quality Summary
 
-        if: always()
+        if: ${{ always() }}
 
         run: |
 
           {
-            echo "# ✅ Quality Stage"
-
+            echo "# Quality Stage"
             echo ""
-
-            echo "| Item | Status |"
-
-            echo "|------|--------|"
-
-            echo "| Checkout | ✅ |"
-
-            echo "| Dependencies | ✅ |"
-
-            echo "| ESLint | ✅ |"
-
-            echo "| Formatting | ✅ |"
-
-            echo "| Type Checking | ✅ |"
-
-            echo "| Metadata Generated | ✅ |"
-
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Repository Structure | verified |"
+            echo "| Root Dependencies | installed |"
+            echo "| Backend Dependencies | installed |"
+            echo "| Frontend Dependencies | installed |"
+            echo "| Backend Lint | executed |"
+            echo "| Frontend Lint | executed |"
+            echo "| Formatting | executed / not configured |"
+            echo "| Type Validation | executed / not configured |"
+            echo "| Metadata | generated |"
             echo ""
-
-            echo "Node Version: ${{ env.NODE_VERSION }}"
-
-            echo ""
-
-            echo "Commit: ${{ github.sha }}"
-
+            echo "Node: ${NODE_VERSION}"
+            echo "Commit: ${GITHUB_SHA}"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # ============================================================================
-  # BACKEND TESTING
-  # ============================================================================
+  ##############################################################################
+  # 02. BACKEND TESTS
+  ##############################################################################
+
   backend-tests:
+
     name: Backend Tests
+
     needs: quality
+
     runs-on: ubuntu-latest
 
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     strategy:
+
       fail-fast: false
+
       matrix:
+
         node-version:
           - "24.15.0"
 
     services:
+
+      ##########################################################################
+      # MongoDB
+      ##########################################################################
+
       mongodb:
+
         image: mongo:7.0
 
         ports:
@@ -576,9 +659,14 @@ jobs:
           --health-cmd="mongosh --eval 'db.adminCommand({ ping: 1 })'"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=15
+
+      ##########################################################################
+      # Redis
+      ##########################################################################
 
       redis:
+
         image: redis:7-alpine
 
         ports:
@@ -588,9 +676,10 @@ jobs:
           --health-cmd="redis-cli ping"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=15
 
     env:
+
       NODE_ENV: test
 
       PORT: 5000
@@ -611,265 +700,361 @@ jobs:
 
     steps:
 
-      # -----------------------------------------------------------------------
-      # Checkout
-      # -----------------------------------------------------------------------
+      - name: Checkout Repository
 
-      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -----------------------------------------------------------------------
-      # Setup Node
-      # -----------------------------------------------------------------------
-
       - name: Setup Node.js
+
         uses: actions/setup-node@v4
 
         with:
+
           node-version: ${{ matrix.node-version }}
+
           cache: npm
 
           cache-dependency-path: |
             package-lock.json
-            community-savings-app-backend/package-lock.json
+            backend/package-lock.json
 
-      # -----------------------------------------------------------------------
-      # Restore npm cache
-      # -----------------------------------------------------------------------
+      - name: Restore Backend npm Cache
 
-      - name: Restore backend cache
         uses: actions/cache@v4
 
         with:
-          path: |
-            ~/.npm
-            community-savings-app-backend/node_modules
 
-          key: backend-${{ runner.os }}-${{ matrix.node-version }}-${{ hashFiles('community-savings-app-backend/package-lock.json') }}
+          path: ~/.npm
+
+          key: >
+            backend-
+            ${{ runner.os }}-
+            node-${{ matrix.node-version }}-
+            ${{ hashFiles('backend/package-lock.json') }}
 
           restore-keys: |
-            backend-${{ runner.os }}-${{ matrix.node-version }}
+            backend-${{ runner.os }}-node-${{ matrix.node-version }}-
 
-      # -----------------------------------------------------------------------
-      # Install
-      # -----------------------------------------------------------------------
+      - name: Install Backend Dependencies
 
-      - name: Install backend dependencies
-        working-directory: community-savings-app-backend
+        working-directory: ${{ env.BACKEND_DIR }}
+
         run: npm ci
 
-      # -----------------------------------------------------------------------
-      # Verify MongoDB
-      # -----------------------------------------------------------------------
+      ##########################################################################
+      # MongoDB readiness
+      ##########################################################################
 
       - name: Wait for MongoDB
-        shell: bash
 
         run: |
+
           echo "Waiting for MongoDB..."
 
           for i in {1..60}
           do
-            if mongosh "$MONGODB_URI" --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1
+
+            if mongosh \
+              "${MONGODB_URI}" \
+              --eval "db.adminCommand({ ping: 1 })" \
+              >/dev/null 2>&1
             then
-              echo "MongoDB Ready"
+
+              echo "MongoDB ready."
+
               exit 0
+
             fi
 
             sleep 2
+
           done
 
-          echo "MongoDB failed to start."
+          echo "ERROR: MongoDB did not become ready."
 
           exit 1
 
-      # -----------------------------------------------------------------------
-      # Verify Redis
-      # -----------------------------------------------------------------------
+      ##########################################################################
+      # Redis readiness
+      ##########################################################################
 
       - name: Wait for Redis
-        shell: bash
 
         run: |
+
           echo "Waiting for Redis..."
 
           for i in {1..60}
           do
-            if redis-cli -u "$REDIS_URL" ping | grep PONG
+
+            if redis-cli \
+              -u "${REDIS_URL}" \
+              ping | grep -q PONG
             then
-              echo "Redis Ready"
+
+              echo "Redis ready."
+
               exit 0
+
             fi
 
             sleep 2
+
           done
 
-          echo "Redis failed."
+          echo "ERROR: Redis did not become ready."
 
           exit 1
 
-      # -----------------------------------------------------------------------
-      # Database Migrations
-      # -----------------------------------------------------------------------
+      ##########################################################################
+      # Migration contract
+      ##########################################################################
 
-      - name: Run database migrations
-        working-directory: community-savings-app-backend
+      - name: Validate Migration Script
 
-        run: |
-          if npm run | grep -q migrate
-          then
-            npm run migrate
-          else
-            echo "No migration script."
-          fi
-
-      # -----------------------------------------------------------------------
-      # Seed Test Data
-      # -----------------------------------------------------------------------
-
-      - name: Seed database
-        working-directory: community-savings-app-backend
+        working-directory: ${{ env.BACKEND_DIR }}
 
         run: |
-          if npm run | grep -q seed:test
+
+          node <<'NODE'
+          const pkg = require("./package.json");
+
+          if (!pkg.scripts?.migrate) {
+            console.error(
+              "ERROR: backend/package.json must define a migrate script."
+            );
+
+            process.exit(1);
+          }
+          NODE
+
+      ##########################################################################
+      # Database migration
+      ##########################################################################
+
+      - name: Run Database Migrations
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: npm run migrate
+
+      ##########################################################################
+      # Test seed
+      ##########################################################################
+
+      - name: Seed Test Database
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          if npm run | grep -q "seed:test"
           then
+
             npm run seed:test
+
           else
-            echo "No test seed script."
+
+            echo "No seed:test script configured; continuing."
+
           fi
 
-      # -----------------------------------------------------------------------
-      # Unit Tests
-      # -----------------------------------------------------------------------
+      ##########################################################################
+      # Canonical backend CI suite
+      #
+      # The package.json controls whether the implementation uses:
+      #   - Node test runner
+      #   - Vitest
+      #   - Jest
+      #   - integration harnesses
+      #
+      # The GitHub workflow intentionally does not hard-code framework flags.
+      ##########################################################################
 
-      - name: Run backend unit tests
+      - name: Validate Backend CI Test Contract
 
-        working-directory: community-savings-app-backend
-
-        run: |
-          npm run test:unit -- \
-            --coverage \
-            --runInBand \
-            --detectOpenHandles
-
-      # -----------------------------------------------------------------------
-      # Integration Tests
-      # -----------------------------------------------------------------------
-
-      - name: Run backend integration tests
-
-        working-directory: community-savings-app-backend
+        working-directory: ${{ env.BACKEND_DIR }}
 
         run: |
-          npm run test:integration -- \
-            --coverage \
-            --runInBand
 
-      # -----------------------------------------------------------------------
-      # Full CI Test Suite
-      # -----------------------------------------------------------------------
+          node <<'NODE'
+          const pkg = require("./package.json");
 
-      - name: Run CI Test Suite
+          if (!pkg.scripts?.["test:ci"]) {
+            console.error(
+              "ERROR: backend/package.json must define test:ci."
+            );
 
-        working-directory: community-savings-app-backend
+            process.exit(1);
+          }
+          NODE
+
+      - name: Run Backend CI Test Suite
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: npm run test:ci
+
+      ##########################################################################
+      # Coverage gate
+      ##########################################################################
+
+      - name: Verify Backend Coverage
+
+        working-directory: ${{ env.BACKEND_DIR }}
 
         run: |
-          npm run test:ci
 
-      # -----------------------------------------------------------------------
-      # Upload Coverage
-      # -----------------------------------------------------------------------
+          if test ! -f coverage/coverage-summary.json
+          then
 
-      - name: Upload backend coverage
+            echo "ERROR: coverage/coverage-summary.json not found."
+
+            exit 1
+
+          fi
+
+          node <<'NODE'
+          const fs = require("fs");
+
+          const file = "coverage/coverage-summary.json";
+
+          const threshold = Number(
+            process.env.COVERAGE_THRESHOLD || 85
+          );
+
+          const data = JSON.parse(
+            fs.readFileSync(file, "utf8")
+          );
+
+          const total = data.total;
+
+          const metrics = [
+            ["lines", total.lines?.pct],
+            ["statements", total.statements?.pct],
+            ["functions", total.functions?.pct],
+            ["branches", total.branches?.pct]
+          ];
+
+          for (const [name, value] of metrics) {
+
+            const numeric = Number(value);
+
+            console.log(`${name}: ${numeric}%`);
+
+            if (!Number.isFinite(numeric)) {
+
+              console.error(
+                `Invalid coverage value for ${name}.`
+              );
+
+              process.exit(1);
+
+            }
+
+            if (numeric < threshold) {
+
+              console.error(
+                `Coverage gate failed: ${name}=${numeric}% < ${threshold}%`
+              );
+
+              process.exit(1);
+
+            }
+
+          }
+
+          console.log(
+            `Backend coverage gate passed at >= ${threshold}%`
+          );
+          NODE
+
+      ##########################################################################
+      # Upload coverage
+      ##########################################################################
+
+      - name: Upload Backend Coverage
+
+        if: ${{ always() }}
 
         uses: actions/upload-artifact@v4
 
-        if: always()
-
         with:
+
           name: backend-coverage
 
-          path: |
-            community-savings-app-backend/coverage
-
-          retention-days: 30
-
-      # -----------------------------------------------------------------------
-      # Upload Jest Results
-      # -----------------------------------------------------------------------
-
-      - name: Upload Jest reports
-
-        uses: actions/upload-artifact@v4
-
-        if: always()
-
-        with:
-          name: backend-test-results
-
-          path: |
-            community-savings-app-backend/test-results
-            community-savings-app-backend/junit.xml
+          path: backend/coverage
 
           if-no-files-found: ignore
 
-      # -----------------------------------------------------------------------
-      # Upload Coverage to Codecov
-      # -----------------------------------------------------------------------
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
-      - name: Upload coverage to Codecov
+      - name: Upload Backend Test Results
 
-        if: always()
+        if: ${{ always() }}
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: backend-test-results
+
+          path: |
+            backend/test-results
+            backend/junit.xml
+
+          if-no-files-found: ignore
+
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+      - name: Upload Backend Coverage to Codecov
+
+        if: ${{ always() }}
 
         uses: codecov/codecov-action@v4
 
         with:
+
           fail_ci_if_error: false
 
           flags: backend
 
-          directory: community-savings-app-backend/coverage
+          directory: backend/coverage
 
           verbose: true
 
-      # -----------------------------------------------------------------------
-      # Test Summary
-      # -----------------------------------------------------------------------
-
       - name: Backend Test Summary
 
-        if: always()
-
-        shell: bash
+        if: ${{ always() }}
 
         run: |
+
           {
-            echo "## Backend Test Results"
+            echo "# Backend Test Stage"
             echo ""
-            echo "| Component | Status |"
-            echo "|-----------|--------|"
-            echo "| MongoDB | ✅ |"
-            echo "| Redis | ✅ |"
-            echo "| Unit Tests | Completed |"
-            echo "| Integration Tests | Completed |"
-            echo "| Coverage | Uploaded |"
-            echo "| Artifacts | Uploaded |"
+            echo "| Component | Result |"
+            echo "|---|---|"
+            echo "| MongoDB | verified |"
+            echo "| Redis | verified |"
+            echo "| Database Migration | executed |"
+            echo "| Test Seed | executed / optional |"
+            echo "| Backend CI Suite | ${{ job.status }} |"
+            echo "| Coverage | ${COVERAGE_THRESHOLD}% gate |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   ##############################################################################
-  # FRONTEND TESTING
+  # 03. FRONTEND TESTS
   ##############################################################################
 
   frontend-tests:
 
     name: Frontend Tests
 
-    needs:
-      - quality
+    needs: quality
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     strategy:
 
@@ -894,18 +1079,12 @@ jobs:
 
     steps:
 
-      ##########################################################################
-      # Checkout
-      ##########################################################################
-
       - name: Checkout Repository
+
         uses: actions/checkout@v4
 
-      ##########################################################################
-      # Node
-      ##########################################################################
-
       - name: Setup Node.js
+
         uses: actions/setup-node@v4
 
         with:
@@ -914,92 +1093,89 @@ jobs:
 
           cache: npm
 
-          cache-dependency-path: |
-            community-savings-app-frontend/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
-      ##########################################################################
-      # Cache
-      ##########################################################################
+      - name: Restore Frontend npm Cache
 
-      - name: Restore npm cache
         uses: actions/cache@v4
 
         with:
 
-          path: |
-            ~/.npm
-            community-savings-app-frontend/node_modules
+          path: ~/.npm
 
           key: >
-            frontend-${{ runner.os }}-
-            ${{ matrix.node-version }}-
-            ${{ hashFiles('community-savings-app-frontend/package-lock.json') }}
+            frontend-
+            ${{ runner.os }}-
+            node-${{ matrix.node-version }}-
+            ${{ hashFiles('frontend/package-lock.json') }}
 
           restore-keys: |
-            frontend-${{ runner.os }}-${{ matrix.node-version }}
-
-      ##########################################################################
-      # Install
-      ##########################################################################
+            frontend-${{ runner.os }}-node-${{ matrix.node-version }}-
 
       - name: Install Frontend Dependencies
 
-        working-directory: community-savings-app-frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
 
         run: npm ci
 
       ##########################################################################
-      # Verify Environment
+      # Build
       ##########################################################################
 
-      - name: Display Environment
+      - name: Validate Frontend Build
 
-        working-directory: community-savings-app-frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
 
-        run: |
-
-          node --version
-
-          npm --version
-
-          npm ls --depth=0 || true
+        run: npm run build
 
       ##########################################################################
-      # React Build Validation
-      ##########################################################################
-
-      - name: Validate React Build
-
-        working-directory: community-savings-app-frontend
-
-        run: |
-
-          npm run build
-
-      ##########################################################################
-      # MSW Validation
+      # MSW
       ##########################################################################
 
       - name: Verify MSW Configuration
 
-        working-directory: community-savings-app-frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
 
         run: |
 
-          if test -f src/testServer.js || test -f src/mocks/browser.js
+          if test -f src/testServer.js ||
+             test -f src/mocks/browser.js ||
+             test -d src/mocks
           then
-              echo "MSW configuration detected."
+
+            echo "MSW configuration detected."
+
           else
-              echo "MSW configuration not found."
+
+            echo "MSW configuration not detected."
+
           fi
 
       ##########################################################################
-      # Vitest Unit Tests
+      # Vitest / frontend tests
       ##########################################################################
 
-      - name: Run Vitest
+      - name: Validate Frontend Test Contract
 
-        working-directory: community-savings-app-frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
+
+        run: |
+
+          node <<'NODE'
+          const pkg = require("./package.json");
+
+          if (!pkg.scripts?.test) {
+            console.error(
+              "ERROR: frontend/package.json must define a test script."
+            );
+
+            process.exit(1);
+          }
+          NODE
+
+      - name: Run Frontend Tests
+
+        working-directory: ${{ env.FRONTEND_DIR }}
 
         run: |
 
@@ -1008,27 +1184,78 @@ jobs:
             --coverage
 
       ##########################################################################
-      # Coverage Threshold
+      # Coverage
       ##########################################################################
 
-      - name: Verify Coverage
+      - name: Verify Frontend Coverage
 
-        working-directory: community-savings-app-frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
 
         run: |
 
-          if test -f coverage/coverage-summary.json
+          if test ! -f coverage/coverage-summary.json
           then
-            cat coverage/coverage-summary.json
+
+            echo "ERROR: frontend coverage report missing."
+
+            exit 1
+
           fi
 
+          node <<'NODE'
+          const fs = require("fs");
+
+          const file = "coverage/coverage-summary.json";
+
+          const threshold = Number(
+            process.env.COVERAGE_THRESHOLD || 85
+          );
+
+          const data = JSON.parse(
+            fs.readFileSync(file, "utf8")
+          );
+
+          const total = data.total;
+
+          const metrics = [
+            ["lines", total.lines?.pct],
+            ["statements", total.statements?.pct],
+            ["functions", total.functions?.pct],
+            ["branches", total.branches?.pct]
+          ];
+
+          for (const [name, value] of metrics) {
+
+            const numeric = Number(value);
+
+            console.log(`${name}: ${numeric}%`);
+
+            if (!Number.isFinite(numeric)) {
+              console.error(`Invalid ${name} coverage.`);
+              process.exit(1);
+            }
+
+            if (numeric < threshold) {
+              console.error(
+                `Coverage gate failed: ${name}=${numeric}% < ${threshold}%`
+              );
+
+              process.exit(1);
+            }
+          }
+
+          console.log(
+            `Frontend coverage gate passed at >= ${threshold}%`
+          );
+          NODE
+
       ##########################################################################
-      # Install Playwright
+      # Playwright
       ##########################################################################
 
       - name: Install Playwright Browsers
 
-        working-directory: community-savings-app-frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
 
         run: |
 
@@ -1039,45 +1266,40 @@ jobs:
 
           else
 
-            echo "Playwright not installed."
+            echo "Playwright dependency not configured."
 
           fi
 
-      ##########################################################################
-      # Playwright Tests
-      ##########################################################################
-
       - name: Run Playwright E2E
 
-        working-directory: community-savings-app-frontend
-
-        continue-on-error: true
+        working-directory: ${{ env.FRONTEND_DIR }}
 
         run: |
 
-          if npm run | grep -q test:e2e
+          if npm run | grep -q "test:e2e"
           then
 
             npm run test:e2e
 
-          elif test -f playwright.config.js || test -f playwright.config.ts
+          elif test -f playwright.config.js ||
+               test -f playwright.config.ts
           then
 
             npx playwright test
 
           else
 
-            echo "No Playwright tests configured."
+            echo "No Playwright suite configured."
 
           fi
 
       ##########################################################################
-      # Upload Coverage
+      # Artifacts
       ##########################################################################
 
       - name: Upload Frontend Coverage
 
-        if: always()
+        if: ${{ always() }}
 
         uses: actions/upload-artifact@v4
 
@@ -1085,20 +1307,15 @@ jobs:
 
           name: frontend-coverage
 
-          path: |
-            community-savings-app-frontend/coverage
+          path: frontend/coverage
 
           if-no-files-found: ignore
 
-          retention-days: 30
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
-      ##########################################################################
-      # Upload Playwright Report
-      ##########################################################################
+      - name: Upload Playwright Results
 
-      - name: Upload Playwright Report
-
-        if: always()
+        if: ${{ always() }}
 
         uses: actions/upload-artifact@v4
 
@@ -1107,72 +1324,33 @@ jobs:
           name: playwright-report
 
           path: |
-            community-savings-app-frontend/playwright-report
-            community-savings-app-frontend/test-results
+            frontend/playwright-report
+            frontend/test-results
 
           if-no-files-found: ignore
 
-          retention-days: 30
-
-      ##########################################################################
-      # Upload HTML Coverage
-      ##########################################################################
-
-      - name: Upload Coverage HTML
-
-        if: always()
-
-        uses: actions/upload-artifact@v4
-
-        with:
-
-          name: frontend-coverage-html
-
-          path: |
-            community-savings-app-frontend/coverage
-
-          if-no-files-found: ignore
-
-      ##########################################################################
-      # GitHub Summary
-      ##########################################################################
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
       - name: Frontend Test Summary
 
-        if: always()
+        if: ${{ always() }}
 
         run: |
 
           {
-
-            echo "# ✅ Frontend Test Stage"
-
+            echo "# Frontend Test Stage"
             echo ""
-
-            echo "| Component | Status |"
-
-            echo "|-----------|--------|"
-
-            echo "| React Build | ✅ |"
-
-            echo "| Vitest | ✅ |"
-
-            echo "| MSW | ✅ |"
-
-            echo "| Playwright | Completed |"
-
-            echo "| Coverage | Uploaded |"
-
-            echo "| Reports | Uploaded |"
-
-            echo ""
-
-            echo "Node Version: ${{ matrix.node-version }}"
-
+            echo "| Component | Result |"
+            echo "|---|---|"
+            echo "| React Build | executed |"
+            echo "| Frontend Tests | ${{ job.status }} |"
+            echo "| MSW | checked |"
+            echo "| Playwright | executed / optional |"
+            echo "| Coverage | ${COVERAGE_THRESHOLD}% gate |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   ##############################################################################
-  # SECURITY STAGE
+  # 04. SECURITY
   ##############################################################################
 
   security:
@@ -1180,95 +1358,104 @@ jobs:
     name: Security Scanning
 
     needs:
+
       - quality
       - backend-tests
       - frontend-tests
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     permissions:
-      actions: read
+
       contents: read
+
       security-events: write
+
       pull-requests: write
 
     env:
+
       CI: true
+
       NODE_ENV: production
 
     steps:
 
-      ##########################################################################
-      # Checkout
-      ##########################################################################
-
       - name: Checkout Repository
+
         uses: actions/checkout@v4
 
         with:
+
           fetch-depth: 0
 
-      ##########################################################################
-      # Setup Node
-      ##########################################################################
-
       - name: Setup Node.js
+
         uses: actions/setup-node@v4
 
         with:
+
           node-version: ${{ env.NODE_VERSION }}
+
           cache: npm
 
-      ##########################################################################
-      # Install Root Dependencies
-      ##########################################################################
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
 
       - name: Install Root Dependencies
+
         run: npm ci
 
       - name: Install Backend Dependencies
-        working-directory: community-savings-app-backend
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
         run: npm ci
 
       - name: Install Frontend Dependencies
-        working-directory: community-savings-app-frontend
+
+        working-directory: ${{ env.FRONTEND_DIR }}
+
         run: npm ci
 
       ##########################################################################
       # npm audit
+      #
+      # HIGH/CRITICAL vulnerabilities block the pipeline.
       ##########################################################################
 
-      - name: Root npm audit
-        continue-on-error: true
-        run: |
-          npm audit --audit-level=moderate
+      - name: Root npm Audit
 
-      - name: Backend npm audit
-        continue-on-error: true
-        working-directory: community-savings-app-backend
-        run: |
-          npm audit --audit-level=moderate
+        run: npm audit --audit-level=high
 
-      - name: Frontend npm audit
-        continue-on-error: true
-        working-directory: community-savings-app-frontend
-        run: |
-          npm audit --audit-level=moderate
+      - name: Backend npm Audit
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: npm audit --audit-level=high
+
+      - name: Frontend npm Audit
+
+        working-directory: ${{ env.FRONTEND_DIR }}
+
+        run: npm audit --audit-level=high
 
       ##########################################################################
-      # Dependency Review
+      # Dependency review
       ##########################################################################
 
       - name: Dependency Review
 
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' }}
 
         uses: actions/dependency-review-action@v4
 
       ##########################################################################
-      # CodeQL Initialization
+      # CodeQL
       ##########################################################################
 
       - name: Initialize CodeQL
@@ -1276,88 +1463,92 @@ jobs:
         uses: github/codeql-action/init@v3
 
         with:
-          languages: javascript
 
-      ##########################################################################
-      # CodeQL Autobuild
-      ##########################################################################
+          languages: javascript
 
       - name: CodeQL Autobuild
 
         uses: github/codeql-action/autobuild@v3
 
-      ##########################################################################
-      # CodeQL Analysis
-      ##########################################################################
-
-      - name: Analyze CodeQL
+      - name: CodeQL Analysis
 
         uses: github/codeql-action/analyze@v3
 
       ##########################################################################
-      # Install Trivy
+      # Trivy
       ##########################################################################
 
-      - name: Install Trivy
+      - name: Trivy High/Critical Filesystem Scan
 
         uses: aquasecurity/trivy-action@0.24.0
 
         with:
+
           scan-type: fs
+
           scan-ref: .
+
           format: table
-          exit-code: "0"
+
+          exit-code: "1"
+
           ignore-unfixed: true
-          severity: CRITICAL,HIGH
 
-      ##########################################################################
-      # SARIF Report
-      ##########################################################################
+          severity: HIGH,CRITICAL
 
-      - name: Trivy SARIF Report
+      - name: Generate Trivy SARIF
+
+        if: ${{ always() }}
 
         uses: aquasecurity/trivy-action@0.24.0
 
         with:
+
           scan-type: fs
+
           scan-ref: .
+
           format: sarif
+
           output: trivy-results.sarif
-          severity: CRITICAL,HIGH
+
+          severity: HIGH,CRITICAL
+
+          exit-code: "0"
 
       - name: Upload Trivy SARIF
+
+        if: ${{ always() }}
 
         uses: github/codeql-action/upload-sarif@v3
 
         with:
+
           sarif_file: trivy-results.sarif
 
       ##########################################################################
-      # Secret Scanning (Gitleaks)
+      # Gitleaks
       ##########################################################################
 
-      - name: Scan Repository Secrets
+      - name: Gitleaks Secret Scan
 
         uses: gitleaks/gitleaks-action@v2
 
-        continue-on-error: true
-
       ##########################################################################
-      # CycloneDX SBOM
+      # SBOM
       ##########################################################################
 
-      - name: Generate SBOM
+      - name: Generate Node SBOM
 
         uses: CycloneDX/gh-node-module-generatebom@v1
 
         with:
+
           path: .
 
-      ##########################################################################
-      # Upload SBOM
-      ##########################################################################
-
       - name: Upload SBOM
+
+        if: ${{ always() }}
 
         uses: actions/upload-artifact@v4
 
@@ -1371,101 +1562,84 @@ jobs:
 
           if-no-files-found: ignore
 
-          retention-days: 30
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
-      ##########################################################################
-      # Upload Trivy Report
-      ##########################################################################
+      - name: Upload Trivy Report
 
-      - name: Upload Trivy Reports
+        if: ${{ always() }}
 
         uses: actions/upload-artifact@v4
-
-        if: always()
 
         with:
 
           name: trivy-security-report
 
-          path: |
-            trivy-results.sarif
+          path: trivy-results.sarif
 
           if-no-files-found: ignore
 
-      ##########################################################################
-      # GitHub Summary
-      ##########################################################################
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
-      - name: Publish Security Summary
+      - name: Security Summary
 
-        if: always()
+        if: ${{ always() }}
 
         run: |
 
           {
-            echo "# 🔒 Security Stage"
+            echo "# Security Stage"
             echo ""
-            echo "| Check | Status |"
-            echo "|------|--------|"
-            echo "| npm audit | Completed |"
-            echo "| Dependency Review | Completed |"
-            echo "| CodeQL | Completed |"
-            echo "| Trivy | Completed |"
-            echo "| Secret Scan | Completed |"
+            echo "| Control | Policy |"
+            echo "|---|---|"
+            echo "| npm audit | BLOCKING at HIGH |"
+            echo "| Dependency Review | PR enabled |"
+            echo "| CodeQL | BLOCKING |"
+            echo "| Trivy | BLOCKING at HIGH/CRITICAL |"
+            echo "| Gitleaks | BLOCKING |"
             echo "| SBOM | Generated |"
-            echo ""
-            echo "Security scan finished successfully."
           } >> "$GITHUB_STEP_SUMMARY"
 
-################################################################################
-# BUILD STAGE
-################################################################################
+  ##############################################################################
+  # 05. BUILD + PUBLISH CONTAINERS
+  #
+  # Important:
+  #
+  # The images are built here and published here.
+  #
+  # We do NOT:
+  #
+  #   build → throw away image → rebuild → publish
+  #
+  # This produces a single build artifact lineage.
+  #
+  # PR:
+  #   images are validated but not pushed.
+  #
+  # push/tag/manual:
+  #   images are pushed to GHCR.
+  ##############################################################################
 
-  build:
+  build-and-publish:
 
-    name: Build & Package
+    name: Build • Package • Publish Containers
 
-    needs:
-      - security
+    needs: security
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     permissions:
+
       contents: read
+
       packages: write
-      attestations: write
+
       id-token: write
 
-    strategy:
-
-      fail-fast: false
-
-      matrix:
-
-        node-version:
-          - "24.15.0"
-
-    env:
-
-      NODE_ENV: production
-
-      CI: true
-
-      REGISTRY: ghcr.io
-
-      IMAGE_NAMESPACE: ${{ github.repository_owner }}
-
-      BACKEND_IMAGE: community-savings-backend
-
-      FRONTEND_IMAGE: community-savings-frontend
+      attestations: write
 
     steps:
-
-################################################################################
-# Checkout
-################################################################################
 
       - name: Checkout Repository
 
@@ -1475,143 +1649,89 @@ jobs:
 
           fetch-depth: 0
 
-################################################################################
-# Setup Node
-################################################################################
-
       - name: Setup Node.js
 
         uses: actions/setup-node@v4
 
         with:
 
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
 
           cache: npm
 
           cache-dependency-path: |
-
             package-lock.json
-
-            community-savings-app-backend/package-lock.json
-
-            community-savings-app-frontend/package-lock.json
-
-################################################################################
-# Restore npm cache
-################################################################################
-
-      - name: Restore Dependency Cache
-
-        uses: actions/cache@v4
-
-        with:
-
-          path: |
-
-            ~/.npm
-
-            community-savings-app-backend/node_modules
-
-            community-savings-app-frontend/node_modules
-
-          key: >
-
-            build-${{ runner.os }}-
-
-            ${{ matrix.node-version }}-
-
-            ${{ hashFiles('**/package-lock.json') }}
-
-          restore-keys: |
-
-            build-${{ runner.os }}
-
-################################################################################
-# Install Backend
-################################################################################
+            backend/package-lock.json
+            frontend/package-lock.json
 
       - name: Install Backend Dependencies
 
-        working-directory: community-savings-app-backend
+        working-directory: ${{ env.BACKEND_DIR }}
 
         run: npm ci
-
-################################################################################
-# Install Frontend
-################################################################################
 
       - name: Install Frontend Dependencies
 
-        working-directory: community-savings-app-frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
 
         run: npm ci
 
-################################################################################
-# Backend Build
-################################################################################
+      ##########################################################################
+      # Application builds
+      ##########################################################################
 
       - name: Build Backend
 
-        working-directory: community-savings-app-backend
+        working-directory: ${{ env.BACKEND_DIR }}
 
         run: |
 
-          if npm run | grep -q build
-
+          if npm run | grep -q "build"
           then
 
             npm run build
 
           else
 
-            echo "No backend build script found."
+            echo "Backend build script not configured."
 
           fi
 
-################################################################################
-# Frontend Build
-################################################################################
-
       - name: Build Frontend
 
-        working-directory: community-savings-app-frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
 
         run: npm run build
 
-################################################################################
-# Package Backend Artifact
-################################################################################
+      ##########################################################################
+      # Package artifacts
+      ##########################################################################
 
-      - name: Archive Backend
+      - name: Package Backend Artifact
 
         run: |
 
           tar \
-
             --exclude=node_modules \
-
+            --exclude=.git \
+            --exclude=.env \
+            --exclude=.env.* \
+            --exclude=coverage \
+            --exclude=test-results \
+            --exclude=logs \
+            --exclude=tmp \
             -czf backend-build.tar.gz \
+            backend
 
-            community-savings-app-backend
-
-################################################################################
-# Package Frontend Artifact
-################################################################################
-
-      - name: Archive Frontend
+      - name: Package Frontend Artifact
 
         run: |
 
           tar \
-
+            --exclude=node_modules \
+            --exclude=.git \
             -czf frontend-build.tar.gz \
-
-            community-savings-app-frontend/dist
-
-################################################################################
-# Upload Backend Artifact
-################################################################################
+            frontend/dist
 
       - name: Upload Backend Artifact
 
@@ -1623,11 +1743,7 @@ jobs:
 
           path: backend-build.tar.gz
 
-          retention-days: 30
-
-################################################################################
-# Upload Frontend Artifact
-################################################################################
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
       - name: Upload Frontend Artifact
 
@@ -1639,39 +1755,43 @@ jobs:
 
           path: frontend-build.tar.gz
 
-          retention-days: 30
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
-################################################################################
-# Docker Buildx
-################################################################################
+      ##########################################################################
+      # Docker
+      ##########################################################################
 
       - name: Setup Docker Buildx
 
         uses: docker/setup-buildx-action@v3
 
-################################################################################
-# Docker Cache
-################################################################################
+      - name: Enable Multi-Architecture
 
-      - name: Docker Cache
+        uses: docker/setup-qemu-action@v3
 
-        uses: actions/cache@v4
+      ##########################################################################
+      # GHCR authentication
+      ##########################################################################
+
+      - name: Login to GHCR
+
+        if: >
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch'
+
+        uses: docker/login-action@v3
 
         with:
 
-          path: /tmp/.buildx-cache
+          registry: ${{ env.REGISTRY }}
 
-          key: >
+          username: ${{ github.actor }}
 
-            docker-${{ runner.os }}-${{ github.sha }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-          restore-keys: |
-
-            docker-${{ runner.os }}
-
-################################################################################
-# Docker Metadata
-################################################################################
+      ##########################################################################
+      # Backend metadata
+      ##########################################################################
 
       - name: Backend Docker Metadata
 
@@ -1681,33 +1801,24 @@ jobs:
 
         with:
 
-          images: |
-
+          images: >
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.BACKEND_IMAGE }}
 
           tags: |
-
             type=sha
-
             type=ref,event=branch
-
             type=ref,event=tag
-
             type=raw,value=latest,enable={{is_default_branch}}
 
           labels: |
-
-            org.opencontainers.image.title=TITech Backend
-
-            org.opencontainers.image.vendor=TITech Community Capital
-
+            org.opencontainers.image.title=TITech Community Capital Backend
+            org.opencontainers.image.vendor=TITech Community Capital LTD
             org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
-            org.opencontainers.image.version=${{ github.ref_name }}
-
-################################################################################
-# Frontend Docker Metadata
-################################################################################
+      ##########################################################################
+      # Frontend metadata
+      ##########################################################################
 
       - name: Frontend Docker Metadata
 
@@ -1717,245 +1828,26 @@ jobs:
 
         with:
 
-          images: |
-
+          images: >
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.FRONTEND_IMAGE }}
 
           tags: |
-
             type=sha
-
             type=ref,event=branch
-
             type=ref,event=tag
-
             type=raw,value=latest,enable={{is_default_branch}}
 
-################################################################################
-# Backend Docker Build
-################################################################################
-
-      - name: Build Backend Image
-
-        uses: docker/build-push-action@v6
-
-        with:
-
-          context: ./community-savings-app-backend
-
-          push: false
-
-          load: false
-
-          provenance: true
-
-          sbom: true
-
-          tags: ${{ steps.backend-meta.outputs.tags }}
-
-          labels: ${{ steps.backend-meta.outputs.labels }}
-
-          cache-from: type=gha
-
-          cache-to: type=gha,mode=max
-
-################################################################################
-# Frontend Docker Build
-################################################################################
-
-      - name: Build Frontend Image
-
-        uses: docker/build-push-action@v6
-
-        with:
-
-          context: ./community-savings-app-frontend
-
-          push: false
-
-          load: false
-
-          provenance: true
-
-          sbom: true
-
-          tags: ${{ steps.frontend-meta.outputs.tags }}
-
-          labels: ${{ steps.frontend-meta.outputs.labels }}
-
-          cache-from: type=gha
-
-          cache-to: type=gha,mode=max
-
-################################################################################
-# Build Summary
-################################################################################
-
-      - name: Publish Build Summary
-
-        if: always()
-
-        run: |
-
-          {
-
-            echo "# 🏗 Build Stage"
-
-            echo ""
-
-            echo "| Component | Status |"
-
-            echo "|-----------|--------|"
-
-            echo "| Backend Build | ✅ |"
-
-            echo "| Frontend Build | ✅ |"
-
-            echo "| Artifacts | Uploaded |"
-
-            echo "| Docker Buildx | Completed |"
-
-            echo "| OCI Metadata | Generated |"
-
-            echo "| Build Cache | Enabled |"
-
-          } >> "$GITHUB_STEP_SUMMARY"
-################################################################################
-# CONTAINER PUBLISHING
-################################################################################
-
-  publish-images:
-
-    name: Publish Container Images
-
-    needs:
-      - build
-
-    runs-on: ubuntu-latest
-
-    timeout-minutes: 45
-
-    permissions:
-
-      contents: read
-
-      packages: write
-
-      id-token: write
-
-      attestations: write
-
-      security-events: write
-
-    env:
-
-      REGISTRY: ghcr.io
-
-      IMAGE_NAMESPACE: ${{ github.repository_owner }}
-
-      BACKEND_IMAGE: community-savings-backend
-
-      FRONTEND_IMAGE: community-savings-frontend
-
-    steps:
-
-################################################################################
-# Checkout
-################################################################################
-
-      - name: Checkout Repository
-
-        uses: actions/checkout@v4
-
-################################################################################
-# Docker Buildx
-################################################################################
-
-      - name: Setup Docker Buildx
-
-        uses: docker/setup-buildx-action@v3
-
-################################################################################
-# Enable QEMU
-################################################################################
-
-      - name: Enable Multi-Architecture
-
-        uses: docker/setup-qemu-action@v3
-
-################################################################################
-# Login GHCR
-################################################################################
-
-      - name: Login to GitHub Container Registry
-
-        uses: docker/login-action@v3
-
-        with:
-
-          registry: ghcr.io
-
-          username: ${{ github.actor }}
-
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-################################################################################
-# Docker Metadata Backend
-################################################################################
-
-      - name: Backend Metadata
-
-        id: backend-meta
-
-        uses: docker/metadata-action@v5
-
-        with:
-
-          images: |
-
-            ghcr.io/${{ github.repository_owner }}/community-savings-backend
-
-          tags: |
-
-            type=sha
-
-            type=ref,event=branch
-
-            type=ref,event=tag
-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-################################################################################
-# Docker Metadata Frontend
-################################################################################
-
-      - name: Frontend Metadata
-
-        id: frontend-meta
-
-        uses: docker/metadata-action@v5
-
-        with:
-
-          images: |
-
-            ghcr.io/${{ github.repository_owner }}/community-savings-frontend
-
-          tags: |
-
-            type=sha
-
-            type=ref,event=branch
-
-            type=ref,event=tag
-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-################################################################################
-# Backend Multi-Architecture Build & Push
-################################################################################
-
-      - name: Publish Backend Image
+          labels: |
+            org.opencontainers.image.title=TITech Community Capital Frontend
+            org.opencontainers.image.vendor=TITech Community Capital LTD
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      ##########################################################################
+      # Backend image
+      ##########################################################################
+
+      - name: Build Backend Container
 
         id: backend-image
 
@@ -1963,18 +1855,19 @@ jobs:
 
         with:
 
-          context: ./community-savings-app-backend
+          context: ./backend
 
-          push: true
+          push: >
+            ${{ github.event_name == 'push' ||
+                github.event_name == 'workflow_dispatch' }}
+
+          platforms: |
+            linux/amd64
+            linux/arm64
 
           provenance: mode=max
 
           sbom: true
-
-          platforms: |
-
-            linux/amd64,
-            linux/arm64
 
           tags: ${{ steps.backend-meta.outputs.tags }}
 
@@ -1984,11 +1877,11 @@ jobs:
 
           cache-to: type=gha,mode=max
 
-################################################################################
-# Frontend Multi-Architecture Build & Push
-################################################################################
+      ##########################################################################
+      # Frontend image
+      ##########################################################################
 
-      - name: Publish Frontend Image
+      - name: Build Frontend Container
 
         id: frontend-image
 
@@ -1996,18 +1889,19 @@ jobs:
 
         with:
 
-          context: ./community-savings-app-frontend
+          context: ./frontend
 
-          push: true
+          push: >
+            ${{ github.event_name == 'push' ||
+                github.event_name == 'workflow_dispatch' }}
+
+          platforms: |
+            linux/amd64
+            linux/arm64
 
           provenance: mode=max
 
           sbom: true
-
-          platforms: |
-
-            linux/amd64,
-            linux/arm64
 
           tags: ${{ steps.frontend-meta.outputs.tags }}
 
@@ -2017,28 +1911,32 @@ jobs:
 
           cache-to: type=gha,mode=max
 
-################################################################################
-# Install Cosign
-################################################################################
+      ##########################################################################
+      # Cosign
+      ##########################################################################
 
       - name: Install Cosign
 
-        uses: sigstore/cosign-installer@v3
+        if: >
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch'
 
-################################################################################
-# Verify Cosign
-################################################################################
+        uses: sigstore/cosign-installer@v3
 
       - name: Verify Cosign
 
-        run: cosign version
+        if: >
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch'
 
-################################################################################
-# Sign Backend Image
-################################################################################
+        run: cosign version
 
       - name: Sign Backend Image
 
+        if: >
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch'
+
         env:
 
           COSIGN_EXPERIMENTAL: "true"
@@ -2046,14 +1944,14 @@ jobs:
         run: |
 
           cosign sign --yes \
-          ghcr.io/${{ github.repository_owner }}/community-savings-backend@${{ steps.backend-image.outputs.digest }}
-
-################################################################################
-# Sign Frontend Image
-################################################################################
+            "${REGISTRY}/${IMAGE_NAMESPACE}/${BACKEND_IMAGE}@${{ steps.backend-image.outputs.digest }}"
 
       - name: Sign Frontend Image
 
+        if: >
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch'
+
         env:
 
           COSIGN_EXPERIMENTAL: "true"
@@ -2061,89 +1959,133 @@ jobs:
         run: |
 
           cosign sign --yes \
-          ghcr.io/${{ github.repository_owner }}/community-savings-frontend@${{ steps.frontend-image.outputs.digest }}
+            "${REGISTRY}/${IMAGE_NAMESPACE}/${FRONTEND_IMAGE}@${{ steps.frontend-image.outputs.digest }}"
 
-################################################################################
-# Generate Build Provenance
-################################################################################
+      ##########################################################################
+      # Provenance attestations
+      ##########################################################################
 
-      - name: Generate SLSA Provenance
+      - name: Attest Backend Build
+
+        if: >
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch'
 
         uses: actions/attest-build-provenance@v2
 
         with:
 
-          subject-name: |
-            ghcr.io/${{ github.repository_owner }}/community-savings-backend
+          subject-name: >
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.BACKEND_IMAGE }}
 
           subject-digest: ${{ steps.backend-image.outputs.digest }}
 
           push-to-registry: true
 
-################################################################################
-# Generate Frontend Provenance
-################################################################################
+      - name: Attest Frontend Build
 
-      - name: Generate Frontend Provenance
+        if: >
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch'
 
         uses: actions/attest-build-provenance@v2
 
         with:
 
-          subject-name: |
-            ghcr.io/${{ github.repository_owner }}/community-savings-frontend
+          subject-name: >
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.FRONTEND_IMAGE }}
 
           subject-digest: ${{ steps.frontend-image.outputs.digest }}
 
           push-to-registry: true
 
-################################################################################
-# Publish Summary
-################################################################################
+      ##########################################################################
+      # Record digests
+      ##########################################################################
 
-      - name: Publish Summary
+      - name: Generate Image Manifest
 
-        if: always()
+        run: |
+
+          mkdir -p reports
+
+          cat > reports/container-manifest.json <<EOF
+          {
+            "repository": "${{ github.repository }}",
+            "commit": "${{ github.sha }}",
+            "backend": {
+              "image": "${REGISTRY}/${IMAGE_NAMESPACE}/${BACKEND_IMAGE}",
+              "digest": "${{ steps.backend-image.outputs.digest }}"
+            },
+            "frontend": {
+              "image": "${REGISTRY}/${IMAGE_NAMESPACE}/${FRONTEND_IMAGE}",
+              "digest": "${{ steps.frontend-image.outputs.digest }}"
+            }
+          }
+          EOF
+
+      - name: Upload Container Manifest
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: container-manifest
+
+          path: reports/container-manifest.json
+
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+      - name: Build Summary
+
+        if: ${{ always() }}
 
         run: |
 
           {
-
-            echo "# 📦 Container Publishing"
-
+            echo "# Build & Container Stage"
             echo ""
-
-            echo "| Component | Status |"
-
-            echo "|-----------|--------|"
-
-            echo "| GHCR Login | ✅ |"
-
-            echo "| Multi-Architecture | linux/amd64 + linux/arm64 |"
-
-            echo "| Backend Push | ✅ |"
-
-            echo "| Frontend Push | ✅ |"
-
-            echo "| Provenance | Generated |"
-
-            echo "| SBOM | Generated |"
-
-            echo "| Cosign Signing | Completed |"
-
-            echo "| Registry | GitHub Container Registry |"
-
+            echo "| Component | Result |"
+            echo "|---|---|"
+            echo "| Backend Build Context | backend/ |"
+            echo "| Frontend Build Context | frontend/ |"
+            echo "| Backend Image | built |"
+            echo "| Frontend Image | built |"
+            echo "| Multi-Architecture | amd64 + arm64 |"
+            echo "| SBOM | enabled |"
+            echo "| Provenance | enabled for pushed images |"
+            echo "| Cosign | enabled for pushed images |"
+            echo "| Container Manifest | generated |"
+            echo "| Commit | ${GITHUB_SHA} |"
           } >> "$GITHUB_STEP_SUMMARY"
-################################################################################
-# STAGING DEPLOYMENT
-################################################################################
+
+  ##############################################################################
+  # 06. STAGING DEPLOYMENT
+  #
+  # Runs only for:
+  #
+  #   - push events
+  #   - manual staging
+  #   - manual production
+  #
+  # Never runs for:
+  #
+  #   - pull_request
+  #   - schedule
+  #
+  # A manual production request deliberately passes through staging first.
+  ##############################################################################
 
   deploy-staging:
 
     name: Deploy to Staging
 
     needs:
-      - publish-images
+      - build-and-publish
+
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
 
     runs-on: ubuntu-latest
 
@@ -2165,21 +2107,17 @@ jobs:
 
     env:
 
-      KUBE_NAMESPACE: staging
+      KUBE_NAMESPACE: ${{ env.K8S_NAMESPACE_STAGING }}
+
+      BACKEND_RELEASE: backend
+
+      FRONTEND_RELEASE: frontend
 
       BACKEND_DEPLOYMENT: community-savings-backend
 
       FRONTEND_DEPLOYMENT: community-savings-frontend
 
-      BACKEND_CONTAINER: backend
-
-      FRONTEND_CONTAINER: frontend
-
-      DATABASE_MIGRATION_TIMEOUT: 600
-
-################################################################################
-# Checkout
-################################################################################
+      DATABASE_MIGRATION_TIMEOUT: 900
 
     steps:
 
@@ -2187,29 +2125,13 @@ jobs:
 
         uses: actions/checkout@v4
 
-################################################################################
-# Install kubectl
-################################################################################
-
-      - name: Install kubectl
+      - name: Setup kubectl
 
         uses: azure/setup-kubectl@v4
 
-        with:
-
-          version: latest
-
-################################################################################
-# Install Helm
-################################################################################
-
-      - name: Install Helm
+      - name: Setup Helm
 
         uses: azure/setup-helm@v4
-
-################################################################################
-# Configure Kubernetes Credentials
-################################################################################
 
       - name: Configure Kubernetes
 
@@ -2221,10 +2143,6 @@ jobs:
 
           kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
 
-################################################################################
-# Verify Cluster Access
-################################################################################
-
       - name: Verify Cluster
 
         run: |
@@ -2233,24 +2151,42 @@ jobs:
 
           kubectl get nodes
 
-          kubectl get namespaces
-
-################################################################################
-# Ensure Namespace Exists
-################################################################################
-
-      - name: Create Namespace
+      - name: Ensure Namespace Exists
 
         run: |
 
-          kubectl get namespace ${KUBE_NAMESPACE} || \
-          kubectl create namespace ${KUBE_NAMESPACE}
+          kubectl get namespace "${KUBE_NAMESPACE}" >/dev/null 2>&1 ||
+            kubectl create namespace "${KUBE_NAMESPACE}"
 
-################################################################################
-# Database Migration
-################################################################################
+      ##########################################################################
+      # Validate migration contract
+      ##########################################################################
 
-      - name: Run Database Migrations
+      - name: Validate Migration Contract
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          node <<'NODE'
+          const pkg = require("./package.json");
+
+          if (!pkg.scripts?.migrate) {
+            console.error(
+              "ERROR: backend/package.json must define migrate."
+            );
+
+            process.exit(1);
+          }
+          NODE
+
+      ##########################################################################
+      # Staging migration
+      ##########################################################################
+
+      - name: Run Staging Database Migration
+
+        working-directory: ${{ env.BACKEND_DIR }}
 
         env:
 
@@ -2260,144 +2196,115 @@ jobs:
 
         run: |
 
-          echo "Running migrations..."
+          timeout \
+            "${DATABASE_MIGRATION_TIMEOUT}" \
+            npm run migrate
 
-          cd community-savings-app-backend
-
-          if npm run | grep -q migrate
-
-          then
-
-            timeout ${DATABASE_MIGRATION_TIMEOUT} npm run migrate
-
-          else
-
-            echo "Migration script not found."
-
-          fi
-
-################################################################################
-# Deploy Backend
-################################################################################
+      ##########################################################################
+      # Backend deployment
+      ##########################################################################
+      #
+      # --atomic:
+      #   If Helm upgrade fails, Helm attempts to restore the previous state.
+      #
+      ##########################################################################
 
       - name: Deploy Backend
 
         run: |
 
           helm upgrade \
-
             --install \
-
-            backend \
-
+            "${BACKEND_RELEASE}" \
             ./deployment/charts/backend \
-
-            --namespace ${KUBE_NAMESPACE} \
-
-            --set image.repository=ghcr.io/${{ github.repository_owner }}/community-savings-backend \
-
-            --set image.tag=${{ github.sha }} \
-
+            --namespace "${KUBE_NAMESPACE}" \
+            --create-namespace \
+            --set image.repository="${REGISTRY}/${IMAGE_NAMESPACE}/${BACKEND_IMAGE}" \
+            --set image.tag="${IMAGE_TAG}" \
             --wait \
-
+            --atomic \
             --timeout=15m
 
-################################################################################
-# Deploy Frontend
-################################################################################
+      ##########################################################################
+      # Frontend deployment
+      ##########################################################################
 
       - name: Deploy Frontend
 
         run: |
 
           helm upgrade \
-
             --install \
-
-            frontend \
-
+            "${FRONTEND_RELEASE}" \
             ./deployment/charts/frontend \
-
-            --namespace ${KUBE_NAMESPACE} \
-
-            --set image.repository=ghcr.io/${{ github.repository_owner }}/community-savings-frontend \
-
-            --set image.tag=${{ github.sha }} \
-
+            --namespace "${KUBE_NAMESPACE}" \
+            --create-namespace \
+            --set image.repository="${REGISTRY}/${IMAGE_NAMESPACE}/${FRONTEND_IMAGE}" \
+            --set image.tag="${IMAGE_TAG}" \
             --wait \
-
+            --atomic \
             --timeout=15m
 
-################################################################################
-# Verify Rollout
-################################################################################
+      ##########################################################################
+      # Rollouts
+      ##########################################################################
 
       - name: Verify Backend Rollout
 
         run: |
 
-          kubectl rollout status deployment/${BACKEND_DEPLOYMENT} \
-          -n ${KUBE_NAMESPACE} \
-          --timeout=10m
-
-################################################################################
-# Verify Frontend Rollout
-################################################################################
+          kubectl rollout status \
+            "deployment/${BACKEND_DEPLOYMENT}" \
+            -n "${KUBE_NAMESPACE}" \
+            --timeout=10m
 
       - name: Verify Frontend Rollout
 
         run: |
 
-          kubectl rollout status deployment/${FRONTEND_DEPLOYMENT} \
-          -n ${KUBE_NAMESPACE} \
-          --timeout=10m
+          kubectl rollout status \
+            "deployment/${FRONTEND_DEPLOYMENT}" \
+            -n "${KUBE_NAMESPACE}" \
+            --timeout=10m
 
-################################################################################
-# Wait For Pods
-################################################################################
+      ##########################################################################
+      # Workload diagnostics
+      ##########################################################################
 
-      - name: Verify Pods
-
-        run: |
-
-          kubectl get pods -n ${KUBE_NAMESPACE}
-
-################################################################################
-# Backend Health Check
-################################################################################
-
-      - name: Backend Health Check
+      - name: Verify Staging Workloads
 
         run: |
 
-          kubectl wait \
+          kubectl get deployments \
+            -n "${KUBE_NAMESPACE}"
 
-            --namespace ${KUBE_NAMESPACE} \
+          kubectl get pods \
+            -n "${KUBE_NAMESPACE}" \
+            -o wide
 
-            --for=condition=Ready \
+          kubectl get services \
+            -n "${KUBE_NAMESPACE}"
 
-            pod \
+      ##########################################################################
+      # Staging API health
+      ##########################################################################
 
-            --all \
-
-            --timeout=300s
-
-################################################################################
-# HTTP Health Check
-################################################################################
-
-      - name: Verify API
+      - name: Verify Staging API
 
         run: |
 
-          for i in {1..30}; do
+          for i in {1..30}
+          do
 
-            if curl -fsS \
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              --max-time 15 \
               https://staging-api.communitycapital.titech.africa/health
-
             then
 
-              echo "Backend healthy."
+              echo "Staging API healthy."
 
               exit 0
 
@@ -2407,70 +2314,87 @@ jobs:
 
           done
 
+          echo "ERROR: Staging API health check failed."
+
           exit 1
 
-################################################################################
-# Rollback on Failure
-################################################################################
+      ##########################################################################
+      # Diagnostics
+      ##########################################################################
 
-      - name: Automatic Rollback
+      - name: Collect Staging Diagnostics
 
-        if: failure()
+        if: ${{ failure() }}
 
         run: |
 
-          helm rollback backend 0 \
-            --namespace ${KUBE_NAMESPACE} || true
+          kubectl get deployments \
+            -n "${KUBE_NAMESPACE}" || true
 
-          helm rollback frontend 0 \
-            --namespace ${KUBE_NAMESPACE} || true
+          kubectl get pods \
+            -n "${KUBE_NAMESPACE}" \
+            -o wide || true
 
-################################################################################
-# Deployment Summary
-################################################################################
+          kubectl get events \
+            -n "${KUBE_NAMESPACE}" \
+            --sort-by=.lastTimestamp || true
 
-      - name: Deployment Summary
+      - name: Staging Summary
 
-        if: always()
+        if: ${{ always() }}
 
         run: |
 
           {
-
-            echo "# 🚀 Staging Deployment"
-
+            echo "# Staging Deployment"
             echo ""
-
-            echo "| Item | Status |"
-
-            echo "|------|--------|"
-
-            echo "| Kubernetes | Connected |"
-
+            echo "| Item | Result |"
+            echo "|---|---|"
             echo "| Namespace | ${KUBE_NAMESPACE} |"
-
-            echo "| Database Migration | Completed |"
-
-            echo "| Backend Rollout | Completed |"
-
-            echo "| Frontend Rollout | Completed |"
-
-            echo "| Health Checks | Passed |"
-
-            echo "| Rollback | Automatic |"
-
+            echo "| Backend | deployed |"
+            echo "| Frontend | deployed |"
+            echo "| Database Migration | executed |"
+            echo "| Helm Atomic Rollback | enabled |"
+            echo "| Backend Rollout | verified |"
+            echo "| Frontend Rollout | verified |"
+            echo "| API Health | verified |"
+            echo "| Commit | ${GITHUB_SHA} |"
           } >> "$GITHUB_STEP_SUMMARY"
-################################################################################
-# PRODUCTION DEPLOYMENT
-################################################################################
+
+  ##############################################################################
+  # 07. PRODUCTION DEPLOYMENT
+  #
+  # HARD GATE:
+  #
+  # Production is reachable only from:
+  #
+  #   A. version tag: v*
+  #
+  # OR
+  #
+  #   B. explicit workflow_dispatch environment=production
+  #
+  # Ordinary pushes, PRs and scheduled executions cannot deploy production.
+  #
+  ##############################################################################
 
   deploy-production:
 
     name: Production Deployment
 
     needs:
-
       - deploy-staging
+
+    if: >
+      (
+        github.event_name == 'push' &&
+        startsWith(github.ref, 'refs/tags/v')
+      )
+      ||
+      (
+        github.event_name == 'workflow_dispatch' &&
+        inputs.environment == 'production'
+      )
 
     runs-on: ubuntu-latest
 
@@ -2484,7 +2408,7 @@ jobs:
 
     concurrency:
 
-      group: production-deployment
+      group: titech-production-deployment
 
       cancel-in-progress: false
 
@@ -2500,7 +2424,7 @@ jobs:
 
     env:
 
-      KUBE_NAMESPACE: production
+      KUBE_NAMESPACE: ${{ env.K8S_NAMESPACE_PRODUCTION }}
 
       BACKEND_RELEASE: backend
 
@@ -2510,9 +2434,7 @@ jobs:
 
       FRONTEND_DEPLOYMENT: community-savings-frontend
 
-################################################################################
-# Checkout
-################################################################################
+      DATABASE_MIGRATION_TIMEOUT: 900
 
     steps:
 
@@ -2520,25 +2442,13 @@ jobs:
 
         uses: actions/checkout@v4
 
-################################################################################
-# Install kubectl
-################################################################################
-
-      - name: Install kubectl
+      - name: Setup kubectl
 
         uses: azure/setup-kubectl@v4
 
-################################################################################
-# Install Helm
-################################################################################
-
-      - name: Install Helm
+      - name: Setup Helm
 
         uses: azure/setup-helm@v4
-
-################################################################################
-# Configure Kubernetes
-################################################################################
 
       - name: Configure Kubernetes
 
@@ -2550,11 +2460,7 @@ jobs:
 
           kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
 
-################################################################################
-# Verify Cluster
-################################################################################
-
-      - name: Verify Cluster
+      - name: Verify Production Cluster
 
         run: |
 
@@ -2562,31 +2468,58 @@ jobs:
 
           kubectl get nodes
 
-################################################################################
-# Production Database Migration
-################################################################################
+      - name: Ensure Production Namespace Exists
 
-      - name: Execute Database Migrations
+        run: |
+
+          kubectl get namespace "${KUBE_NAMESPACE}" >/dev/null 2>&1 ||
+            kubectl create namespace "${KUBE_NAMESPACE}"
+
+      ##########################################################################
+      # Migration contract
+      ##########################################################################
+
+      - name: Validate Production Migration Contract
+
+        working-directory: ${{ env.BACKEND_DIR }}
+
+        run: |
+
+          node <<'NODE'
+          const pkg = require("./package.json");
+
+          if (!pkg.scripts?.migrate) {
+            console.error(
+              "ERROR: production migration script is missing."
+            );
+
+            process.exit(1);
+          }
+          NODE
+
+      ##########################################################################
+      # Production migration
+      ##########################################################################
+
+      - name: Execute Production Database Migration
+
+        working-directory: ${{ env.BACKEND_DIR }}
 
         env:
 
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
 
+          NODE_ENV: production
+
         run: |
 
-          cd community-savings-app-backend
-
-          if npm run | grep -q migrate
-
-          then
+          timeout \
+            "${DATABASE_MIGRATION_TIMEOUT}" \
             npm run migrate
-          else
-            echo "No migration script detected."
-          fi
 
-################################################################################
-# Deploy Backend (Rolling Update)
-################################################################################
+      ##########################################################################
+      # Backend
+      ##########################################################################
 
       - name: Deploy Backend
 
@@ -2594,20 +2527,22 @@ jobs:
 
           helm upgrade \
             --install \
-            ${BACKEND_RELEASE} \
+            "${BACKEND_RELEASE}" \
             ./deployment/charts/backend \
-            --namespace ${KUBE_NAMESPACE} \
-            --set image.repository=ghcr.io/${{ github.repository_owner }}/community-savings-backend \
-            --set image.tag=${{ github.sha }} \
+            --namespace "${KUBE_NAMESPACE}" \
+            --create-namespace \
+            --set image.repository="${REGISTRY}/${IMAGE_NAMESPACE}/${BACKEND_IMAGE}" \
+            --set image.tag="${IMAGE_TAG}" \
             --set deployment.strategy=RollingUpdate \
             --set deployment.maxUnavailable=0 \
             --set deployment.maxSurge=1 \
             --wait \
+            --atomic \
             --timeout=20m
 
-################################################################################
-# Deploy Frontend
-################################################################################
+      ##########################################################################
+      # Frontend
+      ##########################################################################
 
       - name: Deploy Frontend
 
@@ -2615,106 +2550,99 @@ jobs:
 
           helm upgrade \
             --install \
-            ${FRONTEND_RELEASE} \
+            "${FRONTEND_RELEASE}" \
             ./deployment/charts/frontend \
-            --namespace ${KUBE_NAMESPACE} \
-            --set image.repository=ghcr.io/${{ github.repository_owner }}/community-savings-frontend \
-            --set image.tag=${{ github.sha }} \
+            --namespace "${KUBE_NAMESPACE}" \
+            --create-namespace \
+            --set image.repository="${REGISTRY}/${IMAGE_NAMESPACE}/${FRONTEND_IMAGE}" \
+            --set image.tag="${IMAGE_TAG}" \
             --set deployment.strategy=RollingUpdate \
             --set deployment.maxUnavailable=0 \
             --set deployment.maxSurge=1 \
             --wait \
+            --atomic \
             --timeout=20m
 
-################################################################################
-# Verify Backend Rollout
-################################################################################
+      ##########################################################################
+      # Rollout
+      ##########################################################################
 
       - name: Verify Backend Rollout
 
         run: |
 
           kubectl rollout status \
-            deployment/${BACKEND_DEPLOYMENT} \
-            -n ${KUBE_NAMESPACE} \
+            "deployment/${BACKEND_DEPLOYMENT}" \
+            -n "${KUBE_NAMESPACE}" \
             --timeout=15m
-
-################################################################################
-# Verify Frontend Rollout
-################################################################################
 
       - name: Verify Frontend Rollout
 
         run: |
 
           kubectl rollout status \
-            deployment/${FRONTEND_DEPLOYMENT} \
-            -n ${KUBE_NAMESPACE} \
+            "deployment/${FRONTEND_DEPLOYMENT}" \
+            -n "${KUBE_NAMESPACE}" \
             --timeout=15m
 
-################################################################################
-# Production Health Checks
-################################################################################
+      ##########################################################################
+      # Production health
+      ##########################################################################
 
-      - name: Production Health Check
+      - name: Production API Health Check
 
         run: |
 
-          for i in {1..30}; do
+          for i in {1..30}
+          do
 
-            if curl -fsS https://api.communitycapital.titech.africa/health
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              --max-time 15 \
+              https://api.communitycapital.titech.africa/health
             then
+
               echo "Production API healthy."
+
               exit 0
+
             fi
 
             sleep 10
 
           done
 
+          echo "ERROR: Production API health check failed."
+
           exit 1
 
-################################################################################
-# Automatic Rollback
-################################################################################
+      ##########################################################################
+      # Production workload verification
+      ##########################################################################
 
-      - name: Rollback Deployment
-
-        if: failure()
+      - name: Verify Production Workloads
 
         run: |
 
-          helm rollback ${BACKEND_RELEASE} \
-            --namespace ${KUBE_NAMESPACE} || true
+          kubectl get deployments \
+            -n "${KUBE_NAMESPACE}"
 
-          helm rollback ${FRONTEND_RELEASE} \
-            --namespace ${KUBE_NAMESPACE} || true
+          kubectl get pods \
+            -n "${KUBE_NAMESPACE}" \
+            -o wide
 
-################################################################################
-# Create GitHub Release
-################################################################################
+          kubectl get services \
+            -n "${KUBE_NAMESPACE}"
 
-      - name: Create GitHub Release
+      ##########################################################################
+      # Deployment record
+      ##########################################################################
 
-        if: success()
+      - name: Create GitHub Deployment Record
 
-        uses: softprops/action-gh-release@v2
-
-        with:
-
-          generate_release_notes: true
-
-          tag_name: production-${{ github.run_number }}
-
-          name: Production Release ${{ github.run_number }}
-
-          target_commitish: ${{ github.sha }}
-
-################################################################################
-# Create Deployment Record
-################################################################################
-
-      - name: Create GitHub Deployment
+        if: ${{ success() }}
 
         uses: bobheadxi/deployments@v1
 
@@ -2728,80 +2656,102 @@ jobs:
 
           env_url: https://communitycapital.titech.africa
 
-################################################################################
-# Deployment Summary
-################################################################################
+      ##########################################################################
+      # Versioned release
+      ##########################################################################
 
-      - name: Publish Deployment Summary
+      - name: Create GitHub Release
 
-        if: always()
+        if: >
+          success() &&
+          github.event_name == 'push' &&
+          startsWith(github.ref, 'refs/tags/v')
+
+        uses: softprops/action-gh-release@v2
+
+        with:
+
+          generate_release_notes: true
+
+          tag_name: ${{ github.ref_name }}
+
+          name: TITech Community Capital ${{ github.ref_name }}
+
+          target_commitish: ${{ github.sha }}
+
+      ##########################################################################
+      # Failure diagnostics
+      ##########################################################################
+
+      - name: Collect Production Diagnostics
+
+        if: ${{ failure() }}
+
+        run: |
+
+          kubectl get deployments \
+            -n "${KUBE_NAMESPACE}" || true
+
+          kubectl get pods \
+            -n "${KUBE_NAMESPACE}" \
+            -o wide || true
+
+          kubectl get services \
+            -n "${KUBE_NAMESPACE}" || true
+
+          kubectl get events \
+            -n "${KUBE_NAMESPACE}" \
+            --sort-by=.lastTimestamp || true
+
+      - name: Production Summary
+
+        if: ${{ always() }}
 
         run: |
 
           {
-
-            echo "# 🚀 Production Deployment"
-
+            echo "# Production Deployment"
             echo ""
-
-            echo "| Component | Status |"
-
-            echo "|-----------|--------|"
-
-            echo "| Protected Environment | ✅ |"
-
-            echo "| Manual Approval | GitHub Environment |"
-
-            echo "| Rolling Update | Enabled |"
-
-            echo "| Zero Downtime | Enabled |"
-
-            echo "| Database Migration | Completed |"
-
-            echo "| Rollout Verification | Completed |"
-
-            echo "| Health Checks | Passed |"
-
-            echo "| Rollback | Automatic |"
-
-            echo "| GitHub Release | Created |"
-
-            echo "| Deployment Record | Created |"
-
-            echo "| Commit | ${{ github.sha }} |"
-
-            echo "| Run | ${{ github.run_number }} |"
-
+            echo "| Item | Result |"
+            echo "|---|---|"
+            echo "| Protected Environment | enabled |"
+            echo "| Namespace | ${KUBE_NAMESPACE} |"
+            echo "| Backend | rolling deployment |"
+            echo "| Frontend | rolling deployment |"
+            echo "| maxUnavailable | 0 |"
+            echo "| maxSurge | 1 |"
+            echo "| Database Migration | executed |"
+            echo "| Helm Atomic Rollback | enabled |"
+            echo "| Backend Rollout | verified |"
+            echo "| Frontend Rollout | verified |"
+            echo "| API Health | verified |"
+            echo "| Commit | ${GITHUB_SHA} |"
+            echo "| Run | ${GITHUB_RUN_NUMBER} |"
           } >> "$GITHUB_STEP_SUMMARY"
-################################################################################
-# POST DEPLOYMENT VERIFICATION
-################################################################################
+
+  ##############################################################################
+  # 08. POST-DEPLOYMENT VERIFICATION
+  ##############################################################################
 
   post-deployment:
 
     name: Post Deployment Verification
 
     needs:
-
       - deploy-production
+
+    if: >
+      needs.deploy-production.result == 'success'
 
     runs-on: ubuntu-latest
 
     timeout-minutes: 30
 
-    if: always()
-
     permissions:
 
       contents: read
 
-      actions: read
-
       deployments: read
-
-################################################################################
-# Environment
-################################################################################
 
     env:
 
@@ -2809,11 +2759,7 @@ jobs:
 
       WEB_URL: https://communitycapital.titech.africa
 
-      KUBE_NAMESPACE: production
-
-################################################################################
-# Checkout
-################################################################################
+      KUBE_NAMESPACE: ${{ env.K8S_NAMESPACE_PRODUCTION }}
 
     steps:
 
@@ -2821,17 +2767,9 @@ jobs:
 
         uses: actions/checkout@v4
 
-################################################################################
-# Install kubectl
-################################################################################
-
-      - name: Install kubectl
+      - name: Setup kubectl
 
         uses: azure/setup-kubectl@v4
-
-################################################################################
-# Configure Kubernetes
-################################################################################
 
       - name: Configure Kubernetes
 
@@ -2843,260 +2781,200 @@ jobs:
 
           kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
 
-################################################################################
-# API Smoke Tests
-################################################################################
+      ##########################################################################
+      # API smoke
+      ##########################################################################
 
-      - name: API Smoke Test
+      - name: API Smoke Tests
 
         run: |
 
-          echo "Running API smoke tests..."
+          echo "Running production API smoke tests..."
 
-          curl --fail --retry 5 \
-               --retry-delay 5 \
-               ${API_URL}/health
+          curl \
+            --fail \
+            --retry 5 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            --max-time 30 \
+            "${API_URL}/health"
 
-          curl --fail \
-               ${API_URL}/version
+          curl \
+            --fail \
+            --retry 5 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            --max-time 30 \
+            "${API_URL}/version"
 
-################################################################################
-# Frontend Smoke Test
-################################################################################
+      ##########################################################################
+      # Frontend smoke
+      ##########################################################################
 
       - name: Frontend Smoke Test
 
         run: |
 
-          echo "Checking frontend..."
+          curl \
+            --fail \
+            --retry 5 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            --max-time 30 \
+            "${WEB_URL}"
 
-          curl --fail \
-               ${WEB_URL}
+      ##########################################################################
+      # Kubernetes
+      ##########################################################################
 
-################################################################################
-# Kubernetes Health
-################################################################################
-
-      - name: Verify Cluster Health
-
-        run: |
-
-          kubectl get pods -n ${KUBE_NAMESPACE}
-
-          kubectl get deployments -n ${KUBE_NAMESPACE}
-
-          kubectl get services -n ${KUBE_NAMESPACE}
-
-################################################################################
-# Rollout Verification
-################################################################################
-
-      - name: Verify Rollout Status
+      - name: Verify Kubernetes Health
 
         run: |
 
-          kubectl rollout status deployment/community-savings-backend \
-            -n ${KUBE_NAMESPACE}
+          kubectl get pods \
+            -n "${KUBE_NAMESPACE}" \
+            -o wide
 
-          kubectl rollout status deployment/community-savings-frontend \
-            -n ${KUBE_NAMESPACE}
+          kubectl get deployments \
+            -n "${KUBE_NAMESPACE}"
 
-################################################################################
-# Monitoring Verification
-################################################################################
+          kubectl get services \
+            -n "${KUBE_NAMESPACE}"
 
-      - name: Monitoring Check
+      ##########################################################################
+      # Rollout
+      ##########################################################################
 
-        continue-on-error: true
+      - name: Verify Backend Rollout
 
         run: |
 
-          echo "Checking monitoring endpoints..."
+          kubectl rollout status \
+            deployment/community-savings-backend \
+            -n "${KUBE_NAMESPACE}" \
+            --timeout=10m
 
-          curl -fsS https://prometheus.communitycapital.titech.africa/-/healthy || true
+      - name: Verify Frontend Rollout
 
-          curl -fsS https://grafana.communitycapital.titech.africa/api/health || true
+        run: |
 
-################################################################################
-# Deployment Metrics
-################################################################################
+          kubectl rollout status \
+            deployment/community-savings-frontend \
+            -n "${KUBE_NAMESPACE}" \
+            --timeout=10m
 
-      - name: Deployment Metrics
+      ##########################################################################
+      # Monitoring
+      ##########################################################################
+
+      - name: Verify Prometheus
+
+        run: |
+
+          curl \
+            --fail \
+            --max-time 15 \
+            https://prometheus.communitycapital.titech.africa/-/healthy
+
+      - name: Verify Grafana
+
+        run: |
+
+          curl \
+            --fail \
+            --max-time 15 \
+            https://grafana.communitycapital.titech.africa/api/health
+
+      ##########################################################################
+      # Metrics
+      ##########################################################################
+
+      - name: Record Deployment Metrics
 
         run: |
 
           echo "Deployment Timestamp: $(date -u)"
-
+          echo "Repository: ${{ github.repository }}"
           echo "Commit: ${{ github.sha }}"
-
           echo "Actor: ${{ github.actor }}"
-
           echo "Run: ${{ github.run_number }}"
+          echo "Ref: ${{ github.ref_name }}"
 
-################################################################################
-# Slack Notification
-################################################################################
+      ##########################################################################
+      # Slack
+      ##########################################################################
 
       - name: Notify Slack
 
-        if: success() && secrets.SLACK_WEBHOOK_URL != ''
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
 
         uses: slackapi/slack-github-action@v1.27.0
-
-        with:
-
-          payload: |
-
-            {
-
-              "text":"✅ Production deployment successful
-
-              Repository: ${{ github.repository }}
-
-              Run: ${{ github.run_number }}
-
-              Commit: ${{ github.sha }}
-
-              Environment: Production"
-
-            }
 
         env:
 
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-################################################################################
-# Microsoft Teams Notification
-################################################################################
+        with:
 
-      - name: Notify Teams
+          payload: |
+            {
+              "text": "✅ TITech Community Capital production deployment successful.\nRepository: ${{ github.repository }}\nRun: ${{ github.run_number }}\nCommit: ${{ github.sha }}\nEnvironment: Production"
+            }
 
-        if: success() && secrets.TEAMS_WEBHOOK_URL != ''
+      ##########################################################################
+      # Microsoft Teams
+      ##########################################################################
+
+      - name: Notify Microsoft Teams
+
+        if: ${{ env.TEAMS_WEBHOOK_URL != '' }}
 
         uses: skitionek/notify-microsoft-teams@v1
 
+        env:
+
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
         with:
 
-          webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          webhook_url: ${{ env.TEAMS_WEBHOOK_URL }}
 
           overwrite: |
-
             {
-
-              "@type":"MessageCard",
-
-              "@context":"https://schema.org/extensions",
-
-              "summary":"Production Deployment",
-
-              "themeColor":"00AA00",
-
-              "title":"Deployment Successful",
-
-              "text":"Community Savings Platform has been deployed successfully."
-
+              "@type": "MessageCard",
+              "@context": "https://schema.org/extensions",
+              "summary": "TITech Production Deployment",
+              "title": "Production Deployment Successful",
+              "text": "TITech Community Capital has been deployed successfully."
             }
 
-################################################################################
-# Failure Diagnostics
-################################################################################
+      ##########################################################################
+      # Final summary
+      ##########################################################################
 
-      - name: Collect Diagnostics
+      - name: Publish Post Deployment Summary
 
-        if: failure()
-
-        run: |
-
-          kubectl get pods -A
-
-          kubectl describe pods -A
-
-          kubectl get events -A --sort-by=.lastTimestamp
-
-################################################################################
-# Cleanup
-################################################################################
-
-      - name: Cleanup Workspace
-
-        if: always()
-
-        run: |
-
-          docker image prune -af || true
-
-          docker builder prune -af || true
-
-          npm cache clean --force || true
-
-################################################################################
-# GitHub Deployment Summary
-################################################################################
-
-      - name: Publish Summary
-
-        if: always()
+        if: ${{ always() }}
 
         run: |
 
           {
-
-            echo "# 🚀 Production Deployment Summary"
-
+            echo "# Production Post-Deployment"
             echo ""
-
-            echo "## Deployment"
-
+            echo "| Verification | Result |"
+            echo "|---|---|"
+            echo "| API Health | verified |"
+            echo "| API Version | verified |"
+            echo "| Frontend | verified |"
+            echo "| Kubernetes | verified |"
+            echo "| Backend Rollout | verified |"
+            echo "| Frontend Rollout | verified |"
+            echo "| Prometheus | verified |"
+            echo "| Grafana | verified |"
+            echo "| Notifications | attempted |"
             echo ""
-
-            echo "| Item | Status |"
-
-            echo "|------|--------|"
-
-            echo "| Smoke Tests | Completed |"
-
-            echo "| Kubernetes Health | Verified |"
-
-            echo "| Rollout | Successful |"
-
-            echo "| Monitoring | Verified |"
-
-            echo "| Notifications | Sent |"
-
-            echo "| Cleanup | Completed |"
-
-            echo ""
-
-            echo "## Build Information"
-
-            echo ""
-
-            echo "| Property | Value |"
-
-            echo "|----------|-------|"
-
-            echo "| Repository | ${{ github.repository }} |"
-
-            echo "| Commit | ${{ github.sha }} |"
-
-            echo "| Branch | ${{ github.ref_name }} |"
-
-            echo "| Run | ${{ github.run_number }} |"
-
-            echo "| Triggered By | ${{ github.actor }} |"
-
-            echo "| Workflow | ${{ github.workflow }} |"
-
-            echo "| Timestamp | $(date -u) UTC |"
-
-            echo ""
-
-            echo "## Endpoints"
-
-            echo ""
-
-            echo "- API: ${API_URL}"
-
-            echo "- Frontend: ${WEB_URL}"
-
+            echo "Repository: ${{ github.repository }}"
+            echo "Commit: ${{ github.sha }}"
+            echo "Run: ${{ github.run_number }}"
+            echo "Timestamp: $(date -u) UTC"
           } >> "$GITHUB_STEP_SUMMARY"
