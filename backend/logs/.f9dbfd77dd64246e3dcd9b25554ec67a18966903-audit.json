@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "D:\\TITech Projects\\society-community-savings-app\\community-savings-app-backend\\logs\\.f9dbfd77dd64246e3dcd9b25554ec67a18966903-audit.json",
+    "files": [
+        {
+            "date": 1787738661931,
+            "name": "D:\\TITech Projects\\society-community-savings-app\\community-savings-app-backend\\logs\\2026-08-26-application.log",
+            "hash": "a01f1ce5b3753d8df0a2829499736699451800d98f07c8a8dda53494be14c4eb"
+        },
+        {
+            "date": 1788196378824,
+            "name": "D:\\TITech Projects\\society-community-savings-app\\community-savings-app-backend\\logs\\2026-08-31-application.log",
+            "hash": "fc97c913ddd2b22ec7f5c422313b936310de5c6a029d4c5bd6876cee26556372"
+        }
+    ],
+    "hashType": "sha256"
+}

@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+'use strict';
+
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -53,11 +58,17 @@
  * IMPORTANT:
  * -----------------------------------------------------------------------------
  *
+<<<<<<< HEAD
  * `backend/bootstrap/server.js` is the canonical HTTP transport adapter.
+=======
+ * `backend/bootstrap/server.js` is treated as the canonical HTTP transport
+ * adapter.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  *
  * ApplicationBootstrap prepares the application and delegates network startup
  * and shutdown to that adapter.
  *
+<<<<<<< HEAD
  * Runtime:
  *   Node.js 20+
  *
@@ -91,6 +102,15 @@ const CURRENT_DIRECTORY =
   path.dirname(
     CURRENT_FILE,
   );
+=======
+ * =============================================================================
+ */
+
+const path = require('node:path');
+const os = require('node:os');
+const crypto = require('node:crypto');
+const { EventEmitter } = require('node:events');
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 /* =============================================================================
  * METADATA
@@ -98,26 +118,43 @@ const CURRENT_DIRECTORY =
  */
 
 const COMPONENT =
+<<<<<<< HEAD
   "application-bootstrap";
 
 const APPLICATION_NAME =
   process.env.APPLICATION_NAME ||
   "TITech Community Capital";
+=======
+  'application-bootstrap';
+
+const APPLICATION_NAME =
+  process.env.APPLICATION_NAME ||
+  'TITech Community Capital';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 const SERVICE_NAME =
   process.env.SERVICE_NAME ||
   process.env.OTEL_SERVICE_NAME ||
+<<<<<<< HEAD
   "titech-community-capital-backend";
 
 const VERSION =
   process.env.APP_BOOTSTRAP_VERSION ||
   "2026.1";
+=======
+  'titech-community-capital-backend';
+
+const VERSION =
+  process.env.APP_BOOTSTRAP_VERSION ||
+  '2026.1';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 /* =============================================================================
  * DEFAULTS
  * =============================================================================
  */
 
+<<<<<<< HEAD
 const DEFAULTS =
   Object.freeze({
     startupTimeoutMs:
@@ -153,12 +190,49 @@ const DEFAULTS =
     maxEventListeners:
       50,
   });
+=======
+const DEFAULTS = Object.freeze({
+  startupTimeoutMs:
+    120_000,
+
+  shutdownTimeoutMs:
+    30_000,
+
+  phaseTimeoutMs:
+    60_000,
+
+  requireApplication:
+    true,
+
+  autoDiscoverPhases:
+    true,
+
+  startServer:
+    true,
+
+  registerServerHooks:
+    true,
+
+  failOnOptionalPhaseError:
+    false,
+
+  allowPartialShutdown:
+    true,
+
+  allowRestart:
+    false,
+
+  maxEventListeners:
+    50,
+});
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 /* =============================================================================
  * CANONICAL PHASE DEFINITIONS
  * =============================================================================
  */
 
+<<<<<<< HEAD
 const DEFAULT_PHASES =
   Object.freeze([
     Object.freeze({
@@ -315,10 +389,168 @@ const DEFAULT_PHASES =
         ["routes"],
     }),
   ]);
+=======
+const DEFAULT_PHASES = Object.freeze([
+  Object.freeze({
+    name:
+      'environment',
+
+    priority:
+      100,
+
+    required:
+      true,
+
+    dependencies:
+      [],
+  }),
+
+  Object.freeze({
+    name:
+      'configuration',
+
+    priority:
+      200,
+
+    required:
+      true,
+
+    dependencies:
+      ['environment'],
+  }),
+
+  Object.freeze({
+    name:
+      'logger',
+
+    priority:
+      300,
+
+    required:
+      true,
+
+    dependencies:
+      ['configuration'],
+  }),
+
+  Object.freeze({
+    name:
+      'observability',
+
+    priority:
+      400,
+
+    required:
+      false,
+
+    dependencies:
+      ['logger'],
+  }),
+
+  Object.freeze({
+    name:
+      'readiness',
+
+    priority:
+      500,
+
+    required:
+      true,
+
+    dependencies:
+      ['configuration'],
+  }),
+
+  Object.freeze({
+    name:
+      'resilience',
+
+    priority:
+      600,
+
+    required:
+      false,
+
+    dependencies:
+      ['configuration'],
+    }),
+
+  Object.freeze({
+    name:
+      'infrastructure',
+
+    priority:
+      700,
+
+    required:
+      true,
+
+    dependencies:
+      ['configuration'],
+  }),
+
+  Object.freeze({
+    name:
+      'services',
+
+    priority:
+      800,
+
+    required:
+      true,
+
+    dependencies:
+      ['infrastructure'],
+  }),
+
+  Object.freeze({
+    name:
+      'middleware',
+
+    priority:
+      900,
+
+    required:
+      true,
+
+    dependencies:
+      ['services'],
+  }),
+
+  Object.freeze({
+    name:
+      'routes',
+
+    priority:
+      950,
+
+    required:
+      true,
+
+    dependencies:
+      ['middleware'],
+  }),
+
+  Object.freeze({
+    name:
+      'server',
+
+    priority:
+      1000,
+
+    required:
+      true,
+
+    dependencies:
+      ['routes'],
+  }),
+]);
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 /* =============================================================================
  * PHASE MODULE CANDIDATES
  * =============================================================================
+<<<<<<< HEAD
  *
  * Discovery supports:
  *
@@ -332,79 +564,141 @@ const DEFAULT_PHASES =
  * This permits controlled migration of legacy CommonJS modules while keeping
  * the canonical bootstrap layer fully ESM.
  * =============================================================================
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  */
 
 const PHASE_MODULE_CANDIDATES =
   Object.freeze({
     environment:
       Object.freeze([
+<<<<<<< HEAD
         "./environment",
         "./environmentLoader",
         "../config/environment",
         "../config/env",
+=======
+        './environment',
+        './environmentLoader',
+        '../config/environment',
+        '../config/env',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     configuration:
       Object.freeze([
+<<<<<<< HEAD
         "./configuration",
         "./config",
         "../config",
         "../config/index",
+=======
+        './configuration',
+        './config',
+        '../config',
+        '../config/index',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     logger:
       Object.freeze([
+<<<<<<< HEAD
         "./logger",
         "../utils/logger",
         "../utils/logger/index",
+=======
+        './logger',
+        '../utils/logger',
+        '../utils/logger/index',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     observability:
       Object.freeze([
+<<<<<<< HEAD
         "./observability",
         "../observability",
         "../monitoring/observability",
+=======
+        './observability',
+        '../observability',
+        '../monitoring/observability',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     readiness:
       Object.freeze([
+<<<<<<< HEAD
         "./readinessState",
         "./readiness",
+=======
+        './readinessState',
+        './readiness',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     resilience:
       Object.freeze([
+<<<<<<< HEAD
         "./resilience",
         "../resilience",
+=======
+        './resilience',
+        '../resilience',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     infrastructure:
       Object.freeze([
+<<<<<<< HEAD
         "./infrastructure",
         "../infrastructure",
+=======
+        './infrastructure',
+        '../infrastructure',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     services:
       Object.freeze([
+<<<<<<< HEAD
         "./services",
         "../services",
+=======
+        './services',
+        '../services',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     middleware:
       Object.freeze([
+<<<<<<< HEAD
         "./middleware",
         "../middleware",
+=======
+        './middleware',
+        '../middleware',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     routes:
       Object.freeze([
+<<<<<<< HEAD
         "./routes",
         "../routes",
+=======
+        './routes',
+        '../routes',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
 
     server:
       Object.freeze([
+<<<<<<< HEAD
         "./server",
+=======
+        './server',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ]),
   });
 
@@ -418,6 +712,7 @@ class ApplicationBootstrapError extends Error {
     message,
     options = {},
   ) {
+<<<<<<< HEAD
     super(
       message,
       {
@@ -432,15 +727,28 @@ class ApplicationBootstrapError extends Error {
     this.code =
       options.code ||
       "APPLICATION_BOOTSTRAP_ERROR";
+=======
+    super(message);
+
+    this.name =
+      'ApplicationBootstrapError';
+
+    this.code =
+      options.code ||
+      'APPLICATION_BOOTSTRAP_ERROR';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     this.phase =
       options.phase ||
       null;
 
+<<<<<<< HEAD
     this.component =
       options.component ||
       COMPONENT;
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     this.cause =
       options.cause ||
       null;
@@ -469,23 +777,40 @@ function asBoolean(
   if (
     value === undefined ||
     value === null ||
+<<<<<<< HEAD
     value === ""
+=======
+    value === ''
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   ) {
     return fallback;
   }
 
   if (
+<<<<<<< HEAD
     typeof value === "boolean"
+=======
+    typeof value ===
+    'boolean'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   ) {
     return value;
   }
 
   return [
+<<<<<<< HEAD
     "1",
     "true",
     "yes",
     "on",
     "enabled",
+=======
+    '1',
+    'true',
+    'yes',
+    'on',
+    'enabled',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   ].includes(
     String(value)
       .trim()
@@ -500,7 +825,11 @@ function asPositiveInteger(
   const parsed =
     value === undefined ||
     value === null ||
+<<<<<<< HEAD
     value === ""
+=======
+    value === ''
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ? fallback
       : Number(value);
 
@@ -532,9 +861,13 @@ function elapsedMs(
   const timestamp =
     startedAt instanceof Date
       ? startedAt.getTime()
+<<<<<<< HEAD
       : Number(
           startedAt,
         );
+=======
+      : Number(startedAt);
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   if (
     !Number.isFinite(
@@ -551,13 +884,113 @@ function elapsedMs(
   );
 }
 
+<<<<<<< HEAD
+=======
+function isPromiseLike(
+  value,
+) {
+  return Boolean(
+    value &&
+      typeof value.then ===
+        'function',
+  );
+}
+
+function safeError(
+  error,
+) {
+  if (
+    !error
+  ) {
+    return null;
+  }
+
+  return {
+    name:
+      error.name ||
+      'Error',
+
+    code:
+      error.code ||
+      null,
+
+    message:
+      error.message ||
+      String(error),
+
+    phase:
+      error.phase ||
+      null,
+  };
+}
+
+function moduleExists(
+  modulePath,
+) {
+  try {
+    require.resolve(
+      modulePath,
+    );
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function loadModule(
+  modulePath,
+) {
+  try {
+    // eslint-disable-next-line global-require, import/no-dynamic-require
+    return require(
+      modulePath,
+    );
+  } catch (error) {
+    throw new ApplicationBootstrapError(
+      `Unable to load bootstrap module: ${modulePath}`,
+      {
+        code:
+          'BOOTSTRAP_MODULE_LOAD_FAILED',
+
+        cause:
+          error,
+
+        details: {
+          modulePath,
+        },
+      },
+    );
+  }
+}
+
+function unwrapModule(
+  value,
+) {
+  if (
+    value &&
+    typeof value ===
+      'object' &&
+    value.default
+  ) {
+    return value.default;
+  }
+
+  return value;
+}
+
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 function freezeCopy(
   value,
 ) {
   if (
     !value ||
     typeof value !==
+<<<<<<< HEAD
       "object"
+=======
+      'object'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   ) {
     return value;
   }
@@ -577,6 +1010,7 @@ function freezeCopy(
   });
 }
 
+<<<<<<< HEAD
 function safeError(
   error,
 ) {
@@ -814,6 +1248,8 @@ function unwrapModule(
  * =============================================================================
  */
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 function createFallbackLogger() {
   const prefix =
     `[${COMPONENT}]`;
@@ -825,12 +1261,20 @@ function createFallbackLogger() {
     ) {
       if (
         process.env.NODE_ENV !==
+<<<<<<< HEAD
         "test"
+=======
+        'test'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         console.debug(
           prefix,
           message,
+<<<<<<< HEAD
           metadata || "",
+=======
+          metadata || '',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         );
       }
     },
@@ -842,7 +1286,11 @@ function createFallbackLogger() {
       console.info(
         prefix,
         message,
+<<<<<<< HEAD
         metadata || "",
+=======
+        metadata || '',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
     },
 
@@ -853,7 +1301,11 @@ function createFallbackLogger() {
       console.warn(
         prefix,
         message,
+<<<<<<< HEAD
         metadata || "",
+=======
+        metadata || '',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
     },
 
@@ -864,7 +1316,11 @@ function createFallbackLogger() {
       console.error(
         prefix,
         message,
+<<<<<<< HEAD
         metadata || "",
+=======
+        metadata || '',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
     },
   });
@@ -888,8 +1344,12 @@ function withTimeout(
     );
 
   const parentSignal =
+<<<<<<< HEAD
     options.signal ||
     null;
+=======
+    options.signal || null;
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   const controller =
     new AbortController();
@@ -897,11 +1357,38 @@ function withTimeout(
   const signal =
     controller.signal;
 
+<<<<<<< HEAD
   let abortParent =
     null;
 
   let parentListenerInstalled =
     false;
+=======
+  if (
+    parentSignal
+  ) {
+    if (
+      parentSignal.aborted
+    ) {
+      controller.abort(
+        parentSignal.reason,
+      );
+    } else {
+      parentSignal.addEventListener(
+        'abort',
+        () => {
+          controller.abort(
+            parentSignal.reason,
+          );
+        },
+        {
+          once:
+            true,
+        },
+      );
+    }
+  }
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   return new Promise(
     (
@@ -911,6 +1398,7 @@ function withTimeout(
       let settled =
         false;
 
+<<<<<<< HEAD
       let timer =
         null;
 
@@ -943,6 +1431,21 @@ function withTimeout(
         };
 
       abortParent =
+=======
+      const cleanup =
+        () => {
+          clearTimeout(
+            timer,
+          );
+
+          parentSignal?.removeEventListener?.(
+            'abort',
+            abortParent,
+          );
+        };
+
+      const abortParent =
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         () => {
           if (
             settled
@@ -951,7 +1454,11 @@ function withTimeout(
           }
 
           controller.abort(
+<<<<<<< HEAD
             parentSignal?.reason,
+=======
+            parentSignal.reason,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           );
 
           settled =
@@ -964,18 +1471,35 @@ function withTimeout(
               `Bootstrap phase "${phase}" was aborted.`,
               {
                 code:
+<<<<<<< HEAD
                   "BOOTSTRAP_PHASE_ABORTED",
+=======
+                  'BOOTSTRAP_PHASE_ABORTED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
                 phase,
 
                 cause:
+<<<<<<< HEAD
                   parentSignal?.reason,
+=======
+                  parentSignal.reason,
+
+                details: {
+                  timeoutMs:
+                    timeout,
+                },
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
               },
             ),
           );
         };
 
+<<<<<<< HEAD
       timer =
+=======
+      const timer =
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         setTimeout(
           () => {
             if (
@@ -996,7 +1520,11 @@ function withTimeout(
                 `Bootstrap phase "${phase}" exceeded its ${timeout}ms timeout.`,
                 {
                   code:
+<<<<<<< HEAD
                     "BOOTSTRAP_PHASE_TIMEOUT",
+=======
+                    'BOOTSTRAP_PHASE_TIMEOUT',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
                   phase,
 
@@ -1014,6 +1542,7 @@ function withTimeout(
       timer.unref?.();
 
       if (
+<<<<<<< HEAD
         parentSignal?.aborted
       ) {
         queueMicrotask(
@@ -1024,15 +1553,24 @@ function withTimeout(
       ) {
         parentSignal.addEventListener(
           "abort",
+=======
+        parentSignal
+      ) {
+        parentSignal.addEventListener(
+          'abort',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           abortParent,
           {
             once:
               true,
           },
         );
+<<<<<<< HEAD
 
         parentListenerInstalled =
           true;
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       }
 
       Promise.resolve()
@@ -1124,9 +1662,12 @@ class ApplicationBootstrap {
     this.phaseStates =
       new Map();
 
+<<<<<<< HEAD
     this.phaseImplementations =
       new Map();
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     this.completedPhases =
       [];
 
@@ -1184,8 +1725,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * OPTIONS
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   normalizeOptions(
     options,
@@ -1193,7 +1738,11 @@ class ApplicationBootstrap {
     const source =
       options &&
       typeof options ===
+<<<<<<< HEAD
         "object"
+=======
+        'object'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         ? options
         : {};
 
@@ -1308,14 +1857,22 @@ class ApplicationBootstrap {
       Date.now().toString(36),
       entropy,
     ].join(
+<<<<<<< HEAD
       "-",
+=======
+      '-',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     );
   }
 
   /* ===========================================================================
    * INITIALIZATION
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   initialize(
     suppliedContext = {},
@@ -1324,10 +1881,17 @@ class ApplicationBootstrap {
       this.destroyed
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Cannot initialize a destroyed TITech application bootstrap.",
         {
           code:
             "BOOTSTRAP_DESTROYED",
+=======
+        'Cannot initialize a destroyed TITech application bootstrap.',
+        {
+          code:
+            'BOOTSTRAP_DESTROYED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -1337,10 +1901,17 @@ class ApplicationBootstrap {
       this.starting
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Cannot initialize application bootstrap after startup has begun.",
         {
           code:
             "BOOTSTRAP_INITIALIZATION_LOCKED",
+=======
+        'Cannot initialize application bootstrap after startup has begun.',
+        {
+          code:
+            'BOOTSTRAP_INITIALIZATION_LOCKED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -1348,7 +1919,11 @@ class ApplicationBootstrap {
     const incoming =
       suppliedContext &&
       typeof suppliedContext ===
+<<<<<<< HEAD
         "object"
+=======
+        'object'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         ? {
             ...suppliedContext,
           }
@@ -1382,7 +1957,11 @@ class ApplicationBootstrap {
       now();
 
     this.emit(
+<<<<<<< HEAD
       "initialized",
+=======
+      'initialized',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       {
         applicationAvailable:
           Boolean(
@@ -1397,8 +1976,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * CONTEXT
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   createContext(
     suppliedContext = {},
@@ -1406,7 +1989,11 @@ class ApplicationBootstrap {
     const context =
       suppliedContext &&
       typeof suppliedContext ===
+<<<<<<< HEAD
         "object"
+=======
+        'object'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         ? {
             ...suppliedContext,
           }
@@ -1453,22 +2040,34 @@ class ApplicationBootstrap {
       VERSION;
 
     context.signal =
+<<<<<<< HEAD
       this.lifecycleAbortController
         .signal;
+=======
+      this.lifecycleAbortController.signal;
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     return context;
   }
 
   /* ===========================================================================
    * ENVIRONMENT
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   resolveEnvironment() {
     return Object.freeze({
       nodeEnv:
         process.env.NODE_ENV ||
+<<<<<<< HEAD
         "development",
+=======
+        'development',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       serviceName:
         SERVICE_NAME,
@@ -1502,14 +2101,22 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * CONFIGURATION
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   resolveConfiguration() {
     return Object.freeze({
       environment:
         process.env.NODE_ENV ||
+<<<<<<< HEAD
         "development",
+=======
+        'development',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       serviceName:
         SERVICE_NAME,
@@ -1525,14 +2132,22 @@ class ApplicationBootstrap {
 
       host:
         process.env.HOST ||
+<<<<<<< HEAD
         "0.0.0.0",
+=======
+        '0.0.0.0',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     });
   }
 
   /* ===========================================================================
    * APPLICATION
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   setApplication(
     application,
@@ -1547,10 +2162,17 @@ class ApplicationBootstrap {
       this.stopping
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "The Express application cannot be replaced while the application lifecycle is active.",
         {
           code:
             "APPLICATION_LOCKED",
+=======
+        'The Express application cannot be replaced while the application lifecycle is active.',
+        {
+          code:
+            'APPLICATION_LOCKED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -1582,6 +2204,7 @@ class ApplicationBootstrap {
     if (
       !application ||
       typeof application !==
+<<<<<<< HEAD
         "function"
     ) {
       throw new ApplicationBootstrapError(
@@ -1589,6 +2212,15 @@ class ApplicationBootstrap {
         {
           code:
             "APPLICATION_INVALID",
+=======
+        'function'
+    ) {
+      throw new ApplicationBootstrapError(
+        'A valid Express-compatible application is required.',
+        {
+          code:
+            'APPLICATION_INVALID',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -1596,8 +2228,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * LOGGER
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   setLogger(
     logger,
@@ -1605,7 +2241,11 @@ class ApplicationBootstrap {
     if (
       !logger ||
       typeof logger !==
+<<<<<<< HEAD
         "object"
+=======
+        'object'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     ) {
       return this.logger;
     }
@@ -1631,7 +2271,11 @@ class ApplicationBootstrap {
 
       if (
         typeof target[level] ===
+<<<<<<< HEAD
         "function"
+=======
+        'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         target[level](
           message,
@@ -1670,8 +2314,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * PHASE REGISTRATION
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   registerDefaultPhases() {
     for (
@@ -1715,6 +2363,7 @@ class ApplicationBootstrap {
     if (
       !definition ||
       typeof definition !==
+<<<<<<< HEAD
         "object"
     ) {
       throw new ApplicationBootstrapError(
@@ -1722,6 +2371,15 @@ class ApplicationBootstrap {
         {
           code:
             "BOOTSTRAP_PHASE_INVALID",
+=======
+        'object'
+    ) {
+      throw new ApplicationBootstrapError(
+        'Bootstrap phase definition must be an object.',
+        {
+          code:
+            'BOOTSTRAP_PHASE_INVALID',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -1729,17 +2387,28 @@ class ApplicationBootstrap {
     const name =
       String(
         definition.name ||
+<<<<<<< HEAD
           "",
+=======
+          '',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ).trim();
 
     if (
       !name
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Bootstrap phase requires a name.",
         {
           code:
             "BOOTSTRAP_PHASE_NAME_REQUIRED",
+=======
+        'Bootstrap phase requires a name.',
+        {
+          code:
+            'BOOTSTRAP_PHASE_NAME_REQUIRED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -1799,25 +2468,41 @@ class ApplicationBootstrap {
 
         start:
           typeof definition.start ===
+<<<<<<< HEAD
           "function"
+=======
+          'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
             ? definition.start
             : null,
 
         stop:
           typeof definition.stop ===
+<<<<<<< HEAD
           "function"
+=======
+          'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
             ? definition.stop
             : null,
 
         health:
           typeof definition.health ===
+<<<<<<< HEAD
           "function"
+=======
+          'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
             ? definition.health
             : null,
 
         readiness:
           typeof definition.readiness ===
+<<<<<<< HEAD
           "function"
+=======
+          'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
             ? definition.readiness
             : null,
 
@@ -1843,6 +2528,7 @@ class ApplicationBootstrap {
       ),
     );
 
+<<<<<<< HEAD
     this.phaseStates.set(
       name,
       this.createPhaseState(
@@ -1856,6 +2542,20 @@ class ApplicationBootstrap {
     this.phaseImplementations.delete(
       name,
     );
+=======
+    if (
+      !this.phaseStates.has(
+        name,
+      )
+    ) {
+      this.phaseStates.set(
+        name,
+        this.createPhaseState(
+          normalized,
+        ),
+      );
+    }
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     return this;
   }
@@ -1865,7 +2565,11 @@ class ApplicationBootstrap {
   ) {
     const phaseName =
       String(
+<<<<<<< HEAD
         name || "",
+=======
+        name || '',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ).trim();
 
     if (
@@ -1883,16 +2587,26 @@ class ApplicationBootstrap {
       state &&
       (
         state.status ===
+<<<<<<< HEAD
           "starting" ||
         state.status ===
           "started"
+=======
+          'starting' ||
+        state.status ===
+          'started'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       )
     ) {
       throw new ApplicationBootstrapError(
         `Cannot unregister active bootstrap phase "${phaseName}".`,
         {
           code:
+<<<<<<< HEAD
             "BOOTSTRAP_ACTIVE_PHASE",
+=======
+            'BOOTSTRAP_ACTIVE_PHASE',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
           phase:
             phaseName,
@@ -1908,10 +2622,13 @@ class ApplicationBootstrap {
       phaseName,
     );
 
+<<<<<<< HEAD
     this.phaseImplementations.delete(
       phaseName,
     );
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     return true;
   }
 
@@ -1934,7 +2651,11 @@ class ApplicationBootstrap {
         false,
 
       status:
+<<<<<<< HEAD
         "pending",
+=======
+        'pending',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       startedAt:
         null,
@@ -1962,20 +2683,28 @@ class ApplicationBootstrap {
 
       rollbackError:
         null,
+<<<<<<< HEAD
 
       skippedReason:
         null,
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     };
   }
 
   /* ===========================================================================
    * MODULE DISCOVERY
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   resolveCandidate(
     candidate,
   ) {
+<<<<<<< HEAD
     return resolveLocalModulePath(
       candidate,
       CURRENT_DIRECTORY,
@@ -1983,6 +2712,34 @@ class ApplicationBootstrap {
   }
 
   async discoverPhaseModule(
+=======
+    if (
+      path.isAbsolute(
+        candidate,
+      )
+    ) {
+      return moduleExists(
+        candidate,
+      )
+        ? candidate
+        : null;
+    }
+
+    const absolute =
+      path.resolve(
+        __dirname,
+        candidate,
+      );
+
+    return moduleExists(
+      absolute,
+    )
+      ? absolute
+      : null;
+  }
+
+  discoverPhaseModule(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     phaseName,
     definition,
   ) {
@@ -1997,6 +2754,7 @@ class ApplicationBootstrap {
     if (
       definition.modulePath
     ) {
+<<<<<<< HEAD
       const resolved =
         this.resolveCandidate(
           definition.modulePath,
@@ -2029,6 +2787,26 @@ class ApplicationBootstrap {
 
       return unwrapModule(
         loaded,
+=======
+      if (
+        !moduleExists(
+          this.resolveCandidate(
+            definition.modulePath,
+          ) ||
+            definition.modulePath,
+        )
+      ) {
+        return null;
+      }
+
+      return unwrapModule(
+        loadModule(
+          this.resolveCandidate(
+            definition.modulePath,
+          ) ||
+            definition.modulePath,
+        ),
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
     }
 
@@ -2054,6 +2832,7 @@ class ApplicationBootstrap {
         );
 
       if (
+<<<<<<< HEAD
         !resolved
       ) {
         continue;
@@ -2067,6 +2846,16 @@ class ApplicationBootstrap {
       return unwrapModule(
         loaded,
       );
+=======
+        resolved
+      ) {
+        return unwrapModule(
+          loadModule(
+            resolved,
+          ),
+        );
+      }
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     }
 
     return null;
@@ -2082,7 +2871,11 @@ class ApplicationBootstrap {
     ) {
       if (
         typeof module?.[name] ===
+<<<<<<< HEAD
         "function"
+=======
+        'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         return module[name].bind(
           module,
@@ -2092,7 +2885,11 @@ class ApplicationBootstrap {
 
     if (
       typeof module ===
+<<<<<<< HEAD
       "function"
+=======
+      'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     ) {
       return module;
     }
@@ -2100,6 +2897,7 @@ class ApplicationBootstrap {
     return null;
   }
 
+<<<<<<< HEAD
   async resolvePhaseImplementation(
     phaseName,
     definition,
@@ -2114,6 +2912,15 @@ class ApplicationBootstrap {
       );
     }
 
+=======
+  resolvePhaseImplementation(
+    phaseName,
+    definition,
+  ) {
+    /**
+     * Explicitly supplied handlers always win.
+     */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     const explicit =
       {
         start:
@@ -2138,6 +2945,7 @@ class ApplicationBootstrap {
     if (
       !needsModule
     ) {
+<<<<<<< HEAD
       const implementation =
         Object.freeze({
           module:
@@ -2156,6 +2964,18 @@ class ApplicationBootstrap {
 
     const module =
       await this.discoverPhaseModule(
+=======
+      return {
+        module:
+          null,
+
+        ...explicit,
+      };
+    }
+
+    const module =
+      this.discoverPhaseModule(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         phaseName,
         definition,
       );
@@ -2163,6 +2983,7 @@ class ApplicationBootstrap {
     if (
       !module
     ) {
+<<<<<<< HEAD
       const implementation =
         Object.freeze({
           module:
@@ -2235,12 +3056,74 @@ class ApplicationBootstrap {
     );
 
     return implementation;
+=======
+      return {
+        module:
+          null,
+
+        ...explicit,
+      };
+    }
+
+    return {
+      module,
+
+      start:
+        explicit.start ||
+        this.resolveModuleFunction(
+          module,
+          [
+            'initialize',
+            'init',
+            'start',
+            'bootstrap',
+            'setup',
+          ],
+        ),
+
+      stop:
+        explicit.stop ||
+        this.resolveModuleFunction(
+          module,
+          [
+            'shutdown',
+            'stop',
+            'close',
+            'dispose',
+          ],
+        ),
+
+      health:
+        explicit.health ||
+        this.resolveModuleFunction(
+          module,
+          [
+            'health',
+            'getHealth',
+          ],
+        ),
+
+      readiness:
+        explicit.readiness ||
+        this.resolveModuleFunction(
+          module,
+          [
+            'readiness',
+            'isReady',
+          ],
+        ),
+    };
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   }
 
   /* ===========================================================================
    * PHASE ORDER
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   resolvePhaseOrder() {
     const definitions =
@@ -2289,7 +3172,11 @@ class ApplicationBootstrap {
             `Circular bootstrap phase dependency detected at "${name}".`,
             {
               code:
+<<<<<<< HEAD
                 "BOOTSTRAP_PHASE_CYCLE",
+=======
+                'BOOTSTRAP_PHASE_CYCLE',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
               phase:
                 name,
@@ -2306,10 +3193,17 @@ class ApplicationBootstrap {
           !definition
         ) {
           throw new ApplicationBootstrapError(
+<<<<<<< HEAD
             `Bootstrap phase dependency "${name}" is unavailable.`,
             {
               code:
                 "BOOTSTRAP_PHASE_DEPENDENCY_MISSING",
+=======
+            `Bootstrap phase "${name}" depends on an unavailable phase "${name}".`,
+            {
+              code:
+                'BOOTSTRAP_PHASE_DEPENDENCY_MISSING',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
               phase:
                 name,
@@ -2334,7 +3228,11 @@ class ApplicationBootstrap {
               `Bootstrap phase "${name}" depends on unknown phase "${dependency}".`,
               {
                 code:
+<<<<<<< HEAD
                   "BOOTSTRAP_PHASE_DEPENDENCY_MISSING",
+=======
+                  'BOOTSTRAP_PHASE_DEPENDENCY_MISSING',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
                 phase:
                   name,
@@ -2391,8 +3289,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * PHASE EXECUTION
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   async executePhase(
     definition,
@@ -2411,7 +3313,11 @@ class ApplicationBootstrap {
     );
 
     state.status =
+<<<<<<< HEAD
       "starting";
+=======
+      'starting';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     state.startedAt =
       now();
@@ -2419,6 +3325,7 @@ class ApplicationBootstrap {
     state.completedAt =
       null;
 
+<<<<<<< HEAD
     state.durationMs =
       0;
 
@@ -2431,6 +3338,11 @@ class ApplicationBootstrap {
     state.skippedReason =
       null;
 
+=======
+    state.error =
+      null;
+
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     state.rollbackAttempted =
       false;
 
@@ -2441,17 +3353,34 @@ class ApplicationBootstrap {
       null;
 
     this.emit(
+<<<<<<< HEAD
       "phase.starting",
+=======
+      'phase.starting',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       {
         phase:
           definition.name,
       },
     );
 
+<<<<<<< HEAD
+=======
+    const implementation =
+      this.resolvePhaseImplementation(
+        definition.name,
+        definition,
+      );
+
+    state.module =
+      implementation.module;
+
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     const phaseStart =
       Date.now();
 
     try {
+<<<<<<< HEAD
       const implementation =
         await this.resolvePhaseImplementation(
           definition.name,
@@ -2464,6 +3393,17 @@ class ApplicationBootstrap {
       if (
         !implementation.start
       ) {
+=======
+      if (
+        !implementation.start
+      ) {
+        /**
+         * Optional phases may legitimately be absent.
+         *
+         * Required phases fail only when no valid implementation exists and
+         * the phase cannot be satisfied by already prepared application state.
+         */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         if (
           definition.required &&
           !this.canSatisfyPhaseWithoutImplementation(
@@ -2474,7 +3414,11 @@ class ApplicationBootstrap {
             `Required bootstrap phase "${definition.name}" is not available.`,
             {
               code:
+<<<<<<< HEAD
                 "BOOTSTRAP_REQUIRED_PHASE_UNAVAILABLE",
+=======
+                'BOOTSTRAP_REQUIRED_PHASE_UNAVAILABLE',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
               phase:
                 definition.name,
@@ -2483,10 +3427,14 @@ class ApplicationBootstrap {
         }
 
         state.status =
+<<<<<<< HEAD
           "skipped";
 
         state.skippedReason =
           "no_implementation";
+=======
+          'skipped';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
         state.completedAt =
           now();
@@ -2497,6 +3445,7 @@ class ApplicationBootstrap {
           );
 
         this.emit(
+<<<<<<< HEAD
           "phase.skipped",
           {
             phase:
@@ -2504,6 +3453,12 @@ class ApplicationBootstrap {
 
             reason:
               state.skippedReason,
+=======
+          'phase.skipped',
+          {
+            phase:
+              definition.name,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           },
         );
 
@@ -2527,10 +3482,21 @@ class ApplicationBootstrap {
           },
         );
 
+<<<<<<< HEAD
       if (
         result &&
         typeof result ===
           "object"
+=======
+      /**
+       * Modules are permitted to populate application, logger and other
+       * canonical context members.
+       */
+      if (
+        result &&
+        typeof result ===
+          'object'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         if (
           result.application &&
@@ -2552,13 +3518,18 @@ class ApplicationBootstrap {
         if (
           result.context &&
           typeof result.context ===
+<<<<<<< HEAD
             "object"
+=======
+            'object'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         ) {
           Object.assign(
             this.context,
             result.context,
           );
         }
+<<<<<<< HEAD
 
         if (
           result.server
@@ -2573,6 +3544,8 @@ class ApplicationBootstrap {
           this.serverModule =
             result.serverModule;
         }
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       }
 
       if (
@@ -2595,7 +3568,11 @@ class ApplicationBootstrap {
         result;
 
       state.status =
+<<<<<<< HEAD
         "started";
+=======
+        'started';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       state.completedAt =
         now();
@@ -2610,7 +3587,11 @@ class ApplicationBootstrap {
       );
 
       this.emit(
+<<<<<<< HEAD
         "phase.completed",
+=======
+        'phase.completed',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         {
           phase:
             definition.name,
@@ -2623,7 +3604,11 @@ class ApplicationBootstrap {
       return result;
     } catch (error) {
       state.status =
+<<<<<<< HEAD
         "failed";
+=======
+        'failed';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       state.error =
         safeError(
@@ -2639,7 +3624,11 @@ class ApplicationBootstrap {
         );
 
       this.emit(
+<<<<<<< HEAD
         "phase.failed",
+=======
+        'phase.failed',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         {
           phase:
             definition.name,
@@ -2664,21 +3653,34 @@ class ApplicationBootstrap {
     switch (
       phaseName
     ) {
+<<<<<<< HEAD
       case "environment":
+=======
+      case 'environment':
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         return Boolean(
           this.context?.environment,
         );
 
+<<<<<<< HEAD
       case "configuration":
+=======
+      case 'configuration':
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         return Boolean(
           this.context?.config,
         );
 
+<<<<<<< HEAD
       case "logger":
+=======
+      case 'logger':
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         return Boolean(
           this.logger,
         );
 
+<<<<<<< HEAD
       case "readiness":
         return true;
 
@@ -2686,12 +3688,25 @@ class ApplicationBootstrap {
       case "services":
       case "middleware":
       case "routes":
+=======
+      case 'readiness':
+        return true;
+
+      case 'infrastructure':
+      case 'services':
+      case 'middleware':
+      case 'routes':
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         return Boolean(
           this.context?.application ||
             this.application,
         );
 
+<<<<<<< HEAD
       case "server":
+=======
+      case 'server':
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         return Boolean(
           this.context?.server ||
             this.server,
@@ -2724,7 +3739,11 @@ class ApplicationBootstrap {
       `Application bootstrap phase "${phase}" failed.`,
       {
         code:
+<<<<<<< HEAD
           "BOOTSTRAP_PHASE_FAILED",
+=======
+          'BOOTSTRAP_PHASE_FAILED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
         phase,
 
@@ -2736,10 +3755,16 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * SERVER ADAPTER
+<<<<<<< HEAD
    * ===========================================================================
    */
 
   async resolveServerModule(
+=======
+   * =========================================================================== */
+
+  resolveServerModule(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     context,
   ) {
     if (
@@ -2758,6 +3783,7 @@ class ApplicationBootstrap {
       );
     }
 
+<<<<<<< HEAD
     const resolved =
       this.resolveCandidate(
         "./server",
@@ -2777,6 +3803,27 @@ class ApplicationBootstrap {
     return unwrapModule(
       loaded,
     );
+=======
+    const candidate =
+      path.resolve(
+        __dirname,
+        'server.js',
+      );
+
+    if (
+      moduleExists(
+        candidate,
+      )
+    ) {
+      return unwrapModule(
+        loadModule(
+          candidate,
+        ),
+      );
+    }
+
+    return null;
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   }
 
   async startServer() {
@@ -2790,6 +3837,7 @@ class ApplicationBootstrap {
       !this.application
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Cannot start the TITech HTTP server before an application has been composed.",
         {
           code:
@@ -2797,20 +3845,36 @@ class ApplicationBootstrap {
 
           phase:
             "server",
+=======
+        'Cannot start the TITech HTTP server before an application has been composed.',
+        {
+          code:
+            'SERVER_APPLICATION_UNAVAILABLE',
+
+          phase:
+            'server',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
 
     const serverModule =
       this.serverModule ||
+<<<<<<< HEAD
       (await this.resolveServerModule(
         this.context,
       ));
+=======
+      this.resolveServerModule(
+        this.context,
+      );
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     if (
       !serverModule
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "HTTP server bootstrap adapter is unavailable.",
         {
           code:
@@ -2818,6 +3882,15 @@ class ApplicationBootstrap {
 
           phase:
             "server",
+=======
+        'HTTP server bootstrap adapter is unavailable.',
+        {
+          code:
+            'SERVER_BOOTSTRAP_UNAVAILABLE',
+
+          phase:
+            'server',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -2831,6 +3904,12 @@ class ApplicationBootstrap {
           {}),
       };
 
+<<<<<<< HEAD
+=======
+    /**
+     * Canonical application injection.
+     */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     serverOptions.app =
       this.application;
 
@@ -2857,16 +3936,25 @@ class ApplicationBootstrap {
 
     if (
       typeof serverModule.registerServerHooks ===
+<<<<<<< HEAD
         "function" &&
       this.options.registerServerHooks
     ) {
       try {
         await serverModule.registerServerHooks(
+=======
+        'function' &&
+      this.options.registerServerHooks
+    ) {
+      try {
+        serverModule.registerServerHooks(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           this.context,
           serverOptions,
         );
       } catch (error) {
         throw new ApplicationBootstrapError(
+<<<<<<< HEAD
           "Unable to register TITech HTTP server lifecycle hooks.",
           {
             code:
@@ -2874,6 +3962,15 @@ class ApplicationBootstrap {
 
             phase:
               "server",
+=======
+          'Unable to register TITech HTTP server lifecycle hooks.',
+          {
+            code:
+              'SERVER_HOOK_REGISTRATION_FAILED',
+
+            phase:
+              'server',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
             cause:
               error,
@@ -2888,6 +3985,7 @@ class ApplicationBootstrap {
 
     if (
       typeof startFunction !==
+<<<<<<< HEAD
       "function"
     ) {
       throw new ApplicationBootstrapError(
@@ -2898,6 +3996,18 @@ class ApplicationBootstrap {
 
           phase:
             "server",
+=======
+      'function'
+    ) {
+      throw new ApplicationBootstrapError(
+        'TITech HTTP server bootstrap adapter does not expose start() or initialize().',
+        {
+          code:
+            'SERVER_START_API_UNAVAILABLE',
+
+          phase:
+            'server',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -2938,6 +4048,7 @@ class ApplicationBootstrap {
     if (
       !serverModule
     ) {
+<<<<<<< HEAD
       this.server =
         null;
 
@@ -2948,6 +4059,8 @@ class ApplicationBootstrap {
           null;
       }
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       return true;
     }
 
@@ -2958,7 +4071,11 @@ class ApplicationBootstrap {
 
     if (
       typeof stopFunction !==
+<<<<<<< HEAD
       "function"
+=======
+      'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     ) {
       this.server =
         null;
@@ -2976,8 +4093,11 @@ class ApplicationBootstrap {
     await stopFunction(
       reason,
       metadata,
+<<<<<<< HEAD
       this.context,
       this,
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     );
 
     this.server =
@@ -2995,8 +4115,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * STARTUP
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   async start(
     suppliedContext = {},
@@ -3005,10 +4129,17 @@ class ApplicationBootstrap {
       this.destroyed
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Cannot start a destroyed TITech application bootstrap.",
         {
           code:
             "BOOTSTRAP_DESTROYED",
+=======
+        'Cannot start a destroyed TITech application bootstrap.',
+        {
+          code:
+            'BOOTSTRAP_DESTROYED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -3031,10 +4162,17 @@ class ApplicationBootstrap {
       this.stopping
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Cannot start application bootstrap while shutdown is in progress.",
         {
           code:
             "BOOTSTRAP_START_DURING_SHUTDOWN",
+=======
+        'Cannot start application bootstrap while shutdown is in progress.',
+        {
+          code:
+            'BOOTSTRAP_START_DURING_SHUTDOWN',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -3044,10 +4182,17 @@ class ApplicationBootstrap {
       !this.options.allowRestart
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Application bootstrap cannot be restarted after shutdown.",
         {
           code:
             "BOOTSTRAP_ALREADY_STOPPED",
+=======
+        'Application bootstrap cannot be restarted after shutdown.',
+        {
+          code:
+            'BOOTSTRAP_ALREADY_STOPPED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -3126,7 +4271,11 @@ class ApplicationBootstrap {
           ),
         this.options
           .startupTimeoutMs,
+<<<<<<< HEAD
         "application-bootstrap",
+=======
+        'application-bootstrap',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
 
     try {
@@ -3145,13 +4294,22 @@ class ApplicationBootstrap {
         false;
 
       this.emit(
+<<<<<<< HEAD
         "started",
+=======
+        'started',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         this.getSnapshot(),
       );
 
       this.log(
+<<<<<<< HEAD
         "info",
         "TITech application bootstrap completed.",
+=======
+        'info',
+        'TITech application bootstrap completed.',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         {
           application:
             APPLICATION_NAME,
@@ -3178,7 +4336,11 @@ class ApplicationBootstrap {
         error;
 
       this.emit(
+<<<<<<< HEAD
         "failed",
+=======
+        'failed',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         {
           error:
             safeError(
@@ -3201,7 +4363,11 @@ class ApplicationBootstrap {
       this.resolvePhaseOrder();
 
     this.emit(
+<<<<<<< HEAD
       "starting",
+=======
+      'starting',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       {
         phases:
           order.map(
@@ -3212,8 +4378,13 @@ class ApplicationBootstrap {
     );
 
     this.log(
+<<<<<<< HEAD
       "info",
       "Starting TITech application bootstrap.",
+=======
+      'info',
+      'Starting TITech application bootstrap.',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       {
         phases:
           order.map(
@@ -3232,10 +4403,17 @@ class ApplicationBootstrap {
           signal?.aborted
         ) {
           throw new ApplicationBootstrapError(
+<<<<<<< HEAD
             "TITech application bootstrap was aborted.",
             {
               code:
                 "BOOTSTRAP_ABORTED",
+=======
+            'TITech application bootstrap was aborted.',
+            {
+              code:
+                'BOOTSTRAP_ABORTED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
               cause:
                 signal.reason,
@@ -3243,6 +4421,7 @@ class ApplicationBootstrap {
           );
         }
 
+<<<<<<< HEAD
         /**
          * The HTTP transport phase is intentionally handled separately.
          */
@@ -3291,6 +4470,138 @@ class ApplicationBootstrap {
             },
           );
         }
+=======
+        if (
+          definition.name ===
+          'server'
+        ) {
+          const state =
+            this.phaseStates.get(
+              'server',
+            ) ||
+            this.createPhaseState(
+              definition,
+            );
+
+          this.phaseStates.set(
+            'server',
+            state,
+          );
+
+          if (
+            !this.options.startServer
+          ) {
+            state.status =
+              'skipped';
+
+            state.completedAt =
+              now();
+
+            continue;
+          }
+
+          state.status =
+            'starting';
+
+          state.startedAt =
+            now();
+
+          this.emit(
+            'phase.starting',
+            {
+              phase:
+                'server',
+            },
+          );
+
+          const serverStart =
+            Date.now();
+
+          try {
+            const result =
+              await withTimeout(
+                () =>
+                  this.startServer(),
+                definition.timeoutMs,
+                'server',
+                {
+                  signal:
+                    this.lifecycleAbortController
+                      .signal,
+                },
+              );
+
+            state.result =
+              result;
+
+            state.status =
+              'started';
+
+            state.completedAt =
+              now();
+
+            state.durationMs =
+              elapsedMs(
+                serverStart,
+              );
+
+            this.completedPhases.push(
+              'server',
+            );
+
+            this.emit(
+              'phase.completed',
+              {
+                phase:
+                  'server',
+
+                durationMs:
+                  state.durationMs,
+              },
+            );
+          } catch (error) {
+            state.status =
+              'failed';
+
+            state.error =
+              safeError(
+                error,
+              );
+
+            state.completedAt =
+              now();
+
+            state.durationMs =
+              elapsedMs(
+                serverStart,
+              );
+
+            this.emit(
+              'phase.failed',
+              {
+                phase:
+                  'server',
+
+                error:
+                  safeError(
+                    error,
+                  ),
+              },
+            );
+
+            throw this.wrapPhaseError(
+              error,
+              'server',
+            );
+          }
+
+          continue;
+        }
+
+        await this.executePhase(
+          definition,
+        );
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
         if (
           this.context?.application &&
@@ -3327,8 +4638,13 @@ class ApplicationBootstrap {
       return this.getSnapshot();
     } catch (error) {
       this.log(
+<<<<<<< HEAD
         "error",
         "TITech application startup failed. Beginning transactional rollback.",
+=======
+        'error',
+        'TITech application startup failed. Beginning transactional rollback.',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         {
           error:
             safeError(
@@ -3346,8 +4662,13 @@ class ApplicationBootstrap {
         rollbackErrors.length > 0
       ) {
         this.log(
+<<<<<<< HEAD
           "error",
           "TITech startup rollback completed with errors.",
+=======
+          'error',
+          'TITech startup rollback completed with errors.',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           {
             rollbackErrors:
               rollbackErrors.map(
@@ -3361,6 +4682,7 @@ class ApplicationBootstrap {
     }
   }
 
+<<<<<<< HEAD
   async executeServerPhase(
     definition,
   ) {
@@ -3511,6 +4833,11 @@ class ApplicationBootstrap {
    * ROLLBACK
    * ===========================================================================
    */
+=======
+  /* ===========================================================================
+   * ROLLBACK
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   async rollback(
     cause,
@@ -3541,10 +4868,17 @@ class ApplicationBootstrap {
       try {
         if (
           definition.name ===
+<<<<<<< HEAD
           "server"
         ) {
           await this.stopServer(
             "bootstrap-rollback",
+=======
+          'server'
+        ) {
+          await this.stopServer(
+            'bootstrap-rollback',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
             {
               cause,
             },
@@ -3552,7 +4886,11 @@ class ApplicationBootstrap {
 
           const state =
             this.phaseStates.get(
+<<<<<<< HEAD
               "server",
+=======
+              'server',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
             );
 
           if (
@@ -3565,7 +4903,11 @@ class ApplicationBootstrap {
               true;
 
             state.status =
+<<<<<<< HEAD
               "stopped";
+=======
+              'stopped';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           }
 
           continue;
@@ -3582,7 +4924,11 @@ class ApplicationBootstrap {
     }
 
     this.emit(
+<<<<<<< HEAD
       "rollback.completed",
+=======
+      'rollback.completed',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       {
         cause:
           safeError(
@@ -3601,8 +4947,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * PHASE SHUTDOWN
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   async stopPhase(
     definition,
@@ -3615,7 +4965,11 @@ class ApplicationBootstrap {
     if (
       !state ||
       state.status !==
+<<<<<<< HEAD
         "started"
+=======
+        'started'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     ) {
       return;
     }
@@ -3624,7 +4978,11 @@ class ApplicationBootstrap {
       true;
 
     const implementation =
+<<<<<<< HEAD
       await this.resolvePhaseImplementation(
+=======
+      this.resolvePhaseImplementation(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         definition.name,
         definition,
       );
@@ -3636,7 +4994,11 @@ class ApplicationBootstrap {
         true;
 
       state.status =
+<<<<<<< HEAD
         "stopped";
+=======
+        'stopped';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       return;
     }
@@ -3657,13 +5019,25 @@ class ApplicationBootstrap {
             .shutdownTimeoutMs,
         ),
         `${definition.name}-shutdown`,
+<<<<<<< HEAD
+=======
+        {
+          signal:
+            this.lifecycleAbortController
+              .signal,
+        },
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
 
       state.rollbackCompleted =
         true;
 
       state.status =
+<<<<<<< HEAD
         "stopped";
+=======
+        'stopped';
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     } catch (error) {
       state.rollbackCompleted =
         false;
@@ -3674,10 +5048,17 @@ class ApplicationBootstrap {
         );
 
       state.status =
+<<<<<<< HEAD
         "failed";
 
       this.emit(
         "phase.shutdown_failed",
+=======
+        'failed';
+
+      this.emit(
+        'phase.shutdown_failed',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         {
           phase:
             definition.name,
@@ -3693,7 +5074,11 @@ class ApplicationBootstrap {
         `Shutdown of bootstrap phase "${definition.name}" failed.`,
         {
           code:
+<<<<<<< HEAD
             "BOOTSTRAP_PHASE_SHUTDOWN_FAILED",
+=======
+            'BOOTSTRAP_PHASE_SHUTDOWN_FAILED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
           phase:
             definition.name,
@@ -3707,12 +5092,20 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * SHUTDOWN
+<<<<<<< HEAD
    * ===========================================================================
    */
 
   async stop(
     reason =
       "application-request",
+=======
+   * =========================================================================== */
+
+  async stop(
+    reason =
+      'application-request',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     metadata = {},
   ) {
     if (
@@ -3743,7 +5136,11 @@ class ApplicationBootstrap {
 
   async shutdown(
     reason =
+<<<<<<< HEAD
       "application-request",
+=======
+      'application-request',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     metadata = {},
   ) {
     return this.stop(
@@ -3769,22 +5166,34 @@ class ApplicationBootstrap {
       false;
 
     try {
+<<<<<<< HEAD
       if (
         !this.lifecycleAbortController
           .signal.aborted
       ) {
         this.lifecycleAbortController.abort(
+=======
+      this.lifecycleAbortController
+        .abort(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           new Error(
             `Application shutdown requested: ${reason}`,
           ),
         );
+<<<<<<< HEAD
       }
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     } catch {
       // Abort is best effort.
     }
 
     this.emit(
+<<<<<<< HEAD
       "stopping",
+=======
+      'stopping',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       {
         reason,
 
@@ -3795,10 +5204,21 @@ class ApplicationBootstrap {
     );
 
     this.log(
+<<<<<<< HEAD
       "info",
       "Stopping TITech application bootstrap.",
       {
         reason,
+=======
+      'info',
+      'Stopping TITech application bootstrap.',
+      {
+        reason,
+
+        signal:
+          metadata?.signal ||
+          null,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       },
     );
 
@@ -3806,7 +5226,11 @@ class ApplicationBootstrap {
       null;
 
     /**
+<<<<<<< HEAD
      * HTTP transport stops first.
+=======
+     * Transport stops first.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
      */
     try {
       await withTimeout(
@@ -3817,7 +5241,11 @@ class ApplicationBootstrap {
           ),
         this.options
           .shutdownTimeoutMs,
+<<<<<<< HEAD
         "server-shutdown",
+=======
+        'server-shutdown',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
     } catch (error) {
       shutdownError =
@@ -3825,7 +5253,12 @@ class ApplicationBootstrap {
     }
 
     /**
+<<<<<<< HEAD
      * Then stop all phases that actually reached started state.
+=======
+     * Only stop phases that actually completed, in exact reverse completion
+     * order.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
      */
     const completed =
       [
@@ -3838,7 +5271,11 @@ class ApplicationBootstrap {
     ) {
       if (
         phaseName ===
+<<<<<<< HEAD
         "server"
+=======
+        'server'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         continue;
       }
@@ -3886,7 +5323,11 @@ class ApplicationBootstrap {
         shutdownError;
 
       this.emit(
+<<<<<<< HEAD
         "shutdown.failed",
+=======
+        'shutdown.failed',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         {
           reason,
 
@@ -3898,8 +5339,13 @@ class ApplicationBootstrap {
       );
 
       this.log(
+<<<<<<< HEAD
         "error",
         "TITech application bootstrap shutdown completed with errors.",
+=======
+        'error',
+        'TITech application bootstrap shutdown completed with errors.',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         {
           reason,
 
@@ -3921,15 +5367,24 @@ class ApplicationBootstrap {
     }
 
     this.emit(
+<<<<<<< HEAD
       "stopped",
+=======
+      'stopped',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       {
         reason,
       },
     );
 
     this.log(
+<<<<<<< HEAD
       "info",
       "TITech application bootstrap stopped.",
+=======
+      'info',
+      'TITech application bootstrap stopped.',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       {
         reason,
 
@@ -3947,8 +5402,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * READINESS
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   async readiness() {
     const phaseResults =
@@ -3963,24 +5422,43 @@ class ApplicationBootstrap {
           definition.name,
         );
 
+<<<<<<< HEAD
       if (
         state?.status !==
           "started" &&
         definition.name !==
           "readiness"
+=======
+      /**
+       * Do not claim readiness from phases that never started.
+       */
+      if (
+        state?.status !==
+          'started' &&
+        definition.name !==
+          'readiness'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         continue;
       }
 
       const implementation =
+<<<<<<< HEAD
         await this.resolvePhaseImplementation(
+=======
+        this.resolvePhaseImplementation(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           definition.name,
           definition,
         );
 
       if (
         typeof implementation.readiness !==
+<<<<<<< HEAD
         "function"
+=======
+        'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         continue;
       }
@@ -3996,7 +5474,11 @@ class ApplicationBootstrap {
           definition.name
         ] =
           typeof result ===
+<<<<<<< HEAD
           "boolean"
+=======
+          'boolean'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
             ? {
                 ready:
                   result,
@@ -4052,8 +5534,13 @@ class ApplicationBootstrap {
 
       status:
         ready
+<<<<<<< HEAD
           ? "ready"
           : "not_ready",
+=======
+          ? 'ready'
+          : 'not_ready',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       application:
         APPLICATION_NAME,
@@ -4077,8 +5564,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * HEALTH
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   async health() {
     const phaseResults =
@@ -4095,20 +5586,32 @@ class ApplicationBootstrap {
 
       if (
         state?.status !==
+<<<<<<< HEAD
         "started"
+=======
+        'started'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         continue;
       }
 
       const implementation =
+<<<<<<< HEAD
         await this.resolvePhaseImplementation(
+=======
+        this.resolvePhaseImplementation(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           definition.name,
           definition,
         );
 
       if (
         typeof implementation.health !==
+<<<<<<< HEAD
         "function"
+=======
+        'function'
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       ) {
         continue;
       }
@@ -4126,7 +5629,11 @@ class ApplicationBootstrap {
           definition.name
         ] = {
           status:
+<<<<<<< HEAD
             "unhealthy",
+=======
+            'unhealthy',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
           healthy:
             false,
@@ -4147,7 +5654,11 @@ class ApplicationBootstrap {
           result &&
           (
             result.status ===
+<<<<<<< HEAD
               "unhealthy" ||
+=======
+              'unhealthy' ||
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
             result.healthy ===
               false
           ),
@@ -4156,11 +5667,19 @@ class ApplicationBootstrap {
     return {
       status:
         !this.started
+<<<<<<< HEAD
           ? "degraded"
           : unhealthy ||
               this.failed
             ? "unhealthy"
             : "healthy",
+=======
+          ? 'degraded'
+          : unhealthy ||
+              this.failed
+            ? 'unhealthy'
+            : 'healthy',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       application:
         APPLICATION_NAME,
@@ -4206,8 +5725,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * SNAPSHOT
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   getSnapshot() {
     const phases =
@@ -4248,9 +5771,12 @@ class ApplicationBootstrap {
           error:
             state.error,
 
+<<<<<<< HEAD
           skippedReason:
             state.skippedReason,
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           rollbackAttempted:
             state.rollbackAttempted,
 
@@ -4345,8 +5871,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * PREDICATES
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   isInitialized() {
     return this.initialized;
@@ -4386,8 +5916,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * EVENTS
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   on(
     event,
@@ -4453,15 +5987,23 @@ class ApplicationBootstrap {
       );
     } catch {
       /**
+<<<<<<< HEAD
        * Subscriber failures must never break lifecycle execution.
+=======
+       * Event subscribers must never break lifecycle execution.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
        */
     }
   }
 
   /* ===========================================================================
    * RESTART SUPPORT
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   prepareForRestart() {
     if (
@@ -4470,10 +6012,17 @@ class ApplicationBootstrap {
       this.stopping
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Cannot prepare TITech bootstrap for restart while active.",
         {
           code:
             "BOOTSTRAP_RESTART_ACTIVE",
+=======
+        'Cannot prepare TITech bootstrap for restart while active.',
+        {
+          code:
+            'BOOTSTRAP_RESTART_ACTIVE',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -4496,8 +6045,11 @@ class ApplicationBootstrap {
     this.completedPhases =
       [];
 
+<<<<<<< HEAD
     this.phaseImplementations.clear();
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     this.lifecycleAbortController =
       new AbortController();
 
@@ -4526,8 +6078,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * RESET
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   reset() {
     if (
@@ -4536,10 +6092,17 @@ class ApplicationBootstrap {
       this.stopping
     ) {
       throw new ApplicationBootstrapError(
+<<<<<<< HEAD
         "Cannot reset an active TITech application bootstrap.",
         {
           code:
             "BOOTSTRAP_RESET_NOT_ALLOWED",
+=======
+        'Cannot reset an active TITech application bootstrap.',
+        {
+          code:
+            'BOOTSTRAP_RESET_NOT_ALLOWED',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
     }
@@ -4559,9 +6122,12 @@ class ApplicationBootstrap {
     this.phaseStates =
       new Map();
 
+<<<<<<< HEAD
     this.phaseImplementations
       .clear();
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     this.completedPhases =
       [];
 
@@ -4627,8 +6193,12 @@ class ApplicationBootstrap {
 
   /* ===========================================================================
    * DESTROY
+<<<<<<< HEAD
    * ===========================================================================
    */
+=======
+   * =========================================================================== */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   async destroy() {
     if (
@@ -4643,11 +6213,16 @@ class ApplicationBootstrap {
       this.stopping
     ) {
       await this.stop(
+<<<<<<< HEAD
         "bootstrap-destroy",
+=======
+        'bootstrap-destroy',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
     }
 
     try {
+<<<<<<< HEAD
       if (
         !this.lifecycleAbortController
           .signal.aborted
@@ -4658,12 +6233,23 @@ class ApplicationBootstrap {
           ),
         );
       }
+=======
+      this.lifecycleAbortController
+        .abort(
+          new Error(
+            'TITech application bootstrap destroyed.',
+          ),
+        );
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     } catch {
       // Best effort.
     }
 
+<<<<<<< HEAD
     this.phaseImplementations.clear();
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     this.events.removeAllListeners();
 
     this.destroyed =
@@ -4688,8 +6274,12 @@ function createApplicationBootstrap(
 
 /* =============================================================================
  * LAZY SINGLETON
+<<<<<<< HEAD
  * =============================================================================
  */
+=======
+ * ============================================================================= */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 let defaultBootstrap =
   null;
@@ -4711,8 +6301,12 @@ function getApplicationBootstrap(
 
 /* =============================================================================
  * CONVENIENCE API
+<<<<<<< HEAD
  * =============================================================================
  */
+=======
+ * ============================================================================= */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 async function startApplication(
   context = {},
@@ -4731,6 +6325,7 @@ async function startApplication(
     );
   }
 
+<<<<<<< HEAD
   if (
     !bootstrap.isInitialized()
   ) {
@@ -4739,6 +6334,8 @@ async function startApplication(
     );
   }
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   return bootstrap.start(
     context,
   );
@@ -4746,7 +6343,11 @@ async function startApplication(
 
 async function shutdownApplication(
   reason =
+<<<<<<< HEAD
     "application-request",
+=======
+    'application-request',
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   metadata = {},
 ) {
   if (
@@ -4792,6 +6393,7 @@ function getBootstrapState() {
 }
 
 /* =============================================================================
+<<<<<<< HEAD
  * ESM EXPORTS
  * =============================================================================
  */
@@ -4825,3 +6427,39 @@ export {
 
   DEFAULT_PHASES,
 };
+=======
+ * EXPORTS
+ * =============================================================================
+ */
+
+module.exports =
+  Object.freeze({
+    ApplicationBootstrap,
+
+    ApplicationBootstrapError,
+
+    createApplicationBootstrap,
+
+    getApplicationBootstrap,
+
+    startApplication,
+
+    shutdownApplication,
+
+    getApplication,
+
+    getBootstrapState,
+
+    APPLICATION_NAME,
+
+    COMPONENT,
+
+    SERVICE_NAME,
+
+    VERSION,
+
+    DEFAULTS,
+
+    DEFAULT_PHASES,
+  });
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880

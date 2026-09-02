@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+"use strict";
+
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 /**
  * =============================================================================
  * TITech Community Capital Ltd
@@ -67,11 +72,16 @@
  *   Node.js 20+
  *
  * Module System:
+<<<<<<< HEAD
  *   ES Modules (ESM)
+=======
+ *   CommonJS
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  *
  * =============================================================================
  */
 
+<<<<<<< HEAD
 import path from "node:path";
 import crypto from "node:crypto";
 import os from "node:os";
@@ -80,6 +90,14 @@ import {
   pathToFileURL,
 } from "node:url";
 import dotenv from "dotenv";
+=======
+"use strict";
+
+const path = require("node:path");
+const crypto = require("node:crypto");
+const os = require("node:os");
+const dotenv = require("dotenv");
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 /* =============================================================================
  * CONSTANTS
@@ -101,6 +119,7 @@ const MIN_NODE_MAJOR =
 const FATAL_EXIT_CODE =
   1;
 
+<<<<<<< HEAD
 const STARTUP_STATUS =
   Object.freeze({
     NOT_STARTED:
@@ -149,18 +168,36 @@ const ENV_FILE =
         CURRENT_DIRECTORY,
         ".env",
       ),
+=======
+const ENV_FILE =
+  path.resolve(
+    process.cwd(),
+    ".env",
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   );
 
 /**
  * Canonical bootstrap implementation.
+<<<<<<< HEAD
  */
 const BOOTSTRAP_MODULE_PATH =
   "./bootstrap/ApplicationBootstrap.js";
+=======
+ *
+ * Do NOT silently fall back to an alternative application factory.
+ */
+const BOOTSTRAP_MODULE_PATH =
+  "./bootstrap/ApplicationBootstrap";
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 /**
  * Signals are documented here for observability.
  *
+<<<<<<< HEAD
  * Signal registration itself belongs to ApplicationBootstrap.
+=======
+ * Signal registration itself belongs to the canonical bootstrap lifecycle.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  */
 const PROCESS_SIGNALS =
   Object.freeze([
@@ -169,7 +206,11 @@ const PROCESS_SIGNALS =
   ]);
 
 /**
+<<<<<<< HEAD
  * Metadata keys that should never be logged directly.
+=======
+ * Environment values that should never be logged directly.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  */
 const SENSITIVE_KEY_PATTERN =
   /password|passwd|passcode|pin|otp|secret|token|authorization|cookie|api[-_]?key|private[-_]?key|client[-_]?secret|jwt|mongo(uri)?|mongodb|redis|database|connection|string/i;
@@ -179,6 +220,7 @@ const SENSITIVE_KEY_PATTERN =
  * =============================================================================
  */
 
+<<<<<<< HEAD
 let dotenvResult = {
   parsed:
     null,
@@ -186,10 +228,14 @@ let dotenvResult = {
   error:
     null,
 };
+=======
+let dotenvResult;
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 try {
   dotenvResult =
     dotenv.config({
+<<<<<<< HEAD
       path:
         ENV_FILE,
     });
@@ -198,12 +244,25 @@ try {
     parsed:
       null,
 
+=======
+      path: ENV_FILE,
+    });
+} catch (error) {
+  dotenvResult = {
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     error,
   };
 }
 
 /**
+<<<<<<< HEAD
  * Resolve identity AFTER dotenv.
+=======
+ * Resolve identity AFTER dotenv has been loaded.
+ *
+ * This allows SERVICE_NAME / OTEL_SERVICE_NAME / NODE_ENV to be supplied
+ * through .env while still supporting externally injected process variables.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  */
 const SERVICE_NAME =
   process.env.SERVICE_NAME ||
@@ -214,14 +273,18 @@ const NODE_ENV =
   process.env.NODE_ENV ||
   DEFAULT_NODE_ENV;
 
+<<<<<<< HEAD
 const EFFECTIVE_APPLICATION_NAME =
   process.env.APPLICATION_NAME ||
   APPLICATION_NAME;
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 /* =============================================================================
  * PROCESS-LOCAL STATE
  * =============================================================================
  *
+<<<<<<< HEAD
  * These variables describe only the process entry point.
  *
  * Application lifecycle state remains owned by ApplicationBootstrap.
@@ -248,6 +311,27 @@ let startupPromise =
 
 let processStartupStatus =
   STARTUP_STATUS.NOT_STARTED;
+=======
+ * This is NOT an application state machine.
+ *
+ * Application lifecycle state remains owned by ApplicationBootstrap.
+ *
+ * These variables only describe this process-entry module's local bookkeeping.
+ * =============================================================================
+ */
+
+let bootstrapInstance = null;
+
+let bootstrapModule = null;
+
+let logger = console;
+
+let processHandlersInstalled = false;
+
+let fatalHandlingStarted = false;
+
+let startupPromise = null;
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 /* =============================================================================
  * SAFE SERIALIZATION
@@ -257,6 +341,12 @@ let processStartupStatus =
 /**
  * Convert diagnostic values into safe, JSON-compatible values.
  *
+<<<<<<< HEAD
+=======
+ * This function intentionally favors observability safety over perfect
+ * serialization fidelity.
+ *
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  * @param {*} value
  * @param {number} depth
  * @param {WeakSet<object>} seen
@@ -291,7 +381,11 @@ function sanitizeValue(
   }
 
   if (
+<<<<<<< HEAD
     depth >= 6
+=======
+    depth >= 5
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   ) {
     return "[max-depth]";
   }
@@ -306,6 +400,7 @@ function sanitizeValue(
       message:
         value.message,
 
+<<<<<<< HEAD
       ...(value.code !==
         undefined
         ? {
@@ -354,6 +449,12 @@ function sanitizeValue(
 
       ...(NODE_ENV !==
         "production" &&
+=======
+      code:
+        value.code,
+
+      ...(NODE_ENV !== "production" &&
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       value.stack
         ? {
             stack:
@@ -364,6 +465,7 @@ function sanitizeValue(
   }
 
   if (
+<<<<<<< HEAD
     typeof value ===
     "object"
   ) {
@@ -371,10 +473,17 @@ function sanitizeValue(
       seen.has(
         value,
       )
+=======
+    typeof value === "object"
+  ) {
+    if (
+      seen.has(value)
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     ) {
       return "[circular]";
     }
 
+<<<<<<< HEAD
     seen.add(
       value,
     );
@@ -383,6 +492,12 @@ function sanitizeValue(
       Array.isArray(
         value,
       )
+=======
+    seen.add(value);
+
+    if (
+      Array.isArray(value)
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     ) {
       return value.map(
         item =>
@@ -394,25 +509,36 @@ function sanitizeValue(
       );
     }
 
+<<<<<<< HEAD
     const output =
       {};
+=======
+    const output = {};
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     for (
       const [
         key,
         nestedValue,
+<<<<<<< HEAD
       ] of Object.entries(
         value,
       )
+=======
+      ] of Object.entries(value)
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     ) {
       if (
         SENSITIVE_KEY_PATTERN.test(
           String(key),
         )
       ) {
+<<<<<<< HEAD
         output[key] =
           "[redacted]";
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         continue;
       }
 
@@ -431,7 +557,11 @@ function sanitizeValue(
 }
 
 /**
+<<<<<<< HEAD
  * Sanitize diagnostic metadata.
+=======
+ * Sanitize an object containing diagnostic metadata.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  *
  * @param {*} metadata
  * @returns {object}
@@ -441,8 +571,12 @@ function sanitizeMetadata(
 ) {
   if (
     !metadata ||
+<<<<<<< HEAD
     typeof metadata !==
       "object"
+=======
+    typeof metadata !== "object"
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   ) {
     return {};
   }
@@ -454,11 +588,16 @@ function sanitizeMetadata(
 
   if (
     sanitized &&
+<<<<<<< HEAD
     typeof sanitized ===
       "object" &&
     !Array.isArray(
       sanitized,
     )
+=======
+    typeof sanitized === "object" &&
+    !Array.isArray(sanitized)
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   ) {
     return sanitized;
   }
@@ -472,7 +611,13 @@ function sanitizeMetadata(
  */
 
 /**
+<<<<<<< HEAD
  * @param {"debug"|"info"|"warn"|"error"} level
+=======
+ * Generic safe logger dispatcher.
+ *
+ * @param {"info"|"warn"|"error"} level
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  * @param {string} message
  * @param {object} metadata
  */
@@ -518,6 +663,7 @@ function writeLog(
   }
 }
 
+<<<<<<< HEAD
 function logDebug(
   message,
   metadata = {},
@@ -529,6 +675,8 @@ function logDebug(
   );
 }
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 function logInfo(
   message,
   metadata = {},
@@ -580,6 +728,7 @@ function validateRuntime() {
 
   const nodeMajor =
     Number(
+<<<<<<< HEAD
       String(
         nodeVersion,
       ).split(".")[0],
@@ -589,11 +738,23 @@ function validateRuntime() {
     !Number.isInteger(
       nodeMajor,
     ) ||
+=======
+      String(nodeVersion)
+        .split(".")[0],
+    );
+
+  if (
+    !Number.isInteger(nodeMajor) ||
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     nodeMajor < MIN_NODE_MAJOR
   ) {
     const error =
       new Error(
+<<<<<<< HEAD
         `${EFFECTIVE_APPLICATION_NAME} requires Node.js ${MIN_NODE_MAJOR}+. ` +
+=======
+        `${APPLICATION_NAME} requires Node.js ${MIN_NODE_MAJOR}+. ` +
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           `Current runtime: ${process.version}`,
       );
 
@@ -610,6 +771,7 @@ function validateRuntime() {
         "function",
 
       structuredClone:
+<<<<<<< HEAD
         typeof globalThis.structuredClone ===
         "function",
 
@@ -631,6 +793,25 @@ function validateRuntime() {
 
       queueMicrotask:
         typeof globalThis.queueMicrotask ===
+=======
+        typeof global.structuredClone ===
+        "function",
+
+      fetch:
+        typeof global.fetch ===
+        "function",
+
+      AbortController:
+        typeof global.AbortController ===
+        "function",
+
+      URL:
+        typeof global.URL ===
+        "function",
+
+      setTimeout:
+        typeof global.setTimeout ===
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         "function",
     });
 
@@ -653,9 +834,13 @@ function validateRuntime() {
     const error =
       new Error(
         "Required TITech runtime features are unavailable: " +
+<<<<<<< HEAD
           missingFeatures.join(
             ", ",
           ),
+=======
+          missingFeatures.join(", "),
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
 
     error.code =
@@ -728,6 +913,7 @@ function validateRuntime() {
       os.hostname(),
 
     cpuCount:
+<<<<<<< HEAD
       os.cpus()?.length ||
       1,
 
@@ -739,6 +925,12 @@ function validateRuntime() {
 
     execPath:
       process.execPath,
+=======
+      os.cpus()?.length || 1,
+
+    pid:
+      process.pid,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   });
 }
 
@@ -748,12 +940,21 @@ function validateRuntime() {
  */
 
 /**
+<<<<<<< HEAD
+=======
+ * Return non-secret environment diagnostics.
+ *
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  * @returns {Readonly<object>}
  */
 function getEnvironmentState() {
   return Object.freeze({
     application:
+<<<<<<< HEAD
       EFFECTIVE_APPLICATION_NAME,
+=======
+      APPLICATION_NAME,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     nodeEnv:
       NODE_ENV,
@@ -764,6 +965,7 @@ function getEnvironmentState() {
     envFile:
       ENV_FILE,
 
+<<<<<<< HEAD
     envFileExists:
       !Boolean(
         dotenvResult?.error,
@@ -771,6 +973,8 @@ function getEnvironmentState() {
       dotenvResult?.error?.code !==
         "ENOENT",
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     envFileLoaded:
       Boolean(
         dotenvResult &&
@@ -781,6 +985,7 @@ function getEnvironmentState() {
       dotenvResult?.error
         ? {
             name:
+<<<<<<< HEAD
               dotenvResult.error
                 .name,
 
@@ -791,6 +996,15 @@ function getEnvironmentState() {
             message:
               dotenvResult.error
                 .message,
+=======
+              dotenvResult.error.name,
+
+            code:
+              dotenvResult.error.code,
+
+            message:
+              dotenvResult.error.message,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           }
         : null,
   });
@@ -801,6 +1015,17 @@ function getEnvironmentState() {
  * =============================================================================
  */
 
+<<<<<<< HEAD
+=======
+/**
+ * Route composition remains owned by ApplicationBootstrap.
+ *
+ * The server entry point exposes only a declarative composition contract.
+ * It does not register routes.
+ *
+ * @returns {Readonly<object>}
+ */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 function createRouteComposition() {
   return Object.freeze({
     version:
@@ -820,11 +1045,27 @@ function createRouteComposition() {
  */
 
 /**
+<<<<<<< HEAD
  * Load the single canonical ApplicationBootstrap implementation.
  *
  * @returns {Promise<object>}
  */
 async function loadBootstrapModule() {
+=======
+ * Load the single canonical application bootstrap implementation.
+ *
+ * Supported export:
+ *
+ *   module.exports = {
+ *     ApplicationBootstrap,
+ *     ApplicationBootstrapError
+ *   }
+ *
+ * @returns {object}
+ * @throws {Error}
+ */
+function loadBootstrapModule() {
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   if (
     bootstrapModule
   ) {
@@ -835,8 +1076,13 @@ async function loadBootstrapModule() {
 
   try {
     loaded =
+<<<<<<< HEAD
       await import(
         BOOTSTRAP_MODULE_PATH
+=======
+      require(
+        BOOTSTRAP_MODULE_PATH,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       );
   } catch (error) {
     const diagnostic =
@@ -855,6 +1101,7 @@ async function loadBootstrapModule() {
       module:
         BOOTSTRAP_MODULE_PATH,
 
+<<<<<<< HEAD
       resolvedFrom:
         CURRENT_FILE,
 
@@ -869,6 +1116,18 @@ async function loadBootstrapModule() {
         sanitizeValue(
           error,
         ),
+=======
+      originalError: {
+        name:
+          error?.name,
+
+        code:
+          error?.code,
+
+        message:
+          error?.message,
+      },
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     };
 
     throw diagnostic;
@@ -876,8 +1135,12 @@ async function loadBootstrapModule() {
 
   if (
     !loaded ||
+<<<<<<< HEAD
     typeof loaded !==
       "object"
+=======
+    typeof loaded !== "object"
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   ) {
     const error =
       new TypeError(
@@ -891,6 +1154,7 @@ async function loadBootstrapModule() {
   }
 
   const ApplicationBootstrap =
+<<<<<<< HEAD
     loaded.ApplicationBootstrap ||
     loaded.default
       ?.ApplicationBootstrap ||
@@ -900,6 +1164,9 @@ async function loadBootstrapModule() {
         ? loaded.default
         : null
     );
+=======
+    loaded.ApplicationBootstrap;
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   if (
     typeof ApplicationBootstrap !==
@@ -913,6 +1180,7 @@ async function loadBootstrapModule() {
     error.code =
       "TITECH_APPLICATION_BOOTSTRAP_EXPORT_MISSING";
 
+<<<<<<< HEAD
     error.details = {
       availableExports:
         Object.keys(
@@ -920,15 +1188,21 @@ async function loadBootstrapModule() {
         ),
     };
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     throw error;
   }
 
   bootstrapModule =
+<<<<<<< HEAD
     Object.freeze({
       ...loaded,
 
       ApplicationBootstrap,
     });
+=======
+    loaded;
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   return bootstrapModule;
 }
@@ -939,10 +1213,22 @@ async function loadBootstrapModule() {
  */
 
 /**
+<<<<<<< HEAD
  * @param {object} options
  * @returns {Promise<object>}
  */
 async function getBootstrapInstance(
+=======
+ * Create the singleton ApplicationBootstrap instance.
+ *
+ * The singleton belongs to this process entry point only.
+ * Application lifecycle state remains owned by ApplicationBootstrap.
+ *
+ * @param {object} options
+ * @returns {object}
+ */
+function getBootstrapInstance(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   options = {},
 ) {
   if (
@@ -954,7 +1240,11 @@ async function getBootstrapInstance(
   const {
     ApplicationBootstrap,
   } =
+<<<<<<< HEAD
     await loadBootstrapModule();
+=======
+    loadBootstrapModule();
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
   try {
     bootstrapInstance =
@@ -975,10 +1265,23 @@ async function getBootstrapInstance(
       "TITECH_BOOTSTRAP_INSTANCE_CREATE_FAILED";
 
     diagnostic.details = {
+<<<<<<< HEAD
       originalError:
         sanitizeValue(
           error,
         ),
+=======
+      originalError: {
+        name:
+          error?.name,
+
+        code:
+          error?.code,
+
+        message:
+          error?.message,
+      },
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     };
 
     throw diagnostic;
@@ -993,6 +1296,13 @@ async function getBootstrapInstance(
  */
 
 /**
+<<<<<<< HEAD
+=======
+ * Handle an unrecoverable process-level error.
+ *
+ * ApplicationBootstrap remains responsible for graceful application shutdown.
+ *
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  * @param {string} type
  * @param {*} reason
  * @returns {Promise<void>}
@@ -1010,23 +1320,34 @@ async function handleFatalProcessError(
   fatalHandlingStarted =
     true;
 
+<<<<<<< HEAD
   processStartupStatus =
     STARTUP_STATUS.FAILED;
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   const error =
     reason instanceof Error
       ? reason
       : new Error(
+<<<<<<< HEAD
           String(
             reason,
           ),
+=======
+          String(reason),
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         );
 
   logError(
     `TITech Community Capital ${type} detected.`,
     {
       application:
+<<<<<<< HEAD
         EFFECTIVE_APPLICATION_NAME,
+=======
+        APPLICATION_NAME,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       serviceName:
         SERVICE_NAME,
@@ -1034,6 +1355,7 @@ async function handleFatalProcessError(
       environment:
         NODE_ENV,
 
+<<<<<<< HEAD
       pid:
         process.pid,
 
@@ -1044,6 +1366,23 @@ async function handleFatalProcessError(
         sanitizeValue(
           error,
         ),
+=======
+      name:
+        error.name,
+
+      message:
+        error.message,
+
+      code:
+        error.code,
+
+      ...(NODE_ENV !== "production"
+        ? {
+            stack:
+              error.stack,
+          }
+        : {}),
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     },
   );
 
@@ -1056,9 +1395,12 @@ async function handleFatalProcessError(
       typeof bootstrap.shutdown ===
         "function"
     ) {
+<<<<<<< HEAD
       processStartupStatus =
         STARTUP_STATUS.STOPPING;
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       await bootstrap.shutdown(
         type,
       );
@@ -1067,20 +1409,51 @@ async function handleFatalProcessError(
     logError(
       "TITech Community Capital fatal-error shutdown failed.",
       {
+<<<<<<< HEAD
         error:
           sanitizeValue(
             shutdownError,
           ),
+=======
+        name:
+          shutdownError?.name,
+
+        message:
+          shutdownError?.message,
+
+        code:
+          shutdownError?.code,
+
+        ...(NODE_ENV !== "production"
+          ? {
+              stack:
+                shutdownError?.stack,
+            }
+          : {}),
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       },
     );
   }
 
+<<<<<<< HEAD
   processStartupStatus =
     STARTUP_STATUS.STOPPED;
 
   process.exitCode =
     FATAL_EXIT_CODE;
 
+=======
+  process.exitCode =
+    FATAL_EXIT_CODE;
+
+  /**
+   * Do not throw here.
+   *
+   * This handler is invoked because the process is already in an
+   * unrecoverable state. Explicit termination prevents the process from
+   * continuing in an undefined condition.
+   */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
   process.exit(
     FATAL_EXIT_CODE,
   );
@@ -1094,8 +1467,13 @@ async function handleFatalProcessError(
 /**
  * Install process-level protection exactly once.
  *
+<<<<<<< HEAD
  * SIGTERM/SIGINT are deliberately not handled here because canonical
  * lifecycle ownership belongs to ApplicationBootstrap.
+=======
+ * Signal handlers are intentionally NOT installed here.
+ * SIGTERM/SIGINT lifecycle ownership remains inside ApplicationBootstrap.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  *
  * @returns {boolean}
  */
@@ -1109,7 +1487,11 @@ function installProcessHandlers() {
   processHandlersInstalled =
     true;
 
+<<<<<<< HEAD
   process.once(
+=======
+  process.on(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     "uncaughtException",
     error => {
       void handleFatalProcessError(
@@ -1119,7 +1501,11 @@ function installProcessHandlers() {
     },
   );
 
+<<<<<<< HEAD
   process.once(
+=======
+  process.on(
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     "unhandledRejection",
     reason => {
       void handleFatalProcessError(
@@ -1133,6 +1519,7 @@ function installProcessHandlers() {
 }
 
 /* =============================================================================
+<<<<<<< HEAD
  * BOOTSTRAP OPTIONS
  * =============================================================================
  */
@@ -1170,6 +1557,8 @@ function createBootstrapOptions() {
 }
 
 /* =============================================================================
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  * START APPLICATION
  * =============================================================================
  */
@@ -1177,7 +1566,11 @@ function createBootstrapOptions() {
 /**
  * Start the TITech application through the canonical bootstrap orchestrator.
  *
+<<<<<<< HEAD
  * Multiple concurrent calls share the same startup promise.
+=======
+ * Multiple concurrent calls return the same startup promise.
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  *
  * @returns {Promise<*>}
  */
@@ -1190,6 +1583,7 @@ async function startServer() {
 
   startupPromise =
     (async () => {
+<<<<<<< HEAD
       processStartupStatus =
         STARTUP_STATUS.STARTING;
 
@@ -1198,12 +1592,23 @@ async function startServer() {
 
       const bootstrapOptions =
         createBootstrapOptions();
+=======
+      const runtime =
+        validateRuntime();
+
+      const routeComposition =
+        createRouteComposition();
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
       logInfo(
         "Starting TITech Community Capital backend process.",
         {
           application:
+<<<<<<< HEAD
             EFFECTIVE_APPLICATION_NAME,
+=======
+            APPLICATION_NAME,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
           serviceName:
             SERVICE_NAME,
@@ -1232,6 +1637,7 @@ async function startServer() {
           pid:
             runtime.pid,
 
+<<<<<<< HEAD
           ppid:
             runtime.ppid,
 
@@ -1244,6 +1650,8 @@ async function startServer() {
           envFile:
             ENV_FILE,
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           envFileLoaded:
             Boolean(
               dotenvResult &&
@@ -1255,6 +1663,7 @@ async function startServer() {
         },
       );
 
+<<<<<<< HEAD
       if (
         dotenvResult?.error
       ) {
@@ -1267,11 +1676,33 @@ async function startServer() {
           isMissingFile
             ? "TITech .env file was not found. Startup will rely on the process environment and bootstrap configuration."
             : "TITech .env file could not be loaded. Startup will rely on the process environment and bootstrap configuration.",
+=======
+      /**
+       * A missing .env file is not automatically fatal.
+       *
+       * Environment variables may have been injected by:
+       *
+       *   - Docker;
+       *   - Kubernetes;
+       *   - systemd;
+       *   - CI/CD;
+       *   - cloud runtime;
+       *   - process manager;
+       *   - hosting platform.
+       */
+      if (
+        dotenvResult?.error
+      ) {
+        logWarn(
+          "TITech .env file was not loaded. " +
+            "Startup will rely on the process environment and bootstrap configuration.",
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           {
             envFile:
               ENV_FILE,
 
             error:
+<<<<<<< HEAD
               {
                 name:
                   dotenvResult.error
@@ -1285,11 +1716,15 @@ async function startServer() {
                   dotenvResult.error
                     ?.message,
               },
+=======
+              dotenvResult.error,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
           },
         );
       }
 
       const bootstrap =
+<<<<<<< HEAD
         await getBootstrapInstance(
           bootstrapOptions,
         );
@@ -1312,11 +1747,74 @@ async function startServer() {
       processStartupStatus =
         STARTUP_STATUS.READY;
 
+=======
+        getBootstrapInstance();
+
+      /**
+       * Establish the canonical bootstrap context BEFORE dependency
+       * initialization begins.
+       *
+       * Awaiting the result is safe whether initialize() is synchronous
+       * or asynchronous.
+       */
+      await bootstrap.initialize({
+        application:
+          APPLICATION_NAME,
+
+        service:
+          SERVICE_NAME,
+
+        environment:
+          NODE_ENV,
+
+        routeComposition,
+      });
+
+      /**
+       * Canonical application lifecycle.
+       *
+       * ApplicationBootstrap owns:
+       *
+       *   - dependency initialization;
+       *   - lifecycle hooks;
+       *   - readiness;
+       *   - shutdown registration;
+       *   - startup failure cleanup;
+       *   - application state transitions.
+       */
+      const result =
+        await bootstrap.start({
+          application:
+            APPLICATION_NAME,
+
+          service:
+            SERVICE_NAME,
+
+          environment:
+            NODE_ENV,
+
+          routeComposition,
+        });
+
+      /**
+       * Adopt the canonical application logger only after bootstrap has
+       * successfully initialized.
+       */
+      logger =
+        result?.logger ||
+        bootstrap.context?.logger ||
+        logger;
+
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       logInfo(
         "TITech Community Capital backend startup completed.",
         {
           application:
+<<<<<<< HEAD
             EFFECTIVE_APPLICATION_NAME,
+=======
+            APPLICATION_NAME,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
           serviceName:
             SERVICE_NAME,
@@ -1328,6 +1826,7 @@ async function startServer() {
             process.pid,
 
           state:
+<<<<<<< HEAD
             bootstrap.state ||
             bootstrap.context?.state ||
             bootstrap.getState?.()?.started
@@ -1341,6 +1840,12 @@ async function startServer() {
 
           startupStatus:
             processStartupStatus,
+=======
+            bootstrap.state,
+
+          ready:
+            bootstrap.ready,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
         },
       );
 
@@ -1350,17 +1855,34 @@ async function startServer() {
   try {
     return await startupPromise;
   } catch (error) {
+<<<<<<< HEAD
     startupPromise =
       null;
 
     processStartupStatus =
       STARTUP_STATUS.FAILED;
 
+=======
+    /**
+     * Permit a future explicit retry in environments where the process
+     * remains alive after a startup failure.
+     *
+     * ApplicationBootstrap remains responsible for cleaning up anything
+     * it initialized before the failure.
+     */
+    startupPromise =
+      null;
+
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     logError(
       "TITech Community Capital backend startup failed.",
       {
         application:
+<<<<<<< HEAD
           EFFECTIVE_APPLICATION_NAME,
+=======
+          APPLICATION_NAME,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
         serviceName:
           SERVICE_NAME,
@@ -1368,6 +1890,7 @@ async function startServer() {
         environment:
           NODE_ENV,
 
+<<<<<<< HEAD
         startupStatus:
           processStartupStatus,
 
@@ -1375,6 +1898,29 @@ async function startServer() {
           sanitizeValue(
             error,
           ),
+=======
+        name:
+          error?.name,
+
+        message:
+          error?.message,
+
+        code:
+          error?.code,
+
+        phase:
+          error?.phase,
+
+        component:
+          error?.component,
+
+        ...(NODE_ENV !== "production"
+          ? {
+              stack:
+                error?.stack,
+            }
+          : {}),
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       },
     );
 
@@ -1387,6 +1933,16 @@ async function startServer() {
  * =============================================================================
  */
 
+<<<<<<< HEAD
+=======
+/**
+ * Return canonical bootstrap state where available.
+ *
+ * This function never creates or mutates application state.
+ *
+ * @returns {Readonly<object>}
+ */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 function getServerState() {
   if (
     bootstrapInstance
@@ -1398,6 +1954,7 @@ function getServerState() {
       ) {
         return bootstrapInstance.snapshot();
       }
+<<<<<<< HEAD
 
       if (
         typeof bootstrapInstance.getSnapshot ===
@@ -1405,6 +1962,8 @@ function getServerState() {
       ) {
         return bootstrapInstance.getSnapshot();
       }
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     } catch {
       // Fall through to process-entry state.
     }
@@ -1412,7 +1971,11 @@ function getServerState() {
 
   return Object.freeze({
     application:
+<<<<<<< HEAD
       EFFECTIVE_APPLICATION_NAME,
+=======
+      APPLICATION_NAME,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     serviceName:
       SERVICE_NAME,
@@ -1420,11 +1983,16 @@ function getServerState() {
     environment:
       NODE_ENV,
 
+<<<<<<< HEAD
     processStartupStatus,
 
     running:
       processStartupStatus ===
       STARTUP_STATUS.READY,
+=======
+    running:
+      false,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     pid:
       process.pid,
@@ -1452,10 +2020,24 @@ function getServerState() {
  * =============================================================================
  */
 
+<<<<<<< HEAD
 function getProcessState() {
   return Object.freeze({
     application:
       EFFECTIVE_APPLICATION_NAME,
+=======
+/**
+ * Return process-local diagnostics.
+ *
+ * This is intentionally separate from application lifecycle state.
+ *
+ * @returns {Readonly<object>}
+ */
+function getProcessState() {
+  return Object.freeze({
+    application:
+      APPLICATION_NAME,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
     pid:
       process.pid,
@@ -1475,18 +2057,22 @@ function getProcessState() {
     nodeVersion:
       process.version,
 
+<<<<<<< HEAD
     nodeMajor:
       Number(
         process.versions.node
           .split(".")[0],
       ),
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     nodeEnv:
       NODE_ENV,
 
     serviceName:
       SERVICE_NAME,
 
+<<<<<<< HEAD
     entryFile:
       CURRENT_FILE,
 
@@ -1501,6 +2087,8 @@ function getProcessState() {
 
     processStartupStatus,
 
+=======
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
     processHandlersInstalled:
       processHandlersInstalled,
 
@@ -1525,6 +2113,7 @@ function getProcessState() {
 }
 
 /* =============================================================================
+<<<<<<< HEAD
  * DIRECT EXECUTION DETECTION
  * =============================================================================
  */
@@ -1556,6 +2145,15 @@ function isDirectExecution() {
 /* =============================================================================
  * PROCESS INITIALIZATION
  * =============================================================================
+=======
+ * PROCESS INITIALIZATION
+ * =============================================================================
+ *
+ * Install only fatal-error protection here.
+ *
+ * SIGTERM/SIGINT ownership remains inside the canonical bootstrap lifecycle.
+ * =============================================================================
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
  */
 
 installProcessHandlers();
@@ -1566,15 +2164,33 @@ installProcessHandlers();
  */
 
 if (
+<<<<<<< HEAD
   isDirectExecution()
 ) {
   startServer().catch(
     error => {
+=======
+  require.main === module
+) {
+  startServer().catch(
+    error => {
+      /**
+       * startServer() already performs structured logging.
+       *
+       * This final boundary exists only for direct process execution so
+       * Node does not silently leave the process alive after a fatal
+       * startup failure.
+       */
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       logError(
         "TITech Community Capital backend process could not start.",
         {
           application:
+<<<<<<< HEAD
             EFFECTIVE_APPLICATION_NAME,
+=======
+            APPLICATION_NAME,
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
           serviceName:
             SERVICE_NAME,
@@ -1582,6 +2198,7 @@ if (
           environment:
             NODE_ENV,
 
+<<<<<<< HEAD
           startupStatus:
             processStartupStatus,
 
@@ -1595,6 +2212,26 @@ if (
       processStartupStatus =
         STARTUP_STATUS.FAILED;
 
+=======
+          name:
+            error?.name,
+
+          message:
+            error?.message,
+
+          code:
+            error?.code,
+
+          ...(NODE_ENV !== "production"
+            ? {
+                stack:
+                  error?.stack,
+              }
+            : {}),
+        },
+      );
+
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
       process.exitCode =
         FATAL_EXIT_CODE;
 
@@ -1606,6 +2243,7 @@ if (
 }
 
 /* =============================================================================
+<<<<<<< HEAD
  * ESM EXPORTS
  * =============================================================================
  */
@@ -1633,3 +2271,29 @@ export {
 
   STARTUP_STATUS,
 };
+=======
+ * PUBLIC API
+ * =============================================================================
+ */
+
+module.exports =
+  Object.freeze({
+    startServer,
+
+    validateRuntime,
+
+    getEnvironmentState,
+
+    getProcessState,
+
+    getServerState,
+
+    installProcessHandlers,
+
+    createRouteComposition,
+
+    loadBootstrapModule,
+
+    getBootstrapInstance,
+  });
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880

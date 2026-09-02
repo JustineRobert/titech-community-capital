@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Environment
 .env
 .env.*
@@ -14,3 +15,7 @@ uploads/
 coverage/
 dist/
 node_modules/
+=======
+.env
+.env.*
+>>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
