@@ -1,6 +1,6 @@
 # 🏦 TITech Community Capital
 
-<<<<<<< HEAD
+
 > **The financial operating system for Africa's community economy.**
 
 TITech Community Capital is an **enterprise-grade community finance platform** designed to connect **SACCOs, VSLAs, savings groups, cooperatives, community enterprises, and emerging financial institutions** to modern financial infrastructure.
