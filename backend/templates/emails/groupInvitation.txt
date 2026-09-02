@@ -1,0 +1,46 @@
+GROUP INVITATION - COMMUNITY SAVINGS APP
+========================================
+
+Hello {{firstName}},
+
+You've been invited to join a savings group on Community Savings App!
+
+INVITATION DETAILS
+==================
+
+{{inviterName}} has invited you to join:
+
+{{groupName}}
+
+GROUP INFORMATION
+=================
+Purpose: {{groupPurpose}}
+Members: {{memberCount}} active members
+Contribution Amount: {{contributionAmount}} {{currency}} per cycle
+Cycle Duration: {{cycleDuration}}
+
+BY JOINING THIS GROUP, YOU'LL BE ABLE TO:
+========================================
+
+✓ Make regular contributions alongside other members
+✓ Access group funds when it's your turn
+✓ Apply for loans backed by the group's savings
+✓ Build stronger community ties and financial security
+
+WHAT WOULD YOU LIKE TO DO?
+==========================
+
+This invitation expires on {{expirationDate}}
+
+ACCEPT INVITATION: {{acceptUrl}}
+VIEW GROUP: {{viewGroupUrl}}
+
+If you have questions about this group or need more information before deciding, you can view the group details or contact {{inviterName}} directly.
+
+If you don't recognize this invitation or don't want to receive similar invitations, you can dismiss it without accepting.
+
+---
+
+© {{year}} Community Savings App. All rights reserved.
+Privacy Policy: {{privacyUrl}}
+Manage Notifications: {{unsubscribeUrl}}

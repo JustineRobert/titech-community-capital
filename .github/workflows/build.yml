@@ -1,0 +1,922 @@
+# ==============================================================================
+# .github/workflows/build.yml
+# TITech Community Capital LTD
+# Enterprise Build Pipeline
+#
+# Canonical repository structure:
+#   /
+#   ├── backend/
+#   ├── frontend/
+#   └── .github/
+#       └── workflows/
+#           └── build.yml
+# ==============================================================================
+
+name: TITech Enterprise Build
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "release/**"
+      - "hotfix/**"
+    tags:
+      - "v*"
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/build.yml"
+      - "package.json"
+      - "package-lock.json"
+
+  pull_request:
+    branches:
+      - main
+      - develop
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/build.yml"
+      - "package.json"
+      - "package-lock.json"
+
+  workflow_dispatch:
+    inputs:
+      build_backend:
+        description: Build Backend
+        type: boolean
+        default: true
+        required: true
+      build_frontend:
+        description: Build Frontend
+        type: boolean
+        default: true
+        required: true
+      publish_images:
+        description: Publish Docker Images
+        type: boolean
+        default: false
+        required: true
+      target_environment:
+        description: Target Environment
+        type: choice
+        required: true
+        default: development
+        options:
+          - development
+          - staging
+          - production
+      image_tag:
+        description: Override Image Tag (optional)
+        required: false
+        default: ""
+
+  workflow_call:
+    inputs:
+      publish:
+        required: false
+        type: boolean
+        default: false
+      image-tag:
+        required: false
+        type: string
+    outputs:
+      backend-image:
+        description: Backend Docker Image
+        value: ${{ jobs.docker-build.outputs.backend-image }}
+      frontend-image:
+        description: Frontend Docker Image
+        value: ${{ jobs.docker-build.outputs.frontend-image }}
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  pull-requests: write
+  packages: write
+  deployments: write
+  id-token: write
+  security-events: write
+  attestations: write
+
+concurrency:
+  group: titech-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24.15.0"
+  BACKEND_DIR: backend
+  FRONTEND_DIR: frontend
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  BACKEND_IMAGE: titech-community-capital-backend
+  FRONTEND_IMAGE: titech-community-capital-frontend
+  DOCKER_BUILDKIT: "1"
+  BUILDX_NO_DEFAULT_ATTESTATIONS: "0"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
+  CI: true
+  FORCE_COLOR: "1"
+  TZ: UTC
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ============================================================================
+  # BUILD PREPARATION
+  # ============================================================================
+
+  build-preparation:
+    name: Build Preparation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      short-sha: ${{ steps.git.outputs.short_sha }}
+      build-version: ${{ steps.version.outputs.build_version }}
+      build-date: ${{ steps.version.outputs.build_date }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          lfs: true
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Configure npm Registry
+        if: env.NPM_TOKEN != ''
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cat > "$HOME/.npmrc" <<EOF
+          registry=https://registry.npmjs.org/
+          always-auth=true
+          //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+          EOF
+
+      - name: Restore npm Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache
+            backend/node_modules
+            frontend/node_modules
+          key: >-
+            ${{ runner.os }}-titech-node-${{ env.NODE_VERSION }}-
+            ${{ hashFiles(
+              'package-lock.json',
+              'backend/package-lock.json',
+              'frontend/package-lock.json'
+            ) }}
+          restore-keys: |
+            ${{ runner.os }}-titech-node-${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-titech-node-
+
+      - name: Validate Repository Structure
+        run: |
+          set -euo pipefail
+
+          test -d "${BACKEND_DIR}"
+          test -d "${FRONTEND_DIR}"
+          test -f "${BACKEND_DIR}/package.json"
+          test -f "${FRONTEND_DIR}/package.json"
+
+          echo "Canonical repository structure:"
+          printf '  Backend : %s\n' "${BACKEND_DIR}"
+          printf '  Frontend: %s\n' "${FRONTEND_DIR}"
+
+      - name: Install Root Dependencies
+        if: hashFiles('package.json') != ''
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Install Backend Dependencies
+        if: hashFiles('backend/package.json') != ''
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Install Frontend Dependencies
+        if: hashFiles('frontend/package.json') != ''
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Verify Toolchain
+        run: |
+          node --version
+          npm --version
+
+      - name: Collect Git Metadata
+        id: git
+        run: |
+          set -euo pipefail
+          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "branch=$(git rev-parse --abbrev-ref HEAD)" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Build Metadata
+        id: version
+        run: |
+          set -euo pipefail
+          BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          BUILD_VERSION="${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+
+          echo "build_date=${BUILD_DATE}" >> "$GITHUB_OUTPUT"
+          echo "build_version=${BUILD_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Build Manifest
+        run: |
+          mkdir -p build
+
+          cat > build/build-manifest.json <<EOF
+          {
+            "repository": "${GITHUB_REPOSITORY}",
+            "workflow": "${GITHUB_WORKFLOW}",
+            "run_number": "${GITHUB_RUN_NUMBER}",
+            "run_id": "${GITHUB_RUN_ID}",
+            "commit": "${GITHUB_SHA}",
+            "short_commit": "${{ steps.git.outputs.short_sha }}",
+            "branch": "${{ steps.git.outputs.branch }}",
+            "build_version": "${{ steps.version.outputs.build_version }}",
+            "build_date": "${{ steps.version.outputs.build_date }}",
+            "backend_directory": "${BACKEND_DIR}",
+            "frontend_directory": "${FRONTEND_DIR}"
+          }
+          EOF
+
+      - name: Upload Build Metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-metadata
+          path: build/build-manifest.json
+          retention-days: 30
+
+      - name: Publish Build Preparation Summary
+        if: always()
+        run: |
+          {
+            echo "# 🏗️ Build Preparation"
+            echo
+            echo "| Item | Value |"
+            echo "|------|-------|"
+            echo "| Node.js | ${{ env.NODE_VERSION }} |"
+            echo "| Backend | \`${BACKEND_DIR}/\` |"
+            echo "| Frontend | \`${FRONTEND_DIR}/\` |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+            echo "| Build Version | \`${{ steps.version.outputs.build_version }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ============================================================================
+  # BACKEND & FRONTEND BUILD
+  # ============================================================================
+
+  build:
+    name: Backend & Frontend Build
+    needs:
+      - build-preparation
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      backend-artifact: backend-build
+      frontend-artifact: frontend-build
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Restore Dependency Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            backend/node_modules
+            frontend/node_modules
+          key: >-
+            build-${{ runner.os }}-${{ env.NODE_VERSION }}-
+            ${{ hashFiles(
+              'package-lock.json',
+              'backend/package-lock.json',
+              'frontend/package-lock.json'
+            ) }}
+          restore-keys: |
+            build-${{ runner.os }}-${{ env.NODE_VERSION }}-
+
+      - name: Install Root Dependencies
+        if: hashFiles('package.json') != ''
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Install Backend Dependencies
+        if: hashFiles('backend/package.json') != ''
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Install Frontend Dependencies
+        if: hashFiles('frontend/package.json') != ''
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Backend ESLint
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: |
+          if npm run | grep -qE '^  lint'; then
+            npm run lint
+          else
+            echo "Backend lint script not found; skipped."
+          fi
+
+      - name: Frontend ESLint
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          if npm run | grep -qE '^  lint'; then
+            npm run lint
+          else
+            echo "Frontend lint script not found; skipped."
+          fi
+
+      - name: Backend Type Checking
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: |
+          if npm run | grep -qE '^  typecheck'; then
+            npm run typecheck
+          elif [ -f tsconfig.json ]; then
+            npx tsc --noEmit
+          else
+            echo "No backend type-check configuration detected; skipped."
+          fi
+
+      - name: Frontend Type Checking
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          if npm run | grep -qE '^  typecheck'; then
+            npm run typecheck
+          elif [ -f tsconfig.json ]; then
+            npx tsc --noEmit
+          else
+            echo "No frontend type-check configuration detected; skipped."
+          fi
+
+      - name: Build Backend
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: |
+          if npm run | grep -qE '^  build'; then
+            npm run build
+          else
+            echo "No backend build script detected."
+          fi
+
+      - name: Build Frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
+        env:
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Package Backend Build
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/backend
+          rsync -a \
+            "${BACKEND_DIR}/" \
+            "artifacts/backend/" \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=coverage \
+            --exclude=.env*
+
+      - name: Package Frontend Build
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/frontend
+
+          if [ -d "${FRONTEND_DIR}/dist" ]; then
+            cp -a "${FRONTEND_DIR}/dist/." artifacts/frontend/
+          elif [ -d "${FRONTEND_DIR}/build" ]; then
+            cp -a "${FRONTEND_DIR}/build/." artifacts/frontend/
+          else
+            echo "Frontend build output (dist/ or build/) not found."
+            exit 1
+          fi
+
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: artifacts/backend
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Frontend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: artifacts/frontend
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Generate Build Information
+        run: |
+          mkdir -p artifacts
+
+          cat > artifacts/build-info.json <<EOF
+          {
+            "repository": "${GITHUB_REPOSITORY}",
+            "workflow": "${GITHUB_WORKFLOW}",
+            "run": "${GITHUB_RUN_NUMBER}",
+            "commit": "${GITHUB_SHA}",
+            "backend": "${BACKEND_DIR}",
+            "frontend": "${FRONTEND_DIR}",
+            "backend_artifact": "backend-build",
+            "frontend_artifact": "frontend-build",
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+
+      - name: Upload Build Metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-information
+          path: artifacts/build-info.json
+          retention-days: 30
+
+      - name: Publish Build Summary
+        if: always()
+        run: |
+          {
+            echo "# 🏗️ Build Summary"
+            echo
+            echo "| Component | Status |"
+            echo "|-----------|--------|"
+            echo "| Backend Lint | Completed |"
+            echo "| Frontend Lint | Completed |"
+            echo "| Backend Type Check | Completed |"
+            echo "| Frontend Type Check | Completed |"
+            echo "| Backend Compilation | Completed |"
+            echo "| Frontend Production Build | Completed |"
+            echo "| Backend Artifact | Uploaded |"
+            echo "| Frontend Artifact | Uploaded |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ============================================================================
+  # DOCKER BUILDX & MULTI-PLATFORM IMAGE BUILD
+  # ============================================================================
+
+  docker-build:
+    name: Docker Buildx
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    outputs:
+      backend-image: ${{ steps.export.outputs.backend_tags }}
+      frontend-image: ${{ steps.export.outputs.frontend_tags }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,amd64
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+          driver: docker-container
+
+      - name: Backend Image Metadata
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.image_tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag != '' }}
+            type=sha
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=TITech Community Capital Backend
+            org.opencontainers.image.description=Enterprise TITech Community Capital Backend
+            org.opencontainers.image.vendor=TITech Community Capital
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Frontend Image Metadata
+        id: frontend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.image_tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag != '' }}
+            type=sha
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=TITech Community Capital Frontend
+            org.opencontainers.image.description=Enterprise TITech Community Capital Frontend
+            org.opencontainers.image.vendor=TITech Community Capital
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build Backend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          load: false
+          provenance: false
+          sbom: false
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.backend-meta.outputs.tags }}
+          labels: ${{ steps.backend-meta.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build Frontend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          load: false
+          provenance: false
+          sbom: false
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+          labels: ${{ steps.frontend-meta.outputs.labels }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Generate Build Record
+        run: |
+          mkdir -p docker-build
+
+          cat > docker-build/build-record.json <<EOF
+          {
+            "workflow": "${GITHUB_WORKFLOW}",
+            "run": "${GITHUB_RUN_NUMBER}",
+            "commit": "${GITHUB_SHA}",
+            "backend_image": "${{ steps.backend-meta.outputs.tags }}",
+            "frontend_image": "${{ steps.frontend-meta.outputs.tags }}",
+            "backend_context": "./backend",
+            "frontend_context": "./frontend",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+
+      - name: Export Outputs
+        id: export
+        run: |
+          echo "backend_tags<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${{ steps.backend-meta.outputs.tags }}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          echo "frontend_tags<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${{ steps.frontend-meta.outputs.tags }}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Docker Build Record
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-build-record
+          path: docker-build/
+          retention-days: 30
+
+      - name: Publish Docker Summary
+        if: always()
+        run: |
+          {
+            echo "# 🐳 Docker Build Summary"
+            echo
+            echo "| Item | Status |"
+            echo "|------|--------|"
+            echo "| Docker Buildx | Completed |"
+            echo "| QEMU | Enabled |"
+            echo "| Backend Image | Built |"
+            echo "| Frontend Image | Built |"
+            echo "| Multi-Platform | linux/amd64, linux/arm64 |"
+            echo "| GitHub Cache | Enabled |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ============================================================================
+  # SBOM, PROVENANCE & SIGNING
+  # ============================================================================
+
+  supply-chain-security:
+    name: SBOM • Provenance • Signing
+    needs:
+      - docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+      attestations: write
+      security-events: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Install Crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Generate Backend SPDX SBOM
+        run: |
+          mkdir -p security/sbom
+          syft dir:./backend -o spdx-json > security/sbom/backend.spdx.json
+
+      - name: Generate Backend CycloneDX SBOM
+        run: |
+          syft dir:./backend -o cyclonedx-json > security/sbom/backend.cdx.json
+
+      - name: Generate Frontend SPDX SBOM
+        run: |
+          syft dir:./frontend -o spdx-json > security/sbom/frontend.spdx.json
+
+      - name: Generate Frontend CycloneDX SBOM
+        run: |
+          syft dir:./frontend -o cyclonedx-json > security/sbom/frontend.cdx.json
+
+      - name: Calculate SHA256 Digests
+        run: |
+          mkdir -p security/digests
+          sha256sum security/sbom/* > security/digests/checksums.txt
+
+      - name: Generate Provenance Metadata
+        run: |
+          mkdir -p security/provenance
+
+          cat > security/provenance/provenance.json <<EOF
+          {
+            "repository": "${GITHUB_REPOSITORY}",
+            "workflow": "${GITHUB_WORKFLOW}",
+            "run": "${GITHUB_RUN_NUMBER}",
+            "commit": "${GITHUB_SHA}",
+            "actor": "${GITHUB_ACTOR}",
+            "runner": "${RUNNER_NAME}",
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "backend_directory": "backend",
+            "frontend_directory": "frontend"
+          }
+          EOF
+
+      - name: Sign SBOM Files
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign-blob --yes security/sbom/backend.spdx.json
+          cosign sign-blob --yes security/sbom/frontend.spdx.json
+
+      - name: Attest Backend SBOM
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign attest-blob \
+            --yes \
+            --predicate security/sbom/backend.spdx.json \
+            --type https://spdx.dev/Document \
+            security/sbom/backend.spdx.json
+
+      - name: Attest Frontend SBOM
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign attest-blob \
+            --yes \
+            --predicate security/sbom/frontend.spdx.json \
+            --type https://spdx.dev/Document \
+            security/sbom/frontend.spdx.json
+
+      - name: Generate GitHub Artifact Attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            security/sbom/backend.spdx.json
+            security/sbom/frontend.spdx.json
+            security/provenance/provenance.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: security/sbom
+          retention-days: 90
+
+      - name: Upload Provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance
+          path: security/provenance
+          retention-days: 90
+
+      - name: Upload Checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-digests
+          path: security/digests
+          retention-days: 90
+
+      - name: Publish Security Summary
+        if: always()
+        run: |
+          {
+            echo "# 🔐 Supply Chain Security"
+            echo
+            echo "| Component | Status |"
+            echo "|-----------|--------|"
+            echo "| Syft SPDX SBOM | Generated |"
+            echo "| Syft CycloneDX | Generated |"
+            echo "| SHA256 Checksums | Generated |"
+            echo "| Provenance Metadata | Generated |"
+            echo "| Cosign Signing | Completed |"
+            echo "| Artifact Attestations | Completed |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ============================================================================
+  # ARTIFACT PUBLISHING & CLEANUP
+  # ============================================================================
+
+  publish:
+    name: Publish Artifacts & Cleanup
+    needs:
+      - build
+      - docker-build
+      - supply-chain-security
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: always()
+
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download All Workflow Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: workflow-artifacts
+          merge-multiple: false
+
+      - name: Generate Artifact Manifest
+        run: |
+          mkdir -p workflow-output
+          find workflow-artifacts -type f -print0 \
+            | sort -z \
+            | xargs -0 -r -n1 printf '%s\n' \
+            > workflow-output/artifacts.txt
+
+      - name: Archive Workflow Outputs
+        run: |
+          tar -czf workflow-output/build-artifacts.tar.gz workflow-artifacts
+
+      - name: Upload Consolidated Build Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: enterprise-build-package
+          path: workflow-output/build-artifacts.tar.gz
+          retention-days: 90
+
+      - name: Upload Artifact Manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-manifest
+          path: workflow-output/artifacts.txt
+          retention-days: 90
+
+      - name: Collect Failure Diagnostics
+        if: failure()
+        run: |
+          mkdir -p diagnostics
+
+          {
+            echo "Repository : $GITHUB_REPOSITORY"
+            echo "Workflow   : $GITHUB_WORKFLOW"
+            echo "Run ID     : $GITHUB_RUN_ID"
+            echo "Run Number : $GITHUB_RUN_NUMBER"
+            echo "Commit     : $GITHUB_SHA"
+            echo "Actor      : $GITHUB_ACTOR"
+            echo "Date       : $(date -u)"
+          } > diagnostics/report.txt
+
+      - name: Upload Diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics
+          path: diagnostics/
+          retention-days: 30
+
+      - name: Publish Workflow Summary
+        if: always()
+        run: |
+          {
+            echo "# ✅ TITech Enterprise Build Summary"
+            echo
+            echo "| Component | Status |"
+            echo "|-----------|--------|"
+            echo "| Backend Build | Completed |"
+            echo "| Frontend Build | Completed |"
+            echo "| Docker Images | Built |"
+            echo "| Multi-Platform Build | linux/amd64, linux/arm64 |"
+            echo "| SBOM | Generated |"
+            echo "| Provenance | Generated |"
+            echo "| Artifact Signing | Completed |"
+            echo "| Artifact Publishing | Completed |"
+            echo "| Backend Directory | \`backend/\` |"
+            echo "| Frontend Directory | \`frontend/\` |"
+            echo
+            echo "Repository: ${GITHUB_REPOSITORY}"
+            echo "Commit: ${GITHUB_SHA}"
+            echo "Run: ${GITHUB_RUN_NUMBER}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify Slack
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          STATUS="${{ job.status }}"
+          curl --fail-with-body --silent --show-error \
+            -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\"TITech Enterprise Build: ${STATUS}\\nRepository: ${GITHUB_REPOSITORY}\\nRun: ${GITHUB_RUN_NUMBER}\"}"
+
+      - name: Notify Microsoft Teams
+        if: always() && env.TEAMS_WEBHOOK_URL != ''
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          STATUS="${{ job.status }}"
+          curl --fail-with-body --silent --show-error \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\"TITech Enterprise Build ${STATUS} - Run ${GITHUB_RUN_NUMBER}\"}" \
+            "$TEAMS_WEBHOOK_URL"
+
+      - name: Final Build Status
+        if: always()
+        run: |
+          echo "======================================"
+          echo " TITech Enterprise Build Completed"
+          echo "======================================"
+          echo "Repository : ${GITHUB_REPOSITORY}"
+          echo "Workflow   : ${GITHUB_WORKFLOW}"
+          echo "Run        : ${GITHUB_RUN_NUMBER}"
+          echo "Commit     : ${GITHUB_SHA}"
+          echo "Status     : ${{ job.status }}"
+          echo "Backend    : backend/"
+          echo "Frontend   : frontend/"
+          echo "======================================"

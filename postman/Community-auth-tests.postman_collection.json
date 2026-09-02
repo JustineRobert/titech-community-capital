@@ -1,0 +1,145 @@
+{
+  "info": {
+    "name": "Community Auth Tests",
+    "_postman_id": "community-auth-tests",
+    "description": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "userEmail", "value": "testuser@example.com" },
+    { "key": "userPass", "value": "password123" }
+  ],
+  "item": [
+    {
+      "name": "01 - Register",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "02 - Login (capture token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var json = pm.response.json();",
+              "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+              "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "03 - Me (uses token)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-auth-token", "value": "{{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "04 - List My Sessions",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-auth-token", "value": "{{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sessions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sessions"]
+        }
+      }
+    },
+    {
+      "name": "05 - Admin: List All Sessions (requires admin token)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-auth-token", "value": "{{adminToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/admin/sessions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "admin", "sessions"]
+        }
+      }
+    },
+    {
+      "name": "06 - Admin: Revoke Session (replace :id)",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "x-auth-token", "value": "{{adminToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/admin/sessions/:id",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "admin", "sessions", ":id"]
+        }
+      }
+    },
+    {
+      "name": "07 - Revoke My Session (delete by id)",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "x-auth-token", "value": "{{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sessions/:id",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sessions", ":id"]
+        }
+      }
+    },
+    {
+      "name": "08 - Refresh (use cookie or send refresh token in body)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }" },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/refresh",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "refresh"]
+        }
+      }
+    },
+    {
+      "name": "09 - Logout",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/logout",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "logout"]
+        }
+      }
+    }
+  ]
+}

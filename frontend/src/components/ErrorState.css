@@ -1,0 +1,1487 @@
+/**
+ * ============================================================================
+ * TITech Community Capital Ltd
+ * Enterprise Error State Styles
+ * ============================================================================
+ *
+ * File:
+ *   frontend/src/components/ErrorState.css
+ *
+ * Purpose:
+ *   Production-grade styling for TITech ErrorState.jsx.
+ *
+ * Design goals
+ * ----------------------------------------------------------------------------
+ * ✓ Enterprise visual hierarchy
+ * ✓ Responsive layouts
+ * ✓ Accessible focus states
+ * ✓ Reduced-motion support
+ * ✓ High-contrast compatibility
+ * ✓ Light / dark theme compatibility
+ * ✓ Compact / inline / bordered / elevated variants
+ * ✓ Small / medium / large sizing
+ * ✓ Left / center / right alignment
+ * ✓ Loading / retrying states
+ * ✓ Disabled state
+ * ✓ Long-content resilience
+ * ✓ RTL compatibility
+ * ✓ Print support
+ * ✓ Safe CSS containment
+ * ✓ TITech branding consistency
+ *
+ * Security note
+ * ----------------------------------------------------------------------------
+ * CSS is presentation-only and MUST NOT be treated as an authorization,
+ * tenant-isolation, financial-integrity or security boundary.
+ *
+ * ============================================================================
+ */
+
+
+/* ============================================================================
+ * Design tokens
+ * ========================================================================== */
+
+.error-state {
+  --titech-error-bg: var(--color-surface, #ffffff);
+  --titech-error-surface: var(--color-surface-subtle, #f8fafc);
+  --titech-error-text: var(--color-text, #172033);
+  --titech-error-muted: var(--color-text-secondary, #64748b);
+  --titech-error-border: var(--color-border, #e2e8f0);
+
+  --titech-error-primary: var(--color-primary, #0f766e);
+  --titech-error-primary-hover: var(--color-primary-hover, #115e59);
+  --titech-error-primary-active: var(--color-primary-active, #134e4a);
+  --titech-error-primary-contrast: var(
+    --color-primary-contrast,
+    #ffffff
+  );
+
+  --titech-error-danger: var(--color-danger, #dc2626);
+  --titech-error-danger-soft: var(
+    --color-danger-soft,
+    #fef2f2
+  );
+  --titech-error-danger-border: var(
+    --color-danger-border,
+    #fecaca
+  );
+
+  --titech-error-warning: var(
+    --color-warning,
+    #d97706
+  );
+  --titech-error-warning-soft: var(
+    --color-warning-soft,
+    #fffbeb
+  );
+  --titech-error-warning-border: var(
+    --color-warning-border,
+    #fde68a
+  );
+
+  --titech-error-network: var(
+    --color-info,
+    #2563eb
+  );
+  --titech-error-network-soft: var(
+    --color-info-soft,
+    #eff6ff
+  );
+  --titech-error-network-border: var(
+    --color-info-border,
+    #bfdbfe
+  );
+
+  --titech-error-permission: var(
+    --color-warning,
+    #b45309
+  );
+  --titech-error-permission-soft: var(
+    --color-warning-soft,
+    #fffbeb
+  );
+  --titech-error-permission-border: var(
+    --color-warning-border,
+    #fde68a
+  );
+
+  --titech-error-not-found: var(
+    --color-neutral,
+    #475569
+  );
+  --titech-error-not-found-soft: var(
+    --color-neutral-soft,
+    #f1f5f9
+  );
+  --titech-error-not-found-border: var(
+    --color-neutral-border,
+    #cbd5e1
+  );
+
+  --titech-error-radius: var(
+    --radius-lg,
+    0.875rem
+  );
+
+  --titech-error-radius-sm: var(
+    --radius-md,
+    0.625rem
+  );
+
+  --titech-error-shadow: var(
+    --shadow-sm,
+    0 1px 3px rgba(15, 23, 42, 0.08)
+  );
+
+  --titech-error-shadow-lg: var(
+    --shadow-md,
+    0 10px 30px rgba(15, 23, 42, 0.12)
+  );
+
+  --titech-error-transition-duration: 180ms;
+
+  --titech-error-focus-ring: var(
+    --color-focus-ring,
+    rgba(15, 118, 110, 0.28)
+  );
+
+  --titech-error-content-max-width: 52rem;
+
+  --titech-error-icon-size: 3rem;
+
+  --titech-error-title-size: 1.25rem;
+  --titech-error-title-line-height: 1.35;
+
+  --titech-error-description-size: 0.95rem;
+  --titech-error-description-line-height: 1.6;
+
+  --titech-error-spacing: 1rem;
+}
+
+
+/* ============================================================================
+ * Base component
+ * ========================================================================== */
+
+.error-state {
+  position: relative;
+
+  display: flex;
+  width: 100%;
+  min-width: 0;
+
+  box-sizing: border-box;
+
+  margin: 0;
+
+  padding: 1.5rem;
+
+  color: var(--titech-error-text);
+  background: var(--titech-error-bg);
+
+  border: 1px solid transparent;
+  border-radius: var(--titech-error-radius);
+
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+
+  isolation: isolate;
+
+  overflow: hidden;
+
+  transition:
+    background-color var(--titech-error-transition-duration)
+      ease,
+    border-color var(--titech-error-transition-duration)
+      ease,
+    box-shadow var(--titech-error-transition-duration)
+      ease,
+    opacity var(--titech-error-transition-duration)
+      ease;
+}
+
+
+/* ============================================================================
+ * Focus management
+ * ========================================================================== */
+
+.error-state:focus {
+  outline: none;
+}
+
+.error-state:focus-visible {
+  outline: 3px solid var(--titech-error-focus-ring);
+  outline-offset: 3px;
+}
+
+
+/* ============================================================================
+ * Content container
+ * ========================================================================== */
+
+.error-state-content {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: var(--titech-error-content-max-width);
+
+  margin-inline: auto;
+
+  box-sizing: border-box;
+
+  flex-direction: column;
+  align-items: center;
+
+  text-align: center;
+
+  gap: var(--titech-error-spacing);
+}
+
+
+/* ============================================================================
+ * Icon
+ * ========================================================================== */
+
+.error-state-icon {
+  display: inline-flex;
+
+  width: var(--titech-error-icon-size);
+  min-width: var(--titech-error-icon-size);
+  height: var(--titech-error-icon-size);
+  min-height: var(--titech-error-icon-size);
+
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+
+  flex: 0 0 auto;
+
+  color: var(--titech-error-danger);
+
+  border-radius: 50%;
+
+  background: var(--titech-error-danger-soft);
+
+  border: 1px solid var(--titech-error-danger-border);
+
+  user-select: none;
+
+  transition:
+    color var(--titech-error-transition-duration)
+      ease,
+    background-color var(--titech-error-transition-duration)
+      ease,
+    border-color var(--titech-error-transition-duration)
+      ease;
+}
+
+
+/* ============================================================================
+ * Variant icon treatments
+ * ========================================================================== */
+
+.error-state-network .error-state-icon {
+  color: var(--titech-error-network);
+
+  background: var(--titech-error-network-soft);
+
+  border-color: var(--titech-error-network-border);
+}
+
+.error-state-server .error-state-icon {
+  color: var(--titech-error-danger);
+
+  background: var(--titech-error-danger-soft);
+
+  border-color: var(--titech-error-danger-border);
+}
+
+.error-state-permission .error-state-icon {
+  color: var(--titech-error-permission);
+
+  background: var(--titech-error-permission-soft);
+
+  border-color: var(--titech-error-permission-border);
+}
+
+.error-state-not_found .error-state-icon {
+  color: var(--titech-error-not-found);
+
+  background: var(--titech-error-not-found-soft);
+
+  border-color: var(--titech-error-not-found-border);
+}
+
+
+/* ============================================================================
+ * Copy
+ * ========================================================================== */
+
+.error-state-copy {
+  width: 100%;
+  min-width: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: inherit;
+
+  gap: 0.5rem;
+}
+
+
+/* ============================================================================
+ * Title
+ * ========================================================================== */
+
+.error-state-title {
+  width: 100%;
+  min-width: 0;
+
+  margin: 0;
+
+  color: var(--titech-error-text);
+
+  font-size: var(--titech-error-title-size);
+  font-weight: 700;
+  line-height: var(--titech-error-title-line-height);
+
+  letter-spacing: -0.0125em;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+
+/* ============================================================================
+ * Description
+ * ========================================================================== */
+
+.error-state-description {
+  width: 100%;
+  min-width: 0;
+
+  margin: 0;
+
+  color: var(--titech-error-muted);
+
+  font-size: var(--titech-error-description-size);
+  font-weight: 400;
+  line-height: var(--titech-error-description-line-height);
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+
+/* ============================================================================
+ * Error reference
+ * ========================================================================== */
+
+.error-state-reference,
+.error-state-code {
+  width: 100%;
+  min-width: 0;
+
+  margin: 0.25rem 0 0;
+
+  color: var(--titech-error-muted);
+
+  font-family: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.error-state-reference code,
+.error-state-code code {
+  display: inline-block;
+
+  max-width: 100%;
+
+  padding: 0.125rem 0.375rem;
+
+  color: inherit;
+
+  background: var(--titech-error-surface);
+
+  border: 1px solid var(--titech-error-border);
+  border-radius: 0.375rem;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace;
+
+  font-size: 0.75rem;
+
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+
+/* ============================================================================
+ * Custom content
+ * ========================================================================== */
+
+.error-state-custom-content {
+  width: 100%;
+  min-width: 0;
+
+  margin-top: 0.25rem;
+
+  color: var(--titech-error-text);
+
+  text-align: inherit;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* ============================================================================
+ * Extra children
+ * ========================================================================== */
+
+.error-state-extra {
+  width: 100%;
+  min-width: 0;
+
+  margin-top: 0.25rem;
+
+  color: var(--titech-error-text);
+
+  text-align: inherit;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* ============================================================================
+ * Actions
+ * ========================================================================== */
+
+.error-state-actions {
+  display: flex;
+
+  width: 100%;
+  min-width: 0;
+
+  flex-wrap: wrap;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 0.625rem;
+
+  margin-top: 0.25rem;
+}
+
+
+/* ============================================================================
+ * Action buttons
+ * ========================================================================== */
+
+.error-state-btn {
+  display: inline-flex;
+
+  min-height: 2.625rem;
+
+  box-sizing: border-box;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 0.5rem;
+
+  padding: 0.625rem 1rem;
+
+  border: 1px solid transparent;
+  border-radius: var(
+    --titech-error-radius-sm
+  );
+
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.25;
+
+  text-decoration: none;
+  white-space: nowrap;
+
+  cursor: pointer;
+
+  user-select: none;
+
+  transition:
+    color var(--titech-error-transition-duration)
+      ease,
+    background-color var(--titech-error-transition-duration)
+      ease,
+    border-color var(--titech-error-transition-duration)
+      ease,
+    box-shadow var(--titech-error-transition-duration)
+      ease,
+    transform var(--titech-error-transition-duration)
+      ease,
+    opacity var(--titech-error-transition-duration)
+      ease;
+}
+
+.error-state-btn svg {
+  flex: 0 0 auto;
+}
+
+
+/* ============================================================================
+ * Primary action
+ * ========================================================================== */
+
+.error-state-btn.primary {
+  color: var(
+    --titech-error-primary-contrast
+  );
+
+  background: var(
+    --titech-error-primary
+  );
+
+  border-color: var(
+    --titech-error-primary
+  );
+}
+
+.error-state-btn.primary:hover:not(:disabled) {
+  background: var(
+    --titech-error-primary-hover
+  );
+
+  border-color: var(
+    --titech-error-primary-hover
+  );
+
+  transform: translateY(-1px);
+}
+
+.error-state-btn.primary:active:not(:disabled) {
+  background: var(
+    --titech-error-primary-active
+  );
+
+  border-color: var(
+    --titech-error-primary-active
+  );
+
+  transform: translateY(0);
+}
+
+
+/* ============================================================================
+ * Secondary action
+ * ========================================================================== */
+
+.error-state-btn.secondary {
+  color: var(--titech-error-text);
+
+  background: var(--titech-error-bg);
+
+  border-color: var(--titech-error-border);
+}
+
+.error-state-btn.secondary:hover:not(:disabled) {
+  background: var(--titech-error-surface);
+
+  border-color: var(
+    --titech-error-muted
+  );
+
+  transform: translateY(-1px);
+}
+
+.error-state-btn.secondary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+
+/* ============================================================================
+ * Keyboard focus
+ * ========================================================================== */
+
+.error-state-btn:focus {
+  outline: none;
+}
+
+.error-state-btn:focus-visible {
+  outline: 3px solid var(--titech-error-focus-ring);
+  outline-offset: 2px;
+}
+
+
+/* ============================================================================
+ * Disabled action
+ * ========================================================================== */
+
+.error-state-btn:disabled,
+.error-state-btn[aria-disabled="true"] {
+  opacity: 0.55;
+
+  cursor: not-allowed;
+
+  transform: none;
+}
+
+
+/* ============================================================================
+ * Loading state
+ * ========================================================================== */
+
+.error-state-loading {
+  cursor: progress;
+}
+
+.error-state-loading .error-state-icon {
+  animation: titech-error-state-pulse 1.5s ease-in-out infinite;
+}
+
+.error-state-spinner {
+  animation:
+    titech-error-state-spin 0.9s linear infinite;
+}
+
+.error-state-btn-spinner {
+  animation:
+    titech-error-state-spin 0.9s linear infinite;
+}
+
+
+/* ============================================================================
+ * Footer
+ * ========================================================================== */
+
+.error-state-footer {
+  width: 100%;
+  min-width: 0;
+
+  margin-top: 0.25rem;
+
+  color: var(--titech-error-muted);
+
+  font-size: 0.8125rem;
+  line-height: 1.5;
+
+  text-align: inherit;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* ============================================================================
+ * Development details
+ * ========================================================================== */
+
+.error-state-details {
+  width: 100%;
+  min-width: 0;
+
+  margin-top: 0.5rem;
+
+  color: var(--titech-error-text);
+
+  text-align: start;
+
+  background: var(--titech-error-surface);
+
+  border: 1px solid var(--titech-error-border);
+  border-radius: var(--titech-error-radius-sm);
+
+  overflow: hidden;
+}
+
+.error-state-details summary {
+  display: flex;
+
+  min-height: 2.5rem;
+
+  box-sizing: border-box;
+
+  align-items: center;
+
+  padding: 0.625rem 0.75rem;
+
+  color: var(--titech-error-text);
+
+  font-size: 0.8125rem;
+  font-weight: 650;
+
+  cursor: pointer;
+
+  user-select: none;
+}
+
+.error-state-details summary:hover {
+  background: var(--titech-error-bg);
+}
+
+.error-state-details summary:focus {
+  outline: none;
+}
+
+.error-state-details summary:focus-visible {
+  outline: 3px solid var(--titech-error-focus-ring);
+  outline-offset: -3px;
+}
+
+.error-state-details-body {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 0.5rem;
+
+  padding: 0.75rem;
+
+  border-top: 1px solid var(--titech-error-border);
+
+  font-size: 0.75rem;
+  line-height: 1.5;
+
+  overflow-wrap: anywhere;
+}
+
+.error-state-details-body strong {
+  font-weight: 700;
+}
+
+.error-state-details-body pre {
+  width: 100%;
+  max-width: 100%;
+
+  box-sizing: border-box;
+
+  margin: 0;
+
+  padding: 0.75rem;
+
+  color: var(--titech-error-text);
+
+  background: var(--titech-error-bg);
+
+  border: 1px solid var(--titech-error-border);
+  border-radius: 0.5rem;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace;
+
+  font-size: 0.6875rem;
+  line-height: 1.5;
+
+  white-space: pre-wrap;
+
+  overflow-x: auto;
+}
+
+
+/* ============================================================================
+ * Bordered mode
+ * ========================================================================== */
+
+.error-state-bordered {
+  border-color: var(--titech-error-border);
+}
+
+
+/* ============================================================================
+ * Elevated mode
+ * ========================================================================== */
+
+.error-state-elevated {
+  border-color: var(--titech-error-border);
+
+  box-shadow: var(--titech-error-shadow-lg);
+}
+
+
+/* ============================================================================
+ * Compact mode
+ * ========================================================================== */
+
+.error-state-compact {
+  padding: 1rem;
+}
+
+.error-state-compact .error-state-content {
+  gap: 0.75rem;
+}
+
+.error-state-compact .error-state-icon {
+  --titech-error-icon-size: 2.5rem;
+}
+
+.error-state-compact .error-state-title {
+  font-size: 1rem;
+}
+
+.error-state-compact .error-state-description {
+  font-size: 0.875rem;
+}
+
+.error-state-compact .error-state-btn {
+  min-height: 2.375rem;
+
+  padding: 0.5rem 0.875rem;
+
+  font-size: 0.8125rem;
+}
+
+
+/* ============================================================================
+ * Small size
+ * ========================================================================== */
+
+.error-state-small {
+  padding: 1rem;
+}
+
+.error-state-small .error-state-icon {
+  --titech-error-icon-size: 2.25rem;
+}
+
+.error-state-small .error-state-title {
+  font-size: 1rem;
+}
+
+.error-state-small .error-state-description {
+  font-size: 0.875rem;
+}
+
+
+/* ============================================================================
+ * Medium size
+ * ========================================================================== */
+
+.error-state-medium {
+  padding: 1.5rem;
+}
+
+
+/* ============================================================================
+ * Large size
+ * ========================================================================== */
+
+.error-state-large {
+  padding: 2rem;
+}
+
+.error-state-large .error-state-content {
+  gap: 1.125rem;
+}
+
+.error-state-large .error-state-title {
+  font-size: 1.5rem;
+}
+
+.error-state-large .error-state-description {
+  font-size: 1rem;
+}
+
+
+/* ============================================================================
+ * Alignment
+ * ========================================================================== */
+
+.error-state-align-left .error-state-content {
+  align-items: flex-start;
+
+  text-align: left;
+}
+
+.error-state-align-center .error-state-content {
+  align-items: center;
+
+  text-align: center;
+}
+
+.error-state-align-right .error-state-content {
+  align-items: flex-end;
+
+  text-align: right;
+}
+
+.error-state-align-left .error-state-actions {
+  justify-content: flex-start;
+}
+
+.error-state-align-center .error-state-actions {
+  justify-content: center;
+}
+
+.error-state-align-right .error-state-actions {
+  justify-content: flex-end;
+}
+
+
+/* ============================================================================
+ * Inline mode
+ * ========================================================================== */
+
+.error-state-inline {
+  padding: 1rem;
+}
+
+.error-state-inline .error-state-content {
+  display: grid;
+
+  grid-template-columns: auto minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  max-width: none;
+
+  gap: 1rem;
+
+  text-align: left;
+}
+
+.error-state-inline .error-state-copy {
+  min-width: 0;
+}
+
+.error-state-inline .error-state-actions {
+  width: auto;
+
+  margin: 0;
+
+  justify-content: flex-end;
+}
+
+
+/* ============================================================================
+ * Inline alignment corrections
+ * ========================================================================== */
+
+.error-state-inline.error-state-align-center
+  .error-state-content {
+  text-align: left;
+}
+
+.error-state-inline.error-state-align-right
+  .error-state-content {
+  text-align: right;
+}
+
+
+/* ============================================================================
+ * Inline icon
+ * ========================================================================== */
+
+.error-state-inline .error-state-icon {
+  margin: 0;
+}
+
+
+/* ============================================================================
+ * Inline footer
+ * ========================================================================== */
+
+.error-state-inline .error-state-footer {
+  grid-column: 2 / -1;
+
+  margin-top: 0;
+}
+
+
+/* ============================================================================
+ * Disabled component
+ * ========================================================================== */
+
+.error-state-disabled {
+  opacity: 0.72;
+}
+
+.error-state-disabled .error-state-actions {
+  pointer-events: none;
+}
+
+
+/* ============================================================================
+ * Variant surface accents
+ * ========================================================================== */
+
+.error-state-default.error-state-bordered {
+  border-color: var(
+    --titech-error-danger-border
+  );
+}
+
+.error-state-network.error-state-bordered {
+  border-color: var(
+    --titech-error-network-border
+  );
+}
+
+.error-state-server.error-state-bordered {
+  border-color: var(
+    --titech-error-danger-border
+  );
+}
+
+.error-state-permission.error-state-bordered {
+  border-color: var(
+    --titech-error-permission-border
+  );
+}
+
+.error-state-not_found.error-state-bordered {
+  border-color: var(
+    --titech-error-not-found-border
+  );
+}
+
+
+/* ============================================================================
+ * Dark theme
+ *
+ * Supports common application-level dark-mode selectors without requiring
+ * TITech's global theme implementation to use a specific mechanism.
+ * ========================================================================== */
+
+[data-theme="dark"] .error-state,
+.dark .error-state,
+.dark-mode .error-state {
+  --titech-error-bg: var(
+    --color-surface,
+    #111827
+  );
+
+  --titech-error-surface: var(
+    --color-surface-subtle,
+    #1f2937
+  );
+
+  --titech-error-text: var(
+    --color-text,
+    #f8fafc
+  );
+
+  --titech-error-muted: var(
+    --color-text-secondary,
+    #cbd5e1
+  );
+
+  --titech-error-border: var(
+    --color-border,
+    #334155
+  );
+
+  --titech-error-danger-soft: var(
+    --color-danger-soft,
+    rgba(220, 38, 38, 0.14)
+  );
+
+  --titech-error-network-soft: var(
+    --color-info-soft,
+    rgba(37, 99, 235, 0.14)
+  );
+
+  --titech-error-permission-soft: var(
+    --color-warning-soft,
+    rgba(217, 119, 6, 0.14)
+  );
+
+  --titech-error-not-found-soft: var(
+    --color-neutral-soft,
+    rgba(100, 116, 139, 0.14)
+  );
+
+  --titech-error-danger-border: var(
+    --color-danger-border,
+    rgba(248, 113, 113, 0.35)
+  );
+
+  --titech-error-network-border: var(
+    --color-info-border,
+    rgba(96, 165, 250, 0.35)
+  );
+
+  --titech-error-permission-border: var(
+    --color-warning-border,
+    rgba(251, 191, 36, 0.35)
+  );
+
+  --titech-error-not-found-border: var(
+    --color-neutral-border,
+    rgba(148, 163, 184, 0.35)
+  );
+
+  --titech-error-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25);
+
+  --titech-error-shadow-lg:
+    0 14px 35px rgba(0, 0, 0, 0.3);
+}
+
+
+/* ============================================================================
+ * System dark mode fallback
+ * ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .error-state {
+    --titech-error-bg: var(
+      --color-surface,
+      #111827
+    );
+
+    --titech-error-surface: var(
+      --color-surface-subtle,
+      #1f2937
+    );
+
+    --titech-error-text: var(
+      --color-text,
+      #f8fafc
+    );
+
+    --titech-error-muted: var(
+      --color-text-secondary,
+      #cbd5e1
+    );
+
+    --titech-error-border: var(
+      --color-border,
+      #334155
+    );
+
+    --titech-error-danger-soft: var(
+      --color-danger-soft,
+      rgba(220, 38, 38, 0.14)
+    );
+
+    --titech-error-network-soft: var(
+      --color-info-soft,
+      rgba(37, 99, 235, 0.14)
+    );
+
+    --titech-error-permission-soft: var(
+      --color-warning-soft,
+      rgba(217, 119, 6, 0.14)
+    );
+
+    --titech-error-not-found-soft: var(
+      --color-neutral-soft,
+      rgba(100, 116, 139, 0.14)
+    );
+  }
+}
+
+
+/* ============================================================================
+ * Responsive layout
+ * ========================================================================== */
+
+@media (max-width: 640px) {
+  .error-state {
+    padding: 1.25rem;
+  }
+
+  .error-state-content {
+    max-width: none;
+  }
+
+  .error-state-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .error-state-btn {
+    width: 100%;
+  }
+
+  .error-state-inline .error-state-content {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: stretch;
+
+    text-align: center;
+  }
+
+  .error-state-inline .error-state-icon {
+    margin-inline: auto;
+  }
+
+  .error-state-inline .error-state-actions {
+    width: 100%;
+  }
+
+  .error-state-inline .error-state-footer {
+    width: 100%;
+  }
+
+  .error-state-align-left
+    .error-state-actions,
+  .error-state-align-right
+    .error-state-actions {
+    justify-content: stretch;
+  }
+}
+
+
+/* ============================================================================
+ * Extra-small screens
+ * ========================================================================== */
+
+@media (max-width: 380px) {
+  .error-state {
+    padding: 1rem;
+  }
+
+  .error-state-large {
+    padding: 1.25rem;
+  }
+
+  .error-state-title {
+    font-size: 1.125rem;
+  }
+
+  .error-state-large .error-state-title {
+    font-size: 1.25rem;
+  }
+
+  .error-state-description {
+    font-size: 0.875rem;
+  }
+}
+
+
+/* ============================================================================
+ * RTL support
+ * ========================================================================== */
+
+[dir="rtl"] .error-state-align-left
+  .error-state-content {
+  text-align: right;
+}
+
+[dir="rtl"] .error-state-align-right
+  .error-state-content {
+  text-align: left;
+}
+
+[dir="rtl"] .error-state-inline
+  .error-state-content {
+  text-align: right;
+}
+
+[dir="rtl"] .error-state-inline
+  .error-state-actions {
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .error-state-btn svg {
+  transform: scaleX(-1);
+}
+
+
+/* ============================================================================
+ * Reduced motion
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .error-state,
+  .error-state *,
+  .error-state::before,
+  .error-state::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+
+    scroll-behavior: auto !important;
+
+    transition-duration: 0.01ms !important;
+  }
+
+  .error-state-btn:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+
+/* ============================================================================
+ * High contrast / forced colors
+ * ========================================================================== */
+
+@media (forced-colors: active) {
+  .error-state {
+    color: CanvasText;
+
+    background: Canvas;
+
+    border-color: CanvasText;
+
+    forced-color-adjust: auto;
+  }
+
+  .error-state-icon {
+    color: CanvasText;
+
+    background: Canvas;
+
+    border-color: CanvasText;
+  }
+
+  .error-state-title,
+  .error-state-description,
+  .error-state-reference,
+  .error-state-code,
+  .error-state-footer,
+  .error-state-extra {
+    color: CanvasText;
+  }
+
+  .error-state-btn {
+    color: ButtonText;
+
+    background: ButtonFace;
+
+    border-color: ButtonText;
+  }
+
+  .error-state-btn.primary {
+    color: HighlightText;
+
+    background: Highlight;
+
+    border-color: Highlight;
+  }
+
+  .error-state-btn:focus-visible,
+  .error-state:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .error-state-details {
+    color: CanvasText;
+
+    background: Canvas;
+
+    border-color: CanvasText;
+  }
+}
+
+
+/* ============================================================================
+ * Print
+ * ========================================================================== */
+
+@media print {
+  .error-state {
+    padding: 1rem;
+
+    color: #000;
+
+    background: #fff;
+
+    border: 1px solid #000;
+
+    box-shadow: none;
+
+    break-inside: avoid;
+  }
+
+  .error-state-icon {
+    color: #000;
+
+    background: #fff;
+
+    border-color: #000;
+  }
+
+  .error-state-title,
+  .error-state-description,
+  .error-state-reference,
+  .error-state-code,
+  .error-state-footer,
+  .error-state-extra {
+    color: #000;
+  }
+
+  .error-state-actions {
+    display: none;
+  }
+
+  .error-state-details {
+    border-color: #000;
+  }
+}
+
+
+/* ============================================================================
+ * Animations
+ * ========================================================================== */
+
+@keyframes titech-error-state-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes titech-error-state-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.72;
+  }
+}
+
+
+/* ============================================================================
+ * Final layout safety
+ * ========================================================================== */
+
+.error-state,
+.error-state *,
+.error-state *::before,
+.error-state *::after {
+  box-sizing: border-box;
+}
+
+.error-state img,
+.error-state svg,
+.error-state video,
+.error-state canvas {
+  max-width: 100%;
+}
+
+.error-state button,
+.error-state a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.error-state a {
+  overflow-wrap: anywhere;
+}

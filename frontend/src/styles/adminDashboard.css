@@ -1,0 +1,545 @@
+/* ==========================================================================
+   TITech Community Capital
+   frontend/src/styles/adminDashboard.css
+   Enterprise Admin Dashboard Styles
+   Production Grade
+   ========================================================================== */
+
+:root {
+  --admin-primary: #1e3a5f;
+  --admin-primary-light: #2c5a8a;
+  --admin-secondary: #f5b642;
+
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  --white: #ffffff;
+  --background: #f5f7fb;
+  --surface: #ffffff;
+
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+
+  --border: #e5e7eb;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 6px 20px rgba(0,0,0,.08);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,.12);
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  --transition: all .25s ease;
+}
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.admin-dashboard {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--text-primary);
+  padding: 2rem;
+}
+
+.admin-dashboard-container {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.admin-header-left h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.admin-header-left p {
+  margin-top: .4rem;
+  color: var(--text-secondary);
+}
+
+.admin-header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+
+.btn-admin,
+.btn-primary,
+.btn-secondary,
+.logout-btn {
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: var(--admin-primary);
+  color: white;
+  padding: .85rem 1.4rem;
+}
+
+.btn-primary:hover {
+  background: var(--admin-primary-light);
+}
+
+.btn-secondary {
+  background: white;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: .85rem 1.4rem;
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+}
+
+.logout-btn {
+  background: var(--danger);
+  color: white;
+  padding: .85rem 1.25rem;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+}
+
+/* ==========================================================================
+   KPI SECTION
+   ========================================================================== */
+
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(250px,1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.admin-kpi-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  border-left: 5px solid var(--admin-primary);
+}
+
+.admin-kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-kpi-title {
+  color: var(--text-secondary);
+  font-size: .9rem;
+}
+
+.admin-kpi-value {
+  margin-top: .6rem;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.admin-kpi-trend {
+  margin-top: .5rem;
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.trend-positive {
+  color: var(--success);
+}
+
+.trend-negative {
+  color: var(--danger);
+}
+
+/* ==========================================================================
+   DASHBOARD GRID
+   ========================================================================== */
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(12,1fr);
+  gap: 1.5rem;
+}
+
+.admin-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+}
+
+.admin-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.admin-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   CHART CARDS
+   ========================================================================== */
+
+.chart-card {
+  grid-column: span 6;
+  min-height: 420px;
+}
+
+.chart-card-full {
+  grid-column: span 12;
+}
+
+.chart-wrapper {
+  height: 320px;
+  position: relative;
+}
+
+/* ==========================================================================
+   TABLES
+   ========================================================================== */
+
+.admin-table-wrapper {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table thead {
+  background: #f8fafc;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 1rem;
+  font-size: .85rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+/* ==========================================================================
+   STATUS BADGES
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .35rem .8rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.badge-success {
+  background: rgba(16,185,129,.12);
+  color: var(--success);
+}
+
+.badge-warning {
+  background: rgba(245,158,11,.12);
+  color: var(--warning);
+}
+
+.badge-danger {
+  background: rgba(239,68,68,.12);
+  color: var(--danger);
+}
+
+.badge-info {
+  background: rgba(59,130,246,.12);
+  color: var(--info);
+}
+
+/* ==========================================================================
+   APPROVAL QUEUE
+   ========================================================================== */
+
+.approval-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.approval-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.approval-info h4 {
+  margin: 0;
+}
+
+.approval-info p {
+  margin-top: .3rem;
+  color: var(--text-secondary);
+}
+
+.approval-actions {
+  display: flex;
+  gap: .75rem;
+}
+
+/* ==========================================================================
+   ALERTS
+   ========================================================================== */
+
+.admin-alert {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+}
+
+.alert-success {
+  background: rgba(16,185,129,.1);
+  color: var(--success);
+}
+
+.alert-danger {
+  background: rgba(239,68,68,.1);
+  color: var(--danger);
+}
+
+.alert-warning {
+  background: rgba(245,158,11,.1);
+  color: var(--warning);
+}
+
+/* ==========================================================================
+   LOADING
+   ========================================================================== */
+
+.admin-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.admin-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e5e7eb;
+  border-top-color: var(--admin-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   SKELETONS
+   ========================================================================== */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 25%,
+    #e2e8f0 50%,
+    #f1f5f9 75%
+  );
+
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ==========================================================================
+   EMPTY STATE
+   ========================================================================== */
+
+.admin-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.admin-empty h3 {
+  margin-bottom: .5rem;
+}
+
+.admin-empty p {
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  .chart-card {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    padding: 1rem;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-header-actions {
+    width: 100%;
+  }
+
+  .admin-header-actions button {
+    flex: 1;
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .approval-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .approval-actions {
+    width: 100%;
+  }
+
+  .approval-actions button {
+    flex: 1;
+  }
+}
+
+/* ==========================================================================
+   DARK MODE
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+
+  :root {
+    --background: #0f172a;
+    --surface: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --border: #334155;
+  }
+
+  .admin-table thead {
+    background: #1e293b;
+  }
+
+  .admin-table tbody tr:hover {
+    background: #273449;
+  }
+}
+
+/* ==========================================================================
+   ACCESSIBILITY
+   ========================================================================== */
+
+button:focus,
+a:focus,
+input:focus,
+select:focus {
+  outline: 3px solid rgba(59,130,246,.4);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ==========================================================================
+   PRINT
+   ========================================================================== */
+
+@media print {
+
+  .admin-header-actions,
+  .logout-btn,
+  button {
+    display: none !important;
+  }
+
+  .admin-dashboard {
+    background: white;
+    padding: 0;
+  }
+
+  .admin-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}

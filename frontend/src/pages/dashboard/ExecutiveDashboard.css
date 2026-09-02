@@ -1,0 +1,1202 @@
+/* ============================================================================
+   TITech Community Capital
+   Enterprise Executive Dashboard
+   File: frontend/src/pages/dashboard/ExecutiveDashboard.css
+   Production Grade
+   Multi-Tenant | Executive Analytics | Board Reporting
+   Accessibility | Responsive | Dark Mode | Print Ready
+   ============================================================================ */
+
+/* ============================================================================
+   Executive Design Tokens
+   ============================================================================ */
+
+:root {
+  --executive-bg: #ffffff;
+  --executive-surface: #f8fafc;
+  --executive-surface-raised: #ffffff;
+  --executive-surface-muted: #f1f5f9;
+
+  --executive-border: #e2e8f0;
+  --executive-border-strong: #cbd5e1;
+
+  --executive-text: #0f172a;
+  --executive-text-secondary: #64748b;
+  --executive-text-muted: #94a3b8;
+
+  --executive-primary: #2563eb;
+  --executive-primary-soft: rgba(37, 99, 235, 0.1);
+  --executive-primary-border: rgba(37, 99, 235, 0.25);
+
+  --executive-success: #16a34a;
+  --executive-success-soft: rgba(22, 163, 74, 0.12);
+  --executive-success-border: rgba(22, 163, 74, 0.25);
+
+  --executive-warning: #f59e0b;
+  --executive-warning-soft: rgba(245, 158, 11, 0.12);
+  --executive-warning-border: rgba(245, 158, 11, 0.3);
+
+  --executive-danger: #dc2626;
+  --executive-danger-soft: rgba(220, 38, 38, 0.12);
+  --executive-danger-border: rgba(220, 38, 38, 0.25);
+
+  --executive-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.08);
+
+  --executive-shadow-hover:
+    0 18px 45px rgba(15, 23, 42, 0.12);
+
+  --executive-radius: 20px;
+  --executive-radius-sm: 14px;
+  --executive-radius-xs: 10px;
+
+  --executive-transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease;
+
+  --executive-focus-ring:
+    0 0 0 3px rgba(37, 99, 235, 0.2);
+
+  --executive-chart-height: 320px;
+}
+
+/* ============================================================================
+   Dashboard Root
+   ============================================================================ */
+
+.executive-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+
+  width: 100%;
+  min-width: 0;
+
+  color: var(--executive-text);
+}
+
+/*
+ * Prevent long financial values, tenant names, and chart content from
+ * causing horizontal overflow in enterprise layouts.
+ */
+.executive-dashboard,
+.executive-dashboard * {
+  box-sizing: border-box;
+}
+
+.executive-dashboard button,
+.executive-dashboard a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================================================
+   Header
+   ============================================================================ */
+
+.executive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 2rem;
+
+  min-width: 0;
+
+  padding: 2rem;
+
+  background: var(--executive-bg);
+
+  border: 1px solid var(--executive-border);
+  border-radius: var(--executive-radius);
+
+  box-shadow: var(--executive-shadow);
+
+  transition: var(--executive-transition);
+}
+
+.executive-header:hover {
+  border-color: var(--executive-border-strong);
+  box-shadow: var(--executive-shadow-hover);
+}
+
+.executive-header > div:first-child {
+  min-width: 0;
+}
+
+.executive-header h1 {
+  margin: 0;
+
+  color: var(--executive-text);
+
+  font-size: clamp(
+    1.65rem,
+    2.5vw,
+    2.25rem
+  );
+
+  line-height: 1.15;
+  font-weight: 800;
+
+  letter-spacing: -0.025em;
+
+  overflow-wrap: anywhere;
+}
+
+.executive-header p {
+  max-width: 760px;
+
+  margin: 0.75rem 0 0;
+
+  color: var(--executive-text-secondary);
+
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+/* ============================================================================
+   Executive Actions
+   ============================================================================ */
+
+.executive-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 0.75rem;
+
+  flex-wrap: wrap;
+
+  flex: 0 0 auto;
+}
+
+.executive-actions button {
+  white-space: nowrap;
+}
+
+.executive-actions button:focus-visible {
+  outline: none;
+  box-shadow: var(--executive-focus-ring);
+}
+
+/* ============================================================================
+   Metrics Grid
+   ============================================================================ */
+
+.executive-metrics-grid {
+  display: grid;
+
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(240px, 1fr)
+  );
+
+  gap: 1.5rem;
+
+  min-width: 0;
+}
+
+/* ============================================================================
+   Executive Metric Card
+   ============================================================================ */
+
+.executive-metric-card {
+  position: relative;
+
+  min-width: 0;
+
+  padding: 1.5rem;
+
+  background: var(--executive-bg);
+
+  border: 1px solid var(--executive-border);
+  border-radius: var(--executive-radius);
+
+  box-shadow: var(--executive-shadow);
+
+  overflow: hidden;
+
+  isolation: isolate;
+
+  transition: var(--executive-transition);
+}
+
+.executive-metric-card::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  z-index: -1;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--executive-primary-soft),
+      transparent 58%
+    );
+
+  pointer-events: none;
+}
+
+.executive-metric-card:hover {
+  transform: translateY(-4px);
+
+  border-color: var(--executive-border-strong);
+
+  box-shadow: var(--executive-shadow-hover);
+}
+
+.executive-metric-card:focus-within {
+  outline: 2px solid var(--executive-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Metric Header
+   ============================================================================ */
+
+.executive-metric-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  min-width: 0;
+}
+
+.executive-metric-header > div:first-child {
+  min-width: 0;
+}
+
+.executive-metric-header p {
+  margin: 0;
+
+  color: var(--executive-text-secondary);
+
+  font-size: 0.88rem;
+  line-height: 1.4;
+
+  font-weight: 600;
+
+  letter-spacing: 0.01em;
+}
+
+.executive-metric-header h3 {
+  margin: 0.6rem 0 0;
+
+  color: var(--executive-text);
+
+  font-size: clamp(
+    1.35rem,
+    2vw,
+    1.7rem
+  );
+
+  line-height: 1.2;
+
+  font-weight: 800;
+
+  letter-spacing: -0.02em;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ============================================================================
+   Metric Icon
+   ============================================================================ */
+
+.executive-icon {
+  flex: 0 0 56px;
+
+  width: 56px;
+  height: 56px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 16px;
+
+  background: var(--executive-primary-soft);
+
+  border: 1px solid var(--executive-primary-border);
+
+  color: var(--executive-primary);
+}
+
+.executive-icon svg {
+  flex: 0 0 auto;
+}
+
+/* ============================================================================
+   Metric Trend
+   ============================================================================ */
+
+.executive-trend {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 0.4rem;
+
+  margin-top: 1rem;
+
+  padding: 0.35rem 0.65rem;
+
+  border-radius: 999px;
+
+  font-size: 0.82rem;
+  line-height: 1.2;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.executive-trend.positive {
+  color: var(--executive-success);
+
+  background: var(--executive-success-soft);
+
+  border: 1px solid var(--executive-success-border);
+}
+
+.executive-trend.negative {
+  color: var(--executive-danger);
+
+  background: var(--executive-danger-soft);
+
+  border: 1px solid var(--executive-danger-border);
+}
+
+.executive-trend svg {
+  flex: 0 0 auto;
+}
+
+/* ============================================================================
+   Chart Grid
+   ============================================================================ */
+
+.executive-chart-grid {
+  display: grid;
+
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+
+  gap: 1.5rem;
+
+  min-width: 0;
+}
+
+/* ============================================================================
+   Chart Card
+   ============================================================================ */
+
+.executive-chart-card {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  background: var(--executive-bg);
+
+  border: 1px solid var(--executive-border);
+  border-radius: var(--executive-radius);
+
+  box-shadow: var(--executive-shadow);
+
+  overflow: hidden;
+
+  transition: var(--executive-transition);
+}
+
+.executive-chart-card:hover {
+  transform: translateY(-3px);
+
+  border-color: var(--executive-border-strong);
+
+  box-shadow: var(--executive-shadow-hover);
+}
+
+/* ============================================================================
+   Chart Header
+   ============================================================================ */
+
+.executive-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  min-width: 0;
+
+  padding: 1.25rem 1.5rem;
+
+  border-bottom: 1px solid var(--executive-border);
+
+  background: var(--executive-bg);
+}
+
+.executive-chart-header h3 {
+  min-width: 0;
+
+  margin: 0;
+
+  color: var(--executive-text);
+
+  font-size: 1rem;
+  line-height: 1.4;
+
+  font-weight: 750;
+
+  overflow-wrap: anywhere;
+}
+
+.executive-chart-header svg {
+  flex: 0 0 auto;
+
+  color: var(--executive-primary);
+}
+
+/* ============================================================================
+   Chart Content
+   ============================================================================ */
+
+.executive-chart-card
+  .recharts-responsive-container {
+  min-width: 0;
+}
+
+.executive-chart-card
+  .recharts-wrapper {
+  max-width: 100%;
+
+  padding: 0.75rem;
+}
+
+.executive-chart-card
+  .recharts-surface {
+  overflow: visible;
+}
+
+/* ============================================================================
+   Recharts - Scoped to Executive Dashboard
+   ============================================================================ */
+
+.executive-dashboard
+  .recharts-cartesian-axis-tick-value {
+  fill: var(--executive-text-secondary);
+
+  font-size: 0.75rem;
+}
+
+.executive-dashboard
+  .recharts-cartesian-axis-line,
+.executive-dashboard
+  .recharts-cartesian-axis-tick-line {
+  stroke: var(--executive-border);
+}
+
+.executive-dashboard
+  .recharts-cartesian-grid-horizontal
+  line,
+.executive-dashboard
+  .recharts-cartesian-grid-vertical
+  line {
+  stroke: var(--executive-border);
+
+  stroke-opacity: 0.8;
+}
+
+.executive-dashboard
+  .recharts-legend-item-text {
+  color: var(--executive-text) !important;
+
+  font-size: 0.8rem;
+}
+
+.executive-dashboard
+  .recharts-tooltip-wrapper {
+  outline: none;
+}
+
+.executive-dashboard
+  .recharts-default-tooltip {
+  min-width: 160px;
+
+  padding: 0.75rem !important;
+
+  background: var(--executive-bg) !important;
+
+  border: 1px solid var(--executive-border) !important;
+
+  border-radius: var(--executive-radius-xs) !important;
+
+  box-shadow: var(--executive-shadow) !important;
+
+  color: var(--executive-text) !important;
+}
+
+.executive-dashboard
+  .recharts-tooltip-label {
+  margin-bottom: 0.35rem;
+
+  color: var(--executive-text) !important;
+
+  font-weight: 700;
+}
+
+.executive-dashboard
+  .recharts-tooltip-item {
+  color: var(--executive-text-secondary) !important;
+}
+
+/* ============================================================================
+   Risk & Governance Grid
+   ============================================================================ */
+
+.executive-risk-grid {
+  display: grid;
+
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+
+  gap: 1.5rem;
+
+  min-width: 0;
+}
+
+/* ============================================================================
+   Risk Cards
+   ============================================================================ */
+
+.executive-risk-card {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  background: var(--executive-bg);
+
+  border: 1px solid var(--executive-border);
+  border-radius: var(--executive-radius);
+
+  box-shadow: var(--executive-shadow);
+
+  overflow: hidden;
+
+  transition: var(--executive-transition);
+}
+
+.executive-risk-card:hover {
+  transform: translateY(-3px);
+
+  border-color: var(--executive-border-strong);
+
+  box-shadow: var(--executive-shadow-hover);
+}
+
+/* ============================================================================
+   Risk Metrics
+   ============================================================================ */
+
+.executive-risk-metrics {
+  display: grid;
+
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+
+  gap: 1rem;
+
+  padding: 1.5rem;
+}
+
+.executive-risk-metrics div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  min-width: 0;
+
+  padding: 1rem;
+
+  background: var(--executive-surface);
+
+  border: 1px solid transparent;
+
+  border-radius: var(--executive-radius-sm);
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.executive-risk-metrics div:hover {
+  border-color: var(--executive-border);
+}
+
+.executive-risk-metrics span {
+  min-width: 0;
+
+  color: var(--executive-text-secondary);
+
+  font-size: 0.88rem;
+  line-height: 1.4;
+
+  font-weight: 600;
+
+  overflow-wrap: anywhere;
+}
+
+.executive-risk-metrics strong {
+  flex: 0 0 auto;
+
+  color: var(--executive-text);
+
+  font-size: 1rem;
+
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   Status List
+   ============================================================================ */
+
+.executive-status-list {
+  display: grid;
+
+  gap: 1rem;
+
+  padding: 1.5rem;
+}
+
+.executive-status-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  min-width: 0;
+
+  padding: 1rem;
+
+  background: var(--executive-surface);
+
+  border: 1px solid transparent;
+
+  border-radius: var(--executive-radius-sm);
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.executive-status-list div:hover {
+  border-color: var(--executive-border);
+}
+
+.executive-status-list span {
+  min-width: 0;
+
+  color: var(--executive-text);
+
+  font-size: 0.9rem;
+
+  font-weight: 700;
+
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================================
+   Financial / Risk Semantic Helpers
+   ============================================================================ */
+
+.executive-dashboard
+  [data-status="success"] {
+  color: var(--executive-success);
+}
+
+.executive-dashboard
+  [data-status="warning"] {
+  color: var(--executive-warning);
+}
+
+.executive-dashboard
+  [data-status="danger"],
+.executive-dashboard
+  [data-status="error"] {
+  color: var(--executive-danger);
+}
+
+/* ============================================================================
+   Empty / Unavailable Chart State
+   ============================================================================ */
+
+.executive-chart-empty {
+  min-height: var(--executive-chart-height);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 2rem;
+
+  color: var(--executive-text-secondary);
+
+  text-align: center;
+}
+
+.executive-chart-empty p {
+  max-width: 420px;
+
+  margin: 0;
+
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   Loading State Support
+   ============================================================================ */
+
+.executive-dashboard
+  [aria-busy="true"] {
+  cursor: progress;
+}
+
+.executive-dashboard
+  .executive-skeleton {
+  position: relative;
+
+  overflow: hidden;
+
+  background: var(--executive-surface);
+
+  border-radius: var(--executive-radius-xs);
+}
+
+.executive-dashboard
+  .executive-skeleton::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  transform: translateX(-100%);
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.45),
+    transparent
+  );
+
+  animation:
+    executive-skeleton-shimmer
+    1.5s infinite;
+}
+
+@keyframes executive-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ============================================================================
+   Dark Mode
+   ============================================================================ */
+
+.dark {
+  --executive-bg: #0f172a;
+  --executive-surface: #1e293b;
+  --executive-surface-raised: #172033;
+  --executive-surface-muted: #111827;
+
+  --executive-border: #334155;
+  --executive-border-strong: #475569;
+
+  --executive-text: #f8fafc;
+  --executive-text-secondary: #94a3b8;
+  --executive-text-muted: #64748b;
+
+  --executive-primary: #60a5fa;
+  --executive-primary-soft: rgba(96, 165, 250, 0.12);
+  --executive-primary-border: rgba(96, 165, 250, 0.28);
+
+  --executive-success: #4ade80;
+  --executive-success-soft: rgba(74, 222, 128, 0.12);
+  --executive-success-border: rgba(74, 222, 128, 0.25);
+
+  --executive-warning: #fbbf24;
+  --executive-warning-soft: rgba(251, 191, 36, 0.12);
+  --executive-warning-border: rgba(251, 191, 36, 0.28);
+
+  --executive-danger: #f87171;
+  --executive-danger-soft: rgba(248, 113, 113, 0.12);
+  --executive-danger-border: rgba(248, 113, 113, 0.25);
+
+  --executive-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45);
+
+  --executive-shadow-hover:
+    0 18px 50px rgba(0, 0, 0, 0.55);
+
+  --executive-focus-ring:
+    0 0 0 3px rgba(96, 165, 250, 0.25);
+}
+
+.dark
+  .executive-dashboard
+  .recharts-cartesian-grid-horizontal
+  line,
+.dark
+  .executive-dashboard
+  .recharts-cartesian-grid-vertical
+  line {
+  stroke: var(--executive-border);
+}
+
+.dark
+  .executive-dashboard
+  .recharts-cartesian-axis-line,
+.dark
+  .executive-dashboard
+  .recharts-cartesian-axis-tick-line {
+  stroke: var(--executive-border);
+}
+
+.dark
+  .executive-dashboard
+  .recharts-default-tooltip {
+  background: var(--executive-surface-raised) !important;
+  border-color: var(--executive-border) !important;
+}
+
+.dark
+  .executive-dashboard
+  .executive-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+}
+
+/* ============================================================================
+   Responsive - Large Desktop
+   ============================================================================ */
+
+@media (max-width: 1400px) {
+  .executive-chart-grid,
+  .executive-risk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   Responsive - Tablet
+   ============================================================================ */
+
+@media (max-width: 1100px) {
+  .executive-metrics-grid {
+    grid-template-columns: repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  }
+}
+
+/* ============================================================================
+   Responsive - Small Tablet
+   ============================================================================ */
+
+@media (max-width: 992px) {
+  .executive-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .executive-actions {
+    width: 100%;
+  }
+
+  .executive-actions button {
+    flex: 1 1 auto;
+  }
+
+  .executive-metrics-grid {
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  }
+}
+
+/* ============================================================================
+   Responsive - Mobile
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .executive-dashboard {
+    gap: 1.5rem;
+  }
+
+  .executive-header {
+    padding: 1.5rem;
+
+    border-radius: 16px;
+  }
+
+  .executive-header p {
+    font-size: 0.92rem;
+  }
+
+  .executive-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .executive-actions button {
+    width: 100%;
+  }
+
+  .executive-metrics-grid,
+  .executive-chart-grid,
+  .executive-risk-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .executive-chart-card
+    .recharts-wrapper {
+    padding: 0.5rem;
+  }
+
+  .executive-risk-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .executive-risk-metrics div,
+  .executive-status-list div {
+    align-items: flex-start;
+    flex-direction: column;
+
+    gap: 0.6rem;
+  }
+
+  .executive-risk-metrics strong {
+    white-space: normal;
+  }
+}
+
+/* ============================================================================
+   Responsive - Small Mobile
+   ============================================================================ */
+
+@media (max-width: 576px) {
+  .executive-header {
+    padding: 1.25rem;
+
+    border-radius: 14px;
+  }
+
+  .executive-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .executive-header p {
+    margin-top: 0.6rem;
+
+    font-size: 0.88rem;
+  }
+
+  .executive-metric-card {
+    padding: 1.15rem;
+
+    border-radius: 16px;
+  }
+
+  .executive-metric-header h3 {
+    font-size: 1.3rem;
+  }
+
+  .executive-icon {
+    flex-basis: 46px;
+
+    width: 46px;
+    height: 46px;
+
+    border-radius: 13px;
+  }
+
+  .executive-chart-header {
+    padding: 1rem;
+  }
+
+  .executive-chart-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .executive-risk-metrics,
+  .executive-status-list {
+    padding: 1rem;
+  }
+
+  .executive-risk-metrics div,
+  .executive-status-list div {
+    padding: 0.9rem;
+  }
+}
+
+/* ============================================================================
+   Very Small Devices
+   ============================================================================ */
+
+@media (max-width: 380px) {
+  .executive-header,
+  .executive-metric-card {
+    padding: 1rem;
+  }
+
+  .executive-metric-header {
+    gap: 0.65rem;
+  }
+
+  .executive-metric-header h3 {
+    font-size: 1.18rem;
+  }
+
+  .executive-icon {
+    flex-basis: 42px;
+
+    width: 42px;
+    height: 42px;
+  }
+
+  .executive-trend {
+    font-size: 0.75rem;
+  }
+}
+
+/* ============================================================================
+   Print / Board Reporting
+   ============================================================================ */
+
+@media print {
+  .executive-dashboard {
+    gap: 1rem;
+
+    color: #000000;
+
+    background: #ffffff;
+  }
+
+  .executive-header,
+  .executive-metric-card,
+  .executive-chart-card,
+  .executive-risk-card {
+    box-shadow: none !important;
+
+    border-color: #d1d5db;
+
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .executive-header {
+    padding: 1rem;
+  }
+
+  .executive-actions {
+    display: none;
+  }
+
+  .executive-metric-card:hover,
+  .executive-chart-card:hover,
+  .executive-risk-card:hover {
+    transform: none;
+  }
+
+  .executive-chart-grid,
+  .executive-risk-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .executive-dashboard
+    .recharts-cartesian-grid-horizontal
+    line,
+  .executive-dashboard
+    .recharts-cartesian-grid-vertical
+    line {
+    stroke: #d1d5db;
+  }
+}
+
+/* ============================================================================
+   High Contrast / Forced Colors
+   ============================================================================ */
+
+@media (forced-colors: active) {
+  .executive-header,
+  .executive-metric-card,
+  .executive-chart-card,
+  .executive-risk-card {
+    border: 1px solid CanvasText;
+  }
+
+  .executive-icon,
+  .executive-trend,
+  .executive-risk-metrics div,
+  .executive-status-list div {
+    border: 1px solid CanvasText;
+  }
+
+  .executive-dashboard
+    .recharts-cartesian-grid-horizontal
+    line,
+  .executive-dashboard
+    .recharts-cartesian-grid-vertical
+    line {
+    stroke: CanvasText;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .executive-header,
+  .executive-metric-card,
+  .executive-chart-card,
+  .executive-risk-card,
+  .executive-risk-metrics div,
+  .executive-status-list div {
+    transition: none;
+  }
+
+  .executive-header:hover,
+  .executive-metric-card:hover,
+  .executive-chart-card:hover,
+  .executive-risk-card:hover {
+    transform: none;
+  }
+
+  .executive-dashboard
+    .executive-skeleton::after {
+    animation: none;
+  }
+}

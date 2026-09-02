@@ -1,0 +1,2195 @@
+/**
+ * ============================================================================
+ * TITech Community Capital
+ * TITechChat Enterprise Styles
+ * File: frontend/src/pages/TITechChat.css
+ *
+ * Production Grade
+ * ----------------------------------------------------------------------------
+ * - Enterprise conversation workspace
+ * - Desktop / tablet / mobile responsive
+ * - Accessible focus states
+ * - Strong visual hierarchy
+ * - Conversation list / detail split layout
+ * - Search and filtering controls
+ * - Message bubbles and system messages
+ * - Composer and attachment controls
+ * - Unread indicators
+ * - Loading / empty / error states
+ * - Safe overflow handling
+ * - Reduced-motion support
+ * - High-contrast / forced-colors support
+ * - Dark-mode support
+ * - Print-safe behavior
+ * - TITech terminology consistency
+ * - No ACFOS terminology
+ * ============================================================================
+ */
+
+/* ============================================================================
+ * Design Tokens
+ * ========================================================================== */
+
+.titech-chat-page {
+  --chat-primary: #2563eb;
+  --chat-primary-hover: #1d4ed8;
+  --chat-primary-active: #1e40af;
+  --chat-primary-soft: #eff6ff;
+  --chat-primary-border: #bfdbfe;
+
+  --chat-success: #15803d;
+  --chat-success-soft: #f0fdf4;
+
+  --chat-warning: #b45309;
+  --chat-warning-soft: #fffbeb;
+
+  --chat-danger: #b91c1c;
+  --chat-danger-soft: #fef2f2;
+
+  --chat-text: #0f172a;
+  --chat-text-secondary: #475569;
+  --chat-text-muted: #64748b;
+  --chat-text-subtle: #94a3b8;
+
+  --chat-surface: #ffffff;
+  --chat-surface-soft: #f8fafc;
+  --chat-surface-muted: #f1f5f9;
+  --chat-surface-hover: #f8fafc;
+
+  --chat-border: #e2e8f0;
+  --chat-border-strong: #cbd5e1;
+
+  --chat-message-own: #2563eb;
+  --chat-message-own-text: #ffffff;
+  --chat-message-other: #f1f5f9;
+  --chat-message-other-text: #0f172a;
+
+  --chat-shadow-sm:
+    0 1px 2px rgb(15 23 42 / 0.05);
+
+  --chat-shadow-md:
+    0 8px 24px rgb(15 23 42 / 0.08);
+
+  --chat-shadow-lg:
+    0 18px 50px rgb(15 23 42 / 0.10);
+
+  --chat-radius-sm: 8px;
+  --chat-radius-md: 12px;
+  --chat-radius-lg: 16px;
+  --chat-radius-xl: 20px;
+
+  --chat-focus-ring:
+    0 0 0 3px rgb(37 99 235 / 0.18);
+
+  --chat-transition:
+    160ms ease;
+
+  --chat-header-height: 72px;
+  --chat-composer-height: auto;
+  --chat-list-width: 360px;
+
+  width: 100%;
+  min-width: 0;
+}
+
+/* ============================================================================
+ * Page Shell
+ * ========================================================================== */
+
+.titech-chat-page {
+  min-height: 100%;
+  min-height: 100dvh;
+
+  display: flex;
+  flex-direction: column;
+
+  background:
+    radial-gradient(
+      circle at top left,
+      rgb(37 99 235 / 0.04),
+      transparent 26%
+    ),
+    var(--chat-surface-soft);
+
+  color: var(--chat-text);
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.titech-chat-page *,
+.titech-chat-page *::before,
+.titech-chat-page *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+ * Main Workspace
+ * ========================================================================== */
+
+.titech-chat {
+  width: min(100%, 1600px);
+  min-height: calc(100dvh - 24px);
+
+  margin: 12px auto;
+
+  display: grid;
+  grid-template-columns: var(--chat-list-width) minmax(0, 1fr);
+
+  overflow: hidden;
+
+  border: 1px solid var(--chat-border);
+  border-radius: var(--chat-radius-xl);
+
+  background: var(--chat-surface);
+
+  box-shadow: var(--chat-shadow-lg);
+}
+
+/* ============================================================================
+ * Generic Button / Interactive Styles
+ * ========================================================================== */
+
+.titech-chat-page button,
+.titech-chat-page input,
+.titech-chat-page textarea,
+.titech-chat-page select,
+.titech-chat-page a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.titech-chat-page button,
+.titech-chat-page a {
+  transition:
+    color var(--chat-transition),
+    background-color var(--chat-transition),
+    border-color var(--chat-transition),
+    box-shadow var(--chat-transition),
+    transform var(--chat-transition),
+    opacity var(--chat-transition);
+}
+
+.titech-chat-page button:focus-visible,
+.titech-chat-page input:focus-visible,
+.titech-chat-page textarea:focus-visible,
+.titech-chat-page select:focus-visible,
+.titech-chat-page a:focus-visible {
+  outline: none;
+  box-shadow: var(--chat-focus-ring);
+}
+
+/* ============================================================================
+ * Conversation Sidebar
+ * ========================================================================== */
+
+.titech-chat-sidebar {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  border-right: 1px solid var(--chat-border);
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #fbfdff 100%
+    );
+}
+
+/* ============================================================================
+ * Sidebar Header
+ * ========================================================================== */
+
+.titech-chat-sidebar-header {
+  min-height: var(--chat-header-height);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  padding: 14px 16px;
+
+  border-bottom: 1px solid var(--chat-border);
+
+  background: rgb(255 255 255 / 0.96);
+}
+
+.titech-chat-sidebar-title {
+  min-width: 0;
+}
+
+.titech-chat-sidebar-title h1,
+.titech-chat-sidebar-title h2 {
+  margin: 0;
+
+  color: var(--chat-text);
+
+  font-size: 1.08rem;
+  line-height: 1.3;
+  font-weight: 800;
+
+  letter-spacing: -0.015em;
+}
+
+.titech-chat-sidebar-title p {
+  margin: 4px 0 0;
+
+  color: var(--chat-text-muted);
+
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* ============================================================================
+ * Sidebar Action Buttons
+ * ========================================================================== */
+
+.titech-chat-header-actions,
+.titech-chat-sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.titech-chat-icon-button {
+  width: 38px;
+  height: 38px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 1px solid transparent;
+  border-radius: 10px;
+
+  background: transparent;
+
+  color: var(--chat-text-muted);
+
+  cursor: pointer;
+}
+
+.titech-chat-icon-button:hover:not(:disabled) {
+  background: var(--chat-surface-muted);
+  color: var(--chat-text);
+}
+
+.titech-chat-icon-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.titech-chat-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ============================================================================
+ * Search
+ * ========================================================================== */
+
+.titech-chat-search {
+  padding: 12px 14px;
+
+  border-bottom: 1px solid var(--chat-border);
+
+  background: var(--chat-surface);
+}
+
+.titech-chat-search-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.titech-chat-search-icon {
+  position: absolute;
+
+  top: 50%;
+  left: 12px;
+
+  transform: translateY(-50%);
+
+  color: var(--chat-text-subtle);
+
+  pointer-events: none;
+}
+
+.titech-chat-search input {
+  width: 100%;
+  min-height: 42px;
+
+  padding: 10px 12px 10px 38px;
+
+  border: 1px solid var(--chat-border);
+  border-radius: 10px;
+
+  background: var(--chat-surface-soft);
+  color: var(--chat-text);
+
+  font: inherit;
+  font-size: 0.87rem;
+
+  outline: none;
+
+  transition:
+    border-color var(--chat-transition),
+    background-color var(--chat-transition),
+    box-shadow var(--chat-transition);
+}
+
+.titech-chat-search input::placeholder {
+  color: var(--chat-text-subtle);
+}
+
+.titech-chat-search input:hover {
+  border-color: var(--chat-border-strong);
+}
+
+.titech-chat-search input:focus {
+  border-color: var(--chat-primary);
+  background: var(--chat-surface);
+  box-shadow: var(--chat-focus-ring);
+}
+
+/* ============================================================================
+ * Filter / Tabs
+ * ========================================================================== */
+
+.titech-chat-filters {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  overflow-x: auto;
+
+  padding: 10px 14px;
+
+  border-bottom: 1px solid var(--chat-border);
+
+  scrollbar-width: thin;
+}
+
+.titech-chat-filter {
+  flex: 0 0 auto;
+
+  min-height: 34px;
+
+  padding: 7px 11px;
+
+  border: 1px solid transparent;
+  border-radius: 999px;
+
+  background: transparent;
+
+  color: var(--chat-text-secondary);
+
+  font: inherit;
+  font-size: 0.77rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.titech-chat-filter:hover {
+  background: var(--chat-surface-muted);
+  color: var(--chat-text);
+}
+
+.titech-chat-filter.active,
+.titech-chat-filter[aria-selected="true"] {
+  border-color: var(--chat-primary-border);
+  background: var(--chat-primary-soft);
+  color: var(--chat-primary-active);
+}
+
+/* ============================================================================
+ * Conversation List
+ * ========================================================================== */
+
+.titech-chat-conversation-list {
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+
+  overscroll-behavior: contain;
+
+  scrollbar-width: thin;
+}
+
+.titech-chat-conversation-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.titech-chat-conversation-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.titech-chat-conversation-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================================
+ * Conversation Item
+ * ========================================================================== */
+
+.titech-chat-conversation-item {
+  position: relative;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 11px;
+
+  width: 100%;
+
+  padding: 13px 14px;
+
+  border: 0;
+  border-bottom: 1px solid var(--chat-border);
+
+  background: transparent;
+
+  color: inherit;
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.titech-chat-conversation-item:hover {
+  background: var(--chat-surface-hover);
+}
+
+.titech-chat-conversation-item.active,
+.titech-chat-conversation-item[aria-current="true"] {
+  background:
+    linear-gradient(
+      90deg,
+      var(--chat-primary-soft),
+      #ffffff
+    );
+}
+
+.titech-chat-conversation-item.active::before,
+.titech-chat-conversation-item[aria-current="true"]::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  bottom: 0;
+  left: 0;
+
+  width: 3px;
+
+  background: var(--chat-primary);
+}
+
+/* ============================================================================
+ * Avatar
+ * ========================================================================== */
+
+.titech-chat-avatar {
+  position: relative;
+
+  flex: 0 0 auto;
+
+  width: 44px;
+  height: 44px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  border-radius: 50%;
+
+  background:
+    linear-gradient(
+      135deg,
+      #dbeafe,
+      #e0f2fe
+    );
+
+  color: #1d4ed8;
+
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.titech-chat-avatar img {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+
+  object-fit: cover;
+}
+
+.titech-chat-avatar--online::after {
+  content: "";
+
+  position: absolute;
+
+  right: 1px;
+  bottom: 1px;
+
+  width: 10px;
+  height: 10px;
+
+  border: 2px solid var(--chat-surface);
+
+  border-radius: 50%;
+
+  background: #22c55e;
+}
+
+/* ============================================================================
+ * Conversation Content
+ * ========================================================================== */
+
+.titech-chat-conversation-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.titech-chat-conversation-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 10px;
+}
+
+.titech-chat-conversation-name {
+  min-width: 0;
+
+  overflow: hidden;
+
+  color: var(--chat-text);
+
+  font-size: 0.88rem;
+  line-height: 1.35;
+  font-weight: 750;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.titech-chat-conversation-time {
+  flex: 0 0 auto;
+
+  color: var(--chat-text-subtle);
+
+  font-size: 0.69rem;
+  line-height: 1.4;
+}
+
+.titech-chat-conversation-preview {
+  margin-top: 3px;
+
+  overflow: hidden;
+
+  color: var(--chat-text-muted);
+
+  font-size: 0.78rem;
+  line-height: 1.45;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.titech-chat-conversation-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 8px;
+
+  margin-top: 6px;
+}
+
+.titech-chat-conversation-status {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 5px;
+
+  color: var(--chat-text-subtle);
+
+  font-size: 0.67rem;
+  font-weight: 650;
+}
+
+.titech-chat-unread-badge {
+  min-width: 20px;
+  height: 20px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 6px;
+
+  border-radius: 999px;
+
+  background: var(--chat-primary);
+
+  color: #ffffff;
+
+  font-size: 0.67rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+/* ============================================================================
+ * Empty / Loading / Error States
+ * ========================================================================== */
+
+.titech-chat-state {
+  min-height: 220px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  padding: 28px;
+
+  color: var(--chat-text-muted);
+
+  text-align: center;
+}
+
+.titech-chat-state svg {
+  color: var(--chat-text-subtle);
+}
+
+.titech-chat-state h2,
+.titech-chat-state h3 {
+  margin: 0;
+
+  color: var(--chat-text);
+
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.titech-chat-state p {
+  max-width: 360px;
+
+  margin: 0;
+
+  color: var(--chat-text-muted);
+
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.titech-chat-state--error {
+  color: var(--chat-danger);
+}
+
+.titech-chat-state--error svg {
+  color: var(--chat-danger);
+}
+
+.titech-chat-retry-button {
+  min-height: 38px;
+
+  margin-top: 4px;
+  padding: 8px 13px;
+
+  border: 1px solid var(--chat-primary);
+  border-radius: 9px;
+
+  background: var(--chat-primary);
+  color: #ffffff;
+
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 750;
+
+  cursor: pointer;
+}
+
+.titech-chat-retry-button:hover {
+  background: var(--chat-primary-hover);
+}
+
+/* ============================================================================
+ * Main Conversation Panel
+ * ========================================================================== */
+
+.titech-chat-main {
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--chat-surface);
+}
+
+/* ============================================================================
+ * Main Header
+ * ========================================================================== */
+
+.titech-chat-main-header {
+  min-height: var(--chat-header-height);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 14px;
+
+  padding: 12px 18px;
+
+  border-bottom: 1px solid var(--chat-border);
+
+  background: rgb(255 255 255 / 0.96);
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.titech-chat-main-header-left {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+}
+
+.titech-chat-main-header-info {
+  min-width: 0;
+}
+
+.titech-chat-main-header-title {
+  margin: 0;
+
+  overflow: hidden;
+
+  color: var(--chat-text);
+
+  font-size: 0.98rem;
+  line-height: 1.35;
+  font-weight: 800;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.titech-chat-main-header-subtitle {
+  margin: 3px 0 0;
+
+  overflow: hidden;
+
+  color: var(--chat-text-muted);
+
+  font-size: 0.74rem;
+  line-height: 1.35;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.titech-chat-status {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 6px;
+
+  color: var(--chat-success);
+
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.titech-chat-status-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: currentColor;
+}
+
+/* ============================================================================
+ * Message Area
+ * ========================================================================== */
+
+.titech-chat-messages {
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+
+  padding: 22px clamp(16px, 3vw, 36px);
+
+  background:
+    linear-gradient(
+      180deg,
+      #fbfdff 0%,
+      #f8fafc 100%
+    );
+
+  overscroll-behavior: contain;
+
+  scrollbar-width: thin;
+}
+
+.titech-chat-messages::-webkit-scrollbar {
+  width: 9px;
+}
+
+.titech-chat-messages::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.titech-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================================
+ * Date Separator
+ * ========================================================================== */
+
+.titech-chat-date-separator {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  margin: 6px 0 22px;
+
+  color: var(--chat-text-subtle);
+
+  font-size: 0.68rem;
+  font-weight: 750;
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.titech-chat-date-separator::before,
+.titech-chat-date-separator::after {
+  content: "";
+
+  flex: 1;
+
+  height: 1px;
+
+  background: var(--chat-border);
+}
+
+/* ============================================================================
+ * Message Row
+ * ========================================================================== */
+
+.titech-chat-message-row {
+  display: flex;
+
+  width: 100%;
+
+  margin-bottom: 13px;
+}
+
+.titech-chat-message-row--own {
+  justify-content: flex-end;
+}
+
+.titech-chat-message-row--other {
+  justify-content: flex-start;
+}
+
+.titech-chat-message-group {
+  max-width: min(78%, 680px);
+
+  display: flex;
+  align-items: flex-end;
+
+  gap: 8px;
+}
+
+.titech-chat-message-row--own .titech-chat-message-group {
+  flex-direction: row-reverse;
+}
+
+/* ============================================================================
+ * Message Avatar
+ * ========================================================================== */
+
+.titech-chat-message-avatar {
+  flex: 0 0 auto;
+
+  width: 30px;
+  height: 30px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #e2e8f0;
+
+  color: #334155;
+
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+/* ============================================================================
+ * Message Stack
+ * ========================================================================== */
+
+.titech-chat-message-stack {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.titech-chat-message-row--own .titech-chat-message-stack {
+  align-items: flex-end;
+}
+
+/* ============================================================================
+ * Sender Name
+ * ========================================================================== */
+
+.titech-chat-message-author {
+  margin: 0 7px 2px;
+
+  color: var(--chat-text-muted);
+
+  font-size: 0.69rem;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+/* ============================================================================
+ * Message Bubble
+ * ========================================================================== */
+
+.titech-chat-message-bubble {
+  position: relative;
+
+  padding: 10px 13px;
+
+  border-radius: 15px;
+
+  font-size: 0.86rem;
+  line-height: 1.55;
+
+  overflow-wrap: anywhere;
+
+  box-shadow: var(--chat-shadow-sm);
+}
+
+.titech-chat-message-row--other .titech-chat-message-bubble {
+  border: 1px solid var(--chat-border);
+
+  border-top-left-radius: 6px;
+
+  background: var(--chat-message-other);
+
+  color: var(--chat-message-other-text);
+}
+
+.titech-chat-message-row--own .titech-chat-message-bubble {
+  border-top-right-radius: 6px;
+
+  background: var(--chat-message-own);
+
+  color: var(--chat-message-own-text);
+}
+
+.titech-chat-message-bubble p {
+  margin: 0;
+
+  white-space: pre-wrap;
+}
+
+.titech-chat-message-bubble a {
+  color: inherit;
+
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ============================================================================
+ * Message Timestamp
+ * ========================================================================== */
+
+.titech-chat-message-time {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 5px;
+
+  margin: 0 7px;
+
+  color: var(--chat-text-subtle);
+
+  font-size: 0.64rem;
+  line-height: 1.3;
+}
+
+.titech-chat-message-row--own .titech-chat-message-time {
+  justify-content: flex-end;
+}
+
+/* ============================================================================
+ * Message Status
+ * ========================================================================== */
+
+.titech-chat-message-status {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 3px;
+}
+
+.titech-chat-message-status--sent {
+  color: var(--chat-text-subtle);
+}
+
+.titech-chat-message-status--delivered {
+  color: var(--chat-primary);
+}
+
+.titech-chat-message-status--read {
+  color: var(--chat-primary);
+}
+
+.titech-chat-message-status--failed {
+  color: var(--chat-danger);
+}
+
+/* ============================================================================
+ * Reply / System Message
+ * ========================================================================== */
+
+.titech-chat-system-message {
+  width: fit-content;
+  max-width: min(90%, 620px);
+
+  margin: 12px auto 18px;
+  padding: 8px 12px;
+
+  border: 1px solid var(--chat-border);
+  border-radius: 10px;
+
+  background: var(--chat-surface-muted);
+
+  color: var(--chat-text-muted);
+
+  font-size: 0.73rem;
+  line-height: 1.45;
+
+  text-align: center;
+}
+
+/* ============================================================================
+ * New Message Indicator
+ * ========================================================================== */
+
+.titech-chat-new-message-indicator {
+  position: absolute;
+
+  left: 50%;
+  bottom: 90px;
+
+  transform: translateX(-50%);
+
+  z-index: 10;
+
+  min-height: 36px;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  padding: 8px 12px;
+
+  border: 1px solid var(--chat-primary-border);
+  border-radius: 999px;
+
+  background: var(--chat-surface);
+
+  color: var(--chat-primary-active);
+
+  font-size: 0.75rem;
+  font-weight: 800;
+
+  box-shadow: var(--chat-shadow-md);
+
+  cursor: pointer;
+}
+
+/* ============================================================================
+ * Composer
+ * ========================================================================== */
+
+.titech-chat-composer {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  padding: 12px 14px 14px;
+
+  border-top: 1px solid var(--chat-border);
+
+  background: var(--chat-surface);
+}
+
+.titech-chat-composer-main {
+  display: flex;
+  align-items: flex-end;
+
+  gap: 8px;
+}
+
+.titech-chat-composer-input {
+  min-width: 0;
+  flex: 1;
+
+  display: flex;
+  align-items: flex-end;
+
+  border: 1px solid var(--chat-border-strong);
+  border-radius: 14px;
+
+  background: var(--chat-surface-soft);
+
+  transition:
+    border-color var(--chat-transition),
+    background-color var(--chat-transition),
+    box-shadow var(--chat-transition);
+}
+
+.titech-chat-composer-input:focus-within {
+  border-color: var(--chat-primary);
+  background: var(--chat-surface);
+  box-shadow: var(--chat-focus-ring);
+}
+
+.titech-chat-composer-input textarea {
+  width: 100%;
+  min-height: 46px;
+  max-height: 160px;
+
+  padding: 12px 13px;
+
+  border: 0;
+
+  resize: vertical;
+
+  background: transparent;
+  color: var(--chat-text);
+
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.5;
+
+  outline: none;
+}
+
+.titech-chat-composer-input textarea::placeholder {
+  color: var(--chat-text-subtle);
+}
+
+/* ============================================================================
+ * Composer Actions
+ * ========================================================================== */
+
+.titech-chat-composer-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+}
+
+.titech-chat-composer-button {
+  width: 42px;
+  height: 42px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 1px solid transparent;
+  border-radius: 11px;
+
+  background: transparent;
+
+  color: var(--chat-text-muted);
+
+  cursor: pointer;
+}
+
+.titech-chat-composer-button:hover:not(:disabled) {
+  background: var(--chat-surface-muted);
+  color: var(--chat-text);
+}
+
+.titech-chat-composer-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.titech-chat-send-button {
+  width: 46px;
+  height: 46px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 0;
+  border-radius: 13px;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--chat-primary),
+      var(--chat-primary-dark, #1d4ed8)
+    );
+
+  color: #ffffff;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 6px 14px rgb(37 99 235 / 0.18);
+}
+
+.titech-chat-send-button:hover:not(:disabled) {
+  background: var(--chat-primary-hover);
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 9px 18px rgb(37 99 235 / 0.24);
+}
+
+.titech-chat-send-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.titech-chat-send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+/* ============================================================================
+ * Composer Helper
+ * ========================================================================== */
+
+.titech-chat-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 0 3px;
+}
+
+.titech-chat-composer-hint {
+  min-width: 0;
+
+  overflow: hidden;
+
+  color: var(--chat-text-subtle);
+
+  font-size: 0.67rem;
+  line-height: 1.3;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.titech-chat-character-count {
+  flex: 0 0 auto;
+
+  color: var(--chat-text-subtle);
+
+  font-size: 0.67rem;
+}
+
+/* ============================================================================
+ * Attachments
+ * ========================================================================== */
+
+.titech-chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 8px;
+
+  padding: 2px 2px 0;
+}
+
+.titech-chat-attachment {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  max-width: 220px;
+
+  padding: 7px 9px;
+
+  border: 1px solid var(--chat-border);
+  border-radius: 9px;
+
+  background: var(--chat-surface-soft);
+
+  color: var(--chat-text-secondary);
+
+  font-size: 0.72rem;
+}
+
+.titech-chat-attachment-name {
+  min-width: 0;
+
+  overflow: hidden;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.titech-chat-attachment-remove {
+  width: 22px;
+  height: 22px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 0;
+  border-radius: 6px;
+
+  background: transparent;
+
+  color: var(--chat-text-subtle);
+
+  cursor: pointer;
+}
+
+.titech-chat-attachment-remove:hover {
+  background: var(--chat-danger-soft);
+  color: var(--chat-danger);
+}
+
+/* ============================================================================
+ * Upload / Drop Zone
+ * ========================================================================== */
+
+.titech-chat-drop-zone {
+  padding: 14px;
+
+  border: 1px dashed var(--chat-border-strong);
+  border-radius: 11px;
+
+  background: var(--chat-surface-soft);
+
+  color: var(--chat-text-muted);
+
+  text-align: center;
+}
+
+.titech-chat-drop-zone.is-drag-over {
+  border-color: var(--chat-primary);
+  background: var(--chat-primary-soft);
+  color: var(--chat-primary-active);
+}
+
+/* ============================================================================
+ * Typing Indicator
+ * ========================================================================== */
+
+.titech-chat-typing {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 4px;
+
+  margin: 0 0 10px 42px;
+
+  padding: 8px 11px;
+
+  border-radius: 12px;
+
+  background: var(--chat-message-other);
+
+  color: var(--chat-text-subtle);
+}
+
+.titech-chat-typing-dot {
+  width: 5px;
+  height: 5px;
+
+  border-radius: 50%;
+
+  background: currentColor;
+
+  animation:
+    titech-chat-typing-bounce 1.2s infinite ease-in-out;
+}
+
+.titech-chat-typing-dot:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.titech-chat-typing-dot:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes titech-chat-typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
+ * Loading Indicator
+ * ========================================================================== */
+
+.titech-chat-spinner {
+  width: 18px;
+  height: 18px;
+
+  display: inline-block;
+
+  border: 2px solid rgb(37 99 235 / 0.18);
+  border-top-color: var(--chat-primary);
+
+  border-radius: 50%;
+
+  animation:
+    titech-chat-spin 0.8s linear infinite;
+}
+
+@keyframes titech-chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+ * Inline Error
+ * ========================================================================== */
+
+.titech-chat-inline-error {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 9px;
+
+  margin: 10px 14px;
+
+  padding: 10px 12px;
+
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+
+  background: var(--chat-danger-soft);
+
+  color: var(--chat-danger);
+
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.titech-chat-inline-error button {
+  margin-left: auto;
+
+  flex: 0 0 auto;
+
+  border: 0;
+  background: transparent;
+
+  color: inherit;
+
+  font: inherit;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ============================================================================
+ * Conversation Detail Empty State
+ * ========================================================================== */
+
+.titech-chat-main-empty {
+  flex: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 36px;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgb(37 99 235 / 0.04),
+      transparent 36%
+    ),
+    var(--chat-surface-soft);
+}
+
+.titech-chat-main-empty-inner {
+  width: min(100%, 460px);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 36px 28px;
+
+  border: 1px solid var(--chat-border);
+  border-radius: 16px;
+
+  background: var(--chat-surface);
+
+  box-shadow: var(--chat-shadow-sm);
+
+  text-align: center;
+}
+
+.titech-chat-main-empty-inner svg {
+  color: var(--chat-primary);
+}
+
+.titech-chat-main-empty-inner h2 {
+  margin: 0;
+
+  color: var(--chat-text);
+
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.titech-chat-main-empty-inner p {
+  max-width: 390px;
+
+  margin: 0;
+
+  color: var(--chat-text-muted);
+
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+/* ============================================================================
+ * Modal / Overlay Support
+ * ========================================================================== */
+
+.titech-chat-overlay {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgb(15 23 42 / 0.42);
+
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.titech-chat-modal {
+  width: min(100%, 560px);
+  max-height: min(90dvh, 760px);
+
+  overflow: auto;
+
+  border: 1px solid var(--chat-border);
+  border-radius: var(--chat-radius-lg);
+
+  background: var(--chat-surface);
+
+  box-shadow: var(--chat-shadow-lg);
+}
+
+.titech-chat-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  padding: 16px 18px;
+
+  border-bottom: 1px solid var(--chat-border);
+}
+
+.titech-chat-modal-header h2 {
+  margin: 0;
+
+  color: var(--chat-text);
+
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.titech-chat-modal-body {
+  padding: 18px;
+}
+
+/* ============================================================================
+ * Responsive — Large Desktop
+ * ========================================================================== */
+
+@media (min-width: 1440px) {
+  .titech-chat {
+    min-height: calc(100dvh - 32px);
+
+    margin: 16px auto;
+  }
+
+  .titech-chat-message-group {
+    max-width: min(72%, 740px);
+  }
+}
+
+/* ============================================================================
+ * Responsive — Tablet
+ * ========================================================================== */
+
+@media (max-width: 1100px) {
+  .titech-chat {
+    --chat-list-width: 320px;
+  }
+
+  .titech-chat-message-group {
+    max-width: min(82%, 620px);
+  }
+
+  .titech-chat-sidebar-header,
+  .titech-chat-main-header {
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Compact Tablet
+ * ========================================================================== */
+
+@media (max-width: 900px) {
+  .titech-chat {
+    --chat-list-width: 300px;
+
+    margin: 0;
+
+    min-height: 100dvh;
+
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+
+  .titech-chat-message-group {
+    max-width: 86%;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Mobile
+ * ========================================================================== */
+
+@media (max-width: 760px) {
+  .titech-chat-page {
+    min-height: 100dvh;
+  }
+
+  .titech-chat {
+    position: relative;
+
+    display: block;
+
+    min-height: 100dvh;
+
+    margin: 0;
+
+    border-radius: 0;
+  }
+
+  .titech-chat-sidebar {
+    width: 100%;
+
+    min-height: 100dvh;
+
+    border-right: 0;
+  }
+
+  .titech-chat-main {
+    position: absolute;
+
+    inset: 0;
+
+    z-index: 20;
+
+    min-height: 100dvh;
+
+    background: var(--chat-surface);
+  }
+
+  /*
+   * Add the modifier class `.is-hidden-mobile` to the panel the application
+   * should hide on mobile. This keeps the stylesheet compatible with both
+   * split-view and route-driven mobile chat implementations.
+   */
+
+  .titech-chat-sidebar.is-hidden-mobile {
+    display: none;
+  }
+
+  .titech-chat-main.is-hidden-mobile {
+    display: none;
+  }
+
+  .titech-chat-mobile-back {
+    display: inline-flex;
+  }
+
+  .titech-chat-message-group {
+    max-width: 90%;
+  }
+
+  .titech-chat-messages {
+    padding:
+      16px
+      12px
+      18px;
+  }
+
+  .titech-chat-composer {
+    padding:
+      10px
+      10px
+      calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .titech-chat-composer-footer {
+    display: none;
+  }
+
+  .titech-chat-main-header {
+    min-height: 64px;
+
+    padding:
+      10px
+      10px;
+  }
+
+  .titech-chat-conversation-item {
+    padding:
+      13px
+      12px;
+    }
+}
+
+/* ============================================================================
+ * Responsive — Small Mobile
+ * ========================================================================== */
+
+@media (max-width: 480px) {
+  .titech-chat-sidebar-header {
+    min-height: 62px;
+  }
+
+  .titech-chat-sidebar-title h1,
+  .titech-chat-sidebar-title h2 {
+    font-size: 0.98rem;
+  }
+
+  .titech-chat-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .titech-chat-message-group {
+    max-width: 94%;
+  }
+
+  .titech-chat-message-bubble {
+    padding:
+      9px
+      11px;
+
+    font-size: 0.83rem;
+  }
+
+  .titech-chat-message-avatar {
+    display: none;
+  }
+
+  .titech-chat-typing {
+    margin-left: 4px;
+  }
+
+  .titech-chat-composer-actions {
+    gap: 3px;
+  }
+
+  .titech-chat-composer-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .titech-chat-send-button {
+    width: 42px;
+    height: 42px;
+  }
+
+  .titech-chat-new-message-indicator {
+    bottom: 78px;
+
+    max-width: calc(100% - 24px);
+
+    white-space: nowrap;
+  }
+}
+
+/* ============================================================================
+ * Accessibility — Reduced Motion
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .titech-chat-page *,
+  .titech-chat-page *::before,
+  .titech-chat-page *::after {
+    scroll-behavior: auto !important;
+
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+
+    transition-duration: 0.01ms !important;
+  }
+
+  .titech-chat-conversation-item:hover,
+  .titech-chat-send-button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+ * Accessibility — Forced Colors
+ * ========================================================================== */
+
+@media (forced-colors: active) {
+  .titech-chat {
+    border-color: CanvasText;
+    background: Canvas;
+  }
+
+  .titech-chat-sidebar,
+  .titech-chat-main,
+  .titech-chat-sidebar-header,
+  .titech-chat-main-header,
+  .titech-chat-composer,
+  .titech-chat-main-empty-inner {
+    background: Canvas;
+    border-color: CanvasText;
+  }
+
+  .titech-chat-conversation-item {
+    color: CanvasText;
+  }
+
+  .titech-chat-conversation-item.active,
+  .titech-chat-conversation-item:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .titech-chat-message-row--other .titech-chat-message-bubble,
+  .titech-chat-message-row--own .titech-chat-message-bubble,
+  .titech-chat-system-message,
+  .titech-chat-attachment,
+  .titech-chat-search input,
+  .titech-chat-composer-input {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .titech-chat-send-button,
+  .titech-chat-retry-button {
+    border: 1px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .titech-chat-icon-button,
+  .titech-chat-composer-button {
+    color: ButtonText;
+  }
+
+  .titech-chat-inline-error {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+}
+
+/* ============================================================================
+ * Dark Mode
+ * ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  .titech-chat-page {
+    --chat-text: #f8fafc;
+    --chat-text-secondary: #cbd5e1;
+    --chat-text-muted: #94a3b8;
+    --chat-text-subtle: #64748b;
+
+    --chat-surface: #0f172a;
+    --chat-surface-soft: #111827;
+    --chat-surface-muted: #1e293b;
+    --chat-surface-hover: #172033;
+
+    --chat-border: #263548;
+    --chat-border-strong: #334155;
+
+    --chat-primary-soft: #172554;
+    --chat-primary-border: #1d4ed8;
+
+    --chat-success-soft: #052e16;
+    --chat-warning-soft: #2b2110;
+    --chat-danger-soft: #2a1111;
+
+    --chat-message-other: #1e293b;
+    --chat-message-other-text: #f8fafc;
+
+    background:
+      radial-gradient(
+        circle at top left,
+        rgb(37 99 235 / 0.09),
+        transparent 26%
+      ),
+      #020617;
+  }
+
+  .titech-chat {
+    border-color: #1f2937;
+
+    background: var(--chat-surface);
+
+    box-shadow:
+      0 18px 60px rgb(0 0 0 / 0.28);
+  }
+
+  .titech-chat-sidebar,
+  .titech-chat-main,
+  .titech-chat-sidebar-header,
+  .titech-chat-main-header,
+  .titech-chat-composer {
+    background:
+      linear-gradient(
+        180deg,
+        #0f172a 0%,
+        #111827 100%
+      );
+  }
+
+  .titech-chat-messages {
+    background:
+      linear-gradient(
+        180deg,
+        #0b1220 0%,
+        #0f172a 100%
+      );
+  }
+
+  .titech-chat-search input,
+  .titech-chat-composer-input,
+  .titech-chat-attachment,
+  .titech-chat-main-empty-inner {
+    background: #111827;
+  }
+
+  .titech-chat-search input:hover {
+    border-color: #475569;
+  }
+
+  .titech-chat-conversation-item:hover {
+    background: #172033;
+  }
+
+  .titech-chat-conversation-item.active,
+  .titech-chat-conversation-item[aria-current="true"] {
+    background:
+      linear-gradient(
+        90deg,
+        #172554,
+        #0f172a
+      );
+  }
+
+  .titech-chat-message-row--other .titech-chat-message-bubble {
+    border-color: #334155;
+  }
+
+  .titech-chat-system-message {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .titech-chat-new-message-indicator {
+    background: #111827;
+    border-color: #1d4ed8;
+  }
+
+  .titech-chat-modal {
+    background: #0f172a;
+    border-color: #263548;
+  }
+
+  .titech-chat-inline-error {
+    border-color: #7f1d1d;
+    background: #2a1111;
+  }
+}
+
+/* ============================================================================
+ * Print
+ * ========================================================================== */
+
+@media print {
+  .titech-chat-page {
+    min-height: auto;
+
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .titech-chat {
+    width: 100%;
+    min-height: auto;
+
+    margin: 0;
+
+    display: block;
+
+    overflow: visible;
+
+    border: 0;
+    border-radius: 0;
+
+    box-shadow: none;
+  }
+
+  .titech-chat-sidebar,
+  .titech-chat-composer,
+  .titech-chat-sidebar-header,
+  .titech-chat-search,
+  .titech-chat-filters,
+  .titech-chat-header-actions,
+  .titech-chat-icon-button,
+  .titech-chat-new-message-indicator,
+  .titech-chat-overlay {
+    display: none !important;
+  }
+
+  .titech-chat-main {
+    display: block;
+
+    background: #ffffff;
+  }
+
+  .titech-chat-main-header {
+    border-bottom: 1px solid #000000;
+
+    background: #ffffff;
+
+    color: #000000;
+  }
+
+  .titech-chat-messages {
+    overflow: visible;
+
+    padding: 16px 0;
+
+    background: #ffffff;
+  }
+
+  .titech-chat-message-group {
+    max-width: 100%;
+  }
+
+  .titech-chat-message-bubble {
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+
+    box-shadow: none;
+  }
+
+  .titech-chat-message-time,
+  .titech-chat-message-author {
+    color: #333333;
+  }
+}

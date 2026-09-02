@@ -1,0 +1,939 @@
+/* ============================================================================
+   TITech Community Capital
+   Group List
+   File: frontend/src/pages/dashboard/GroupList.css
+
+   Production Grade
+   Multi-Tenant | Responsive | Accessible | Dark Mode | Print Ready
+   ============================================================================ */
+
+/* ============================================================================
+   Design Tokens
+   ============================================================================ */
+
+:root {
+  --group-bg: #ffffff;
+  --group-surface: #f8fafc;
+  --group-surface-raised: #ffffff;
+  --group-surface-hover: #f1f5f9;
+
+  --group-border: #e2e8f0;
+  --group-border-strong: #cbd5e1;
+
+  --group-text: #0f172a;
+  --group-text-secondary: #64748b;
+  --group-text-muted: #94a3b8;
+
+  --group-primary: #2563eb;
+  --group-primary-hover: #1d4ed8;
+  --group-primary-light: #dbeafe;
+  --group-primary-soft: rgba(37, 99, 235, 0.1);
+  --group-primary-ring: rgba(37, 99, 235, 0.22);
+
+  --group-success: #16a34a;
+  --group-success-soft: rgba(22, 163, 74, 0.12);
+
+  --group-warning: #f59e0b;
+  --group-warning-soft: rgba(245, 158, 11, 0.12);
+
+  --group-danger: #dc2626;
+  --group-danger-soft: rgba(220, 38, 38, 0.12);
+
+  --group-shadow:
+    0 8px 25px rgba(15, 23, 42, 0.07);
+
+  --group-shadow-hover:
+    0 18px 45px rgba(15, 23, 42, 0.12);
+
+  --group-radius: 20px;
+  --group-radius-sm: 14px;
+  --group-radius-xs: 10px;
+
+  --group-control-height: 46px;
+
+  --group-transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease,
+    color 0.25s ease,
+    opacity 0.25s ease;
+}
+
+/* ============================================================================
+   Container
+   ============================================================================ */
+
+.group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+
+  width: 100%;
+  min-width: 0;
+
+  color: var(--group-text);
+}
+
+/* ============================================================================
+   Toolbar
+   ============================================================================ */
+
+.group-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+
+  flex-wrap: wrap;
+}
+
+/* ============================================================================
+   Search
+   ============================================================================ */
+
+.group-search {
+  display: flex;
+  align-items: center;
+
+  flex: 1 1 360px;
+  min-width: min(300px, 100%);
+
+  min-height: var(--group-control-height);
+
+  gap: 0.75rem;
+  padding: 0.25rem 0.75rem 0.25rem 1rem;
+
+  background: var(--group-bg);
+
+  border: 1px solid var(--group-border);
+  border-radius: 16px;
+
+  box-shadow: var(--group-shadow);
+
+  transition: var(--group-transition);
+}
+
+.group-search:hover {
+  border-color: var(--group-border-strong);
+}
+
+.group-search:focus-within {
+  border-color: var(--group-primary);
+
+  box-shadow:
+    0 0 0 3px var(--group-primary-ring),
+    var(--group-shadow);
+}
+
+.group-search > svg {
+  flex: 0 0 auto;
+  color: var(--group-text-secondary);
+}
+
+.group-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+
+  padding: 0;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+
+  color: var(--group-text);
+
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.group-search input::placeholder {
+  color: var(--group-text-muted);
+  opacity: 1;
+}
+
+.group-search input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ============================================================================
+   Toolbar Actions
+   ============================================================================ */
+
+.group-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 0.75rem;
+
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+/* ============================================================================
+   Filter
+   ============================================================================ */
+
+.group-filter {
+  display: flex;
+  align-items: center;
+
+  min-height: var(--group-control-height);
+
+  gap: 0.65rem;
+  padding: 0 0.9rem;
+
+  background: var(--group-bg);
+
+  border: 1px solid var(--group-border);
+  border-radius: 16px;
+
+  box-shadow: var(--group-shadow);
+
+  transition: var(--group-transition);
+}
+
+.group-filter:hover {
+  border-color: var(--group-border-strong);
+}
+
+.group-filter:focus-within {
+  border-color: var(--group-primary);
+
+  box-shadow:
+    0 0 0 3px var(--group-primary-ring),
+    var(--group-shadow);
+}
+
+.group-filter > svg {
+  flex: 0 0 auto;
+  color: var(--group-text-secondary);
+}
+
+.group-filter select {
+  min-width: 120px;
+  min-height: 40px;
+
+  padding: 0 1.5rem 0 0;
+
+  border: 0;
+  outline: 0;
+
+  background-color: transparent;
+
+  color: var(--group-text);
+
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.group-filter select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ============================================================================
+   Summary
+   ============================================================================ */
+
+.group-summary {
+  display: flex;
+  align-items: center;
+
+  min-height: 24px;
+
+  color: var(--group-text-secondary);
+
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.group-summary strong {
+  color: var(--group-text);
+  font-weight: 750;
+}
+
+/* ============================================================================
+   Group Grid
+   ============================================================================ */
+
+.group-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fill,
+      minmax(min(320px, 100%), 1fr)
+    );
+
+  gap: 1.5rem;
+
+  width: 100%;
+  min-width: 0;
+}
+
+/* ============================================================================
+   Group Card
+   ============================================================================ */
+
+.group-card {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 100%;
+
+  gap: 1rem;
+
+  padding: 1.5rem;
+
+  background: var(--group-bg);
+
+  border: 1px solid var(--group-border);
+  border-radius: var(--group-radius);
+
+  box-shadow: var(--group-shadow);
+
+  overflow: hidden;
+  isolation: isolate;
+
+  transition: var(--group-transition);
+}
+
+/* --------------------------------------------------------------------------
+   Decorative accent
+   -------------------------------------------------------------------------- */
+
+.group-card::before {
+  content: "";
+
+  position: absolute;
+  inset:
+    0 0 auto 0;
+
+  height: 4px;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--group-primary),
+      #3b82f6
+    );
+
+  opacity: 0;
+
+  pointer-events: none;
+
+  transition: opacity 0.25s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Soft background treatment
+   -------------------------------------------------------------------------- */
+
+.group-card::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  z-index: -1;
+
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      var(--group-primary-soft),
+      transparent 32%
+    );
+
+  opacity: 0;
+
+  pointer-events: none;
+
+  transition: opacity 0.25s ease;
+}
+
+.group-card:hover {
+  transform: translateY(-5px);
+
+  border-color: var(--group-border-strong);
+
+  box-shadow: var(--group-shadow-hover);
+}
+
+.group-card:hover::before,
+.group-card:hover::after {
+  opacity: 1;
+}
+
+/* ============================================================================
+   Keyboard Accessibility
+   ============================================================================ */
+
+.group-card:focus-within {
+  outline: 2px solid var(--group-primary);
+  outline-offset: 3px;
+}
+
+/* ============================================================================
+   Card Header
+   ============================================================================ */
+
+.group-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  min-width: 0;
+}
+
+/* ============================================================================
+   Group Avatar
+   ============================================================================ */
+
+.group-avatar {
+  flex: 0 0 54px;
+
+  width: 54px;
+  height: 54px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 16px;
+
+  background: var(--group-primary-light);
+
+  color: var(--group-primary);
+
+  box-shadow:
+    inset 0 0 0 1px
+      rgba(37, 99, 235, 0.06);
+}
+
+.group-avatar svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ============================================================================
+   Group Title
+   ============================================================================ */
+
+.group-card h3 {
+  min-width: 0;
+
+  margin: 0;
+
+  color: var(--group-text);
+
+  font-size: 1.15rem;
+  line-height: 1.35;
+  font-weight: 750;
+
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================================
+   Description
+   ============================================================================ */
+
+.group-description {
+  min-height: 3.1em;
+
+  margin: 0;
+
+  color: var(--group-text-secondary);
+
+  font-size: 0.94rem;
+  line-height: 1.6;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+
+  overflow: hidden;
+
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================================
+   Metadata
+   ============================================================================ */
+
+.group-meta {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.7rem;
+
+  margin-top: 0.15rem;
+}
+
+.group-meta > div {
+  display: flex;
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 0.75rem;
+
+  color: var(--group-text-secondary);
+
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.group-meta > div > span {
+  min-width: 0;
+
+  overflow-wrap: anywhere;
+}
+
+.group-meta svg {
+  flex: 0 0 auto;
+
+  color: var(--group-primary);
+}
+
+/* ============================================================================
+   Open Group Action
+   ============================================================================ */
+
+.group-open-btn {
+  width: 100%;
+
+  min-height: 44px;
+
+  margin-top: auto;
+}
+
+.group-open-btn svg {
+  flex: 0 0 auto;
+
+  margin-left: 0.5rem;
+
+  transition:
+    transform 0.2s ease;
+}
+
+.group-open-btn:hover svg {
+  transform: translateX(3px);
+}
+
+/* ============================================================================
+   Loading State
+   ============================================================================ */
+
+.group-grid .skeleton {
+  width: 100%;
+  min-height: 260px;
+
+  border-radius: var(--group-radius);
+}
+
+/* ============================================================================
+   Empty State Compatibility
+   ============================================================================ */
+
+.group-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 280px;
+
+  padding: 3rem 2rem;
+
+  text-align: center;
+
+  background: var(--group-bg);
+
+  border: 1px dashed var(--group-border-strong);
+  border-radius: var(--group-radius);
+
+  box-shadow: var(--group-shadow);
+}
+
+.group-empty h3 {
+  margin: 1rem 0 0;
+
+  color: var(--group-text);
+
+  font-size: 1.15rem;
+  font-weight: 750;
+}
+
+.group-empty p {
+  max-width: 520px;
+
+  margin: 0.6rem 0 0;
+
+  color: var(--group-text-secondary);
+
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   Pagination
+   ============================================================================ */
+
+.group-list > nav,
+.group-list .pagination {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+/* ============================================================================
+   Scrollbar
+   ============================================================================ */
+
+.group-list {
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgba(148, 163, 184, 0.55)
+    transparent;
+}
+
+.group-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.group-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.group-list::-webkit-scrollbar-thumb {
+  background:
+    rgba(148, 163, 184, 0.45);
+
+  border-radius: 999px;
+}
+
+.group-list::-webkit-scrollbar-thumb:hover {
+  background:
+    rgba(100, 116, 139, 0.65);
+}
+
+/* ============================================================================
+   Dark Mode
+   ============================================================================ */
+
+.dark {
+  --group-bg: #0f172a;
+  --group-surface: #1e293b;
+  --group-surface-raised: #172033;
+  --group-surface-hover: #243247;
+
+  --group-border: #334155;
+  --group-border-strong: #475569;
+
+  --group-text: #f8fafc;
+  --group-text-secondary: #94a3b8;
+  --group-text-muted: #64748b;
+
+  --group-primary: #60a5fa;
+  --group-primary-hover: #93c5fd;
+  --group-primary-light: rgba(37, 99, 235, 0.2);
+  --group-primary-soft: rgba(37, 99, 235, 0.12);
+  --group-primary-ring: rgba(96, 165, 250, 0.25);
+
+  --group-success: #4ade80;
+  --group-warning: #fbbf24;
+  --group-danger: #f87171;
+
+  --group-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.4);
+
+  --group-shadow-hover:
+    0 20px 55px rgba(0, 0, 0, 0.55);
+}
+
+.dark .group-card::after {
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(37, 99, 235, 0.12),
+      transparent 32%
+    );
+}
+
+.dark .group-filter select option {
+  background: var(--group-bg);
+  color: var(--group-text);
+}
+
+/* ============================================================================
+   High Contrast / Forced Colors
+   ============================================================================ */
+
+@media (forced-colors: active) {
+  .group-card,
+  .group-search,
+  .group-filter,
+  .group-empty {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .group-search:focus-within,
+  .group-filter:focus-within,
+  .group-card:focus-within {
+    outline: 2px solid Highlight;
+  }
+
+  .group-card::before,
+  .group-card::after {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   Responsive — Large Tablet / Small Desktop
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+  .group-grid {
+    grid-template-columns:
+      repeat(
+        auto-fill,
+        minmax(min(300px, 100%), 1fr)
+      );
+  }
+}
+
+/* ============================================================================
+   Responsive — Tablet
+   ============================================================================ */
+
+@media (max-width: 992px) {
+  .group-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-search {
+    flex-basis: auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .group-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .group-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+/* ============================================================================
+   Responsive — Mobile
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .group-list {
+    gap: 1.5rem;
+  }
+
+  .group-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-filter {
+    width: 100%;
+  }
+
+  .group-filter select {
+    width: 100%;
+  }
+
+  .group-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .group-grid {
+    grid-template-columns: 1fr;
+
+    gap: 1.25rem;
+  }
+
+  .group-card {
+    padding: 1.35rem;
+  }
+
+  .group-card:hover {
+    transform: translateY(-3px);
+  }
+
+  .group-description {
+    min-height: auto;
+  }
+}
+
+/* ============================================================================
+   Responsive — Small Mobile
+   ============================================================================ */
+
+@media (max-width: 576px) {
+  .group-list {
+    gap: 1.25rem;
+  }
+
+  .group-search {
+    padding-left: 0.85rem;
+  }
+
+  .group-card {
+    padding: 1.15rem;
+
+    border-radius: 17px;
+  }
+
+  .group-avatar {
+    flex-basis: 48px;
+
+    width: 48px;
+    height: 48px;
+
+    border-radius: 14px;
+  }
+
+  .group-avatar svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .group-card h3 {
+    font-size: 1.05rem;
+  }
+
+  .group-description {
+    font-size: 0.9rem;
+  }
+
+  .group-meta {
+    gap: 0.6rem;
+  }
+
+  .group-meta > div {
+    font-size: 0.86rem;
+  }
+
+  .group-empty {
+    min-height: 240px;
+    padding: 2.5rem 1.25rem;
+  }
+}
+
+/* ============================================================================
+   Responsive — Extra Small Devices
+   ============================================================================ */
+
+@media (max-width: 380px) {
+  .group-card-header {
+    align-items: flex-start;
+  }
+
+  .group-avatar {
+    flex-basis: 44px;
+
+    width: 44px;
+    height: 44px;
+  }
+
+  .group-card {
+    padding: 1rem;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .group-search,
+  .group-filter,
+  .group-card,
+  .group-card::before,
+  .group-card::after,
+  .group-open-btn svg {
+    transition: none;
+  }
+
+  .group-card:hover {
+    transform: none;
+  }
+
+  .group-open-btn:hover svg {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+   Print / Board Reporting
+   ============================================================================ */
+
+@media print {
+  .group-list {
+    gap: 1rem;
+  }
+
+  .group-toolbar {
+    display: none;
+  }
+
+  .group-card {
+    break-inside: avoid;
+
+    box-shadow: none;
+
+    border: 1px solid #cbd5e1;
+  }
+
+  .group-card::before,
+  .group-card::after {
+    display: none;
+  }
+
+  .group-open-btn {
+    display: none;
+  }
+
+  .group-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+    gap: 1rem;
+  }
+
+  .group-summary {
+    margin-bottom: 0.5rem;
+  }
+}

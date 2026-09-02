@@ -1,0 +1,975 @@
+/**
+ * ============================================================================
+ * TITech Community Capital
+ * Enterprise Mobile Money Payment Styles
+ * File: frontend/src/components/MobileMoneyPayment.css
+ * Production Grade
+ * ============================================================================
+ *
+ * Purpose
+ * ----------------------------------------------------------------------------
+ * Presentation layer for the TITech Community Capital mobile-money payment
+ * workflow.
+ *
+ * Supported providers
+ * ----------------------------------------------------------------------------
+ * - MTN MoMo
+ * - Airtel Money
+ *
+ * Supported states
+ * ----------------------------------------------------------------------------
+ * - Provider selection
+ * - Phone number entry
+ * - Processing
+ * - Completed
+ * - Failed
+ * - Error
+ *
+ * Security boundary
+ * ----------------------------------------------------------------------------
+ * This stylesheet contains presentation-only behavior.
+ *
+ * It MUST NOT be considered an authorization, financial, KYC/AML,
+ * transaction-integrity, tenant-isolation, or payment-security boundary.
+ *
+ * ============================================================================
+ */
+
+/* ============================================================================
+   Design Tokens
+   ============================================================================ */
+
+.mobile-money-payment {
+  --titech-payment-primary: #f59e0b;
+  --titech-payment-primary-hover: #d97706;
+  --titech-payment-primary-active: #b45309;
+
+  --titech-payment-secondary: #0f172a;
+  --titech-payment-secondary-soft: #334155;
+
+  --titech-payment-success: #16a34a;
+  --titech-payment-success-soft: #dcfce7;
+  --titech-payment-success-border: #86efac;
+
+  --titech-payment-warning: #d97706;
+  --titech-payment-warning-soft: #fef3c7;
+  --titech-payment-warning-border: #fcd34d;
+
+  --titech-payment-danger: #dc2626;
+  --titech-payment-danger-soft: #fee2e2;
+  --titech-payment-danger-border: #fecaca;
+
+  --titech-payment-info: #2563eb;
+  --titech-payment-info-soft: #dbeafe;
+  --titech-payment-info-border: #93c5fd;
+
+  --titech-payment-text: #0f172a;
+  --titech-payment-text-secondary: #475569;
+  --titech-payment-text-muted: #64748b;
+
+  --titech-payment-surface: #ffffff;
+  --titech-payment-surface-soft: #f8fafc;
+  --titech-payment-surface-muted: #f1f5f9;
+
+  --titech-payment-border: #e2e8f0;
+  --titech-payment-border-strong: #cbd5e1;
+
+  --titech-payment-shadow-sm:
+    0 1px 2px rgba(15, 23, 42, 0.05);
+
+  --titech-payment-shadow-md:
+    0 10px 30px rgba(15, 23, 42, 0.10);
+
+  --titech-payment-shadow-lg:
+    0 20px 50px rgba(15, 23, 42, 0.14);
+
+  --titech-payment-radius-sm: 8px;
+  --titech-payment-radius-md: 12px;
+  --titech-payment-radius-lg: 16px;
+  --titech-payment-radius-xl: 20px;
+
+  --titech-payment-transition:
+    160ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --titech-payment-focus-ring:
+    0 0 0 3px rgba(245, 158, 11, 0.22);
+
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  color: var(--titech-payment-text);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  box-sizing: border-box;
+}
+
+.mobile-money-payment *,
+.mobile-money-payment *::before,
+.mobile-money-payment *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   Payment Step Container
+   ============================================================================ */
+
+.payment-step {
+  width: 100%;
+  padding: clamp(20px, 4vw, 32px);
+  background: var(--titech-payment-surface);
+  border: 1px solid var(--titech-payment-border);
+  border-radius: var(--titech-payment-radius-xl);
+  box-shadow: var(--titech-payment-shadow-md);
+}
+
+.payment-step:focus-within {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* ============================================================================
+   Titles
+   ============================================================================ */
+
+.payment-title {
+  margin: 0;
+  color: var(--titech-payment-text);
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  font-weight: 750;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+.payment-subtitle {
+  margin: 8px 0 0;
+  color: var(--titech-payment-text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   Provider Selection
+   ============================================================================ */
+
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.provider-card {
+  position: relative;
+  display: block;
+  min-width: 0;
+  padding: 18px;
+  background: var(--titech-payment-surface);
+  border: 1.5px solid var(--titech-payment-border);
+  border-radius: var(--titech-payment-radius-md);
+  cursor: pointer;
+  transition:
+    border-color var(--titech-payment-transition),
+    background-color var(--titech-payment-transition),
+    box-shadow var(--titech-payment-transition),
+    transform var(--titech-payment-transition);
+}
+
+.provider-card:hover {
+  border-color: var(--titech-payment-border-strong);
+  background: var(--titech-payment-surface-soft);
+  box-shadow: var(--titech-payment-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.provider-card.selected {
+  border-color: var(--titech-payment-primary);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(245, 158, 11, 0.08),
+      rgba(245, 158, 11, 0.025)
+    );
+  box-shadow:
+    0 0 0 3px rgba(245, 158, 11, 0.10),
+    var(--titech-payment-shadow-sm);
+}
+
+.provider-card:has(input:focus-visible) {
+  outline: none;
+  box-shadow:
+    var(--titech-payment-focus-ring),
+    var(--titech-payment-shadow-sm);
+}
+
+.provider-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.provider-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.provider-logo {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 6px;
+  border-radius: 12px;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  text-align: center;
+  user-select: none;
+}
+
+.mtn-logo {
+  background: #ffcc00;
+  color: #111827;
+  box-shadow:
+    inset 0 0 0 1px rgba(17, 24, 39, 0.08);
+}
+
+.airtel-logo {
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.provider-info {
+  min-width: 0;
+}
+
+.provider-name {
+  margin: 0;
+  color: var(--titech-payment-text);
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.provider-desc {
+  margin: 4px 0 0;
+  color: var(--titech-payment-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* ============================================================================
+   Forms
+   ============================================================================ */
+
+.payment-form {
+  margin-top: 24px;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--titech-payment-text);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.form-icon {
+  width: 17px;
+  height: 17px;
+  color: var(--titech-payment-text-muted);
+  flex: 0 0 auto;
+}
+
+.form-input {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  color: var(--titech-payment-text);
+  background: var(--titech-payment-surface);
+  border: 1px solid var(--titech-payment-border-strong);
+  border-radius: var(--titech-payment-radius-sm);
+  outline: none;
+  font: inherit;
+  font-size: 0.94rem;
+  line-height: 1.4;
+  transition:
+    border-color var(--titech-payment-transition),
+    box-shadow var(--titech-payment-transition),
+    background-color var(--titech-payment-transition);
+}
+
+.form-input::placeholder {
+  color: #94a3b8;
+}
+
+.form-input:hover {
+  border-color: #94a3b8;
+}
+
+.form-input:focus {
+  border-color: var(--titech-payment-primary);
+  box-shadow: var(--titech-payment-focus-ring);
+}
+
+.form-input:disabled {
+  color: #94a3b8;
+  background: var(--titech-payment-surface-muted);
+  cursor: not-allowed;
+}
+
+.form-help {
+  display: block;
+  margin-top: 7px;
+  color: var(--titech-payment-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   Amount Display
+   ============================================================================ */
+
+.amount-display {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 52px;
+  padding: 12px 14px;
+  color: var(--titech-payment-text);
+  background:
+    linear-gradient(
+      135deg,
+      var(--titech-payment-surface-soft),
+      var(--titech-payment-surface-muted)
+    );
+  border: 1px solid var(--titech-payment-border);
+  border-radius: var(--titech-payment-radius-sm);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   Error Message
+   ============================================================================ */
+
+.error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  color: #991b1b;
+  background: var(--titech-payment-danger-soft);
+  border: 1px solid var(--titech-payment-danger-border);
+  border-left: 4px solid var(--titech-payment-danger);
+  border-radius: var(--titech-payment-radius-sm);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.error-message svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+
+.button-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 11px 20px;
+  border-radius: var(--titech-payment-radius-sm);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 750;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--titech-payment-transition),
+    border-color var(--titech-payment-transition),
+    color var(--titech-payment-transition),
+    box-shadow var(--titech-payment-transition),
+    transform var(--titech-payment-transition),
+    opacity var(--titech-payment-transition);
+}
+
+.btn-primary {
+  color: #111827;
+  background: var(--titech-payment-primary);
+  border: 1px solid var(--titech-payment-primary);
+  box-shadow:
+    0 4px 10px rgba(245, 158, 11, 0.20);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--titech-payment-primary-hover);
+  border-color: var(--titech-payment-primary-hover);
+  box-shadow:
+    0 6px 14px rgba(245, 158, 11, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--titech-payment-primary-active);
+  border-color: var(--titech-payment-primary-active);
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  color: var(--titech-payment-secondary);
+  background: var(--titech-payment-surface);
+  border: 1px solid var(--titech-payment-border-strong);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  color: var(--titech-payment-text);
+  background: var(--titech-payment-surface-muted);
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+  outline: none;
+  box-shadow: var(--titech-payment-focus-ring);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ============================================================================
+   Utility Classes
+   ============================================================================ */
+
+.mt-6 {
+  margin-top: 24px;
+}
+
+/* ============================================================================
+   Processing State
+   ============================================================================ */
+
+.processing-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 0 4px;
+}
+
+.processing-container .payment-title {
+  margin-top: 18px;
+}
+
+.processing-container .payment-subtitle {
+  max-width: 480px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  transition:
+    background-color var(--titech-payment-transition),
+    color var(--titech-payment-transition),
+    border-color var(--titech-payment-transition);
+}
+
+.status-icon.PENDING,
+.status-icon.PROCESSING {
+  color: var(--titech-payment-warning);
+  background: var(--titech-payment-warning-soft);
+  border: 1px solid var(--titech-payment-warning-border);
+}
+
+.status-icon.COMPLETED {
+  color: var(--titech-payment-success);
+  background: var(--titech-payment-success-soft);
+  border: 1px solid var(--titech-payment-success-border);
+}
+
+.status-icon.FAILED,
+.status-icon.CANCELLED {
+  color: var(--titech-payment-danger);
+  background: var(--titech-payment-danger-soft);
+  border: 1px solid var(--titech-payment-danger-border);
+}
+
+.status-icon svg {
+  width: 38px;
+  height: 38px;
+}
+
+/* ============================================================================
+   Loading Spinner
+   ============================================================================ */
+
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 58px;
+  margin-top: 18px;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--titech-payment-border);
+  border-top-color: var(--titech-payment-primary);
+  border-radius: 50%;
+  animation: titech-payment-spin 0.8s linear infinite;
+}
+
+@keyframes titech-payment-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+   Transaction Information
+   ============================================================================ */
+
+.transaction-info {
+  width: 100%;
+  max-width: 480px;
+  margin-top: 22px;
+  padding: 14px 16px;
+  text-align: left;
+  background: var(--titech-payment-surface-soft);
+  border: 1px solid var(--titech-payment-border);
+  border-radius: var(--titech-payment-radius-md);
+}
+
+.info-label {
+  margin: 0 0 5px;
+  color: var(--titech-payment-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.info-value {
+  margin: 0;
+  color: var(--titech-payment-text);
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    Menlo,
+    monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   Success State
+   ============================================================================ */
+
+.status-icon.COMPLETED + .payment-title {
+  color: var(--titech-payment-success);
+}
+
+/* ============================================================================
+   Failed State
+   ============================================================================ */
+
+.status-icon.FAILED + .payment-title,
+.status-icon.CANCELLED + .payment-title {
+  color: var(--titech-payment-danger);
+}
+
+/* ============================================================================
+   Payment Status Animations
+   ============================================================================ */
+
+.status-icon.PENDING svg,
+.status-icon.PROCESSING svg {
+  animation: titech-payment-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes titech-payment-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.65;
+    transform: scale(0.94);
+  }
+}
+
+/* ============================================================================
+   Accessibility
+   ============================================================================ */
+
+.mobile-money-payment button:focus-visible,
+.mobile-money-payment input:focus-visible,
+.mobile-money-payment label:focus-visible,
+.mobile-money-payment a:focus-visible {
+  outline: 3px solid rgba(245, 158, 11, 0.32);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Disabled Interaction
+   ============================================================================ */
+
+.mobile-money-payment [aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.mobile-money-payment [aria-disabled="true"] button,
+.mobile-money-payment [aria-disabled="true"] input {
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Responsive — Tablet
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .mobile-money-payment {
+    max-width: 100%;
+  }
+
+  .payment-step {
+    padding: 22px;
+    border-radius: var(--titech-payment-radius-lg);
+  }
+
+  .provider-grid {
+    gap: 12px;
+  }
+
+  .provider-card {
+    padding: 15px;
+  }
+
+  .provider-logo {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* ============================================================================
+   Responsive — Mobile
+   ============================================================================ */
+
+@media (max-width: 560px) {
+  .payment-step {
+    padding: 18px;
+    border-radius: 14px;
+    box-shadow: var(--titech-payment-shadow-sm);
+  }
+
+  .provider-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-card {
+    padding: 15px;
+  }
+
+  .provider-content {
+    gap: 12px;
+  }
+
+  .button-group {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+  }
+
+  .status-icon {
+    width: 68px;
+    height: 68px;
+  }
+
+  .status-icon svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .transaction-info {
+    max-width: 100%;
+  }
+}
+
+/* ============================================================================
+   Responsive — Small Mobile
+   ============================================================================ */
+
+@media (max-width: 380px) {
+  .payment-step {
+    padding: 15px;
+  }
+
+  .payment-title {
+    font-size: 1.08rem;
+  }
+
+  .payment-subtitle {
+    font-size: 0.84rem;
+  }
+
+  .provider-card {
+    padding: 13px;
+  }
+
+  .provider-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    font-size: 0.62rem;
+  }
+
+  .provider-name {
+    font-size: 0.88rem;
+  }
+
+  .provider-desc {
+    font-size: 0.73rem;
+  }
+
+  .form-input,
+  .amount-display {
+    min-height: 46px;
+    font-size: 0.88rem;
+  }
+}
+
+/* ============================================================================
+   Dark Mode
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  .mobile-money-payment {
+    --titech-payment-text: #f8fafc;
+    --titech-payment-text-secondary: #cbd5e1;
+    --titech-payment-text-muted: #94a3b8;
+
+    --titech-payment-surface: #0f172a;
+    --titech-payment-surface-soft: #111c2f;
+    --titech-payment-surface-muted: #1e293b;
+
+    --titech-payment-border: #263449;
+    --titech-payment-border-strong: #3b4a60;
+
+    --titech-payment-shadow-sm:
+      0 1px 2px rgba(0, 0, 0, 0.24);
+
+    --titech-payment-shadow-md:
+      0 10px 30px rgba(0, 0, 0, 0.28);
+
+    --titech-payment-shadow-lg:
+      0 20px 50px rgba(0, 0, 0, 0.36);
+  }
+
+  .payment-step {
+    background: var(--titech-payment-surface);
+  }
+
+  .provider-card {
+    background: var(--titech-payment-surface);
+  }
+
+  .provider-card:hover {
+    background: var(--titech-payment-surface-soft);
+    border-color: #475569;
+  }
+
+  .provider-card.selected {
+    background:
+      linear-gradient(
+        135deg,
+        rgba(245, 158, 11, 0.12),
+        rgba(245, 158, 11, 0.035)
+      );
+  }
+
+  .form-input {
+    background: #0b1220;
+    border-color: var(--titech-payment-border-strong);
+  }
+
+  .form-input:disabled {
+    background: var(--titech-payment-surface-muted);
+  }
+
+  .amount-display {
+    background:
+      linear-gradient(
+        135deg,
+        #111c2f,
+        #1e293b
+      );
+  }
+
+  .transaction-info {
+    background: #111c2f;
+  }
+
+  .btn-secondary {
+    color: #f8fafc;
+    background: #111827;
+    border-color: #475569;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    color: #ffffff;
+    background: #1e293b;
+    border-color: #64748b;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-money-payment *,
+  .mobile-money-payment *::before,
+  .mobile-money-payment *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ============================================================================
+   High Contrast / Forced Colors
+   ============================================================================ */
+
+@media (forced-colors: active) {
+  .provider-card,
+  .payment-step,
+  .form-input,
+  .amount-display,
+  .transaction-info,
+  .btn-primary,
+  .btn-secondary {
+    border: 1px solid ButtonText;
+  }
+
+  .provider-card.selected {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .btn-primary {
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .btn-secondary {
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .status-icon {
+    border: 1px solid ButtonText;
+  }
+
+  .spinner {
+    border-color: ButtonText;
+    border-top-color: Highlight;
+  }
+}
+
+/* ============================================================================
+   Print
+   ============================================================================ */
+
+@media print {
+  .mobile-money-payment {
+    max-width: 100%;
+    color: #000000;
+  }
+
+  .payment-step {
+    border: 1px solid #000000;
+    box-shadow: none;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    display: none;
+  }
+
+  .loading-spinner {
+    display: none;
+  }
+}

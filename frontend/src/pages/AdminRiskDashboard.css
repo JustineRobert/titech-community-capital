@@ -1,0 +1,835 @@
+/* ============================================================================
+   TITech Community Capital
+   Enterprise Risk Intelligence Dashboard
+   File: frontend/src/pages/AdminRiskDashboard.css
+
+   Production Grade
+   - Responsive enterprise layout
+   - Accessibility aware
+   - Dark-mode compatible
+   - Reduced-motion support
+   - Financial/risk dashboard optimized
+   - Chart.js container protection
+   - Mobile/tablet/desktop support
+   ============================================================================ */
+
+/* ============================================================================
+   DESIGN TOKENS
+   ============================================================================ */
+
+:root {
+  --titech-primary: #2563eb;
+  --titech-primary-dark: #1d4ed8;
+  --titech-primary-soft: #eff6ff;
+
+  --titech-success: #10b981;
+  --titech-success-dark: #059669;
+  --titech-success-soft: #ecfdf5;
+
+  --titech-warning: #f59e0b;
+  --titech-warning-dark: #d97706;
+  --titech-warning-soft: #fffbeb;
+
+  --titech-danger: #ef4444;
+  --titech-danger-dark: #dc2626;
+  --titech-danger-soft: #fef2f2;
+
+  --titech-info: #06b6d4;
+  --titech-info-soft: #ecfeff;
+
+  --titech-purple: #7c3aed;
+  --titech-purple-soft: #f5f3ff;
+
+  --titech-text: #111827;
+  --titech-text-secondary: #4b5563;
+  --titech-text-muted: #6b7280;
+
+  --titech-border: #e5e7eb;
+  --titech-border-strong: #d1d5db;
+
+  --titech-background: #f8fafc;
+  --titech-surface: #ffffff;
+  --titech-surface-muted: #f9fafb;
+
+  --titech-shadow-sm:
+    0 1px 2px rgba(15, 23, 42, 0.05);
+
+  --titech-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.06);
+
+  --titech-shadow-lg:
+    0 10px 30px rgba(15, 23, 42, 0.08);
+
+  --titech-radius-sm: 6px;
+  --titech-radius: 10px;
+  --titech-radius-lg: 14px;
+  --titech-radius-xl: 18px;
+
+  --titech-transition:
+    160ms ease;
+
+  --titech-content-width:
+    1600px;
+}
+
+/* ============================================================================
+   PAGE
+   ============================================================================ */
+
+.risk-dashboard {
+  width: 100%;
+  max-width: var(--titech-content-width);
+  margin: 0 auto;
+  padding: 28px;
+  box-sizing: border-box;
+
+  color: var(--titech-text);
+  background: var(--titech-background);
+
+  min-height: 100%;
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.risk-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+
+  margin-bottom: 24px;
+  padding: 24px;
+
+  background: var(--titech-surface);
+  border: 1px solid var(--titech-border);
+  border-radius: var(--titech-radius-lg);
+
+  box-shadow: var(--titech-shadow-sm);
+}
+
+.risk-header > div:first-child {
+  min-width: 0;
+}
+
+.risk-header h1 {
+  margin: 0;
+
+  color: var(--titech-text);
+
+  font-size: clamp(1.5rem, 2vw, 2rem);
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+
+.risk-header p {
+  margin: 8px 0 0;
+
+  color: var(--titech-text-muted);
+
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   REFRESH BUTTON
+   ============================================================================ */
+
+.risk-dashboard .refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 42px;
+  padding: 0 16px;
+
+  flex-shrink: 0;
+
+  border: 1px solid var(--titech-border-strong);
+  border-radius: var(--titech-radius);
+
+  background: var(--titech-surface);
+  color: var(--titech-text);
+
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+
+  cursor: pointer;
+
+  transition:
+    background var(--titech-transition),
+    border-color var(--titech-transition),
+    color var(--titech-transition),
+    box-shadow var(--titech-transition),
+    transform var(--titech-transition);
+}
+
+.risk-dashboard .refresh-btn:hover:not(:disabled) {
+  background: var(--titech-primary-soft);
+  border-color: var(--titech-primary);
+  color: var(--titech-primary-dark);
+}
+
+.risk-dashboard .refresh-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.risk-dashboard .refresh-btn:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.2);
+  outline-offset: 2px;
+}
+
+.risk-dashboard .refresh-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.risk-dashboard .refresh-btn svg {
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   ERROR STATE
+   ============================================================================ */
+
+.risk-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  margin-bottom: 24px;
+  padding: 14px 16px;
+
+  border: 1px solid #fecaca;
+  border-radius: var(--titech-radius);
+
+  background: var(--titech-danger-soft);
+  color: var(--titech-danger-dark);
+
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-weight: 550;
+}
+
+.risk-error svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ============================================================================
+   KPI GRID
+   ============================================================================ */
+
+.risk-kpis {
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  gap: 16px;
+
+  margin-bottom: 24px;
+}
+
+/* ============================================================================
+   KPI CARD
+   ============================================================================ */
+
+.risk-card {
+  position: relative;
+
+  min-width: 0;
+  min-height: 150px;
+
+  padding: 20px;
+
+  overflow: hidden;
+
+  background: var(--titech-surface);
+  border: 1px solid var(--titech-border);
+  border-radius: var(--titech-radius-lg);
+
+  box-shadow: var(--titech-shadow-sm);
+
+  transition:
+    transform var(--titech-transition),
+    box-shadow var(--titech-transition),
+    border-color var(--titech-transition);
+}
+
+.risk-card::after {
+  content: "";
+
+  position: absolute;
+
+  right: -30px;
+  bottom: -35px;
+
+  width: 110px;
+  height: 110px;
+
+  border-radius: 50%;
+
+  background: var(--titech-primary-soft);
+
+  opacity: 0.7;
+
+  pointer-events: none;
+}
+
+.risk-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--titech-shadow);
+  border-color: var(--titech-border-strong);
+}
+
+.risk-card svg {
+  position: relative;
+  z-index: 1;
+
+  display: block;
+
+  margin-bottom: 14px;
+
+  color: var(--titech-primary);
+}
+
+.risk-card h3 {
+  position: relative;
+  z-index: 1;
+
+  margin: 0;
+
+  color: var(--titech-text);
+
+  font-size: clamp(1.5rem, 2.2vw, 2rem);
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+
+.risk-card p {
+  position: relative;
+  z-index: 1;
+
+  margin: 6px 0 0;
+
+  color: var(--titech-text-muted);
+
+  font-size: 0.84rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+/* ============================================================================
+   KPI CARD SEMANTIC ACCENTS
+   ============================================================================ */
+
+/*
+ * The JSX intentionally uses the same .risk-card class for all KPI cards.
+ * nth-child selectors provide semantic visual distinction without requiring
+ * additional React changes.
+ */
+
+.risk-card:nth-child(1) {
+  border-top: 3px solid var(--titech-success);
+}
+
+.risk-card:nth-child(1) svg {
+  color: var(--titech-success-dark);
+}
+
+.risk-card:nth-child(1)::after {
+  background: var(--titech-success-soft);
+}
+
+.risk-card:nth-child(2) {
+  border-top: 3px solid var(--titech-warning);
+}
+
+.risk-card:nth-child(2) svg {
+  color: var(--titech-warning-dark);
+}
+
+.risk-card:nth-child(2)::after {
+  background: var(--titech-warning-soft);
+}
+
+.risk-card:nth-child(3) {
+  border-top: 3px solid var(--titech-danger);
+}
+
+.risk-card:nth-child(3) svg {
+  color: var(--titech-danger-dark);
+}
+
+.risk-card:nth-child(3)::after {
+  background: var(--titech-danger-soft);
+}
+
+.risk-card:nth-child(4) {
+  border-top: 3px solid var(--titech-purple);
+}
+
+.risk-card:nth-child(4) svg {
+  color: var(--titech-purple);
+}
+
+.risk-card:nth-child(4)::after {
+  background: var(--titech-purple-soft);
+}
+
+.risk-card:nth-child(5) {
+  border-top: 3px solid var(--titech-primary);
+}
+
+.risk-card:nth-child(5) svg {
+  color: var(--titech-primary);
+}
+
+.risk-card:nth-child(5)::after {
+  background: var(--titech-primary-soft);
+}
+
+/* ============================================================================
+   CHART GRID
+   ============================================================================ */
+
+.risk-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 20px;
+
+  margin-bottom: 20px;
+}
+
+/* ============================================================================
+   CHART CARD
+   ============================================================================ */
+
+.chart-card {
+  min-width: 0;
+
+  padding: 22px;
+
+  background: var(--titech-surface);
+
+  border: 1px solid var(--titech-border);
+  border-radius: var(--titech-radius-lg);
+
+  box-shadow: var(--titech-shadow-sm);
+
+  overflow: hidden;
+}
+
+.chart-card.full-width {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.chart-card h3 {
+  margin: 0 0 20px;
+
+  color: var(--titech-text);
+
+  font-size: 1rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * Chart.js responsive canvases need a stable parent height.
+ */
+
+.chart-card > div {
+  position: relative;
+  width: 100%;
+}
+
+/*
+ * Pie chart.
+ */
+
+.risk-grid .chart-card:first-child > div {
+  min-height: 300px;
+  max-height: 380px;
+}
+
+/*
+ * Fraud trend line chart.
+ */
+
+.risk-grid .chart-card:nth-child(2) > div {
+  min-height: 300px;
+  max-height: 380px;
+}
+
+/*
+ * Portfolio bar chart.
+ */
+
+.chart-card.full-width > div {
+  min-height: 320px;
+  max-height: 450px;
+}
+
+/*
+ * Ensure Chart.js canvas respects its parent.
+ */
+
+.chart-card canvas {
+  display: block;
+
+  width: 100% !important;
+  max-width: 100%;
+
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   LOADING STATE
+   ============================================================================ */
+
+.risk-loading {
+  min-height: 420px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 18px;
+
+  padding: 40px;
+
+  background: var(--titech-background);
+
+  color: var(--titech-text-muted);
+
+  text-align: center;
+}
+
+.risk-loading h3 {
+  margin: 0;
+
+  color: var(--titech-text);
+
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.risk-spinner {
+  width: 44px;
+  height: 44px;
+
+  border: 4px solid var(--titech-border);
+  border-top-color: var(--titech-primary);
+
+  border-radius: 50%;
+
+  animation:
+    titech-risk-spin 0.8s linear infinite;
+}
+
+@keyframes titech-risk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+   FOCUS / ACCESSIBILITY
+   ============================================================================ */
+
+.risk-dashboard button:focus-visible,
+.risk-dashboard a:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.25);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   DARK MODE
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --titech-text: #f3f4f6;
+    --titech-text-secondary: #d1d5db;
+    --titech-text-muted: #9ca3af;
+
+    --titech-border: #1f2937;
+    --titech-border-strong: #374151;
+
+    --titech-background: #0b1120;
+    --titech-surface: #111827;
+    --titech-surface-muted: #172033;
+
+    --titech-primary-soft: #172554;
+    --titech-success-soft: #052e1f;
+    --titech-warning-soft: #3b2605;
+    --titech-danger-soft: #3b1015;
+    --titech-info-soft: #083344;
+    --titech-purple-soft: #24134f;
+
+    --titech-shadow-sm:
+      0 1px 2px rgba(0, 0, 0, 0.25);
+
+    --titech-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.25);
+
+    --titech-shadow-lg:
+      0 12px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  .risk-dashboard .refresh-btn {
+    background: var(--titech-surface);
+    color: var(--titech-text);
+  }
+
+  .risk-dashboard .refresh-btn:hover:not(:disabled) {
+    background: var(--titech-primary-soft);
+    color: #93c5fd;
+  }
+
+  .risk-error {
+    border-color: #7f1d1d;
+    background: var(--titech-danger-soft);
+    color: #fca5a5;
+  }
+}
+
+/* ============================================================================
+   TABLET
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+  .risk-kpis {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .risk-dashboard {
+    padding: 20px;
+  }
+
+  .risk-header {
+    padding: 20px;
+  }
+
+  .risk-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .risk-kpis {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .chart-card.full-width > div {
+    min-height: 300px;
+  }
+}
+
+/* ============================================================================
+   MOBILE
+   ============================================================================ */
+
+@media (max-width: 640px) {
+  .risk-dashboard {
+    padding: 14px;
+  }
+
+  .risk-header {
+    flex-direction: column;
+    align-items: stretch;
+
+    gap: 16px;
+
+    margin-bottom: 18px;
+    padding: 18px;
+  }
+
+  .risk-header h1 {
+    font-size: 1.35rem;
+  }
+
+  .risk-header p {
+    font-size: 0.88rem;
+  }
+
+  .risk-dashboard .refresh-btn {
+    width: 100%;
+  }
+
+  .risk-error {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+
+    font-size: 0.84rem;
+  }
+
+  .risk-kpis {
+    grid-template-columns: 1fr;
+
+    gap: 12px;
+
+    margin-bottom: 18px;
+  }
+
+  .risk-card {
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .risk-card h3 {
+    font-size: 1.65rem;
+  }
+
+  .risk-grid {
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .chart-card {
+    padding: 16px;
+    border-radius: var(--titech-radius);
+  }
+
+  .chart-card h3 {
+    margin-bottom: 16px;
+    font-size: 0.95rem;
+  }
+
+  .risk-grid .chart-card:first-child > div,
+  .risk-grid .chart-card:nth-child(2) > div {
+    min-height: 250px;
+    max-height: none;
+  }
+
+  .chart-card.full-width {
+    margin-bottom: 18px;
+  }
+
+  .chart-card.full-width > div {
+    min-height: 260px;
+    max-height: none;
+  }
+
+  .risk-loading {
+    min-height: 320px;
+    padding: 24px;
+  }
+}
+
+/* ============================================================================
+   VERY SMALL MOBILE
+   ============================================================================ */
+
+@media (max-width: 380px) {
+  .risk-dashboard {
+    padding: 10px;
+  }
+
+  .risk-header {
+    padding: 15px;
+  }
+
+  .risk-card {
+    padding: 15px;
+  }
+
+  .chart-card {
+    padding: 14px;
+  }
+
+  .risk-header h1 {
+    font-size: 1.2rem;
+  }
+}
+
+/* ============================================================================
+   REDUCED MOTION
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .risk-card,
+  .risk-dashboard .refresh-btn {
+    transition: none;
+  }
+
+  .risk-card:hover {
+    transform: none;
+  }
+
+  .risk-spinner {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+   HIGH CONTRAST
+   ============================================================================ */
+
+@media (prefers-contrast: more) {
+  .risk-card,
+  .chart-card,
+  .risk-header {
+    border-width: 2px;
+  }
+
+  .risk-dashboard .refresh-btn {
+    border-width: 2px;
+  }
+
+  .risk-error {
+    border-width: 2px;
+  }
+}
+
+/* ============================================================================
+   PRINT
+   ============================================================================ */
+
+@media print {
+  .risk-dashboard {
+    max-width: none;
+    padding: 0;
+
+    background: #ffffff;
+  }
+
+  .risk-header {
+    box-shadow: none;
+    border: 1px solid #000000;
+  }
+
+  .risk-dashboard .refresh-btn {
+    display: none;
+  }
+
+  .risk-card,
+  .chart-card {
+    break-inside: avoid;
+
+    box-shadow: none;
+    border: 1px solid #000000;
+  }
+
+  .risk-error {
+    border: 1px solid #000000;
+  }
+
+  .risk-grid {
+    break-inside: avoid;
+  }
+}

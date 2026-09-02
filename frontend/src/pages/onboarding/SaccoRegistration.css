@@ -1,0 +1,448 @@
+/* ==========================================================================
+   TITech Community Capital
+   SACCO Registration Styles
+   File: frontend/src/pages/onboarding/SaccoRegistration.css
+   Production Grade
+   ========================================================================== */
+
+:root {
+  --sacco-primary: #2563eb;
+  --sacco-primary-dark: #1d4ed8;
+  --sacco-success: #16a34a;
+  --sacco-danger: #dc2626;
+  --sacco-warning: #f59e0b;
+  --sacco-text: #111827;
+  --sacco-text-light: #6b7280;
+  --sacco-border: #e5e7eb;
+  --sacco-bg: #f8fafc;
+  --sacco-card: #ffffff;
+  --sacco-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.08);
+  --radius: 16px;
+}
+
+/* ==========================================================================
+   Page Layout
+   ========================================================================== */
+
+.sacco-registration {
+  max-width: 1100px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: var(--sacco-card);
+  border-radius: var(--radius);
+  box-shadow: var(--sacco-shadow);
+}
+
+.sacco-registration h1 {
+  margin: 0;
+  color: var(--sacco-primary);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.sacco-registration h2 {
+  margin-top: 0.5rem;
+  margin-bottom: 2rem;
+  color: var(--sacco-text);
+  font-size: 1.4rem;
+}
+
+.sacco-registration h3 {
+  margin-bottom: 1.5rem;
+  color: var(--sacco-text);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Stepper
+   ========================================================================== */
+
+.sacco-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.sacco-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.sacco-step-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid var(--sacco-border);
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  transition: all 0.3s;
+}
+
+.sacco-step.active .sacco-step-circle {
+  background: var(--sacco-primary);
+  border-color: var(--sacco-primary);
+  color: white;
+}
+
+.sacco-step.completed .sacco-step-circle {
+  background: var(--sacco-success);
+  border-color: var(--sacco-success);
+  color: white;
+}
+
+.sacco-step-label {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--sacco-text-light);
+}
+
+/* ==========================================================================
+   Progress Bar
+   ========================================================================== */
+
+.progress {
+  width: 100%;
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--sacco-primary),
+    #60a5fa
+  );
+  border-radius: inherit;
+  transition: width 0.4s ease;
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+.sacco-registration form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sacco-registration input,
+.sacco-registration textarea,
+.sacco-registration select {
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--sacco-border);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  background: white;
+  transition: all 0.25s;
+}
+
+.sacco-registration textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.sacco-registration input:focus,
+.sacco-registration textarea:focus,
+.sacco-registration select:focus {
+  border-color: var(--sacco-primary);
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(
+      37,
+      99,
+      235,
+      0.15
+    );
+}
+
+.sacco-registration input[type="file"] {
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   Grid Layout
+   ========================================================================== */
+
+.form-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(280px, 1fr)
+    );
+  gap: 1rem;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns:
+    repeat(2, 1fr);
+  gap: 1rem;
+}
+
+/* ==========================================================================
+   Messages
+   ========================================================================== */
+
+.error {
+  background: #fef2f2;
+  color: var(--sacco-danger);
+  padding: 1rem;
+  border-radius: 12px;
+  border-left: 5px solid
+    var(--sacco-danger);
+  margin-bottom: 1rem;
+}
+
+.success {
+  background: #ecfdf5;
+  color: var(--sacco-success);
+  padding: 1rem;
+  border-radius: 12px;
+  border-left: 5px solid
+    var(--sacco-success);
+  margin-bottom: 1rem;
+}
+
+.warning {
+  background: #fff7ed;
+  color: var(--sacco-warning);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+/* ==========================================================================
+   Review Section
+   ========================================================================== */
+
+.review-card {
+  background: var(--sacco-bg);
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  border: 1px solid
+    var(--sacco-border);
+}
+
+.review-card pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  overflow-x: auto;
+}
+
+/* ==========================================================================
+   Document Uploads
+   ========================================================================== */
+
+.upload-zone {
+  border: 2px dashed
+    var(--sacco-border);
+  padding: 2rem;
+  border-radius: 16px;
+  text-align: center;
+  background: #fafafa;
+  transition: all 0.3s;
+}
+
+.upload-zone:hover {
+  border-color:
+    var(--sacco-primary);
+  background: #eff6ff;
+}
+
+.upload-label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: var(--sacco-text);
+}
+
+/* ==========================================================================
+   Payment Cards
+   ========================================================================== */
+
+.payment-options {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(260px, 1fr)
+    );
+  gap: 1rem;
+}
+
+.payment-card {
+  border: 1px solid
+    var(--sacco-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.payment-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 10px 30px
+      rgba(0, 0, 0, 0.1);
+}
+
+.payment-card.selected {
+  border-color:
+    var(--sacco-primary);
+  background: #eff6ff;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.actions button,
+.sacco-registration button {
+  border: none;
+  border-radius: 12px;
+  padding: 0.9rem 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.actions button[type="button"],
+.btn-secondary {
+  background: #f3f4f6;
+  color: var(--sacco-text);
+}
+
+.actions button[type="button"]:hover,
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.actions button[type="submit"],
+.btn-primary {
+  background: var(--sacco-primary);
+  color: white;
+}
+
+.actions button[type="submit"]:hover,
+.btn-primary:hover {
+  background:
+    var(--sacco-primary-dark);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.7
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid
+    #e5e7eb;
+  border-top-color:
+    var(--sacco-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .sacco-registration {
+    padding: 1.25rem;
+    margin: 1rem;
+  }
+
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+
+  .sacco-stepper {
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 1rem;
+  }
+
+  .sacco-step {
+    min-width: 120px;
+  }
+
+  .payment-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .sacco-registration h1 {
+    font-size: 1.6rem;
+  }
+
+  .sacco-registration h2 {
+    font-size: 1.1rem;
+  }
+
+  .sacco-step-label {
+    font-size: 0.75rem;
+  }
+}

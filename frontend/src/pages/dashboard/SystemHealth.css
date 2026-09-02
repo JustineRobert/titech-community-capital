@@ -1,0 +1,1149 @@
+/* ==========================================================================
+   TITech Community Capital
+   System Health Dashboard
+   File: frontend/src/pages/dashboard/SystemHealth.css
+
+   Enterprise Production Grade
+
+   Capabilities
+   - Platform observability
+   - Infrastructure monitoring
+   - Dependency health
+   - Service availability
+   - Responsive dashboard layout
+   - Dark mode
+   - Keyboard accessibility
+   - Reduced motion support
+   - High-density enterprise UI
+   - Print-safe presentation
+   ========================================================================== */
+
+/* ==========================================================================
+   Design Tokens
+   ========================================================================== */
+
+:root {
+  --health-bg: #f8fafc;
+  --health-surface: #ffffff;
+  --health-surface-muted: #f1f5f9;
+  --health-surface-elevated: #ffffff;
+
+  --health-border: #e2e8f0;
+  --health-border-strong: #cbd5e1;
+
+  --health-text: #0f172a;
+  --health-text-secondary: #64748b;
+  --health-text-muted: #94a3b8;
+
+  --health-primary: #2563eb;
+  --health-primary-hover: #1d4ed8;
+  --health-primary-soft: rgba(37, 99, 235, 0.08);
+
+  --health-success: #16a34a;
+  --health-success-soft: rgba(22, 163, 74, 0.1);
+
+  --health-warning: #f59e0b;
+  --health-warning-soft: rgba(245, 158, 11, 0.1);
+
+  --health-danger: #dc2626;
+  --health-danger-soft: rgba(220, 38, 38, 0.08);
+
+  --health-info: #0284c7;
+  --health-info-soft: rgba(2, 132, 199, 0.08);
+
+  --health-shadow-sm:
+    0 2px 8px rgba(15, 23, 42, 0.05);
+
+  --health-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.08);
+
+  --health-shadow-lg:
+    0 18px 45px rgba(15, 23, 42, 0.1);
+
+  --health-radius-sm: 12px;
+  --health-radius-md: 16px;
+  --health-radius-lg: 20px;
+  --health-radius-xl: 24px;
+
+  --health-transition:
+    180ms ease;
+
+  --health-focus-ring:
+    0 0 0 3px rgba(37, 99, 235, 0.2);
+
+  --health-content-width: 1600px;
+}
+
+/* ==========================================================================
+   Page
+   ========================================================================== */
+
+.system-health-page {
+  width: 100%;
+  max-width: var(--health-content-width);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 2rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+
+  background: var(--health-bg);
+  color: var(--health-text);
+
+  box-sizing: border-box;
+}
+
+.system-health-page *,
+.system-health-page *::before,
+.system-health-page *::after {
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Metadata / Refresh Information
+   ========================================================================== */
+
+.system-health-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  min-height: 24px;
+
+  color: var(--health-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.system-health-meta svg {
+  flex-shrink: 0;
+  color: var(--health-text-muted);
+}
+
+.system-health-meta span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.system-health-meta span[aria-hidden="true"] {
+  color: var(--health-text-muted);
+}
+
+/* ==========================================================================
+   Refresh Animation
+   ========================================================================== */
+
+.health-refreshing {
+  animation: health-spin 0.9s linear infinite;
+}
+
+@keyframes health-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   Overall Platform Status
+   ========================================================================== */
+
+.system-status-card {
+  position: relative;
+
+  padding: 2rem;
+
+  border: 1px solid var(--health-border);
+  border-radius: var(--health-radius-lg);
+
+  background: var(--health-surface);
+  box-shadow: var(--health-shadow);
+
+  overflow: hidden;
+}
+
+.system-status-card::before {
+  content: "";
+
+  position: absolute;
+  inset: 0 0 auto 0;
+
+  height: 3px;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--health-primary),
+      var(--health-success)
+    );
+}
+
+.system-status-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 1.5rem;
+
+  margin-bottom: 2rem;
+}
+
+.system-status-header > div:first-child {
+  min-width: 0;
+}
+
+.system-status-header h2 {
+  margin: 0;
+
+  color: var(--health-text);
+
+  font-size: 1.5rem;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.system-status-header p {
+  margin: 0.5rem 0 0;
+
+  max-width: 720px;
+
+  color: var(--health-text-secondary);
+
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.system-status-body {
+  display: flex;
+  align-items: center;
+
+  gap: 1.5rem;
+
+  min-height: 84px;
+
+  padding-top: 0.25rem;
+}
+
+.system-status-body h3 {
+  margin: 0;
+
+  color: var(--health-text);
+
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.system-status-body p {
+  margin: 0.45rem 0 0;
+
+  color: var(--health-text-secondary);
+
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.status-icon {
+  flex-shrink: 0;
+}
+
+.status-icon.healthy {
+  color: var(--health-success);
+}
+
+.status-icon.unhealthy {
+  color: var(--health-danger);
+}
+
+/* ==========================================================================
+   Error State
+   ========================================================================== */
+
+.system-error-card {
+  display: flex;
+  align-items: center;
+
+  gap: 0.75rem;
+
+  padding: 1rem 1.25rem;
+
+  border: 1px solid
+    rgba(220, 38, 38, 0.2);
+
+  border-radius: var(--health-radius-md);
+
+  background: var(--health-danger-soft);
+
+  color: var(--health-danger);
+}
+
+.system-error-card > svg {
+  flex-shrink: 0;
+}
+
+.system-error-card > span {
+  flex: 1;
+  min-width: 0;
+
+  color: var(--health-danger);
+
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.5;
+
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Infrastructure Metrics
+   ========================================================================== */
+
+.health-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(210px, 1fr)
+    );
+
+  gap: 1.25rem;
+}
+
+/* ==========================================================================
+   Metric Card
+   ========================================================================== */
+
+.metric-card {
+  position: relative;
+
+  min-width: 0;
+  min-height: 190px;
+
+  padding: 1.5rem;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.75rem;
+
+  border: 1px solid var(--health-border);
+  border-radius: var(--health-radius-lg);
+
+  background: var(--health-surface);
+
+  box-shadow: var(--health-shadow-sm);
+
+  transition:
+    transform var(--health-transition),
+    box-shadow var(--health-transition),
+    border-color var(--health-transition);
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+
+  border-color:
+    rgba(37, 99, 235, 0.2);
+
+  box-shadow: var(--health-shadow-lg);
+}
+
+.metric-card-icon {
+  width: 44px;
+  height: 44px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  background: var(--health-primary-soft);
+  color: var(--health-primary);
+}
+
+.metric-card-icon svg {
+  display: block;
+}
+
+.metric-card h3 {
+  margin: 0;
+
+  color: var(--health-text-secondary);
+
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.metric-card h2 {
+  margin: 0;
+
+  color: var(--health-text);
+
+  font-size: clamp(
+    1.75rem,
+    2.5vw,
+    2.15rem
+  );
+
+  font-weight: 750;
+  line-height: 1.1;
+
+  letter-spacing: -0.03em;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.metric-card small {
+  display: block;
+
+  margin-top: auto;
+
+  color: var(--health-text-secondary);
+
+  font-size: 0.8rem;
+  line-height: 1.5;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+/* ==========================================================================
+   Progress Bar
+   ========================================================================== */
+
+.health-progress {
+  position: relative;
+
+  width: 100%;
+  height: 9px;
+
+  margin-top: 0.25rem;
+
+  overflow: hidden;
+
+  border-radius: 999px;
+
+  background:
+    rgba(148, 163, 184, 0.16);
+}
+
+.health-progress-fill {
+  height: 100%;
+
+  min-width: 0;
+
+  border-radius: inherit;
+
+  transform-origin: left center;
+
+  transition:
+    width 400ms ease;
+}
+
+/* ==========================================================================
+   Core Dependencies
+   ========================================================================== */
+
+.dependency-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(300px, 1fr)
+    );
+
+  gap: 1.25rem;
+}
+
+.dependency-card {
+  min-width: 0;
+
+  padding: 1.5rem;
+
+  display: flex;
+  align-items: center;
+
+  gap: 1rem;
+
+  border: 1px solid var(--health-border);
+  border-radius: var(--health-radius-lg);
+
+  background: var(--health-surface);
+
+  box-shadow: var(--health-shadow-sm);
+
+  transition:
+    transform var(--health-transition),
+    box-shadow var(--health-transition),
+    border-color var(--health-transition);
+}
+
+.dependency-card:hover {
+  transform: translateY(-3px);
+
+  border-color:
+    rgba(37, 99, 235, 0.2);
+
+  box-shadow: var(--health-shadow-lg);
+}
+
+.dependency-card > svg {
+  width: 30px;
+  height: 30px;
+
+  flex-shrink: 0;
+
+  color: var(--health-primary);
+}
+
+.dependency-card > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.dependency-card h3 {
+  margin: 0;
+
+  color: var(--health-text);
+
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.dependency-card p {
+  margin: 0.35rem 0 0;
+
+  color: var(--health-text-secondary);
+
+  font-size: 0.8125rem;
+  line-height: 1.5;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+/* ==========================================================================
+   Services Container
+   ========================================================================== */
+
+.system-services-card {
+  padding: 1.5rem;
+
+  border: 1px solid var(--health-border);
+  border-radius: var(--health-radius-lg);
+
+  background: var(--health-surface);
+
+  box-shadow: var(--health-shadow-sm);
+}
+
+.services-header {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 0.875rem;
+
+  margin-bottom: 1.5rem;
+}
+
+.services-header > svg {
+  width: 28px;
+  height: 28px;
+
+  flex-shrink: 0;
+
+  margin-top: 0.1rem;
+
+  color: var(--health-primary);
+}
+
+.services-header > div {
+  min-width: 0;
+}
+
+.services-header h2 {
+  margin: 0;
+
+  color: var(--health-text);
+
+  font-size: 1.2rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.services-header p {
+  margin: 0.4rem 0 0;
+
+  max-width: 760px;
+
+  color: var(--health-text-secondary);
+
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+/* ==========================================================================
+   Services List
+   ========================================================================== */
+
+.services-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.75rem;
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  min-width: 0;
+
+  padding: 1rem 1.125rem;
+
+  border: 1px solid var(--health-border);
+  border-radius: var(--health-radius-md);
+
+  background: var(--health-surface-muted);
+
+  transition:
+    border-color var(--health-transition),
+    background var(--health-transition),
+    box-shadow var(--health-transition);
+}
+
+.service-item:hover {
+  border-color:
+    rgba(37, 99, 235, 0.25);
+
+  background:
+    var(--health-primary-soft);
+
+  box-shadow:
+    0 4px 14px
+      rgba(15, 23, 42, 0.04);
+}
+
+.service-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.service-item h4 {
+  margin: 0;
+
+  color: var(--health-text);
+
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.4;
+
+  overflow-wrap: anywhere;
+}
+
+.service-item p {
+  margin: 0.3rem 0 0;
+
+  color: var(--health-text-secondary);
+
+  font-size: 0.8rem;
+  line-height: 1.5;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.empty-services {
+  padding: 3rem 2rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 140px;
+
+  border: 1px dashed
+    var(--health-border-strong);
+
+  border-radius: var(--health-radius-md);
+
+  background: var(--health-surface-muted);
+
+  color: var(--health-text-secondary);
+
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* ==========================================================================
+   Focus Accessibility
+   ========================================================================== */
+
+.system-health-page
+  button:focus-visible,
+.system-health-page
+  a:focus-visible,
+.system-health-page
+  [tabindex]:focus-visible {
+  outline: none;
+
+  box-shadow:
+    var(--health-focus-ring);
+}
+
+/* ==========================================================================
+   Status / State Visual Enhancements
+   ========================================================================== */
+
+.system-health-page
+  [role="progressbar"] {
+  contain: layout paint;
+}
+
+.system-health-page
+  [role="alert"] {
+  animation:
+    health-alert-in
+    180ms ease-out;
+}
+
+@keyframes health-alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Dark Mode
+   ========================================================================== */
+
+.dark {
+  --health-bg: #020617;
+
+  --health-surface: #0f172a;
+  --health-surface-muted: #111c2f;
+  --health-surface-elevated: #162033;
+
+  --health-border: #1e293b;
+  --health-border-strong: #334155;
+
+  --health-text: #f8fafc;
+  --health-text-secondary: #94a3b8;
+  --health-text-muted: #64748b;
+
+  --health-primary: #60a5fa;
+  --health-primary-hover: #93c5fd;
+
+  --health-primary-soft:
+    rgba(96, 165, 250, 0.1);
+
+  --health-success: #4ade80;
+  --health-success-soft:
+    rgba(74, 222, 128, 0.1);
+
+  --health-warning: #fbbf24;
+  --health-warning-soft:
+    rgba(251, 191, 36, 0.1);
+
+  --health-danger: #f87171;
+  --health-danger-soft:
+    rgba(248, 113, 113, 0.1);
+
+  --health-shadow-sm:
+    0 4px 15px rgba(0, 0, 0, 0.25);
+
+  --health-shadow:
+    0 15px 35px rgba(0, 0, 0, 0.35);
+
+  --health-shadow-lg:
+    0 20px 45px rgba(0, 0, 0, 0.45);
+
+  --health-focus-ring:
+    0 0 0 3px
+      rgba(96, 165, 250, 0.25);
+}
+
+.dark .system-status-card::before {
+  background:
+    linear-gradient(
+      90deg,
+      var(--health-primary),
+      var(--health-success)
+    );
+}
+
+.dark .service-item:hover {
+  background:
+    rgba(96, 165, 250, 0.08);
+}
+
+.dark .health-progress {
+  background:
+    rgba(255, 255, 255, 0.08);
+}
+
+.dark .empty-services {
+  background:
+    rgba(255, 255, 255, 0.025);
+}
+
+/* ==========================================================================
+   Tablet
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .system-health-page {
+    padding: 1.5rem;
+  }
+
+  .health-grid {
+    grid-template-columns:
+      repeat(
+        auto-fit,
+        minmax(200px, 1fr)
+      );
+  }
+
+  .metric-card {
+    min-height: 180px;
+  }
+}
+
+/* ==========================================================================
+   Mobile / Tablet
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .system-health-page {
+    min-height: auto;
+    padding: 1rem;
+
+    gap: 1.25rem;
+  }
+
+  .system-health-meta {
+    gap: 0.4rem;
+
+    font-size: 0.75rem;
+  }
+
+  .system-status-card {
+    padding: 1.5rem;
+
+    border-radius:
+      var(--health-radius-md);
+  }
+
+  .system-status-header {
+    flex-direction: column;
+    align-items: flex-start;
+
+    margin-bottom: 1.5rem;
+  }
+
+  .system-status-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .system-status-body {
+    align-items: flex-start;
+
+    gap: 1rem;
+  }
+
+  .status-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .system-error-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .system-error-card > span {
+    flex-basis: calc(
+      100% - 44px
+    );
+  }
+
+  .system-error-card button {
+    margin-left: 2.75rem;
+  }
+
+  .health-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 1rem;
+  }
+
+  .dependency-grid {
+    grid-template-columns: 1fr;
+
+    gap: 1rem;
+  }
+
+  .metric-card,
+  .dependency-card,
+  .system-services-card {
+    border-radius:
+      var(--health-radius-md);
+  }
+
+  .metric-card {
+    min-height: 175px;
+
+    padding: 1.25rem;
+  }
+
+  .metric-card h2 {
+    font-size: 1.75rem;
+  }
+
+  .dependency-card {
+    padding: 1.25rem;
+  }
+
+  .system-services-card {
+    padding: 1.25rem;
+  }
+
+  .service-item {
+    align-items: flex-start;
+  }
+}
+
+/* ==========================================================================
+   Small Mobile
+   ========================================================================== */
+
+@media (max-width: 560px) {
+  .health-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .system-status-card {
+    padding: 1.25rem;
+  }
+
+  .system-status-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .system-status-header p {
+    font-size: 0.875rem;
+  }
+
+  .system-status-body h3 {
+    font-size: 1rem;
+  }
+
+  .system-status-body p {
+    font-size: 0.8125rem;
+  }
+
+  .metric-card {
+    min-height: auto;
+
+    padding: 1.25rem;
+  }
+
+  .metric-card-icon {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 12px;
+  }
+
+  .metric-card h2 {
+    font-size: 1.7rem;
+  }
+
+  .services-header {
+    gap: 0.7rem;
+  }
+
+  .services-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .services-header p {
+    font-size: 0.8125rem;
+  }
+
+  .service-item {
+    flex-direction: column;
+    align-items: flex-start;
+
+    padding: 1rem;
+  }
+
+  .service-item .status-badge {
+    align-self: flex-start;
+  }
+
+  .empty-services {
+    min-height: 120px;
+
+    padding: 2rem 1rem;
+  }
+}
+
+/* ==========================================================================
+   Very Small Devices
+   ========================================================================== */
+
+@media (max-width: 380px) {
+  .system-health-page {
+    padding: 0.75rem;
+  }
+
+  .system-status-card,
+  .metric-card,
+  .dependency-card,
+  .system-services-card {
+    padding: 1rem;
+  }
+
+  .system-health-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .system-health-meta
+    span[aria-hidden="true"] {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .system-health-page *,
+  .system-health-page *::before,
+  .system-health-page *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .metric-card,
+  .dependency-card,
+  .service-item,
+  .health-progress-fill,
+  .health-refreshing,
+  .system-error-card {
+    animation: none !important;
+
+    transition: none !important;
+  }
+
+  .metric-card:hover,
+  .dependency-card:hover {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Forced Colors / High Contrast
+   ========================================================================== */
+
+@media (forced-colors: active) {
+  .system-status-card,
+  .metric-card,
+  .dependency-card,
+  .system-services-card,
+  .service-item,
+  .system-error-card {
+    border: 1px solid CanvasText;
+  }
+
+  .health-progress {
+    border: 1px solid CanvasText;
+  }
+
+  .health-progress-fill {
+    background: Highlight !important;
+  }
+
+  .status-icon.healthy,
+  .status-icon.unhealthy,
+  .metric-card-icon,
+  .dependency-card > svg,
+  .services-header > svg {
+    color: CanvasText;
+  }
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+
+@media print {
+  .system-health-page {
+    max-width: none;
+
+    min-height: auto;
+
+    padding: 0;
+
+    background: #ffffff;
+
+    color: #000000;
+  }
+
+  .system-health-page .system-health-meta {
+    color: #444444;
+  }
+
+  .system-health-page
+    .metric-card,
+  .system-health-page
+    .dependency-card,
+  .system-health-page
+    .system-status-card,
+  .system-health-page
+    .system-services-card {
+    break-inside: avoid;
+
+    box-shadow: none;
+
+    border-color: #cccccc;
+  }
+
+  .system-health-page
+    .metric-card:hover,
+  .system-health-page
+    .dependency-card:hover {
+    transform: none;
+  }
+
+  .system-health-page
+    .health-progress-fill {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

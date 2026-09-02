@@ -1,0 +1,44 @@
+# Ensure consistent line endings across environments
+
+# Default: use LF for all text files
+* text=auto eol=lf
+
+# Environment files (always LF for server compatibility)
+*.env text eol=lf
+*.env.* text eol=lf
+
+# Shell scripts (must be LF for Linux/Docker)
+*.sh text eol=lf
+
+# JavaScript / TypeScript
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+
+# Config files
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+
+# Frontend build outputs (binary, keep as-is)
+dist/** binary
+build/** binary
+
+# OS / editor files (keep as-is)
+*.log text eol=lf
+*.lock text eol=lf
+*.md text eol=lf
+
+# Images and assets (binary, no conversion)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary

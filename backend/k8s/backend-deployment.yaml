@@ -1,0 +1,25 @@
+# k8s/backend-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: titech-api
+  namespace: titech
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: titech-api
+  template:
+    metadata:
+      labels:
+        app: titech-api
+    spec:
+      containers:
+        - name: api
+          image: yourdockerhub/titech-api:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: NODE_ENV
+              value: "production"

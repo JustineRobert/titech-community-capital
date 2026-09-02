@@ -1,0 +1,946 @@
+/* ==========================================================================
+   TITech Community Capital
+   Enterprise Dashboard Statistics
+   File: frontend/src/pages/dashboard/DashboardStats.css
+
+   Production Grade
+   Multi-Tenant | Financial UI | Responsive | Accessible
+   Dark Mode | Reduced Motion | High Contrast | Resilient Rendering
+   ========================================================================== */
+
+/* ==========================================================================
+   Design Tokens
+   ========================================================================== */
+
+:root {
+  --dashboard-bg: #f8fafc;
+  --dashboard-card-bg: #ffffff;
+  --dashboard-surface: #f1f5f9;
+  --dashboard-border: #e2e8f0;
+  --dashboard-border-strong: #cbd5e1;
+
+  --dashboard-text: #0f172a;
+  --dashboard-text-secondary: #64748b;
+  --dashboard-text-muted: #94a3b8;
+
+  --dashboard-primary: #2563eb;
+  --dashboard-primary-hover: #1d4ed8;
+  --dashboard-primary-soft: rgba(37, 99, 235, 0.1);
+
+  --dashboard-success: #15803d;
+  --dashboard-success-soft: rgba(22, 163, 74, 0.12);
+
+  --dashboard-danger: #b91c1c;
+  --dashboard-danger-soft: rgba(220, 38, 38, 0.12);
+
+  --dashboard-warning: #b45309;
+  --dashboard-warning-soft: rgba(245, 158, 11, 0.14);
+
+  --dashboard-focus: #2563eb;
+
+  --dashboard-shadow-sm:
+    0 2px 8px rgba(15, 23, 42, 0.05);
+
+  --dashboard-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.08);
+
+  --dashboard-shadow-hover:
+    0 16px 40px rgba(15, 23, 42, 0.12);
+
+  --dashboard-radius-sm: 12px;
+  --dashboard-radius: 18px;
+  --dashboard-radius-lg: 22px;
+
+  --dashboard-transition-duration: 180ms;
+  --dashboard-transition-easing: ease;
+
+  --dashboard-transition:
+    transform var(--dashboard-transition-duration)
+      var(--dashboard-transition-easing),
+    box-shadow var(--dashboard-transition-duration)
+      var(--dashboard-transition-easing),
+    border-color var(--dashboard-transition-duration)
+      var(--dashboard-transition-easing),
+    background-color var(--dashboard-transition-duration)
+      var(--dashboard-transition-easing);
+}
+
+/* ==========================================================================
+   Dashboard Statistics Container
+   ========================================================================== */
+
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(240px, 1fr)
+  );
+  gap: 1.25rem;
+  width: 100%;
+  margin: 0 0 1.75rem;
+}
+
+.dashboard-stats-grid.executive {
+  margin-top: 0.25rem;
+}
+
+/* ==========================================================================
+   Statistic Card
+   ========================================================================== */
+
+.dashboard-stat-card {
+  position: relative;
+  isolation: isolate;
+
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 170px;
+
+  padding: 1.5rem;
+
+  overflow: hidden;
+
+  border: 1px solid var(--dashboard-border);
+  border-radius: var(--dashboard-radius);
+
+  background:
+    linear-gradient(
+      145deg,
+      var(--dashboard-card-bg),
+      var(--dashboard-card-bg)
+    );
+
+  box-shadow: var(--dashboard-shadow);
+
+  transition: var(--dashboard-transition);
+}
+
+/*
+ * Decorative surface layer.
+ * Kept pointer-events-free so it never interferes with interaction.
+ */
+.dashboard-stat-card::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  z-index: -1;
+
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(37, 99, 235, 0.075),
+      transparent 42%
+    );
+
+  pointer-events: none;
+}
+
+/*
+ * Subtle top highlight.
+ */
+.dashboard-stat-card::after {
+  content: "";
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  height: 2px;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(37, 99, 235, 0.4),
+      transparent
+    );
+
+  opacity: 0;
+
+  transition:
+    opacity var(--dashboard-transition-duration)
+    var(--dashboard-transition-easing);
+}
+
+/* ==========================================================================
+   Card Interaction
+   ========================================================================== */
+
+.dashboard-stat-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--dashboard-border-strong);
+  box-shadow: var(--dashboard-shadow-hover);
+}
+
+.dashboard-stat-card:hover::after {
+  opacity: 1;
+}
+
+/*
+ * Support keyboard navigation if Card becomes focusable in the future.
+ */
+.dashboard-stat-card:focus-visible {
+  outline: 3px solid
+    color-mix(
+      in srgb,
+      var(--dashboard-focus) 35%,
+      transparent
+    );
+
+  outline-offset: 3px;
+
+  border-color: var(--dashboard-focus);
+}
+
+/* ==========================================================================
+   Statistics Header
+   ========================================================================== */
+
+.dashboard-stat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  min-width: 0;
+  margin-bottom: 1.25rem;
+}
+
+/* ==========================================================================
+   Statistic Icon
+   ========================================================================== */
+
+.dashboard-stat-icon {
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 52px;
+  height: 52px;
+
+  border: 1px solid
+    rgba(37, 99, 235, 0.12);
+
+  border-radius: 14px;
+
+  background:
+    var(--dashboard-primary-soft);
+
+  color: var(--dashboard-primary);
+}
+
+.dashboard-stat-icon svg {
+  display: block;
+}
+
+/* ==========================================================================
+   Statistic Body
+   ========================================================================== */
+
+.dashboard-stat-body {
+  min-width: 0;
+}
+
+.dashboard-stat-body h4 {
+  margin: 0;
+
+  color: var(--dashboard-text-secondary);
+
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-weight: 600;
+
+  letter-spacing: 0.015em;
+}
+
+.dashboard-stat-body h2 {
+  margin: 0.6rem 0 0;
+
+  color: var(--dashboard-text);
+
+  /*
+   * Financial figures should remain visually dominant while
+   * still allowing long UGX values to wrap safely.
+   */
+  font-size: clamp(
+    1.5rem,
+    2.2vw,
+    2rem
+  );
+
+  line-height: 1.2;
+  font-weight: 800;
+
+  letter-spacing: -0.025em;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    "tnum" 1,
+    "lnum" 1;
+}
+
+/* ==========================================================================
+   Trend Badge
+   ========================================================================== */
+
+.dashboard-trend {
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 28px;
+
+  gap: 0.35rem;
+
+  padding: 0.35rem 0.65rem;
+
+  border: 1px solid transparent;
+  border-radius: 999px;
+
+  font-size: 0.78rem;
+  line-height: 1;
+  font-weight: 700;
+
+  white-space: nowrap;
+
+  font-variant-numeric: tabular-nums;
+
+  transition:
+    background-color var(--dashboard-transition-duration)
+      var(--dashboard-transition-easing),
+    color var(--dashboard-transition-duration)
+      var(--dashboard-transition-easing),
+    border-color var(--dashboard-transition-duration)
+      var(--dashboard-transition-easing);
+}
+
+.dashboard-trend svg {
+  flex: 0 0 auto;
+}
+
+/*
+ * Positive financial/business movement.
+ */
+.dashboard-trend.positive {
+  border-color:
+    rgba(22, 163, 74, 0.18);
+
+  background:
+    var(--dashboard-success-soft);
+
+  color:
+    var(--dashboard-success);
+}
+
+/*
+ * Negative movement.
+ */
+.dashboard-trend.negative {
+  border-color:
+    rgba(220, 38, 38, 0.18);
+
+  background:
+    var(--dashboard-danger-soft);
+
+  color:
+    var(--dashboard-danger);
+}
+
+/* ==========================================================================
+   Executive Statistics
+   ========================================================================== */
+
+.dashboard-stats-grid.executive
+  .dashboard-stat-card {
+  min-height: 155px;
+}
+
+/* ==========================================================================
+   Mobile Money / Secondary Statistics
+   ========================================================================== */
+
+.dashboard-stats-grid
+  > .dashboard-stat-card
+  .dashboard-stat-header
+  > svg {
+  flex: 0 0 auto;
+  color: var(--dashboard-primary);
+}
+
+/* ==========================================================================
+   Warning / Risk Statistics
+   ========================================================================== */
+
+.dashboard-stat-card.warning {
+  border-left: 4px solid
+    var(--dashboard-warning);
+
+  background:
+    linear-gradient(
+      145deg,
+      var(--dashboard-card-bg),
+      var(--dashboard-warning-soft)
+    );
+}
+
+.dashboard-stat-card.warning::before {
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(245, 158, 11, 0.12),
+      transparent 45%
+    );
+}
+
+.dashboard-stat-card.warning
+  .dashboard-stat-header
+  > svg {
+  color: var(--dashboard-warning);
+}
+
+.dashboard-stat-card.warning
+  .dashboard-stat-icon {
+  border-color:
+    rgba(245, 158, 11, 0.18);
+
+  background:
+    var(--dashboard-warning-soft);
+
+  color:
+    var(--dashboard-warning);
+}
+
+/* ==========================================================================
+   Tenant Information Card
+   ========================================================================== */
+
+.dashboard-tenant-card {
+  width: 100%;
+  min-width: 0;
+
+  margin-bottom: 1.75rem;
+  padding: 1.5rem;
+
+  border: 1px solid var(--dashboard-border);
+  border-radius: var(--dashboard-radius);
+
+  background:
+    var(--dashboard-card-bg);
+
+  box-shadow:
+    var(--dashboard-shadow);
+
+  transition:
+    var(--dashboard-transition);
+}
+
+.dashboard-tenant-card:hover {
+  border-color:
+    var(--dashboard-border-strong);
+
+  box-shadow:
+    var(--dashboard-shadow-hover);
+}
+
+/* ==========================================================================
+   Tenant Header
+   ========================================================================== */
+
+.dashboard-tenant-header {
+  display: flex;
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 0.75rem;
+
+  margin-bottom: 1.25rem;
+}
+
+.dashboard-tenant-header svg {
+  flex: 0 0 auto;
+  color: var(--dashboard-primary);
+}
+
+.dashboard-tenant-header h3 {
+  min-width: 0;
+
+  margin: 0;
+
+  color: var(--dashboard-text);
+
+  font-size: 1.1rem;
+  line-height: 1.35;
+  font-weight: 700;
+
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Tenant Details
+   ========================================================================== */
+
+.dashboard-tenant-details {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(150px, 1fr)
+    );
+
+  gap: 0.875rem;
+}
+
+.dashboard-tenant-details > div {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.35rem;
+
+  padding: 0.9rem 1rem;
+
+  border: 1px solid
+    var(--dashboard-border);
+
+  border-radius:
+    var(--dashboard-radius-sm);
+
+  background:
+    var(--dashboard-surface);
+}
+
+.dashboard-tenant-details span {
+  color:
+    var(--dashboard-text-secondary);
+
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-weight: 600;
+
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+.dashboard-tenant-details strong {
+  min-width: 0;
+
+  color:
+    var(--dashboard-text);
+
+  font-size: 0.98rem;
+  line-height: 1.4;
+  font-weight: 700;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Loading / Skeleton State
+   ========================================================================== */
+
+.dashboard-stat-skeleton {
+  min-height: 170px;
+
+  padding: 1.5rem;
+
+  border-radius:
+    var(--dashboard-radius);
+
+  border: 1px solid
+    var(--dashboard-border);
+
+  background:
+    var(--dashboard-card-bg);
+
+  overflow: hidden;
+}
+
+/*
+ * Shared skeleton background.
+ */
+.skeleton-icon,
+.skeleton-line {
+  position: relative;
+
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--dashboard-surface) 20%,
+      var(--dashboard-border) 45%,
+      var(--dashboard-surface) 70%
+    );
+
+  background-size: 300% 100%;
+
+  animation:
+    dashboard-skeleton-loading
+    1.5s
+    ease-in-out
+    infinite;
+}
+
+.skeleton-icon {
+  width: 52px;
+  height: 52px;
+
+  margin-bottom: 1.25rem;
+
+  border-radius: 14px;
+}
+
+.skeleton-line {
+  width: 90%;
+  height: 14px;
+
+  margin-bottom: 1rem;
+
+  border-radius: 8px;
+}
+
+.skeleton-line.short {
+  width: 62%;
+}
+
+/* ==========================================================================
+   Skeleton Animation
+   ========================================================================== */
+
+@keyframes dashboard-skeleton-loading {
+  0% {
+    background-position: 100% 0;
+  }
+
+  50% {
+    background-position: 0% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* ==========================================================================
+   Dark Mode
+   ========================================================================== */
+
+.dark {
+  --dashboard-bg: #020617;
+  --dashboard-card-bg: #0f172a;
+  --dashboard-surface: #172033;
+
+  --dashboard-border: #263449;
+  --dashboard-border-strong: #3b4b63;
+
+  --dashboard-text: #f8fafc;
+  --dashboard-text-secondary: #94a3b8;
+  --dashboard-text-muted: #64748b;
+
+  --dashboard-primary: #60a5fa;
+  --dashboard-primary-hover: #93c5fd;
+  --dashboard-primary-soft:
+    rgba(96, 165, 250, 0.12);
+
+  --dashboard-success: #4ade80;
+  --dashboard-success-soft:
+    rgba(74, 222, 128, 0.12);
+
+  --dashboard-danger: #f87171;
+  --dashboard-danger-soft:
+    rgba(248, 113, 113, 0.12);
+
+  --dashboard-warning: #fbbf24;
+  --dashboard-warning-soft:
+    rgba(251, 191, 36, 0.13);
+
+  --dashboard-focus: #60a5fa;
+
+  --dashboard-shadow:
+    0 8px 30px
+    rgba(0, 0, 0, 0.32);
+
+  --dashboard-shadow-hover:
+    0 18px 45px
+    rgba(0, 0, 0, 0.42);
+}
+
+.dark .dashboard-stat-card::before {
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(96, 165, 250, 0.08),
+      transparent 45%
+    );
+}
+
+.dark .dashboard-stat-card::after {
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(96, 165, 250, 0.45),
+      transparent
+    );
+}
+
+/* ==========================================================================
+   Responsive — Large Tablets / Small Desktops
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  .dashboard-stats-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+/* ==========================================================================
+   Responsive — Tablet
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .dashboard-stats-grid {
+    grid-template-columns: 1fr;
+
+    gap: 1rem;
+
+    margin-bottom: 1.5rem;
+  }
+
+  .dashboard-stat-card {
+    min-height: 150px;
+
+    padding: 1.25rem;
+  }
+
+  .dashboard-stat-body h2 {
+    font-size: 1.65rem;
+  }
+
+  .dashboard-tenant-card {
+    padding: 1.25rem;
+
+    margin-bottom: 1.5rem;
+  }
+
+  .dashboard-tenant-details {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   Responsive — Mobile
+   ========================================================================== */
+
+@media (max-width: 576px) {
+  .dashboard-stat-header {
+    gap: 0.75rem;
+
+    margin-bottom: 1rem;
+  }
+
+  .dashboard-stat-icon {
+    width: 46px;
+    height: 46px;
+
+    border-radius: 12px;
+  }
+
+  .dashboard-stat-body h4 {
+    font-size: 0.82rem;
+  }
+
+  .dashboard-stat-body h2 {
+    margin-top: 0.5rem;
+
+    font-size: 1.45rem;
+  }
+
+  .dashboard-trend {
+    min-height: 26px;
+
+    padding:
+      0.3rem 0.55rem;
+
+    font-size: 0.72rem;
+  }
+
+  .dashboard-tenant-header h3 {
+    font-size: 1rem;
+  }
+
+  .dashboard-tenant-details > div {
+    padding:
+      0.8rem 0.9rem;
+  }
+}
+
+/* ==========================================================================
+   Responsive — Very Small Devices
+   ========================================================================== */
+
+@media (max-width: 380px) {
+  .dashboard-stat-card {
+    padding: 1rem;
+  }
+
+  .dashboard-stat-header {
+    align-items: flex-start;
+  }
+
+  .dashboard-stat-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .dashboard-stat-body h2 {
+    font-size: 1.3rem;
+  }
+
+  .dashboard-trend {
+    gap: 0.25rem;
+
+    padding:
+      0.25rem 0.45rem;
+
+    font-size: 0.68rem;
+  }
+
+  .dashboard-tenant-card {
+    padding: 1rem;
+  }
+}
+
+/* ==========================================================================
+   Accessibility — Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-stat-card,
+  .dashboard-tenant-card,
+  .dashboard-trend {
+    transition: none;
+  }
+
+  .dashboard-stat-card:hover,
+  .dashboard-tenant-card:hover {
+    transform: none;
+  }
+
+  .dashboard-stat-card::after {
+    transition: none;
+  }
+
+  .skeleton-icon,
+  .skeleton-line {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Accessibility — High Contrast
+   ========================================================================== */
+
+@media (forced-colors: active) {
+  .dashboard-stat-card,
+  .dashboard-tenant-card,
+  .dashboard-tenant-details > div {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .dashboard-stat-icon,
+  .dashboard-trend {
+    border: 1px solid CanvasText;
+  }
+
+  .dashboard-stat-card::before,
+  .dashboard-stat-card::after {
+    display: none;
+  }
+
+  .dashboard-stat-card:hover,
+  .dashboard-tenant-card:hover {
+    transform: none;
+  }
+
+  .dashboard-stat-card:focus-visible {
+    outline:
+      2px solid Highlight;
+  }
+}
+
+/* ==========================================================================
+   Accessibility — Focus
+   ========================================================================== */
+
+.dashboard-stat-card a:focus-visible,
+.dashboard-tenant-card a:focus-visible {
+  outline:
+    3px solid
+    var(--dashboard-focus);
+
+  outline-offset: 3px;
+
+  border-radius: 6px;
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+
+@media print {
+  .dashboard-stats-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+    gap: 0.75rem;
+  }
+
+  .dashboard-stat-card,
+  .dashboard-tenant-card {
+    box-shadow: none;
+
+    break-inside: avoid;
+
+    page-break-inside: avoid;
+  }
+
+  .dashboard-stat-card:hover,
+  .dashboard-tenant-card:hover {
+    transform: none;
+  }
+
+  .dashboard-stat-card::before,
+  .dashboard-stat-card::after {
+    display: none;
+  }
+}

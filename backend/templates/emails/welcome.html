@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Community Savings App</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+          sans-serif;
+        line-height: 1.6;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 20px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 28px;
+      }
+      .content {
+        padding: 40px 30px;
+      }
+      .content h2 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 20px;
+      }
+      .content p {
+        color: #666;
+        margin-bottom: 15px;
+      }
+      .welcome-box {
+        background: #f9f9f9;
+        border-left: 4px solid #667eea;
+        padding: 15px;
+        margin: 20px 0;
+      }
+      .feature-list {
+        margin: 20px 0;
+      }
+      .feature-list li {
+        color: #666;
+        margin-bottom: 10px;
+        padding-left: 5px;
+      }
+      .cta-button {
+        display: inline-block;
+        background: #667eea;
+        color: white;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 5px;
+        margin: 20px 0;
+        transition: background 0.3s;
+      }
+      .cta-button:hover {
+        background: #764ba2;
+      }
+      .footer {
+        background: #f5f5f5;
+        padding: 20px;
+        text-align: center;
+        border-top: 1px solid #ddd;
+        font-size: 12px;
+        color: #999;
+      }
+      .divider {
+        border: none;
+        border-top: 1px solid #ddd;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🎉 Welcome to Community Savings App!</h1>
+      </div>
+
+      <div class="content">
+        <h2>Hello {{firstName}},</h2>
+
+        <p>
+          Welcome aboard! We're excited to have you join our community of savers. Your account has
+          been successfully created and is ready to use.
+        </p>
+
+        <div class="welcome-box">
+          <strong>Your account details:</strong><br />
+          Email: {{email}}<br />
+          Account Created: {{createdDate}}<br />
+          Account Status: Active ✓
+        </div>
+
+        <h2>What You Can Do Now:</h2>
+        <ul class="feature-list">
+          <li>
+            <strong>Create or Join Groups</strong> - Collaborate with others to save towards shared
+            goals
+          </li>
+          <li><strong>Make Contributions</strong> - Contribute to your community savings groups</li>
+          <li><strong>Apply for Loans</strong> - Access loans backed by your savings</li>
+          <li>
+            <strong>Track Progress</strong> - Monitor your savings and loan status in real-time
+          </li>
+          <li><strong>Invite Friends</strong> - Earn rewards by referring others</li>
+        </ul>
+
+        <p>To get started, visit your dashboard and explore the features available to you.</p>
+
+        <center>
+          <a href="{{dashboardUrl}}" class="cta-button">Go to Dashboard</a>
+        </center>
+
+        <hr class="divider" />
+
+        <h2>Account Security</h2>
+        <p>
+          Your account is secured with industry-standard encryption. Here are some tips to keep your
+          account safe:
+        </p>
+        <ul class="feature-list">
+          <li>Never share your password with anyone</li>
+          <li>Always verify the URL before entering your credentials</li>
+          <li>Enable two-factor authentication for added security</li>
+          <li>Be cautious of suspicious emails or links</li>
+        </ul>
+
+        <p style="margin-top: 30px; font-size: 14px; color: #999">
+          If you didn't create this account or have any concerns, please contact our support team
+          immediately at support@communitysavings.app
+        </p>
+      </div>
+
+      <div class="footer">
+        <p>
+          © {{year}} Community Savings App. All rights reserved.<br />
+          <a href="{{unsubscribeUrl}}" style="color: #999; text-decoration: none">Unsubscribe</a> |
+          <a href="{{privacyUrl}}" style="color: #999; text-decoration: none">Privacy Policy</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

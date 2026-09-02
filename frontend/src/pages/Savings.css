@@ -1,0 +1,1767 @@
+/**
+ * ============================================================================
+ * TITech Community Capital
+ * Enterprise Savings Management Styles
+ * File: frontend/src/pages/Savings.css
+ *
+ * Production Grade
+ * ----------------------------------------------------------------------------
+ * - Enterprise financial operations interface
+ * - Responsive desktop/tablet/mobile layouts
+ * - WCAG-conscious focus and contrast
+ * - Loading, error, empty and refresh states
+ * - Financial data readability
+ * - Accessible tables
+ * - Touch-friendly controls
+ * - Reduced-motion support
+ * - Forced-colors / high-contrast support
+ * - Dark-mode support
+ * - Print-friendly output
+ * - No ACFOS terminology
+ * ============================================================================
+ */
+
+/* ============================================================================
+ * Design Tokens
+ * ========================================================================== */
+
+.savings-page {
+  --savings-primary: #0f766e;
+  --savings-primary-hover: #115e59;
+  --savings-primary-active: #134e4a;
+  --savings-primary-soft: #ecfdf5;
+
+  --savings-blue: #2563eb;
+  --savings-blue-soft: #eff6ff;
+
+  --savings-success: #15803d;
+  --savings-success-soft: #f0fdf4;
+
+  --savings-warning: #b45309;
+  --savings-warning-soft: #fffbeb;
+
+  --savings-danger: #b91c1c;
+  --savings-danger-soft: #fef2f2;
+
+  --savings-text: #0f172a;
+  --savings-text-secondary: #475569;
+  --savings-text-muted: #64748b;
+  --savings-text-faint: #94a3b8;
+
+  --savings-border: #dbe3ec;
+  --savings-border-strong: #cbd5e1;
+
+  --savings-surface: #ffffff;
+  --savings-surface-soft: #f8fafc;
+  --savings-surface-muted: #f1f5f9;
+
+  --savings-background: #f6f8fb;
+
+  --savings-shadow-sm:
+    0 1px 2px rgb(15 23 42 / 0.05);
+
+  --savings-shadow-md:
+    0 8px 24px rgb(15 23 42 / 0.07);
+
+  --savings-shadow-lg:
+    0 18px 45px rgb(15 23 42 / 0.09);
+
+  --savings-radius-sm: 8px;
+  --savings-radius-md: 12px;
+  --savings-radius-lg: 16px;
+  --savings-radius-xl: 20px;
+
+  --savings-focus-ring:
+    0 0 0 3px rgb(15 118 110 / 0.18);
+
+  --savings-transition: 160ms ease;
+
+  width: 100%;
+  min-width: 0;
+}
+
+/* ============================================================================
+ * Base / Page
+ * ========================================================================== */
+
+.savings-page,
+.savings-page *,
+.savings-page *::before,
+.savings-page *::after {
+  box-sizing: border-box;
+}
+
+.savings-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  padding: 28px;
+
+  background:
+    radial-gradient(
+      circle at top left,
+      rgb(15 118 110 / 0.045),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgb(37 99 235 / 0.04),
+      transparent 26%
+    ),
+    var(--savings-background);
+
+  color: var(--savings-text);
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================================
+ * Accessibility
+ * ========================================================================== */
+
+.savings-page button,
+.savings-page input,
+.savings-page select,
+.savings-page a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.savings-page button:focus-visible,
+.savings-page input:focus-visible,
+.savings-page select:focus-visible,
+.savings-page a:focus-visible {
+  outline: 3px solid rgb(15 118 110 / 0.25);
+  outline-offset: 2px;
+}
+
+.savings-page .sr-only {
+  position: absolute !important;
+
+  width: 1px !important;
+  height: 1px !important;
+
+  padding: 0 !important;
+  margin: -1px !important;
+
+  overflow: hidden !important;
+
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+
+  white-space: nowrap !important;
+
+  border: 0 !important;
+}
+
+/* ============================================================================
+ * Header
+ * ========================================================================== */
+
+.savings-header {
+  width: 100%;
+  margin-bottom: 22px;
+}
+
+.savings-header-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 24px;
+
+  padding: 24px 26px;
+
+  border:
+    1px solid var(--savings-border);
+
+  border-radius: var(--savings-radius-lg);
+
+  background: var(--savings-surface);
+
+  box-shadow: var(--savings-shadow-sm);
+}
+
+.savings-eyebrow {
+  margin-bottom: 7px;
+
+  color: var(--savings-primary);
+
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+
+  text-transform: uppercase;
+}
+
+.savings-header h1 {
+  margin: 0;
+
+  color: var(--savings-text);
+
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  line-height: 1.18;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.savings-header p {
+  max-width: 720px;
+
+  margin: 8px 0 0;
+
+  color: var(--savings-text-secondary);
+
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.savings-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  flex: 0 0 auto;
+}
+
+/* ============================================================================
+ * Buttons
+ * ========================================================================== */
+
+.savings-page button {
+  font: inherit;
+}
+
+.primary-btn,
+.secondary-btn {
+  min-height: 42px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 10px 15px;
+
+  border-radius: var(--savings-radius-sm);
+
+  font-size: 0.88rem;
+  line-height: 1.2;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background-color var(--savings-transition),
+    border-color var(--savings-transition),
+    color var(--savings-transition),
+    box-shadow var(--savings-transition),
+    transform var(--savings-transition),
+    opacity var(--savings-transition);
+}
+
+.primary-btn {
+  border: 1px solid var(--savings-primary);
+
+  background: var(--savings-primary);
+  color: #ffffff;
+
+  box-shadow:
+    0 4px 10px rgb(15 118 110 / 0.14);
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: var(--savings-primary-hover);
+  border-color: var(--savings-primary-hover);
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 7px 16px rgb(15 118 110 / 0.18);
+}
+
+.primary-btn:active:not(:disabled) {
+  background: var(--savings-primary-active);
+
+  transform: translateY(0);
+}
+
+.secondary-btn {
+  border: 1px solid var(--savings-border-strong);
+
+  background: var(--savings-surface);
+  color: var(--savings-text);
+
+  box-shadow: var(--savings-shadow-sm);
+}
+
+.secondary-btn:hover:not(:disabled) {
+  border-color: #94a3b8;
+
+  background: var(--savings-surface-soft);
+
+  transform: translateY(-1px);
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.refresh-btn {
+  white-space: nowrap;
+}
+
+/* ============================================================================
+ * Statistics
+ * ========================================================================== */
+
+.savings-stats {
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  gap: 14px;
+
+  margin-bottom: 20px;
+}
+
+.savings-stat-card {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
+
+  padding: 17px;
+
+  border:
+    1px solid var(--savings-border);
+
+  border-radius: var(--savings-radius-md);
+
+  background: var(--savings-surface);
+
+  box-shadow: var(--savings-shadow-sm);
+
+  transition:
+    transform var(--savings-transition),
+    box-shadow var(--savings-transition),
+    border-color var(--savings-transition);
+}
+
+.savings-stat-card:hover {
+  transform: translateY(-1px);
+
+  box-shadow: var(--savings-shadow-md);
+}
+
+.savings-stat-card--positive {
+  border-color: #bbf7d0;
+}
+
+.savings-stat-card--warning {
+  border-color: #fde68a;
+}
+
+.savings-stat-card--primary {
+  border-color: #99f6e4;
+}
+
+.savings-stat-icon {
+  width: 42px;
+  height: 42px;
+
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 11px;
+
+  background: var(--savings-surface-muted);
+  color: var(--savings-primary);
+}
+
+.savings-stat-card--positive
+  .savings-stat-icon {
+  background: var(--savings-success-soft);
+  color: var(--savings-success);
+}
+
+.savings-stat-card--warning
+  .savings-stat-icon {
+  background: var(--savings-warning-soft);
+  color: var(--savings-warning);
+}
+
+.savings-stat-card--primary
+  .savings-stat-icon {
+  background: var(--savings-primary-soft);
+  color: var(--savings-primary);
+}
+
+.savings-stat-content {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+.savings-stat-label {
+  color: var(--savings-text-muted);
+
+  font-size: 0.76rem;
+  line-height: 1.35;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.savings-stat-value {
+  overflow: hidden;
+
+  color: var(--savings-text);
+
+  font-size: 1.05rem;
+  line-height: 1.35;
+  font-weight: 800;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+ * Error Box
+ * ========================================================================== */
+
+.error-box {
+  display: grid;
+
+  grid-template-columns: auto minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  gap: 12px;
+
+  margin-bottom: 18px;
+
+  padding: 14px 16px;
+
+  border:
+    1px solid #fecaca;
+
+  border-radius: var(--savings-radius-md);
+
+  background: var(--savings-danger-soft);
+  color: var(--savings-danger);
+}
+
+.error-box > svg {
+  flex: 0 0 auto;
+}
+
+.error-box-content {
+  min-width: 0;
+}
+
+.error-box-content strong {
+  display: block;
+
+  margin-bottom: 2px;
+
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.error-box-content p {
+  margin: 0;
+
+  color: #7f1d1d;
+
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.error-box .secondary-btn {
+  border-color: #fecaca;
+
+  background: #ffffff;
+  color: var(--savings-danger);
+}
+
+.error-box .secondary-btn:hover:not(:disabled) {
+  border-color: #fca5a5;
+
+  background: #fffafa;
+}
+
+/* ============================================================================
+ * Filters
+ * ========================================================================== */
+
+.savings-filter-panel {
+  display: flex;
+  align-items: flex-end;
+
+  flex-wrap: wrap;
+
+  gap: 12px;
+
+  margin-bottom: 16px;
+
+  padding: 16px;
+
+  border:
+    1px solid var(--savings-border);
+
+  border-radius: var(--savings-radius-md);
+
+  background: var(--savings-surface);
+
+  box-shadow: var(--savings-shadow-sm);
+}
+
+.savings-filter-search {
+  position: relative;
+
+  min-width: min(100%, 360px);
+
+  flex: 1 1 340px;
+
+  display: flex;
+  align-items: center;
+}
+
+.savings-filter-search > svg {
+  position: absolute;
+
+  left: 13px;
+
+  color: var(--savings-text-muted);
+
+  pointer-events: none;
+}
+
+.savings-filter-search input {
+  width: 100%;
+  min-height: 44px;
+
+  padding:
+    10px
+    40px;
+
+  border:
+    1px solid var(--savings-border-strong);
+
+  border-radius: var(--savings-radius-sm);
+
+  outline: none;
+
+  background: var(--savings-surface);
+  color: var(--savings-text);
+
+  font: inherit;
+  font-size: 0.88rem;
+
+  transition:
+    border-color var(--savings-transition),
+    box-shadow var(--savings-transition),
+    background-color var(--savings-transition);
+}
+
+.savings-filter-search input::placeholder {
+  color: var(--savings-text-faint);
+}
+
+.savings-filter-search input:hover {
+  border-color: #94a3b8;
+}
+
+.savings-filter-search input:focus {
+  border-color: var(--savings-primary);
+
+  box-shadow: var(--savings-focus-ring);
+}
+
+.search-clear-btn {
+  position: absolute;
+
+  top: 50%;
+  right: 8px;
+
+  width: 30px;
+  height: 30px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  transform: translateY(-50%);
+
+  border: 0;
+  border-radius: 7px;
+
+  background: transparent;
+  color: var(--savings-text-muted);
+
+  cursor: pointer;
+
+  font-size: 1.15rem;
+  line-height: 1;
+
+  transition:
+    background-color var(--savings-transition),
+    color var(--savings-transition);
+}
+
+.search-clear-btn:hover {
+  background: var(--savings-surface-muted);
+  color: var(--savings-text);
+}
+
+.savings-filter-control {
+  min-width: 190px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+.savings-filter-control label {
+  color: var(--savings-text-secondary);
+
+  font-size: 0.75rem;
+  line-height: 1.3;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.savings-filter-control select {
+  width: 100%;
+  min-height: 44px;
+
+  padding:
+    9px
+    12px;
+
+  border:
+    1px solid var(--savings-border-strong);
+
+  border-radius: var(--savings-radius-sm);
+
+  outline: none;
+
+  background:
+    var(--savings-surface);
+  color: var(--savings-text);
+
+  font: inherit;
+  font-size: 0.88rem;
+
+  cursor: pointer;
+
+  transition:
+    border-color var(--savings-transition),
+    box-shadow var(--savings-transition);
+}
+
+.savings-filter-control select:hover {
+  border-color: #94a3b8;
+}
+
+.savings-filter-control select:focus {
+  border-color: var(--savings-primary);
+
+  box-shadow: var(--savings-focus-ring);
+}
+
+.clear-filter-btn {
+  min-height: 44px;
+
+  white-space: nowrap;
+}
+
+/* ============================================================================
+ * Table Toolbar
+ * ========================================================================== */
+
+.savings-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-bottom: 10px;
+
+  padding: 0 2px;
+}
+
+.savings-table-toolbar > div:first-child {
+  min-width: 0;
+
+  display: flex;
+  align-items: baseline;
+
+  flex-wrap: wrap;
+
+  gap: 9px;
+}
+
+.savings-table-toolbar strong {
+  color: var(--savings-text);
+
+  font-size: 0.96rem;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.savings-table-toolbar span {
+  color: var(--savings-text-muted);
+
+  font-size: 0.77rem;
+  line-height: 1.4;
+}
+
+.savings-sync-status {
+  flex: 0 0 auto;
+
+  color: var(--savings-success) !important;
+
+  font-size: 0.74rem !important;
+  font-weight: 700;
+}
+
+/* ============================================================================
+ * Table Wrapper
+ * ========================================================================== */
+
+.savings-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+
+  border:
+    1px solid var(--savings-border);
+
+  border-radius: var(--savings-radius-lg);
+
+  background: var(--savings-surface);
+
+  box-shadow: var(--savings-shadow-sm);
+
+  scrollbar-width: thin;
+}
+
+.savings-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.savings-table-wrapper::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.savings-table {
+  width: 100%;
+
+  min-width: 930px;
+
+  border-collapse: separate;
+  border-spacing: 0;
+
+  color: var(--savings-text);
+}
+
+.savings-table caption {
+  text-align: left;
+}
+
+.savings-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+
+  padding:
+    14px
+    16px;
+
+  border-bottom:
+    1px solid var(--savings-border);
+
+  background: var(--savings-surface-soft);
+
+  color: var(--savings-text-secondary);
+
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-weight: 800;
+
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+
+  white-space: nowrap;
+}
+
+.savings-table tbody td {
+  padding:
+    15px
+    16px;
+
+  border-bottom:
+    1px solid #edf2f7;
+
+  vertical-align: middle;
+
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.savings-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.savings-table-row {
+  transition:
+    background-color var(--savings-transition);
+}
+
+.savings-table-row:hover {
+  background: #fafdfd;
+}
+
+.savings-table-row:focus-within {
+  background: var(--savings-primary-soft);
+}
+
+/* ============================================================================
+ * Reference / Member Cells
+ * ========================================================================== */
+
+.reference-cell,
+.member-cell {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.reference-cell strong,
+.member-cell strong {
+  overflow: hidden;
+
+  color: var(--savings-text);
+
+  font-size: 0.84rem;
+  font-weight: 750;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-status {
+  width: fit-content;
+
+  display: inline-flex;
+
+  padding: 2px 7px;
+
+  border-radius: 999px;
+
+  background: var(--savings-warning-soft);
+  color: var(--savings-warning);
+
+  font-size: 0.66rem;
+  line-height: 1.25;
+  font-weight: 800;
+
+  text-transform: uppercase;
+}
+
+.member-cell span {
+  overflow: hidden;
+
+  color: var(--savings-text-muted);
+
+  font-size: 0.72rem;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+ * Transaction Badges
+ * ========================================================================== */
+
+.transaction-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 27px;
+
+  padding:
+    4px
+    9px;
+
+  border:
+    1px solid transparent;
+
+  border-radius: 999px;
+
+  font-size: 0.68rem;
+  line-height: 1.1;
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+.transaction-deposit {
+  border-color: #bbf7d0;
+
+  background: var(--savings-success-soft);
+  color: var(--savings-success);
+}
+
+.transaction-withdrawal {
+  border-color: #fecaca;
+
+  background: var(--savings-danger-soft);
+  color: var(--savings-danger);
+}
+
+.transaction-interest {
+  border-color: #99f6e4;
+
+  background: var(--savings-primary-soft);
+  color: var(--savings-primary);
+}
+
+.transaction-adjustment {
+  border-color: #cbd5e1;
+
+  background: var(--savings-surface-muted);
+  color: var(--savings-text-secondary);
+}
+
+/* ============================================================================
+ * Amounts
+ * ========================================================================== */
+
+.amount-cell {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+
+  font-size: 0.87rem;
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+.amount-cell--deposit,
+.amount-cell--interest {
+  color: var(--savings-success);
+}
+
+.amount-cell--withdrawal {
+  color: var(--savings-danger);
+}
+
+.amount-cell--adjustment {
+  color: var(--savings-text);
+}
+
+/* ============================================================================
+ * Action Buttons
+ * ========================================================================== */
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid var(--savings-border);
+
+  border-radius: 8px;
+
+  background: var(--savings-surface);
+  color: var(--savings-text-secondary);
+
+  cursor: pointer;
+
+  transition:
+    border-color var(--savings-transition),
+    background-color var(--savings-transition),
+    color var(--savings-transition),
+    transform var(--savings-transition);
+}
+
+.icon-btn:hover {
+  border-color: #99f6e4;
+
+  background: var(--savings-primary-soft);
+  color: var(--savings-primary);
+
+  transform: translateY(-1px);
+}
+
+.icon-btn:active {
+  transform: translateY(0);
+}
+
+.icon-btn:focus-visible {
+  outline: none;
+
+  box-shadow: var(--savings-focus-ring);
+}
+
+/* ============================================================================
+ * Empty State
+ * ========================================================================== */
+
+.savings-empty-cell {
+  padding: 0 !important;
+}
+
+.savings-empty-state {
+  min-height: 270px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-direction: column;
+
+  gap: 9px;
+
+  padding: 36px 20px;
+
+  text-align: center;
+}
+
+.savings-empty-icon {
+  width: 50px;
+  height: 50px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 4px;
+
+  border-radius: 14px;
+
+  background: var(--savings-primary-soft);
+  color: var(--savings-primary);
+}
+
+.savings-empty-state h3 {
+  margin: 0;
+
+  color: var(--savings-text);
+
+  font-size: 0.98rem;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.savings-empty-state p {
+  max-width: 480px;
+
+  margin: 0 0 6px;
+
+  color: var(--savings-text-muted);
+
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+ * Pagination
+ * ========================================================================== */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-top: 14px;
+}
+
+.pagination-summary {
+  color: var(--savings-text-muted);
+
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.pagination-summary strong {
+  color: var(--savings-text-secondary);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+}
+
+.pagination-controls button {
+  min-height: 38px;
+
+  padding:
+    8px
+    12px;
+
+  border:
+    1px solid var(--savings-border-strong);
+
+  border-radius: 8px;
+
+  background: var(--savings-surface);
+  color: var(--savings-text-secondary);
+
+  font-size: 0.78rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background-color var(--savings-transition),
+    border-color var(--savings-transition),
+    color var(--savings-transition);
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: var(--savings-surface-soft);
+  color: var(--savings-text);
+}
+
+.pagination-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.pagination-page {
+  min-width: 110px;
+
+  text-align: center;
+
+  color: var(--savings-text-muted);
+
+  font-size: 0.76rem;
+}
+
+/* ============================================================================
+ * Loading State
+ * ========================================================================== */
+
+.savings-loading-shell {
+  overflow: hidden;
+}
+
+.savings-skeleton-row td {
+  height: 67px;
+
+  background: var(--savings-surface);
+}
+
+.savings-skeleton {
+  display: block;
+
+  height: 12px;
+
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #eef2f7 25%,
+      #e2e8f0 50%,
+      #eef2f7 75%
+    );
+
+  background-size: 200% 100%;
+
+  animation:
+    savings-skeleton-shimmer 1.35s infinite
+      linear;
+}
+
+.savings-skeleton--short {
+  width: 84px;
+}
+
+.savings-skeleton--medium {
+  width: 125px;
+}
+
+.savings-skeleton--badge {
+  width: 70px;
+  height: 24px;
+}
+
+.savings-skeleton--action {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+
+@keyframes savings-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================================================
+ * Utility Animation
+ * ========================================================================== */
+
+.animate-spin {
+  animation:
+    savings-spin 0.85s linear infinite;
+}
+
+@keyframes savings-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+ * Responsive — Large Desktop
+ * ========================================================================== */
+
+@media (min-width: 1500px) {
+  .savings-page {
+    padding:
+      32px
+      clamp(32px, 4vw, 60px);
+  }
+}
+
+/* ============================================================================
+ * Responsive — Tablet
+ * ========================================================================== */
+
+@media (max-width: 1180px) {
+  .savings-page {
+    padding: 22px;
+  }
+
+  .savings-stats {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 920px) {
+  .savings-page {
+    padding: 18px;
+  }
+
+  .savings-header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .savings-header-actions {
+    justify-content: flex-start;
+  }
+
+  .savings-stats {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .savings-filter-search {
+    min-width: 100%;
+    flex-basis: 100%;
+  }
+
+  .savings-filter-control {
+    flex: 1 1 220px;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Mobile
+ * ========================================================================== */
+
+@media (max-width: 680px) {
+  .savings-page {
+    padding: 12px;
+  }
+
+  .savings-header {
+    margin-bottom: 14px;
+  }
+
+  .savings-header-content {
+    padding: 18px 16px;
+  }
+
+  .savings-header h1 {
+    font-size: 1.55rem;
+  }
+
+  .savings-header p {
+    font-size: 0.84rem;
+  }
+
+  .savings-header-actions {
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .savings-header-actions
+    .primary-btn,
+  .savings-header-actions
+    .secondary-btn {
+    width: 100%;
+  }
+
+  .savings-stats {
+    grid-template-columns: 1fr 1fr;
+
+    gap: 10px;
+
+    margin-bottom: 14px;
+  }
+
+  .savings-stat-card {
+    padding: 13px;
+
+    gap: 10px;
+  }
+
+  .savings-stat-icon {
+    width: 37px;
+    height: 37px;
+  }
+
+  .savings-stat-label {
+    font-size: 0.66rem;
+  }
+
+  .savings-stat-value {
+    font-size: 0.88rem;
+  }
+
+  .error-box {
+    grid-template-columns: auto minmax(0, 1fr);
+
+    align-items: start;
+  }
+
+  .error-box .secondary-btn {
+    grid-column: 2;
+
+    justify-self: start;
+  }
+
+  .savings-filter-panel {
+    padding: 12px;
+  }
+
+  .savings-filter-control {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .clear-filter-btn {
+    width: 100%;
+  }
+
+  .savings-table-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+
+    gap: 6px;
+  }
+
+  .savings-sync-status {
+    align-self: flex-start;
+  }
+
+  .savings-table-wrapper {
+    border-radius: 12px;
+  }
+
+  /*
+   * Mobile table presentation:
+   * Keep the semantic table structure but allow horizontal scrolling rather
+   * than compressing financial fields into unreadable widths.
+   */
+  .savings-table {
+    min-width: 820px;
+  }
+
+  .pagination {
+    align-items: flex-start;
+
+    flex-direction: column;
+  }
+
+  .pagination-controls {
+    width: 100%;
+
+    justify-content: space-between;
+  }
+
+  .pagination-page {
+    flex: 1;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Small Mobile
+ * ========================================================================== */
+
+@media (max-width: 430px) {
+  .savings-page {
+    padding: 8px;
+  }
+
+  .savings-header-content {
+    padding: 16px 14px;
+  }
+
+  .savings-header-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .savings-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .savings-stat-card {
+    min-height: 70px;
+  }
+
+  .savings-filter-panel {
+    gap: 10px;
+  }
+
+  .savings-filter-search input {
+    font-size: 16px;
+  }
+
+  .savings-filter-control select {
+    font-size: 16px;
+  }
+
+  .pagination-controls button {
+    min-height: 42px;
+    padding-inline: 10px;
+  }
+}
+
+/* ============================================================================
+ * Dark Mode
+ * ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  .savings-page {
+    --savings-text: #f8fafc;
+    --savings-text-secondary: #cbd5e1;
+    --savings-text-muted: #94a3b8;
+    --savings-text-faint: #64748b;
+
+    --savings-border: #273449;
+    --savings-border-strong: #3a485d;
+
+    --savings-surface: #0f172a;
+    --savings-surface-soft: #111c2e;
+    --savings-surface-muted: #1e293b;
+
+    --savings-background: #020617;
+
+    --savings-primary-soft: #0f2d2a;
+    --savings-success-soft: #0d2817;
+    --savings-warning-soft: #2a200b;
+    --savings-danger-soft: #2b1111;
+    --savings-blue-soft: #0f2344;
+
+    --savings-shadow-sm:
+      0 1px 2px rgb(0 0 0 / 0.25);
+
+    --savings-shadow-md:
+      0 10px 28px rgb(0 0 0 / 0.28);
+
+    --savings-shadow-lg:
+      0 18px 45px rgb(0 0 0 / 0.3);
+  }
+
+  .savings-page {
+    background:
+      radial-gradient(
+        circle at top left,
+        rgb(15 118 110 / 0.08),
+        transparent 28%
+      ),
+      var(--savings-background);
+  }
+
+  .savings-header-content,
+  .savings-stat-card,
+  .savings-filter-panel,
+  .savings-table-wrapper {
+    background: var(--savings-surface);
+  }
+
+  .savings-filter-search input,
+  .savings-filter-control select,
+  .secondary-btn,
+  .pagination-controls button,
+  .icon-btn {
+    background: var(--savings-surface);
+    color: var(--savings-text);
+  }
+
+  .savings-table thead th {
+    background: var(--savings-surface-soft);
+  }
+
+  .savings-table tbody td {
+    border-bottom-color: #1d2a3a;
+  }
+
+  .savings-table-row:hover {
+    background: #111c2e;
+  }
+
+  .form-input,
+  .savings-filter-search input {
+    color-scheme: dark;
+  }
+
+  .savings-skeleton {
+    background:
+      linear-gradient(
+        90deg,
+        #1b2738 25%,
+        #263449 50%,
+        #1b2738 75%
+      );
+
+    background-size: 200% 100%;
+  }
+
+  .error-box-content p {
+    color: #fecaca;
+  }
+
+  .error-box .secondary-btn {
+    background: var(--savings-surface);
+  }
+}
+
+/* ============================================================================
+ * Forced Colors / High Contrast
+ * ========================================================================== */
+
+@media (forced-colors: active) {
+  .savings-page {
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .savings-header-content,
+  .savings-stat-card,
+  .savings-filter-panel,
+  .savings-table-wrapper,
+  .savings-filter-search input,
+  .savings-filter-control select,
+  .secondary-btn,
+  .pagination-controls button,
+  .icon-btn {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+
+  .primary-btn {
+    border-color: CanvasText;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .transaction-badge,
+  .reference-status,
+  .error-box {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .savings-stat-icon,
+  .savings-empty-icon {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .savings-table thead th {
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .savings-table tbody td {
+    border-bottom-color: CanvasText;
+  }
+
+  .savings-page button:focus-visible,
+  .savings-page input:focus-visible,
+  .savings-page select:focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
+
+/* ============================================================================
+ * Reduced Motion
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .savings-page *,
+  .savings-page *::before,
+  .savings-page *::after {
+    scroll-behavior: auto !important;
+
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+
+    transition-duration: 0.01ms !important;
+  }
+
+  .primary-btn:hover:not(:disabled),
+  .secondary-btn:hover:not(:disabled),
+  .icon-btn:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+ * Print
+ * ========================================================================== */
+
+@media print {
+  .savings-page {
+    min-height: auto;
+
+    padding: 0;
+
+    background: #ffffff;
+
+    color: #000000;
+  }
+
+  .savings-header-content,
+  .savings-stat-card,
+  .savings-filter-panel,
+  .savings-table-wrapper {
+    border-color: #000000;
+
+    background: #ffffff;
+
+    box-shadow: none;
+  }
+
+  .savings-header-actions,
+  .savings-filter-panel,
+  .error-box,
+  .savings-sync-status,
+  .action-buttons,
+  .pagination {
+    display: none !important;
+  }
+
+  .savings-stats {
+    grid-template-columns:
+      repeat(5, minmax(0, 1fr));
+  }
+
+  .savings-table {
+    min-width: 0;
+  }
+
+  .savings-table thead th {
+    position: static;
+
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .savings-table tbody td {
+    border-bottom-color: #cccccc;
+    color: #000000;
+  }
+
+  .transaction-badge {
+    border-color: #000000;
+
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .savings-stat-value,
+  .savings-stat-label,
+  .reference-cell strong,
+  .member-cell strong,
+  .amount-cell {
+    color: #000000 !important;
+  }
+}

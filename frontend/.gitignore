@@ -1,0 +1,54 @@
+# --- General ---
+node_modules/
+*.log
+*.gz
+*.pid
+*.seed
+.DS_Store
+Thumbs.db
+
+# --- Environment files ---
+.env
+.env.*
+.env.local
+.env.*.local
+community-savings-app-backend/.env
+community-savings-app-frontend/.env
+
+# --- Build outputs ---
+dist/
+build/
+coverage/
+.vite/
+.vitest/
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Test reports ---
+test-reports/
+junit.xml
+*.coverage
+*.lcov
+
+# --- Backend specific ---
+community-savings-app-backend/nodemon.json
+community-savings-app-backend/package-lock.json
+community-savings-app-backend/logs/
+community-savings-app-backend/tmp/
+
+# --- Frontend specific ---
+community-savings-app-frontend/package-lock.json
+community-savings-app-frontend/logs/
+community-savings-app-frontend/tmp/
+community-savings-app-frontend/public/images/*.png
+
+# --- OS / IDE ---
+.vscode/
+.idea/
+*.swp
+
+# --- Misc ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Receipt - Community Savings App</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+          sans-serif;
+        line-height: 1.6;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 650px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: #10b981;
+        color: white;
+        padding: 40px 20px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 28px;
+      }
+      .header p {
+        margin: 10px 0 0 0;
+        opacity: 0.9;
+      }
+      .content {
+        padding: 40px 30px;
+      }
+      .receipt-box {
+        background: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .receipt-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .receipt-row:last-child {
+        border-bottom: none;
+      }
+      .receipt-label {
+        color: #666;
+        font-weight: 600;
+      }
+      .receipt-value {
+        color: #333;
+        font-weight: 600;
+      }
+      .amount-row {
+        background: #f0f9ff;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .amount-value {
+        font-size: 32px;
+        color: #10b981;
+        font-weight: bold;
+      }
+      .status-badge {
+        display: inline-block;
+        background: #d1fae5;
+        color: #065f46;
+        padding: 8px 16px;
+        border-radius: 20px;
+        margin: 15px 0;
+        font-weight: 600;
+      }
+      .detail-section {
+        margin: 25px 0;
+      }
+      .detail-section h3 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 16px;
+      }
+      .detail-item {
+        color: #666;
+        margin: 8px 0;
+        padding-left: 5px;
+      }
+      .footer {
+        background: #f5f5f5;
+        padding: 20px;
+        text-align: center;
+        border-top: 1px solid #ddd;
+        font-size: 12px;
+        color: #999;
+      }
+      .receipt-number {
+        font-family: monospace;
+        background: #f0f0f0;
+        padding: 8px 12px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>✓ Payment Received</h1>
+        <p>Transaction confirmed and processed</p>
+      </div>
+
+      <div class="content">
+        <p>Hello {{firstName}},</p>
+
+        <p>Your payment has been successfully received and processed. Here's your receipt:</p>
+
+        <div class="receipt-box">
+          <div class="receipt-row">
+            <span class="receipt-label">Transaction ID:</span>
+            <span class="receipt-number">{{transactionId}}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-label">Date & Time:</span>
+            <span class="receipt-value">{{transactionDate}}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-label">Payment Method:</span>
+            <span class="receipt-value">{{paymentMethod}}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-label">Status:</span>
+            <span class="status-badge">CONFIRMED</span>
+          </div>
+        </div>
+
+        <div class="amount-row">
+          <div style="color: #666; margin-bottom: 5px">Amount Paid</div>
+          <div class="amount-value">{{amount}} {{currency}}</div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Payment Details</h3>
+          <div class="detail-item"><strong>Group:</strong> {{groupName}}</div>
+          <div class="detail-item"><strong>Payment For:</strong> {{paymentPurpose}}</div>
+          <div class="detail-item">
+            <strong>Contribution Period:</strong> {{contributionPeriod}}
+          </div>
+          {{#referenceNumber}}
+          <div class="detail-item"><strong>Reference:</strong> {{referenceNumber}}</div>
+          {{/referenceNumber}}
+        </div>
+
+        <div class="detail-section">
+          <h3>What Happens Next</h3>
+          <div class="detail-item">✓ Funds have been added to your group's savings account</div>
+          <div class="detail-item">
+            ✓ You can track this transaction in your transaction history
+          </div>
+          <div class="detail-item">✓ {{description}}</div>
+        </div>
+
+        <p
+          style="
+            margin-top: 25px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-radius: 5px;
+            color: #0369a1;
+            font-size: 14px;
+          "
+        >
+          <strong>Need help?</strong> If you have questions about this payment or notice any
+          discrepancies, please contact our support team at support@communitysavings.app
+        </p>
+
+        <center>
+          <a
+            href="{{transactionHistoryUrl}}"
+            style="
+              display: inline-block;
+              background: #10b981;
+              color: white;
+              padding: 10px 20px;
+              text-decoration: none;
+              border-radius: 5px;
+              margin-top: 20px;
+            "
+            >View transaction history</a
+          >
+        </center>
+      </div>
+
+      <div class="footer">
+        <p>
+          © {{year}} Community Savings App. All rights reserved.<br />
+          <a href="{{privacyUrl}}" style="color: #999; text-decoration: none">Privacy Policy</a> |
+          <a href="{{termsUrl}}" style="color: #999; text-decoration: none">Terms of Service</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,1088 @@
+/* ==========================================================================
+   TITech Community Capital
+   Enterprise Admin Dashboard
+   File: frontend/src/pages/dashboard/AdminDashboard.css
+
+   Production Grade
+   Multi-Tenant | Executive Analytics | Financial Operations
+   Security Monitoring | Regulatory Visibility | Responsive
+   Accessibility | Dark Mode | Reduced Motion | Print Safe
+   ========================================================================== */
+
+/* ==========================================================================
+   Design Tokens
+   ========================================================================== */
+
+:root {
+  --admin-bg: #ffffff;
+  --admin-surface: #f8fafc;
+  --admin-surface-raised: #ffffff;
+  --admin-surface-muted: #f1f5f9;
+
+  --admin-border: #e2e8f0;
+  --admin-border-strong: #cbd5e1;
+
+  --admin-text: #0f172a;
+  --admin-text-secondary: #64748b;
+  --admin-text-muted: #94a3b8;
+
+  --admin-primary: #2563eb;
+  --admin-primary-hover: #1d4ed8;
+  --admin-primary-soft: rgba(37, 99, 235, 0.1);
+
+  --admin-success: #16a34a;
+  --admin-success-soft: rgba(22, 163, 74, 0.1);
+
+  --admin-warning: #d97706;
+  --admin-warning-soft: rgba(245, 158, 11, 0.12);
+
+  --admin-danger: #dc2626;
+  --admin-danger-soft: rgba(220, 38, 38, 0.1);
+
+  --admin-info: #0284c7;
+  --admin-info-soft: rgba(2, 132, 199, 0.1);
+
+  --admin-focus: rgba(37, 99, 235, 0.35);
+
+  --admin-radius-sm: 10px;
+  --admin-radius-md: 14px;
+  --admin-radius-lg: 18px;
+  --admin-radius-xl: 20px;
+
+  --admin-shadow-sm:
+    0 2px 8px rgba(15, 23, 42, 0.05);
+
+  --admin-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.08);
+
+  --admin-shadow-lg:
+    0 18px 45px rgba(15, 23, 42, 0.12);
+
+  --admin-transition:
+    180ms ease;
+
+  --admin-transition-transform:
+    transform 180ms ease;
+
+  --admin-content-max-width:
+    1800px;
+
+  --admin-chart-height:
+    320px;
+}
+
+/* ==========================================================================
+   Dashboard Root
+   ========================================================================== */
+
+.admin-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+
+  width: 100%;
+  max-width: var(--admin-content-max-width);
+
+  margin-inline: auto;
+  padding: 0;
+
+  color: var(--admin-text);
+
+  isolation: isolate;
+}
+
+/* ==========================================================================
+   Shared Card Styling
+   ========================================================================== */
+
+.admin-kpi,
+.admin-chart-card,
+.executive-summary-card,
+.regulatory-card,
+.system-health-card {
+  position: relative;
+
+  background: var(--admin-bg);
+
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-xl);
+
+  box-shadow: var(--admin-shadow);
+
+  overflow: hidden;
+
+  transition:
+    transform var(--admin-transition),
+    box-shadow var(--admin-transition),
+    border-color var(--admin-transition);
+}
+
+/* ==========================================================================
+   KPI Cards
+   ========================================================================== */
+
+.admin-kpi-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(240px, 1fr)
+    );
+
+  gap: 1.25rem;
+}
+
+.admin-kpi {
+  min-width: 0;
+  padding: 1.5rem;
+}
+
+.admin-kpi::after {
+  content: "";
+
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+
+  height: 3px;
+
+  background: var(--admin-primary);
+
+  opacity: 0;
+  transform: scaleX(0);
+
+  transform-origin: left;
+
+  transition:
+    opacity var(--admin-transition),
+    transform var(--admin-transition);
+}
+
+.admin-kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--admin-shadow-lg);
+  border-color: var(--admin-border-strong);
+}
+
+.admin-kpi:hover::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.admin-kpi-top {
+  display: flex;
+
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 1rem;
+}
+
+.admin-kpi-top > div:first-child {
+  min-width: 0;
+}
+
+.admin-kpi-top p {
+  margin: 0;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 0.875rem;
+  line-height: 1.4;
+
+  font-weight: 600;
+
+  letter-spacing: 0.01em;
+}
+
+.admin-kpi-top h3 {
+  margin: 0.5rem 0 0;
+
+  color: var(--admin-text);
+
+  font-size: clamp(
+    1.35rem,
+    2vw,
+    1.75rem
+  );
+
+  line-height: 1.15;
+  font-weight: 750;
+
+  overflow-wrap: anywhere;
+}
+
+.admin-kpi-icon {
+  flex: 0 0 auto;
+
+  width: 52px;
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: var(--admin-radius-md);
+
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+
+  border: 1px solid
+    rgba(37, 99, 235, 0.12);
+}
+
+.admin-kpi-trend {
+  margin-top: 1rem;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 0.4rem;
+
+  color: var(--admin-success);
+
+  font-size: 0.875rem;
+  line-height: 1.3;
+
+  font-weight: 700;
+}
+
+.admin-kpi-trend svg {
+  flex: 0 0 auto;
+}
+
+/* ==========================================================================
+   Charts
+   ========================================================================== */
+
+.admin-chart-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 1.5rem;
+
+  min-width: 0;
+}
+
+.admin-chart-card {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-chart-card:hover,
+.executive-summary-card:hover,
+.regulatory-card:hover,
+.system-health-card:hover {
+  transform: translateY(-2px);
+
+  box-shadow: var(--admin-shadow-lg);
+
+  border-color: var(--admin-border-strong);
+}
+
+.admin-chart-header {
+  min-height: 64px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  padding: 1.1rem 1.35rem;
+
+  border-bottom: 1px solid
+    var(--admin-border);
+
+  background: var(--admin-bg);
+}
+
+.admin-chart-header > div {
+  min-width: 0;
+}
+
+.admin-chart-header h3 {
+  margin: 0;
+
+  color: var(--admin-text);
+
+  font-size: 1rem;
+  line-height: 1.35;
+
+  font-weight: 750;
+}
+
+.admin-chart-header svg {
+  flex: 0 0 auto;
+
+  color: var(--admin-primary);
+}
+
+/* ==========================================================================
+   Recharts Container
+   ========================================================================== */
+
+.admin-chart-card
+  .recharts-responsive-container {
+  min-height: var(--admin-chart-height);
+}
+
+.admin-chart-card
+  .recharts-wrapper {
+  padding: 0.75rem;
+}
+
+.admin-chart-card
+  .recharts-surface {
+  overflow: visible;
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: var(--admin-text-secondary);
+
+  font-size: 0.75rem;
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--admin-border);
+
+  opacity: 0.8;
+}
+
+.recharts-legend-item-text {
+  color: var(--admin-text) !important;
+}
+
+.recharts-default-tooltip {
+  border: 1px solid
+    var(--admin-border) !important;
+
+  border-radius: var(--admin-radius-sm);
+
+  background: var(--admin-surface-raised) !important;
+
+  box-shadow: var(--admin-shadow-lg);
+}
+
+.recharts-tooltip-label {
+  color: var(--admin-text) !important;
+}
+
+.recharts-tooltip-item {
+  color: var(--admin-text-secondary) !important;
+}
+
+/* ==========================================================================
+   Executive Summary
+   ========================================================================== */
+
+.executive-summary-card {
+  min-width: 0;
+}
+
+.executive-summary-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+
+  gap: 1rem;
+
+  padding: 1.5rem;
+}
+
+.executive-summary-grid > div {
+  min-width: 0;
+
+  padding: 1.1rem;
+
+  border: 1px solid
+    var(--admin-border);
+
+  border-radius: var(--admin-radius-md);
+
+  background: var(--admin-surface);
+
+  transition:
+    background var(--admin-transition),
+    border-color var(--admin-transition);
+}
+
+.executive-summary-grid > div:hover {
+  background: var(--admin-surface-muted);
+
+  border-color:
+    var(--admin-border-strong);
+}
+
+.executive-summary-grid span {
+  display: block;
+
+  margin-bottom: 0.45rem;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 0.8rem;
+  line-height: 1.4;
+
+  font-weight: 600;
+
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.executive-summary-grid strong {
+  display: block;
+
+  color: var(--admin-text);
+
+  font-size: 1.15rem;
+  line-height: 1.3;
+
+  font-weight: 750;
+
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Regulatory
+   ========================================================================== */
+
+.regulatory-card {
+  min-width: 0;
+}
+
+.regulatory-content {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1.5rem;
+
+  padding: 1.5rem;
+}
+
+.regulatory-content > div {
+  min-width: 0;
+}
+
+.regulatory-content span {
+  display: block;
+
+  margin-bottom: 0.4rem;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 0.875rem;
+  line-height: 1.4;
+
+  font-weight: 600;
+}
+
+.regulatory-content strong {
+  display: block;
+
+  color: var(--admin-text);
+
+  font-size: 1.5rem;
+  line-height: 1.2;
+
+  font-weight: 750;
+}
+
+/* ==========================================================================
+   System Health
+   ========================================================================== */
+
+.system-health-card {
+  min-width: 0;
+}
+
+.system-health-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 1rem;
+
+  padding: 1.5rem;
+}
+
+.system-health-grid > div {
+  min-width: 0;
+
+  display: grid;
+
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 0.75rem;
+
+  padding: 1rem;
+
+  border: 1px solid
+    var(--admin-border);
+
+  border-radius: var(--admin-radius-md);
+
+  background: var(--admin-surface);
+}
+
+.system-health-grid > div > svg {
+  flex: 0 0 auto;
+
+  color: var(--admin-primary);
+}
+
+.system-health-grid span {
+  min-width: 0;
+
+  color: var(--admin-text);
+
+  font-size: 0.9rem;
+  font-weight: 650;
+
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Status Presentation
+   ========================================================================== */
+
+.admin-dashboard
+  [data-status="healthy"] {
+  color: var(--admin-success);
+}
+
+.admin-dashboard
+  [data-status="warning"] {
+  color: var(--admin-warning);
+}
+
+.admin-dashboard
+  [data-status="critical"],
+.admin-dashboard
+  [data-status="error"] {
+  color: var(--admin-danger);
+}
+
+/* ==========================================================================
+   Focus Accessibility
+   ========================================================================== */
+
+.admin-dashboard
+  :is(
+    button,
+    a,
+    [role="button"],
+    [tabindex]
+  ):focus-visible {
+  outline: 3px solid
+    var(--admin-focus);
+
+  outline-offset: 3px;
+
+  border-radius: var(--admin-radius-sm);
+}
+
+/* ==========================================================================
+   Interactive Cards
+   ========================================================================== */
+
+.admin-dashboard
+  [role="button"] {
+  cursor: pointer;
+}
+
+.admin-dashboard
+  [role="button"]:active {
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   Empty / No Data States
+   ========================================================================== */
+
+.admin-dashboard
+  .recharts-wrapper:empty {
+  min-height: 160px;
+}
+
+.admin-dashboard
+  .recharts-responsive-container
+  svg {
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   Dark Mode
+   ========================================================================== */
+
+.dark {
+  --admin-bg: #0f172a;
+  --admin-surface: #111c2f;
+  --admin-surface-raised: #172235;
+  --admin-surface-muted: #1e293b;
+
+  --admin-border: #334155;
+  --admin-border-strong: #475569;
+
+  --admin-text: #f8fafc;
+  --admin-text-secondary: #cbd5e1;
+  --admin-text-muted: #94a3b8;
+
+  --admin-primary: #60a5fa;
+  --admin-primary-hover: #93c5fd;
+  --admin-primary-soft: rgba(
+    96,
+    165,
+    250,
+    0.14
+  );
+
+  --admin-success: #4ade80;
+  --admin-warning: #fbbf24;
+  --admin-danger: #f87171;
+
+  --admin-shadow-sm:
+    0 2px 10px rgba(
+      0,
+      0,
+      0,
+      0.2
+    );
+
+  --admin-shadow:
+    0 12px 35px rgba(
+      0,
+      0,
+      0,
+      0.32
+    );
+
+  --admin-shadow-lg:
+    0 20px 50px rgba(
+      0,
+      0,
+      0,
+      0.42
+    );
+}
+
+.dark .admin-kpi,
+.dark .admin-chart-card,
+.dark .executive-summary-card,
+.dark .regulatory-card,
+.dark .system-health-card {
+  background: var(--admin-bg);
+}
+
+.dark
+  .admin-kpi:hover,
+.dark
+  .admin-chart-card:hover,
+.dark
+  .executive-summary-card:hover,
+.dark
+  .regulatory-card:hover,
+.dark
+  .system-health-card:hover {
+  border-color: var(
+    --admin-border-strong
+  );
+}
+
+.dark .recharts-cartesian-grid line {
+  stroke: var(--admin-border);
+}
+
+.dark
+  .recharts-cartesian-axis-tick-value {
+  fill: var(--admin-text-secondary);
+}
+
+.dark .recharts-tooltip-wrapper {
+  color: var(--admin-text);
+}
+
+.dark .recharts-default-tooltip {
+  background:
+    var(--admin-surface-raised) !important;
+
+  border-color:
+    var(--admin-border) !important;
+}
+
+/* ==========================================================================
+   High Contrast / Forced Colors
+   ========================================================================== */
+
+@media (forced-colors: active) {
+  .admin-kpi,
+  .admin-chart-card,
+  .executive-summary-card,
+  .regulatory-card,
+  .system-health-card,
+  .executive-summary-grid > div,
+  .system-health-grid > div {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .admin-dashboard
+    :is(
+      button,
+      a,
+      [role="button"],
+      [tabindex]
+    ):focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
+
+/* ==========================================================================
+   Large Screens
+   ========================================================================== */
+
+@media (min-width: 1600px) {
+  .admin-kpi-grid {
+    grid-template-columns:
+      repeat(
+        6,
+        minmax(0, 1fr)
+      );
+  }
+
+  .admin-chart-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+/* ==========================================================================
+   Desktop / Laptop
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  .admin-kpi-grid {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+  }
+
+  .executive-summary-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+/* ==========================================================================
+   Tablet
+   ========================================================================== */
+
+@media (max-width: 992px) {
+  .admin-dashboard {
+    gap: 1.5rem;
+  }
+
+  .admin-kpi-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .admin-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .system-health-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   Mobile
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    gap: 1.25rem;
+  }
+
+  .admin-kpi-grid {
+    grid-template-columns: 1fr;
+
+    gap: 1rem;
+  }
+
+  .admin-kpi {
+    padding: 1.2rem;
+  }
+
+  .admin-chart-grid {
+    grid-template-columns: 1fr;
+
+    gap: 1rem;
+  }
+
+  .admin-chart-header {
+    min-height: 58px;
+
+    padding: 1rem 1.1rem;
+  }
+
+  .admin-chart-card
+    .recharts-responsive-container {
+    min-height: 280px;
+  }
+
+  .executive-summary-grid {
+    grid-template-columns: 1fr;
+
+    padding: 1.1rem;
+  }
+
+  .regulatory-content {
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    padding: 1.1rem;
+  }
+
+  .system-health-grid {
+    grid-template-columns: 1fr;
+
+    padding: 1.1rem;
+  }
+
+  .system-health-grid > div {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto;
+  }
+}
+
+/* ==========================================================================
+   Small Mobile
+   ========================================================================== */
+
+@media (max-width: 576px) {
+  .admin-dashboard {
+    gap: 1rem;
+  }
+
+  .admin-kpi {
+    padding: 1rem;
+  }
+
+  .admin-kpi-icon {
+    width: 46px;
+    height: 46px;
+
+    border-radius: 12px;
+  }
+
+  .admin-kpi-top h3 {
+    font-size: 1.3rem;
+  }
+
+  .admin-kpi-top p {
+    font-size: 0.8rem;
+  }
+
+  .admin-chart-header {
+    padding: 0.9rem 1rem;
+  }
+
+  .admin-chart-header h3 {
+    font-size: 0.925rem;
+  }
+
+  .admin-chart-card
+    .recharts-responsive-container {
+    min-height: 250px;
+  }
+
+  .executive-summary-grid,
+  .system-health-grid {
+    padding: 0.9rem;
+  }
+
+  .executive-summary-grid > div,
+  .system-health-grid > div {
+    padding: 0.9rem;
+  }
+
+  .system-health-grid > div {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr);
+  }
+
+  .system-health-grid
+    > div
+    > :last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .regulatory-content {
+    padding: 1rem;
+  }
+}
+
+/* ==========================================================================
+   Very Small Devices
+   ========================================================================== */
+
+@media (max-width: 380px) {
+  .admin-kpi-top {
+    align-items: center;
+  }
+
+  .admin-kpi-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .admin-kpi-top h3 {
+    font-size: 1.15rem;
+  }
+
+  .admin-chart-card
+    .recharts-wrapper {
+    padding: 0.25rem;
+  }
+
+  .recharts-cartesian-axis-tick-value {
+    font-size: 0.65rem;
+  }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-kpi,
+  .admin-chart-card,
+  .executive-summary-card,
+  .regulatory-card,
+  .system-health-card,
+  .admin-kpi::after,
+  .admin-kpi-icon,
+  .executive-summary-grid > div {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .admin-kpi:hover,
+  .admin-chart-card:hover,
+  .executive-summary-card:hover,
+  .regulatory-card:hover,
+  .system-health-card:hover {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+
+@media print {
+  .admin-dashboard {
+    display: block;
+
+    max-width: none;
+
+    color: #000;
+  }
+
+  .admin-kpi-grid,
+  .admin-chart-grid,
+  .executive-summary-grid,
+  .system-health-grid {
+    break-inside: avoid;
+  }
+
+  .admin-kpi,
+  .admin-chart-card,
+  .executive-summary-card,
+  .regulatory-card,
+  .system-health-card {
+    box-shadow: none !important;
+
+    border: 1px solid #999;
+
+    break-inside: avoid;
+
+    page-break-inside: avoid;
+  }
+
+  .admin-kpi:hover,
+  .admin-chart-card:hover,
+  .executive-summary-card:hover,
+  .regulatory-card:hover,
+  .system-health-card:hover {
+    transform: none;
+  }
+
+  .admin-dashboard
+    .recharts-responsive-container {
+    min-height: 280px;
+  }
+}
+
+/* ==========================================================================
+   Utility Compatibility
+   ========================================================================== */
+
+.admin-dashboard .sr-only {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  margin: -1px;
+
+  overflow: hidden;
+
+  clip: rect(0, 0, 0, 0);
+
+  white-space: nowrap;
+
+  border: 0;
+}

@@ -1,0 +1,1935 @@
+/**
+ * ============================================================================
+ * TITech Community Capital Ltd
+ * Enterprise Dashboard Skeleton
+ * ============================================================================
+ *
+ * File:
+ *   frontend/src/components/DashboardSkeleton.css
+ *
+ * Purpose:
+ *   Enterprise responsive loading skeleton for TITech administrative,
+ *   financial, operational and analytics dashboards.
+ *
+ * Features
+ * ----------------------------------------------------------------------------
+ * ✓ Stable dashboard geometry
+ * ✓ Reduced cumulative layout shift
+ * ✓ Responsive grid system
+ * ✓ Sidebar / main-content layouts
+ * ✓ KPI/stat skeletons
+ * ✓ Chart skeletons
+ * ✓ Table skeletons
+ * ✓ Activity-feed skeletons
+ * ✓ Header / welcome / filter states
+ * ✓ Dark-theme support
+ * ✓ Reduced-motion support
+ * ✓ High-contrast support
+ * ✓ Print behavior
+ * ✓ Responsive mobile layout
+ * ✓ CSS-only loading animation
+ * ✓ TITech design-token integration
+ *
+ * Branding:
+ *   TITech Community Capital
+ *
+ * ============================================================================
+ */
+
+
+/* ============================================================================
+ * TITech Dashboard Skeleton Tokens
+ * ========================================================================== */
+
+.titech-dashboard-skeleton {
+  --titech-skeleton-bg:
+    var(
+      --titech-surface,
+      #ffffff
+    );
+
+  --titech-skeleton-bg-subtle:
+    var(
+      --titech-surface-subtle,
+      #f8fafc
+    );
+
+  --titech-skeleton-bg-muted:
+    var(
+      --titech-surface-muted,
+      #f1f5f9
+    );
+
+  --titech-skeleton-border:
+    var(
+      --titech-border,
+      #e2e8f0
+    );
+
+  --titech-skeleton-border-strong:
+    var(
+      --titech-border-strong,
+      #cbd5e1
+    );
+
+  --titech-skeleton-base:
+    var(
+      --titech-skeleton-base-color,
+      #e2e8f0
+    );
+
+  --titech-skeleton-highlight:
+    var(
+      --titech-skeleton-highlight-color,
+      #f8fafc
+    );
+
+  --titech-skeleton-primary:
+    var(
+      --titech-primary,
+      #2563eb
+    );
+
+  --titech-skeleton-radius:
+    var(
+      --titech-radius-card,
+      14px
+    );
+
+  --titech-skeleton-control-radius:
+    var(
+      --titech-radius-control,
+      8px
+    );
+
+  --titech-skeleton-sidebar-width:
+    248px;
+
+  --titech-skeleton-gap:
+    20px;
+
+  --titech-skeleton-gap-small:
+    12px;
+
+  --titech-skeleton-padding:
+    24px;
+
+  --titech-skeleton-shadow:
+    var(
+      --titech-shadow-card,
+      0 1px 2px
+        rgba(
+          15,
+          23,
+          42,
+          0.05
+        )
+    );
+
+  width: 100%;
+  min-width: 0;
+
+  color:
+    var(
+      --titech-text,
+      #0f172a
+    );
+
+  background:
+    var(
+      --titech-skeleton-bg
+    );
+
+  box-sizing: border-box;
+
+  isolation: isolate;
+}
+
+
+/* ============================================================================
+ * Box sizing
+ * ========================================================================== */
+
+.titech-dashboard-skeleton *,
+.titech-dashboard-skeleton *::before,
+.titech-dashboard-skeleton *::after {
+  box-sizing: border-box;
+}
+
+
+/* ============================================================================
+ * Main layout
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__layout {
+  display: flex;
+
+  width: 100%;
+  min-height: 100%;
+
+  min-width: 0;
+}
+
+
+/* ============================================================================
+ * Main area
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__main {
+  flex: 1 1 auto;
+
+  min-width: 0;
+
+  padding:
+    var(
+      --titech-skeleton-padding
+    );
+
+  display: flex;
+  flex-direction: column;
+
+  gap:
+    var(
+      --titech-skeleton-gap
+    );
+}
+
+
+/* ============================================================================
+ * Sidebar
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__sidebar {
+  flex:
+    0 0
+    var(
+      --titech-dashboard-skeleton-sidebar-width
+    );
+
+  width:
+    var(
+      --titech-dashboard-skeleton-sidebar-width
+    );
+
+  min-height: 100vh;
+
+  padding:
+    20px 14px;
+
+  border-right: 1px solid
+    var(
+      --titech-skeleton-border
+    );
+
+  background:
+    var(
+      --titech-skeleton-bg
+    );
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* ============================================================================
+ * Sidebar brand
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__sidebar-brand {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding:
+    4px 8px
+    20px;
+
+  margin-bottom: 8px;
+}
+
+
+/* ============================================================================
+ * Sidebar navigation
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__sidebar-nav {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+
+.titech-dashboard-skeleton__sidebar-item {
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+
+  width: 100%;
+
+  min-height: 40px;
+
+  padding:
+    7px 10px;
+
+  border-radius:
+    var(
+      --titech-skeleton-control-radius
+    );
+
+  background:
+    transparent;
+}
+
+
+.titech-dashboard-skeleton__sidebar-item--active {
+  background:
+    var(
+      --titech-skeleton-bg-muted
+    );
+}
+
+
+/* ============================================================================
+ * Sidebar footer
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__sidebar-footer {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  margin-top: auto;
+
+  padding:
+    16px 10px 4px;
+
+  border-top: 1px solid
+    var(
+      --titech-skeleton-border
+    );
+}
+
+
+.titech-dashboard-skeleton__sidebar-footer > div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+
+  min-width: 0;
+}
+
+
+/* ============================================================================
+ * Generic skeleton block
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__block {
+  display: block;
+
+  flex: 0 0 auto;
+
+  max-width: 100%;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(
+        --titech-skeleton-base
+      )
+      0%,
+
+      color-mix(
+        in srgb,
+        var(
+          --titech-skeleton-highlight
+        )
+        55%,
+        var(
+          --titech-skeleton-base
+        )
+      )
+      45%,
+
+      var(
+        --titech-skeleton-base
+      )
+      100%
+    );
+
+  background-size:
+    240%
+    100%;
+
+  opacity: 0.9;
+
+  transform:
+    translateZ(0);
+}
+
+
+.titech-dashboard-skeleton__block--animated {
+  animation:
+    titech-dashboard-skeleton-shimmer
+      1.65s
+      ease-in-out
+      infinite;
+}
+
+
+.titech-dashboard-skeleton__block--circle {
+  border-radius: 999px;
+}
+
+
+/* ============================================================================
+ * Header
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap:
+    var(
+      --titech-skeleton-gap
+    );
+
+  min-height: 52px;
+
+  padding:
+    0 0 4px;
+}
+
+
+.titech-dashboard-skeleton__header-left {
+  display: flex;
+  align-items: center;
+
+  gap: 14px;
+
+  min-width: 0;
+}
+
+
+.titech-dashboard-skeleton__header-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  flex: 0 0 auto;
+}
+
+
+/* ============================================================================
+ * Welcome section
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap:
+    var(
+      --titech-skeleton-gap
+    );
+
+  width: 100%;
+
+  min-height: 82px;
+
+  padding:
+    18px 20px;
+
+  background:
+    var(
+      --titech-skeleton-bg
+    );
+
+  border:
+    1px solid
+    var(
+      --titech-skeleton-border
+    );
+
+  border-radius:
+    var(
+      --titech-skeleton-radius
+    );
+
+  box-shadow:
+    var(
+      --titech-skeleton-shadow
+    );
+}
+
+
+.titech-dashboard-skeleton__welcome-copy {
+  display: flex;
+  flex-direction: column;
+
+  gap: 9px;
+
+  min-width: 0;
+
+  flex: 1 1 auto;
+}
+
+
+.titech-dashboard-skeleton__welcome-custom {
+  flex: 0 0 auto;
+}
+
+
+.titech-dashboard-skeleton__quick-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  flex: 0 0 auto;
+}
+
+
+/* ============================================================================
+ * Filters
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__filters {
+  display: flex;
+  align-items: center;
+
+  flex-wrap: wrap;
+
+  gap: 8px;
+
+  width: 100%;
+
+  padding:
+    12px 14px;
+
+  background:
+    var(
+      --titech-skeleton-bg
+    );
+
+  border:
+    1px solid
+    var(
+      --titech-skeleton-border
+    );
+
+  border-radius:
+    10px;
+}
+
+
+/* ============================================================================
+ * Stats grid
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__stats-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(
+        0,
+        1fr
+      )
+    );
+
+  gap:
+    var(
+      --titech-skeleton-gap
+    );
+
+  width: 100%;
+}
+
+
+/* ============================================================================
+ * Stat card
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__stat-card {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+
+  min-width: 0;
+
+  min-height: 112px;
+
+  padding:
+    18px;
+
+  background:
+    var(
+      --titech-skeleton-bg
+    );
+
+  border:
+    1px solid
+    var(
+      --titech-skeleton-border
+    );
+
+  border-radius:
+    var(
+      --titech-skeleton-radius
+    );
+
+  box-shadow:
+    var(
+      --titech-skeleton-shadow
+    );
+}
+
+
+.titech-dashboard-skeleton__stat-card--compact {
+  padding:
+    14px;
+
+  min-height: 96px;
+}
+
+
+.titech-dashboard-skeleton__stat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  width: 100%;
+}
+
+
+.titech-dashboard-skeleton__stat-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  margin-top: auto;
+}
+
+
+/* ============================================================================
+ * Charts grid
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__charts-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(
+        0,
+        1fr
+      )
+    );
+
+  gap:
+    var(
+      --titech-skeleton-gap
+    );
+
+  width: 100%;
+}
+
+
+.titech-dashboard-skeleton__charts-grid--single {
+  grid-template-columns:
+    minmax(
+      0,
+      1fr
+    );
+}
+
+
+/* ============================================================================
+ * Chart skeleton
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__chart {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  width: 100%;
+
+  padding:
+    18px;
+
+  background:
+    var(
+      --titech-skeleton-bg
+    );
+
+  border:
+    1px solid
+    var(
+      --titech-skeleton-border
+    );
+
+  border-radius:
+    var(
+      --titech-skeleton-radius
+    );
+
+  box-shadow:
+    var(
+      --titech-skeleton-shadow
+    );
+}
+
+
+.titech-dashboard-skeleton__chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap:
+    16px;
+
+  width: 100%;
+
+  margin-bottom:
+    18px;
+}
+
+
+.titech-dashboard-skeleton__chart-title {
+  display: flex;
+  flex-direction: column;
+
+  gap: 7px;
+
+  min-width: 0;
+
+  flex: 1 1 auto;
+}
+
+
+.titech-dashboard-skeleton__chart-controls {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  flex: 0 0 auto;
+}
+
+
+/* ============================================================================
+ * Chart body
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__chart-body {
+  display: flex;
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+  min-width: 0;
+}
+
+
+.titech-dashboard-skeleton__chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  flex: 0 0 38px;
+
+  padding:
+    6px 6px 29px 0;
+}
+
+
+/* ============================================================================
+ * Chart plotting region
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__chart-grid {
+  position: relative;
+
+  flex: 1 1 auto;
+
+  min-width: 0;
+
+  min-height: 220px;
+
+  padding-bottom: 24px;
+}
+
+
+.titech-dashboard-skeleton__chart-grid-lines {
+  position: absolute;
+  inset:
+    0 0 24px 0;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+
+.titech-dashboard-skeleton__chart-grid-line {
+  display: block;
+
+  width: 100%;
+
+  height: 1px;
+
+  background:
+    var(
+      --titech-skeleton-border
+    );
+
+  opacity: 0.75;
+}
+
+
+/* ============================================================================
+ * Chart plot
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__chart-plot {
+  position: absolute;
+
+  inset:
+    8px 0 28px 0;
+
+  overflow: hidden;
+
+  border-radius: 6px;
+}
+
+
+/* ============================================================================
+ * Chart area shapes
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__chart-area {
+  position: absolute;
+
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  display: block;
+
+  width: 100%;
+
+  opacity: 0.38;
+
+  clip-path:
+    polygon(
+      0 75%,
+      10% 68%,
+      20% 72%,
+      30% 50%,
+      40% 59%,
+      50% 42%,
+      60% 55%,
+      70% 34%,
+      80% 46%,
+      90% 30%,
+      100% 38%,
+      100% 100%,
+      0 100%
+    );
+
+  background:
+    linear-gradient(
+      to top,
+      color-mix(
+        in srgb,
+        var(
+          --titech-skeleton-primary
+        )
+        28%,
+        transparent
+      ),
+      transparent
+    );
+}
+
+
+.titech-dashboard-skeleton__chart-area--one {
+  height: 78%;
+}
+
+
+.titech-dashboard-skeleton__chart-area--two {
+  height: 56%;
+
+  opacity: 0.24;
+
+  transform:
+    translateY(
+      18px
+    );
+
+  clip-path:
+    polygon(
+      0 80%,
+      12% 60%,
+      22% 68%,
+      35% 52%,
+      46% 62%,
+      58% 44%,
+      70% 56%,
+      82% 34%,
+      92% 48%,
+      100% 40%,
+      100% 100%,
+      0 100%
+    );
+}
+
+
+.titech-dashboard-skeleton__chart-area--three {
+  height: 36%;
+
+  opacity: 0.16;
+
+  transform:
+    translateY(
+      26px
+    );
+
+  clip-path:
+    polygon(
+      0 72%,
+      15% 64%,
+      28% 69%,
+      40% 55%,
+      54% 63%,
+      66% 47%,
+      80% 53%,
+      92% 42%,
+      100% 47%,
+      100% 100%,
+      0 100%
+    );
+}
+
+
+/* ============================================================================
+ * Chart lines
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__chart-line {
+  position: absolute;
+
+  left: 0;
+  top: 0;
+
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  border-top:
+    2px solid
+      color-mix(
+        in srgb,
+        var(
+          --titech-skeleton-primary
+        )
+        32%,
+        var(
+          --titech-skeleton-border
+        )
+      );
+
+  transform-origin:
+    left center;
+
+  clip-path:
+    polygon(
+      0 73%,
+      10% 66%,
+      20% 70%,
+      30% 48%,
+      40% 57%,
+      50% 40%,
+      60% 53%,
+      70% 32%,
+      80% 44%,
+      90% 28%,
+      100% 36%
+    );
+}
+
+
+.titech-dashboard-skeleton__chart-line--two {
+  opacity: 0.5;
+
+  clip-path:
+    polygon(
+      0 81%,
+      12% 61%,
+      22% 69%,
+      35% 51%,
+      46% 61%,
+      58% 43%,
+      70% 55%,
+      82% 33%,
+      92% 47%,
+      100% 39%
+    );
+}
+
+
+/* ============================================================================
+ * X-axis
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__chart-x-axis {
+  position: absolute;
+
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 8px;
+}
+
+
+/* ============================================================================
+ * Chart legend
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__chart-legend {
+  display: flex;
+  align-items: center;
+
+  flex-wrap: wrap;
+
+  gap: 18px;
+
+  padding-top:
+    12px;
+
+  margin-top:
+    10px;
+
+  border-top: 1px solid
+    var(
+      --titech-skeleton-border
+    );
+}
+
+
+/* ============================================================================
+ * Lower dashboard grid
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__lower-grid {
+  display: grid;
+
+  grid-template-columns:
+    minmax(
+      0,
+      1.65fr
+    )
+    minmax(
+      280px,
+      0.9fr
+    );
+
+  gap:
+    var(
+      --titech-skeleton-gap
+    );
+
+  width: 100%;
+}
+
+
+/* ============================================================================
+ * Table panel
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__table-panel {
+  min-width: 0;
+
+  padding:
+    18px;
+
+  background:
+    var(
+      --titech-skeleton-bg
+    );
+
+  border:
+    1px solid
+    var(
+      --titech-skeleton-border
+    );
+
+  border-radius:
+    var(
+      --titech-skeleton-radius
+    );
+
+  box-shadow:
+    var(
+      --titech-skeleton-shadow
+    );
+}
+
+
+.titech-dashboard-skeleton__panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  padding-bottom:
+    16px;
+}
+
+
+/* ============================================================================
+ * Table
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__table {
+  width: 100%;
+
+  min-width: 0;
+}
+
+
+.titech-dashboard-skeleton__table-header,
+.titech-dashboard-skeleton__table-row {
+  display: grid;
+
+  grid-template-columns:
+    minmax(
+      140px,
+      1.7fr
+    )
+    repeat(
+      3,
+      minmax(
+        70px,
+        1fr
+      )
+    )
+    minmax(
+      42px,
+      0.5fr
+    );
+
+  align-items: center;
+
+  gap:
+    12px;
+
+  min-width: 0;
+}
+
+
+.titech-dashboard-skeleton__table-header {
+  min-height: 38px;
+
+  padding:
+    0
+    2px;
+
+  border-bottom:
+    1px solid
+    var(
+      --titech-skeleton-border
+    );
+}
+
+
+.titech-dashboard-skeleton__table-body {
+  display: flex;
+  flex-direction: column;
+}
+
+
+.titech-dashboard-skeleton__table-row {
+  min-height: 54px;
+
+  border-bottom:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --titech-skeleton-border
+      )
+      65%,
+      transparent
+    );
+}
+
+
+.titech-dashboard-skeleton__table-row:last-child {
+  border-bottom:
+    0;
+}
+
+
+/* ============================================================================
+ * Activity feed
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__activity {
+  min-width: 0;
+
+  padding:
+    18px;
+
+  background:
+    var(
+      --titech-skeleton-bg
+    );
+
+  border:
+    1px solid
+    var(
+      --titech-skeleton-border
+    );
+
+  border-radius:
+    var(
+      --titech-skeleton-radius
+    );
+
+  box-shadow:
+    var(
+      --titech-skeleton-shadow
+    );
+}
+
+
+.titech-dashboard-skeleton__activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  padding-bottom:
+    14px;
+
+  border-bottom:
+    1px solid
+    var(
+      --titech-skeleton-border
+    );
+}
+
+
+.titech-dashboard-skeleton__activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+
+.titech-dashboard-skeleton__activity-row {
+  display: grid;
+
+  grid-template-columns:
+    34px
+    minmax(
+      0,
+      1fr
+    )
+    46px;
+
+  align-items: center;
+
+  gap: 10px;
+
+  min-height: 60px;
+
+  border-bottom:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --titech-skeleton-border
+      )
+      65%,
+      transparent
+    );
+}
+
+
+.titech-dashboard-skeleton__activity-row:last-child {
+  border-bottom:
+    0;
+}
+
+
+.titech-dashboard-skeleton__activity-content {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  min-width: 0;
+}
+
+
+/* ============================================================================
+ * Custom sections
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__custom-sections {
+  display: flex;
+  flex-direction: column;
+
+  gap:
+    var(
+      --titech-skeleton-gap
+    );
+
+  width: 100%;
+}
+
+
+/* ============================================================================
+ * Compact mode
+ * ========================================================================== */
+
+.titech-dashboard-skeleton--compact {
+  --titech-skeleton-gap:
+    14px;
+
+  --titech-skeleton-padding:
+    16px;
+}
+
+
+.titech-dashboard-skeleton--compact
+  .titech-dashboard-skeleton__stat-card {
+  padding:
+    14px;
+}
+
+
+.titech-dashboard-skeleton--compact
+  .titech-dashboard-skeleton__chart,
+.titech-dashboard-skeleton--compact
+  .titech-dashboard-skeleton__table-panel,
+.titech-dashboard-skeleton--compact
+  .titech-dashboard-skeleton__activity {
+  padding:
+    14px;
+}
+
+
+/* ============================================================================
+ * Dense mode
+ * ========================================================================== */
+
+.titech-dashboard-skeleton--dense {
+  --titech-skeleton-gap:
+    12px;
+
+  --titech-skeleton-padding:
+    12px;
+}
+
+
+.titech-dashboard-skeleton--dense
+  .titech-dashboard-skeleton__stat-card {
+  min-height: 92px;
+
+  padding:
+    12px;
+}
+
+
+.titech-dashboard-skeleton--dense
+  .titech-dashboard-skeleton__chart {
+  padding:
+    12px;
+}
+
+
+.titech-dashboard-skeleton--dense
+  .titech-dashboard-skeleton__table-panel,
+.titech-dashboard-skeleton--dense
+  .titech-dashboard-skeleton__activity {
+  padding:
+    12px;
+}
+
+
+/* ============================================================================
+ * Full-height mode
+ * ========================================================================== */
+
+.titech-dashboard-skeleton--full-height {
+  min-height: 100vh;
+}
+
+
+.titech-dashboard-skeleton--full-height
+  .titech-dashboard-skeleton__main {
+  min-height: 100vh;
+}
+
+
+/* ============================================================================
+ * Variants
+ * ========================================================================== */
+
+.titech-dashboard-skeleton--financial
+  .titech-dashboard-skeleton__stat-card,
+.titech-dashboard-skeleton--financial
+  .titech-dashboard-skeleton__chart,
+.titech-dashboard-skeleton--financial
+  .titech-dashboard-skeleton__table-panel {
+  border-top:
+    2px solid
+      color-mix(
+        in srgb,
+        var(
+          --titech-primary,
+          #2563eb
+        )
+        20%,
+        var(
+          --titech-skeleton-border
+        )
+      );
+}
+
+
+.titech-dashboard-skeleton--analytics
+  .titech-dashboard-skeleton__chart {
+  border-top:
+    2px solid
+      color-mix(
+        in srgb,
+        var(
+          --titech-primary,
+          #2563eb
+        )
+        22%,
+        var(
+          --titech-skeleton-border
+        )
+      );
+}
+
+
+.titech-dashboard-skeleton--admin
+  .titech-dashboard-skeleton__sidebar {
+  background:
+    var(
+      --titech-skeleton-bg-subtle
+    );
+}
+
+
+.titech-dashboard-skeleton--operations
+  .titech-dashboard-skeleton__activity {
+  border-top:
+    2px solid
+      color-mix(
+        in srgb,
+        var(
+          --titech-primary,
+          #2563eb
+        )
+        16%,
+        var(
+          --titech-skeleton-border
+        )
+      );
+}
+
+
+/* ============================================================================
+ * Dark theme
+ * ========================================================================== */
+
+[data-theme="dark"]
+  .titech-dashboard-skeleton,
+.titech-dark
+  .titech-dashboard-skeleton {
+  --titech-skeleton-bg:
+    var(
+      --titech-dark-surface,
+      #0f172a
+    );
+
+  --titech-skeleton-bg-subtle:
+    var(
+      --titech-dark-surface-subtle,
+      #172033
+    );
+
+  --titech-skeleton-bg-muted:
+    var(
+      --titech-dark-surface-muted,
+      #1e293b
+    );
+
+  --titech-skeleton-border:
+    var(
+      --titech-dark-border,
+      #334155
+    );
+
+  --titech-skeleton-border-strong:
+    var(
+      --titech-dark-border-strong,
+      #475569
+    );
+
+  --titech-skeleton-base:
+    var(
+      --titech-dark-skeleton-base,
+      #334155
+    );
+
+  --titech-skeleton-highlight:
+    var(
+      --titech-dark-skeleton-highlight,
+      #475569
+    );
+}
+
+
+/* ============================================================================
+ * Responsive - large tablet
+ * ========================================================================== */
+
+@media (
+  max-width: 1200px
+) {
+  .titech-dashboard-skeleton__stats-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(
+          0,
+          1fr
+        )
+      );
+  }
+
+  .titech-dashboard-skeleton__charts-grid {
+    grid-template-columns:
+      minmax(
+        0,
+        1fr
+      );
+  }
+
+  .titech-dashboard-skeleton__lower-grid {
+    grid-template-columns:
+      minmax(
+        0,
+        1fr
+      );
+  }
+}
+
+
+/* ============================================================================
+ * Responsive - tablet
+ * ========================================================================== */
+
+@media (
+  max-width: 900px
+) {
+  .titech-dashboard-skeleton {
+    --titech-skeleton-gap:
+      16px;
+
+    --titech-skeleton-padding:
+      18px;
+  }
+
+  .titech-dashboard-skeleton__layout {
+    display: block;
+  }
+
+  .titech-dashboard-skeleton__sidebar {
+    display: none;
+  }
+
+  .titech-dashboard-skeleton__main {
+    padding:
+      var(
+        --titech-skeleton-padding
+      );
+  }
+
+  .titech-dashboard-skeleton__welcome {
+    align-items:
+      flex-start;
+
+    flex-direction:
+      column;
+  }
+
+  .titech-dashboard-skeleton__quick-actions {
+    width: 100%;
+
+    overflow-x: auto;
+
+    padding-bottom: 2px;
+  }
+
+  .titech-dashboard-skeleton__filters {
+    overflow-x: auto;
+
+    flex-wrap: nowrap;
+  }
+
+  .titech-dashboard-skeleton__chart-body {
+    min-height: 230px;
+  }
+
+  .titech-dashboard-skeleton__table-panel {
+    overflow-x: auto;
+  }
+
+  .titech-dashboard-skeleton__table {
+    min-width: 620px;
+  }
+}
+
+
+/* ============================================================================
+ * Responsive - mobile
+ * ========================================================================== */
+
+@media (
+  max-width: 640px
+) {
+  .titech-dashboard-skeleton {
+    --titech-skeleton-gap:
+      12px;
+
+    --titech-skeleton-padding:
+      12px;
+
+    --titech-skeleton-radius:
+      10px;
+  }
+
+  .titech-dashboard-skeleton__header {
+    min-height: 44px;
+
+    gap: 10px;
+  }
+
+  .titech-dashboard-skeleton__header-left {
+    gap: 9px;
+  }
+
+  .titech-dashboard-skeleton__header-actions {
+    gap: 5px;
+  }
+
+  .titech-dashboard-skeleton__welcome {
+    min-height: 96px;
+
+    padding:
+      14px;
+  }
+
+  .titech-dashboard-skeleton__quick-actions {
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(
+          0,
+          1fr
+        )
+      );
+
+    width: 100%;
+
+    overflow: visible;
+  }
+
+  .titech-dashboard-skeleton__quick-actions
+    .titech-dashboard-skeleton__block {
+    width: 100% !important;
+  }
+
+  .titech-dashboard-skeleton__stats-grid {
+    grid-template-columns:
+      minmax(
+        0,
+        1fr
+      );
+  }
+
+  .titech-dashboard-skeleton__charts-grid {
+    grid-template-columns:
+      minmax(
+        0,
+        1fr
+      );
+  }
+
+  .titech-dashboard-skeleton__chart,
+  .titech-dashboard-skeleton__table-panel,
+  .titech-dashboard-skeleton__activity {
+    padding:
+      14px;
+  }
+
+  .titech-dashboard-skeleton__chart-header {
+    gap: 10px;
+  }
+
+  .titech-dashboard-skeleton__chart-controls {
+    display: none;
+  }
+
+  .titech-dashboard-skeleton__chart-y-axis {
+    flex-basis:
+      30px;
+  }
+
+  .titech-dashboard-skeleton__chart-grid {
+    min-height: 180px;
+  }
+
+  .titech-dashboard-skeleton__table {
+    min-width: 560px;
+  }
+
+  .titech-dashboard-skeleton__activity-row {
+    grid-template-columns:
+      30px
+      minmax(
+        0,
+        1fr
+      )
+      40px;
+
+    min-height: 56px;
+  }
+}
+
+
+/* ============================================================================
+ * Very small screens
+ * ========================================================================== */
+
+@media (
+  max-width: 400px
+) {
+  .titech-dashboard-skeleton__header-actions
+    .titech-dashboard-skeleton__block:nth-child(
+      2
+    ) {
+    display: none;
+  }
+
+  .titech-dashboard-skeleton__quick-actions {
+    grid-template-columns:
+      1fr;
+  }
+
+  .titech-dashboard-skeleton__quick-actions
+    .titech-dashboard-skeleton__block {
+    height: 32px !important;
+  }
+
+  .titech-dashboard-skeleton__chart-body {
+    min-height: 160px;
+  }
+}
+
+
+/* ============================================================================
+ * Reduced motion
+ * ========================================================================== */
+
+@media (
+  prefers-reduced-motion: reduce
+) {
+  .titech-dashboard-skeleton__block--animated {
+    animation:
+      none;
+  }
+}
+
+
+/* ============================================================================
+ * High contrast
+ * ========================================================================== */
+
+@media (
+  prefers-contrast: more
+) {
+  .titech-dashboard-skeleton__stat-card,
+  .titech-dashboard-skeleton__chart,
+  .titech-dashboard-skeleton__table-panel,
+  .titech-dashboard-skeleton__activity,
+  .titech-dashboard-skeleton__welcome {
+    border-width: 2px;
+  }
+
+  .titech-dashboard-skeleton__block {
+    opacity: 1;
+  }
+
+  .titech-dashboard-skeleton__chart-grid-line {
+    opacity: 1;
+  }
+}
+
+
+/* ============================================================================
+ * Print
+ * ========================================================================== */
+
+@media print {
+  .titech-dashboard-skeleton {
+    min-height: 0;
+
+    color: #000;
+
+    background: #fff;
+  }
+
+  .titech-dashboard-skeleton__sidebar {
+    display: none;
+  }
+
+  .titech-dashboard-skeleton__main {
+    padding: 0;
+  }
+
+  .titech-dashboard-skeleton__header,
+  .titech-dashboard-skeleton__welcome,
+  .titech-dashboard-skeleton__stat-card,
+  .titech-dashboard-skeleton__chart,
+  .titech-dashboard-skeleton__table-panel,
+  .titech-dashboard-skeleton__activity {
+    box-shadow: none;
+
+    border-color: #000;
+
+    background: #fff;
+  }
+
+  .titech-dashboard-skeleton__block {
+    animation: none;
+
+    background: #e5e7eb;
+  }
+}
+
+
+/* ============================================================================
+ * Screen-reader-only announcement
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__sr-only {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  margin: -1px;
+
+  overflow: hidden;
+
+  clip: rect(
+    0,
+    0,
+    0,
+    0
+  );
+
+  white-space: nowrap;
+
+  border: 0;
+}
+
+
+/* ============================================================================
+ * Focus management
+ * ========================================================================== */
+
+.titech-dashboard-skeleton:focus-visible {
+  outline:
+    2px solid
+      var(
+        --titech-primary,
+        #2563eb
+      );
+
+  outline-offset: 2px;
+}
+
+
+/* ============================================================================
+ * Animation
+ * ========================================================================== */
+
+@keyframes titech-dashboard-skeleton-shimmer {
+  0% {
+    background-position:
+      200%
+      0;
+  }
+
+  100% {
+    background-position:
+      -40%
+      0;
+  }
+}
+
+
+/* ============================================================================
+ * CSS containment
+ * ========================================================================== */
+
+.titech-dashboard-skeleton__stat-card,
+.titech-dashboard-skeleton__chart,
+.titech-dashboard-skeleton__table-panel,
+.titech-dashboard-skeleton__activity {
+  contain:
+    layout
+    paint;
+}

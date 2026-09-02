@@ -1,0 +1,893 @@
+/**
+ * ============================================================================
+ * TITech Community Capital Ltd
+ * Enterprise Application Footer
+ * ============================================================================
+ *
+ * File:
+ *   frontend/src/components/Footer.css
+ *
+ * Purpose:
+ *   Production-grade responsive footer styling for TITech Community Capital.
+ *
+ * Design goals:
+ *   - Enterprise visual hierarchy
+ *   - Responsive/mobile-first layout
+ *   - Accessibility-conscious focus states
+ *   - Dark/light theme compatibility
+ *   - Reduced-motion support
+ *   - High-contrast compatibility
+ *   - Safe wrapping for long contact information
+ *   - Consistent TITech branding
+ *   - No inline styling dependency
+ *   - No ACFOS references
+ *
+ * ============================================================================ */
+
+/* ============================================================================
+ * Design Tokens
+ * ========================================================================== */
+
+:root {
+  --titech-footer-bg: #0b1220;
+  --titech-footer-bg-elevated: #111b2e;
+  --titech-footer-surface: rgba(255, 255, 255, 0.04);
+  --titech-footer-border: rgba(255, 255, 255, 0.1);
+
+  --titech-footer-text: #f8fafc;
+  --titech-footer-text-muted: #b7c2d0;
+  --titech-footer-text-subtle: #8e9bad;
+
+  --titech-footer-link: #dbe7f5;
+  --titech-footer-link-hover: #ffffff;
+  --titech-footer-accent: #38bdf8;
+  --titech-footer-accent-strong: #0ea5e9;
+
+  --titech-footer-focus-ring: rgba(56, 189, 248, 0.45);
+
+  --titech-footer-max-width: 1280px;
+
+  --titech-footer-space-1: 0.25rem;
+  --titech-footer-space-2: 0.5rem;
+  --titech-footer-space-3: 0.75rem;
+  --titech-footer-space-4: 1rem;
+  --titech-footer-space-5: 1.25rem;
+  --titech-footer-space-6: 1.5rem;
+  --titech-footer-space-8: 2rem;
+  --titech-footer-space-10: 2.5rem;
+  --titech-footer-space-12: 3rem;
+  --titech-footer-space-16: 4rem;
+
+  --titech-footer-radius-sm: 0.5rem;
+  --titech-footer-radius-md: 0.75rem;
+  --titech-footer-radius-lg: 1rem;
+
+  --titech-footer-transition-fast:
+    150ms ease;
+  --titech-footer-transition:
+    200ms ease;
+}
+
+/* ============================================================================
+ * Base Footer
+ * ========================================================================== */
+
+.footer {
+  position: relative;
+  isolation: isolate;
+
+  width: 100%;
+  margin-top: auto;
+
+  color: var(--titech-footer-text);
+  background:
+    linear-gradient(
+      180deg,
+      var(--titech-footer-bg-elevated) 0%,
+      var(--titech-footer-bg) 100%
+    );
+
+  border-top:
+    1px solid
+    var(--titech-footer-border);
+
+  box-sizing: border-box;
+
+  overflow: hidden;
+}
+
+.footer *,
+.footer *::before,
+.footer *::after {
+  box-sizing: border-box;
+}
+
+/*
+ * Subtle enterprise background treatment.
+ * Kept deliberately restrained so the footer remains performant and readable.
+ */
+.footer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  z-index: -1;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at 10% 0%,
+      rgba(14, 165, 233, 0.08),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 90% 100%,
+      rgba(56, 189, 248, 0.05),
+      transparent 30%
+    );
+}
+
+/* ============================================================================
+ * Main Container
+ * ========================================================================== */
+
+.footer-content {
+  width: min(
+    calc(100% - 2rem),
+    var(--titech-footer-max-width)
+  );
+
+  margin-inline: auto;
+}
+
+/* ============================================================================
+ * Main Footer Grid
+ * ========================================================================== */
+
+.footer-main {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.5fr)
+    repeat(3, minmax(0, 1fr));
+
+  gap:
+    var(--titech-footer-space-12)
+    var(--titech-footer-space-10);
+
+  padding-block:
+    var(--titech-footer-space-16)
+    var(--titech-footer-space-12);
+}
+
+/* ============================================================================
+ * Footer Sections
+ * ========================================================================== */
+
+.footer-section {
+  min-width: 0;
+}
+
+.footer-company {
+  max-width: 30rem;
+}
+
+.footer-title {
+  margin: 0;
+
+  color: var(--titech-footer-text);
+
+  font-size: clamp(
+    1.125rem,
+    1rem + 0.4vw,
+    1.375rem
+  );
+
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.footer-description {
+  max-width: 32rem;
+
+  margin:
+    var(--titech-footer-space-4)
+    0
+    0;
+
+  color: var(--titech-footer-text-muted);
+
+  font-size: 0.9375rem;
+  line-height: 1.75;
+}
+
+/* ============================================================================
+ * Section Titles
+ * ========================================================================== */
+
+.footer-section-title {
+  margin: 0 0 var(--titech-footer-space-5);
+
+  color: var(--titech-footer-text);
+
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.4;
+
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+/* ============================================================================
+ * Footer Navigation
+ * ========================================================================== */
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+
+  gap: var(--titech-footer-space-3);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.footer-links li {
+  margin: 0;
+  padding: 0;
+}
+
+.footer-links a,
+.footer-link-small,
+.contact-info a,
+.footer-support a {
+  color: var(--titech-footer-link);
+
+  text-decoration: none;
+
+  transition:
+    color var(--titech-footer-transition-fast),
+    opacity var(--titech-footer-transition-fast);
+}
+
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 2rem;
+
+  color: var(--titech-footer-text-muted);
+
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.footer-links a:hover,
+.footer-links a:focus-visible,
+.footer-link-small:hover,
+.footer-link-small:focus-visible,
+.contact-info a:hover,
+.contact-info a:focus-visible,
+.footer-support a:hover,
+.footer-support a:focus-visible {
+  color: var(--titech-footer-link-hover);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* ============================================================================
+ * Contact / Address
+ * ========================================================================== */
+
+.contact-info {
+  margin: 0;
+  padding: 0;
+
+  font-style: normal;
+}
+
+.contact-info ul {
+  display: flex;
+  flex-direction: column;
+
+  gap: var(--titech-footer-space-3);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.contact-info li {
+  min-width: 0;
+
+  color: var(--titech-footer-text-muted);
+
+  font-size: 0.9375rem;
+  line-height: 1.6;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.contact-info a {
+  display: inline-block;
+
+  overflow-wrap: anywhere;
+}
+
+.footer-support {
+  margin:
+    var(--titech-footer-space-5)
+    0
+    0;
+
+  color: var(--titech-footer-text-subtle);
+
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.footer-support a {
+  color: var(--titech-footer-accent);
+  font-weight: 600;
+}
+
+/* ============================================================================
+ * Contact / Social Actions
+ * ========================================================================== */
+
+.footer-social {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: var(--titech-footer-space-2);
+
+  margin-top: var(--titech-footer-space-6);
+
+  color: var(--titech-footer-text-muted);
+
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 2.75rem;
+  height: 2.75rem;
+
+  flex: 0 0 auto;
+
+  color: var(--titech-footer-text-muted);
+
+  background:
+    var(--titech-footer-surface);
+
+  border:
+    1px solid
+    var(--titech-footer-border);
+
+  border-radius:
+    var(--titech-footer-radius-md);
+
+  text-decoration: none;
+
+  transition:
+    color var(--titech-footer-transition),
+    background-color var(--titech-footer-transition),
+    border-color var(--titech-footer-transition),
+    transform var(--titech-footer-transition);
+}
+
+.social-link:hover {
+  color: var(--titech-footer-link-hover);
+
+  background:
+    rgba(56, 189, 248, 0.1);
+
+  border-color:
+    rgba(56, 189, 248, 0.35);
+
+  transform: translateY(-1px);
+}
+
+.social-link:active {
+  transform: translateY(0);
+}
+
+.social-link:focus-visible {
+  color: var(--titech-footer-link-hover);
+
+  outline:
+    3px solid
+    var(--titech-footer-focus-ring);
+
+  outline-offset: 2px;
+
+  border-color:
+    var(--titech-footer-accent);
+}
+
+/*
+ * The source JSX currently contains a plain phone-number text node inside
+ * .footer-social. Keep text visually aligned with the icon controls.
+ */
+.footer-social > :not(.social-link) {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 2.75rem;
+
+  margin-right: var(--titech-footer-space-2);
+
+  color: var(--titech-footer-text-muted);
+
+  white-space: nowrap;
+}
+
+/* ============================================================================
+ * Footer Bottom
+ * ========================================================================== */
+
+.footer-bottom {
+  border-top:
+    1px solid
+    var(--titech-footer-border);
+}
+
+.footer-bottom-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: var(--titech-footer-space-5);
+
+  min-width: 0;
+
+  padding-block:
+    var(--titech-footer-space-6);
+}
+
+.copyright {
+  margin: 0;
+
+  color: var(--titech-footer-text-subtle);
+
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.footer-legal-bottom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+
+  gap: var(--titech-footer-space-2);
+
+  color: var(--titech-footer-text-subtle);
+
+  font-size: 0.8125rem;
+}
+
+.footer-link-small {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 2rem;
+
+  color: var(--titech-footer-text-muted);
+
+  white-space: nowrap;
+}
+
+.divider {
+  color: var(--titech-footer-text-subtle);
+
+  user-select: none;
+}
+
+.footer-powered-by {
+  margin: 0;
+
+  color: var(--titech-footer-text-subtle);
+
+  font-size: 0.75rem;
+  line-height: 1.5;
+
+  white-space: nowrap;
+}
+
+.footer-powered-by strong {
+  color: var(--titech-footer-text);
+  font-weight: 700;
+}
+
+/* ============================================================================
+ * Global Focus Safety
+ * ========================================================================== */
+
+.footer a:focus-visible,
+.footer button:focus-visible {
+  outline:
+    3px solid
+    var(--titech-footer-focus-ring);
+
+  outline-offset: 3px;
+
+  border-radius:
+    var(--titech-footer-radius-sm);
+}
+
+/* ============================================================================
+ * Screen Reader Utility
+ * ========================================================================== */
+
+.sr-only {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  margin: -1px;
+
+  overflow: hidden;
+
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+
+  white-space: nowrap;
+
+  border: 0;
+}
+
+/* ============================================================================
+ * Responsive — Large Tablet
+ * ========================================================================== */
+
+@media (max-width: 1024px) {
+  .footer-main {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap:
+      var(--titech-footer-space-10)
+      var(--titech-footer-space-8);
+  }
+
+  .footer-company {
+    grid-column: 1 / -1;
+
+    max-width: 42rem;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Tablet / Mobile
+ * ========================================================================== */
+
+@media (max-width: 768px) {
+  .footer-content {
+    width: min(
+      calc(100% - 1.5rem),
+      var(--titech-footer-max-width)
+    );
+  }
+
+  .footer-main {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    padding-block:
+      var(--titech-footer-space-12)
+      var(--titech-footer-space-10);
+
+    gap:
+      var(--titech-footer-space-8)
+      var(--titech-footer-space-6);
+  }
+
+  .footer-company {
+    grid-column: 1 / -1;
+  }
+
+  .footer-bottom-content {
+    align-items: flex-start;
+    flex-direction: column;
+
+    gap: var(--titech-footer-space-4);
+  }
+
+  .footer-legal-bottom {
+    justify-content: flex-start;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Small Mobile
+ * ========================================================================== */
+
+@media (max-width: 520px) {
+  .footer-content {
+    width: min(
+      calc(100% - 2rem),
+      var(--titech-footer-max-width)
+    );
+  }
+
+  .footer-main {
+    grid-template-columns: 1fr;
+
+    gap: var(--titech-footer-space-8);
+
+    padding-block:
+      var(--titech-footer-space-10)
+      var(--titech-footer-space-8);
+  }
+
+  .footer-company {
+    grid-column: auto;
+  }
+
+  .footer-description {
+    font-size: 0.875rem;
+    line-height: 1.7;
+  }
+
+  .footer-section-title {
+    margin-bottom: var(--titech-footer-space-4);
+  }
+
+  .footer-social {
+    align-items: flex-start;
+  }
+
+  .footer-bottom-content {
+    padding-block:
+      var(--titech-footer-space-5);
+  }
+
+  .copyright {
+    max-width: 100%;
+  }
+
+  .footer-legal-bottom {
+    width: 100%;
+
+    justify-content: flex-start;
+  }
+
+  .footer-powered-by {
+    white-space: normal;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Very Small Screens
+ * ========================================================================== */
+
+@media (max-width: 360px) {
+  .footer-content {
+    width: calc(100% - 1.25rem);
+  }
+
+  .social-link {
+    width: 2.625rem;
+    height: 2.625rem;
+  }
+
+  .footer-social > :not(.social-link) {
+    width: 100%;
+    margin-right: 0;
+
+    white-space: normal;
+  }
+
+  .footer-legal-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--titech-footer-space-1);
+  }
+
+  .footer-legal-bottom .divider {
+    display: none;
+  }
+}
+
+/* ============================================================================
+ * Reduced Motion
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .footer *,
+  .footer *::before,
+  .footer *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .social-link:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+ * High Contrast / Forced Colors
+ * ========================================================================== */
+
+@media (forced-colors: active) {
+  .footer {
+    background: Canvas;
+    color: CanvasText;
+    border-top-color: CanvasText;
+  }
+
+  .footer::before {
+    display: none;
+  }
+
+  .footer-title,
+  .footer-section-title,
+  .footer-powered-by strong {
+    color: CanvasText;
+  }
+
+  .footer-description,
+  .footer-links a,
+  .contact-info li,
+  .copyright,
+  .footer-support,
+  .footer-powered-by {
+    color: CanvasText;
+  }
+
+  .footer-links a:hover,
+  .footer-links a:focus-visible,
+  .footer-link-small:hover,
+  .footer-link-small:focus-visible,
+  .contact-info a:hover,
+  .contact-info a:focus-visible,
+  .footer-support a:hover,
+  .footer-support a:focus-visible {
+    color: Highlight;
+  }
+
+  .social-link {
+    color: ButtonText;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
+
+  .social-link:hover,
+  .social-link:focus-visible {
+    color: HighlightText;
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  .footer-bottom {
+    border-top-color: CanvasText;
+  }
+
+  .divider {
+    color: CanvasText;
+  }
+
+  .footer a:focus-visible,
+  .footer button:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* ============================================================================
+ * Dark Theme Compatibility
+ *
+ * The footer is intentionally dark by default. These selectors ensure that
+ * applications using a dark theme remain visually coherent without requiring
+ * JavaScript or theme-specific class manipulation.
+ * ========================================================================== */
+
+[data-theme="dark"] .footer,
+.dark .footer {
+  --titech-footer-bg: #070d18;
+  --titech-footer-bg-elevated: #0d1626;
+}
+
+/* ============================================================================
+ * Light Theme Compatibility
+ * ========================================================================== */
+
+[data-theme="light"] .footer,
+.light .footer {
+  --titech-footer-bg: #f8fafc;
+  --titech-footer-bg-elevated: #ffffff;
+  --titech-footer-surface: rgba(15, 23, 42, 0.04);
+  --titech-footer-border: rgba(15, 23, 42, 0.1);
+
+  --titech-footer-text: #0f172a;
+  --titech-footer-text-muted: #475569;
+  --titech-footer-text-subtle: #64748b;
+
+  --titech-footer-link: #334155;
+  --titech-footer-link-hover: #0369a1;
+
+  --titech-footer-accent: #0284c7;
+  --titech-footer-accent-strong: #0369a1;
+
+  --titech-footer-focus-ring: rgba(2, 132, 199, 0.35);
+}
+
+[data-theme="light"] .footer::before,
+.light .footer::before {
+  background:
+    radial-gradient(
+      circle at 10% 0%,
+      rgba(14, 165, 233, 0.06),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 90% 100%,
+      rgba(14, 165, 233, 0.04),
+      transparent 30%
+    );
+}
+
+/* ============================================================================
+ * Print
+ * ========================================================================== */
+
+@media print {
+  .footer {
+    color: #000;
+    background: #fff;
+    border-top: 1px solid #000;
+
+    box-shadow: none;
+  }
+
+  .footer::before,
+  .footer-social {
+    display: none;
+  }
+
+  .footer-title,
+  .footer-section-title,
+  .footer-description,
+  .footer-links a,
+  .contact-info li,
+  .contact-info a,
+  .footer-support,
+  .copyright,
+  .footer-link-small,
+  .footer-powered-by,
+  .footer-powered-by strong {
+    color: #000;
+  }
+
+  .footer-main {
+    padding-block: 1rem;
+  }
+
+  .footer-bottom {
+    border-top-color: #000;
+  }
+
+  .footer a {
+    text-decoration: underline;
+  }
+}
+
+/* ============================================================================
+ * End of TITech Footer Styles
+ * ========================================================================== */

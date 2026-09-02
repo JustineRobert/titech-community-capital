@@ -1,0 +1,420 @@
+/* ==========================================================================
+   TITech Community Capital
+   Enterprise Admin Layout
+   File: src/layouts/AdminLayout.css
+   Production Grade
+   ========================================================================== */
+
+:root {
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 88px;
+  --header-height: 72px;
+
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+
+  --sidebar-bg: #0f172a;
+  --sidebar-text: #cbd5e1;
+  --sidebar-text-active: #ffffff;
+
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+
+  --danger: #dc2626;
+  --shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+
+  --transition:
+    all 0.25s ease;
+}
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--background);
+}
+
+/* ==========================================================================
+   Sidebar
+   ========================================================================== */
+
+.admin-sidebar {
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: var(--transition);
+  z-index: 1000;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.admin-sidebar.open {
+  transform: translateX(0);
+}
+
+.admin-sidebar.closed {
+  width: var(--sidebar-collapsed-width);
+}
+
+/* ==========================================================================
+   Sidebar Header
+   ========================================================================== */
+
+.sidebar-header {
+  height: var(--header-height);
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-brand h2 {
+  margin: 0;
+  color: white;
+  font-size: 1rem;
+}
+
+.sidebar-brand span {
+  display: block;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.sidebar-close-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   Navigation
+   ========================================================================== */
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0.75rem;
+  overflow-y: auto;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+
+  color: var(--sidebar-text);
+  text-decoration: none;
+
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.35rem;
+  border-radius: 12px;
+
+  transition: var(--transition);
+  font-weight: 500;
+}
+
+.sidebar-link:hover {
+  background: rgba(255,255,255,0.08);
+  color: white;
+}
+
+.sidebar-link.active {
+  background: var(--primary-color);
+  color: var(--sidebar-text-active);
+}
+
+.sidebar-link svg {
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Sidebar Footer
+   ========================================================================== */
+
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar-footer button {
+  width: 100%;
+  border: none;
+  background: rgba(220, 38, 38, 0.15);
+  color: #fecaca;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+
+  padding: 0.9rem;
+  border-radius: 12px;
+  cursor: pointer;
+
+  transition: var(--transition);
+}
+
+.sidebar-footer button:hover {
+  background: rgba(220, 38, 38, 0.25);
+}
+
+/* ==========================================================================
+   Main Content Area
+   ========================================================================== */
+
+.admin-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
+
+.admin-header {
+  height: var(--header-height);
+  background: var(--surface);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+
+  position: sticky;
+  top: 0;
+  z-index: 500;
+}
+
+.header-left,
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   Content
+   ========================================================================== */
+
+.admin-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+/* ==========================================================================
+   Notification
+   ========================================================================== */
+
+.notification-btn {
+  position: relative;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.notification-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+
+  min-width: 18px;
+  height: 18px;
+
+  border-radius: 50%;
+
+  background: var(--danger);
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   User Profile
+   ========================================================================== */
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+
+  background: var(--primary-color);
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 700;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-meta strong {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.user-meta span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   Breadcrumbs
+   ========================================================================== */
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.breadcrumbs a {
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.breadcrumbs a:hover {
+  color: var(--primary-color);
+}
+
+/* ==========================================================================
+   Scrollbars
+   ========================================================================== */
+
+.sidebar-nav::-webkit-scrollbar,
+.admin-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb,
+.admin-content::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 999px;
+}
+
+/* ==========================================================================
+   Mobile
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .admin-sidebar.closed {
+    transform: translateX(-100%);
+    width: var(--sidebar-width);
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  .menu-btn {
+    display: flex;
+  }
+
+  .admin-content {
+    padding: 1.25rem;
+  }
+
+  .user-meta {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Small Screens
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .admin-header {
+    padding: 0 1rem;
+  }
+
+  .admin-content {
+    padding: 1rem;
+  }
+
+  .breadcrumbs {
+    display: none;
+  }
+
+  .header-right {
+    gap: 0.5rem;
+  }
+}
+
+/* ==========================================================================
+   Dark Mode Hook
+   ========================================================================== */
+
+[data-theme="dark"] {
+  --background: #020617;
+  --surface: #0f172a;
+  --border: #1e293b;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+}

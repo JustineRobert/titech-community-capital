@@ -1,0 +1,41 @@
+WELCOME TO COMMUNITY SAVINGS APP
+================================
+
+Hello {{firstName}},
+
+Welcome aboard! We're excited to have you join our community of savers. Your account has been successfully created and is ready to use.
+
+ACCOUNT DETAILS
+===============
+Email: {{email}}
+Account Created: {{createdDate}}
+Account Status: Active ✓
+
+WHAT YOU CAN DO NOW
+===================
+• Create or Join Groups - Collaborate with others to save towards shared goals
+• Make Contributions - Contribute to your community savings groups
+• Apply for Loans - Access loans backed by your savings
+• Track Progress - Monitor your savings and loan status in real-time
+• Invite Friends - Earn rewards by referring others
+
+To get started, visit your dashboard and explore the features available to you.
+
+Go to Dashboard: {{dashboardUrl}}
+
+ACCOUNT SECURITY
+================
+Your account is secured with industry-standard encryption. Here are some tips to keep your account safe:
+
+• Never share your password with anyone
+• Always verify the URL before entering your credentials
+• Enable two-factor authentication for added security
+• Be cautious of suspicious emails or links
+
+If you didn't create this account or have any concerns, please contact our support team immediately at support@communitysavings.app
+
+---
+
+© {{year}} Community Savings App. All rights reserved.
+Privacy Policy: {{privacyUrl}}
+Unsubscribe: {{unsubscribeUrl}}

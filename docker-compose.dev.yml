@@ -1,0 +1,106 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:7-jammy
+    container_name: community-savings-mongodb
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    env_file:
+      - .env
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      community-savings-net:
+        aliases:
+          - mongo
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--username", "$$MONGO_INITDB_ROOT_USERNAME", "--password", "$$MONGO_INITDB_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  redis:
+    image: redis:7-alpine
+    container_name: community-savings-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --timeout 300
+      --tcp-keepalive 300
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    networks:
+      community-savings-net:
+        aliases:
+          - cache
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: community-savings-mongo-express
+    restart: unless-stopped
+    ports:
+      - '8081:8081'
+    env_file:
+      - .env
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      community-savings-net:
+    profiles:
+      - tools
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: community-savings-redis-commander
+    restart: unless-stopped
+    ports:
+      - '8082:8082'
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+       community-savings-net:
+    profiles:
+      - tools
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  community-savings-net:
+    driver: bridge

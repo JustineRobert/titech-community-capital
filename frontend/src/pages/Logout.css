@@ -1,0 +1,1273 @@
+/**
+ * ============================================================================
+ * TITech Community Capital
+ * Enterprise Logout Page Styles
+ * File: frontend/src/pages/Logout.css
+ *
+ * Production Grade
+ * ----------------------------------------------------------------------------
+ * Features
+ * - Enterprise authentication/session UX
+ * - TITech Community Capital branding
+ * - Responsive mobile-first layout
+ * - WCAG-conscious contrast and focus states
+ * - Keyboard-accessible controls
+ * - Loading, success, timeout and error states
+ * - Secure-session visual language
+ * - High-contrast / forced-colors support
+ * - Reduced-motion support
+ * - Dark-mode support
+ * - Touch-friendly controls
+ * - No ACFOS terminology
+ * ============================================================================
+ */
+
+/* ============================================================================
+ * Design Tokens
+ * ========================================================================== */
+
+.logout-page {
+  --logout-primary: #0f766e;
+  --logout-primary-dark: #115e59;
+  --logout-primary-darker: #134e4a;
+  --logout-primary-light: #ccfbf1;
+
+  --logout-secondary: #2563eb;
+  --logout-secondary-dark: #1d4ed8;
+
+  --logout-success: #15803d;
+  --logout-success-light: #22c55e;
+  --logout-success-bg: #f0fdf4;
+  --logout-success-border: #bbf7d0;
+
+  --logout-warning: #b45309;
+  --logout-warning-bg: #fffbeb;
+  --logout-warning-border: #fde68a;
+
+  --logout-danger: #b91c1c;
+  --logout-danger-light: #dc2626;
+  --logout-danger-bg: #fef2f2;
+  --logout-danger-border: #fecaca;
+
+  --logout-text: #0f172a;
+  --logout-text-secondary: #475569;
+  --logout-text-muted: #64748b;
+
+  --logout-border: #dbe3ec;
+  --logout-border-strong: #cbd5e1;
+
+  --logout-surface: #ffffff;
+  --logout-surface-soft: #f8fafc;
+  --logout-surface-muted: #f1f5f9;
+
+  --logout-background: #f8fafc;
+
+  --logout-shadow-sm:
+    0 1px 2px rgba(15, 23, 42, 0.05);
+
+  --logout-shadow-md:
+    0 12px 30px rgba(15, 23, 42, 0.08);
+
+  --logout-shadow-lg:
+    0 24px 70px rgba(15, 23, 42, 0.12);
+
+  --logout-radius-sm: 8px;
+  --logout-radius-md: 12px;
+  --logout-radius-lg: 18px;
+  --logout-radius-xl: 24px;
+
+  --logout-transition-fast: 140ms ease;
+  --logout-transition: 180ms ease;
+  --logout-transition-slow: 260ms ease;
+
+  --logout-focus-ring:
+    0 0 0 3px rgba(15, 118, 110, 0.18);
+
+  --logout-content-width: 520px;
+}
+
+/* ============================================================================
+ * Global Box Sizing
+ * ========================================================================== */
+
+.logout-page,
+.logout-page *,
+.logout-page *::before,
+.logout-page *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+ * Page
+ * ========================================================================== */
+
+.logout-page {
+  position: relative;
+
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding:
+    clamp(24px, 5vw, 64px)
+    clamp(16px, 4vw, 32px);
+
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at 15% 10%,
+      rgba(15, 118, 110, 0.09),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 90% 90%,
+      rgba(37, 99, 235, 0.07),
+      transparent 32%
+    ),
+    linear-gradient(
+      180deg,
+      #f8fafc 0%,
+      #f1f5f9 100%
+    );
+
+  color: var(--logout-text);
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  isolation: isolate;
+}
+
+/* ============================================================================
+ * Decorative Background Elements
+ * ========================================================================== */
+
+.logout-page::before,
+.logout-page::after {
+  content: "";
+
+  position: absolute;
+
+  pointer-events: none;
+
+  border-radius: 999px;
+
+  z-index: -1;
+}
+
+.logout-page::before {
+  width: min(520px, 55vw);
+  height: min(520px, 55vw);
+
+  top: -260px;
+  left: -180px;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(15, 118, 110, 0.08) 0%,
+      rgba(15, 118, 110, 0.025) 50%,
+      transparent 72%
+    );
+}
+
+.logout-page::after {
+  width: min(480px, 50vw);
+  height: min(480px, 50vw);
+
+  right: -220px;
+  bottom: -240px;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(37, 99, 235, 0.07) 0%,
+      rgba(37, 99, 235, 0.02) 52%,
+      transparent 74%
+    );
+}
+
+/* ============================================================================
+ * Logout Card
+ * ========================================================================== */
+
+.logout-card {
+  position: relative;
+
+  width: 100%;
+  max-width: var(--logout-content-width);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding:
+    clamp(28px, 5vw, 48px)
+    clamp(22px, 5vw, 48px);
+
+  border: 1px solid rgba(203, 213, 225, 0.9);
+
+  border-radius: var(--logout-radius-xl);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(255, 255, 255, 0.96)
+    );
+
+  box-shadow: var(--logout-shadow-lg);
+
+  text-align: center;
+
+  animation:
+    logout-card-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes logout-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================================
+ * Logout Icon
+ * ========================================================================== */
+
+.logout-icon {
+  width: 76px;
+  height: 76px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 22px;
+
+  border: 1px solid var(--logout-border);
+
+  border-radius: 50%;
+
+  background:
+    linear-gradient(
+      145deg,
+      #f8fafc,
+      #eef2f7
+    );
+
+  color: var(--logout-primary);
+
+  box-shadow:
+    0 8px 22px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+  transition:
+    color var(--logout-transition),
+    background var(--logout-transition),
+    border-color var(--logout-transition),
+    transform var(--logout-transition);
+}
+
+.logout-icon svg {
+  width: 34px;
+  height: 34px;
+
+  stroke-width: 1.9;
+}
+
+.logout-icon--loading {
+  color: var(--logout-primary);
+
+  border-color: rgba(15, 118, 110, 0.22);
+
+  background:
+    linear-gradient(
+      145deg,
+      #f0fdfa,
+      #ecfdf5
+    );
+
+  animation:
+    logout-icon-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes logout-icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+/* ============================================================================
+ * Content
+ * ========================================================================== */
+
+.logout-content {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ============================================================================
+ * Brand
+ * ========================================================================== */
+
+.logout-brand {
+  margin: 0 0 9px;
+
+  color: var(--logout-primary);
+
+  font-size: 0.78rem;
+  line-height: 1.4;
+  font-weight: 800;
+
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+/* ============================================================================
+ * Heading
+ * ========================================================================== */
+
+.logout-heading {
+  margin: 0;
+
+  color: var(--logout-text);
+
+  font-size: clamp(
+    1.55rem,
+    4vw,
+    2rem
+  );
+
+  line-height: 1.2;
+
+  font-weight: 800;
+
+  letter-spacing: -0.025em;
+}
+
+/* ============================================================================
+ * Description
+ * ========================================================================== */
+
+.logout-description {
+  width: 100%;
+  max-width: 430px;
+
+  margin:
+    12px
+    auto
+    0;
+
+  color: var(--logout-text-secondary);
+
+  font-size: 0.96rem;
+  line-height: 1.65;
+  font-weight: 450;
+}
+
+/* ============================================================================
+ * Progress State
+ * ========================================================================== */
+
+.logout-progress {
+  width: 100%;
+  max-width: 360px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+
+  margin-top: 24px;
+  padding: 11px 14px;
+
+  border: 1px solid rgba(15, 118, 110, 0.14);
+
+  border-radius: var(--logout-radius-md);
+
+  background:
+    linear-gradient(
+      135deg,
+      #f0fdfa,
+      #f8fafc
+    );
+
+  color: var(--logout-primary-dark);
+
+  font-size: 0.84rem;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.logout-spinner {
+  width: 17px;
+  height: 17px;
+
+  flex: 0 0 auto;
+
+  display: inline-block;
+
+  border: 2px solid rgba(15, 118, 110, 0.18);
+
+  border-top-color: var(--logout-primary);
+
+  border-radius: 50%;
+
+  animation:
+    logout-spin 750ms linear infinite;
+}
+
+@keyframes logout-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+ * Error State
+ * ========================================================================== */
+
+.logout-error {
+  width: 100%;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 10px;
+
+  margin-top: 22px;
+
+  padding:
+    13px
+    14px;
+
+  border: 1px solid var(--logout-danger-border);
+
+  border-radius: var(--logout-radius-md);
+
+  background: var(--logout-danger-bg);
+
+  color: var(--logout-danger);
+
+  font-size: 0.84rem;
+  line-height: 1.5;
+  font-weight: 600;
+
+  text-align: left;
+
+  animation:
+    logout-error-enter 220ms ease-out both;
+}
+
+@keyframes logout-error-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.logout-error svg {
+  flex: 0 0 auto;
+
+  margin-top: 1px;
+}
+
+/* ============================================================================
+ * Actions
+ * ========================================================================== */
+
+.logout-actions {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  margin-top: 28px;
+}
+
+/* ============================================================================
+ * Buttons
+ * ========================================================================== */
+
+.logout-button {
+  min-height: 46px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding:
+    11px
+    18px;
+
+  border: 1px solid transparent;
+
+  border-radius: var(--logout-radius-md);
+
+  font-family: inherit;
+
+  font-size: 0.9rem;
+  line-height: 1.3;
+  font-weight: 750;
+
+  white-space: nowrap;
+
+  cursor: pointer;
+
+  transition:
+    transform var(--logout-transition),
+    background var(--logout-transition),
+    color var(--logout-transition),
+    border-color var(--logout-transition),
+    box-shadow var(--logout-transition),
+    filter var(--logout-transition);
+}
+
+.logout-button svg {
+  flex: 0 0 auto;
+}
+
+/* ============================================================================
+ * Primary Button
+ * ========================================================================== */
+
+.logout-button--primary {
+  border-color: var(--logout-primary);
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--logout-primary),
+      var(--logout-primary-dark)
+    );
+
+  color: #ffffff;
+
+  box-shadow:
+    0 6px 15px rgba(15, 118, 110, 0.18);
+}
+
+.logout-button--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  background:
+    linear-gradient(
+      135deg,
+      #0d9488,
+      var(--logout-primary-dark)
+    );
+
+  box-shadow:
+    0 9px 20px rgba(15, 118, 110, 0.23);
+
+  filter: brightness(1.025);
+}
+
+.logout-button--primary:active:not(:disabled) {
+  transform: translateY(0);
+
+  box-shadow:
+    0 4px 10px rgba(15, 118, 110, 0.16);
+}
+
+/* ============================================================================
+ * Secondary Button
+ * ========================================================================== */
+
+.logout-button--secondary {
+  border-color: var(--logout-border-strong);
+
+  background: var(--logout-surface);
+
+  color: var(--logout-text-secondary);
+
+  box-shadow: var(--logout-shadow-sm);
+}
+
+.logout-button--secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  border-color: #94a3b8;
+
+  background: var(--logout-surface-soft);
+
+  color: var(--logout-text);
+
+  box-shadow: var(--logout-shadow-md);
+}
+
+.logout-button--secondary:active:not(:disabled) {
+  transform: translateY(0);
+
+  box-shadow: var(--logout-shadow-sm);
+}
+
+/* ============================================================================
+ * Button States
+ * ========================================================================== */
+
+.logout-button:focus-visible {
+  outline: none;
+
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.95),
+    0 0 0 6px rgba(15, 118, 110, 0.35);
+}
+
+.logout-button:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.55;
+
+  transform: none;
+
+  box-shadow: none;
+}
+
+/* ============================================================================
+ * Retry Attempt
+ * ========================================================================== */
+
+.logout-attempt {
+  margin:
+    15px
+    0
+    0;
+
+  color: var(--logout-text-muted);
+
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+/* ============================================================================
+ * Footer
+ * ========================================================================== */
+
+.logout-footer {
+  width: 100%;
+  max-width: var(--logout-content-width);
+
+  margin-top: 22px;
+
+  color: var(--logout-text-muted);
+
+  font-size: 0.76rem;
+  line-height: 1.6;
+
+  text-align: center;
+}
+
+.logout-footer p {
+  margin: 0;
+}
+
+/* ============================================================================
+ * Success State Refinement
+ * ========================================================================== */
+
+.logout-page:has(.logout-icon:not(.logout-icon--loading)) .logout-icon {
+  color: var(--logout-primary);
+}
+
+/* ============================================================================
+ * Responsive — Large Desktop
+ * ========================================================================== */
+
+@media (min-width: 1440px) {
+  .logout-card {
+    max-width: 560px;
+
+    padding:
+      52px
+      56px;
+  }
+
+  .logout-icon {
+    width: 82px;
+    height: 82px;
+  }
+
+  .logout-icon svg {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Tablet
+ * ========================================================================== */
+
+@media (max-width: 768px) {
+  .logout-page {
+    padding:
+      32px
+      20px;
+  }
+
+  .logout-card {
+    max-width: 520px;
+
+    padding:
+      34px
+      28px;
+  }
+
+  .logout-actions {
+    flex-wrap: wrap;
+  }
+
+  .logout-button {
+    min-width: 150px;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Mobile
+ * ========================================================================== */
+
+@media (max-width: 560px) {
+  .logout-page {
+    justify-content: center;
+
+    padding:
+      20px
+      14px;
+  }
+
+  .logout-card {
+    padding:
+      30px
+      20px;
+
+    border-radius: var(--logout-radius-lg);
+
+    box-shadow: var(--logout-shadow-md);
+  }
+
+  .logout-icon {
+    width: 68px;
+    height: 68px;
+
+    margin-bottom: 19px;
+  }
+
+  .logout-icon svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .logout-brand {
+    font-size: 0.72rem;
+  }
+
+  .logout-heading {
+    font-size: 1.45rem;
+  }
+
+  .logout-description {
+    font-size: 0.9rem;
+  }
+
+  .logout-progress {
+    margin-top: 20px;
+
+    font-size: 0.8rem;
+  }
+
+  .logout-actions {
+    flex-direction: column;
+
+    width: 100%;
+
+    gap: 9px;
+
+    margin-top: 24px;
+  }
+
+  .logout-button {
+    width: 100%;
+
+    min-height: 48px;
+  }
+
+  .logout-footer {
+    margin-top: 18px;
+
+    font-size: 0.72rem;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Small Mobile
+ * ========================================================================== */
+
+@media (max-width: 380px) {
+  .logout-page {
+    padding:
+      14px
+      10px;
+  }
+
+  .logout-card {
+    padding:
+      26px
+      16px;
+
+    border-radius: 16px;
+  }
+
+  .logout-icon {
+    width: 62px;
+    height: 62px;
+  }
+
+  .logout-icon svg {
+    width: 27px;
+    height: 27px;
+  }
+
+  .logout-heading {
+    font-size: 1.3rem;
+  }
+
+  .logout-description {
+    font-size: 0.86rem;
+  }
+
+  .logout-error {
+    padding:
+      11px
+      12px;
+
+    font-size: 0.79rem;
+  }
+
+  .logout-button {
+    font-size: 0.86rem;
+  }
+}
+
+/* ============================================================================
+ * Landscape Mobile
+ * ========================================================================== */
+
+@media (
+  max-height: 620px
+) and (orientation: landscape) {
+  .logout-page {
+    justify-content: flex-start;
+
+    padding-top: 20px;
+    padding-bottom: 20px;
+
+    overflow-y: auto;
+  }
+
+  .logout-card {
+    padding:
+      22px
+      28px;
+  }
+
+  .logout-icon {
+    width: 58px;
+    height: 58px;
+
+    margin-bottom: 14px;
+  }
+
+  .logout-icon svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .logout-brand {
+    margin-bottom: 5px;
+  }
+
+  .logout-description {
+    margin-top: 7px;
+  }
+
+  .logout-progress {
+    margin-top: 14px;
+  }
+
+  .logout-actions {
+    margin-top: 17px;
+  }
+
+  .logout-footer {
+    margin-top: 12px;
+  }
+}
+
+/* ============================================================================
+ * Accessibility — Focus
+ * ========================================================================== */
+
+.logout-page button,
+.logout-page a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.logout-page button:focus-visible,
+.logout-page a:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.3);
+  outline-offset: 3px;
+}
+
+/* ============================================================================
+ * Accessibility — Reduced Motion
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .logout-page *,
+  .logout-page *::before,
+  .logout-page *::after {
+    scroll-behavior: auto !important;
+
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+
+    transition-duration: 0.01ms !important;
+  }
+
+  .logout-button:hover:not(:disabled),
+  .logout-button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+ * Accessibility — Forced Colors / High Contrast
+ * ========================================================================== */
+
+@media (forced-colors: active) {
+  .logout-page {
+    background: Canvas;
+
+    color: CanvasText;
+  }
+
+  .logout-page::before,
+  .logout-page::after {
+    display: none;
+  }
+
+  .logout-card {
+    border: 1px solid CanvasText;
+
+    background: Canvas;
+
+    box-shadow: none;
+  }
+
+  .logout-icon {
+    border-color: CanvasText;
+
+    background: Canvas;
+
+    color: CanvasText;
+
+    box-shadow: none;
+  }
+
+  .logout-brand,
+  .logout-heading,
+  .logout-description,
+  .logout-footer,
+  .logout-attempt {
+    color: CanvasText;
+  }
+
+  .logout-progress {
+    border-color: CanvasText;
+
+    background: Canvas;
+
+    color: CanvasText;
+  }
+
+  .logout-error {
+    border-color: CanvasText;
+
+    background: Canvas;
+
+    color: CanvasText;
+  }
+
+  .logout-button {
+    border-color: ButtonText;
+  }
+
+  .logout-button--primary {
+    background: Highlight;
+
+    color: HighlightText;
+  }
+
+  .logout-button--secondary {
+    background: ButtonFace;
+
+    color: ButtonText;
+  }
+
+  .logout-spinner {
+    border-color: CanvasText;
+
+    border-top-color: Highlight;
+  }
+}
+
+/* ============================================================================
+ * Accessibility — Dark Color Scheme
+ * ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  .logout-page {
+    --logout-text: #f8fafc;
+    --logout-text-secondary: #cbd5e1;
+    --logout-text-muted: #94a3b8;
+
+    --logout-border: #334155;
+    --logout-border-strong: #475569;
+
+    --logout-surface: #0f172a;
+    --logout-surface-soft: #111827;
+    --logout-surface-muted: #1e293b;
+
+    --logout-background: #020617;
+
+    --logout-danger-bg: #2a1111;
+    --logout-danger-border: #7f1d1d;
+
+    --logout-warning-bg: #2b2110;
+    --logout-warning-border: #78350f;
+
+    background:
+      radial-gradient(
+        circle at 15% 10%,
+        rgba(15, 118, 110, 0.16),
+        transparent 30%
+      ),
+      radial-gradient(
+        circle at 90% 90%,
+        rgba(37, 99, 235, 0.1),
+        transparent 32%
+      ),
+      var(--logout-background);
+  }
+
+  .logout-card {
+    border-color: #263548;
+
+    background:
+      linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0.98),
+        rgba(15, 23, 42, 0.96)
+      );
+
+    box-shadow:
+      0 24px 70px rgba(0, 0, 0, 0.38);
+  }
+
+  .logout-icon {
+    border-color: #334155;
+
+    background:
+      linear-gradient(
+        145deg,
+        #111827,
+        #1e293b
+      );
+
+    color: #5eead4;
+
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .logout-icon--loading {
+    border-color: rgba(94, 234, 212, 0.2);
+
+    background:
+      linear-gradient(
+        145deg,
+        #102a27,
+        #132f2c
+      );
+
+    color: #5eead4;
+  }
+
+  .logout-brand {
+    color: #5eead4;
+  }
+
+  .logout-progress {
+    border-color: rgba(94, 234, 212, 0.16);
+
+    background:
+      linear-gradient(
+        135deg,
+        rgba(15, 118, 110, 0.16),
+        rgba(15, 23, 42, 0.7)
+      );
+
+    color: #99f6e4;
+  }
+
+  .logout-spinner {
+    border-color: rgba(94, 234, 212, 0.2);
+
+    border-top-color: #5eead4;
+  }
+
+  .logout-error {
+    border-color: #7f1d1d;
+
+    background: var(--logout-danger-bg);
+
+    color: #fca5a5;
+  }
+
+  .logout-button--secondary {
+    border-color: #475569;
+
+    background: #111827;
+
+    color: #cbd5e1;
+  }
+
+  .logout-button--secondary:hover:not(:disabled) {
+    border-color: #64748b;
+
+    background: #1e293b;
+
+    color: #f8fafc;
+  }
+
+  .logout-footer {
+    color: #64748b;
+  }
+}
+
+/* ============================================================================
+ * Print
+ * ========================================================================== */
+
+@media print {
+  .logout-page {
+    min-height: auto;
+
+    padding: 0;
+
+    background: #ffffff;
+
+    color: #000000;
+  }
+
+  .logout-page::before,
+  .logout-page::after {
+    display: none;
+  }
+
+  .logout-card {
+    max-width: none;
+
+    border: 1px solid #000000;
+
+    border-radius: 0;
+
+    background: #ffffff;
+
+    box-shadow: none;
+
+    animation: none;
+  }
+
+  .logout-icon {
+    border-color: #000000;
+
+    background: #ffffff;
+
+    color: #000000;
+
+    box-shadow: none;
+
+    animation: none;
+  }
+
+  .logout-brand,
+  .logout-heading,
+  .logout-description,
+  .logout-footer,
+  .logout-attempt {
+    color: #000000;
+  }
+
+  .logout-progress,
+  .logout-error {
+    border-color: #000000;
+
+    background: #ffffff;
+
+    color: #000000;
+  }
+
+  .logout-spinner {
+    display: none;
+  }
+
+  .logout-actions {
+    display: none;
+  }
+}

@@ -1,0 +1,794 @@
+/* ==========================================================================
+   TITech Community Capital
+   Enterprise Dashboard Widgets
+   File: frontend/src/pages/dashboard/DashboardWidgets.css
+
+   Production Grade
+   Multi-Tenant | Realtime | Feature Flags | Executive Analytics
+   Responsive | Accessible | Dark Mode | High Contrast | Reduced Motion
+   ========================================================================== */
+
+/* ==========================================================================
+   Design Tokens
+   ========================================================================== */
+
+:root {
+  --widget-bg: #ffffff;
+  --widget-surface: #f8fafc;
+  --widget-surface-muted: #f1f5f9;
+  --widget-border: #e2e8f0;
+  --widget-border-strong: #cbd5e1;
+
+  --widget-text: #0f172a;
+  --widget-text-secondary: #64748b;
+  --widget-text-muted: #94a3b8;
+
+  --widget-primary: #2563eb;
+  --widget-primary-hover: #1d4ed8;
+  --widget-primary-soft: rgba(37, 99, 235, 0.1);
+
+  --widget-success: #16a34a;
+  --widget-success-soft: rgba(22, 163, 74, 0.1);
+
+  --widget-warning: #f59e0b;
+  --widget-warning-soft: rgba(245, 158, 11, 0.12);
+
+  --widget-danger: #dc2626;
+  --widget-danger-soft: rgba(220, 38, 38, 0.1);
+
+  --widget-info: #0284c7;
+  --widget-info-soft: rgba(2, 132, 199, 0.1);
+
+  --widget-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.08);
+
+  --widget-shadow-hover:
+    0 18px 42px rgba(15, 23, 42, 0.12);
+
+  --widget-radius: 20px;
+  --widget-radius-sm: 12px;
+
+  --widget-transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+
+  --widget-focus-ring:
+    0 0 0 3px rgba(37, 99, 235, 0.25);
+
+  --widget-content-max-width: 100%;
+}
+
+/* ==========================================================================
+   Root Container
+   ========================================================================== */
+
+.dashboard-widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(350px, 1fr)
+  );
+
+  gap: 1.5rem;
+
+  width: 100%;
+  max-width: var(--widget-content-max-width);
+
+  margin-top: 2rem;
+
+  align-items: stretch;
+}
+
+/* ==========================================================================
+   Widget Card
+   ========================================================================== */
+
+.dashboard-widget-card {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 320px;
+
+  overflow: hidden;
+
+  background: var(--widget-bg);
+
+  border: 1px solid var(--widget-border);
+  border-radius: var(--widget-radius);
+
+  box-shadow: var(--widget-shadow);
+
+  transition: var(--widget-transition);
+
+  isolation: isolate;
+}
+
+.dashboard-widget-card:hover {
+  transform: translateY(-3px);
+
+  border-color: var(--widget-border-strong);
+
+  box-shadow: var(--widget-shadow-hover);
+}
+
+/*
+ * Prevent interactive hover effects from becoming problematic
+ * on touch-only devices.
+ */
+@media (hover: none) {
+  .dashboard-widget-card:hover {
+    transform: none;
+    box-shadow: var(--widget-shadow);
+  }
+}
+
+/* ==========================================================================
+   Widget Header
+   ========================================================================== */
+
+.dashboard-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  min-height: 72px;
+
+  padding: 1.25rem 1.5rem;
+
+  background: var(--widget-bg);
+
+  border-bottom: 1px solid var(--widget-border);
+}
+
+.dashboard-widget-title {
+  display: flex;
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 0.75rem;
+}
+
+.dashboard-widget-title svg {
+  flex: 0 0 auto;
+
+  color: var(--widget-primary);
+}
+
+.dashboard-widget-title h3 {
+  min-width: 0;
+
+  margin: 0;
+
+  overflow: hidden;
+
+  color: var(--widget-text);
+
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Widget Header Actions
+   ========================================================================== */
+
+.dashboard-widget-header > button,
+.dashboard-widget-header > a {
+  flex: 0 0 auto;
+}
+
+/* ==========================================================================
+   Widget Body
+   ========================================================================== */
+
+.dashboard-widget-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+
+  min-width: 0;
+
+  padding: 1.5rem;
+
+  background: var(--widget-bg);
+}
+
+/* ==========================================================================
+   Empty States
+   ========================================================================== */
+
+.dashboard-widget-body > p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 1;
+
+  min-height: 120px;
+
+  margin: 0;
+
+  padding: 1rem;
+
+  color: var(--widget-text-secondary);
+
+  font-size: 0.9rem;
+  line-height: 1.6;
+
+  text-align: center;
+}
+
+/* ==========================================================================
+   Lists
+   ========================================================================== */
+
+.dashboard-widget-list {
+  width: 100%;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.dashboard-widget-list li {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.25rem;
+
+  padding: 1rem 0;
+
+  border-bottom: 1px solid
+    rgba(148, 163, 184, 0.18);
+}
+
+.dashboard-widget-list li:first-child {
+  padding-top: 0;
+}
+
+.dashboard-widget-list li:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.dashboard-widget-list p,
+.dashboard-widget-list strong {
+  min-width: 0;
+
+  margin: 0;
+
+  overflow-wrap: anywhere;
+
+  color: var(--widget-text);
+
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.dashboard-widget-list small {
+  display: block;
+
+  margin: 0.15rem 0 0;
+
+  color: var(--widget-text-secondary);
+
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   Metrics
+   ========================================================================== */
+
+.dashboard-widget-metrics {
+  display: grid;
+
+  width: 100%;
+
+  gap: 0.85rem;
+}
+
+.dashboard-widget-metrics div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-width: 0;
+
+  gap: 1rem;
+
+  padding: 0.9rem 1rem;
+
+  background: var(--widget-surface);
+
+  border: 1px solid transparent;
+  border-radius: var(--widget-radius-sm);
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.dashboard-widget-metrics div:hover {
+  background: var(--widget-surface-muted);
+
+  border-color: var(--widget-border);
+}
+
+.dashboard-widget-metrics span {
+  min-width: 0;
+
+  overflow-wrap: anywhere;
+
+  color: var(--widget-text-secondary);
+
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.dashboard-widget-metrics strong {
+  flex: 0 0 auto;
+
+  color: var(--widget-text);
+
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+
+  text-align: right;
+}
+
+/* ==========================================================================
+   System Health
+   ========================================================================== */
+
+.dashboard-widget-health {
+  display: grid;
+
+  width: 100%;
+
+  gap: 0.85rem;
+}
+
+.dashboard-widget-health div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-width: 0;
+
+  gap: 1rem;
+
+  padding: 0.85rem 1rem;
+
+  background: var(--widget-surface);
+
+  border: 1px solid transparent;
+  border-radius: var(--widget-radius-sm);
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.dashboard-widget-health div:hover {
+  background: var(--widget-surface-muted);
+
+  border-color: var(--widget-border);
+}
+
+.dashboard-widget-health span {
+  min-width: 0;
+
+  color: var(--widget-text);
+
+  font-size: 0.9rem;
+  font-weight: 600;
+
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Quick Actions
+   ========================================================================== */
+
+.dashboard-widget-actions {
+  display: grid;
+
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(140px, 1fr)
+  );
+
+  gap: 0.9rem;
+
+  width: 100%;
+}
+
+.dashboard-widget-actions button {
+  width: 100%;
+  min-height: 44px;
+
+  justify-content: center;
+}
+
+/* ==========================================================================
+   Warning Widget
+   ========================================================================== */
+
+.dashboard-widget-card.warning {
+  border-left: 5px solid var(--widget-warning);
+}
+
+.dashboard-widget-card.warning
+  .dashboard-widget-title svg {
+  color: var(--widget-warning);
+}
+
+.dashboard-widget-card.warning
+  .dashboard-widget-metrics
+  div {
+  background: var(--widget-warning-soft);
+}
+
+/* ==========================================================================
+   Financial / Executive Emphasis
+   ========================================================================== */
+
+.dashboard-widget-card
+  .dashboard-widget-metrics
+  strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Buttons / Interactive Elements
+   ========================================================================== */
+
+.dashboard-widget-card button,
+.dashboard-widget-card a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dashboard-widget-card button:focus-visible,
+.dashboard-widget-card a:focus-visible {
+  outline: none;
+
+  box-shadow: var(--widget-focus-ring);
+}
+
+/* ==========================================================================
+   Scrollable Widget Support
+   ========================================================================== */
+
+.dashboard-widget-body {
+  scrollbar-width: thin;
+  scrollbar-color:
+    var(--widget-border-strong)
+    transparent;
+}
+
+.dashboard-widget-body::-webkit-scrollbar {
+  width: 7px;
+}
+
+.dashboard-widget-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-widget-body::-webkit-scrollbar-thumb {
+  background: var(--widget-border-strong);
+
+  border-radius: 999px;
+}
+
+.dashboard-widget-body::-webkit-scrollbar-thumb:hover {
+  background: var(--widget-text-muted);
+}
+
+/* ==========================================================================
+   Dark Mode
+   ========================================================================== */
+
+.dark {
+  --widget-bg: #0f172a;
+  --widget-surface: #1e293b;
+  --widget-surface-muted: #243244;
+
+  --widget-border: #334155;
+  --widget-border-strong: #475569;
+
+  --widget-text: #f8fafc;
+  --widget-text-secondary: #94a3b8;
+  --widget-text-muted: #64748b;
+
+  --widget-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.4);
+
+  --widget-shadow-hover:
+    0 18px 48px rgba(0, 0, 0, 0.5);
+}
+
+.dark .dashboard-widget-card:hover {
+  border-color: var(--widget-border-strong);
+}
+
+.dark .dashboard-widget-header,
+.dark .dashboard-widget-body {
+  background: var(--widget-bg);
+}
+
+.dark .dashboard-widget-list li {
+  border-bottom-color:
+    rgba(148, 163, 184, 0.15);
+}
+
+.dark .dashboard-widget-metrics div,
+.dark .dashboard-widget-health div {
+  background: rgba(30, 41, 59, 0.8);
+}
+
+.dark .dashboard-widget-metrics div:hover,
+.dark .dashboard-widget-health div:hover {
+  background: rgba(51, 65, 85, 0.8);
+
+  border-color: var(--widget-border);
+}
+
+.dark .dashboard-widget-card.warning
+  .dashboard-widget-metrics
+  div {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* ==========================================================================
+   High Contrast / Forced Colors
+   ========================================================================== */
+
+@media (forced-colors: active) {
+  .dashboard-widget-card,
+  .dashboard-widget-metrics div,
+  .dashboard-widget-health div {
+    border: 1px solid CanvasText;
+  }
+
+  .dashboard-widget-card.warning {
+    border-left: 5px solid Highlight;
+  }
+
+  .dashboard-widget-title svg {
+    color: Highlight;
+  }
+
+  .dashboard-widget-card button:focus-visible,
+  .dashboard-widget-card a:focus-visible {
+    outline: 2px solid Highlight;
+    box-shadow: none;
+  }
+}
+
+/* ==========================================================================
+   Large Screens
+   ========================================================================== */
+
+@media (min-width: 1440px) {
+  .dashboard-widgets-grid {
+    grid-template-columns: repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  }
+}
+
+/* ==========================================================================
+   Medium Desktop
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  .dashboard-widgets-grid {
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(300px, 1fr)
+    );
+  }
+}
+
+/* ==========================================================================
+   Tablet
+   ========================================================================== */
+
+@media (max-width: 992px) {
+  .dashboard-widgets-grid {
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+    gap: 1.25rem;
+  }
+
+  .dashboard-widget-card {
+    min-height: 300px;
+  }
+}
+
+/* ==========================================================================
+   Mobile
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .dashboard-widgets-grid {
+    grid-template-columns: 1fr;
+
+    gap: 1rem;
+
+    margin-top: 1.5rem;
+  }
+
+  .dashboard-widget-card {
+    min-height: 0;
+  }
+
+  .dashboard-widget-header {
+    min-height: 64px;
+
+    padding: 1rem;
+
+    gap: 0.75rem;
+  }
+
+  .dashboard-widget-body {
+    padding: 1rem;
+  }
+
+  .dashboard-widget-actions {
+    grid-template-columns: 1fr;
+
+    gap: 0.75rem;
+  }
+
+  .dashboard-widget-list li {
+    padding: 0.85rem 0;
+  }
+}
+
+/* ==========================================================================
+   Small Mobile
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .dashboard-widget-card {
+    border-radius: 16px;
+  }
+
+  .dashboard-widget-header {
+    padding: 0.9rem 1rem;
+  }
+
+  .dashboard-widget-body {
+    padding: 1rem;
+  }
+
+  .dashboard-widget-title {
+    gap: 0.6rem;
+  }
+
+  .dashboard-widget-title svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dashboard-widget-title h3 {
+    font-size: 0.95rem;
+  }
+
+  .dashboard-widget-metrics div,
+  .dashboard-widget-health div {
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    gap: 0.4rem;
+  }
+
+  .dashboard-widget-metrics strong {
+    width: 100%;
+
+    text-align: left;
+  }
+
+  .dashboard-widget-health div {
+    padding: 0.8rem 0.9rem;
+  }
+}
+
+/* ==========================================================================
+   Very Small Devices
+   ========================================================================== */
+
+@media (max-width: 360px) {
+  .dashboard-widget-header {
+    align-items: flex-start;
+  }
+
+  .dashboard-widget-title {
+    align-items: flex-start;
+  }
+
+  .dashboard-widget-actions button {
+    min-height: 42px;
+  }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-widget-card,
+  .dashboard-widget-metrics div,
+  .dashboard-widget-health div {
+    transition: none;
+  }
+
+  .dashboard-widget-card:hover {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+
+@media print {
+  .dashboard-widgets-grid {
+    display: grid;
+
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+    gap: 1rem;
+
+    margin-top: 1rem;
+  }
+
+  .dashboard-widget-card {
+    min-height: auto;
+
+    box-shadow: none;
+
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .dashboard-widget-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .dashboard-widget-header {
+    background: #ffffff;
+  }
+
+  .dashboard-widget-body {
+    background: #ffffff;
+  }
+}

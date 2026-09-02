@@ -1,0 +1,42 @@
+REFERRAL REWARD - COMMUNITY SAVINGS APP
+======================================
+
+Congratulations {{firstName}}!
+
+🎁💰
+
+You earned a referral reward because {{referralEventDescription}}!
+
+YOU'VE EARNED:
+==============
+{{rewardAmount}} {{currency}}
+
+{{rewardDescription}}
+
+GREAT NEWS:
+===========
+✓ Your reward has been credited to your wallet. You can use it immediately to make contributions or withdraw it anytime.
+
+REWARD DETAILS
+==============
+Referrer: {{referralName}}
+Reward Type: {{rewardType}}
+Earned Date: {{earnedDate}}
+Status: Credited ✓
+
+KEEP EARNING!
+=============
+You can continue earning referral rewards by inviting more friends to Community Savings App. The more people you refer, the more you earn!
+
+Referrals This Month: {{referralsThisMonth}} / {{referralGoal}}
+{{referralsThisMonth}} successful referral(s) - {{remainingForReward}} more to earn next reward!
+
+Invite More Friends: {{referralUrl}}
+
+---
+
+Thank you for helping grow the Community Savings App community!
+
+© {{year}} Community Savings App. All rights reserved.
+Referral Program: {{referralProgramUrl}}
+Privacy Policy: {{privacyUrl}}

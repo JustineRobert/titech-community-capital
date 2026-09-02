@@ -1,0 +1,989 @@
+/* ============================================================================
+ * TITech Community Capital
+ * Enterprise Savings Group Card Styles
+ * File: frontend/src/components/GroupCard.css
+ * Production Grade
+ * ============================================================================
+ *
+ * Purpose
+ * ----------------------------------------------------------------------------
+ * Production-grade responsive styles for the TITech Community Capital
+ * savings/community GroupCard component.
+ *
+ * Design goals
+ * ----------------------------------------------------------------------------
+ * ✓ Responsive layout
+ * ✓ Accessibility-first interaction states
+ * ✓ Keyboard navigation support
+ * ✓ Reduced-motion support
+ * ✓ High-contrast-friendly borders and states
+ * ✓ Loading/skeleton state
+ * ✓ Financial metric presentation
+ * ✓ Savings progress visualization
+ * ✓ Status/privacy indicators
+ * ✓ Group actions
+ * ✓ Mobile-first behavior
+ * ✓ Enterprise visual consistency
+ * ✓ Safe text wrapping for API-controlled content
+ * ✓ No dependency on external CSS frameworks
+ *
+ * Security boundary
+ * ----------------------------------------------------------------------------
+ * CSS is presentation-only and MUST NOT be treated as an authorization,
+ * tenant-isolation, financial, KYC/AML, compliance, or security boundary.
+ * ============================================================================
+ */
+
+/* ============================================================================
+ * Design Tokens
+ * ========================================================================== */
+
+:root {
+  --titech-group-card-bg: #ffffff;
+  --titech-group-card-surface: #f8fafc;
+  --titech-group-card-surface-hover: #f1f5f9;
+
+  --titech-group-card-border: #e2e8f0;
+  --titech-group-card-border-strong: #cbd5e1;
+
+  --titech-group-card-text: #0f172a;
+  --titech-group-card-text-muted: #64748b;
+  --titech-group-card-text-subtle: #94a3b8;
+
+  --titech-group-card-primary: #0f766e;
+  --titech-group-card-primary-hover: #115e59;
+  --titech-group-card-primary-soft: #ccfbf1;
+
+  --titech-group-card-success: #15803d;
+  --titech-group-card-success-soft: #dcfce7;
+
+  --titech-group-card-info: #0369a1;
+  --titech-group-card-info-soft: #e0f2fe;
+
+  --titech-group-card-warning: #b45309;
+  --titech-group-card-warning-soft: #fef3c7;
+
+  --titech-group-card-danger: #b91c1c;
+  --titech-group-card-danger-soft: #fee2e2;
+
+  --titech-group-card-neutral: #475569;
+  --titech-group-card-neutral-soft: #f1f5f9;
+
+  --titech-group-card-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05);
+
+  --titech-group-card-shadow-hover:
+    0 12px 30px rgba(15, 23, 42, 0.10);
+
+  --titech-group-card-radius: 16px;
+  --titech-group-card-radius-sm: 10px;
+
+  --titech-group-card-transition:
+    160ms ease;
+
+  --titech-group-card-focus:
+    0 0 0 3px rgba(15, 118, 110, 0.22);
+
+  --titech-group-card-content-width:
+    100%;
+}
+
+/* ============================================================================
+ * Base Card
+ * ========================================================================== */
+
+.group-card {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  min-width: 0;
+  max-width: var(--titech-group-card-content-width);
+
+  overflow: hidden;
+
+  background: var(--titech-group-card-bg);
+  border: 1px solid var(--titech-group-card-border);
+  border-radius: var(--titech-group-card-radius);
+
+  box-shadow: var(--titech-group-card-shadow);
+
+  color: var(--titech-group-card-text);
+
+  isolation: isolate;
+
+  transition:
+    transform var(--titech-group-card-transition),
+    box-shadow var(--titech-group-card-transition),
+    border-color var(--titech-group-card-transition),
+    background-color var(--titech-group-card-transition);
+}
+
+.group-card:hover {
+  border-color: var(--titech-group-card-border-strong);
+  box-shadow: var(--titech-group-card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.group-card:focus-within {
+  border-color: var(--titech-group-card-primary);
+  box-shadow:
+    var(--titech-group-card-shadow),
+    var(--titech-group-card-focus);
+}
+
+.group-card.compact {
+  border-radius: 12px;
+}
+
+/*
+ * The previous implementation used the entire article as a button.
+ * The enterprise implementation keeps semantic controls inside the card,
+ * therefore the article itself does not receive an artificial button role.
+ */
+
+.group-card--disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.group-card--disabled:hover {
+  transform: none;
+  box-shadow: var(--titech-group-card-shadow);
+}
+
+.group-card--loading {
+  pointer-events: none;
+}
+
+/* ============================================================================
+ * Card Header
+ * ========================================================================== */
+
+.group-card-header {
+  position: relative;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 20px 20px 16px;
+
+  min-width: 0;
+}
+
+.group-card-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.group-card-title {
+  margin: 0;
+
+  color: var(--titech-group-card-text);
+
+  font-size: 1.05rem;
+  font-weight: 750;
+  line-height: 1.35;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.group-card-description {
+  margin: 7px 0 0;
+
+  color: var(--titech-group-card-text-muted);
+
+  font-size: 0.875rem;
+  line-height: 1.55;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* ============================================================================
+ * Card Navigation / Arrow
+ * ========================================================================== */
+
+.group-card-arrow {
+  flex: 0 0 auto;
+
+  color: var(--titech-group-card-text-subtle);
+
+  transition:
+    color var(--titech-group-card-transition),
+    transform var(--titech-group-card-transition);
+}
+
+.group-card:hover .group-card-arrow {
+  color: var(--titech-group-card-primary);
+  transform: translateX(3px);
+}
+
+/* ============================================================================
+ * Badges
+ * ========================================================================== */
+
+.group-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+
+  padding: 0 20px 16px;
+}
+
+.group-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 26px;
+  padding: 4px 9px;
+
+  border: 1px solid transparent;
+  border-radius: 999px;
+
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.1;
+
+  white-space: nowrap;
+}
+
+.group-badge-default {
+  color: var(--titech-group-card-neutral);
+  background: var(--titech-group-card-neutral-soft);
+  border-color: var(--titech-group-card-border);
+}
+
+.group-badge-success {
+  color: var(--titech-group-card-success);
+  background: var(--titech-group-card-success-soft);
+  border-color: #bbf7d0;
+}
+
+.group-badge-info {
+  color: var(--titech-group-card-info);
+  background: var(--titech-group-card-info-soft);
+  border-color: #bae6fd;
+}
+
+.group-badge-warning {
+  color: var(--titech-group-card-warning);
+  background: var(--titech-group-card-warning-soft);
+  border-color: #fde68a;
+}
+
+.group-badge-danger {
+  color: var(--titech-group-card-danger);
+  background: var(--titech-group-card-danger-soft);
+  border-color: #fecaca;
+}
+
+/* ============================================================================
+ * Metrics
+ * ========================================================================== */
+
+.group-card-metrics {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 1px;
+
+  margin: 0 20px;
+
+  overflow: hidden;
+
+  background: var(--titech-group-card-border);
+  border: 1px solid var(--titech-group-card-border);
+  border-radius: var(--titech-group-card-radius-sm);
+}
+
+.group-metric {
+  display: flex;
+  align-items: flex-start;
+
+  min-width: 0;
+
+  gap: 10px;
+
+  padding: 13px 11px;
+
+  background: var(--titech-group-card-surface);
+}
+
+.group-metric svg {
+  flex: 0 0 auto;
+
+  margin-top: 2px;
+
+  color: var(--titech-group-card-primary);
+}
+
+.group-metric > div {
+  min-width: 0;
+}
+
+.group-metric span {
+  display: block;
+
+  margin-bottom: 3px;
+
+  color: var(--titech-group-card-text-muted);
+
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+
+  white-space: nowrap;
+}
+
+.group-metric strong {
+  display: block;
+
+  color: var(--titech-group-card-text);
+
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.3;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ============================================================================
+ * Details
+ * ========================================================================== */
+
+.group-card-details {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  margin: 16px 20px 0;
+  padding-top: 14px;
+
+  border-top: 1px solid var(--titech-group-card-border);
+}
+
+.group-detail {
+  display: flex;
+  align-items: flex-start;
+
+  min-width: 0;
+
+  gap: 8px;
+
+  color: var(--titech-group-card-text-muted);
+
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.group-detail svg {
+  flex: 0 0 auto;
+
+  margin-top: 2px;
+
+  color: var(--titech-group-card-primary);
+}
+
+.group-detail span {
+  min-width: 0;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ============================================================================
+ * Footer
+ * ========================================================================== */
+
+.group-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-top: 18px;
+  padding: 14px 20px;
+
+  border-top: 1px solid var(--titech-group-card-border);
+
+  background: var(--titech-group-card-surface);
+}
+
+.group-created {
+  min-width: 0;
+
+  color: var(--titech-group-card-text-subtle);
+
+  font-size: 0.75rem;
+  line-height: 1.4;
+
+  overflow-wrap: anywhere;
+}
+
+.group-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 8px;
+
+  flex-wrap: wrap;
+}
+
+/* ============================================================================
+ * Action Buttons
+ * ========================================================================== */
+
+.group-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 36px;
+  padding: 7px 12px;
+
+  border: 1px solid transparent;
+  border-radius: 8px;
+
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+
+  line-height: 1;
+
+  cursor: pointer;
+
+  transition:
+    color var(--titech-group-card-transition),
+    background-color var(--titech-group-card-transition),
+    border-color var(--titech-group-card-transition),
+    box-shadow var(--titech-group-card-transition),
+    transform var(--titech-group-card-transition);
+}
+
+.group-btn:hover {
+  transform: translateY(-1px);
+}
+
+.group-btn:active {
+  transform: translateY(0);
+}
+
+.group-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--titech-group-card-focus);
+}
+
+.group-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.group-btn.secondary {
+  color: var(--titech-group-card-text);
+  background: var(--titech-group-card-bg);
+  border-color: var(--titech-group-card-border-strong);
+}
+
+.group-btn.secondary:hover:not(:disabled) {
+  background: var(--titech-group-card-surface-hover);
+  border-color: var(--titech-group-card-primary);
+  color: var(--titech-group-card-primary);
+}
+
+.group-btn.danger {
+  color: var(--titech-group-card-danger);
+  background: var(--titech-group-card-danger-soft);
+  border-color: #fecaca;
+}
+
+.group-btn.danger:hover:not(:disabled) {
+  background: #fecaca;
+  border-color: var(--titech-group-card-danger);
+}
+
+/* ============================================================================
+ * Group Status / Verification
+ * ========================================================================== */
+
+.group-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.group-card-status svg {
+  flex: 0 0 auto;
+}
+
+/* ============================================================================
+ * Progress Support
+ * ========================================================================== */
+
+.group-card-progress {
+  margin: 16px 20px 0;
+}
+
+.group-card-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-bottom: 7px;
+
+  color: var(--titech-group-card-text-muted);
+
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.group-card-progress-header strong {
+  color: var(--titech-group-card-text);
+  font-weight: 750;
+}
+
+.group-card-progress-track {
+  position: relative;
+
+  width: 100%;
+  height: 8px;
+
+  overflow: hidden;
+
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+
+.group-card-progress-value {
+  display: block;
+
+  width: 0;
+  height: 100%;
+
+  background: var(--titech-group-card-primary);
+
+  border-radius: inherit;
+
+  transition: width 300ms ease;
+}
+
+/* ============================================================================
+ * Trust Indicator
+ * ========================================================================== */
+
+.group-card-trust {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 8px 20px;
+
+  color: var(--titech-group-card-text-subtle);
+
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+
+  border-top: 1px solid var(--titech-group-card-border);
+}
+
+.group-card-trust svg {
+  flex: 0 0 auto;
+
+  color: var(--titech-group-card-success);
+}
+
+/* ============================================================================
+ * Enterprise Variant Helpers
+ * ========================================================================== */
+
+.group-card.compact .group-card-header {
+  padding: 15px 16px 12px;
+}
+
+.group-card.compact .group-card-badges {
+  padding: 0 16px 12px;
+}
+
+.group-card.compact .group-card-metrics {
+  margin: 0 16px;
+}
+
+.group-card.compact .group-card-details {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+
+.group-card.compact .group-card-footer {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.group-card.compact .group-card-trust {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* ============================================================================
+ * Focus Accessibility
+ * ========================================================================== */
+
+.group-card button:focus-visible,
+.group-card a:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+ * Loading / Skeleton
+ * ========================================================================== */
+
+.group-card--skeleton {
+  min-height: 260px;
+
+  overflow: hidden;
+}
+
+.group-card-skeleton-media {
+  width: 100%;
+  height: 96px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #f1f5f9 0%,
+      #e2e8f0 50%,
+      #f1f5f9 100%
+    );
+
+  background-size: 200% 100%;
+
+  animation:
+    titech-group-card-skeleton
+    1.4s
+    ease-in-out
+    infinite;
+}
+
+.group-card-skeleton-line {
+  width: 80%;
+  height: 12px;
+
+  margin-bottom: 10px;
+
+  border-radius: 6px;
+
+  background: #e2e8f0;
+}
+
+.group-card-skeleton-line--title {
+  width: 55%;
+  height: 18px;
+}
+
+.group-card-skeleton-line--short {
+  width: 40%;
+}
+
+.group-card-skeleton-metrics {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 8px;
+
+  margin-top: 18px;
+}
+
+.group-card-skeleton-metrics > div {
+  height: 55px;
+
+  border-radius: 8px;
+
+  background: #f1f5f9;
+}
+
+@keyframes titech-group-card-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================================================
+ * Responsive Design
+ * ========================================================================== */
+
+@media (max-width: 720px) {
+  .group-card-header {
+    padding: 17px 16px 13px;
+  }
+
+  .group-card-badges {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .group-card-metrics {
+    grid-template-columns:
+      1fr;
+
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+
+  .group-metric {
+    padding: 11px 12px;
+  }
+
+  .group-card-details {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+
+  .group-card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .group-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .group-btn {
+    flex: 1 1 auto;
+  }
+
+  .group-card-trust {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .group-card {
+    border-radius: 13px;
+  }
+
+  .group-card-header {
+    gap: 10px;
+  }
+
+  .group-card-title {
+    font-size: 0.98rem;
+  }
+
+  .group-card-description {
+    font-size: 0.82rem;
+  }
+
+  .group-card-badges {
+    gap: 5px;
+  }
+
+  .group-badge {
+    min-height: 24px;
+    padding: 4px 8px;
+    font-size: 0.68rem;
+  }
+
+  .group-card-details {
+    gap: 7px;
+  }
+
+  .group-detail {
+    font-size: 0.76rem;
+  }
+
+  .group-created {
+    width: 100%;
+  }
+
+  .group-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-btn {
+    width: 100%;
+  }
+}
+
+/* ============================================================================
+ * Reduced Motion
+ * ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .group-card,
+  .group-card-arrow,
+  .group-btn,
+  .group-card-progress-value {
+    transition: none;
+  }
+
+  .group-card:hover {
+    transform: none;
+  }
+
+  .group-btn:hover {
+    transform: none;
+  }
+
+  .group-card-skeleton-media {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+ * High Contrast / Forced Colors
+ * ========================================================================== */
+
+@media (forced-colors: active) {
+  .group-card {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .group-badge,
+  .group-btn {
+    border: 1px solid ButtonText;
+  }
+
+  .group-btn:focus-visible,
+  .group-card a:focus-visible {
+    outline: 2px solid Highlight;
+  }
+
+  .group-card-progress-track {
+    border: 1px solid CanvasText;
+  }
+
+  .group-card-progress-value {
+    background: Highlight;
+  }
+}
+
+/* ============================================================================
+ * Print
+ * ========================================================================== */
+
+@media print {
+  .group-card {
+    break-inside: avoid;
+
+    box-shadow: none;
+
+    border-color: #000000;
+  }
+
+  .group-actions {
+    display: none;
+  }
+
+  .group-card-arrow {
+    display: none;
+  }
+
+  .group-card-trust {
+    color: #000000;
+  }
+}
+
+/* ============================================================================
+ * Dark Mode
+ * ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --titech-group-card-bg: #0f172a;
+    --titech-group-card-surface: #111c2f;
+    --titech-group-card-surface-hover: #17243a;
+
+    --titech-group-card-border: #243247;
+    --titech-group-card-border-strong: #334155;
+
+    --titech-group-card-text: #f8fafc;
+    --titech-group-card-text-muted: #a8b4c5;
+    --titech-group-card-text-subtle: #7f8da3;
+
+    --titech-group-card-primary: #2dd4bf;
+    --titech-group-card-primary-hover: #5eead4;
+    --titech-group-card-primary-soft: #134e4a;
+
+    --titech-group-card-success: #4ade80;
+    --titech-group-card-success-soft: #14532d;
+
+    --titech-group-card-info: #38bdf8;
+    --titech-group-card-info-soft: #0c4a6e;
+
+    --titech-group-card-warning: #fbbf24;
+    --titech-group-card-warning-soft: #78350f;
+
+    --titech-group-card-danger: #f87171;
+    --titech-group-card-danger-soft: #7f1d1d;
+
+    --titech-group-card-neutral: #cbd5e1;
+    --titech-group-card-neutral-soft: #1e293b;
+
+    --titech-group-card-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.28);
+
+    --titech-group-card-shadow-hover:
+      0 14px 32px rgba(0, 0, 0, 0.36);
+  }
+
+  .group-card-progress-track {
+    background: #243247;
+  }
+
+  .group-card-skeleton-media {
+    background:
+      linear-gradient(
+        90deg,
+        #17243a 0%,
+        #243247 50%,
+        #17243a 100%
+      );
+
+    background-size: 200% 100%;
+  }
+
+  .group-card-skeleton-line,
+  .group-card-skeleton-metrics > div {
+    background: #243247;
+  }
+}
+
+/* ============================================================================
+ * End of File
+ * ========================================================================== */

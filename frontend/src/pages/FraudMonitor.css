@@ -1,0 +1,827 @@
+/* ============================================================================
+   TITech Community Capital
+   Enterprise Fraud Monitor
+   File: frontend/src/pages/FraudMonitor.css
+   Production Grade
+   ============================================================================ */
+
+/* ============================================================================
+   Design Tokens
+   ============================================================================ */
+
+:root {
+  --titech-fraud-bg: #f8fafc;
+  --titech-fraud-surface: #ffffff;
+  --titech-fraud-surface-muted: #f1f5f9;
+  --titech-fraud-border: #e2e8f0;
+  --titech-fraud-border-strong: #cbd5e1;
+
+  --titech-fraud-text: #0f172a;
+  --titech-fraud-text-secondary: #475569;
+  --titech-fraud-text-muted: #64748b;
+
+  --titech-fraud-primary: #2563eb;
+  --titech-fraud-primary-hover: #1d4ed8;
+  --titech-fraud-primary-soft: #eff6ff;
+
+  --titech-fraud-success: #059669;
+  --titech-fraud-success-soft: #ecfdf5;
+
+  --titech-fraud-warning: #d97706;
+  --titech-fraud-warning-soft: #fffbeb;
+
+  --titech-fraud-danger: #dc2626;
+  --titech-fraud-danger-soft: #fef2f2;
+
+  --titech-fraud-info: #0284c7;
+  --titech-fraud-info-soft: #f0f9ff;
+
+  --titech-fraud-radius-sm: 6px;
+  --titech-fraud-radius-md: 10px;
+  --titech-fraud-radius-lg: 14px;
+
+  --titech-fraud-shadow-sm:
+    0 1px 2px rgba(15, 23, 42, 0.05);
+
+  --titech-fraud-shadow-md:
+    0 8px 24px rgba(15, 23, 42, 0.08);
+
+  --titech-fraud-transition:
+    160ms ease;
+
+  --titech-fraud-focus:
+    0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+/* ============================================================================
+   Root Monitor
+   ============================================================================ */
+
+.fraud-monitor {
+  position: relative;
+
+  width: 100%;
+  min-width: 0;
+
+  box-sizing: border-box;
+
+  padding: 1.25rem;
+
+  background: var(--titech-fraud-surface);
+
+  border: 1px solid var(--titech-fraud-border);
+
+  border-radius: var(--titech-fraud-radius-lg);
+
+  box-shadow: var(--titech-fraud-shadow-sm);
+
+  color: var(--titech-fraud-text);
+
+  overflow: hidden;
+}
+
+.fraud-monitor *,
+.fraud-monitor *::before,
+.fraud-monitor *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   Header
+   ============================================================================ */
+
+.fraud-monitor > header {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  margin-bottom: 1rem;
+
+  padding-bottom: 1rem;
+
+  border-bottom: 1px solid var(--titech-fraud-border);
+}
+
+.fraud-monitor > header h2 {
+  margin: 0;
+
+  color: var(--titech-fraud-text);
+
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.4;
+
+  letter-spacing: -0.01em;
+}
+
+.fraud-monitor > header h2::before {
+  content: "";
+
+  display: inline-block;
+
+  width: 0.5rem;
+  height: 0.5rem;
+
+  margin-right: 0.55rem;
+
+  vertical-align: middle;
+
+  background: var(--titech-fraud-success);
+
+  border-radius: 999px;
+
+  box-shadow:
+    0 0 0 4px var(--titech-fraud-success-soft);
+}
+
+/* ============================================================================
+   Refresh Button
+   ============================================================================ */
+
+.fraud-monitor .btn-secondary {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-height: 38px;
+
+  padding: 0.55rem 0.85rem;
+
+  border: 1px solid var(--titech-fraud-border-strong);
+
+  border-radius: var(--titech-fraud-radius-sm);
+
+  background: var(--titech-fraud-surface);
+
+  color: var(--titech-fraud-text-secondary);
+
+  font-size: 0.8125rem;
+  font-weight: 600;
+
+  line-height: 1;
+
+  cursor: pointer;
+
+  transition:
+    background var(--titech-fraud-transition),
+    border-color var(--titech-fraud-transition),
+    color var(--titech-fraud-transition),
+    box-shadow var(--titech-fraud-transition),
+    transform var(--titech-fraud-transition);
+}
+
+.fraud-monitor .btn-secondary:hover:not(:disabled) {
+  background: var(--titech-fraud-surface-muted);
+
+  border-color: #94a3b8;
+
+  color: var(--titech-fraud-text);
+
+  box-shadow: var(--titech-fraud-shadow-sm);
+}
+
+.fraud-monitor .btn-secondary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.fraud-monitor .btn-secondary:focus-visible {
+  outline: none;
+
+  box-shadow: var(--titech-fraud-focus);
+}
+
+.fraud-monitor .btn-secondary:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   Loading State
+   ============================================================================ */
+
+.fraud-monitor > .p-3 {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-height: 88px;
+
+  margin-bottom: 0.75rem;
+
+  padding: 1rem;
+
+  background: var(--titech-fraud-surface-muted);
+
+  border: 1px solid var(--titech-fraud-border);
+
+  border-radius: var(--titech-fraud-radius-md);
+
+  color: var(--titech-fraud-text-secondary);
+}
+
+/* ============================================================================
+   Error State
+   ============================================================================ */
+
+.fraud-monitor [role="alert"] {
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 0.65rem;
+
+  margin-bottom: 1rem;
+
+  padding: 0.8rem 0.9rem;
+
+  background: var(--titech-fraud-danger-soft);
+
+  border: 1px solid #fecaca;
+
+  border-left: 4px solid var(--titech-fraud-danger);
+
+  border-radius: var(--titech-fraud-radius-md);
+
+  color: #991b1b;
+
+  font-size: 0.8125rem;
+  font-weight: 500;
+
+  line-height: 1.5;
+}
+
+.fraud-monitor [role="alert"]::before {
+  content: "!";
+  display: inline-flex;
+
+  flex: 0 0 auto;
+
+  align-items: center;
+  justify-content: center;
+
+  width: 1.15rem;
+  height: 1.15rem;
+
+  margin-top: 0.05rem;
+
+  border-radius: 50%;
+
+  background: var(--titech-fraud-danger);
+
+  color: #ffffff;
+
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+/* ============================================================================
+   Alerts Container
+   ============================================================================ */
+
+.fraud-monitor .max-h-\[480px\] {
+  max-height: 480px;
+
+  overflow-y: auto;
+
+  padding: 0.15rem;
+
+  scrollbar-width: thin;
+  scrollbar-color:
+    var(--titech-fraud-border-strong)
+    transparent;
+}
+
+.fraud-monitor .max-h-\[480px\]::-webkit-scrollbar {
+  width: 7px;
+}
+
+.fraud-monitor .max-h-\[480px\]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fraud-monitor .max-h-\[480px\]::-webkit-scrollbar-thumb {
+  background: var(--titech-fraud-border-strong);
+
+  border-radius: 999px;
+}
+
+.fraud-monitor .max-h-\[480px\]::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ============================================================================
+   Empty State
+   ============================================================================ */
+
+.fraud-monitor .max-h-\[480px\] > p {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-height: 120px;
+
+  margin: 0;
+
+  padding: 1.5rem;
+
+  background: var(--titech-fraud-success-soft);
+
+  border: 1px dashed #a7f3d0;
+
+  border-radius: var(--titech-fraud-radius-md);
+
+  color: #047857;
+
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  text-align: center;
+}
+
+.fraud-monitor .max-h-\[480px\] > p::before {
+  content: "✓";
+
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  width: 1.75rem;
+  height: 1.75rem;
+
+  margin-right: 0.65rem;
+
+  border-radius: 50%;
+
+  background: var(--titech-fraud-success);
+
+  color: #ffffff;
+
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+/* ============================================================================
+   Fraud Alert Card
+   ============================================================================ */
+
+.fraud-monitor .max-h-\[480px\] > div {
+  position: relative;
+
+  display: block;
+
+  margin-bottom: 0.65rem;
+
+  padding: 0.9rem 1rem;
+
+  border-radius: var(--titech-fraud-radius-md);
+
+  transition:
+    transform var(--titech-fraud-transition),
+    box-shadow var(--titech-fraud-transition);
+}
+
+.fraud-monitor .max-h-\[480px\] > div:last-child {
+  margin-bottom: 0;
+}
+
+.fraud-monitor .max-h-\[480px\] > div:hover {
+  transform: translateY(-1px);
+
+  box-shadow: var(--titech-fraud-shadow-sm);
+}
+
+/* ============================================================================
+   High Severity
+   ============================================================================ */
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div.border-red-600 {
+  background: var(--titech-fraud-danger-soft);
+
+  border: 1px solid #fecaca;
+
+  border-left: 4px solid var(--titech-fraud-danger);
+
+  color: #991b1b;
+}
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div.border-red-600:hover {
+  box-shadow:
+    0 6px 18px rgba(220, 38, 38, 0.1);
+}
+
+/* ============================================================================
+   Medium Severity
+   ============================================================================ */
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div.border-yellow-500 {
+  background: var(--titech-fraud-warning-soft);
+
+  border: 1px solid #fde68a;
+
+  border-left: 4px solid var(--titech-fraud-warning);
+
+  color: #92400e;
+}
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div.border-yellow-500:hover {
+  box-shadow:
+    0 6px 18px rgba(217, 119, 6, 0.09);
+}
+
+/* ============================================================================
+   Low / Informational Severity
+   ============================================================================ */
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div.border-gray-300 {
+  background: var(--titech-fraud-surface-muted);
+
+  border: 1px solid var(--titech-fraud-border);
+
+  border-left: 4px solid #94a3b8;
+
+  color: var(--titech-fraud-text-secondary);
+}
+
+/* ============================================================================
+   Alert Header
+   ============================================================================ */
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div
+  > div:first-child {
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 0.65rem;
+
+  min-width: 0;
+}
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div
+  > div:first-child
+  > span:first-child {
+  display: inline-flex;
+
+  flex: 0 0 auto;
+
+  align-items: center;
+  justify-content: center;
+
+  width: 1.65rem;
+  height: 1.65rem;
+
+  background: rgba(255, 255, 255, 0.65);
+
+  border-radius: 50%;
+
+  font-size: 0.85rem;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div
+  > div:first-child
+  > span.font-medium {
+  min-width: 0;
+
+  overflow-wrap: anywhere;
+
+  color: inherit;
+
+  font-size: 0.875rem;
+  font-weight: 650;
+
+  line-height: 1.45;
+}
+
+/* ============================================================================
+   Timestamp
+   ============================================================================ */
+
+.fraud-monitor
+  .max-h-\[480px\]
+  > div
+  > div:last-child {
+  margin-top: 0.55rem;
+
+  padding-left: 2.3rem;
+
+  color: var(--titech-fraud-text-muted);
+
+  font-size: 0.7rem;
+
+  line-height: 1.4;
+}
+
+/* ============================================================================
+   Severity Status Indicators
+   ============================================================================ */
+
+.fraud-monitor
+  .border-red-600
+  > div:first-child
+  > span:first-child {
+  background: #fee2e2;
+}
+
+.fraud-monitor
+  .border-yellow-500
+  > div:first-child
+  > span:first-child {
+  background: #fef3c7;
+}
+
+.fraud-monitor
+  .border-gray-300
+  > div:first-child
+  > span:first-child {
+  background: #e2e8f0;
+}
+
+/* ============================================================================
+   Live Monitoring Indicator
+   ============================================================================ */
+
+.fraud-monitor::after {
+  content: "LIVE MONITORING";
+
+  position: absolute;
+
+  top: 0.75rem;
+  right: 1rem;
+
+  display: none;
+
+  padding: 0.2rem 0.45rem;
+
+  border: 1px solid #bbf7d0;
+
+  border-radius: 999px;
+
+  background: var(--titech-fraud-success-soft);
+
+  color: #047857;
+
+  font-size: 0.6rem;
+  font-weight: 800;
+
+  letter-spacing: 0.06em;
+}
+
+/* ============================================================================
+   Utility Compatibility
+   ============================================================================ */
+
+.fraud-monitor .card {
+  background: transparent;
+}
+
+.fraud-monitor .p-4 {
+  padding: 0;
+}
+
+.fraud-monitor .mb-3 {
+  margin-bottom: 0;
+}
+
+.fraud-monitor .text-lg {
+  font-size: 1.125rem;
+}
+
+.fraud-monitor .font-semibold {
+  font-weight: 600;
+}
+
+.fraud-monitor .text-sm {
+  font-size: 0.875rem;
+}
+
+.fraud-monitor .text-xs {
+  font-size: 0.75rem;
+}
+
+.fraud-monitor .text-gray-500 {
+  color: var(--titech-fraud-text-muted);
+}
+
+.fraud-monitor .text-red-600 {
+  color: var(--titech-fraud-danger);
+}
+
+.fraud-monitor .text-gray-700 {
+  color: var(--titech-fraud-text-secondary);
+}
+
+/* ============================================================================
+   Responsive — Tablet
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .fraud-monitor {
+    padding: 1rem;
+  }
+
+  .fraud-monitor > header {
+    align-items: flex-start;
+
+    gap: 0.75rem;
+  }
+
+  .fraud-monitor > header h2 {
+    font-size: 1rem;
+  }
+
+  .fraud-monitor .btn-secondary {
+    min-height: 36px;
+
+    padding-inline: 0.7rem;
+  }
+
+  .fraud-monitor .max-h-\[480px\] {
+    max-height: 420px;
+  }
+}
+
+/* ============================================================================
+   Responsive — Mobile
+   ============================================================================ */
+
+@media (max-width: 480px) {
+  .fraud-monitor {
+    padding: 0.85rem;
+
+    border-radius: var(--titech-fraud-radius-md);
+  }
+
+  .fraud-monitor > header {
+    flex-direction: column;
+
+    align-items: stretch;
+
+    margin-bottom: 0.85rem;
+
+    padding-bottom: 0.85rem;
+  }
+
+  .fraud-monitor > header h2 {
+    font-size: 0.95rem;
+  }
+
+  .fraud-monitor > header h2::before {
+    width: 0.45rem;
+    height: 0.45rem;
+
+    margin-right: 0.45rem;
+  }
+
+  .fraud-monitor .btn-secondary {
+    width: 100%;
+  }
+
+  .fraud-monitor .max-h-\[480px\] {
+    max-height: 360px;
+  }
+
+  .fraud-monitor .max-h-\[480px\] > div {
+    padding: 0.8rem;
+  }
+
+  .fraud-monitor
+    .max-h-\[480px\]
+    > div
+    > div:first-child {
+    gap: 0.5rem;
+  }
+
+  .fraud-monitor
+    .max-h-\[480px\]
+    > div
+    > div:first-child
+    > span.font-medium {
+    font-size: 0.8125rem;
+  }
+
+  .fraud-monitor
+    .max-h-\[480px\]
+    > div
+    > div:last-child {
+    padding-left: 2.1rem;
+
+    font-size: 0.675rem;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .fraud-monitor *,
+  .fraud-monitor *::before,
+  .fraud-monitor *::after {
+    scroll-behavior: auto !important;
+
+    transition: none !important;
+
+    animation: none !important;
+  }
+
+  .fraud-monitor .max-h-\[480px\] > div:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+   High Contrast / Forced Colors
+   ============================================================================ */
+
+@media (forced-colors: active) {
+  .fraud-monitor {
+    border: 1px solid CanvasText;
+  }
+
+  .fraud-monitor > header {
+    border-bottom-color: CanvasText;
+  }
+
+  .fraud-monitor .btn-secondary {
+    border: 1px solid ButtonText;
+
+    background: ButtonFace;
+
+    color: ButtonText;
+  }
+
+  .fraud-monitor .max-h-\[480px\] > div {
+    border: 1px solid CanvasText;
+
+    background: Canvas;
+
+    color: CanvasText;
+  }
+
+  .fraud-monitor [role="alert"] {
+    border: 1px solid CanvasText;
+
+    background: Canvas;
+
+    color: CanvasText;
+  }
+}
+
+/* ============================================================================
+   Print
+   ============================================================================ */
+
+@media print {
+  .fraud-monitor {
+    padding: 0;
+
+    border: 1px solid #000;
+
+    box-shadow: none;
+
+    break-inside: avoid;
+  }
+
+  .fraud-monitor .btn-secondary {
+    display: none;
+  }
+
+  .fraud-monitor .max-h-\[480px\] {
+    max-height: none;
+
+    overflow: visible;
+  }
+
+  .fraud-monitor .max-h-\[480px\] > div {
+    break-inside: avoid;
+
+    box-shadow: none;
+  }
+}

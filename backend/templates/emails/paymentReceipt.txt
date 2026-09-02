@@ -1,0 +1,42 @@
+PAYMENT RECEIPT - COMMUNITY SAVINGS APP
+=======================================
+
+Hello {{firstName}},
+
+Your payment has been successfully received and processed. Here's your receipt:
+
+TRANSACTION DETAILS
+===================
+Transaction ID: {{transactionId}}
+Date & Time: {{transactionDate}}
+Payment Method: {{paymentMethod}}
+Status: ✓ CONFIRMED
+
+AMOUNT PAID
+===========
+{{amount}} {{currency}}
+
+PAYMENT DETAILS
+===============
+Group: {{groupName}}
+Payment For: {{paymentPurpose}}
+Contribution Period: {{contributionPeriod}}
+{{#referenceNumber}}Reference: {{referenceNumber}}{{/referenceNumber}}
+
+WHAT HAPPENS NEXT
+=================
+✓ Funds have been added to your group's savings account
+✓ You can track this transaction in your transaction history
+✓ {{description}}
+
+NEED HELP?
+==========
+If you have questions about this payment or notice any discrepancies, please contact our support team at support@communitysavings.app
+
+View transaction history: {{transactionHistoryUrl}}
+
+---
+
+© {{year}} Community Savings App. All rights reserved.
+Privacy Policy: {{privacyUrl}}
+Terms of Service: {{termsUrl}}

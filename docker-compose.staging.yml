@@ -1,0 +1,187 @@
+version: '3.9'
+
+services:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: staging-nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/staging.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl/:/etc/nginx/ssl/:ro
+      - ./nginx/cache/:/var/cache/nginx/
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      staging-network:
+        aliases:
+          - proxy
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/healthz']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  backend:
+    build:
+      context: ./community-savings-app-backend
+      dockerfile: Dockerfile
+    container_name: staging-backend
+    env_file:
+      - .env.staging
+    volumes:
+      - ./community-savings-app-backend:/app
+      - /app/node_modules
+      - ./logs/backend:/app/logs
+    ports:
+      - '5000:5000'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      staging-network:
+        aliases:
+          - api
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5000/healthz']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  mongodb:
+    image: mongo:7-jammy
+    container_name: staging-mongodb
+    env_file:
+      - .env.staging
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb-staging-data:/data/db
+      - mongodb-staging-config:/data/configdb
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    networks:
+      staging-network:
+        aliases:
+          - mongo
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/admin -u $$MONGO_USERNAME -p $$MONGO_PASSWORD
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: staging-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-staging-data:/data
+      - ./redis/staging.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      staging-network:
+        aliases:
+          - cache
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: staging-prometheus
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./prometheus/staging.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-staging-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      staging-network:
+        aliases:
+          - metrics
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: staging-grafana
+    ports:
+      - '3001:3000'
+    env_file:
+      - .env.staging
+    volumes:
+      - grafana-staging-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      staging-network:
+        aliases:
+          - dashboard
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  frontend:
+    build:
+      context: ./community-savings-app-frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://nginx/api
+        REACT_APP_ENVIRONMENT: staging
+    container_name: staging-frontend
+    ports:
+      - '3000:80'
+    env_file:
+      - .env.staging
+    volumes:
+      - ./community-savings-app-frontend/build:/usr/share/nginx/html:ro
+      - ./nginx/frontend.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      staging-network:
+        aliases:
+          - ui
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+
+networks:
+  staging-network:
+    driver: bridge
+
+volumes:
+  mongodb-staging-data:
+  mongodb-staging-config:
+  redis-staging-data:
+  prometheus-staging-data:
+  grafana-staging-data:

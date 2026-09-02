@@ -1,0 +1,105 @@
+{
+  "info": {
+    "name": "Community Savings - Group Requests",
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef0123456789",
+    "description": "Seed, create, and join groups (use `{{baseUrl}}` and `{{token}}` environment vars).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Seed Groups",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"count\": 3,\n  \"names\": [\"Alpha Group\", \"Beta Group\", \"Gamma Group\"]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/groups/seed",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "groups", "seed"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Group",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"My Test Group\",\n  \"description\": \"Quick test group\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/groups",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "groups"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Join Group",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+        "url": {
+          "raw": "{{baseUrl}}/api/groups/join/{{groupId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "groups", "join", "{{groupId}}"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Set baseUrl example: http://localhost:5000",
+          "// Set token in environment before running requests"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ]
+}

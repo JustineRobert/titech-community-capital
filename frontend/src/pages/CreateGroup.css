@@ -1,0 +1,1252 @@
+/* ============================================================================
+   TITech Community Capital
+   CreateGroup.css
+   Enterprise Production Grade
+   ============================================================================
+
+   Scope:
+   - Create Group multi-step workflow
+   - Responsive desktop/tablet/mobile layouts
+   - Accessible focus states
+   - Form controls
+   - Validation / error states
+   - CSV upload
+   - Member management
+   - Preview
+   - Progress indicator
+   - Loading / disabled states
+   - Reduced-motion support
+   - Dark-mode compatibility
+
+   Note:
+   This stylesheet intentionally uses the existing class names from
+   CreateGroup.jsx and does not require Tailwind CSS.
+============================================================================ */
+
+/* ============================================================================
+   DESIGN TOKENS
+============================================================================ */
+
+.create-group-page {
+  --cg-primary: #2563eb;
+  --cg-primary-hover: #1d4ed8;
+  --cg-primary-active: #1e40af;
+  --cg-primary-soft: #eff6ff;
+
+  --cg-success: #059669;
+  --cg-success-soft: #ecfdf5;
+
+  --cg-warning: #d97706;
+  --cg-warning-soft: #fffbeb;
+
+  --cg-danger: #dc2626;
+  --cg-danger-hover: #b91c1c;
+  --cg-danger-soft: #fef2f2;
+
+  --cg-text: #111827;
+  --cg-text-secondary: #374151;
+  --cg-text-muted: #6b7280;
+  --cg-text-subtle: #9ca3af;
+
+  --cg-border: #d1d5db;
+  --cg-border-light: #e5e7eb;
+  --cg-border-focus: #2563eb;
+
+  --cg-surface: #ffffff;
+  --cg-surface-secondary: #f9fafb;
+  --cg-surface-tertiary: #f3f4f6;
+
+  --cg-page-background: #f5f7fb;
+
+  --cg-shadow-sm:
+    0 1px 2px rgba(15, 23, 42, 0.05);
+
+  --cg-shadow-md:
+    0 4px 12px rgba(15, 23, 42, 0.08);
+
+  --cg-shadow-lg:
+    0 12px 32px rgba(15, 23, 42, 0.10);
+
+  --cg-radius-sm: 0.375rem;
+  --cg-radius-md: 0.625rem;
+  --cg-radius-lg: 0.875rem;
+  --cg-radius-xl: 1rem;
+
+  --cg-transition-fast: 140ms ease;
+  --cg-transition: 180ms ease;
+  --cg-transition-slow: 260ms ease;
+
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+  color: var(--cg-text);
+}
+
+/* ============================================================================
+   BOX SIZING
+============================================================================ */
+
+.create-group-page,
+.create-group-page *,
+.create-group-page *::before,
+.create-group-page *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   PAGE CONTAINER
+============================================================================ */
+
+.create-group-page {
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
+
+/*
+   Supports pages where Tailwind utility classes may also be present.
+*/
+.create-group-page.p-6 {
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
+
+.create-group-page.max-w-3xl {
+  max-width: 960px;
+}
+
+.create-group-page.mx-auto {
+  margin-inline: auto;
+}
+
+/* ============================================================================
+   PAGE HEADER
+============================================================================ */
+
+.create-group-page > h1 {
+  margin: 0 0 1.25rem;
+  color: var(--cg-text);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.create-group-page > h1::after {
+  content: "";
+  display: block;
+  width: 3rem;
+  height: 0.2rem;
+  margin-top: 0.625rem;
+  border-radius: 999px;
+  background: var(--cg-primary);
+}
+
+/* ============================================================================
+   CARD
+============================================================================ */
+
+.create-group-page .card {
+  width: 100%;
+  background: var(--cg-surface);
+  border: 1px solid var(--cg-border-light);
+  border-radius: var(--cg-radius-lg);
+  box-shadow: var(--cg-shadow-md);
+}
+
+.create-group-page .card.p-4 {
+  padding: 1rem;
+}
+
+.create-group-page .card.p-6 {
+  padding: clamp(1rem, 3vw, 1.75rem);
+}
+
+/* ============================================================================
+   STEP INDICATOR
+============================================================================ */
+
+.create-group-page .step-indicator {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.create-group-page .step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.5rem;
+  color: var(--cg-text-muted);
+  background: var(--cg-surface-secondary);
+  border: 1px solid var(--cg-border-light);
+  border-radius: var(--cg-radius-md);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  transition:
+    color var(--cg-transition),
+    background-color var(--cg-transition),
+    border-color var(--cg-transition),
+    box-shadow var(--cg-transition);
+}
+
+.create-group-page .step.active {
+  color: var(--cg-primary-active);
+  background: var(--cg-primary-soft);
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow:
+    inset 0 0 0 1px rgba(37, 99, 235, 0.05);
+}
+
+/*
+   Visual connector between steps.
+*/
+.create-group-page .step + .step::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -0.5rem;
+  width: 0.5rem;
+  height: 1px;
+  background: var(--cg-border);
+  transform: translateY(-50%);
+}
+
+/* ============================================================================
+   FORM
+============================================================================ */
+
+.create-group-page form {
+  position: relative;
+}
+
+.create-group-page form.card {
+  overflow: hidden;
+}
+
+/* ============================================================================
+   FIELDSET
+============================================================================ */
+
+.create-group-page fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.create-group-page fieldset:disabled {
+  cursor: not-allowed;
+}
+
+.create-group-page fieldset:disabled input,
+.create-group-page fieldset:disabled select,
+.create-group-page fieldset:disabled button {
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   LEGEND / SCREEN READER
+============================================================================ */
+
+.create-group-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================================================
+   LABELS
+============================================================================ */
+
+.create-group-page label {
+  color: var(--cg-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.create-group-page label:not(.sr-only) {
+  display: inline-block;
+}
+
+.create-group-page label .text-red-600 {
+  color: var(--cg-danger);
+}
+
+/* ============================================================================
+   INPUTS / SELECTS
+============================================================================ */
+
+.create-group-page .input-field,
+.create-group-page input[type="text"],
+.create-group-page input[type="email"],
+.create-group-page input[type="file"],
+.create-group-page input[type="search"],
+.create-group-page select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.75rem;
+  color: var(--cg-text);
+  background: var(--cg-surface);
+  border: 1px solid var(--cg-border);
+  border-radius: var(--cg-radius-md);
+  outline: none;
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  transition:
+    border-color var(--cg-transition-fast),
+    box-shadow var(--cg-transition-fast),
+    background-color var(--cg-transition-fast);
+}
+
+.create-group-page input::placeholder {
+  color: var(--cg-text-subtle);
+}
+
+.create-group-page .input-field:hover,
+.create-group-page input[type="text"]:hover,
+.create-group-page input[type="email"]:hover,
+.create-group-page input[type="file"]:hover,
+.create-group-page select:hover {
+  border-color: #9ca3af;
+}
+
+.create-group-page .input-field:focus,
+.create-group-page input[type="text"]:focus,
+.create-group-page input[type="email"]:focus,
+.create-group-page input[type="file"]:focus,
+.create-group-page select:focus {
+  border-color: var(--cg-border-focus);
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.create-group-page .input-field:focus-visible,
+.create-group-page input:focus-visible,
+.create-group-page select:focus-visible,
+.create-group-page button:focus-visible {
+  outline: 2px solid var(--cg-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   SELECT
+============================================================================ */
+
+.create-group-page select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.create-group-page select:disabled {
+  color: var(--cg-text-muted);
+  background: var(--cg-surface-tertiary);
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   FILE INPUT
+============================================================================ */
+
+.create-group-page input[type="file"] {
+  min-height: auto;
+  padding: 0.5rem;
+  background: var(--cg-surface-secondary);
+  cursor: pointer;
+}
+
+.create-group-page input[type="file"]::file-selector-button {
+  margin-right: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--cg-primary-active);
+  background: var(--cg-primary-soft);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: var(--cg-radius-sm);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background-color var(--cg-transition-fast),
+    border-color var(--cg-transition-fast);
+}
+
+.create-group-page input[type="file"]::file-selector-button:hover {
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+/* ============================================================================
+   FORM HELP TEXT
+============================================================================ */
+
+.create-group-page #csv-help {
+  color: var(--cg-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   ERROR STATE
+============================================================================ */
+
+.create-group-page [role="alert"] {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+  padding: 0.875rem 1rem;
+  color: var(--cg-danger-hover);
+  background: var(--cg-danger-soft);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--cg-radius-md);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.create-group-page [role="alert"]::before {
+  content: "!";
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.05rem;
+  color: #ffffff;
+  background: var(--cg-danger);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+/* ============================================================================
+   CSV ERRORS
+============================================================================ */
+
+.create-group-page .text-red-700 {
+  color: var(--cg-danger-hover);
+}
+
+.create-group-page .text-red-700:not([role="alert"]) {
+  padding: 0.75rem;
+  background: var(--cg-danger-soft);
+  border: 1px solid rgba(220, 38, 38, 0.16);
+  border-radius: var(--cg-radius-md);
+  line-height: 1.5;
+}
+
+.create-group-page .text-red-700:not([role="alert"]) > div + div {
+  margin-top: 0.25rem;
+}
+
+/* ============================================================================
+   LOADED FILE
+============================================================================ */
+
+.create-group-page .text-sm.mb-2 {
+  color: var(--cg-text-secondary);
+}
+
+/* ============================================================================
+   MEMBER EMAIL LIST
+============================================================================ */
+
+.create-group-page .space-y-2 > * + * {
+  margin-top: 0.5rem;
+}
+
+.create-group-page .flex.gap-2.items-center {
+  min-width: 0;
+}
+
+.create-group-page .flex.gap-2.items-center .input-field {
+  min-width: 0;
+}
+
+.create-group-page .flex.gap-2.items-center > button {
+  flex: 0 0 auto;
+}
+
+/* ============================================================================
+   BUTTON SYSTEM
+============================================================================ */
+
+.create-group-page button {
+  min-height: 2.625rem;
+  border: 0;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    color var(--cg-transition-fast),
+    background-color var(--cg-transition-fast),
+    border-color var(--cg-transition-fast),
+    box-shadow var(--cg-transition-fast),
+    transform var(--cg-transition-fast),
+    opacity var(--cg-transition-fast);
+}
+
+.create-group-page button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.create-group-page button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   PRIMARY BUTTON
+============================================================================ */
+
+.create-group-page .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  color: #ffffff;
+  background: var(--cg-primary);
+  border: 1px solid var(--cg-primary);
+  border-radius: var(--cg-radius-md);
+  box-shadow:
+    0 1px 2px rgba(37, 99, 235, 0.15);
+}
+
+.create-group-page .btn-primary:hover:not(:disabled) {
+  background: var(--cg-primary-hover);
+  border-color: var(--cg-primary-hover);
+  box-shadow:
+    0 3px 8px rgba(37, 99, 235, 0.2);
+}
+
+.create-group-page .btn-primary:active:not(:disabled) {
+  background: var(--cg-primary-active);
+}
+
+/* ============================================================================
+   SECONDARY BUTTON
+============================================================================ */
+
+.create-group-page .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  color: var(--cg-text-secondary);
+  background: var(--cg-surface);
+  border: 1px solid var(--cg-border);
+  border-radius: var(--cg-radius-md);
+}
+
+.create-group-page .btn-secondary:hover:not(:disabled) {
+  color: var(--cg-text);
+  background: var(--cg-surface-secondary);
+  border-color: #9ca3af;
+}
+
+/* ============================================================================
+   GHOST BUTTON
+============================================================================ */
+
+.create-group-page .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  color: var(--cg-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--cg-radius-md);
+}
+
+.create-group-page .btn-ghost:hover:not(:disabled) {
+  color: var(--cg-text-secondary);
+  background: var(--cg-surface-tertiary);
+}
+
+/* ============================================================================
+   FORM ACTIONS
+============================================================================ */
+
+.create-group-page .form-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 1.25rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--cg-border-light);
+}
+
+.create-group-page .form-actions .btn-primary {
+  margin-left: auto;
+}
+
+/*
+   When Back exists before primary action, keep Cancel visually separated.
+*/
+.create-group-page .form-actions .btn-ghost {
+  margin-left: 0;
+}
+
+/* ============================================================================
+   PREVIEW
+============================================================================ */
+
+.create-group-page .bg-gray-50 {
+  background: var(--cg-surface-secondary);
+}
+
+.create-group-page .bg-gray-50.p-3 {
+  padding: 1rem;
+  border: 1px solid var(--cg-border-light);
+  border-radius: var(--cg-radius-md);
+}
+
+.create-group-page .bg-gray-50 p {
+  margin: 0;
+  color: var(--cg-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.create-group-page .bg-gray-50 p + p {
+  margin-top: 0.375rem;
+}
+
+.create-group-page .bg-gray-50 strong {
+  color: var(--cg-text);
+  font-weight: 700;
+}
+
+/* ============================================================================
+   PREVIEW MEMBER LIST
+============================================================================ */
+
+.create-group-page .max-h-48 {
+  max-height: 12rem;
+}
+
+.create-group-page .overflow-auto {
+  overflow: auto;
+}
+
+.create-group-page .overflow-auto.border {
+  border: 1px solid var(--cg-border-light);
+  border-radius: var(--cg-radius-md);
+}
+
+.create-group-page .overflow-auto.bg-white {
+  background: var(--cg-surface);
+}
+
+.create-group-page .overflow-auto.p-2 {
+  padding: 0.75rem;
+}
+
+.create-group-page ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.create-group-page ul.text-sm li {
+  position: relative;
+  padding: 0.5rem 0.625rem;
+  color: var(--cg-text-secondary);
+  border-radius: var(--cg-radius-sm);
+  line-height: 1.4;
+}
+
+.create-group-page ul.text-sm li:nth-child(odd) {
+  background: var(--cg-surface-secondary);
+}
+
+.create-group-page .truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   CREATE / PROGRESS STATE
+============================================================================ */
+
+.create-group-page .w-full.bg-gray-200 {
+  height: 0.75rem;
+  overflow: hidden;
+  background: var(--cg-surface-tertiary);
+  border: 1px solid var(--cg-border-light);
+  border-radius: 999px;
+}
+
+.create-group-page .bg-blue-600.h-3 {
+  min-width: 0;
+  height: 100%;
+  background: var(--cg-primary);
+  border-radius: inherit;
+}
+
+.create-group-page .text-gray-600 {
+  color: var(--cg-text-muted);
+}
+
+.create-group-page .text-gray-500 {
+  color: var(--cg-text-muted);
+}
+
+.create-group-page .text-gray-700 {
+  color: var(--cg-text-secondary);
+}
+
+.create-group-page .text-gray-900 {
+  color: var(--cg-text);
+}
+
+/* ============================================================================
+   PROGRESS ACCESSIBILITY
+============================================================================ */
+
+.create-group-page .w-full.bg-gray-200 {
+  position: relative;
+}
+
+.create-group-page .w-full.bg-gray-200 > div {
+  will-change: width;
+}
+
+/* ============================================================================
+   TYPOGRAPHY HELPERS
+============================================================================ */
+
+.create-group-page .text-xs {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.create-group-page .text-sm {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.create-group-page .text-lg {
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.create-group-page .font-medium {
+  font-weight: 500;
+}
+
+.create-group-page .font-semibold {
+  font-weight: 650;
+}
+
+/* ============================================================================
+   SPACING HELPERS USED BY JSX
+============================================================================ */
+
+.create-group-page .mb-1 {
+  margin-bottom: 0.25rem;
+}
+
+.create-group-page .mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.create-group-page .mb-3 {
+  margin-bottom: 0.75rem;
+}
+
+.create-group-page .mb-4 {
+  margin-bottom: 1rem;
+}
+
+.create-group-page .mt-2 {
+  margin-top: 0.5rem;
+}
+
+.create-group-page .mt-6 {
+  margin-top: 1.5rem;
+}
+
+.create-group-page .p-2 {
+  padding: 0.5rem;
+}
+
+.create-group-page .p-3 {
+  padding: 0.75rem;
+}
+
+.create-group-page .p-4 {
+  padding: 1rem;
+}
+
+.create-group-page .p-6 {
+  padding: 1.5rem;
+}
+
+/* ============================================================================
+   FLEX HELPERS USED BY JSX
+============================================================================ */
+
+.create-group-page .flex {
+  display: flex;
+}
+
+.create-group-page .inline-flex {
+  display: inline-flex;
+}
+
+.create-group-page .items-center {
+  align-items: center;
+}
+
+.create-group-page .justify-center {
+  justify-content: center;
+}
+
+.create-group-page .justify-between {
+  justify-content: space-between;
+}
+
+.create-group-page .flex-1 {
+  flex: 1 1 0%;
+}
+
+.create-group-page .flex-shrink-0 {
+  flex-shrink: 0;
+}
+
+.create-group-page .gap-2 {
+  gap: 0.5rem;
+}
+
+.create-group-page .gap-3 {
+  gap: 0.75rem;
+}
+
+/* ============================================================================
+   WIDTH / HEIGHT HELPERS
+============================================================================ */
+
+.create-group-page .w-full {
+  width: 100%;
+}
+
+.create-group-page .h-3 {
+  height: 0.75rem;
+}
+
+.create-group-page .max-w-3xl {
+  max-width: 960px;
+}
+
+/* ============================================================================
+   BORDER HELPERS
+============================================================================ */
+
+.create-group-page .border {
+  border: 1px solid var(--cg-border-light);
+}
+
+.create-group-page .rounded {
+  border-radius: var(--cg-radius-sm);
+}
+
+.create-group-page .rounded-md {
+  border-radius: var(--cg-radius-md);
+}
+
+/* ============================================================================
+   SHADOW HELPERS
+============================================================================ */
+
+.create-group-page .shadow-sm {
+  box-shadow: var(--cg-shadow-sm);
+}
+
+/* ============================================================================
+   RESPONSIVE — LARGE TABLETS / SMALL DESKTOP
+============================================================================ */
+
+@media (max-width: 768px) {
+  .create-group-page {
+    max-width: 100%;
+    padding: 1rem;
+  }
+
+  .create-group-page .card.p-6 {
+    padding: 1.25rem;
+  }
+
+  .create-group-page .step-indicator {
+    gap: 0.375rem;
+  }
+
+  .create-group-page .step {
+    min-height: 2.5rem;
+    font-size: 0.75rem;
+  }
+
+  .create-group-page .form-actions {
+    gap: 0.625rem;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE — MOBILE
+============================================================================ */
+
+@media (max-width: 600px) {
+  .create-group-page {
+    padding: 0.75rem;
+  }
+
+  .create-group-page > h1 {
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  }
+
+  .create-group-page .card.p-4 {
+    padding: 0.75rem;
+  }
+
+  .create-group-page .card.p-6 {
+    padding: 1rem;
+  }
+
+  /*
+     Convert the four-step indicator into a compact vertical stack.
+  */
+  .create-group-page .step-indicator {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .create-group-page .step {
+    min-height: 2.625rem;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .create-group-page .step + .step::before {
+    display: none;
+  }
+
+  /*
+     Stack member input and remove button.
+  */
+  .create-group-page .flex.gap-2.items-center {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .create-group-page .flex.gap-2.items-center > button {
+    width: 100%;
+  }
+
+  /*
+     Make utility actions easier to tap.
+  */
+  .create-group-page .mb-3.flex,
+  .create-group-page .flex.gap-2 {
+    flex-wrap: wrap;
+  }
+
+  .create-group-page .flex.gap-2 > button {
+    flex: 1 1 auto;
+  }
+
+  /*
+     Stack bottom actions.
+  */
+  .create-group-page .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .create-group-page .form-actions .btn-primary,
+  .create-group-page .form-actions .btn-secondary,
+  .create-group-page .form-actions .btn-ghost {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .create-group-page .form-actions .btn-primary {
+    order: 1;
+  }
+
+  .create-group-page .form-actions .btn-secondary {
+    order: 2;
+  }
+
+  .create-group-page .form-actions .btn-ghost {
+    order: 3;
+  }
+
+  /*
+     Avoid excessively wide preview values.
+  */
+  .create-group-page .bg-gray-50.p-3 {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE — VERY SMALL MOBILE
+============================================================================ */
+
+@media (max-width: 380px) {
+  .create-group-page {
+    padding: 0.5rem;
+  }
+
+  .create-group-page > h1 {
+    font-size: 1.35rem;
+  }
+
+  .create-group-page .card.p-6 {
+    padding: 0.875rem;
+  }
+
+  .create-group-page .step-indicator {
+    grid-template-columns: 1fr;
+  }
+
+  .create-group-page .input-field,
+  .create-group-page input[type="text"],
+  .create-group-page input[type="email"],
+  .create-group-page input[type="file"],
+  .create-group-page select {
+    font-size: 0.875rem;
+  }
+}
+
+/* ============================================================================
+   TOUCH DEVICES
+============================================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  .create-group-page button {
+    min-height: 2.875rem;
+  }
+
+  .create-group-page .input-field,
+  .create-group-page input[type="text"],
+  .create-group-page input[type="email"],
+  .create-group-page select {
+    min-height: 2.875rem;
+  }
+
+  .create-group-page .step {
+    min-height: 2.875rem;
+  }
+}
+
+/* ============================================================================
+   DARK MODE
+============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  .create-group-page {
+    --cg-text: #f3f4f6;
+    --cg-text-secondary: #d1d5db;
+    --cg-text-muted: #9ca3af;
+    --cg-text-subtle: #6b7280;
+
+    --cg-border: #374151;
+    --cg-border-light: #1f2937;
+
+    --cg-surface: #111827;
+    --cg-surface-secondary: #172033;
+    --cg-surface-tertiary: #1f2937;
+
+    --cg-page-background: #0b1120;
+
+    --cg-primary-soft: rgba(37, 99, 235, 0.16);
+    --cg-danger-soft: rgba(220, 38, 38, 0.14);
+    --cg-success-soft: rgba(5, 150, 105, 0.14);
+    --cg-warning-soft: rgba(217, 119, 6, 0.14);
+  }
+
+  .create-group-page .card {
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.22);
+  }
+
+  .create-group-page .input-field,
+  .create-group-page input[type="text"],
+  .create-group-page input[type="email"],
+  .create-group-page input[type="file"],
+  .create-group-page select {
+    color: var(--cg-text);
+    background: var(--cg-surface);
+    border-color: var(--cg-border);
+  }
+
+  .create-group-page input[type="file"] {
+    background: var(--cg-surface-secondary);
+  }
+
+  .create-group-page input[type="file"]::file-selector-button {
+    color: #bfdbfe;
+    background: rgba(37, 99, 235, 0.16);
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+
+  .create-group-page .btn-secondary {
+    color: var(--cg-text-secondary);
+    background: var(--cg-surface);
+    border-color: var(--cg-border);
+  }
+
+  .create-group-page .btn-secondary:hover:not(:disabled) {
+    background: var(--cg-surface-secondary);
+    border-color: #4b5563;
+  }
+
+  .create-group-page .btn-ghost:hover:not(:disabled) {
+    color: var(--cg-text);
+    background: var(--cg-surface-tertiary);
+  }
+
+  .create-group-page .step {
+    color: var(--cg-text-muted);
+    background: var(--cg-surface-secondary);
+    border-color: var(--cg-border);
+  }
+
+  .create-group-page .step.active {
+    color: #bfdbfe;
+    background: var(--cg-primary-soft);
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+
+  .create-group-page .step + .step::before {
+    background: var(--cg-border);
+  }
+
+  .create-group-page .bg-gray-50,
+  .create-group-page .bg-white {
+    background: var(--cg-surface-secondary);
+  }
+
+  .create-group-page .overflow-auto.bg-white {
+    background: var(--cg-surface);
+  }
+
+  .create-group-page .bg-gray-200 {
+    background: var(--cg-surface-tertiary);
+  }
+
+  .create-group-page ul.text-sm li:nth-child(odd) {
+    background: var(--cg-surface-secondary);
+  }
+}
+
+/* ============================================================================
+   REDUCED MOTION
+============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .create-group-page *,
+  .create-group-page *::before,
+  .create-group-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ============================================================================
+   HIGH CONTRAST / FORCED COLORS
+============================================================================ */
+
+@media (forced-colors: active) {
+  .create-group-page .card,
+  .create-group-page .step,
+  .create-group-page .input-field,
+  .create-group-page input,
+  .create-group-page select,
+  .create-group-page button {
+    forced-color-adjust: auto;
+  }
+
+  .create-group-page button:focus-visible,
+  .create-group-page input:focus-visible,
+  .create-group-page select:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .create-group-page .step.active {
+    border: 2px solid Highlight;
+  }
+
+  .create-group-page .bg-blue-600.h-3 {
+    background: Highlight;
+  }
+}
+
+/* ============================================================================
+   PRINT
+============================================================================ */
+
+@media print {
+  .create-group-page {
+    max-width: none;
+    padding: 0;
+    color: #000000;
+    background: #ffffff;
+  }
+
+  .create-group-page .card {
+    border: 1px solid #cccccc;
+    box-shadow: none;
+  }
+
+  .create-group-page .form-actions,
+  .create-group-page input[type="file"],
+  .create-group-page .btn-primary,
+  .create-group-page .btn-secondary,
+  .create-group-page .btn-ghost {
+    display: none !important;
+  }
+
+  .create-group-page .step-indicator {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .create-group-page .step {
+    color: #000000;
+    background: #ffffff;
+    border-color: #cccccc;
+  }
+}
+
+/* ============================================================================
+   END — TITech Community Capital CreateGroup.css
+============================================================================ */

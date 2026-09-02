@@ -1,0 +1,1363 @@
+/* ============================================================================
+   TITech Community Capital
+   Enterprise Registration Experience
+   File: frontend/src/pages/Register.css
+
+   Production Grade
+   ----------------------------------------------------------------------------
+   - Responsive enterprise authentication UI
+   - WCAG-conscious focus states
+   - Mobile-first behavior
+   - High contrast and reduced-motion support
+   - Password strength visualization
+   - Accessible form states
+   - Dark-mode friendly
+   - Autofill-safe inputs
+   - Print-safe output
+   - No dependency on external CSS frameworks
+   ============================================================================ */
+
+/* ============================================================================
+   DESIGN TOKENS
+   ============================================================================ */
+
+:root {
+  --titech-primary: #2563eb;
+  --titech-primary-hover: #1d4ed8;
+  --titech-primary-active: #1e40af;
+  --titech-primary-soft: #eff6ff;
+
+  --titech-success: #16a34a;
+  --titech-success-soft: #f0fdf4;
+
+  --titech-danger: #dc2626;
+  --titech-danger-soft: #fef2f2;
+
+  --titech-warning: #d97706;
+  --titech-warning-soft: #fffbeb;
+
+  --titech-text: #111827;
+  --titech-text-secondary: #4b5563;
+  --titech-text-muted: #6b7280;
+
+  --titech-border: #d1d5db;
+  --titech-border-soft: #e5e7eb;
+
+  --titech-surface: #ffffff;
+  --titech-surface-muted: #f9fafb;
+  --titech-background: #f3f6fa;
+
+  --titech-radius-xs: 4px;
+  --titech-radius-sm: 6px;
+  --titech-radius-md: 10px;
+  --titech-radius-lg: 16px;
+  --titech-radius-xl: 22px;
+
+  --titech-shadow-sm:
+    0 1px 2px rgb(15 23 42 / 0.05);
+
+  --titech-shadow-md:
+    0 10px 30px rgb(15 23 42 / 0.08);
+
+  --titech-shadow-lg:
+    0 24px 60px rgb(15 23 42 / 0.12);
+
+  --titech-shadow-xl:
+    0 32px 80px rgb(15 23 42 / 0.16);
+
+  --titech-transition: 160ms ease;
+
+  --titech-focus-ring:
+    0 0 0 3px rgb(37 99 235 / 0.18);
+
+  --titech-max-width: 1180px;
+
+  color-scheme: light;
+}
+
+/* ============================================================================
+   PAGE BOX MODEL
+   ============================================================================ */
+
+.register-page,
+.register-page *,
+.register-page *::before,
+.register-page *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   PAGE
+   ============================================================================ */
+
+.register-page {
+  width: 100%;
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  position: relative;
+  isolation: isolate;
+
+  overflow-x: hidden;
+
+  padding: 32px 20px;
+
+  background:
+    radial-gradient(
+      circle at top left,
+      rgb(37 99 235 / 0.08),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgb(16 185 129 / 0.07),
+      transparent 30%
+    ),
+    var(--titech-background);
+
+  color: var(--titech-text);
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.register-page::before {
+  content: "";
+
+  position: fixed;
+  inset: 0;
+
+  z-index: -1;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      120deg,
+      transparent 0%,
+      rgb(255 255 255 / 0.42) 50%,
+      transparent 100%
+    );
+
+  opacity: 0.45;
+}
+
+/* ============================================================================
+   MAIN WRAPPER
+   ============================================================================ */
+
+.register-wrapper {
+  width: min(100%, var(--titech-max-width));
+
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.9fr)
+    minmax(420px, 1.1fr);
+
+  overflow: hidden;
+
+  background: var(--titech-surface);
+
+  border: 1px solid rgb(209 213 219 / 0.85);
+  border-radius: var(--titech-radius-xl);
+
+  box-shadow: var(--titech-shadow-xl);
+}
+
+/* ============================================================================
+   BRAND / FEATURES PANEL
+   ============================================================================ */
+
+.register-features {
+  position: relative;
+
+  min-height: 720px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  overflow: hidden;
+
+  padding: 64px 52px;
+
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgb(96 165 250 / 0.15),
+      transparent 34%
+    ),
+    linear-gradient(
+      145deg,
+      #0f172a 0%,
+      #172554 48%,
+      #1e3a8a 100%
+    );
+
+  color: #ffffff;
+}
+
+.register-features::before {
+  content: "";
+
+  position: absolute;
+
+  width: 290px;
+  height: 290px;
+
+  top: -130px;
+  right: -100px;
+
+  border-radius: 50%;
+
+  background: rgb(255 255 255 / 0.06);
+
+  pointer-events: none;
+}
+
+.register-features::after {
+  content: "";
+
+  position: absolute;
+
+  width: 370px;
+  height: 370px;
+
+  left: -185px;
+  bottom: -220px;
+
+  border-radius: 50%;
+
+  background: rgb(96 165 250 / 0.09);
+
+  pointer-events: none;
+}
+
+.register-features > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================================
+   FEATURES TITLE
+   ============================================================================ */
+
+.features-title {
+  max-width: 560px;
+
+  margin: 0 0 18px;
+
+  color: #ffffff;
+
+  font-size: clamp(2rem, 4vw, 2.85rem);
+  line-height: 1.1;
+  font-weight: 800;
+
+  letter-spacing: -0.035em;
+
+  text-wrap: balance;
+}
+
+.features-subtitle {
+  max-width: 510px;
+
+  margin: 0 0 42px;
+
+  color: rgb(255 255 255 / 0.78);
+
+  font-size: 1.04rem;
+  line-height: 1.75;
+
+  text-wrap: pretty;
+}
+
+/* ============================================================================
+   FEATURE LIST
+   ============================================================================ */
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 18px;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
+
+  color: rgb(255 255 255 / 0.92);
+
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+.feature-item svg {
+  flex: 0 0 auto;
+
+  color: #60a5fa;
+
+  stroke-width: 2.25;
+}
+
+/* ============================================================================
+   FORM CONTAINER
+   ============================================================================ */
+
+.register-container {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 52px 48px;
+
+  background: var(--titech-surface);
+}
+
+.register-card {
+  width: min(100%, 520px);
+}
+
+/* ============================================================================
+   HEADINGS
+   ============================================================================ */
+
+.register-heading,
+.register-card h1,
+.register-card h2 {
+  margin: 0;
+
+  color: var(--titech-text);
+
+  font-size: clamp(1.7rem, 3vw, 2.15rem);
+  line-height: 1.2;
+  font-weight: 750;
+
+  letter-spacing: -0.025em;
+}
+
+.register-subtitle {
+  margin: 9px 0 30px;
+
+  color: var(--titech-text-secondary);
+
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   FORM
+   ============================================================================ */
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 20px;
+}
+
+.form-group {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group > label:not(.checkbox-label) {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  margin-bottom: 8px;
+
+  color: var(--titech-text);
+
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-weight: 650;
+}
+
+.form-group > label svg,
+.form-icon {
+  flex: 0 0 auto;
+
+  color: var(--titech-text-muted);
+}
+
+/* ============================================================================
+   INPUTS
+   ============================================================================ */
+
+.form-input {
+  width: 100%;
+  min-height: 46px;
+
+  padding: 11px 13px;
+
+  border: 1px solid var(--titech-border);
+  border-radius: var(--titech-radius-md);
+
+  outline: none;
+
+  background: var(--titech-surface);
+  color: var(--titech-text);
+
+  font: inherit;
+  font-size: 0.94rem;
+
+  transition:
+    border-color var(--titech-transition),
+    box-shadow var(--titech-transition),
+    background-color var(--titech-transition),
+    color var(--titech-transition);
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
+}
+
+.form-input:hover:not(:disabled) {
+  border-color: #9ca3af;
+}
+
+.form-input:focus {
+  border-color: var(--titech-primary);
+
+  box-shadow: var(--titech-focus-ring);
+}
+
+.form-input:disabled {
+  cursor: not-allowed;
+
+  background: var(--titech-surface-muted);
+  color: var(--titech-text-muted);
+
+  opacity: 0.8;
+}
+
+.form-input[aria-invalid="true"],
+.form-input.error {
+  border-color: var(--titech-danger);
+
+  background: var(--titech-danger-soft);
+}
+
+.form-input[aria-invalid="true"]:focus,
+.form-input.error:focus {
+  border-color: var(--titech-danger);
+
+  box-shadow:
+    0 0 0 3px rgb(220 38 38 / 0.14);
+}
+
+/* ============================================================================
+   PASSWORD INPUT
+   ============================================================================ */
+
+.password-input-wrapper {
+  width: 100%;
+
+  position: relative;
+
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .form-input {
+  padding-right: 50px;
+}
+
+.password-toggle {
+  width: 34px;
+  height: 34px;
+
+  position: absolute;
+
+  top: 50%;
+  right: 8px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  transform: translateY(-50%);
+
+  border: 0;
+  border-radius: var(--titech-radius-sm);
+
+  background: transparent;
+  color: var(--titech-text-muted);
+
+  cursor: pointer;
+
+  transition:
+    color var(--titech-transition),
+    background-color var(--titech-transition),
+    transform var(--titech-transition);
+}
+
+.password-toggle:hover {
+  background: var(--titech-surface-muted);
+
+  color: var(--titech-text);
+}
+
+.password-toggle:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--titech-primary);
+  outline-offset: 1px;
+}
+
+.password-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ============================================================================
+   PASSWORD STRENGTH
+   ============================================================================ */
+
+.password-strength {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  margin-top: 9px;
+}
+
+.strength-meter {
+  flex: 1;
+
+  min-width: 0;
+
+  height: 6px;
+
+  overflow: hidden;
+
+  border-radius: 999px;
+
+  background: #e5e7eb;
+}
+
+.strength-bar {
+  height: 100%;
+
+  min-width: 0;
+
+  border-radius: inherit;
+
+  transition:
+    width 180ms ease,
+    background-color 180ms ease;
+}
+
+.strength-text,
+.password-strength > span {
+  min-width: 76px;
+
+  text-align: right;
+
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+/* ============================================================================
+   PASSWORD REQUIREMENTS
+   ============================================================================ */
+
+.password-requirements {
+  margin-top: 10px;
+
+  padding: 13px 14px;
+
+  border: 1px solid var(--titech-border-soft);
+  border-radius: var(--titech-radius-md);
+
+  background: var(--titech-surface-muted);
+}
+
+.requirements-title {
+  margin: 0 0 9px;
+
+  color: var(--titech-text);
+
+  font-size: 0.82rem;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.password-requirements ul {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.password-requirements li {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  color: var(--titech-text-muted);
+
+  font-size: 0.78rem;
+  line-height: 1.45;
+
+  transition:
+    color var(--titech-transition),
+    opacity var(--titech-transition);
+}
+
+.password-requirements li svg {
+  flex: 0 0 auto;
+
+  opacity: 0.7;
+
+  transition:
+    color var(--titech-transition),
+    opacity var(--titech-transition);
+}
+
+.password-requirements li.met {
+  color: var(--titech-success);
+
+  font-weight: 600;
+}
+
+.password-requirements li.met svg {
+  color: var(--titech-success);
+
+  opacity: 1;
+}
+
+/* ============================================================================
+   FIELD ERRORS
+   ============================================================================ */
+
+.field-error {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 6px;
+
+  margin-top: 7px;
+
+  color: var(--titech-danger);
+
+  font-size: 0.78rem;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.field-error svg {
+  flex: 0 0 auto;
+
+  margin-top: 1px;
+}
+
+/* ============================================================================
+   CHECKBOX / TERMS
+   ============================================================================ */
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 10px;
+
+  cursor: pointer;
+
+  color: var(--titech-text-secondary);
+
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+.checkbox-label input[type="checkbox"] {
+  flex: 0 0 auto;
+
+  width: 17px;
+  height: 17px;
+
+  margin: 1px 0 0;
+
+  accent-color: var(--titech-primary);
+
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--titech-primary);
+  outline-offset: 2px;
+}
+
+.checkbox-label input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.checkbox-label span {
+  min-width: 0;
+}
+
+.checkbox-label a,
+.checkbox-label .link {
+  color: var(--titech-primary);
+
+  font-weight: 650;
+
+  text-decoration: none;
+}
+
+.checkbox-label a:hover,
+.checkbox-label .link:hover {
+  color: var(--titech-primary-hover);
+
+  text-decoration: underline;
+}
+
+.checkbox-label a:focus-visible,
+.checkbox-label .link:focus-visible {
+  outline: 2px solid var(--titech-primary);
+
+  outline-offset: 2px;
+
+  border-radius: var(--titech-radius-xs);
+}
+
+/* ============================================================================
+   SUBMIT BUTTON
+   ============================================================================ */
+
+.submit-btn {
+  width: 100%;
+  min-height: 48px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+
+  margin-top: 2px;
+
+  padding: 12px 18px;
+
+  border: 1px solid transparent;
+  border-radius: var(--titech-radius-md);
+
+  background: var(--titech-primary);
+
+  color: #ffffff;
+
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 2px 4px rgb(37 99 235 / 0.16);
+
+  transition:
+    background-color var(--titech-transition),
+    box-shadow var(--titech-transition),
+    transform var(--titech-transition),
+    opacity var(--titech-transition);
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: var(--titech-primary-hover);
+
+  box-shadow:
+    0 6px 14px rgb(37 99 235 / 0.22);
+
+  transform: translateY(-1px);
+}
+
+.submit-btn:active:not(:disabled) {
+  background: var(--titech-primary-active);
+
+  transform: translateY(0);
+}
+
+.submit-btn:focus-visible {
+  outline: none;
+
+  box-shadow:
+    var(--titech-focus-ring),
+    0 3px 8px rgb(37 99 235 / 0.18);
+}
+
+.submit-btn:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.65;
+
+  transform: none;
+
+  box-shadow: none;
+}
+
+/* ============================================================================
+   LOADING STATE
+   ============================================================================ */
+
+.btn-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+}
+
+.spinner {
+  width: 17px;
+  height: 17px;
+
+  flex: 0 0 auto;
+
+  border: 2px solid rgb(255 255 255 / 0.35);
+  border-top-color: #ffffff;
+
+  border-radius: 50%;
+
+  animation:
+    titech-register-spin 650ms linear infinite;
+}
+
+@keyframes titech-register-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+   LOGIN LINK
+   ============================================================================ */
+
+.login-link {
+  padding-top: 2px;
+
+  text-align: center;
+
+  color: var(--titech-text-muted);
+
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.login-link a,
+.link-highlight {
+  color: var(--titech-primary);
+
+  font-weight: 700;
+
+  text-decoration: none;
+
+  transition: color var(--titech-transition);
+}
+
+.login-link a:hover,
+.link-highlight:hover {
+  color: var(--titech-primary-hover);
+
+  text-decoration: underline;
+}
+
+.login-link a:focus-visible,
+.link-highlight:focus-visible {
+  outline: 2px solid var(--titech-primary);
+
+  outline-offset: 3px;
+
+  border-radius: var(--titech-radius-xs);
+}
+
+/* ============================================================================
+   GENERAL FOCUS ACCESSIBILITY
+   ============================================================================ */
+
+.register-page button:focus-visible,
+.register-page a:focus-visible,
+.register-page input:focus-visible {
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   AUTOFILL
+   ============================================================================ */
+
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--titech-text);
+
+  caret-color: var(--titech-text);
+
+  box-shadow:
+    0 0 0 1000px var(--titech-surface) inset;
+
+  transition:
+    background-color 9999s ease-in-out 0s;
+}
+
+/* ============================================================================
+   RESPONSIVE — TABLET
+   ============================================================================ */
+
+@media (max-width: 980px) {
+  .register-page {
+    align-items: flex-start;
+
+    padding: 24px 16px;
+  }
+
+  .register-wrapper {
+    grid-template-columns:
+      minmax(0, 0.85fr)
+      minmax(380px, 1.15fr);
+  }
+
+  .register-features {
+    min-height: 680px;
+
+    padding: 44px 34px;
+  }
+
+  .register-container {
+    padding: 44px 30px;
+  }
+
+  .features-title {
+    font-size: 2rem;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE — MOBILE
+   ============================================================================ */
+
+@media (max-width: 760px) {
+  .register-page {
+    min-height: 100vh;
+
+    align-items: flex-start;
+
+    padding: 0;
+  }
+
+  .register-wrapper {
+    width: 100%;
+
+    min-height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+
+    border: 0;
+    border-radius: 0;
+
+    box-shadow: none;
+  }
+
+  .register-features {
+    min-height: auto;
+
+    padding: 34px 24px 30px;
+
+    border-radius: 0;
+  }
+
+  .features-title {
+    margin-bottom: 10px;
+
+    font-size: 1.75rem;
+  }
+
+  .features-subtitle {
+    margin-bottom: 24px;
+
+    font-size: 0.93rem;
+    line-height: 1.6;
+  }
+
+  .feature-list {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 13px 18px;
+  }
+
+  .feature-item {
+    align-items: flex-start;
+
+    font-size: 0.82rem;
+  }
+
+  .register-container {
+    flex: 1;
+
+    align-items: flex-start;
+
+    padding: 34px 22px 42px;
+  }
+
+  .register-card {
+    width: 100%;
+  }
+
+  .register-heading,
+  .register-card h1,
+  .register-card h2 {
+    font-size: 1.7rem;
+  }
+
+  .register-subtitle {
+    margin-bottom: 26px;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE — SMALL MOBILE
+   ============================================================================ */
+
+@media (max-width: 460px) {
+  .register-features {
+    padding: 28px 18px 24px;
+  }
+
+  .features-title {
+    font-size: 1.55rem;
+  }
+
+  .features-subtitle {
+    font-size: 0.88rem;
+  }
+
+  .feature-list {
+    grid-template-columns: 1fr;
+
+    gap: 10px;
+  }
+
+  .feature-item {
+    font-size: 0.84rem;
+  }
+
+  .register-container {
+    padding: 30px 18px 36px;
+  }
+
+  .register-form {
+    gap: 18px;
+  }
+
+  .form-input {
+    min-height: 48px;
+  }
+
+  .submit-btn {
+    min-height: 50px;
+  }
+
+  .password-strength {
+    align-items: flex-start;
+  }
+}
+
+/* ============================================================================
+   VERY SMALL SCREENS
+   ============================================================================ */
+
+@media (max-width: 340px) {
+  .register-container {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .register-features {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .features-title {
+    font-size: 1.4rem;
+  }
+
+  .password-strength {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .password-strength > span,
+  .strength-text {
+    min-width: 0;
+
+    text-align: left;
+  }
+}
+
+/* ============================================================================
+   DARK MODE
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --titech-text: #f9fafb;
+    --titech-text-secondary: #cbd5e1;
+    --titech-text-muted: #94a3b8;
+
+    --titech-border: #374151;
+    --titech-border-soft: #334155;
+
+    --titech-surface: #111827;
+    --titech-surface-muted: #1f2937;
+    --titech-background: #020617;
+
+    --titech-primary-soft: #172554;
+
+    --titech-danger-soft: rgb(127 29 29 / 0.18);
+
+    color-scheme: dark;
+  }
+
+  .register-page {
+    background:
+      radial-gradient(
+        circle at top left,
+        rgb(37 99 235 / 0.12),
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at bottom right,
+        rgb(16 185 129 / 0.08),
+        transparent 30%
+      ),
+      var(--titech-background);
+  }
+
+  .register-page::before {
+    opacity: 0.08;
+  }
+
+  .register-wrapper {
+    border-color: #1f2937;
+
+    box-shadow:
+      0 30px 80px rgb(0 0 0 / 0.38);
+  }
+
+  .register-container {
+    background: var(--titech-surface);
+  }
+
+  .form-input {
+    background: #111827;
+
+    border-color: #374151;
+  }
+
+  .form-input:hover:not(:disabled) {
+    border-color: #4b5563;
+  }
+
+  .form-input:focus {
+    border-color: #60a5fa;
+
+    box-shadow:
+      0 0 0 3px rgb(96 165 250 / 0.14);
+  }
+
+  .form-input[aria-invalid="true"],
+  .form-input.error {
+    background: rgb(127 29 29 / 0.16);
+
+    border-color: #f87171;
+  }
+
+  .form-input:-webkit-autofill,
+  .form-input:-webkit-autofill:hover,
+  .form-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f9fafb;
+
+    caret-color: #f9fafb;
+
+    box-shadow:
+      0 0 0 1000px #111827 inset;
+  }
+
+  .password-toggle:hover {
+    background: #1f2937;
+  }
+
+  .password-requirements {
+    background: #0f172a;
+
+    border-color: #334155;
+  }
+
+  .strength-meter {
+    background: #374151;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY — REDUCED MOTION
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .register-page *,
+  .register-page *::before,
+  .register-page *::after {
+    scroll-behavior: auto !important;
+
+    transition-duration: 0.01ms !important;
+
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .submit-btn:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .password-toggle:active {
+    transform: translateY(-50%);
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY — HIGH CONTRAST
+   ============================================================================ */
+
+@media (forced-colors: active) {
+  .register-wrapper,
+  .form-input,
+  .submit-btn,
+  .password-toggle,
+  .password-requirements {
+    border: 1px solid CanvasText;
+  }
+
+  .submit-btn {
+    background: ButtonFace;
+
+    color: ButtonText;
+  }
+
+  .submit-btn:disabled {
+    opacity: 1;
+  }
+
+  .field-error {
+    color: LinkText;
+  }
+
+  .strength-meter {
+    border: 1px solid CanvasText;
+  }
+
+  .password-toggle {
+    forced-color-adjust: auto;
+  }
+}
+
+/* ============================================================================
+   PRINT
+   ============================================================================ */
+
+@media print {
+  .register-page {
+    min-height: auto;
+
+    padding: 0;
+
+    background: #ffffff;
+  }
+
+  .register-wrapper {
+    display: block;
+
+    border: 0;
+
+    box-shadow: none;
+  }
+
+  .register-features {
+    display: none;
+  }
+
+  .register-container {
+    padding: 0;
+  }
+
+  .submit-btn,
+  .password-toggle {
+    display: none;
+  }
+
+  .form-input {
+    border: 1px solid #000000;
+  }
+}
+
+/* ============================================================================
+   SCREEN READER ONLY
+   ============================================================================ */
+
+.sr-only {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  margin: -1px;
+
+  overflow: hidden;
+
+  clip: rect(0, 0, 0, 0);
+
+  white-space: nowrap;
+
+  border: 0;
+}

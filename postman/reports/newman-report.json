@@ -1,0 +1,4868 @@
+{
+  "collection": {
+    "_": {
+      "postman_id": "community-auth-tests"
+    },
+    "item": [
+      {
+        "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+        "name": "01 - Register",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "register"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+          }
+        },
+        "response": [],
+        "event": []
+      },
+      {
+        "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+        "name": "02 - Login (capture token)",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "login"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+          }
+        },
+        "response": [],
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+              "type": "text/javascript",
+              "exec": [
+                "var json = pm.response.json();",
+                "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+              ],
+              "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+            }
+          }
+        ]
+      },
+      {
+        "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+        "name": "03 - Me (uses token)",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "me"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": "{{token}}"
+            }
+          ],
+          "method": "GET"
+        },
+        "response": [],
+        "event": []
+      },
+      {
+        "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+        "name": "04 - List My Sessions",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "sessions"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": "{{token}}"
+            }
+          ],
+          "method": "GET"
+        },
+        "response": [],
+        "event": []
+      },
+      {
+        "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+        "name": "05 - Admin: List All Sessions (requires admin token)",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "admin", "sessions"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": "{{adminToken}}"
+            }
+          ],
+          "method": "GET"
+        },
+        "response": [],
+        "event": []
+      },
+      {
+        "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+        "name": "06 - Admin: Revoke Session (replace :id)",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "admin", "sessions", ":id"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": "{{adminToken}}"
+            }
+          ],
+          "method": "DELETE"
+        },
+        "response": [],
+        "event": []
+      },
+      {
+        "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+        "name": "07 - Revoke My Session (delete by id)",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "sessions", ":id"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": "{{token}}"
+            }
+          ],
+          "method": "DELETE"
+        },
+        "response": [],
+        "event": []
+      },
+      {
+        "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+        "name": "08 - Refresh (use cookie or send refresh token in body)",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "refresh"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+          }
+        },
+        "response": [],
+        "event": []
+      },
+      {
+        "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+        "name": "09 - Logout",
+        "request": {
+          "url": {
+            "path": ["api", "auth", "logout"],
+            "host": ["{{baseUrl}}"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{}"
+          }
+        },
+        "response": [],
+        "event": []
+      }
+    ],
+    "event": [],
+    "variable": [
+      {
+        "type": "any",
+        "value": "http://localhost:5000",
+        "key": "baseUrl"
+      },
+      {
+        "type": "any",
+        "value": "testuser@example.com",
+        "key": "userEmail"
+      },
+      {
+        "type": "any",
+        "value": "password123",
+        "key": "userPass"
+      }
+    ],
+    "info": {
+      "_postman_id": "community-auth-tests",
+      "name": "Community Auth Tests",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+      "description": {
+        "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+        "type": "text/plain"
+      }
+    }
+  },
+  "environment": {
+    "id": "group-env-0001",
+    "name": "Community Savings - Local",
+    "values": [
+      {
+        "type": "any",
+        "value": "http://localhost:5000",
+        "key": "baseUrl"
+      },
+      {
+        "type": "any",
+        "value": "",
+        "key": "token"
+      },
+      {
+        "type": "any",
+        "value": "",
+        "key": "groupId"
+      }
+    ]
+  },
+  "globals": {
+    "id": "51defeeb-c174-499f-bd70-cd2a33091ce1",
+    "values": []
+  },
+  "run": {
+    "stats": {
+      "iterations": {
+        "total": 1,
+        "pending": 0,
+        "failed": 0
+      },
+      "items": {
+        "total": 9,
+        "pending": 0,
+        "failed": 0
+      },
+      "scripts": {
+        "total": 1,
+        "pending": 0,
+        "failed": 1
+      },
+      "prerequests": {
+        "total": 9,
+        "pending": 0,
+        "failed": 0
+      },
+      "requests": {
+        "total": 9,
+        "pending": 0,
+        "failed": 9
+      },
+      "tests": {
+        "total": 9,
+        "pending": 0,
+        "failed": 0
+      },
+      "assertions": {
+        "total": 0,
+        "pending": 0,
+        "failed": 0
+      },
+      "testScripts": {
+        "total": 1,
+        "pending": 0,
+        "failed": 1
+      },
+      "prerequestScripts": {
+        "total": 0,
+        "pending": 0,
+        "failed": 0
+      }
+    },
+    "timings": {
+      "responseAverage": 0,
+      "responseMin": 0,
+      "responseMax": 0,
+      "responseSd": 0,
+      "dnsAverage": 0,
+      "dnsMin": 0,
+      "dnsMax": 0,
+      "dnsSd": 0,
+      "firstByteAverage": 0,
+      "firstByteMin": 0,
+      "firstByteMax": 0,
+      "firstByteSd": 0,
+      "started": 1770750019639,
+      "completed": 1770750021076
+    },
+    "executions": [
+      {
+        "cursor": {
+          "position": 0,
+          "iteration": 0,
+          "length": 9,
+          "cycles": 1,
+          "empty": false,
+          "eof": false,
+          "bof": true,
+          "cr": false,
+          "ref": "82d05e7f-5435-4b76-886c-2b3898e0d034",
+          "httpRequestId": "d7498ced-484c-451b-b61e-e6d6c09f6386"
+        },
+        "item": {
+          "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+          "name": "01 - Register",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "register"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "register"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "c60ee215-14b6-4ad0-b633-b9c6f4ab82ab",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\"\n}"
+          }
+        },
+        "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        }
+      },
+      {
+        "cursor": {
+          "ref": "0bcd3351-bbe9-4614-865f-fc1478d997d1",
+          "length": 9,
+          "cycles": 1,
+          "position": 1,
+          "iteration": 0,
+          "httpRequestId": "2234a729-a735-4cc2-b994-cdc095fa3295"
+        },
+        "item": {
+          "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+          "name": "02 - Login (capture token)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "login"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                  "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ],
+                "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "login"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "d319bb4e-9b05-4a75-930d-af2628b4f880",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"password123\"\n}"
+          }
+        },
+        "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        },
+        "testScript": [
+          {
+            "error": {
+              "type": "Error",
+              "name": "JSONError",
+              "message": "\"undefined\" is not valid JSON",
+              "checksum": "4db15f4d7d3ae61b799898db95379b99",
+              "id": "48413112-e667-41f4-b613-24bae223066d",
+              "timestamp": 1770750020596,
+              "stacktrace": []
+            }
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "07a47027-f5d2-4234-b0d3-d445bd5b2232",
+          "length": 9,
+          "cycles": 1,
+          "position": 2,
+          "iteration": 0,
+          "httpRequestId": "e9752b0f-01d4-484c-b07d-75ce6e582e41"
+        },
+        "item": {
+          "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+          "name": "03 - Me (uses token)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "me"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{token}}"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "me"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": ""
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "54463c75-54fd-44ae-8343-3359d598fa2a",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET"
+        },
+        "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        }
+      },
+      {
+        "cursor": {
+          "ref": "fcca7547-0c48-438f-b6e2-e1a6c8dce4bd",
+          "length": 9,
+          "cycles": 1,
+          "position": 3,
+          "iteration": 0,
+          "httpRequestId": "760bc0ce-1bad-4b02-ad8f-e9d2db177bad"
+        },
+        "item": {
+          "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+          "name": "04 - List My Sessions",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "sessions"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{token}}"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "sessions"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": ""
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "2882c714-618a-4226-bd68-ed2f40b4c090",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET"
+        },
+        "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        }
+      },
+      {
+        "cursor": {
+          "ref": "43e74475-3263-4b79-b3eb-83993de700d9",
+          "length": 9,
+          "cycles": 1,
+          "position": 4,
+          "iteration": 0,
+          "httpRequestId": "ed875585-0290-4654-a9d8-5f7da0ba6f23"
+        },
+        "item": {
+          "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+          "name": "05 - Admin: List All Sessions (requires admin token)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "admin", "sessions"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{adminToken}}"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "admin", "sessions"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": "{{adminToken}}"
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "3f9eb7c1-923f-4f4c-a196-f2601534f066",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET"
+        },
+        "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        }
+      },
+      {
+        "cursor": {
+          "ref": "705b8243-103e-4461-80e8-d7b8d885132a",
+          "length": 9,
+          "cycles": 1,
+          "position": 5,
+          "iteration": 0,
+          "httpRequestId": "e8ebc262-a19a-4933-831f-cebb332c0813"
+        },
+        "item": {
+          "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+          "name": "06 - Admin: Revoke Session (replace :id)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "admin", "sessions", ":id"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{adminToken}}"
+              }
+            ],
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "admin", "sessions", ":id"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": [
+              {
+                "type": "any",
+                "key": "id"
+              }
+            ]
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": "{{adminToken}}"
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "8dcdfd3a-84c2-4dec-99a2-266c5c8e050a",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "DELETE"
+        },
+        "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        }
+      },
+      {
+        "cursor": {
+          "ref": "683116a2-d45b-4ba7-817e-3933f3c3c15e",
+          "length": 9,
+          "cycles": 1,
+          "position": 6,
+          "iteration": 0,
+          "httpRequestId": "b6e5a1cc-68ff-4122-87b8-6f7e71376daf"
+        },
+        "item": {
+          "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+          "name": "07 - Revoke My Session (delete by id)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "sessions", ":id"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{token}}"
+              }
+            ],
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "sessions", ":id"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": [
+              {
+                "type": "any",
+                "key": "id"
+              }
+            ]
+          },
+          "header": [
+            {
+              "key": "x-auth-token",
+              "value": ""
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "ceedb228-470a-40ba-970f-2bbb18dd7e4f",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "DELETE"
+        },
+        "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        }
+      },
+      {
+        "cursor": {
+          "ref": "ab4d38dc-0a03-4adc-88d9-cfce7e924be1",
+          "length": 9,
+          "cycles": 1,
+          "position": 7,
+          "iteration": 0,
+          "httpRequestId": "689a0959-2c9b-4668-bb17-3b67b02106d3"
+        },
+        "item": {
+          "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+          "name": "08 - Refresh (use cookie or send refresh token in body)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "refresh"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "refresh"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "18a8d63e-6657-4367-869c-8ed1f1cfe68c",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+          }
+        },
+        "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        }
+      },
+      {
+        "cursor": {
+          "ref": "13a324f6-2161-4f54-8364-7d72bda053f0",
+          "length": 9,
+          "cycles": 1,
+          "position": 8,
+          "iteration": 0,
+          "httpRequestId": "c98fd90d-8ecd-4a5b-84a8-1eae3e4b39fa"
+        },
+        "item": {
+          "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+          "name": "09 - Logout",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "logout"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "5000",
+            "path": ["api", "auth", "logout"],
+            "host": ["localhost"],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.29.0",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "7b81cd16-5823-4949-99dc-d103af9087f1",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:5000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{}"
+          }
+        },
+        "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+        "requestError": {
+          "code": "ERR_INVALID_IP_ADDRESS"
+        }
+      }
+    ],
+    "transfers": {
+      "responseTotal": 0
+    },
+    "failures": [
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "03d9bd27-c7a0-4b59-913f-2423cfab5caa",
+          "timestamp": 1770750020340,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+          "name": "01 - Register",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "register"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "position": 0,
+          "iteration": 0,
+          "length": 9,
+          "cycles": 1,
+          "empty": false,
+          "eof": false,
+          "bof": true,
+          "cr": false,
+          "ref": "82d05e7f-5435-4b76-886c-2b3898e0d034",
+          "httpRequestId": "d7498ced-484c-451b-b61e-e6d6c09f6386"
+        }
+      },
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "8fabc292-d1f5-4c9d-a192-fec3b8181382",
+          "timestamp": 1770750020497,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+          "name": "02 - Login (capture token)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "login"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                  "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ],
+                "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+              }
+            }
+          ]
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "0bcd3351-bbe9-4614-865f-fc1478d997d1",
+          "length": 9,
+          "cycles": 1,
+          "position": 1,
+          "iteration": 0,
+          "httpRequestId": "2234a729-a735-4cc2-b994-cdc095fa3295"
+        }
+      },
+      {
+        "error": {
+          "type": "Error",
+          "name": "JSONError",
+          "message": "\"undefined\" is not valid JSON",
+          "checksum": "4db15f4d7d3ae61b799898db95379b99",
+          "id": "48413112-e667-41f4-b613-24bae223066d",
+          "timestamp": 1770750020596,
+          "stacktrace": []
+        },
+        "at": "test-script",
+        "source": {
+          "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+          "name": "02 - Login (capture token)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "login"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                  "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ],
+                "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+              }
+            }
+          ]
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "0bcd3351-bbe9-4614-865f-fc1478d997d1",
+          "length": 9,
+          "cycles": 1,
+          "position": 1,
+          "iteration": 0,
+          "httpRequestId": "2234a729-a735-4cc2-b994-cdc095fa3295",
+          "scriptId": "33154a69-8dd0-4aea-b397-f876b237ce03"
+        }
+      },
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "fd892379-0a5e-4cd5-af3a-8db720ffa94d",
+          "timestamp": 1770750020651,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+          "name": "03 - Me (uses token)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "me"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{token}}"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "07a47027-f5d2-4234-b0d3-d445bd5b2232",
+          "length": 9,
+          "cycles": 1,
+          "position": 2,
+          "iteration": 0,
+          "httpRequestId": "e9752b0f-01d4-484c-b07d-75ce6e582e41"
+        }
+      },
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "2c34f94f-d0a2-4132-92f1-921db985c25d",
+          "timestamp": 1770750020714,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+          "name": "04 - List My Sessions",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "sessions"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{token}}"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "fcca7547-0c48-438f-b6e2-e1a6c8dce4bd",
+          "length": 9,
+          "cycles": 1,
+          "position": 3,
+          "iteration": 0,
+          "httpRequestId": "760bc0ce-1bad-4b02-ad8f-e9d2db177bad"
+        }
+      },
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "d4718a0f-a601-4a0a-98b8-1a86d77ae0af",
+          "timestamp": 1770750020783,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+          "name": "05 - Admin: List All Sessions (requires admin token)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "admin", "sessions"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{adminToken}}"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "43e74475-3263-4b79-b3eb-83993de700d9",
+          "length": 9,
+          "cycles": 1,
+          "position": 4,
+          "iteration": 0,
+          "httpRequestId": "ed875585-0290-4654-a9d8-5f7da0ba6f23"
+        }
+      },
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "503bb733-0bc9-4dad-ae9f-c74fd1b0a6dc",
+          "timestamp": 1770750020846,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+          "name": "06 - Admin: Revoke Session (replace :id)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "admin", "sessions", ":id"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{adminToken}}"
+              }
+            ],
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "705b8243-103e-4461-80e8-d7b8d885132a",
+          "length": 9,
+          "cycles": 1,
+          "position": 5,
+          "iteration": 0,
+          "httpRequestId": "e8ebc262-a19a-4933-831f-cebb332c0813"
+        }
+      },
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "5cfb000c-8d10-497b-9887-61f55e31c9c8",
+          "timestamp": 1770750020902,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+          "name": "07 - Revoke My Session (delete by id)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "sessions", ":id"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{token}}"
+              }
+            ],
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "683116a2-d45b-4ba7-817e-3933f3c3c15e",
+          "length": 9,
+          "cycles": 1,
+          "position": 6,
+          "iteration": 0,
+          "httpRequestId": "b6e5a1cc-68ff-4122-87b8-6f7e71376daf"
+        }
+      },
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "76074ff9-b16a-4764-bb16-0f8cd7d803ed",
+          "timestamp": 1770750020986,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+          "name": "08 - Refresh (use cookie or send refresh token in body)",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "refresh"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "ab4d38dc-0a03-4adc-88d9-cfce7e924be1",
+          "length": 9,
+          "cycles": 1,
+          "position": 7,
+          "iteration": 0,
+          "httpRequestId": "689a0959-2c9b-4668-bb17-3b67b02106d3"
+        }
+      },
+      {
+        "error": {
+          "code": "ERR_INVALID_IP_ADDRESS",
+          "name": "TypeError",
+          "message": "Invalid IP address: undefined",
+          "stack": "TypeError [ERR_INVALID_IP_ADDRESS]: Invalid IP address: undefined\n    at emitLookup (node:net:1495:17)\n    at E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:303:31\n    at Socket.done (E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js:254:21)\n    at Object.onceWrapper (node:events:633:26)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)",
+          "checksum": "8a9b960a4f82a81aa07a80c522bb61fb",
+          "id": "f4d9cfd3-3dc3-4230-a806-0cbeeeb37287",
+          "timestamp": 1770750021058,
+          "stacktrace": [
+            {
+              "fileName": "node:net",
+              "lineNumber": 1495,
+              "functionName": "emitLookup",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 17,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 303,
+              "functionName": null,
+              "typeName": null,
+              "methodName": null,
+              "columnNumber": 31,
+              "native": false
+            },
+            {
+              "fileName": "E:\\Projects\\TITech\\community-savings-app-main\\node_modules\\postman-runtime\\lib\\requester\\core.js",
+              "lineNumber": 254,
+              "functionName": "Socket.done",
+              "typeName": "Socket",
+              "methodName": "done",
+              "columnNumber": 21,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 633,
+              "functionName": "Object.onceWrapper",
+              "typeName": "Object",
+              "methodName": "onceWrapper",
+              "columnNumber": 26,
+              "native": false
+            },
+            {
+              "fileName": "node:events",
+              "lineNumber": 518,
+              "functionName": "Socket.emit",
+              "typeName": "Socket",
+              "methodName": "emit",
+              "columnNumber": 28,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 170,
+              "functionName": "emitErrorNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 8,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/streams/destroy",
+              "lineNumber": 129,
+              "functionName": "emitErrorCloseNT",
+              "typeName": "Object",
+              "methodName": null,
+              "columnNumber": 3,
+              "native": false
+            },
+            {
+              "fileName": "node:internal/process/task_queues",
+              "lineNumber": 90,
+              "functionName": "process.processTicksAndRejections",
+              "typeName": "process",
+              "methodName": "processTicksAndRejections",
+              "columnNumber": 21,
+              "native": false
+            }
+          ]
+        },
+        "at": "request",
+        "source": {
+          "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+          "name": "09 - Logout",
+          "request": {
+            "url": {
+              "path": ["api", "auth", "logout"],
+              "host": ["{{baseUrl}}"],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        "parent": {
+          "_": {
+            "postman_id": "community-auth-tests"
+          },
+          "item": [
+            {
+              "id": "15e6129a-adc8-4fd0-aef5-8b45dc897c36",
+              "name": "01 - Register",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "register"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\",\n  \"name\": \"Test User\"\n}"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "3d7b1bdc-36b9-4fbe-a3c1-014eb05fb007",
+              "name": "02 - Login (capture token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "login"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPass}}\"\n}"
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "33154a69-8dd0-4aea-b397-f876b237ce03",
+                    "type": "text/javascript",
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.token) { pm.collectionVariables.set('token', json.token); }",
+                      "pm.test('login success', function(){ pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                    ],
+                    "_lastExecutionId": "76e964f1-977e-4e3b-8677-b6bfb9e4c1be"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "1d73a916-55f8-459b-9303-6dfa2ce272ba",
+              "name": "03 - Me (uses token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "me"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "d3aa5fc6-361a-4e8c-8fd8-47b5183ba425",
+              "name": "04 - List My Sessions",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "a13c5a94-8191-4f62-a225-9c4fd58c1895",
+              "name": "05 - Admin: List All Sessions (requires admin token)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "4e0824d3-bd9b-4288-a405-164a4274a71e",
+              "name": "06 - Admin: Revoke Session (replace :id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "admin", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{adminToken}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "7f544501-5ce9-4cea-bc30-6a68bc194726",
+              "name": "07 - Revoke My Session (delete by id)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "sessions", ":id"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "x-auth-token",
+                    "value": "{{token}}"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "0148a761-4e93-470a-90de-6ebd47ef8027",
+              "name": "08 - Refresh (use cookie or send refresh token in body)",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "refresh"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"refreshToken\": \"<paste-refresh-token-here>\" }"
+                }
+              },
+              "response": [],
+              "event": []
+            },
+            {
+              "id": "5b7c969a-a515-4d74-8867-5d2e3ccab29c",
+              "name": "09 - Logout",
+              "request": {
+                "url": {
+                  "path": ["api", "auth", "logout"],
+                  "host": ["{{baseUrl}}"],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "response": [],
+              "event": []
+            }
+          ],
+          "event": [],
+          "variable": [
+            {
+              "type": "any",
+              "value": "http://localhost:5000",
+              "key": "baseUrl"
+            },
+            {
+              "type": "any",
+              "value": "testuser@example.com",
+              "key": "userEmail"
+            },
+            {
+              "type": "any",
+              "value": "password123",
+              "key": "userPass"
+            }
+          ],
+          "info": {
+            "_postman_id": "community-auth-tests",
+            "name": "Community Auth Tests",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "description": {
+              "content": "Collection to test auth/session flows: register, login, sessions, revoke, refresh, admin session management.",
+              "type": "text/plain"
+            }
+          }
+        },
+        "cursor": {
+          "ref": "13a324f6-2161-4f54-8364-7d72bda053f0",
+          "length": 9,
+          "cycles": 1,
+          "position": 8,
+          "iteration": 0,
+          "httpRequestId": "c98fd90d-8ecd-4a5b-84a8-1eae3e4b39fa"
+        }
+      }
+    ],
+    "error": null
+  }
+}

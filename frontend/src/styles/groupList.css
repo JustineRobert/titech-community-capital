@@ -1,0 +1,48 @@
+/* src/styles/groupList.css */
+
+/* Container styling for a clean and professional look */
+.group-list-container {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* List item styling for each group */
+.group-item {
+  padding: 1.25rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.group-item:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Button styling */
+.join-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #3182ce;
+  color: white;
+  border-radius: 4px;
+  text-align: center;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.join-btn:hover {
+  background-color: #2b6cb0;
+}
+
+.join-btn:disabled {
+  background-color: #e2e8f0;
+  cursor: not-allowed;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .group-list-container {
+    padding: 1rem;
+  }
+}

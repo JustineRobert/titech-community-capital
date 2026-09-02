@@ -1,0 +1,9 @@
+{
+  "restartable": "rs",
+  "ignore": ["node_modules/**", "logs/**", "coverage/**"],
+  "delay": "1000",
+  "watch": ["server.js", "routes", "middleware", "config", "services"],
+  "execMap": {
+    "js": "node --max-old-space-size=4096"
+  }
+}

@@ -1,0 +1,43 @@
+LOAN APPLICATION STATUS - COMMUNITY SAVINGS APP
+===============================================
+
+Hello {{firstName}},
+
+We have an update on your loan application:
+
+{{statusTitle}}
+{{statusMessage}}
+
+APPLICATION DETAILS
+===================
+Application ID: {{loanApplicationId}}
+Requested Amount: {{loanAmount}} {{currency}}
+Purpose: {{loanPurpose}}
+Applied Date: {{appliedDate}}
+Status: {{status}}
+{{#approvalAmount}}Approved Amount: {{approvalAmount}} {{currency}}{{/approvalAmount}}
+
+{{nextStepsTitle}}
+================
+{{#nextSteps}}
+• {{this}}
+{{/nextSteps}}
+
+{{#rejectionReason}}
+REASON FOR {{rejectionType}}
+==========================
+{{rejectionReason}}
+
+Please review and consider reapplying once these issues are resolved.
+
+{{/rejectionReason}}
+
+If you have any questions or need clarification on your application status, please don't hesitate to reach out to our support team.
+
+View Full Details: {{applicationDetailsUrl}}
+
+---
+
+© {{year}} Community Savings App. All rights reserved.
+Privacy Policy: {{privacyUrl}}
+Contact Support: {{supportUrl}}
