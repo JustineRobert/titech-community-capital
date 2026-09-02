@@ -1,1074 +1,1092 @@
-"use strict";
-
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * Central Financial Transaction Boundary
  * =============================================================================
  *
  * File:
  *   backend/services/financial/financialTransaction.service.js
  *
  * Purpose:
- *   Central atomic financial transaction boundary.
+ *   Own the MongoDB transaction boundary for financial mutations.
  *
- * Architectural Position:
+ * Architectural position:
  *
  *   Authentication
- *        │
- *        ▼
- *   Tenant Authorization
- *        │
- *        ▼
- *   Idempotency Middleware
- *        │
- *        ▼
+ *        ↓
+ *   Authorization / Tenant Context
+ *        ↓
+ *   Idempotency
+ *        ↓
+ *   Fraud / Risk
+ *        ↓
  *   Financial Transaction Service
- *        │
- *        │ MongoDB session
- *        ▼
+ *        ↓
  *   ┌────────────────────────────────────────────────────────────┐
  *   │                    MongoDB Transaction                     │
  *   │                                                            │
- *   │ FinancialTransaction Repository                            │
+ *   │ Transaction Repository                                     │
  *   │ Balance Repository                                         │
- *   │ Loan Repository                                            │
  *   │ Ledger Repository                                          │
- *   │ Audit / Outbox Repository                                  │
+ *   │ Loan Repository                                            │
+ *   │ Savings Repository                                         │
+ *   │ Outbox Repository                                          │
  *   │ Idempotency Completion                                     │
  *   └────────────────────────────────────────────────────────────┘
- *        │
- *        ├── COMMIT  → success
- *        │
- *        └── ABORT   → rollback
+ *        ↓
+ *     COMMIT
  *
+ * IMPORTANT EXTERNAL-SYSTEM RULE
  * =============================================================================
  *
- * GUARANTEES
- * =============================================================================
+ * `execute()` may be retried after a transient MongoDB transaction failure.
  *
- *  ✓ One financial operation has one transaction identity.
- *  ✓ Every financial mutation executes using one MongoDB session.
- *  ✓ Financial repositories never create transactions.
- *  ✓ Financial repositories never commit transactions.
- *  ✓ Financial repositories never abort transactions.
- *  ✓ Idempotency COMPLETED state commits atomically with financial writes.
- *  ✓ Financial failures roll back financial mutations.
- *  ✓ FAILED idempotency state is persisted only after rollback.
- *  ✓ Transient transaction errors may retry.
- *  ✓ Unknown commit results are never treated as safe transaction failures.
- *  ✓ Unknown commit results never trigger financial re-execution.
- *  ✓ Commit itself may be retried when MongoDB reports an unknown result.
+ * Therefore DO NOT perform non-transactional external side effects directly
+ * inside `execute()`, including:
+ *
+ *   - MTN MoMo API calls
+ *   - Airtel Money API calls
+ *   - email delivery
+ *   - SMS delivery
+ *   - push notifications
+ *   - webhook delivery
+ *   - external HTTP APIs
+ *   - Kafka/queue publication without an idempotent transactional strategy
+ *
+ * Instead:
+ *
+ *   Mongo transaction
+ *        ↓
+ *   write OUTBOX command
+ *        ↓
+ *   COMMIT
+ *        ↓
+ *   worker/provider adapter
+ *        ↓
+ *   external system
+ *        ↓
+ *   callback/status reconciliation
  *
  * =============================================================================
  */
 
-const crypto =
-    require("crypto");
+'use strict';
 
-const mongoose =
-    require("mongoose");
+const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 const {
-    completeOperation,
-    failOperation
-} = require(
-    "../idempotency/idempotency.service"
-);
+  completeOperation,
+  failOperation,
+} = require('../idempotency/idempotency.service');
 
 // =============================================================================
-// Constants
+// CONSTANTS
 // =============================================================================
 
-const DEFAULT_MAX_TRANSACTION_RETRIES =
-    3;
+const DEFAULT_MAX_TRANSACTION_RETRIES = 3;
+const DEFAULT_MAX_COMMIT_RETRIES = 3;
 
-const DEFAULT_MAX_COMMIT_RETRIES =
-    3;
+const MIN_TRANSACTION_RETRIES = 1;
+const MAX_TRANSACTION_RETRIES = 10;
 
-const MIN_TRANSACTION_RETRIES =
-    1;
+const MIN_COMMIT_RETRIES = 1;
+const MAX_COMMIT_RETRIES = 10;
 
-const MAX_TRANSACTION_RETRIES =
-    10;
+const TRANSACTION_ID_MAX_LENGTH = 256;
 
-const MIN_COMMIT_RETRIES =
-    1;
+const FINANCIAL_TRANSACTION_OPTIONS = Object.freeze({
+  readConcern: {
+    level: 'snapshot',
+  },
 
-const MAX_COMMIT_RETRIES =
-    10;
+  writeConcern: {
+    w: 'majority',
+  },
 
-const IDEMPOTENT_FINANCIAL_TRANSACTION_OPTIONS =
-    Object.freeze({
-
-        readConcern: {
-
-            level:
-                "snapshot"
-
-        },
-
-        writeConcern: {
-
-            w:
-                "majority"
-
-        },
-
-        readPreference:
-            "primary"
-
-    });
+  readPreference: 'primary',
+});
 
 // =============================================================================
-// Errors
+// ERRORS
 // =============================================================================
 
-class FinancialTransactionError
-    extends Error {
+class FinancialTransactionError extends Error {
+  constructor(
+    message,
+    code,
+    statusCode = 500,
+    details = null,
+    cause = null,
+  ) {
+    super(message);
 
-    constructor(
-        message,
-        code,
-        statusCode = 500,
-        details = null
-    ) {
+    this.name = 'FinancialTransactionError';
 
-        super(
-            message
-        );
+    this.code = code;
 
-        this.name =
-            "FinancialTransactionError";
+    this.statusCode = statusCode;
 
-        this.code =
-            code;
+    this.details = details;
 
-        this.statusCode =
-            statusCode;
-
-        this.details =
-            details;
-
-        if (
-            Error.captureStackTrace
-        ) {
-
-            Error.captureStackTrace(
-                this,
-                FinancialTransactionError
-            );
-        }
+    if (cause) {
+      this.cause = cause;
     }
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(
+        this,
+        FinancialTransactionError,
+      );
+    }
+  }
 }
 
 // =============================================================================
-// Generic Validation
+// GENERIC HELPERS
 // =============================================================================
 
-function assertFunction(
-    value,
-    name
-) {
-
-    if (
-        typeof value !==
-        "function"
-    ) {
-
-        throw new FinancialTransactionError(
-
-            `${name} must be a function.`,
-
-            "FINANCIAL_EXECUTOR_REQUIRED",
-
-            500
-
-        );
-    }
+function assertFunction(value, name) {
+  if (typeof value !== 'function') {
+    throw new FinancialTransactionError(
+      `${name} must be a function.`,
+      'FINANCIAL_EXECUTOR_REQUIRED',
+      500,
+      {
+        field: name,
+      },
+    );
+  }
 }
 
 function requireIdentifier(
-    value,
-    field,
-    maxLength = 256
+  value,
+  field,
+  maxLength = 256,
 ) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    throw new FinancialTransactionError(
+      `${field} is required.`,
+      'FINANCIAL_FIELD_REQUIRED',
+      400,
+      {
+        field,
+      },
+    );
+  }
 
-    if (
-        value === undefined ||
-        value === null
-    ) {
+  const normalized = String(value).trim();
 
-        throw new FinancialTransactionError(
+  if (!normalized) {
+    throw new FinancialTransactionError(
+      `${field} is required.`,
+      'FINANCIAL_FIELD_REQUIRED',
+      400,
+      {
+        field,
+      },
+    );
+  }
 
-            `${field} is required.`,
+  if (normalized.length > maxLength) {
+    throw new FinancialTransactionError(
+      `${field} exceeds the maximum permitted length.`,
+      'FINANCIAL_FIELD_TOO_LONG',
+      400,
+      {
+        field,
+        maxLength,
+      },
+    );
+  }
 
-            "FINANCIAL_FIELD_REQUIRED",
-
-            400,
-
-            {
-                field
-            }
-
-        );
-    }
-
-    const normalized =
-        String(value).trim();
-
-    if (
-        normalized.length === 0
-    ) {
-
-        throw new FinancialTransactionError(
-
-            `${field} is required.`,
-
-            "FINANCIAL_FIELD_REQUIRED",
-
-            400,
-
-            {
-                field
-            }
-
-        );
-    }
-
-    if (
-        normalized.length >
-        maxLength
-    ) {
-
-        throw new FinancialTransactionError(
-
-            `${field} exceeds the maximum permitted length.`,
-
-            "FINANCIAL_FIELD_TOO_LONG",
-
-            400,
-
-            {
-                field,
-                maxLength
-            }
-
-        );
-    }
-
-    return normalized;
+  return normalized;
 }
 
 // =============================================================================
-// Financial Context Validation
+// CONTEXT VALIDATION
 // =============================================================================
 
 function validateFinancialContext({
-
-    tenantId,
-
-    principalId,
-
-    operation,
-
-    resource
-
+  tenantId,
+  principalId,
+  operation,
+  resource,
 }) {
+  requireIdentifier(
+    tenantId,
+    'tenantId',
+  );
 
-    requireIdentifier(
-        tenantId,
-        "tenantId"
-    );
+  requireIdentifier(
+    principalId,
+    'principalId',
+  );
 
-    requireIdentifier(
-        principalId,
-        "principalId"
-    );
+  requireIdentifier(
+    operation,
+    'operation',
+  );
 
-    requireIdentifier(
-        operation,
-        "operation"
-    );
-
-    requireIdentifier(
-        resource,
-        "resource"
-    );
+  requireIdentifier(
+    resource,
+    'resource',
+  );
 }
 
 // =============================================================================
-// Retry Validation
+// RETRY VALIDATION
 // =============================================================================
 
 function normalizeRetryLimit(
-    value,
-    field,
-    minimum,
-    maximum,
-    fallback
+  value,
+  field,
+  minimum,
+  maximum,
+  fallback,
 ) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return fallback;
+  }
 
-    if (
-        value === undefined ||
-        value === null
-    ) {
+  const numeric = Number(value);
 
-        return fallback;
-    }
+  if (
+    !Number.isInteger(numeric) ||
+    numeric < minimum ||
+    numeric > maximum
+  ) {
+    throw new FinancialTransactionError(
+      `${field} must be an integer between ${minimum} and ${maximum}.`,
+      'FINANCIAL_INVALID_RETRY_LIMIT',
+      500,
+      {
+        field,
+        minimum,
+        maximum,
+      },
+    );
+  }
 
-    const numeric =
-        Number(value);
-
-    if (
-        !Number.isInteger(numeric) ||
-        numeric < minimum ||
-        numeric > maximum
-    ) {
-
-        throw new FinancialTransactionError(
-
-            `${field} must be an integer between ${minimum} and ${maximum}.`,
-
-            "FINANCIAL_INVALID_RETRY_LIMIT",
-
-            500,
-
-            {
-                field,
-                minimum,
-                maximum
-            }
-
-        );
-    }
-
-    return numeric;
+  return numeric;
 }
 
 // =============================================================================
-// MongoDB Error Classification
+// MONGODB STATE
+// =============================================================================
+
+function ensureMongoReady() {
+  const readyState =
+    mongoose.connection.readyState;
+
+  /*
+   * 0 = disconnected
+   * 1 = connected
+   * 2 = connecting
+   * 3 = disconnecting
+   */
+
+  if (readyState !== 1) {
+    throw new FinancialTransactionError(
+      'MongoDB is not connected; financial transaction cannot execute.',
+      'FINANCIAL_DATABASE_UNAVAILABLE',
+      503,
+      {
+        readyState,
+      },
+    );
+  }
+}
+
+// =============================================================================
+// MONGODB ERROR CLASSIFICATION
 // =============================================================================
 
 function hasMongoErrorLabel(
-    error,
-    label
+  error,
+  label,
 ) {
-
-    return Boolean(
-
-        error &&
-
-        typeof error.hasErrorLabel ===
-        "function" &&
-
-        error.hasErrorLabel(
-            label
-        )
-
-    );
+  return Boolean(
+    error &&
+      typeof error.hasErrorLabel ===
+        'function' &&
+      error.hasErrorLabel(label),
+  );
 }
 
 function isTransientTransactionError(
-    error
+  error,
 ) {
-
-    return hasMongoErrorLabel(
-
-        error,
-
-        "TransientTransactionError"
-
-    );
+  return hasMongoErrorLabel(
+    error,
+    'TransientTransactionError',
+  );
 }
 
 function isUnknownCommitResult(
-    error
+  error,
 ) {
+  return hasMongoErrorLabel(
+    error,
+    'UnknownTransactionCommitResult',
+  );
+}
 
-    return hasMongoErrorLabel(
-
-        error,
-
-        "UnknownTransactionCommitResult"
-
-    );
+function isRetryableCommitError(
+  error,
+) {
+  return (
+    isUnknownCommitResult(error) ||
+    hasMongoErrorLabel(
+      error,
+      'RetryableWriteError',
+    )
+  );
 }
 
 // =============================================================================
-// Transaction ID
+// TRANSACTION ID
 // =============================================================================
 
 function createTransactionId() {
-
-    return [
-
-        "TXN",
-
-        Date.now(),
-
-        crypto.randomUUID()
-
-    ].join("-");
-
+  return [
+    'TXN',
+    Date.now(),
+    crypto.randomUUID(),
+  ].join('-');
 }
 
 // =============================================================================
-// Session
+// SESSION
 // =============================================================================
 
 async function createSession() {
+  ensureMongoReady();
 
-    return mongoose.startSession();
-
+  return mongoose.startSession();
 }
 
 // =============================================================================
-// Commit With Retry
+// TRANSACTION OPTION HARDENING
 // =============================================================================
 //
-// IMPORTANT:
+// Caller-supplied options may extend the defaults, but must not quietly remove
+// the financial transaction's required consistency characteristics.
 //
-// UnknownTransactionCommitResult means MongoDB cannot tell the client whether
-// the commit succeeded.
+
+function normalizeTransactionOptions(
+  options,
+) {
+  const source =
+    options || {};
+
+  return {
+    ...FINANCIAL_TRANSACTION_OPTIONS,
+
+    ...source,
+
+    readConcern: {
+      ...FINANCIAL_TRANSACTION_OPTIONS.readConcern,
+      ...(source.readConcern || {}),
+    },
+
+    writeConcern: {
+      ...FINANCIAL_TRANSACTION_OPTIONS.writeConcern,
+      ...(source.writeConcern || {}),
+    },
+
+    readPreference:
+      'primary',
+  };
+}
+
+// =============================================================================
+// COMMIT WITH RETRY
+// =============================================================================
+//
+// UnknownTransactionCommitResult means:
+//
+//   MongoDB cannot tell the client whether the commit succeeded.
 //
 // Therefore:
 //
-//     retry commit
-//
-// is safe.
+//   SAFE → retry commit
 //
 // But:
 //
-//     execute financial mutation again
-//
-// is NOT safe.
+//   UNSAFE → execute business transaction again
 //
 // =============================================================================
 
 async function commitWithRetry({
-
-    session,
-
-    maxCommitRetries =
-    DEFAULT_MAX_COMMIT_RETRIES
-
+  session,
+  maxCommitRetries =
+    DEFAULT_MAX_COMMIT_RETRIES,
 }) {
-
-    const retryLimit =
-        normalizeRetryLimit(
-
-            maxCommitRetries,
-
-            "maxCommitRetries",
-
-            MIN_COMMIT_RETRIES,
-
-            MAX_COMMIT_RETRIES,
-
-            DEFAULT_MAX_COMMIT_RETRIES
-
-        );
-
-    let attempt =
-        0;
-
-    while (
-        attempt <
-        retryLimit
-    ) {
-
-        attempt += 1;
-
-        try {
-
-            await session.commitTransaction();
-
-            return {
-
-                committed:
-                    true,
-
-                attempts:
-                    attempt
-
-            };
-
-        } catch (error) {
-
-            if (
-                isUnknownCommitResult(
-                    error
-                ) &&
-                attempt <
-                retryLimit
-            ) {
-
-                continue;
-            }
-
-            if (
-                isUnknownCommitResult(
-                    error
-                )
-            ) {
-
-                throw new FinancialTransactionError(
-
-                    "The financial transaction commit result could not be confirmed.",
-
-                    "FINANCIAL_COMMIT_RESULT_UNKNOWN",
-
-                    503,
-
-                    {
-
-                        commitAttempts:
-                            attempt
-
-                    }
-
-                );
-            }
-
-            throw error;
-        }
-    }
-
-    throw new FinancialTransactionError(
-
-        "Financial transaction commit failed.",
-
-        "FINANCIAL_COMMIT_FAILED",
-
-        503
-
+  const retryLimit =
+    normalizeRetryLimit(
+      maxCommitRetries,
+      'maxCommitRetries',
+      MIN_COMMIT_RETRIES,
+      MAX_COMMIT_RETRIES,
+      DEFAULT_MAX_COMMIT_RETRIES,
     );
+
+  let attempt = 0;
+
+  while (
+    attempt <
+    retryLimit
+  ) {
+    attempt += 1;
+
+    try {
+      await session.commitTransaction();
+
+      return {
+        committed: true,
+        attempts: attempt,
+      };
+    } catch (error) {
+      if (
+        isRetryableCommitError(error) &&
+        attempt <
+          retryLimit
+      ) {
+        continue;
+      }
+
+      if (
+        isUnknownCommitResult(
+          error,
+        )
+      ) {
+        throw new FinancialTransactionError(
+          'The financial transaction commit result could not be confirmed.',
+          'FINANCIAL_COMMIT_RESULT_UNKNOWN',
+          503,
+          {
+            commitAttempts: attempt,
+            reconciliationRequired: true,
+          },
+          error,
+        );
+      }
+
+      throw new FinancialTransactionError(
+        'Financial transaction commit failed.',
+        'FINANCIAL_COMMIT_FAILED',
+        503,
+        {
+          commitAttempts: attempt,
+        },
+        error,
+      );
+    }
+  }
+
+  throw new FinancialTransactionError(
+    'Financial transaction commit retry limit exceeded.',
+    'FINANCIAL_COMMIT_RETRY_LIMIT',
+    503,
+    {
+      commitAttempts: retryLimit,
+    },
+  );
 }
 
 // =============================================================================
-// Complete Idempotency
+// IDEMPOTENCY COMPLETION
 // =============================================================================
 //
-// This operation MUST execute while the financial MongoDB transaction is open.
+// MUST execute inside the active MongoDB transaction.
 //
-// Therefore:
+// The implementation of completeOperation MUST use the supplied session and
+// MUST NOT start/commit a second transaction.
 //
-//     financial writes
-//           +
-//     idempotency COMPLETED
-//
-// become one atomic commit.
-//
-// =============================================================================
 
 async function completeIdempotency({
-
-    idempotencyRecord,
-
-    executionResult,
-
-    session
-
+  idempotencyRecord,
+  executionResult,
+  session,
 }) {
+  if (!session?.inTransaction?.()) {
+    throw new FinancialTransactionError(
+      'Idempotency completion requires an active financial transaction.',
+      'IDEMPOTENCY_SESSION_REQUIRED',
+      500,
+    );
+  }
 
-    const completed =
-        await completeOperation({
+  const completed =
+    await completeOperation({
+      recordId:
+        idempotencyRecord._id,
 
-            recordId:
-                idempotencyRecord._id,
+      httpStatus:
+        executionResult.httpStatus ??
+        200,
 
-            httpStatus:
-                executionResult.httpStatus ||
-                200,
+      responseBody:
+        executionResult.responseBody ??
+        {},
 
-            responseBody:
-                executionResult.responseBody ||
-                {},
+      resultType:
+        executionResult.resultType ??
+        'SUCCESS',
 
-            resultType:
-                executionResult.resultType ||
-                "SUCCESS",
+      errorCode:
+        executionResult.errorCode ??
+        null,
 
-            errorCode:
-                executionResult.errorCode ||
-                null,
+      session,
+    });
 
-            session
+  if (!completed) {
+    throw new FinancialTransactionError(
+      'Unable to finalize the idempotency record.',
+      'IDEMPOTENCY_COMPLETION_FAILED',
+      500,
+    );
+  }
 
-        });
-
-    if (
-        !completed
-    ) {
-
-        throw new FinancialTransactionError(
-
-            "Unable to finalize the idempotency record.",
-
-            "IDEMPOTENCY_COMPLETION_FAILED",
-
-            500
-
-        );
-    }
-
-    return completed;
+  return completed;
 }
 
 // =============================================================================
-// Execute Financial Transaction
+// EXECUTION RESULT VALIDATION
+// =============================================================================
+
+function validateExecutionResult(
+  executionResult,
+) {
+  if (
+    !executionResult ||
+    typeof executionResult !==
+      'object'
+  ) {
+    throw new FinancialTransactionError(
+      'Financial operation did not return a valid execution result.',
+      'FINANCIAL_EXECUTION_RESULT_INVALID',
+      500,
+    );
+  }
+
+  if (
+    executionResult.httpStatus !==
+      undefined &&
+    (
+      !Number.isInteger(
+        executionResult.httpStatus,
+      ) ||
+      executionResult.httpStatus <
+        100 ||
+      executionResult.httpStatus >
+        599
+    )
+  ) {
+    throw new FinancialTransactionError(
+      'Financial execution returned an invalid HTTP status.',
+      'FINANCIAL_EXECUTION_HTTP_STATUS_INVALID',
+      500,
+    );
+  }
+
+  return executionResult;
+}
+
+// =============================================================================
+// REENTRANCY PROTECTION
+// =============================================================================
+//
+// Prevents accidental reuse of the same session in nested financial
+// transaction boundaries.
+//
+
+function assertSessionNotExternallyManaged(
+  session,
+) {
+  if (
+    !session ||
+    typeof session.startTransaction !==
+      'function'
+  ) {
+    throw new FinancialTransactionError(
+      'A valid MongoDB session is required.',
+      'FINANCIAL_SESSION_REQUIRED',
+      500,
+    );
+  }
+}
+
+// =============================================================================
+// EXECUTE FINANCIAL TRANSACTION
 // =============================================================================
 
 async function executeFinancialTransaction({
+  transactionId,
+  idempotencyRecord,
+  execute,
 
-    transactionId,
+  transactionOptions =
+    FINANCIAL_TRANSACTION_OPTIONS,
 
-    idempotencyRecord,
-
-    execute,
-
-    transactionOptions =
-    IDEMPOTENT_FINANCIAL_TRANSACTION_OPTIONS,
-
-    maxTransactionRetries =
+  maxTransactionRetries =
     DEFAULT_MAX_TRANSACTION_RETRIES,
 
-    maxCommitRetries =
-    DEFAULT_MAX_COMMIT_RETRIES
-
+  maxCommitRetries =
+    DEFAULT_MAX_COMMIT_RETRIES,
 }) {
+  assertFunction(
+    execute,
+    'execute',
+  );
 
-    assertFunction(
-        execute,
-        "execute"
+  assertSessionNotExternallyManaged(
+    await Promise.resolve(
+      mongoose.startSession,
+    ),
+  );
+
+  if (
+    !idempotencyRecord ||
+    !idempotencyRecord._id
+  ) {
+    throw new FinancialTransactionError(
+      'Idempotency record is required.',
+      'FINANCIAL_IDEMPOTENCY_RECORD_REQUIRED',
+      500,
+    );
+  }
+
+  const normalizedTransactionId =
+    requireIdentifier(
+      transactionId,
+      'transactionId',
+      TRANSACTION_ID_MAX_LENGTH,
     );
 
-    if (
-        !idempotencyRecord ||
-        !idempotencyRecord._id
+  const transactionRetryLimit =
+    normalizeRetryLimit(
+      maxTransactionRetries,
+      'maxTransactionRetries',
+      MIN_TRANSACTION_RETRIES,
+      MAX_TRANSACTION_RETRIES,
+      DEFAULT_MAX_TRANSACTION_RETRIES,
+    );
+
+  const commitRetryLimit =
+    normalizeRetryLimit(
+      maxCommitRetries,
+      'maxCommitRetries',
+      MIN_COMMIT_RETRIES,
+      MAX_COMMIT_RETRIES,
+      DEFAULT_MAX_COMMIT_RETRIES,
+    );
+
+  const normalizedOptions =
+    normalizeTransactionOptions(
+      transactionOptions,
+    );
+
+  const session =
+    await createSession();
+
+  let transactionAttempt = 0;
+
+  let transactionStarted = false;
+
+  try {
+    while (
+      transactionAttempt <
+      transactionRetryLimit
     ) {
+      transactionAttempt += 1;
 
-        throw new FinancialTransactionError(
-
-            "Idempotency record is required.",
-
-            "FINANCIAL_IDEMPOTENCY_RECORD_REQUIRED",
-
-            500
-
-        );
-    }
-
-    const normalizedTransactionId =
-        requireIdentifier(
-
-            transactionId,
-
-            "transactionId",
-
-            256
-
-        );
-
-    const transactionRetryLimit =
-        normalizeRetryLimit(
-
-            maxTransactionRetries,
-
-            "maxTransactionRetries",
-
-            MIN_TRANSACTION_RETRIES,
-
-            MAX_TRANSACTION_RETRIES,
-
-            DEFAULT_MAX_TRANSACTION_RETRIES
-
-        );
-
-    const commitRetryLimit =
-        normalizeRetryLimit(
-
-            maxCommitRetries,
-
-            "maxCommitRetries",
-
-            MIN_COMMIT_RETRIES,
-
-            MAX_COMMIT_RETRIES,
-
-            DEFAULT_MAX_COMMIT_RETRIES
-
-        );
-
-    const session =
-        await createSession();
-
-    let transactionAttempt =
-        0;
-
-    let transactionStarted =
+      transactionStarted =
         false;
 
-    try {
-
-        while (
-            transactionAttempt <
-            transactionRetryLimit
-        ) {
-
-            transactionAttempt += 1;
-
-            transactionStarted =
-                false;
-
-            try {
-
-                // =============================================================
-                // Start transaction
-                // =============================================================
-
-                session.startTransaction(
-
-                    transactionOptions
-
-                );
-
-                transactionStarted =
-                    true;
-
-                // =============================================================
-                // Execute financial operation
-                // =============================================================
-
-                const executionResult =
-                    await execute({
-
-                        session,
-
-                        transactionId:
-                            normalizedTransactionId,
-
-                        idempotencyRecord
-
-                    });
-
-                if (
-                    !executionResult
-                ) {
-
-                    throw new FinancialTransactionError(
-
-                        "Financial operation did not return an execution result.",
-
-                        "FINANCIAL_EXECUTION_RESULT_MISSING",
-
-                        500
-
-                    );
-                }
-
-                // =============================================================
-                // Idempotency completion
-                // =============================================================
-
-                if (
-                    executionResult.completeIdempotency !==
-                    false
-                ) {
-
-                    await completeIdempotency({
-
-                        idempotencyRecord,
-
-                        executionResult,
-
-                        session
-
-                    });
-                }
-
-                // =============================================================
-                // Commit
-                // =============================================================
-
-                const commitResult =
-                    await commitWithRetry({
-
-                        session,
-
-                        maxCommitRetries:
-                            commitRetryLimit
-
-                    });
-
-                transactionStarted =
-                    false;
-
-                // =============================================================
-                // Success
-                // =============================================================
-
-                return {
-
-                    success:
-                        true,
-
-                    transactionId:
-                        normalizedTransactionId,
-
-                    idempotencyRecordId:
-                        idempotencyRecord._id,
-
-                    httpStatus:
-                        executionResult.httpStatus ||
-                        200,
-
-                    responseBody:
-                        executionResult.responseBody ||
-                        {},
-
-                    resultType:
-                        executionResult.resultType ||
-                        "SUCCESS",
-
-                    transactionAttempts:
-                        transactionAttempt,
-
-                    commitAttempts:
-                        commitResult.attempts
-
-                };
-
-            } catch (error) {
-
-                // =============================================================
-                // UNKNOWN COMMIT RESULT
-                // =============================================================
-                //
-                // Never abort.
-                //
-                // Never retry execute().
-                //
-                // Never mark idempotency FAILED.
-                //
-                // Reconciliation must determine the final state.
-                // =============================================================
-
-                if (
-                    isUnknownCommitResult(
-                        error
-                    ) ||
-                    error?.code ===
-                    "FINANCIAL_COMMIT_RESULT_UNKNOWN"
-                ) {
-
-                    transactionStarted =
-                        false;
-
-                    throw new FinancialTransactionError(
-
-                        "Financial transaction outcome is unknown and requires reconciliation.",
-
-                        "FINANCIAL_COMMIT_RESULT_UNKNOWN",
-
-                        503,
-
-                        {
-
-                            transactionId:
-                                normalizedTransactionId,
-
-                            transactionAttempts:
-                                transactionAttempt
-
-                        }
-
-                    );
-                }
-
-                // =============================================================
-                // Abort current transaction
-                // =============================================================
-
-                if (
-                    transactionStarted &&
-                    session.inTransaction()
-                ) {
-
-                    try {
-
-                        await session.abortTransaction();
-
-                    } catch (
-                    abortError
-                    ) {
-
-                        /*
-                         * Preserve the original financial error.
-                         */
-
-                    }
-
-                    transactionStarted =
-                        false;
-                }
-
-                // =============================================================
-                // Retry transient transaction errors
-                // =============================================================
-
-                if (
-                    isTransientTransactionError(
-                        error
-                    ) &&
-                    transactionAttempt <
-                    transactionRetryLimit
-                ) {
-
-                    continue;
-                }
-
-                throw error;
-            }
-        }
-
-        throw new FinancialTransactionError(
-
-            "Financial transaction retry limit exceeded.",
-
-            "FINANCIAL_TRANSACTION_RETRY_LIMIT",
-
-            503,
-
-            {
-
-                transactionId:
-                    normalizedTransactionId,
-
-                transactionAttempts:
-                    transactionAttempt
-
-            }
-
+      try {
+        // =====================================================================
+        // START TRANSACTION
+        // =====================================================================
+
+        session.startTransaction(
+          normalizedOptions,
         );
 
-    } finally {
+        transactionStarted =
+          true;
 
         // =====================================================================
-        // Defensive transaction cleanup
+        // EXECUTE BUSINESS MUTATIONS
+        // =====================================================================
+        //
+        // IMPORTANT:
+        //
+        // This callback must contain ONLY MongoDB mutations that use `session`
+        // and deterministic local computation.
+        //
+        // External provider interactions belong in an outbox / worker layer.
+        //
+        // =====================================================================
+
+        const executionResult =
+          await execute({
+            session,
+
+            transactionId:
+              normalizedTransactionId,
+
+            idempotencyRecord,
+
+            transactionAttempt,
+          });
+
+        validateExecutionResult(
+          executionResult,
+        );
+
+        // =====================================================================
+        // COMPLETE IDEMPOTENCY INSIDE TRANSACTION
         // =====================================================================
 
         if (
-            transactionStarted &&
-            session.inTransaction()
+          executionResult.completeIdempotency !==
+          false
         ) {
+          await completeIdempotency({
+            idempotencyRecord,
 
-            try {
+            executionResult,
 
-                await session.abortTransaction();
-
-            } catch (
-            cleanupError
-            ) {
-
-                /*
-                 * Cleanup must never replace the original financial error.
-                 */
-
-            }
+            session,
+          });
         }
 
-        await session.endSession();
+        // =====================================================================
+        // COMMIT
+        // =====================================================================
 
+        const commitResult =
+          await commitWithRetry({
+            session,
+
+            maxCommitRetries:
+              commitRetryLimit,
+          });
+
+        transactionStarted =
+          false;
+
+        // =====================================================================
+        // SUCCESS
+        // =====================================================================
+
+        return {
+          success: true,
+
+          transactionId:
+            normalizedTransactionId,
+
+          idempotencyRecordId:
+            idempotencyRecord._id,
+
+          httpStatus:
+            executionResult.httpStatus ??
+            200,
+
+          responseBody:
+            executionResult.responseBody ??
+            {},
+
+          resultType:
+            executionResult.resultType ??
+            'SUCCESS',
+
+          transactionAttempts:
+            transactionAttempt,
+
+          commitAttempts:
+            commitResult.attempts,
+        };
+      } catch (error) {
+        // =====================================================================
+        // UNKNOWN COMMIT RESULT
+        // =====================================================================
+        //
+        // The transaction may have committed.
+        //
+        // Therefore:
+        //
+        //   - DO NOT abort
+        //   - DO NOT rerun execute()
+        //   - DO NOT mark idempotency FAILED
+        //   - DO NOT send a compensating financial mutation
+        //
+        // Reconciliation must determine the authoritative outcome.
+        // =====================================================================
+
+        if (
+          isUnknownCommitResult(
+            error,
+          ) ||
+          error?.code ===
+            'FINANCIAL_COMMIT_RESULT_UNKNOWN'
+        ) {
+          transactionStarted =
+            false;
+
+          throw new FinancialTransactionError(
+            'Financial transaction outcome is unknown and requires reconciliation.',
+            'FINANCIAL_COMMIT_RESULT_UNKNOWN',
+            503,
+            {
+              transactionId:
+                normalizedTransactionId,
+
+              transactionAttempts:
+                transactionAttempt,
+
+              reconciliationRequired:
+                true,
+            },
+            error,
+          );
+        }
+
+        // =====================================================================
+        // ABORT
+        // =====================================================================
+
+        if (
+          transactionStarted &&
+          session.inTransaction()
+        ) {
+          try {
+            await session.abortTransaction();
+          } catch {
+            /*
+             * Preserve original failure.
+             */
+          }
+
+          transactionStarted =
+            false;
+        }
+
+        // =====================================================================
+        // TRANSIENT TRANSACTION ERROR
+        // =====================================================================
+
+        if (
+          isTransientTransactionError(
+            error,
+          ) &&
+          transactionAttempt <
+            transactionRetryLimit
+        ) {
+          continue;
+        }
+
+        throw error;
+      }
     }
+
+    throw new FinancialTransactionError(
+      'Financial transaction retry limit exceeded.',
+      'FINANCIAL_TRANSACTION_RETRY_LIMIT',
+      503,
+      {
+        transactionId:
+          normalizedTransactionId,
+
+        transactionAttempts:
+          transactionAttempt,
+      },
+    );
+  } finally {
+    // =========================================================================
+    // DEFENSIVE CLEANUP
+    // =========================================================================
+
+    if (
+      transactionStarted &&
+      session.inTransaction()
+    ) {
+      try {
+        await session.abortTransaction();
+      } catch {
+        /*
+         * Never replace the original financial error with cleanup failure.
+         */
+      }
+    }
+
+    await session.endSession();
+  }
 }
 
 // =============================================================================
-// Persist Failure After Rollback
+// FAILURE PERSISTENCE
 // =============================================================================
 //
-// IMPORTANT:
+// Must happen AFTER the MongoDB financial transaction has aborted.
 //
-// This function is deliberately outside the MongoDB financial transaction.
+// This is intentionally outside the financial transaction.
 //
-// At this point:
+// If failure persistence itself fails, reconciliation/observability must detect
+// the problem. The original financial exception remains authoritative.
 //
-//     financial transaction = ABORTED
-//
-// Therefore:
-//
-//     FAILED idempotency state
-//
-// cannot accidentally roll back together with the financial failure.
-//
-// =============================================================================
 
 async function persistFinancialFailure({
-
-    recordId,
-
-    transactionId,
-
-    error
-
+  recordId,
+  transactionId,
+  error,
 }) {
+  try {
+    await failOperation({
+      recordId,
 
-    try {
+      httpStatus:
+        error?.statusCode ??
+        error?.status ??
+        500,
 
-        await failOperation({
+      responseBody: {
+        success: false,
 
-            recordId,
+        code:
+          error?.code ??
+          'FINANCIAL_OPERATION_FAILED',
 
-            httpStatus:
-                error?.statusCode ||
-                error?.status ||
-                500,
+        message:
+          error?.message ??
+          'Financial operation failed.',
 
-            responseBody: {
+        transactionId,
+      },
 
-                success:
-                    false,
+      errorCode:
+        error?.code ??
+        'FINANCIAL_OPERATION_FAILED',
+    });
 
-                code:
-                    error?.code ||
-                    "FINANCIAL_OPERATION_FAILED",
+    return true;
+  } catch (idempotencyError) {
+    /*
+     * IMPORTANT:
+     *
+     * The financial transaction has already failed/aborted.
+     *
+     * We do not replace the authoritative financial exception.
+     *
+     * The reconciliation subsystem should identify idempotency records that
+     * remain PROCESSING/PENDING beyond their expected timeout.
+     */
 
-                message:
-                    error?.message ||
-                    "Financial operation failed.",
-
-                transactionId
-
-            },
-
-            errorCode:
-                error?.code ||
-                "FINANCIAL_OPERATION_FAILED"
-
-        });
-
-    } catch (
-    idempotencyError
-    ) {
-
-        /*
-         * The financial error remains authoritative.
-         *
-         * Failure persistence should be visible to observability and
-         * reconciliation infrastructure.
-         *
-         * Do NOT replace the original financial exception.
-         */
-
-    }
+    return false;
+  }
 }
 
 // =============================================================================
-// Main Financial Operation
+// MAIN FINANCIAL OPERATION
 // =============================================================================
 
 async function processFinancialOperation({
+  tenantId,
+  principalId,
+  operation,
+  resource,
+
+  transactionId,
+
+  idempotency,
+
+  execute,
+
+  transactionOptions,
+
+  maxTransactionRetries,
+
+  maxCommitRetries,
+}) {
+  // ===========================================================================
+  // CONTEXT VALIDATION
+  // ===========================================================================
+
+  validateFinancialContext({
+    tenantId,
+    principalId,
+    operation,
+    resource,
+  });
+
+  assertFunction(
+    execute,
+    'execute',
+  );
+
+  // ===========================================================================
+  // IDEMPOTENCY VALIDATION
+  // ===========================================================================
+
+  if (!idempotency) {
+    throw new FinancialTransactionError(
+      'Idempotency context is required for financial operations.',
+      'FINANCIAL_IDEMPOTENCY_REQUIRED',
+      500,
+    );
+  }
+
+  if (
+    idempotency.state !==
+    'NEW'
+  ) {
+    throw new FinancialTransactionError(
+      'Financial execution requires a NEW idempotency operation.',
+      'FINANCIAL_IDEMPOTENCY_INVALID_STATE',
+      409,
+      {
+        state:
+          idempotency.state,
+      },
+    );
+  }
+
+  if (
+    !idempotency.recordId
+  ) {
+    throw new FinancialTransactionError(
+      'Idempotency record identifier is missing.',
+      'FINANCIAL_IDEMPOTENCY_RECORD_MISSING',
+      500,
+    );
+  }
+
+  // ===========================================================================
+  // TRANSACTION ID
+  // ===========================================================================
+
+  const effectiveTransactionId =
+    transactionId ||
+    createTransactionId();
+
+  const idempotencyRecord = {
+    _id:
+      idempotency.recordId,
+
+    key:
+      idempotency.key,
+
+    fingerprint:
+      idempotency.fingerprint,
 
     tenantId,
 
@@ -1077,278 +1095,174 @@ async function processFinancialOperation({
     operation,
 
     resource,
+  };
 
-    transactionId,
+  try {
+    return await executeFinancialTransaction({
+      transactionId:
+        effectiveTransactionId,
 
-    idempotency,
+      idempotencyRecord,
 
-    execute,
+      execute,
 
-    transactionOptions,
+      transactionOptions,
 
-    maxTransactionRetries,
+      maxTransactionRetries,
 
-    maxCommitRetries
+      maxCommitRetries,
+    });
+  } catch (error) {
+    // =======================================================================
+    // UNKNOWN COMMIT
+    // =======================================================================
+    //
+    // We do not know whether MongoDB committed.
+    //
+    // Therefore:
+    //   - don't write FAILED
+    //   - don't execute compensation
+    //   - don't retry the business operation
+    // =======================================================================
 
-}) {
+    if (
+      error?.code ===
+      'FINANCIAL_COMMIT_RESULT_UNKNOWN'
+    ) {
+      throw error;
+    }
 
-    // =========================================================================
-    // Context validation
-    // =========================================================================
+    // =======================================================================
+    // TRANSACTION FAILED / ABORTED
+    // =======================================================================
 
-    validateFinancialContext({
+    await persistFinancialFailure({
+      recordId:
+        idempotency.recordId,
 
-        tenantId,
+      transactionId:
+        effectiveTransactionId,
 
-        principalId,
-
-        operation,
-
-        resource
-
+      error,
     });
 
-    // =========================================================================
-    // Idempotency validation
-    // =========================================================================
-
-    if (
-        !idempotency
-    ) {
-
-        throw new FinancialTransactionError(
-
-            "Idempotency context is required for financial operations.",
-
-            "FINANCIAL_IDEMPOTENCY_REQUIRED",
-
-            500
-
-        );
-    }
-
-    if (
-        idempotency.state !==
-        "NEW"
-    ) {
-
-        throw new FinancialTransactionError(
-
-            "Financial execution requires a NEW idempotency operation.",
-
-            "FINANCIAL_IDEMPOTENCY_INVALID_STATE",
-
-            409,
-
-            {
-
-                state:
-                    idempotency.state
-
-            }
-
-        );
-    }
-
-    if (
-        !idempotency.recordId
-    ) {
-
-        throw new FinancialTransactionError(
-
-            "Idempotency record identifier is missing.",
-
-            "FINANCIAL_IDEMPOTENCY_RECORD_MISSING",
-
-            500
-
-        );
-    }
-
-    // =========================================================================
-    // One transaction identity for the complete business operation
-    // =========================================================================
-
-    const effectiveTransactionId =
-        transactionId ||
-        createTransactionId();
-
-    const idempotencyRecord = {
-
-        _id:
-            idempotency.recordId,
-
-        key:
-            idempotency.key,
-
-        fingerprint:
-            idempotency.fingerprint,
-
-        tenantId,
-
-        principalId,
-
-        operation,
-
-        resource
-
-    };
-
-    try {
-
-        return await executeFinancialTransaction({
-
-            transactionId:
-                effectiveTransactionId,
-
-            idempotencyRecord,
-
-            execute,
-
-            transactionOptions,
-
-            maxTransactionRetries,
-
-            maxCommitRetries
-
-        });
-
-    } catch (error) {
-
-        // =====================================================================
-        // UNKNOWN COMMIT
-        // =====================================================================
-        //
-        // The operation may have committed.
-        //
-        // Therefore FAILED must NOT be written.
-        // =====================================================================
-
-        if (
-            error?.code ===
-            "FINANCIAL_COMMIT_RESULT_UNKNOWN"
-        ) {
-
-            throw error;
-        }
-
-        // =====================================================================
-        // Financial transaction was aborted.
-        //
-        // Safe point for FAILED idempotency persistence.
-        // =====================================================================
-
-        await persistFinancialFailure({
-
-            recordId:
-                idempotency.recordId,
-
-            transactionId:
-                effectiveTransactionId,
-
-            error
-
-        });
-
-        throw error;
-    }
+    throw error;
+  }
 }
 
 // =============================================================================
-// Repository Contract
+// EXTERNAL SIDE-EFFECT CONTRACT
 // =============================================================================
 //
-// This is an architectural declaration.
+// Use this as an architectural marker in service reviews.
 //
-// Every financial repository must accept `session` for financial mutations.
+// SAFE inside `execute()`:
+//   - MongoDB repository writes using `session`
+//   - deterministic calculations
+//   - validation
+//   - local state transitions
+//   - outbox writes
 //
-// A repository violating this contract can silently break atomicity.
+// NOT SAFE inside `execute()`:
+//   - MoMo HTTP calls
+//   - Airtel HTTP calls
+//   - email
+//   - SMS
+//   - push notifications
+//   - webhooks
+//   - arbitrary HTTP APIs
 //
-// IMPORTANT:
-//
-// The Financial Transaction Service owns the transaction boundary.
-// Repositories only participate in the transaction through the supplied
-// MongoDB session.
-//
-// Loan mutations:
-//
-//     disburse()
-//         ├── validates APPROVED state atomically
-//         ├── increments disbursedAmount
-//         └── increments outstandingAmount
-//
-//     repay()
-//         ├── validates outstandingAmount >= repayment
-//         ├── decrements outstandingAmount atomically
-//         ├── increments repaidAmount
-//         └── transitions to PARTIALLY_REPAID / REPAID
-//
-//     markActive()
-//         └── transitions DISBURSED → ACTIVE
-//
+// =============================================================================
+
+const FINANCIAL_EXECUTION_RULES =
+  Object.freeze({
+    RETRYABLE: Object.freeze([
+      'mongodb-local-mutation',
+      'deterministic-calculation',
+      'validation',
+      'outbox-write',
+    ]),
+
+    NON_RETRYABLE_DIRECT_SIDE_EFFECTS:
+      Object.freeze([
+        'momo-api',
+        'airtel-api',
+        'email',
+        'sms',
+        'push-notification',
+        'webhook',
+        'external-http',
+        'non-idempotent-queue-publish',
+      ]),
+  });
+
+// =============================================================================
+// REPOSITORY CONTRACT
 // =============================================================================
 
 const FINANCIAL_TRANSACTION_REPOSITORY_CONTRACT =
-    Object.freeze({
+  Object.freeze({
+    transaction:
+      Object.freeze([
+        'create',
+        'findById',
+        'updateState',
+      ]),
 
-        transaction:
-            Object.freeze([
+    balance:
+      Object.freeze([
+        'getForUpdate',
+        'increment',
+        'decrement',
+      ]),
 
-                "create",
+    ledger:
+      Object.freeze([
+        'createEntry',
+        'createEntries',
+      ]),
 
-                "findById"
+    loan:
+      Object.freeze([
+        'findById',
+        'disburse',
+        'repay',
+        'markActive',
+      ]),
 
-            ]),
+    savings:
+      Object.freeze([
+        'findById',
+        'recordContribution',
+        'recordWithdrawal',
+      ]),
 
-        ledger:
-            Object.freeze([
+    outbox:
+      Object.freeze([
+        'enqueue',
+        'findPending',
+      ]),
 
-                "createEntry",
-
-                "createEntries"
-
-            ]),
-
-        balance:
-            Object.freeze([
-
-                "getForUpdate",
-
-                "increment",
-
-                "decrement"
-
-            ]),
-
-        loan:
-            Object.freeze([
-
-                "findById",
-
-                "disburse",
-
-                "repay",
-
-                "markActive"
-
-            ])
-
-    });
+    audit:
+      Object.freeze([
+        'record',
+      ]),
+  });
 
 // =============================================================================
-// Exports
+// EXPORTS
 // =============================================================================
 
 module.exports = {
+  FinancialTransactionError,
 
-    FinancialTransactionError,
+  FINANCIAL_TRANSACTION_REPOSITORY_CONTRACT,
 
-    FINANCIAL_TRANSACTION_REPOSITORY_CONTRACT,
+  FINANCIAL_EXECUTION_RULES,
 
-    executeFinancialTransaction,
+  executeFinancialTransaction,
 
-    processFinancialOperation,
+  processFinancialOperation,
 
-    createTransactionId
-
+  createTransactionId,
 };

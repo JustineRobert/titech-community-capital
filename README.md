@@ -1,13 +1,12 @@
 # 🏦 TITech Community Capital
 
-
 > **The financial operating system for Africa's community economy.**
 
 TITech Community Capital is an **enterprise-grade community finance platform** designed to connect **SACCOs, VSLAs, savings groups, cooperatives, community enterprises, and emerging financial institutions** to modern financial infrastructure.
 
-Africa's community finance sector manages enormous amounts of economic activity, yet much of that activity remains **fragmented, poorly digitized, difficult to measure, and difficult for formal capital providers to underwrite**.
+Africa's community finance sector manages significant economic activity, yet much of that activity remains fragmented, poorly digitized, difficult to measure, and difficult for formal capital providers to underwrite.
 
-TITech is building the infrastructure layer that makes these financial activities:
+TITech is building the infrastructure layer that makes community financial activity:
 
 * **Digital**
 * **Measurable**
@@ -17,17 +16,22 @@ TITech is building the infrastructure layer that makes these financial activitie
 * **Payment-enabled**
 * **Institutionally financeable**
 
-Every institution operating on TITech can contribute, subject to authorization and applicable privacy/regulatory requirements, to a **permissioned financial data and intelligence network** that transforms previously invisible community cash flows into structured financial information.
+Subject to authorization, privacy requirements, applicable law, and regulatory controls, institutions operating on TITech can participate in a **permissioned financial data and intelligence network** that transforms previously difficult-to-observe community cash flows into structured financial information.
 
 ---
 
-[![CI/CD Pipeline](https://github.com/JustineRobert/society-community-savings-app/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/JustineRobert/society-community-savings-app/actions/workflows/ci-cd.yml)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.1-green.svg)](docs/RELEASE_NOTES.md)
-[![Node.js](https://img.shields.io/badge/Node.js-20%2B-brightgreen.svg)](https://nodejs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-supported-brightgreen.svg)](https://www.mongodb.com/)
-[![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-5-purple.svg)](https://vitejs.dev/)
+## 🚀 Project Status
+
+**Status:** Active Development / Production Hardening
+**Version:** 2.1
+**Organization:** TITech Community Capital LTD
+**Last Updated:** September 2026
+
+TITech has evolved beyond a basic community savings application toward a broader financial infrastructure platform incorporating:
+
+**Community Finance + Wallets + Transactions + Ledger + Loans + Reconciliation + Payments + KYC/AML + Risk + Fraud + Observability + Enterprise Infrastructure**
+
+Individual capabilities can have different implementation, testing, operational, security, and regulatory maturity. Repository implementation and verification artifacts remain the source of truth for actual production readiness.
 
 ---
 
@@ -41,29 +45,48 @@ The platform is being engineered around a simple proposition:
 
 TITech therefore goes beyond a conventional savings application.
 
-It is evolving toward an integrated platform covering:
+The broader platform direction is:
 
-**Community Finance → Payments → Ledger → Reconciliation → Risk → KYC/AML → Fraud Intelligence → Credit → Settlement → Institutional Capital**
+```text
+Community Finance
+       │
+       ▼
+Payments
+       │
+       ▼
+Ledger & Reconciliation
+       │
+       ▼
+Risk & Fraud Intelligence
+       │
+       ▼
+KYC / AML
+       │
+       ▼
+Credit Infrastructure
+       │
+       ▼
+Institutional Capital
+```
 
 ---
 
-# 🎯 What TITech Does
+## 🎯 What TITech Does
 
-TITech Community Capital provides infrastructure for organizations that manage collective financial activity.
+### Community Finance
 
-### Core Community Finance
-
-* 👥 Group and institution management
-* 💰 Savings and contribution management
-* 🏦 Member wallets and balances
-* 💳 Financial transactions
-* 📒 Double-entry-oriented ledger infrastructure
-* 💸 Loan origination and repayment workflows
-* 🔄 Recurring contributions
-* 📊 Financial reporting
-* 🔔 Notifications and communication
-* 📱 Mobile-responsive user experience
-* 🌐 Multi-tenant architecture
+* Group and institution management
+* Member management
+* Savings and contribution management
+* Member wallets and balances
+* Financial transactions
+* Recurring contributions
+* Loan origination and repayment workflows
+* Financial reporting
+* Notifications and communication
+* Multi-tenant architecture
+* Mobile-responsive experiences
+* Offline-aware workflows
 
 ### Financial Infrastructure
 
@@ -77,6 +100,7 @@ TITech Community Capital provides infrastructure for organizations that manage c
 * Financial auditability
 * Transaction observability
 * Operational health monitoring
+* Repository/service separation
 
 ### Risk & Compliance Infrastructure
 
@@ -84,6 +108,7 @@ TITech Community Capital provides infrastructure for organizations that manage c
 * AML-oriented controls
 * RBAC and permission management
 * Fraud-risk foundations
+* Risk intelligence
 * Audit logging
 * Security controls
 * Regulatory reporting foundations
@@ -93,39 +118,37 @@ TITech Community Capital provides infrastructure for organizations that manage c
 
 The architecture is designed to support integrations with payment and mobile-money providers, including African mobile-money ecosystems.
 
-Examples include:
+Potential providers include:
 
 * MTN Mobile Money
 * Airtel Money
 * M-Pesa
 * Other regional payment providers
 
-> **Important:** Payment-provider availability, production activation and regulatory authorization depend on the applicable country, provider agreements and compliance requirements.
+> **Important:** Production payment availability depends on provider agreements, supported products, country-specific infrastructure, licensing, compliance requirements, and regulatory authorization.
 
 ---
 
-# 🏗️ Platform Architecture
-
-TITech is designed as a modular financial platform rather than a single-purpose savings application.
+## 🏗️ Platform Architecture
 
 ```text
 ┌───────────────────────────────────────────────────────────────┐
-│                     TITech Community Capital                  │
+│                    TITech Community Capital                  │
 │                                                               │
-│          African Community Finance Infrastructure             │
+│       African Community Finance Infrastructure               │
 └───────────────────────────────────────────────────────────────┘
                               │
              ┌────────────────┼────────────────┐
              │                │                │
              ▼                ▼                ▼
-       Community Layer   Financial Layer   Intelligence Layer
+      Community Layer   Financial Layer   Intelligence Layer
              │                │                │
              │                │                ├── Risk
              │                │                ├── Fraud
              │                │                ├── Analytics
-             │                │                └── AI/ML
+             │                │                └── AI / ML
              │                │
-             │                ├── Wallet
+             │                ├── Wallets
              │                ├── Transactions
              │                ├── Ledger
              │                ├── Loans
@@ -138,29 +161,24 @@ TITech is designed as a modular financial platform rather than a single-purpose 
              ├── Savings Groups
              ├── Cooperatives
              └── Community Enterprises
-
                               │
                               ▼
-
                     Payments & External Systems
                               │
-          ┌───────────────────┼────────────────────┐
-          ▼                   ▼                    ▼
-     Mobile Money         Banking APIs        Institutional
-     Providers            & Payments          Capital Providers
-
+             ┌────────────────┼────────────────┐
+             ▼                ▼                ▼
+       Mobile Money      Banking APIs     Institutional
+        Providers        & Payments      Capital Providers
                               │
                               ▼
-
-                     Compliance & Governance
+                    Compliance & Governance
                               │
-          ┌──────────────────┼────────────────────┐
-          ▼                  ▼                    ▼
-         KYC                AML                Audit
-          │                  │                    │
-          └──────────────────┼────────────────────┘
-                             ▼
-                    Regulatory Reporting
+             ┌────────────────┼────────────────┐
+             ▼                ▼                ▼
+            KYC              AML              Audit
+                              │
+                              ▼
+                     Regulatory Reporting
 ```
 
 ---
@@ -177,7 +195,7 @@ TITech Community Capital
 │   ├── Enterprise UI Components
 │   ├── Financial Dashboards
 │   ├── Offline-aware UX
-│   └── Role/Permission-aware Views
+│   └── Role / Permission-aware Views
 │
 ├── Backend
 │   ├── Node.js
@@ -234,9 +252,9 @@ TITech Community Capital
 
 Financial systems require stronger guarantees than ordinary CRUD applications.
 
-TITech therefore treats financial mutations as controlled operations.
+TITech treats financial mutations as controlled operations.
 
-A typical financial operation follows the conceptual boundary:
+A typical operation follows this conceptual boundary:
 
 ```text
 Request
@@ -271,9 +289,9 @@ Observability / Metrics
 Response
 ```
 
-### Financial integrity principles
+### Financial Integrity Principles
 
-TITech's financial architecture emphasizes:
+TITech emphasizes:
 
 * **Atomicity**
 * **Idempotency**
@@ -286,9 +304,11 @@ TITech's financial architecture emphasizes:
 * **Repository/service separation**
 * **Deterministic financial operations**
 
-For example, an operation that debits a wallet should not successfully mutate the ledger while leaving the balance unchanged—or vice versa.
+A wallet debit, for example, must not successfully mutate the ledger while leaving the balance unchanged.
 
-Where supported by the database and deployment configuration, related financial mutations are intended to execute within a controlled transaction boundary.
+Where supported by the database deployment, related financial mutations are intended to execute within a controlled transaction boundary.
+
+External side effects such as mobile-money requests, notifications, email delivery, and provider APIs should be handled through appropriate orchestration, queue, outbox, callback, and reconciliation patterns rather than being treated as ordinary database mutations.
 
 ---
 
@@ -315,7 +335,7 @@ Current security architecture includes:
 
 Sensitive configuration must be supplied through environment variables or secure deployment configuration.
 
-**Never commit credentials, private keys, API secrets or production database credentials to Git.**
+> **Never commit credentials, private keys, API secrets, provider secrets, or production database credentials to Git.**
 
 See:
 
@@ -326,11 +346,9 @@ See:
 
 # 👥 Multi-Tenant Architecture
 
-TITech is being developed with **multi-tenant financial infrastructure** in mind.
+TITech is designed around **multi-tenant financial infrastructure**.
 
 The target architecture allows multiple institutions to operate on a common platform while maintaining logical data boundaries.
-
-Conceptually:
 
 ```text
 TITech Platform
@@ -357,7 +375,7 @@ TITech Platform
     └── Financial Records
 ```
 
-Tenant isolation, authorization and data-access controls must be validated continuously as the platform scales.
+Tenant isolation, authorization, data-access controls, and cross-tenant query prevention must be continuously validated as the platform evolves.
 
 ---
 
@@ -365,9 +383,9 @@ Tenant isolation, authorization and data-access controls must be validated conti
 
 Community finance infrastructure in Africa must account for inconsistent connectivity.
 
-TITech therefore incorporates an **offline-aware architecture** designed to support resilient user experiences in environments where connectivity cannot be assumed.
+TITech therefore incorporates an **offline-aware architecture** designed to support resilient user experiences where connectivity cannot be assumed.
 
-The broader roadmap includes:
+The broader direction includes:
 
 * Offline state awareness
 * Local operation queues
@@ -378,7 +396,7 @@ The broader roadmap includes:
 * Network-aware UX
 * Reliable financial synchronization
 
-> Financial operations must never be treated as safely synchronized merely because an operation was queued locally. Server-side confirmation remains authoritative.
+> **Financial operations must never be treated as server-confirmed merely because an operation was queued locally. Server-side confirmation remains authoritative.**
 
 ---
 
@@ -401,6 +419,7 @@ Testing areas include:
 * Offline synchronization tests
 * Provider callback tests
 * Infrastructure validation
+* Security validation
 
 Run the standard suite with:
 
@@ -408,31 +427,31 @@ Run the standard suite with:
 make test
 ```
 
-Run backend tests:
+Backend tests:
 
 ```bash
 make test-backend
 ```
 
-Run coverage:
+Coverage:
 
 ```bash
 make test-coverage
 ```
 
-Before creating a production release:
+Complete quality validation:
 
 ```bash
 make quality
 ```
 
-> **Important:** Test counts and coverage percentages are intentionally not hard-coded here because they should be generated from the current repository rather than becoming stale documentation.
+> Test counts and coverage percentages are deliberately not hard-coded in this README. They should be generated from the current repository and CI environment.
 
 ---
 
 # 🚦 CI/CD
 
-TITech uses GitHub Actions to automate software quality and delivery controls.
+TITech uses GitHub Actions to automate engineering quality and delivery controls.
 
 The intended pipeline includes:
 
@@ -440,28 +459,28 @@ The intended pipeline includes:
 Git Push / Pull Request
           │
           ▼
-     Dependency Setup
+    Dependency Setup
           │
           ▼
-     Static Validation
+    Static Validation
           │
           ▼
-   Lint / Formatting
+  Lint / Formatting
           │
           ▼
        Testing
           │
           ▼
-     Build Validation
+   Build Validation
           │
           ▼
-   Security Validation
+ Security Validation
           │
           ▼
-   Docker Validation
+ Docker Validation
           │
           ▼
-     Release / Deploy
+ Release / Deploy
 ```
 
 Repository workflows are located under:
@@ -470,7 +489,7 @@ Repository workflows are located under:
 .github/workflows/
 ```
 
-Relevant pipelines may include backend validation, frontend validation, enterprise testing, security checks and deployment workflows.
+The active workflows are the source of truth for the exact CI/CD jobs and gates.
 
 ---
 
@@ -500,7 +519,7 @@ Stop services:
 make docker-down
 ```
 
-Typical local services include:
+Typical local services may include:
 
 ```text
 Frontend      → localhost:3000
@@ -510,7 +529,7 @@ Redis         → localhost:6379
 Nginx         → localhost:80
 ```
 
-Actual ports may vary according to the active Docker Compose configuration.
+Actual ports depend on the active Docker Compose configuration and environment.
 
 ---
 
@@ -520,7 +539,7 @@ Actual ports may vary according to the active Docker Compose configuration.
 
 Recommended development environment:
 
-* Node.js **20+**
+* Node.js 20+
 * npm
 * Git
 * MongoDB
@@ -528,7 +547,7 @@ Recommended development environment:
 * Docker / Docker Compose
 * Make
 
-Verify Node:
+Verify Node.js:
 
 ```bash
 node --version
@@ -543,57 +562,35 @@ npm --version
 ---
 
 ## One-Command Installation
-=======
-**Getting ready - Africa's community finance sector manages enormous amounts of economic activity but much of it remains invisible, fragmented and difficult for formal capital to underwrite. TITech is building the financial operating system connecting SACCOs, VSLAs and community enterprises to payments, accounting, risk intelligence and institutional capital.**
-**Every institution joining TITech strengthens a permissioned financial data network that makes previously invisible community cash flows measurable and financeable.**
-
-[![CI/CD Pipeline](https://github.com/JustineRobert/society-community-savings-app/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/JustineRobert/society-community-savings-app/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.1-green.svg)](docs/RELEASE_NOTES.md)
-
----
-
-## 📋 Quick Start
-
-### One-Command Setup
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
 
 ```bash
 make install
 ```
 
-<<<<<<< HEAD
 ---
 
 ## Start Development
-=======
-### One-Command Development
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
+
+Start the complete development environment:
 
 ```bash
 make dev
 ```
 
-<<<<<<< HEAD
-Or start the components independently:
+Start the backend independently:
 
 ```bash
 make dev-backend
 ```
 
-```bash
-make dev-frontend
-=======
-### One-Command Docker
+Start the frontend independently:
 
 ```bash
-make docker-build && make docker-up
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
+make dev-frontend
 ```
 
 ---
 
-<<<<<<< HEAD
 # 🛠️ Developer Commands
 
 ## Installation
@@ -639,7 +636,7 @@ make docker-down
 make docker-logs
 ```
 
-Run:
+Use:
 
 ```bash
 make help
@@ -647,7 +644,7 @@ make help
 
 to inspect the commands currently exposed by the Makefile.
 
-> The Makefile is the source of truth for supported command names. This README deliberately avoids claiming a fixed number of commands.
+> The Makefile is the source of truth for supported command names. This README intentionally avoids hard-coded command counts.
 
 ---
 
@@ -655,25 +652,23 @@ to inspect the commands currently exposed by the Makefile.
 
 ## Backend
 
-Create the backend environment configuration from the repository's environment template where available.
+Create the backend environment configuration using the repository's environment template where available.
 
-Example:
+Example development configuration:
 
 ```env
 NODE_ENV=development
 PORT=5000
+HOST=0.0.0.0
 
 MONGODB_URI=mongodb://127.0.0.1:27017/community_savings
-
 REDIS_URL=redis://127.0.0.1:6379
 
 JWT_SECRET=replace-with-a-secure-secret
 JWT_REFRESH_SECRET=replace-with-a-secure-refresh-secret
 ```
 
-Production deployments should use a managed secrets mechanism rather than committing `.env` files.
-
----
+Production deployments should use managed secrets or a secure deployment configuration mechanism instead of committing `.env` files.
 
 ## Frontend
 
@@ -686,15 +681,15 @@ VITE_ENVIRONMENT=development
 
 Frontend environment variables must not contain secrets.
 
-Anything prefixed with `VITE_` may become accessible to the client-side application.
+Anything prefixed with `VITE_` may be exposed to the client application.
 
 ---
 
 # 🗄️ Data Architecture
 
-The platform uses MongoDB through Mongoose.
+TITech uses MongoDB through Mongoose.
 
-The backend follows a layered architecture around:
+The backend follows a layered architecture:
 
 ```text
 Routes
@@ -715,7 +710,7 @@ Models
 MongoDB
 ```
 
-Financial domains receive additional separation around:
+Financial domains receive additional separation:
 
 ```text
 Financial Operation
@@ -728,7 +723,7 @@ Financial Operation
         └── Observability
 ```
 
-This structure is intended to reduce direct database manipulation from controllers and make financial behavior easier to test, reason about and audit.
+This reduces direct database manipulation from controllers and makes financial behavior easier to test, reason about, reconcile, and audit.
 
 ---
 
@@ -736,7 +731,7 @@ This structure is intended to reduce direct database manipulation from controlle
 
 Production financial infrastructure requires more than application logs.
 
-TITech's architecture includes observability capabilities around:
+TITech's architecture includes observability around:
 
 * Application health
 * Financial operations
@@ -750,7 +745,7 @@ TITech's architecture includes observability capabilities around:
 
 The platform is designed toward Prometheus-compatible metrics and enterprise monitoring integrations.
 
-Recommended production observability layers include:
+Recommended observability layers include:
 
 ```text
 Application Logs
@@ -770,7 +765,7 @@ Alerting
 
 # 💳 Payments & Mobile Money
 
-TITech is designed to serve as an orchestration layer between community financial institutions and external payment systems.
+TITech is designed to operate as an orchestration layer between community financial institutions and external payment systems.
 
 Conceptually:
 
@@ -810,25 +805,31 @@ Provider integrations must account for:
 * Transaction state transitions
 * Regulatory requirements
 
+External provider responses should not automatically be treated as final financial settlement without appropriate reconciliation and state validation.
+
 ---
 
 # 🏦 Credit & Risk Intelligence
 
 TITech's long-term opportunity extends beyond savings.
 
-Digitized community financial behavior can potentially support better risk assessment, subject to consent, privacy requirements, regulation and appropriate model governance.
+Digitized community financial behavior can potentially support improved risk assessment, subject to consent, privacy requirements, regulatory obligations, data governance, and model controls.
 
 Potential intelligence layers include:
 
 ```text
 Savings Behavior
        │
+       ▼
 Contribution History
        │
+       ▼
 Repayment Behavior
        │
+       ▼
 Cash-Flow Patterns
        │
+       ▼
 Transaction History
        │
        ▼
@@ -843,14 +844,14 @@ Risk Intelligence
 
 TITech does **not** equate data availability with automatic creditworthiness.
 
-Any production credit decisioning system must incorporate:
+Production credit decisioning should incorporate:
 
 * Explainability
 * Consent
 * Fairness
 * Data minimization
 * Regulatory compliance
-* Human/operational oversight where appropriate
+* Human or operational oversight where appropriate
 * Model monitoring
 * Appropriate risk controls
 
@@ -858,7 +859,7 @@ Any production credit decisioning system must incorporate:
 
 # 🌍 African Market Opportunity
 
-TITech is being developed for markets where community finance is economically important but digital financial infrastructure remains fragmented.
+TITech is being developed for markets where community finance is economically important while digital financial infrastructure remains fragmented.
 
 Potential customer segments include:
 
@@ -874,8 +875,8 @@ Potential customer segments include:
 ### Financial Institutions
 
 * Microfinance institutions
-* Digital lenders
 * Credit unions
+* Digital lenders
 * Banks
 * Fintechs
 
@@ -902,9 +903,9 @@ Potential customer segments include:
 
 Potential revenue streams include:
 
-### SaaS
+## SaaS
 
-Subscription plans for institutions based on:
+Subscription plans for institutions based on factors such as:
 
 * Members
 * Groups
@@ -913,11 +914,11 @@ Subscription plans for institutions based on:
 * Compliance requirements
 * Institution size
 
-### Payments
+## Payments
 
-Potential transaction-based revenue through eligible payment infrastructure and partnerships.
+Potential transaction-based revenue through eligible payment infrastructure and provider partnerships.
 
-### Financial Infrastructure
+## Financial Infrastructure
 
 Potential revenue from:
 
@@ -928,9 +929,9 @@ Potential revenue from:
 * Risk infrastructure
 * Institutional tooling
 
-### Data & Intelligence
+## Data & Intelligence
 
-Subject to applicable law, consent and governance:
+Subject to applicable law, consent, privacy, and governance:
 
 * Portfolio intelligence
 * Risk analytics
@@ -938,7 +939,7 @@ Subject to applicable law, consent and governance:
 * Benchmarking
 * Financial insights
 
-### Capital Marketplace
+## Capital Connectivity
 
 Long-term potential to connect qualified community financial institutions and enterprises with appropriate sources of capital.
 
@@ -946,7 +947,7 @@ Long-term potential to connect qualified community financial institutions and en
 
 # 🧭 Product Evolution
 
-TITech is progressing toward a broader financial infrastructure platform.
+TITech is progressing toward broader financial infrastructure.
 
 ```text
 Stage 1
@@ -981,35 +982,35 @@ African Community Finance Network
 
 # 📚 Documentation
 
-The `/docs` directory contains project documentation.
+The `docs/` directory contains project documentation.
 
 ### Getting Started
 
-* [`DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md)
-* [`PRODUCTION_READY_README.md`](docs/PRODUCTION_READY_README.md)
+* [`docs/DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md)
+* [`docs/PRODUCTION_READY_README.md`](docs/PRODUCTION_READY_README.md)
 
 ### Production
 
-* [`DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md)
-* [`PRODUCTION_READINESS_SUMMARY.md`](docs/PRODUCTION_READINESS_SUMMARY.md)
-* [`PRODUCTION_VERIFICATION_CHECKLIST.md`](docs/PRODUCTION_VERIFICATION_CHECKLIST.md)
+* [`docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md)
+* [`docs/PRODUCTION_READINESS_SUMMARY.md`](docs/PRODUCTION_READINESS_SUMMARY.md)
+* [`docs/PRODUCTION_VERIFICATION_CHECKLIST.md`](docs/PRODUCTION_VERIFICATION_CHECKLIST.md)
 
 ### Engineering
 
-* [`GIT_COMMIT_GUIDE.md`](docs/GIT_COMMIT_GUIDE.md)
-* [`RELEASE_NOTES.md`](docs/RELEASE_NOTES.md)
+* [`docs/GIT_COMMIT_GUIDE.md`](docs/GIT_COMMIT_GUIDE.md)
+* [`docs/RELEASE_NOTES.md`](docs/RELEASE_NOTES.md)
 
 ### Platform & Legal
 
-* [`LEGAL_PAGE_IMPLEMENTATION.md`](docs/LEGAL_PAGE_IMPLEMENTATION.md)
+* [`docs/LEGAL_PAGE_IMPLEMENTATION.md`](docs/LEGAL_PAGE_IMPLEMENTATION.md)
 
 ### CI/CD
 
-* [`GITHUB_ACTIONS_FIX.md`](docs/GITHUB_ACTIONS_FIX.md)
+* [`docs/GITHUB_ACTIONS_FIX.md`](docs/GITHUB_ACTIONS_FIX.md)
 
 ### Project Review / Submission
 
-* [`CONTEST_SUBMISSION_SUMMARY.md`](docs/CONTEST_SUBMISSION_SUMMARY.md)
+* [`docs/CONTEST_SUBMISSION_SUMMARY.md`](docs/CONTEST_SUBMISSION_SUMMARY.md)
 
 ---
 
@@ -1042,13 +1043,10 @@ society-community-savings-app/
 │   └── tests/
 │
 ├── docs/
-│
 ├── .github/
 │   └── workflows/
-│
 ├── docker/
 ├── Makefile
-├── package.json
 ├── README.md
 ├── SECURITY.md
 └── LICENSE
@@ -1079,29 +1077,27 @@ Example:
 git checkout -b feature/my-feature
 ```
 
-Run:
+Before submitting:
 
 ```bash
 make quality
 ```
 
-before submitting the Pull Request.
-
 ### Financial Code Changes
 
 Changes affecting:
 
-* balances
-* wallets
-* transactions
-* ledger entries
-* loans
-* payments
-* reconciliation
-* settlement
-* idempotency
-* authentication
-* authorization
+* Balances
+* Wallets
+* Transactions
+* Ledger entries
+* Loans
+* Payments
+* Reconciliation
+* Settlement
+* Idempotency
+* Authentication
+* Authorization
 
 should include appropriate automated tests and receive additional review.
 
@@ -1122,8 +1118,9 @@ Production deployment must therefore be accompanied by appropriate:
 * Security assessments
 * Disaster-recovery procedures
 * Operational controls
+* Incident-response procedures
 
-**Software readiness does not by itself constitute regulatory authorization, financial licensing, payment-provider approval or permission to operate as a regulated financial institution.**
+> **Software readiness does not by itself constitute regulatory authorization, financial licensing, payment-provider approval, or permission to operate as a regulated financial institution.**
 
 Organizations deploying TITech remain responsible for complying with applicable laws and regulations in their operating jurisdictions.
 
@@ -1131,159 +1128,25 @@ Organizations deploying TITech remain responsible for complying with applicable 
 
 # 🚢 Deployment
 
-TITech can be deployed in multiple environments depending on operational requirements.
+TITech can be deployed across multiple environments depending on operational requirements.
 
-### Local
+## Local Development
 
 ```bash
 make install
 make dev
-=======
-## 🎯 What Is This?
-
-TITech Community Capital — The African Community Finance Operating System(ACFOS) is a full-stack MERN application that enables communities to manage group savings, contributions, and loans with professional-grade features(finance + payments + ledger + reconciliation + AML + KYC + fraud + risk + transaction orchestration + regulatory reporting + observability + settlement.):
-
-✅ **Group Management** - Create and manage community groups  
-✅ **Savings Tracking** - Track member contributions  
-✅ **Loan Management** - Request, approve, and repay loans  
-✅ **Real-Time Updates** - Socket.io for live notifications  
-✅ **Role-Based Access** - Admin, treasurer, secretary roles  
-✅ **Email Notifications** - Automated communication  
-✅ **Mobile Responsive** - Works on all devices
-
----
-
-## 🚀 Production Ready Features
-
-### Code Quality
-
-- ✅ ESLint + Prettier configuration
-- ✅ 40+ quality rules enforced
-- ✅ Consistent code style everywhere
-
-### Testing
-
-- ✅ 1,200+ lines of Jest tests
-- ✅ 50+ test cases
-- ✅ Auth, contributions, loans, groups tested
-- ✅ 100% pass rate
-
-### CI/CD Pipeline
-
-- ✅ GitHub Actions automation
-- ✅ Quality gates on every push
-- ✅ Docker image building
-- ✅ Codecov integration
-
-### Deployment Ready
-
-- ✅ Docker & Docker Compose
-- ✅ Vercel + Render compatible
-- ✅ AWS/Azure ready
-- ✅ Health checks included
-
----
-
-## 📚 Documentation
-
-All documentation is organized in the [docs/](docs/) directory:
-
-### Getting Started
-
-- [**DOCUMENTATION_INDEX.md**](docs/DOCUMENTATION_INDEX.md) - Complete guide index
-- [**PRODUCTION_READY_README.md**](docs/PRODUCTION_READY_README.md) - Quick reference (10 min)
-
-### For Different Audiences
-
-- [**CONTEST_SUBMISSION_SUMMARY.md**](docs/CONTEST_SUBMISSION_SUMMARY.md) - For judges/reviewers
-- [**DEPLOYMENT_GUIDE.md**](docs/DEPLOYMENT_GUIDE.md) - For DevOps/deployment
-- [**PRODUCTION_READINESS_SUMMARY.md**](docs/PRODUCTION_READINESS_SUMMARY.md) - Technical overview
-
-### For Development
-
-- [**GIT_COMMIT_GUIDE.md**](docs/GIT_COMMIT_GUIDE.md) - Implementation details
-- [**PRODUCTION_VERIFICATION_CHECKLIST.md**](docs/PRODUCTION_VERIFICATION_CHECKLIST.md) - Pre-deployment
-
-### Additional Resources
-
-- [**GITHUB_ACTIONS_FIX.md**](docs/GITHUB_ACTIONS_FIX.md) - CI/CD updates
-- [**LEGAL_PAGE_IMPLEMENTATION.md**](docs/LEGAL_PAGE_IMPLEMENTATION.md) - Legal page guide
-- [**RELEASE_NOTES.md**](docs/RELEASE_NOTES.md) - Version history
-
----
-
-## 🏗️ Architecture
-
-```
-Community Savings App
-├── Backend (Express.js + MongoDB)
-│   ├── Controllers (Auth, Groups, Contributions, Loans)
-│   ├── Models (User, Group, Contribution, Loan)
-│   ├── Routes (API endpoints)
-│   └── Middleware (Auth, validation, error handling)
-│
-├── Frontend (React + Vite)
-│   ├── Pages (Dashboard, Groups, Contributions, Loans)
-│   ├── Components (Reusable UI components)
-│   ├── Hooks (Custom React hooks)
-│   └── Redux (State management)
-│
-└── Infrastructure
-    ├── Docker (Containerization)
-    ├── GitHub Actions (CI/CD)
-    └── MongoDB & Redis (Data storage)
 ```
 
----
-
-## 🛠️ Available Commands
-
-### Setup
+## Docker
 
 ```bash
-make install              # Install all dependencies
-make install-backend      # Backend only
-make install-frontend     # Frontend only
-```
-
-### Development
-
-```bash
-make dev                 # Start backend + frontend
-make dev-backend        # Backend development server
-make dev-frontend       # Frontend development server
-```
-
-### Quality
-
-```bash
-make lint               # Check code quality
-make lint-fix           # Auto-fix issues
-make format             # Format code
-make quality            # Complete check
-```
-
-### Testing
-
-```bash
-make test               # All tests
-make test-backend       # Backend tests
-make test-unit          # Unit tests
-make test-coverage      # Coverage reports
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
-```
-
-### Docker
-
-```bash
-<<<<<<< HEAD
 make docker-build
 make docker-up
 ```
 
-### Cloud
+## Cloud
 
-The architecture can be adapted for:
+The architecture can be adapted for environments such as:
 
 * AWS
 * Azure
@@ -1292,7 +1155,7 @@ The architecture can be adapted for:
 * Render
 * Vercel
 
-Cloud deployment should use environment-specific configuration, managed secrets, monitoring, backups and appropriate network/security controls.
+Cloud deployments should use environment-specific configuration, managed secrets, monitoring, backups, network controls, and appropriate security policies.
 
 See:
 
@@ -1319,7 +1182,7 @@ TITech should be evaluated across multiple dimensions rather than using a single
 | Operations     | Monitoring and incident response                       |
 | Governance     | Access, audit and change control                       |
 
-### Production Gate
+## Production Gate
 
 Before a production financial deployment, validate:
 
@@ -1331,7 +1194,7 @@ Before a production financial deployment, validate:
 ☐ Idempotency
 ☐ Authentication
 ☐ Authorization
-☐ KYC/AML workflows
+☐ KYC / AML workflows
 ☐ Payment callbacks
 ☐ Reconciliation
 ☐ Backups
@@ -1339,7 +1202,7 @@ Before a production financial deployment, validate:
 ☐ Monitoring
 ☐ Alerting
 ☐ Security scanning
-☐ Load/stress testing
+☐ Load / stress testing
 ☐ Disaster recovery
 ☐ Regulatory requirements
 ☐ Incident response
@@ -1350,11 +1213,9 @@ Before a production financial deployment, validate:
 
 # 📈 Current Engineering Direction
 
-The project is transitioning from a community savings application toward a broader **financial infrastructure platform**.
+The project is transitioning from a community savings application toward broader **financial infrastructure**.
 
-Priority engineering areas include:
-
-### Immediate
+## Immediate Priorities
 
 * Stabilize application bootstrap
 * Keep frontend/backend dependencies deterministic
@@ -1367,7 +1228,7 @@ Priority engineering areas include:
 * Strengthen security validation
 * Maintain CI/CD reliability
 
-### Next
+## Next Priorities
 
 * Database performance and scaling
 * Redis-backed infrastructure where justified
@@ -1379,22 +1240,20 @@ Priority engineering areas include:
 * Feature flags
 * Advanced reconciliation
 
-### Strategic
+## Strategic Priorities
 
 * Institutional APIs
-* Credit/risk infrastructure
+* Credit and risk infrastructure
 * Advanced fraud intelligence
 * Capital-provider integrations
 * Cross-institution analytics
 * Regional expansion
 * Partner ecosystem
-* Developer platform/API ecosystem
+* Developer/API platform
 
 ---
 
 # 🧠 Engineering Principles
-
-TITech development follows several core principles.
 
 ### 1. Financial correctness before convenience
 
@@ -1418,13 +1277,17 @@ Financial operations should have clear service and repository boundaries.
 
 ### 6. Secure by default
 
-Secrets, permissions and sensitive operations must be protected by default.
+Secrets, permissions, and sensitive operations must be protected by default.
 
 ### 7. Observable systems
 
 Critical operations should produce sufficient operational signals to diagnose failures.
 
-### 8. Africa-first, globally extensible
+### 8. Resilience by design
+
+Critical infrastructure must account for retries, timeouts, duplicate events, partial failures, and recovery.
+
+### 9. Africa-first, globally extensible
 
 The platform is designed around African community-finance realities while maintaining an architecture capable of supporting broader emerging-market use cases.
 
@@ -1486,9 +1349,18 @@ The project has progressed beyond a basic community savings application toward a
 
 **Community Finance + Financial Transactions + Ledger + Wallets + Loans + Reconciliation + Payments + KYC/AML + Risk + Fraud + Observability + Enterprise Infrastructure**
 
-However, individual capabilities may have different implementation, testing, operational and regulatory maturity levels.
+Capabilities may have different implementation, testing, operational, and regulatory maturity levels.
 
-Always verify the current repository implementation, CI status and production verification checklist before describing a capability as production-ready.
+Always verify:
+
+* Current repository implementation
+* Automated test status
+* CI/CD status
+* Security validation
+* Production verification checklist
+* Regulatory requirements
+
+before describing any capability as production-ready.
 
 ---
 
@@ -1516,7 +1388,7 @@ Then open the frontend using the URL reported by the active development server.
 
 ---
 
-## 🌍 Building the Financial Infrastructure for Africa
+# 🌍 Building the Financial Infrastructure for Africa
 
 TITech's ambition is larger than digitizing savings groups.
 
@@ -1538,7 +1410,7 @@ FINANCEABLE
 CONNECTED TO CAPITAL
 ```
 
-**TITech Community Capital — turning Africa's community financial activity into trusted digital financial infrastructure.**
+> **TITech Community Capital — turning Africa's community financial activity into trusted digital financial infrastructure.**
 
 ---
 
@@ -1546,241 +1418,3 @@ CONNECTED TO CAPITAL
 **Status:** Active Development / Production Hardening
 **Last Updated:** September 2026
 **Organization:** TITech Community Capital LTD
-=======
-make docker-build       # Build images
-make docker-up          # Start containers
-make docker-down        # Stop containers
-make docker-logs        # View logs
-```
-
-See [Makefile](Makefile) for all 20+ available commands.
-
----
-
-## 📊 Project Statistics
-
-| Metric              | Value        |
-| ------------------- | ------------ |
-| Test Coverage       | 1,200+ lines |
-| Code Quality Rules  | 40+          |
-| Available Commands  | 20+          |
-| CI/CD Jobs          | 5 parallel   |
-| Documentation Files | 13           |
-| Lines of Code       | 50,000+      |
-
----
-
-## 🔒 Security
-
-- ✅ JWT authentication with refresh tokens
-- ✅ Password hashing with bcrypt
-- ✅ RBAC (Role-Based Access Control)
-- ✅ Input validation and sanitization
-- ✅ CSRF protection
-- ✅ Environment variable management
-- ✅ npm audit in CI/CD
-- ✅ No hardcoded secrets
-
----
-
-## 📈 Deployment Options
-
-### Local Development
-
-```bash
-make install
-make dev
-```
-
-### Docker (Recommended)
-
-```bash
-make docker-build
-make docker-up
-# Visit http://localhost:3000
-```
-
-### Cloud Deployment
-
-- **Vercel** (Frontend) - See [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
-- **Render** (Backend) - See [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
-- **Heroku** (Full Stack) - See [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
-- **AWS** (Enterprise) - See [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
-- **DigitalOcean** (Scalable) - See [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
-
----
-
-## 🔄 CI/CD Pipeline
-
-Every push to `main` or `develop` triggers:
-
-1. **Quality Checks** - ESLint + Prettier
-2. **Tests** - Unit + integration tests
-3. **Build** - Backend + frontend build
-4. **Docker** - Image building with caching
-5. **Security** - npm audit
-
-All checks must pass before merging to main.
-
-See [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) for details.
-
----
-
-## 📝 Environment Setup
-
-### Backend
-
-```bash
-# .env file required for backend
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/dbname
-REDIS_URL=redis://user:pass@host:port
-JWT_SECRET=your-secure-secret-key
-NODE_ENV=production
-PORT=5000
-```
-
-### Frontend
-
-```bash
-# .env file required for frontend
-VITE_API_URL=http://localhost:5000
-VITE_ENVIRONMENT=production
-```
-
-Copy `.env.example` files for templates.
-
----
-
-## 🧪 Testing
-
-### Run All Tests
-
-```bash
-make test
-```
-
-### Run Specific Tests
-
-```bash
-# Backend unit tests
-npm run test:unit --prefix community-savings-app-backend
-
-# With coverage
-npm run test:coverage --prefix community-savings-app-backend
-```
-
-### Test Coverage
-
-Coverage reports are generated in:
-
-- Backend: `community-savings-app-backend/coverage/`
-- Frontend: `community-savings-app-frontend/coverage/`
-
----
-
-## 🐳 Docker Compose Services
-
-When running `make docker-up`:
-
-- **Backend API**: http://localhost:5000
-- **Frontend**: http://localhost:3000
-- **MongoDB**: localhost:27017
-- **Redis**: localhost:6379
-- **Nginx** (proxy): localhost:80
-
----
-
-## 📚 Technology Stack
-
-### Backend
-
-- Node.js 24.15.0
-- Express.js 4.18.2
-- MongoDB 8.23.1 (Mongoose)
-- Redis 4.7.1
-- Socket.io 4.7.0
-- JWT Authentication
-
-### Frontend
-
-- React 18.3.1
-- Vite 5.0.0
-- React Router 7.6.0
-- Redux 5.0.1
-- Axios
-
-### DevOps
-
-- Docker & Docker Compose
-- GitHub Actions
-- ESLint + Prettier
-- Jest
-- Codecov
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run `make quality` to verify
-5. Commit with clear message
-6. Push and create a pull request
-
-All PRs must pass CI/CD checks before merging.
-
----
-
-## 📖 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-## 📞 Support
-
-### Documentation
-
-- [Full Documentation Index](docs/DOCUMENTATION_INDEX.md)
-- [Quick Start Guide](docs/PRODUCTION_READY_README.md)
-- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
-
-### Issues
-
-- Report bugs via GitHub Issues
-- Ask questions in Discussions
-
-### Status
-
-✅ **Production Ready**  
-✅ **Fully Tested**  
-✅ **Well Documented**  
-✅ **Contest Submission Ready**
-
----
-
-## 🎯 Next Steps
-
-### To Get Started
-
-1. Read [PRODUCTION_READY_README.md](docs/PRODUCTION_READY_README.md) (10 min)
-2. Run `make install && make dev`
-3. Visit http://localhost:3000
-
-### To Deploy
-
-1. Read [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
-2. Choose your platform
-3. Follow the instructions
-
-### To Submit to Contest
-
-1. Read [CONTEST_SUBMISSION_SUMMARY.md](docs/CONTEST_SUBMISSION_SUMMARY.md)
-2. Run [PRODUCTION_VERIFICATION_CHECKLIST.md](docs/PRODUCTION_VERIFICATION_CHECKLIST.md)
-3. Submit your entry
-
----
-
-**Status:** ✅ Production Ready | **Version:** 2.1 | **Updated:** June 1, 2026
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880

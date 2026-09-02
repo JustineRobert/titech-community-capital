@@ -18,83 +18,92 @@
  *
  * POST /api/referrals
  * GET  /api/referrals
+ * GET  /api/referrals/health
  *
  * Architecture
  * ----------------------------------------------------------------------------
  *
  *   HTTP Request
- *        ↓
+ *       ↓
  *   Request / Correlation Metadata
- *        ↓
- *   Authentication
- *        ↓
- *   Trusted Tenant Context
- *        ↓
+ *       ↓
+ *   Security Headers
+ *       ↓
+ *   Health Boundary / Authentication
+ *       ↓
+ *   Trusted Tenant + Actor Context
+ *       ↓
  *   Rate Limiting
- *        ↓
+ *       ↓
  *   Validation / Normalization
- *        ↓
+ *       ↓
+ *   Sanitized Controller Contract
+ *       ↓
  *   Referral Controller
- *        ↓
+ *       ↓
  *   Referral Service
- *        ↓
+ *       ↓
  *   Tenant-scoped Persistence / Reward Logic / Audit
  *
- * IMPORTANT
+ * Security Invariants
  * ----------------------------------------------------------------------------
  *
  * This router MUST NOT:
  *
  *   ✗ accept userId as an authority for referral ownership
- *   ✗ accept tenantId from the request body as an authority
- *   ✗ calculate referral rewards directly
+ *   ✗ accept tenantId from request body/query as an authority
+ *   ✗ calculate referral rewards
  *   ✗ award financial bonuses directly
- *   ✗ access the database directly
+ *   ✗ access persistence/database directly
  *   ✗ expose internal exceptions
+ *   ✗ pass arbitrary request body fields into the controller
  *
- * Referral ownership and reward eligibility belong to the service/domain
- * layer.
+ * Referral ownership, eligibility, reward calculation and financial mutation
+ * belong to the service/domain/application layer.
+ *
+ * Configuration
+ * ----------------------------------------------------------------------------
+ *
+ * Router configuration is intentionally static here.
+ *
+ * Environment/configuration resolution belongs to:
+ *
+ *   backend/config/*
+ *
+ * The application may optionally override the constants below by injecting
+ * configuration through app.locals.config without requiring this router to
+ * access process.env directly.
  *
  * TITech terminology
  * ----------------------------------------------------------------------------
+ *
  * All legacy ACFOS terminology is replaced with TITech Community Capital.
  *
  * ============================================================================
  */
 
-const express =
-    require('express');
-
-const crypto =
-    require('node:crypto');
-
-const rateLimit =
-    require('express-rate-limit');
+const express = require('express');
+const crypto = require('node:crypto');
+const rateLimit = require('express-rate-limit');
 
 const {
     body,
     query,
-} =
-    require('express-validator');
+    matchedData,
+} = require('express-validator');
 
-const asyncHandler =
-    require('../utils/asyncHandler');
+const asyncHandler = require('../utils/asyncHandler');
 
 const {
     handleValidation,
-} =
-    require('../utils/validators');
+} = require('../utils/validators');
 
-const auth =
-    require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 const {
     createReferral,
     getUserReferrals,
-} =
-    require(
-        '../controllers/referralController'
-    );
+} = require('../controllers/referralController');
 
 /**
  * ============================================================================
@@ -102,14 +111,10 @@ const {
  * ============================================================================
  */
 
-const router =
-    express.Router({
-        strict:
-            false,
-
-        caseSensitive:
-            false,
-    });
+const router = express.Router({
+    strict: false,
+    caseSensitive: false,
+});
 
 /**
  * ============================================================================
@@ -117,35 +122,30 @@ const router =
  * ============================================================================
  */
 
-const ROUTER_NAME =
-    'TITechReferralRoutes';
+const ROUTER_NAME = 'TITechReferralRoutes';
+const ROUTER_VERSION = '2026.2';
+const SERVICE_NAME = 'TITech Referral API';
 
-const ROUTER_VERSION =
-    '2026.1';
+const DEFAULT_BODY_LIMIT = '128kb';
 
-const SERVICE_NAME =
-    'TITech Referral API';
+const MAX_NAME_LENGTH = 255;
+const MAX_PHONE_LENGTH = 32;
+const MAX_NOTE_LENGTH = 1000;
 
-const MAX_NAME_LENGTH =
-    255;
+const MAX_PAGE = 1_000_000;
+const DEFAULT_PAGE = 1;
 
-const MAX_PHONE_LENGTH =
-    32;
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
 
-const MAX_NOTE_LENGTH =
-    1000;
+const REQUEST_ID_MAX_LENGTH = 128;
+const CORRELATION_ID_MAX_LENGTH = 128;
 
-const MAX_PAGE =
-    1_000_000;
+const CREATE_RATE_WINDOW_MS = 15 * 60 * 1000;
+const CREATE_RATE_LIMIT = 20;
 
-const DEFAULT_PAGE =
-    1;
-
-const DEFAULT_LIMIT =
-    50;
-
-const MAX_LIMIT =
-    200;
+const READ_RATE_WINDOW_MS = 60 * 1000;
+const READ_RATE_LIMIT = 120;
 
 /**
  * ============================================================================
@@ -153,21 +153,15 @@ const MAX_LIMIT =
  * ============================================================================
  */
 
-if (
-    typeof createReferral !==
-    'function'
-) {
+if (typeof createReferral !== 'function') {
     throw new TypeError(
-        `[${ROUTER_NAME}] createReferral controller must be a function.`
+        `[${ROUTER_NAME}] createReferral controller must be a function.`,
     );
 }
 
-if (
-    typeof getUserReferrals !==
-    'function'
-) {
+if (typeof getUserReferrals !== 'function') {
     throw new TypeError(
-        `[${ROUTER_NAME}] getUserReferrals controller must be a function.`
+        `[${ROUTER_NAME}] getUserReferrals controller must be a function.`,
     );
 }
 
@@ -175,19 +169,98 @@ if (
  * ============================================================================
  * Authentication Contract
  * ============================================================================
+ *
+ * TITech may expose one canonical authentication function or one of the
+ * supported compatibility names.
+ * ============================================================================
  */
 
 const verifyToken =
-    auth?.verifyToken ||
-    auth?.authenticate ||
-    auth?.verifyAccessToken;
+    typeof auth?.verifyToken === 'function'
+        ? auth.verifyToken
+        : typeof auth?.authenticate === 'function'
+            ? auth.authenticate
+            : typeof auth?.verifyAccessToken === 'function'
+                ? auth.verifyAccessToken
+                : null;
 
-if (
-    typeof verifyToken !==
-    'function'
-) {
+if (typeof verifyToken !== 'function') {
     throw new TypeError(
-        `[${ROUTER_NAME}] Authentication middleware is unavailable.`
+        `[${ROUTER_NAME}] Authentication middleware is unavailable.`,
+    );
+}
+
+/**
+ * ============================================================================
+ * Utility Functions
+ * ============================================================================
+ */
+
+function normalizeString(value, fallback = null) {
+    if (value === undefined || value === null) {
+        return fallback;
+    }
+
+    const normalized = String(value).trim();
+
+    return normalized || fallback;
+}
+
+function normalizeIdentifier(
+    value,
+    maxLength = REQUEST_ID_MAX_LENGTH,
+) {
+    const normalized = normalizeString(value);
+
+    if (!normalized) {
+        return null;
+    }
+
+    if (normalized.length > maxLength) {
+        return null;
+    }
+
+    /**
+     * Request/correlation identifiers should remain safe for headers and logs.
+     */
+    if (!/^[A-Za-z0-9._:-]+$/.test(normalized)) {
+        return null;
+    }
+
+    return normalized;
+}
+
+function getConfig(req) {
+    return req?.app?.locals?.config ?? {};
+}
+
+function getReferralConfig(req) {
+    const config = getConfig(req);
+
+    return (
+        config?.referrals ??
+        config?.referral ??
+        {}
+    );
+}
+
+function getPositiveInteger(
+    value,
+    fallback,
+) {
+    const number = Number(value);
+
+    return Number.isInteger(number) && number > 0
+        ? number
+        : fallback;
+}
+
+function getBodyLimit(req) {
+    const referralConfig = getReferralConfig(req);
+
+    return (
+        referralConfig?.bodyLimit ??
+        DEFAULT_BODY_LIMIT
     );
 }
 
@@ -197,82 +270,53 @@ if (
  * ============================================================================
  */
 
-function normalizeString(
-    value,
-    fallback = null
-) {
-    if (
-        value ===
-        undefined ||
-        value ===
-        null
-    ) {
-        return fallback;
-    }
+function requestMetadata(req, res, next) {
+    /**
+     * Prefer an upstream-generated request ID already attached by the
+     * application infrastructure.
+     *
+     * Only use incoming X-Request-Id / X-Correlation-Id when they pass
+     * strict validation.
+     */
 
-    const normalized =
-        String(
-            value
-        ).trim();
-
-    return (
-        normalized ||
-        fallback
-    );
-}
-
-function requestMetadata(
-    req,
-    res,
-    next
-) {
     const requestId =
-        normalizeString(
-            req.requestId
-        ) ||
-        normalizeString(
-            req.id
-        ) ||
-        normalizeString(
-            req.headers?.[
-                'x-request-id'
-            ]
-        ) ||
+        normalizeIdentifier(req.requestId) ??
+        normalizeIdentifier(
+            req.id,
+        ) ??
+        normalizeIdentifier(
+            req.headers?.['x-request-id'],
+        ) ??
         crypto.randomUUID();
 
     const correlationId =
-        normalizeString(
-            req.correlationId
-        ) ||
-        normalizeString(
-            req.headers?.[
-                'x-correlation-id'
-            ]
-        ) ||
+        normalizeIdentifier(
+            req.correlationId,
+            CORRELATION_ID_MAX_LENGTH,
+        ) ??
+        normalizeIdentifier(
+            req.headers?.['x-correlation-id'],
+            CORRELATION_ID_MAX_LENGTH,
+        ) ??
         requestId;
 
-    req.requestId =
-        requestId;
-
-    req.correlationId =
-        correlationId;
+    req.requestId = requestId;
+    req.correlationId = correlationId;
 
     res.setHeader(
         'X-Request-Id',
-        requestId
+        requestId,
     );
 
     res.setHeader(
         'X-Correlation-Id',
-        correlationId
+        correlationId,
     );
 
     next();
 }
 
-router.use(
-    requestMetadata
-);
+router.use(requestMetadata);
 
 /**
  * ============================================================================
@@ -280,34 +324,80 @@ router.use(
  * ============================================================================
  */
 
-router.use(
-    (
-        req,
-        res,
-        next
-    ) => {
-        res.setHeader(
-            'Cache-Control',
-            'no-store'
-        );
+router.use((req, res, next) => {
+    res.setHeader(
+        'Cache-Control',
+        'no-store, no-cache, must-revalidate, private',
+    );
 
-        res.setHeader(
-            'Pragma',
-            'no-cache'
-        );
+    res.setHeader(
+        'Pragma',
+        'no-cache',
+    );
 
-        res.setHeader(
-            'X-Content-Type-Options',
-            'nosniff'
-        );
+    res.setHeader(
+        'Expires',
+        '0',
+    );
 
-        res.setHeader(
-            'Referrer-Policy',
-            'no-referrer'
-        );
+    res.setHeader(
+        'X-Content-Type-Options',
+        'nosniff',
+    );
 
-        next();
-    }
+    res.setHeader(
+        'Referrer-Policy',
+        'no-referrer',
+    );
+
+    res.setHeader(
+        'X-Frame-Options',
+        'DENY',
+    );
+
+    res.setHeader(
+        'X-Permitted-Cross-Domain-Policies',
+        'none',
+    );
+
+    next();
+});
+
+/**
+ * ============================================================================
+ * Operational Health
+ * ============================================================================
+ *
+ * Health is deliberately placed BEFORE authentication.
+ *
+ * This makes it usable by load balancers/orchestrators without requiring
+ * an end-user access token.
+ *
+ * Note:
+ * This is a router-level health signal, not a database/dependency readiness
+ * probe. Dependency readiness belongs in the centralized observability /
+ * health subsystem.
+ * ============================================================================
+ */
+
+router.get(
+    '/health',
+    (req, res) => {
+        return res
+            .status(200)
+            .json({
+                success: true,
+                service: SERVICE_NAME,
+                version: ROUTER_VERSION,
+                status: 'UP',
+                route: 'referrals',
+                tenantScoped: true,
+                actorScoped: true,
+                requestId: req.requestId,
+                correlationId: req.correlationId,
+                timestamp: new Date().toISOString(),
+            });
+    },
 );
 
 /**
@@ -318,13 +408,10 @@ router.use(
 
 router.use(
     express.json({
-        limit:
-            process.env.TITECH_REFERRAL_BODY_LIMIT ||
-            '128kb',
-
-        strict:
-            true,
-    })
+        limit: DEFAULT_BODY_LIMIT,
+        strict: true,
+        type: 'application/json',
+    }),
 );
 
 /**
@@ -333,28 +420,40 @@ router.use(
  * ============================================================================
  */
 
-router.use(
-    verifyToken
-);
+router.use(verifyToken);
 
 /**
  * ============================================================================
- * Trusted Tenant Context
+ * Trusted Tenant + Actor Context
  * ============================================================================
  *
- * Referrals are tenant-scoped. Tenant identity must originate from the
- * authenticated request context rather than body/query input.
+ * Tenant and actor identity MUST originate from trusted authenticated context.
+ *
+ * Accepted trusted sources:
+ *
+ *   req.adminContext
+ *   req.auth
+ *   req.user
+ *
+ * Intentionally NOT trusted:
+ *
+ *   req.body.tenantId
+ *   req.body.userId
+ *   req.query.tenantId
+ *   req.query.userId
+ *   arbitrary req.tenantId
+ *
+ * This prevents a lower-level middleware or request property from accidentally
+ * becoming an authorization authority.
  * ============================================================================
  */
 
-let adminContextMiddleware =
-    null;
+let adminContextMiddleware = null;
 
 try {
-    const adminContext =
-        require(
-            '../utils/admin/adminContext'
-        );
+    const adminContext = require(
+        '../utils/admin/adminContext',
+    );
 
     if (
         typeof adminContext?.middleware ===
@@ -362,121 +461,97 @@ try {
     ) {
         adminContextMiddleware =
             adminContext.middleware({
-                requiredTenant:
-                    true,
-
-                requiredActor:
-                    true,
-
-                service:
-                    SERVICE_NAME,
-
-                serviceVersion:
-                    ROUTER_VERSION,
+                requiredTenant: true,
+                requiredActor: true,
+                service: SERVICE_NAME,
+                serviceVersion: ROUTER_VERSION,
             });
     }
 } catch {
-    adminContextMiddleware =
-        null;
-    }
+    /**
+     * Optional compatibility path.
+     *
+     * The router falls back to authenticated user context when the centralized
+     * admin context middleware is not installed.
+     */
+    adminContextMiddleware = null;
 }
 
-function fallbackTrustedContext(
-    req,
-    res,
-    next
-) {
-    const tenantId =
+function fallbackTrustedContext(req, res, next) {
+    const trustedTenantId =
         normalizeString(
-            req.adminContext?.tenantId ||
-            req.tenantId ||
-            req.user?.tenantId ||
-            req.auth?.tenantId
+            req.adminContext?.tenantId,
+        ) ??
+        normalizeString(
+            req.auth?.tenantId,
+        ) ??
+        normalizeString(
+            req.user?.tenantId,
         );
 
-    const actorId =
+    const trustedActorId =
         normalizeString(
-            req.adminContext?.actorId ||
-            req.user?.id ||
-            req.user?._id ||
-            req.user?.userId ||
-            req.auth?.userId
+            req.adminContext?.actorId,
+        ) ??
+        normalizeString(
+            req.auth?.userId,
+        ) ??
+        normalizeString(
+            req.user?.id,
+        ) ??
+        normalizeString(
+            req.user?._id,
+        ) ??
+        normalizeString(
+            req.user?.userId,
         );
 
-    if (
-        !tenantId
-    ) {
+    if (!trustedTenantId) {
         return res
             .status(403)
             .json({
-                success:
-                    false,
-
-                code:
-                    'REFERRAL_TENANT_CONTEXT_REQUIRED',
-
+                success: false,
+                code: 'REFERRAL_TENANT_CONTEXT_REQUIRED',
                 message:
                     'A trusted tenant context is required for referral operations.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
+                requestId: req.requestId,
+                correlationId: req.correlationId,
+                timestamp: new Date().toISOString(),
             });
     }
 
-    if (
-        !actorId
-    ) {
+    if (!trustedActorId) {
         return res
             .status(401)
             .json({
-                success:
-                    false,
-
-                code:
-                    'REFERRAL_ACTOR_CONTEXT_REQUIRED',
-
+                success: false,
+                code: 'REFERRAL_ACTOR_CONTEXT_REQUIRED',
                 message:
                     'An authenticated actor context is required.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
+                requestId: req.requestId,
+                correlationId: req.correlationId,
+                timestamp: new Date().toISOString(),
             });
     }
 
-    req.tenantId =
-        tenantId;
+    req.tenantId = trustedTenantId;
+    req.referralActorId = trustedActorId;
 
-    req.referralActorId =
-        actorId;
+    req.adminContext = {
+        ...(req.adminContext ?? {}),
+        tenantId: trustedTenantId,
+        actorId: trustedActorId,
+        userId: trustedActorId,
+        requestId: req.requestId,
+        correlationId: req.correlationId,
+    };
 
-    req.adminContext =
-        {
-            tenantId,
-
-            actorId,
-
-            userId:
-                actorId,
-
-            requestId:
-                req.requestId,
-
-            correlationId:
-                req.correlationId,
-        };
-
-    next();
+    return next();
 }
 
 router.use(
     adminContextMiddleware ||
-    fallbackTrustedContext
+        fallbackTrustedContext,
 );
 
 /**
@@ -485,231 +560,257 @@ router.use(
  * ============================================================================
  */
 
-const referralWriteLimiter =
-    createLimiter({
-        windowMs:
-            15 *
-            60 *
-            1000,
+function resolveCreateRateLimit(req) {
+    const referralConfig = getReferralConfig(req);
 
-        max:
-            getPositiveIntegerEnv(
-                'TITECH_REFERRAL_CREATE_RATE_LIMIT',
-                20
-            ),
+    return getPositiveInteger(
+        referralConfig?.createRateLimit,
+        CREATE_RATE_LIMIT,
+    );
+}
 
-        code:
-            'REFERRAL_CREATE_RATE_LIMITED',
+function resolveReadRateLimit(req) {
+    const referralConfig = getReferralConfig(req);
 
-        message:
-            'Too many referral creation requests. Please try again later.',
-    });
-
-const referralReadLimiter =
-    createLimiter({
-        windowMs:
-            60 *
-            1000,
-
-        max:
-            getPositiveIntegerEnv(
-                'TITECH_REFERRAL_READ_RATE_LIMIT',
-                120
-            ),
-
-        code:
-            'REFERRAL_READ_RATE_LIMITED',
-
-        message:
-            'Too many referral queries. Please try again later.',
-    });
-
-function getPositiveIntegerEnv(
-    name,
-    fallback
-) {
-    const value =
-        Number(
-            process.env[
-                name
-            ]
-        );
-
-    return (
-        Number.isInteger(
-            value
-        ) &&
-        value > 0
-    )
-        ? value
-        : fallback;
+    return getPositiveInteger(
+        referralConfig?.readRateLimit,
+        READ_RATE_LIMIT,
+    );
 }
 
 function createLimiter({
     windowMs,
-    max,
+    resolveMax,
     code,
     message,
 }) {
     return rateLimit({
         windowMs,
 
-        max,
+        max: (req) => resolveMax(req),
 
-        standardHeaders:
-            'draft-8',
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
 
-        legacyHeaders:
-            false,
+        skipSuccessfulRequests: false,
 
-        skipSuccessfulRequests:
-            false,
-
-        keyGenerator(
-            req
-        ) {
-            return (
+        /**
+         * All referral endpoints are already authenticated and tenant scoped.
+         *
+         * Prefer a composite tenant + actor key so the same actor identity
+         * remains independently rate-limited within each tenant boundary.
+         */
+        keyGenerator(req) {
+            const actorId =
                 normalizeString(
-                    req.referralActorId ||
-                    req.user?.id ||
-                    req.user?._id ||
-                    req.user?.userId ||
-                    req.auth?.userId
-                ) ||
+                    req.referralActorId,
+                );
+
+            const tenantId =
                 normalizeString(
-                    req.tenantId
-                ) ||
-                normalizeString(
-                    req.ip
-                ) ||
-                'unknown'
-            );
+                    req.tenantId,
+                );
+
+            if (tenantId && actorId) {
+                return `${tenantId}:${actorId}`;
+            }
+
+            if (actorId) {
+                return `actor:${actorId}`;
+            }
+
+            return `ip:${normalizeString(req.ip, 'unknown')}`;
         },
 
-        handler(
-            req,
-            res
-        ) {
-            const retryAfter =
-                Math.ceil(
-                    windowMs /
-                    1000
-                );
+        handler(req, res) {
+            const retryAfter = Math.ceil(
+                windowMs / 1000,
+            );
 
             res.setHeader(
                 'Retry-After',
-                String(
-                    retryAfter
-                )
+                String(retryAfter),
             );
 
             return res
                 .status(429)
                 .json({
-                    success:
-                        false,
-
+                    success: false,
                     code,
-
                     message,
-
                     retryAfter,
-
-                    requestId:
-                        req.requestId,
-
-                    correlationId:
-                        req.correlationId,
-
-                    timestamp:
-                        new Date().toISOString(),
+                    requestId: req.requestId,
+                    correlationId: req.correlationId,
+                    timestamp: new Date().toISOString(),
                 });
         },
     });
 }
 
+const referralWriteLimiter = createLimiter({
+    windowMs: CREATE_RATE_WINDOW_MS,
+    resolveMax: resolveCreateRateLimit,
+    code: 'REFERRAL_CREATE_RATE_LIMITED',
+    message:
+        'Too many referral creation requests. Please try again later.',
+});
+
+const referralReadLimiter = createLimiter({
+    windowMs: READ_RATE_WINDOW_MS,
+    resolveMax: resolveReadRateLimit,
+    code: 'REFERRAL_READ_RATE_LIMITED',
+    message:
+        'Too many referral queries. Please try again later.',
+});
+
 /**
  * ============================================================================
- * Create Referral Validation
+ * POST Validation
  * ============================================================================
  */
 
-const createReferralValidators =
-    [
-        body('email')
-            .exists()
-            .withMessage(
-                'Email address is required.'
-            )
-            .bail()
-            .isEmail()
-            .withMessage(
-                'A valid email address is required.'
-            )
-            .normalizeEmail(),
+const createReferralValidators = [
+    /**
+     * Email
+     * ------------------------------------------------------------------------
+     */
 
-        body('name')
-            .optional()
-            .isString()
-            .trim()
-            .isLength({
-                max:
-                    MAX_NAME_LENGTH,
-            })
-            .withMessage(
-                `Name cannot exceed ${MAX_NAME_LENGTH} characters.`
-            ),
+    body('email')
+        .exists({
+            checkNull: true,
+        })
+        .withMessage(
+            'Email address is required.',
+        )
+        .bail()
+        .isString()
+        .withMessage(
+            'Email address must be a string.',
+        )
+        .bail()
+        .isEmail()
+        .withMessage(
+            'A valid email address is required.',
+        )
+        .bail()
+        .normalizeEmail(),
 
-        body('phone')
-            .optional()
-            .isString()
-            .trim()
-            .isLength({
-                max:
-                    MAX_PHONE_LENGTH,
-            })
-            .withMessage(
-                `Phone number cannot exceed ${MAX_PHONE_LENGTH} characters.`
-            )
-            .matches(
-                /^\+?[0-9][0-9\s\-()]{6,30}$/
-            )
-            .withMessage(
-                'Invalid phone number format.'
-            ),
+    /**
+     * Name
+     * ------------------------------------------------------------------------
+     */
 
-        body('note')
-            .optional()
-            .isString()
-            .trim()
-            .isLength({
-                max:
-                    MAX_NOTE_LENGTH,
-            })
-            .withMessage(
-                `Referral note cannot exceed ${MAX_NOTE_LENGTH} characters.`
-            ),
+    body('name')
+        .optional({
+            nullable: true,
+        })
+        .isString()
+        .withMessage(
+            'Name must be a string.',
+        )
+        .bail()
+        .trim()
+        .isLength({
+            max: MAX_NAME_LENGTH,
+        })
+        .withMessage(
+            `Name cannot exceed ${MAX_NAME_LENGTH} characters.`,
+        ),
 
-        /**
-         * Referral ownership MUST come from authentication.
-         */
-        body('userId')
-            .not()
-            .exists()
-            .withMessage(
-                'userId must not be supplied. The authenticated user is authoritative.'
-            ),
+    /**
+     * Phone
+     * ------------------------------------------------------------------------
+     *
+     * Supports:
+     *
+     *   +256700000000
+     *   0700 000 000
+     *   +256 700-000-000
+     *   (0700) 000-000
+     *
+     * The previous /^**.../ expression was invalid JavaScript regex syntax.
+     */
 
-        /**
-         * Tenant MUST come from trusted context.
-         */
-        body('tenantId')
-            .not()
-            .exists()
-            .withMessage(
-                'tenantId must not be supplied. Trusted tenant context is authoritative.'
-            ),
-    ];
+    body('phone')
+        .optional({
+            nullable: true,
+        })
+        .isString()
+        .withMessage(
+            'Phone number must be a string.',
+        )
+        .bail()
+        .trim()
+        .isLength({
+            min: 7,
+            max: MAX_PHONE_LENGTH,
+        })
+        .withMessage(
+            `Phone number must contain between 7 and ${MAX_PHONE_LENGTH} characters.`,
+        )
+        .bail()
+        .matches(
+            /^\+?[0-9][0-9\s\-()]{6,30}$/,
+        )
+        .withMessage(
+            'Invalid phone number format.',
+        ),
+
+    /**
+     * Referral Note
+     * ------------------------------------------------------------------------
+     */
+
+    body('note')
+        .optional({
+            nullable: true,
+        })
+        .isString()
+        .withMessage(
+            'Referral note must be a string.',
+        )
+        .bail()
+        .trim()
+        .isLength({
+            max: MAX_NOTE_LENGTH,
+        })
+        .withMessage(
+            `Referral note cannot exceed ${MAX_NOTE_LENGTH} characters.`,
+        ),
+
+    /**
+     * Identity Anti-Spoofing
+     * ------------------------------------------------------------------------
+     */
+
+    body('userId')
+        .custom((value) => {
+            if (
+                value !== undefined &&
+                value !== null
+            ) {
+                throw new Error(
+                    'userId must not be supplied. The authenticated user is authoritative.',
+                );
+            }
+
+            return true;
+        }),
+
+    body('tenantId')
+        .custom((value) => {
+            if (
+                value !== undefined &&
+                value !== null
+            ) {
+                throw new Error(
+                    'tenantId must not be supplied. Trusted tenant context is authoritative.',
+                );
+            }
+
+            return true;
+        }),
+];
 
 /**
  * ============================================================================
@@ -717,42 +818,31 @@ const createReferralValidators =
  * ============================================================================
  */
 
-const paginationValidators =
-    [
-        query('page')
-            .optional()
-            .default(
-                DEFAULT_PAGE
-            )
-            .toInt()
-            .isInt({
-                min:
-                    1,
+const paginationValidators = [
+    query('page')
+        .optional()
+        .default(DEFAULT_PAGE)
+        .toInt()
+        .isInt({
+            min: 1,
+            max: MAX_PAGE,
+        })
+        .withMessage(
+            'page must be a valid positive integer.',
+        ),
 
-                max:
-                    MAX_PAGE,
-            })
-            .withMessage(
-                'page must be a valid positive integer.'
-            ),
-
-        query('limit')
-            .optional()
-            .default(
-                DEFAULT_LIMIT
-            )
-            .toInt()
-            .isInt({
-                min:
-                    1,
-
-                max:
-                    MAX_LIMIT,
-            })
-            .withMessage(
-                `limit must be between 1 and ${MAX_LIMIT}.`
-            ),
-    ];
+    query('limit')
+        .optional()
+        .default(DEFAULT_LIMIT)
+        .toInt()
+        .isInt({
+            min: 1,
+            max: MAX_LIMIT,
+        })
+        .withMessage(
+            `limit must be between 1 and ${MAX_LIMIT}.`,
+        ),
+];
 
 /**
  * ============================================================================
@@ -760,9 +850,7 @@ const paginationValidators =
  * ============================================================================
  */
 
-function validationChain(
-    rules
-) {
+function validationChain(rules) {
     return [
         ...rules,
         handleValidation,
@@ -777,69 +865,68 @@ function validationChain(
 
 router.post(
     '/',
-    
     referralWriteLimiter,
-
     validationChain(
-        createReferralValidators
+        createReferralValidators,
     ),
-
     asyncHandler(
-        async (
-            req,
-            res,
-            next
-        ) => {
+        async (req, res, next) => {
             /**
-             * Normalize request data before the controller receives it.
+             * matchedData() prevents arbitrary/unvalidated body properties
+             * from flowing into downstream business logic.
              */
-            req.body =
+
+            const validated = matchedData(
+                req,
                 {
-                    ...req.body,
+                    locations: ['body'],
+                    includeOptionals: true,
+                },
+            );
 
-                    email:
-                        normalizeString(
-                            req.body.email
-                        )?.toLowerCase(),
+            const requestBody = {
+                ...(validated ?? {}),
 
-                    name:
-                        normalizeString(
-                            req.body.name
-                        ),
+                email: normalizeString(
+                    validated?.email,
+                )?.toLowerCase(),
 
-                    phone:
-                        normalizeString(
-                            req.body.phone
-                        ),
+                name: normalizeString(
+                    validated?.name,
+                ),
 
-                    note:
-                        normalizeString(
-                            req.body.note
-                        ),
+                phone: normalizeString(
+                    validated?.phone,
+                ),
 
-                    /**
-                     * Expose trusted identity to downstream service/controller.
-                     */
-                    tenantId:
-                        req.tenantId,
+                note: normalizeString(
+                    validated?.note,
+                ),
+            };
 
-                    actorId:
-                        req.referralActorId,
+            /**
+             * Trusted identity and tracing metadata are appended AFTER
+             * validation, never accepted from the client.
+             */
 
-                    requestId:
-                        req.requestId,
+            req.body = {
+                ...requestBody,
 
-                    correlationId:
-                        req.correlationId,
-                };
+                tenantId: req.tenantId,
+                actorId: req.referralActorId,
+
+                requestId: req.requestId,
+                correlationId:
+                    req.correlationId,
+            };
 
             return createReferral(
                 req,
                 res,
-                next
+                next,
             );
-        }
-    )
+        },
+    ),
 );
 
 /**
@@ -850,61 +937,52 @@ router.post(
 
 router.get(
     '/',
-
     referralReadLimiter,
-
     validationChain(
-        paginationValidators
+        paginationValidators,
     ),
-
     asyncHandler(
-        getUserReferrals
-    )
-);
+        async (req, res, next) => {
+            /**
+             * Controller receives sanitized pagination values plus trusted
+             * actor/tenant context.
+             *
+             * The controller can derive the user identity from:
+             *
+             *   req.referralActorId
+             *   req.adminContext.actorId
+             *
+             * and tenant from:
+             *
+             *   req.tenantId
+             *   req.adminContext.tenantId
+             */
 
-/**
- * ============================================================================
- * Health
- * ============================================================================
- */
+            const validated = matchedData(
+                req,
+                {
+                    locations: ['query'],
+                    includeOptionals: true,
+                },
+            );
 
-router.get(
-    '/health',
-    (
-        req,
-        res
-    ) => {
-        return res
-            .status(200)
-            .json({
-                success:
-                    true,
+            req.query = {
+                page:
+                    validated?.page ??
+                    DEFAULT_PAGE,
 
-                service:
-                    SERVICE_NAME,
+                limit:
+                    validated?.limit ??
+                    DEFAULT_LIMIT,
+            };
 
-                version:
-                    ROUTER_VERSION,
-
-                status:
-                    'UP',
-
-                tenantScoped:
-                    true,
-
-                actorScoped:
-                    true,
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-
-                timestamp:
-                    new Date().toISOString(),
-            });
-    }
+            return getUserReferrals(
+                req,
+                res,
+                next,
+            );
+        },
+    ),
 );
 
 /**
@@ -914,107 +992,95 @@ router.get(
  */
 
 router.use(
-    (
-        req,
-        res
-    ) => {
+    (req, res) => {
         return res
             .status(404)
             .json({
-                success:
-                    false,
-
-                code:
-                    'REFERRAL_ROUTE_NOT_FOUND',
-
+                success: false,
+                code: 'REFERRAL_ROUTE_NOT_FOUND',
                 message:
                     'Referral endpoint not found.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-
+                requestId: req.requestId,
+                correlationId: req.correlationId,
                 timestamp:
                     new Date().toISOString(),
             });
-    }
+    },
 );
 
 /**
  * ============================================================================
  * Error Handler
  * ============================================================================
+ *
+ * Internal errors are intentionally not returned to clients.
+ *
+ * The centralized application logger/observability layer should receive the
+ * original error before this boundary if the application has a global error
+ * middleware.
+ * ============================================================================
  */
 
 router.use(
-    (
-        error,
-        req,
-        res,
-        next
-    ) => {
-        if (
-            res.headersSent
-        ) {
-            return next(
-                error
-            );
+    (error, req, res, next) => {
+        if (res.headersSent) {
+            return next(error);
         }
 
+        const rawStatusCode = Number(
+            error?.statusCode,
+        );
+
         const statusCode =
-            Number(
-                error?.statusCode
-            ) >= 400 &&
-            Number(
-                error?.statusCode
-            ) < 600
-                ? Number(
-                    error.statusCode
-                )
+            Number.isInteger(rawStatusCode) &&
+            rawStatusCode >= 400 &&
+            rawStatusCode < 600
+                ? rawStatusCode
                 : 500;
 
         const clientError =
             statusCode >= 400 &&
             statusCode < 500;
 
-        return res
-            .status(
-                statusCode
+        const errorCode =
+            normalizeString(
+                error?.code,
+            ) ??
+            (
+                clientError
+                    ? 'REFERRAL_REQUEST_ERROR'
+                    : 'REFERRAL_INTERNAL_ERROR'
+            );
+
+        /**
+         * Prevent arbitrary server-side error codes from becoming an
+         * uncontrolled public API surface for unexpected failures.
+         */
+        const publicCode =
+            clientError
+                ? errorCode
+                : 'REFERRAL_INTERNAL_ERROR';
+
+        const publicMessage =
+            clientError &&
+            normalizeString(
+                error?.message,
             )
+                ? error.message
+                : 'The referral request could not be completed.';
+
+        return res
+            .status(statusCode)
             .json({
-                success:
-                    false,
-
-                code:
-                    normalizeString(
-                        error?.code
-                    ) ||
-                    (
-                        clientError
-                            ? 'REFERRAL_REQUEST_ERROR'
-                            : 'REFERRAL_INTERNAL_ERROR'
-                    ),
-
-                message:
-                    clientError
-                        ? (
-                            error?.message ||
-                            'The referral request could not be completed.'
-                        )
-                        : 'The referral request could not be completed.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-
+                success: false,
+                code: publicCode,
+                message: publicMessage,
+                requestId: req.requestId,
+                correlationId: req.correlationId,
                 timestamp:
                     new Date().toISOString(),
             });
-    }
+    },
 );
 
 /**
@@ -1023,20 +1089,8 @@ router.use(
  * ============================================================================
  */
 
-router.routerName =
-    ROUTER_NAME;
+router.routerName = ROUTER_NAME;
+router.routerVersion = ROUTER_VERSION;
+router.serviceName = SERVICE_NAME;
 
-router.routerVersion =
-    ROUTER_VERSION;
-
-router.serviceName =
-    SERVICE_NAME;
-
-/**
- * ============================================================================
- * Export
- * ============================================================================
- */
-
-module.exports =
-    router;
+module.exports = router;

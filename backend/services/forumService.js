@@ -1,535 +1,1364 @@
 /**
- * Community Forums Service (BACKEND SAFE VERSION)
- * ============================================================================
- * NOTE:
- * ✅ Removed VITE env usage (not allowed in Node)
- * ✅ Removed frontend axios service (belongs in React only)
- * ✅ Fixed mongoose import
- */
-/**
+ * =============================================================================
+ * TITech Community Capital LTD
  * Community Forums Service
- * ============================================================================
- * Manages community discussions, topics, and replies
+ * =============================================================================
+ *
+ * File:
+ *   backend/services/forumService.js
+ *
+ * Purpose:
+ *   Backend-native service for community forum categories, topics, replies,
+ *   search, reactions, accepted answers, and initial forum seeding.
+ *
+ * Architecture:
+ *   Route/Controller
+ *        ↓
+ *   forumService
+ *        ↓
+ *   Mongoose Models
+ *        ↓
+ *   MongoDB
+ *
+ * Important:
+ *   - No VITE_* environment variables
+ *   - No frontend Axios client
+ *   - No self-HTTP requests
+ *   - No duplicate schemas/models
+ *   - Uses MongoDB transactions for related writes where appropriate
+ *   - Validates IDs, pagination, reaction types, and text input
+ *   - Prevents duplicate reactions through a compound unique index
+ *
+ * Module:
+ *   CommonJS
+ * =============================================================================
  */
+
+'use strict';
+
 const mongoose = require('mongoose');
-const axios = require('axios'); // ✅ FIX
 
-const API_BASE_URL =
-  process.env.API_URL ||
-  process.env.BASE_URL ||
-  'http://localhost:5000/api';
+const {
+  Schema,
+  Types: { ObjectId },
+} = mongoose;
 
-// ================= MODELS =================
+// =============================================================================
+// CONSTANTS
+// =============================================================================
 
-// Forum Topic Schema
-const ForumTopicSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  slug: { type: String, unique: true, required: true },
-  content: { type: String, required: true },
-  category: { type: String, required: true },
-  author: {
-    userId: mongoose.Schema.Types.ObjectId,
-    username: String,
-    avatar: String,
-  },
-  tags: [String],
-  views: { type: Number, default: 0 },
-  replies: { type: Number, default: 0 },
-  likes: { type: Number, default: 0 },
-  dislikes: { type: Number, default: 0 },
-  pinned: { type: Boolean, default: false },
-  locked: { type: Boolean, default: false },
-  solved: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-  lastReplyAt: { type: Date, default: Date.now },
+const DEFAULT_PAGE = 1;
+const DEFAULT_TOPIC_LIMIT = 20;
+const DEFAULT_REPLY_LIMIT = 10;
+const DEFAULT_FEED_LIMIT = 10;
+const MAX_TOPIC_LIMIT = 100;
+const MAX_REPLY_LIMIT = 100;
+const MAX_FEED_LIMIT = 50;
+
+const MAX_TITLE_LENGTH = 200;
+const MAX_CONTENT_LENGTH = 20_000;
+const MAX_CATEGORY_NAME_LENGTH = 100;
+const MAX_CATEGORY_DESCRIPTION_LENGTH = 500;
+const MAX_USERNAME_LENGTH = 120;
+const MAX_TAG_LENGTH = 50;
+const MAX_TAGS = 20;
+const MAX_SEARCH_LENGTH = 100;
+
+const REACTION_TYPES = Object.freeze({
+  LIKE: 'like',
+  DISLIKE: 'dislike',
 });
 
-// Forum Reply Schema
-const ForumReplySchema = new mongoose.Schema({
-  topicId: mongoose.Schema.Types.ObjectId,
-  content: { type: String, required: true },
-  author: {
-    userId: mongoose.Schema.Types.ObjectId,
-    username: String,
-    avatar: String,
-  },
-  likes: { type: Number, default: 0 },
-  dislikes: { type: Number, default: 0 },
-  acceptedAnswer: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
+const TARGET_TYPES = Object.freeze({
+  TOPIC: 'topic',
+  REPLY: 'reply',
 });
 
-// Forum Category Schema
-const ForumCategorySchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  slug: { type: String, unique: true, required: true },
-  description: String,
-  icon: String,
-});
+// =============================================================================
+// HELPERS
+// =============================================================================
 
-// Forum Reaction Schema
-const ForumReactionSchema = new mongoose.Schema({
-  targetId: mongoose.Schema.Types.ObjectId,
-  targetType: { type: String, enum: ['topic', 'reply'] },
-  userId: mongoose.Schema.Types.ObjectId,
-  type: { type: String, enum: ['like', 'dislike'] },
-});
-
-// ================= MODELS =================
-
-const ForumTopic = mongoose.model('ForumTopic', ForumTopicSchema);
-const ForumReply = mongoose.model('ForumReply', ForumReplySchema);
-const ForumCategory = mongoose.model('ForumCategory', ForumCategorySchema);
-const ForumReaction = mongoose.model('ForumReaction', ForumReactionSchema);
-
-// ================= SERVICES =================
-const forumService = {
-
-  getCategories: async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/forum/categories`);
-      return res.data;
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      throw error;
-    }
-  },
-
-  getTopics: async (category, page = 1) => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/forum/topics`, {
-        params: { category, page },
-      });
-      return res.data;
-    } catch (error) {
-      console.error('Error fetching topics:', error);
-      throw error;
-    }
-  },
-
-  getTopic: async (slug) => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/forum/topic/${slug}`);
-      return res.data;
-    } catch (error) {
-      console.error('Error fetching topic:', error);
-      throw error;
-    }
-  },
-
-  createTopic: async (data) => {
-    try {
-      const res = await axios.post(`${API_BASE_URL}/forum/topics`, data);
-      return res.data;
-    } catch (error) {
-      console.error('Error creating topic:', error);
-      throw error;
-    }
-  },
-
-  addReply: async (topicId, data) => {
-    try {
-      const res = await axios.post(
-        `${API_BASE_URL}/forum/topics/${topicId}/replies`,
-        data
-      );
-      return res.data;
-    } catch (error) {
-      console.error('Error adding reply:', error);
-      throw error;
-    }
-  },
-
-  addReaction: async (targetId, type) => {
-    try {
-      const res = await axios.post(
-        `${API_BASE_URL}/forum/react/${targetId}`,
-        { type }
-      );
-      return res.data;
-    } catch (error) {
-      console.error('Error reacting:', error);
-      throw error;
-    }
+function normalizeText(value) {
+  if (typeof value !== 'string') {
+    return '';
   }
-};
 
-module.exports = forumService;
-// const mongoose = require('mongoose');
+  return value.trim().replace(/\s+/g, ' ');
+}
 
-// Forum Topic Schema
-const ForumTopicSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  slug: { type: String, unique: true, required: true },
-  content: { type: String, required: true },
-  category: { type: String, required: true },
-  author: {
-    userId: mongoose.Schema.Types.ObjectId,
-    username: String,
-    avatar: String,
-  },
-  tags: [String],
-  views: { type: Number, default: 0 },
-  replies: { type: Number, default: 0 },
-  likes: { type: Number, default: 0 },
-  dislikes: { type: Number, default: 0 },
-  pinned: { type: Boolean, default: false },
-  locked: { type: Boolean, default: false },
-  solved: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-  lastReplyAt: { type: Date, default: Date.now },
-});
+function normalizeLongText(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
 
-// Forum Reply Schema
-const ForumReplySchema = new mongoose.Schema({
-  topicId: mongoose.Schema.Types.ObjectId,
-  content: { type: String, required: true },
-  author: {
-    userId: mongoose.Schema.Types.ObjectId,
-    username: String,
-    avatar: String,
-  },
-  likes: { type: Number, default: 0 },
-  dislikes: { type: Number, default: 0 },
-  acceptedAnswer: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-});
+  return value.trim();
+}
 
-// Forum Category Schema
-const ForumCategorySchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  slug: { type: String, unique: true, required: true },
-  description: String,
-  icon: String,
-  topicCount: { type: Number, default: 0 },
-  replyCount: { type: Number, default: 0 },
-  lastActivityAt: Date,
-  order: { type: Number, default: 0 },
-  private: { type: Boolean, default: false },
-});
+function normalizeSlug(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
 
-// Forum Reaction Schema (likes/dislikes)
-const ForumReactionSchema = new mongoose.Schema({
-  targetId: mongoose.Schema.Types.ObjectId, // topic or reply ID
-  targetType: { type: String, enum: ['topic', 'reply'] },
-  userId: mongoose.Schema.Types.ObjectId,
-  type: { type: String, enum: ['like', 'dislike'] },
-  createdAt: { type: Date, default: Date.now },
-});
+function createUniqueSlug(title) {
+  const base = normalizeSlug(title).substring(0, 70);
+  const suffix = `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
 
-const ForumTopic = mongoose.model('ForumTopic', ForumTopicSchema);
-const ForumReply = mongoose.model('ForumReply', ForumReplySchema);
-const ForumCategory = mongoose.model('ForumCategory', ForumCategorySchema);
-const ForumReaction = mongoose.model('ForumReaction', ForumReactionSchema);
+  return `${base || 'topic'}-${suffix}`;
+}
 
-/**
- * Get all forum categories
- */
-async function getAllCategories() {
-  try {
-    const categories = await ForumCategory.find().sort({ order: 1 });
-    return categories;
-  } catch (error) {
-    throw new Error(`Failed to retrieve forum categories: ${error.message}`);
+function parsePositiveInteger(value, fallback, maximum) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  return Math.min(parsed, maximum);
+}
+
+function normalizePagination(page, limit, defaults) {
+  return {
+    page: parsePositiveInteger(
+      page,
+      defaults.page,
+      Number.MAX_SAFE_INTEGER,
+    ),
+    limit: parsePositiveInteger(
+      limit,
+      defaults.limit,
+      defaults.max,
+    ),
+  };
+}
+
+function assertValidObjectId(value, fieldName) {
+  if (!ObjectId.isValid(value)) {
+    const error = new Error(`${fieldName} must be a valid MongoDB ObjectId`);
+    error.code = 'INVALID_ID';
+    error.statusCode = 400;
+    throw error;
   }
 }
 
-/**
- * Get topics by category
- */
-async function getTopicsByCategory(categorySlug, page = 1, limit = 20) {
-  try {
-    const skip = (page - 1) * limit;
-    const topics = await ForumTopic.find({ category: categorySlug, locked: false })
-      .sort({ pinned: -1, lastReplyAt: -1 })
-      .skip(skip)
-      .limit(limit);
+function assertRequiredText(value, fieldName, maxLength) {
+  const normalized = normalizeText(value);
 
-    const total = await ForumTopic.countDocuments({ category: categorySlug });
+  if (!normalized) {
+    const error = new Error(`${fieldName} is required`);
+    error.code = 'VALIDATION_ERROR';
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (normalized.length > maxLength) {
+    const error = new Error(
+      `${fieldName} must not exceed ${maxLength} characters`,
+    );
+    error.code = 'VALIDATION_ERROR';
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return normalized;
+}
+
+function normalizeTags(tags) {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+
+  return [...new Set(
+    tags
+      .filter((tag) => typeof tag === 'string')
+      .map((tag) => normalizeText(tag).toLowerCase())
+      .filter(Boolean)
+      .map((tag) => tag.substring(0, MAX_TAG_LENGTH)),
+  )].slice(0, MAX_TAGS);
+}
+
+function normalizeAuthor(author = {}) {
+  const normalized = {
+    userId: undefined,
+    username: undefined,
+    avatar: undefined,
+  };
+
+  if (author.userId) {
+    if (!ObjectId.isValid(author.userId)) {
+      const error = new Error('author.userId must be a valid ObjectId');
+      error.code = 'INVALID_ID';
+      error.statusCode = 400;
+      throw error;
+    }
+
+    normalized.userId = author.userId;
+  }
+
+  if (author.username) {
+    normalized.username = normalizeText(author.username)
+      .substring(0, MAX_USERNAME_LENGTH);
+  }
+
+  if (author.avatar) {
+    normalized.avatar = String(author.avatar).trim();
+  }
+
+  return normalized;
+}
+
+function buildPagination(page, limit, total) {
+  return {
+    page,
+    limit,
+    total,
+    pages: total === 0 ? 0 : Math.ceil(total / limit),
+    hasNextPage: page * limit < total,
+    hasPreviousPage: page > 1,
+  };
+}
+
+function serviceError(message, cause) {
+  const error = new Error(message);
+
+  if (cause) {
+    error.cause = cause;
+  }
+
+  return error;
+}
+
+async function withTransaction(work) {
+  const session = await mongoose.startSession();
+
+  try {
+    let result;
+
+    await session.withTransaction(async () => {
+      result = await work(session);
+    });
+
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+// =============================================================================
+// EMBEDDED SCHEMAS
+// =============================================================================
+
+const AuthorSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      index: true,
+    },
+
+    username: {
+      type: String,
+      trim: true,
+      maxlength: MAX_USERNAME_LENGTH,
+    },
+
+    avatar: {
+      type: String,
+      trim: true,
+      maxlength: 1_000,
+    },
+  },
+  {
+    _id: false,
+    id: false,
+  },
+);
+
+// =============================================================================
+// FORUM TOPIC
+// =============================================================================
+
+const ForumTopicSchema = new Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: MAX_TITLE_LENGTH,
+    },
+
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+
+    content: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: MAX_CONTENT_LENGTH,
+    },
+
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+
+    author: {
+      type: AuthorSchema,
+      default: undefined,
+    },
+
+    tags: {
+      type: [String],
+      default: [],
+      index: true,
+    },
+
+    views: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    replies: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    likes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    dislikes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    pinned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    locked: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    solved: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    lastReplyAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
+  },
+  {
+    timestamps: true,
+    versionKey: true,
+    strict: true,
+  },
+);
+
+ForumTopicSchema.index({
+  category: 1,
+  pinned: -1,
+  lastReplyAt: -1,
+});
+
+ForumTopicSchema.index({
+  createdAt: -1,
+});
+
+ForumTopicSchema.index({
+  views: -1,
+  replies: -1,
+});
+
+ForumTopicSchema.index({
+  title: 'text',
+  content: 'text',
+  tags: 'text',
+});
+
+// =============================================================================
+// FORUM REPLY
+// =============================================================================
+
+const ForumReplySchema = new Schema(
+  {
+    topicId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      ref: 'ForumTopic',
+      index: true,
+    },
+
+    content: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: MAX_CONTENT_LENGTH,
+    },
+
+    author: {
+      type: AuthorSchema,
+      default: undefined,
+    },
+
+    likes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    dislikes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    acceptedAnswer: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+  },
+  {
+    timestamps: true,
+    versionKey: true,
+    strict: true,
+  },
+);
+
+ForumReplySchema.index({
+  topicId: 1,
+  acceptedAnswer: -1,
+  likes: -1,
+  createdAt: 1,
+});
+
+// =============================================================================
+// FORUM CATEGORY
+// =============================================================================
+
+const ForumCategorySchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: MAX_CATEGORY_NAME_LENGTH,
+    },
+
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+
+    description: {
+      type: String,
+      trim: true,
+      maxlength: MAX_CATEGORY_DESCRIPTION_LENGTH,
+    },
+
+    icon: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+
+    topicCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    replyCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    lastActivityAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    order: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+
+    private: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+  },
+  {
+    timestamps: true,
+    versionKey: true,
+    strict: true,
+  },
+);
+
+ForumCategorySchema.index({
+  order: 1,
+  name: 1,
+});
+
+// =============================================================================
+// FORUM REACTION
+// =============================================================================
+
+const ForumReactionSchema = new Schema(
+  {
+    targetId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      index: true,
+    },
+
+    targetType: {
+      type: String,
+      required: true,
+      enum: Object.values(TARGET_TYPES),
+      index: true,
+    },
+
+    userId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      index: true,
+    },
+
+    type: {
+      type: String,
+      required: true,
+      enum: Object.values(REACTION_TYPES),
+    },
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+    strict: true,
+  },
+);
+
+// One active reaction per user per target.
+ForumReactionSchema.index(
+  {
+    targetId: 1,
+    targetType: 1,
+    userId: 1,
+  },
+  {
+    unique: true,
+    name: 'unique_forum_user_reaction',
+  },
+);
+
+ForumReactionSchema.index({
+  targetId: 1,
+  targetType: 1,
+  type: 1,
+});
+
+// =============================================================================
+// MODELS
+// =============================================================================
+//
+// Using mongoose.models prevents OverwriteModelError during hot reloads,
+// tests, and development restarts.
+//
+
+const ForumTopic =
+  mongoose.models.ForumTopic ||
+  mongoose.model('ForumTopic', ForumTopicSchema);
+
+const ForumReply =
+  mongoose.models.ForumReply ||
+  mongoose.model('ForumReply', ForumReplySchema);
+
+const ForumCategory =
+  mongoose.models.ForumCategory ||
+  mongoose.model('ForumCategory', ForumCategorySchema);
+
+const ForumReaction =
+  mongoose.models.ForumReaction ||
+  mongoose.model('ForumReaction', ForumReactionSchema);
+
+// =============================================================================
+// CATEGORY SERVICES
+// =============================================================================
+
+async function getAllCategories(options = {}) {
+  try {
+    const query = {};
+
+    if (typeof options.includePrivate === 'boolean') {
+      if (!options.includePrivate) {
+        query.private = false;
+      }
+    } else {
+      query.private = false;
+    }
+
+    return await ForumCategory.find(query)
+      .sort({ order: 1, name: 1 })
+      .lean()
+      .exec();
+  } catch (error) {
+    throw serviceError(
+      `Failed to retrieve forum categories: ${error.message}`,
+      error,
+    );
+  }
+}
+
+// Backwards-compatible alias.
+const getCategories = getAllCategories;
+
+// =============================================================================
+// TOPIC SERVICES
+// =============================================================================
+
+async function getTopicsByCategory(
+  categorySlug,
+  page = DEFAULT_PAGE,
+  limit = DEFAULT_TOPIC_LIMIT,
+) {
+  try {
+    const category = assertRequiredText(
+      categorySlug,
+      'category',
+      MAX_CATEGORY_NAME_LENGTH,
+    ).toLowerCase();
+
+    const pagination = normalizePagination(
+      page,
+      limit,
+      {
+        page: DEFAULT_PAGE,
+        limit: DEFAULT_TOPIC_LIMIT,
+        max: MAX_TOPIC_LIMIT,
+      },
+    );
+
+    const filter = {
+      category,
+      locked: false,
+    };
+
+    const [topics, total] = await Promise.all([
+      ForumTopic.find(filter)
+        .sort({
+          pinned: -1,
+          lastReplyAt: -1,
+          createdAt: -1,
+        })
+        .skip((pagination.page - 1) * pagination.limit)
+        .limit(pagination.limit)
+        .lean()
+        .exec(),
+
+      ForumTopic.countDocuments(filter),
+    ]);
 
     return {
       topics,
-      pagination: {
-        page,
-        limit,
+      pagination: buildPagination(
+        pagination.page,
+        pagination.limit,
         total,
-        pages: Math.ceil(total / limit),
-      },
+      ),
     };
   } catch (error) {
-    throw new Error(`Failed to retrieve topics: ${error.message}`);
+    if (error.statusCode) {
+      throw error;
+    }
+
+    throw serviceError(
+      `Failed to retrieve topics: ${error.message}`,
+      error,
+    );
   }
 }
 
-/**
- * Get single topic with replies
- */
-async function getTopicWithReplies(topicSlug, page = 1, limit = 10) {
+async function getTopicWithReplies(
+  topicSlug,
+  page = DEFAULT_PAGE,
+  limit = DEFAULT_REPLY_LIMIT,
+) {
   try {
-    // Get topic
-    const topic = await ForumTopic.findOne({ slug: topicSlug });
+    const slug = assertRequiredText(
+      topicSlug,
+      'topic slug',
+      200,
+    ).toLowerCase();
+
+    const pagination = normalizePagination(
+      page,
+      limit,
+      {
+        page: DEFAULT_PAGE,
+        limit: DEFAULT_REPLY_LIMIT,
+        max: MAX_REPLY_LIMIT,
+      },
+    );
+
+    const topic = await ForumTopic.findOne({ slug }).lean().exec();
+
     if (!topic) {
-      throw new Error('Topic not found');
+      const error = new Error('Topic not found');
+      error.code = 'TOPIC_NOT_FOUND';
+      error.statusCode = 404;
+      throw error;
     }
 
-    // Increment views
-    topic.views += 1;
-    await topic.save();
+    // Increment the view count atomically instead of loading/saving
+    // the entire topic document.
+    await ForumTopic.updateOne(
+      { _id: topic._id },
+      { $inc: { views: 1 } },
+    ).exec();
 
-    // Get replies
-    const skip = (page - 1) * limit;
-    const replies = await ForumReply.find({ topicId: topic._id })
-      .sort({ acceptedAnswer: -1, likes: -1, createdAt: 1 })
-      .skip(skip)
-      .limit(limit);
+    const replyFilter = {
+      topicId: topic._id,
+    };
 
-    const totalReplies = await ForumReply.countDocuments({ topicId: topic._id });
+    const [replies, totalReplies] = await Promise.all([
+      ForumReply.find(replyFilter)
+        .sort({
+          acceptedAnswer: -1,
+          likes: -1,
+          createdAt: 1,
+        })
+        .skip((pagination.page - 1) * pagination.limit)
+        .limit(pagination.limit)
+        .lean()
+        .exec(),
+
+      ForumReply.countDocuments(replyFilter),
+    ]);
 
     return {
-      topic,
-      replies,
-      pagination: {
-        page,
-        limit,
-        total: totalReplies,
-        pages: Math.ceil(totalReplies / limit),
+      topic: {
+        ...topic,
+        views: topic.views + 1,
       },
+
+      replies,
+
+      pagination: buildPagination(
+        pagination.page,
+        pagination.limit,
+        totalReplies,
+      ),
     };
   } catch (error) {
-    throw new Error(`Failed to retrieve topic: ${error.message}`);
-  }
-}
-
-/**
- * Create new forum topic
- */
-async function createTopic(title, content, category, author) {
-  try {
-    // Generate slug
-    const slug = title
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .substring(0, 50);
-
-    const topic = new ForumTopic({
-      title,
-      slug: `${slug}-${Date.now()}`,
-      content,
-      category,
-      author,
-    });
-
-    await topic.save();
-
-    // Update category
-    await ForumCategory.updateOne(
-      { slug: category },
-      { $inc: { topicCount: 1 }, lastActivityAt: new Date() }
-    );
-
-    return topic;
-  } catch (error) {
-    throw new Error(`Failed to create topic: ${error.message}`);
-  }
-}
-
-/**
- * Add reply to topic
- */
-async function addReply(topicId, content, author) {
-  try {
-    const reply = new ForumReply({
-      topicId,
-      content,
-      author,
-    });
-
-    await reply.save();
-
-    // Update topic
-    const topic = await ForumTopic.findByIdAndUpdate(
-      topicId,
-      { lastReplyAt: new Date(), $inc: { replies: 1 } },
-      { new: true }
-    );
-
-    // Update category stats
-    if (topic && topic.category) {
-      await ForumCategory.updateOne(
-        { slug: topic.category },
-        { lastActivityAt: new Date(), $inc: { replyCount: 1 } }
-      );
+    if (error.statusCode) {
+      throw error;
     }
 
-    return reply;
-  } catch (error) {
-    throw new Error(`Failed to add reply: ${error.message}`);
+    throw serviceError(
+      `Failed to retrieve topic: ${error.message}`,
+      error,
+    );
   }
 }
 
-/**
- * Search forum topics
- */
-async function searchTopics(query) {
+// Backwards-compatible alias.
+const getTopic = getTopicWithReplies;
+
+async function createTopic(title, content, category, author = {}, options = {}) {
   try {
-    const topics = await ForumTopic.find({
-      $or: [
-        { title: { $regex: query, $options: 'i' } },
-        { content: { $regex: query, $options: 'i' } },
-        { tags: { $regex: query, $options: 'i' } },
-      ],
-    })
-      .sort({ views: -1 })
-      .limit(20);
-
-    return topics;
-  } catch (error) {
-    throw new Error(`Forum search failed: ${error.message}`);
-  }
-}
-
-/**
- * Get trending topics
- */
-async function getTrendingTopics(limit = 10) {
-  try {
-    const topics = await ForumTopic.find().sort({ views: -1, replies: -1 }).limit(limit);
-
-    return topics;
-  } catch (error) {
-    throw new Error(`Failed to retrieve trending topics: ${error.message}`);
-  }
-}
-
-/**
- * Get latest topics
- */
-async function getLatestTopics(limit = 10) {
-  try {
-    const topics = await ForumTopic.find().sort({ createdAt: -1 }).limit(limit);
-
-    return topics;
-  } catch (error) {
-    throw new Error(`Failed to retrieve latest topics: ${error.message}`);
-  }
-}
-
-/**
- * Mark reply as accepted answer
- */
-async function markAsAcceptedAnswer(replyId, topicId) {
-  try {
-    // Clear other accepted answers
-    await ForumReply.updateMany({ topicId, _id: { $ne: replyId } }, { acceptedAnswer: false });
-
-    // Mark this reply as accepted
-    const reply = await ForumReply.findByIdAndUpdate(
-      replyId,
-      { acceptedAnswer: true },
-      { new: true }
+    const normalizedTitle = assertRequiredText(
+      title,
+      'title',
+      MAX_TITLE_LENGTH,
     );
 
-    // Mark topic as solved
-    await ForumTopic.findByIdAndUpdate(topicId, { solved: true });
+    const normalizedContent = assertRequiredText(
+      content,
+      'content',
+      MAX_CONTENT_LENGTH,
+    );
 
-    return reply;
+    const normalizedCategory = assertRequiredText(
+      category,
+      'category',
+      MAX_CATEGORY_NAME_LENGTH,
+    ).toLowerCase();
+
+    const normalizedAuthor = normalizeAuthor(author);
+    const tags = normalizeTags(options.tags);
+
+    const categoryExists = await ForumCategory.exists({
+      slug: normalizedCategory,
+      private: false,
+    });
+
+    if (!categoryExists) {
+      const error = new Error('Forum category not found');
+      error.code = 'CATEGORY_NOT_FOUND';
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return await withTransaction(async (session) => {
+      const topic = new ForumTopic({
+        title: normalizedTitle,
+        slug: createUniqueSlug(normalizedTitle),
+        content: normalizedContent,
+        category: normalizedCategory,
+        author: normalizedAuthor,
+        tags,
+        pinned: Boolean(options.pinned),
+      });
+
+      await topic.save({ session });
+
+      await ForumCategory.updateOne(
+        { slug: normalizedCategory },
+        {
+          $inc: {
+            topicCount: 1,
+          },
+          $set: {
+            lastActivityAt: new Date(),
+          },
+        },
+        { session },
+      ).exec();
+
+      return topic;
+    });
   } catch (error) {
-    throw new Error(`Failed to mark accepted answer: ${error.message}`);
+    if (error.statusCode) {
+      throw error;
+    }
+
+    throw serviceError(
+      `Failed to create topic: ${error.message}`,
+      error,
+    );
   }
 }
 
-/**
- * React to topic or reply (like/dislike)
- */
-async function addReaction(targetId, targetType, userId, reactionType) {
+async function addReply(topicId, content, author = {}) {
   try {
-    // Check if user already reacted
-    const existing = await ForumReaction.findOne({
-      targetId,
-      targetType,
-      userId,
-    });
+    assertValidObjectId(topicId, 'topicId');
 
-    if (existing) {
-      // Remove existing reaction if same type, update if different
-      if (existing.type === reactionType) {
-        await ForumReaction.deleteOne({ _id: existing._id });
-      } else {
-        existing.type = reactionType;
-        await existing.save();
+    const normalizedContent = assertRequiredText(
+      content,
+      'content',
+      MAX_CONTENT_LENGTH,
+    );
+
+    const normalizedAuthor = normalizeAuthor(author);
+
+    return await withTransaction(async (session) => {
+      const topic = await ForumTopic.findById(topicId)
+        .session(session)
+        .exec();
+
+      if (!topic) {
+        const error = new Error('Topic not found');
+        error.code = 'TOPIC_NOT_FOUND';
+        error.statusCode = 404;
+        throw error;
       }
-    } else {
-      // Add new reaction
-      const reaction = new ForumReaction({
+
+      if (topic.locked) {
+        const error = new Error('Topic is locked');
+        error.code = 'TOPIC_LOCKED';
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const reply = new ForumReply({
+        topicId: topic._id,
+        content: normalizedContent,
+        author: normalizedAuthor,
+      });
+
+      await reply.save({ session });
+
+      const now = new Date();
+
+      await ForumTopic.updateOne(
+        { _id: topic._id },
+        {
+          $inc: {
+            replies: 1,
+          },
+          $set: {
+            lastReplyAt: now,
+          },
+        },
+        { session },
+      ).exec();
+
+      await ForumCategory.updateOne(
+        { slug: topic.category },
+        {
+          $inc: {
+            replyCount: 1,
+          },
+          $set: {
+            lastActivityAt: now,
+          },
+        },
+        { session },
+      ).exec();
+
+      return reply;
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      throw error;
+    }
+
+    throw serviceError(
+      `Failed to add reply: ${error.message}`,
+      error,
+    );
+  }
+}
+
+// =============================================================================
+// SEARCH
+// =============================================================================
+
+async function searchTopics(query, options = {}) {
+  try {
+    const normalizedQuery = normalizeText(query).substring(
+      0,
+      MAX_SEARCH_LENGTH,
+    );
+
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    const limit = parsePositiveInteger(
+      options.limit,
+      DEFAULT_FEED_LIMIT,
+      MAX_FEED_LIMIT,
+    );
+
+    const escapedQuery = normalizedQuery.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      '\\$&',
+    );
+
+    return await ForumTopic.find({
+      $or: [
+        {
+          title: {
+            $regex: escapedQuery,
+            $options: 'i',
+          },
+        },
+        {
+          content: {
+            $regex: escapedQuery,
+            $options: 'i',
+          },
+        },
+        {
+          tags: {
+            $regex: escapedQuery,
+            $options: 'i',
+          },
+        },
+      ],
+      locked: false,
+    })
+      .sort({
+        pinned: -1,
+        views: -1,
+        replies: -1,
+        createdAt: -1,
+      })
+      .limit(limit)
+      .lean()
+      .exec();
+  } catch (error) {
+    throw serviceError(
+      `Forum search failed: ${error.message}`,
+      error,
+    );
+  }
+}
+
+// =============================================================================
+// FEEDS
+// =============================================================================
+
+async function getTrendingTopics(limit = DEFAULT_FEED_LIMIT) {
+  try {
+    const normalizedLimit = parsePositiveInteger(
+      limit,
+      DEFAULT_FEED_LIMIT,
+      MAX_FEED_LIMIT,
+    );
+
+    return await ForumTopic.find({
+      locked: false,
+    })
+      .sort({
+        views: -1,
+        replies: -1,
+        lastReplyAt: -1,
+      })
+      .limit(normalizedLimit)
+      .lean()
+      .exec();
+  } catch (error) {
+    throw serviceError(
+      `Failed to retrieve trending topics: ${error.message}`,
+      error,
+    );
+  }
+}
+
+async function getLatestTopics(limit = DEFAULT_FEED_LIMIT) {
+  try {
+    const normalizedLimit = parsePositiveInteger(
+      limit,
+      DEFAULT_FEED_LIMIT,
+      MAX_FEED_LIMIT,
+    );
+
+    return await ForumTopic.find({
+      locked: false,
+    })
+      .sort({
+        createdAt: -1,
+      })
+      .limit(normalizedLimit)
+      .lean()
+      .exec();
+  } catch (error) {
+    throw serviceError(
+      `Failed to retrieve latest topics: ${error.message}`,
+      error,
+    );
+  }
+}
+
+// =============================================================================
+// ACCEPTED ANSWER
+// =============================================================================
+
+async function markAsAcceptedAnswer(replyId, topicId) {
+  try {
+    assertValidObjectId(replyId, 'replyId');
+    assertValidObjectId(topicId, 'topicId');
+
+    return await withTransaction(async (session) => {
+      const reply = await ForumReply.findOne({
+        _id: replyId,
+        topicId,
+      })
+        .session(session)
+        .exec();
+
+      if (!reply) {
+        const error = new Error(
+          'Reply not found for the specified topic',
+        );
+        error.code = 'REPLY_NOT_FOUND';
+        error.statusCode = 404;
+        throw error;
+      }
+
+      await ForumReply.updateMany(
+        {
+          topicId,
+          _id: {
+            $ne: replyId,
+          },
+        },
+        {
+          $set: {
+            acceptedAnswer: false,
+          },
+        },
+        {
+          session,
+        },
+      ).exec();
+
+      reply.acceptedAnswer = true;
+
+      await reply.save({ session });
+
+      await ForumTopic.updateOne(
+        {
+          _id: topicId,
+        },
+        {
+          $set: {
+            solved: true,
+          },
+        },
+        {
+          session,
+        },
+      ).exec();
+
+      return reply;
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      throw error;
+    }
+
+    throw serviceError(
+      `Failed to mark accepted answer: ${error.message}`,
+      error,
+    );
+  }
+}
+
+// =============================================================================
+// REACTIONS
+// =============================================================================
+
+async function addReaction(
+  targetId,
+  targetType,
+  userId,
+  reactionType,
+) {
+  try {
+    assertValidObjectId(targetId, 'targetId');
+    assertValidObjectId(userId, 'userId');
+
+    if (!Object.values(TARGET_TYPES).includes(targetType)) {
+      const error = new Error(
+        'targetType must be either "topic" or "reply"',
+      );
+      error.code = 'VALIDATION_ERROR';
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!Object.values(REACTION_TYPES).includes(reactionType)) {
+      const error = new Error(
+        'reactionType must be either "like" or "dislike"',
+      );
+      error.code = 'VALIDATION_ERROR';
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return await withTransaction(async (session) => {
+      const TargetModel =
+        targetType === TARGET_TYPES.TOPIC
+          ? ForumTopic
+          : ForumReply;
+
+      const target = await TargetModel.findById(targetId)
+        .session(session)
+        .exec();
+
+      if (!target) {
+        const error = new Error(
+          `${targetType} not found`,
+        );
+        error.code = 'TARGET_NOT_FOUND';
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const existing = await ForumReaction.findOne({
         targetId,
         targetType,
         userId,
-        type: reactionType,
-      });
-      await reaction.save();
-    }
+      })
+        .session(session)
+        .exec();
 
-    // Recalculate likes/dislikes
-    const likes = await ForumReaction.countDocuments({
-      targetId,
-      targetType,
-      type: 'like',
+      if (existing && existing.type === reactionType) {
+        await ForumReaction.deleteOne({
+          _id: existing._id,
+        })
+          .session(session)
+          .exec();
+      } else if (existing) {
+        existing.type = reactionType;
+
+        await existing.save({
+          session,
+        });
+      } else {
+        try {
+          await ForumReaction.create(
+            [
+              {
+                targetId,
+                targetType,
+                userId,
+                type: reactionType,
+              },
+            ],
+            {
+              session,
+            },
+          );
+        } catch (error) {
+          // A concurrent request can win the unique index race.
+          if (error?.code !== 11000) {
+            throw error;
+          }
+
+          const concurrent = await ForumReaction.findOne({
+            targetId,
+            targetType,
+            userId,
+          })
+            .session(session)
+            .exec();
+
+          if (!concurrent) {
+            throw error;
+          }
+
+          concurrent.type = reactionType;
+
+          await concurrent.save({
+            session,
+          });
+        }
+      }
+
+      const [likes, dislikes] = await Promise.all([
+        ForumReaction.countDocuments({
+          targetId,
+          targetType,
+          type: REACTION_TYPES.LIKE,
+        })
+          .session(session)
+          .exec(),
+
+        ForumReaction.countDocuments({
+          targetId,
+          targetType,
+          type: REACTION_TYPES.DISLIKE,
+        })
+          .session(session)
+          .exec(),
+      ]);
+
+      await TargetModel.updateOne(
+        {
+          _id: targetId,
+        },
+        {
+          $set: {
+            likes,
+            dislikes,
+          },
+        },
+        {
+          session,
+        },
+      ).exec();
+
+      return {
+        targetId,
+        targetType,
+        likes,
+        dislikes,
+        userReaction:
+          await ForumReaction.findOne({
+            targetId,
+            targetType,
+            userId,
+          })
+            .session(session)
+            .lean()
+            .exec(),
+      };
     });
-
-    const dislikes = await ForumReaction.countDocuments({
-      targetId,
-      targetType,
-      type: 'dislike',
-    });
-
-    // Update target
-    if (targetType === 'topic') {
-      await ForumTopic.findByIdAndUpdate(targetId, { likes, dislikes });
-    } else {
-      await ForumReply.findByIdAndUpdate(targetId, { likes, dislikes });
-    }
-
-    return { likes, dislikes };
   } catch (error) {
-    throw new Error(`Failed to add reaction: ${error.message}`);
+    if (error.statusCode) {
+      throw error;
+    }
+
+    throw serviceError(
+      `Failed to add reaction: ${error.message}`,
+      error,
+    );
   }
 }
 
-/**
- * Seed forum with initial data
- */
+// =============================================================================
+// SEEDING
+// =============================================================================
+
 async function seedInitialData() {
   try {
-    // Check if data already exists
     const existingCount = await ForumCategory.countDocuments();
+
     if (existingCount > 0) {
-      return { message: 'Forum data already exists' };
+      return {
+        message: 'Forum data already exists',
+        seeded: false,
+      };
     }
 
-    // Create categories
     const categories = [
       {
         name: 'General Discussion',
         slug: 'general',
-        description: 'General app discussions',
+        description: 'General Community Capital discussions',
         icon: 'comments',
         order: 1,
       },
       {
         name: 'Groups',
         slug: 'groups',
-        description: 'Discuss savings groups',
+        description: 'Discuss savings and community groups',
         icon: 'users',
         order: 2,
       },
       {
         name: 'Loans',
         slug: 'loans',
-        description: 'Loan-related discussions',
+        description: 'Loan-related discussions and questions',
         icon: 'money-bill',
         order: 3,
       },
@@ -543,77 +1372,208 @@ async function seedInitialData() {
       {
         name: 'Feature Requests',
         slug: 'features',
-        description: 'Request new features',
+        description: 'Request new features and improvements',
         icon: 'lightbulb',
         order: 5,
       },
       {
         name: 'Bug Reports',
         slug: 'bugs',
-        description: 'Report issues and bugs',
+        description: 'Report issues and platform bugs',
         icon: 'bug',
         order: 6,
       },
       {
         name: 'Success Stories',
         slug: 'stories',
-        description: 'Share your success stories',
+        description: 'Share community and savings success stories',
         icon: 'star',
         order: 7,
       },
     ];
 
-    await ForumCategory.insertMany(categories);
-
-    // Create sample topics
     const topics = [
       {
-        title: 'Welcome to Community Savings Forum!',
-        slug: 'welcome-forum-' + Date.now(),
+        title: 'Welcome to the Community Capital Forum',
+        slug: `welcome-forum-${Date.now()}`,
         content:
-          'Welcome to our community forum! This is a space for members to discuss, ask questions, and share experiences. Please be respectful and follow community guidelines.',
+          'Welcome to our community forum. This is a space for members to discuss ideas, ask questions, share experiences, and help one another. Please remain respectful and follow the community guidelines.',
         category: 'general',
-        author: { username: 'Admin', avatar: 'admin.jpg' },
-        tags: ['welcome', 'community'],
+        author: {
+          username: 'Admin',
+          avatar: 'admin.jpg',
+        },
+        tags: ['welcome', 'community', 'forum'],
         pinned: true,
       },
       {
         title: 'Tips for Starting Your First Savings Group',
-        slug: 'starting-group-' + Date.now(),
+        slug: `starting-group-${Date.now()}`,
         content:
-          'Here are some tips for starting your first savings group: 1. Find 3-5 trusted members, 2. Set clear rules, 3. Choose contribution amounts, 4. Regular meetings...',
+          'Here are some practical tips for starting your first savings group: choose trusted members, establish clear rules, agree on contribution amounts, define meeting schedules, and document decisions.',
         category: 'groups',
-        author: { username: 'Moderator', avatar: 'mod.jpg' },
-        tags: ['groups', 'tips', 'beginners'],
+        author: {
+          username: 'Moderator',
+          avatar: 'mod.jpg',
+        },
+        tags: ['groups', 'savings', 'beginners'],
       },
     ];
 
-    await ForumTopic.insertMany(topics);
+    return await withTransaction(async (session) => {
+      const createdCategories = await ForumCategory.insertMany(
+        categories,
+        {
+          session,
+          ordered: true,
+        },
+      );
 
-    return {
-      message: 'Forum initialized successfully',
-      categoriesCreated: categories.length,
-      topicsCreated: topics.length,
-    };
+      const createdTopics = await ForumTopic.insertMany(
+        topics,
+        {
+          session,
+          ordered: true,
+        },
+      );
+
+      // Keep category counters consistent with seeded topics.
+      await ForumCategory.updateOne(
+        { slug: 'general' },
+        {
+          $inc: {
+            topicCount: 1,
+          },
+          $set: {
+            lastActivityAt: new Date(),
+          },
+        },
+        { session },
+      ).exec();
+
+      await ForumCategory.updateOne(
+        { slug: 'groups' },
+        {
+          $inc: {
+            topicCount: 1,
+          },
+          $set: {
+            lastActivityAt: new Date(),
+          },
+        },
+        { session },
+      ).exec();
+
+      return {
+        message: 'Forum initialized successfully',
+        seeded: true,
+        categoriesCreated: createdCategories.length,
+        topicsCreated: createdTopics.length,
+      };
+    });
   } catch (error) {
-    throw new Error(`Failed to seed forum data: ${error.message}`);
+    throw serviceError(
+      `Failed to seed forum data: ${error.message}`,
+      error,
+    );
   }
 }
 
+// =============================================================================
+// OPTIONAL ADMIN/MAINTENANCE HELPERS
+// =============================================================================
+
+async function recalculateTopicReactionCounts(targetId, targetType) {
+  assertValidObjectId(targetId, 'targetId');
+
+  if (!Object.values(TARGET_TYPES).includes(targetType)) {
+    const error = new Error('Invalid targetType');
+    error.code = 'VALIDATION_ERROR';
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const TargetModel =
+    targetType === TARGET_TYPES.TOPIC
+      ? ForumTopic
+      : ForumReply;
+
+  const [likes, dislikes] = await Promise.all([
+    ForumReaction.countDocuments({
+      targetId,
+      targetType,
+      type: REACTION_TYPES.LIKE,
+    }),
+
+    ForumReaction.countDocuments({
+      targetId,
+      targetType,
+      type: REACTION_TYPES.DISLIKE,
+    }),
+  ]);
+
+  const target = await TargetModel.findByIdAndUpdate(
+    targetId,
+    {
+      $set: {
+        likes,
+        dislikes,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  )
+    .lean()
+    .exec();
+
+  return {
+    targetId,
+    targetType,
+    likes,
+    dislikes,
+    target,
+  };
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
 module.exports = {
+  // Services
   getAllCategories,
+  getCategories,
+
   getTopicsByCategory,
+
   getTopicWithReplies,
+  getTopic,
+
   createTopic,
   addReply,
+
   searchTopics,
+
   getTrendingTopics,
   getLatestTopics,
+
   markAsAcceptedAnswer,
+
   addReaction,
+
   seedInitialData,
+
+  recalculateTopicReactionCounts,
+
+  // Models
   ForumTopic,
   ForumReply,
   ForumCategory,
   ForumReaction,
+
+  // Constants
+  REACTION_TYPES,
+  TARGET_TYPES,
 };

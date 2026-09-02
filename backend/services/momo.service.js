@@ -1,283 +1,1212 @@
-// services/momo.service.js
+/**
+ * =============================================================================
+ * TITech Community Capital LTD
+ * MTN Mobile Money Service
+ * =============================================================================
+ *
+ * File:
+ *   backend/services/momo.service.js
+ *
+ * Purpose:
+ *   Production-oriented MTN MoMo integration facade.
+ *
+ * Responsibilities:
+ *   - Request-to-Pay / Collections
+ *   - Request-to-Pay status lookup
+ *   - Disbursement / payout
+ *   - Input validation
+ *   - Safe money normalization
+ *   - UUID v4 references
+ *   - HTTP timeout/retry handling
+ *   - Circuit-breaker protection
+ *   - Structured errors
+ *   - Safe logging
+ *
+ * Architecture:
+ *
+ *   Controller / Transaction Service
+ *              ↓
+ *        momo.service.js
+ *              ↓
+ *        HTTP transport
+ *              ↓
+ *        MTN MoMo API
+ *
+ * IMPORTANT:
+ *   This service does NOT mark a financial transaction as successful merely
+ *   because MTN accepted a request. MTN Request-to-Pay and Transfer APIs are
+ *   asynchronous. The financial transaction must transition to a pending state
+ *   and later be reconciled through callback and/or status polling.
+ *
+ * =============================================================================
+ */
+
 'use strict';
-// Production-ready MTN MoMo Request-to-Pay integration (collection API)
 
-const axios = require("axios");
+const axios = require('axios');
 const { randomUUID } = require('crypto');
-const logger = require("../utils/logger"); // optional structured logger
 
-const BASE_URL = process.env.MTN_MOMO_BASE_URL || "https://sandbox.momodeveloper.mtn.com";
-const TOKEN = process.env.MTN_TOKEN || "";
-const TARGET_ENV = process.env.MTN_TARGET_ENV || "sandbox";
-const DEFAULT_CURRENCY = process.env.DEFAULT_CURRENCY || "UGX";
-const REQUEST_TIMEOUT = parseInt(process.env.MTN_REQUEST_TIMEOUT_MS || "10000", 10);
-const MAX_RETRIES = parseInt(process.env.MTN_MAX_RETRIES || "3", 10);
-const RETRY_DELAY_MS = parseInt(process.env.MTN_RETRY_DELAY_MS || "500", 10);
-
-
-const momoServiceImpl = require('./momoServiceImpl'); // actual HTTP client to MoMo
-const circuitFactory = require('../utils/circuitBreaker');
 const logger = require('../utils/logger');
 
-// Optional: fallback when MoMo is unavailable
-const fallback = async (payload) => {
-  logger.warn('MoMo fallback invoked', { reference: payload.reference, phone: payload.phone });
-  // return a safe response shape so callers can decide what to do
-  return { ok: false, reason: 'momo_unavailable', reference: payload.reference };
-};
+let circuitFactory = null;
 
-// Create a single breaker instance for requestToPay
-const { fire: safeRequestToPay, breaker: momoBreaker } = circuitFactory(
-  async (payload) => {
-    // delegate to the real implementation that calls MoMo API
-    return await momoServiceImpl.requestToPay(payload);
-  },
-  { timeout: 8000, errorThresholdPercentage: 60, resetTimeout: 30000 }, // optional overrides
-  fallback
-);
-
-// Export the safe wrapper and the raw breaker if you need metrics
-module.exports = {
-  requestToPay: async (payload) => {
-    // ensure phone default where applicable
-    payload.phone = payload.phone || '256772123546';
-
-    try {
-      const result = await safeRequestToPay(payload);
-      // result may be the real MoMo response or fallback response
-      return result;
-    } catch (err) {
-      // circuit threw (no fallback or fallback also failed)
-      logger.error('requestToPay failed', { error: err.message, reference: payload.reference });
-      throw err;
-    }
-  },
-  momoBreaker, // optional: expose for metrics/inspection
-};
-
-
-if (!TOKEN) {
-  logger?.warn?.("MTN token is not set. Requests will likely fail until MTN_TOKEN is provided.");
+try {
+  // Optional resilience dependency.
+  // The service still works without it.
+  // eslint-disable-next-line global-require
+  circuitFactory = require('../utils/circuitBreaker');
+} catch {
+  circuitFactory = null;
 }
 
-const axiosInstance = axios.create({
-  baseURL: BASE_URL,
-  timeout: REQUEST_TIMEOUT,
-  headers: {
-    "Ocp-Apim-Subscription-Key": process.env.MTN_SUBSCRIPTION_KEY || "",
-    "Content-Type": "application/json",
-  },
+// =============================================================================
+// ENVIRONMENT / CONFIGURATION
+// =============================================================================
+
+function envString(name, fallback = '') {
+  const value = process.env[name];
+
+  if (
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ''
+  ) {
+    return fallback;
+  }
+
+  return String(value).trim();
+}
+
+function envInteger(
+  name,
+  fallback,
+  min,
+  max,
+) {
+  const raw = envString(name, '');
+
+  if (!raw) {
+    return fallback;
+  }
+
+  const value = Number.parseInt(raw, 10);
+
+  if (
+    !Number.isFinite(value) ||
+    value < min ||
+    value > max
+  ) {
+    logger.warn(
+      'Invalid MoMo numeric configuration; using fallback',
+      {
+        name,
+        fallback,
+      },
+    );
+
+    return fallback;
+  }
+
+  return value;
+}
+
+const CONFIG = Object.freeze({
+  BASE_URL: envString(
+    'MTN_MOMO_BASE_URL',
+    'https://sandbox.momodeveloper.mtn.com',
+  ),
+
+  TARGET_ENV:
+    envString(
+      'MTN_TARGET_ENV',
+      'sandbox',
+    ).toLowerCase(),
+
+  SUBSCRIPTION_KEY:
+    envString(
+      'MTN_SUBSCRIPTION_KEY',
+    ),
+
+  TOKEN:
+    envString(
+      'MTN_TOKEN',
+    ),
+
+  API_USER:
+    envString(
+      'MTN_API_USER',
+    ),
+
+  API_KEY:
+    envString(
+      'MTN_API_KEY',
+    ),
+
+  DEFAULT_CURRENCY:
+    envString(
+      'DEFAULT_CURRENCY',
+      'UGX',
+    ).toUpperCase(),
+
+  REQUEST_TIMEOUT_MS:
+    envInteger(
+      'MTN_REQUEST_TIMEOUT_MS',
+      10_000,
+      1_000,
+      120_000,
+    ),
+
+  MAX_RETRIES:
+    envInteger(
+      'MTN_MAX_RETRIES',
+      3,
+      0,
+      10,
+    ),
+
+  RETRY_DELAY_MS:
+    envInteger(
+      'MTN_RETRY_DELAY_MS',
+      500,
+      50,
+      30_000,
+    ),
+
+  CIRCUIT_TIMEOUT_MS:
+    envInteger(
+      'MTN_CIRCUIT_TIMEOUT_MS',
+      8_000,
+      1_000,
+      120_000,
+    ),
+
+  CIRCUIT_ERROR_THRESHOLD:
+    envInteger(
+      'MTN_CIRCUIT_ERROR_THRESHOLD',
+      60,
+      1,
+      100,
+    ),
+
+  CIRCUIT_RESET_TIMEOUT_MS:
+    envInteger(
+      'MTN_CIRCUIT_RESET_TIMEOUT_MS',
+      30_000,
+      1_000,
+      600_000,
+    ),
 });
 
-/**
- * Helper: perform HTTP request with simple retry/backoff
- */
-async function httpRequestWithRetry(config, retries = MAX_RETRIES) {
-  let attempt = 0;
-  let lastError;
-  while (attempt <= retries) {
-    try {
-      const resp = await axiosInstance.request(config);
-      return resp;
-    } catch (err) {
-      lastError = err;
-      attempt += 1;
-      const status = err?.response?.status;
-      // Do not retry on 4xx except 429
-      if (status && status >= 400 && status < 500 && status !== 429) {
-        break;
-      }
-      if (attempt > retries) break;
-      const delay = RETRY_DELAY_MS * attempt;
-      await new Promise((res) => setTimeout(res, delay));
-    }
+// =============================================================================
+// HTTP CLIENT
+// =============================================================================
+
+const axiosInstance = axios.create({
+  baseURL: CONFIG.BASE_URL,
+  timeout: CONFIG.REQUEST_TIMEOUT_MS,
+
+  headers: {
+    'Content-Type': 'application/json',
+
+    ...(CONFIG.SUBSCRIPTION_KEY
+      ? {
+          'Ocp-Apim-Subscription-Key':
+            CONFIG.SUBSCRIPTION_KEY,
+        }
+      : {}),
+  },
+
+  validateStatus: () => true,
+});
+
+// =============================================================================
+// STARTUP VALIDATION
+// =============================================================================
+
+function validateConfiguration() {
+  if (!CONFIG.SUBSCRIPTION_KEY) {
+    logger.warn(
+      'MTN MoMo subscription key is not configured',
+    );
   }
-  throw lastError;
+
+  if (!CONFIG.TOKEN) {
+    logger.warn(
+      'MTN MoMo bearer token is not configured',
+    );
+  }
+
+  if (
+    CONFIG.TARGET_ENV !== 'sandbox' &&
+    CONFIG.TARGET_ENV !== 'production'
+  ) {
+    logger.warn(
+      'Unexpected MTN target environment',
+      {
+        targetEnv:
+          CONFIG.TARGET_ENV,
+      },
+    );
+  }
+
+  if (
+    CONFIG.TARGET_ENV === 'production' &&
+    !CONFIG.BASE_URL.startsWith('https://')
+  ) {
+    logger.error(
+      'MTN production environment must use HTTPS',
+    );
+  }
 }
 
-/**
- * requestToPay
- *
- * Initiates a Request-to-Pay (collection) call to MTN MoMo.
- *
- * Params:
- *  - phone: MSISDN string (e.g., "25677XXXXXXX")
- *  - amount: numeric or string amount (positive)
- *  - reference: optional external reference; if not provided a UUID will be generated and used as X-Reference-Id
- *  - currency: optional ISO currency (defaults to UGX)
- *
- * Returns: MTN API response object
- *
- * Throws: Error with details on failure
- */
-exports.requestToPay = async ({ phone, amount, reference, currency } = {}) => {
-  if (!phone) throw new Error("phone is required");
-  if (amount == null || Number(amount) <= 0) throw new Error("amount must be a positive number");
+validateConfiguration();
 
-  const extRef = reference || randomUUID();
+// =============================================================================
+// MONEY VALIDATION
+// =============================================================================
+//
+// Avoid Number arithmetic for financial values.
+//
+
+function normalizeAmount(amount) {
+  if (
+    amount === undefined ||
+    amount === null ||
+    amount === ''
+  ) {
+    throw createValidationError(
+      'amount is required',
+    );
+  }
+
+  const value = String(amount).trim();
+
+  if (!/^\d+(\.\d+)?$/.test(value)) {
+    throw createValidationError(
+      'amount must be a positive numeric value',
+    );
+  }
+
+  const numeric =
+    Number(value);
+
+  if (
+    !Number.isFinite(numeric) ||
+    numeric <= 0
+  ) {
+    throw createValidationError(
+      'amount must be greater than zero',
+    );
+  }
+
+  return value;
+}
+
+// =============================================================================
+// PHONE VALIDATION
+// =============================================================================
+//
+// MTN's Request-to-Pay examples use MSISDN party IDs.
+// Keep formatting strict enough to prevent accidental malformed requests.
+//
+
+function normalizePhone(phone) {
+  const value =
+    String(phone || '').trim();
+
+  if (!value) {
+    throw createValidationError(
+      'phone is required',
+    );
+  }
+
+  // Accept international numeric MSISDN format.
+  if (!/^\d{8,15}$/.test(value)) {
+    throw createValidationError(
+      'phone must be a valid MSISDN',
+    );
+  }
+
+  return value;
+}
+
+// =============================================================================
+// REFERENCE VALIDATION
+// =============================================================================
+
+function normalizeReference(
+  reference,
+) {
+  if (
+    reference === undefined ||
+    reference === null ||
+    reference === ''
+  ) {
+    return randomUUID();
+  }
+
+  const value =
+    String(reference).trim();
+
+  if (value.length > 100) {
+    throw createValidationError(
+      'reference must not exceed 100 characters',
+    );
+  }
+
+  return value;
+}
+
+// =============================================================================
+// CURRENCY VALIDATION
+// =============================================================================
+
+function normalizeCurrency(currency) {
+  const value =
+    String(
+      currency ||
+        CONFIG.DEFAULT_CURRENCY,
+    )
+      .trim()
+      .toUpperCase();
+
+  if (!/^[A-Z]{3}$/.test(value)) {
+    throw createValidationError(
+      'currency must be a valid 3-letter ISO currency code',
+    );
+  }
+
+  return value;
+}
+
+// =============================================================================
+// COMMON VALIDATION ERROR
+// =============================================================================
+
+function createValidationError(
+  message,
+) {
+  const error =
+    new Error(message);
+
+  error.code =
+    'MOMO_VALIDATION_ERROR';
+
+  error.statusCode =
+    400;
+
+  error.retryable =
+    false;
+
+  return error;
+}
+
+// =============================================================================
+// RETRY POLICY
+// =============================================================================
+
+function isRetryableStatus(status) {
+  if (!status) {
+    return true;
+  }
+
+  // Never retry normal client errors.
+  if (
+    status >= 400 &&
+    status < 500
+  ) {
+    // 429 Too Many Requests is retryable.
+    return status === 429;
+  }
+
+  // 5xx provider/server failures are retryable.
+  return status >= 500;
+}
+
+function retryDelay(attempt) {
+  const exponential =
+    CONFIG.RETRY_DELAY_MS *
+    Math.pow(2, attempt - 1);
+
+  // Small jitter avoids synchronized retry bursts.
+  const jitter =
+    Math.floor(
+      Math.random() * 100,
+    );
+
+  return exponential + jitter;
+}
+
+async function sleep(ms) {
+  await new Promise(
+    (resolve) =>
+      setTimeout(resolve, ms),
+  );
+}
+
+// =============================================================================
+// HTTP REQUEST
+// =============================================================================
+
+async function httpRequest(
+  requestConfig,
+  retries = CONFIG.MAX_RETRIES,
+) {
+  let attempt = 0;
+  let lastError;
+
+  while (attempt <= retries) {
+    try {
+      const response =
+        await axiosInstance.request(
+          requestConfig,
+        );
+
+      if (
+        response.status >= 200 &&
+        response.status < 300
+      ) {
+        return response;
+      }
+
+      const providerError =
+        new Error(
+          `MTN API returned HTTP ${response.status}`,
+        );
+
+      providerError.response =
+        response;
+
+      providerError.status =
+        response.status;
+
+      providerError.retryable =
+        isRetryableStatus(
+          response.status,
+        );
+
+      if (
+        !providerError.retryable ||
+        attempt >= retries
+      ) {
+        throw providerError;
+      }
+
+      lastError =
+        providerError;
+    } catch (error) {
+      lastError = error;
+
+      const status =
+        error?.response?.status ||
+        error?.status;
+
+      const retryable =
+        error?.retryable ??
+        (!status ||
+          isRetryableStatus(
+            status,
+          ));
+
+      attempt += 1;
+
+      if (
+        attempt > retries ||
+        !retryable
+      ) {
+        break;
+      }
+
+      await sleep(
+        retryDelay(attempt),
+      );
+
+      continue;
+    }
+
+    attempt += 1;
+
+    if (
+      attempt <= retries
+    ) {
+      await sleep(
+        retryDelay(attempt),
+      );
+    }
+  }
+
+  throw normalizeProviderError(
+    lastError,
+  );
+}
+
+// =============================================================================
+// ERROR NORMALIZATION
+// =============================================================================
+
+function normalizeProviderError(
+  error,
+) {
+  if (
+    error?.code ===
+    'MOMO_VALIDATION_ERROR'
+  ) {
+    return error;
+  }
+
+  const providerStatus =
+    error?.response?.status ??
+    error?.status;
+
+  const providerBody =
+    error?.response?.data ??
+    null;
+
+  const normalized =
+    new Error(
+      'MTN MoMo request failed',
+    );
+
+  normalized.code =
+    'MOMO_PROVIDER_ERROR';
+
+  normalized.statusCode =
+    providerStatus || 502;
+
+  normalized.retryable =
+    Boolean(
+      error?.retryable,
+    );
+
+  normalized.details = {
+    status:
+      providerStatus,
+    body:
+      providerBody,
+    message:
+      error?.message,
+  };
+
+  return normalized;
+}
+
+// =============================================================================
+// HEADERS
+// =============================================================================
+
+function buildHeaders(
+  reference,
+) {
+  if (!CONFIG.TOKEN) {
+    const error =
+      new Error(
+        'MTN_TOKEN is not configured',
+      );
+
+    error.code =
+      'MOMO_AUTH_NOT_CONFIGURED';
+
+    error.statusCode =
+      503;
+
+    error.retryable =
+      false;
+
+    throw error;
+  }
+
+  if (!CONFIG.SUBSCRIPTION_KEY) {
+    const error =
+      new Error(
+        'MTN_SUBSCRIPTION_KEY is not configured',
+      );
+
+    error.code =
+      'MOMO_SUBSCRIPTION_NOT_CONFIGURED';
+
+    error.statusCode =
+      503;
+
+    error.retryable =
+      false;
+
+    throw error;
+  }
+
+  return {
+    Authorization:
+      `Bearer ${CONFIG.TOKEN}`,
+
+    'X-Target-Environment':
+      CONFIG.TARGET_ENV,
+
+    'X-Reference-Id':
+      reference,
+
+    'Ocp-Apim-Subscription-Key':
+      CONFIG.SUBSCRIPTION_KEY,
+
+    'Content-Type':
+      'application/json',
+  };
+}
+
+// =============================================================================
+// REQUEST-TO-PAY CORE IMPLEMENTATION
+// =============================================================================
+
+async function requestToPayCore({
+  phone,
+  amount,
+  reference,
+  currency,
+  payerMessage,
+  payeeNote,
+  transferType,
+}) {
+  const normalizedPhone =
+    normalizePhone(phone);
+
+  const normalizedAmount =
+    normalizeAmount(amount);
+
+  const externalId =
+    normalizeReference(reference);
+
+  const normalizedCurrency =
+    normalizeCurrency(currency);
+
   const body = {
-    amount: String(amount),
-    currency: (currency || DEFAULT_CURRENCY).toUpperCase(),
-    externalId: extRef,
+    amount:
+      normalizedAmount,
+
+    currency:
+      normalizedCurrency,
+
+    externalId,
+
     payer: {
-      partyIdType: "MSISDN",
-      partyId: phone,
+      partyIdType:
+        'MSISDN',
+
+      partyId:
+        normalizedPhone,
     },
-    payerMessage: `Payment request ${extRef}`,
-    payeeNote: `Request for ${extRef}`,
+
+    payerMessage:
+      String(
+        payerMessage ||
+          `Payment request ${externalId}`,
+      ).substring(0, 160),
+
+    payeeNote:
+      String(
+        payeeNote ||
+          `Request for ${externalId}`,
+      ).substring(0, 160),
   };
 
-  const headers = {
-    Authorization: `Bearer ${TOKEN}`,
-    "X-Reference-Id": extRef,
-    "X-Target-Environment": TARGET_ENV,
-    // Ocp-Apim-Subscription-Key is set on axiosInstance defaults if provided
+  // Aggregator configurations require transferType.
+  if (transferType) {
+    body.transferType =
+      String(
+        transferType,
+      ).trim();
+  }
+
+  const response =
+    await httpRequest({
+      method: 'POST',
+
+      url:
+        '/collection/v1_0/requesttopay',
+
+      data:
+        body,
+
+      headers:
+        buildHeaders(externalId),
+    });
+
+  logger.info(
+    'MTN Request-to-Pay initiated',
+    {
+      externalId,
+      amount:
+        normalizedAmount,
+      currency:
+        normalizedCurrency,
+      status:
+        response.status,
+    },
+  );
+
+  return {
+    accepted:
+      response.status === 202,
+
+    status:
+      response.status,
+
+    externalId,
+
+    data:
+      response.data ??
+      null,
+
+    headers:
+      response.headers,
   };
+}
+
+// =============================================================================
+// REQUEST-TO-PAY CIRCUIT BREAKER
+// =============================================================================
+
+const fallbackRequestToPay =
+  async (payload) => {
+    const reference =
+      payload?.reference ||
+      payload?.externalId ||
+      undefined;
+
+    logger.warn(
+      'MTN Request-to-Pay circuit fallback triggered',
+      {
+        externalId:
+          reference,
+      },
+    );
+
+    return {
+      accepted:
+        false,
+
+      status:
+        503,
+
+      externalId:
+        reference,
+
+      data:
+        null,
+
+      degraded:
+        true,
+
+      reason:
+        'MOMO_PROVIDER_UNAVAILABLE',
+    };
+  };
+
+let protectedRequestToPay =
+  requestToPayCore;
+
+let momoBreaker =
+  null;
+
+if (
+  typeof circuitFactory ===
+  'function'
+) {
+  try {
+    const result =
+      circuitFactory(
+        requestToPayCore,
+        {
+          timeout:
+            CONFIG.CIRCUIT_TIMEOUT_MS,
+
+          errorThresholdPercentage:
+            CONFIG.CIRCUIT_ERROR_THRESHOLD,
+
+          resetTimeout:
+            CONFIG.CIRCUIT_RESET_TIMEOUT_MS,
+        },
+
+        fallbackRequestToPay,
+      );
+
+    protectedRequestToPay =
+      result.fire ||
+      requestToPayCore;
+
+    momoBreaker =
+      result.breaker ||
+      null;
+  } catch (error) {
+    logger.warn(
+      'MoMo circuit breaker initialization failed; continuing without breaker',
+      {
+        error:
+          error.message,
+      },
+    );
+  }
+}
+
+// =============================================================================
+// PUBLIC: REQUEST-TO-PAY
+// =============================================================================
+
+async function requestToPay(
+  payload = {},
+) {
+  try {
+    return await protectedRequestToPay(
+      payload,
+    );
+  } catch (error) {
+    const normalized =
+      normalizeProviderError(
+        error,
+      );
+
+    logger.error(
+      'MTN Request-to-Pay failed',
+      {
+        externalId:
+          payload?.reference,
+
+        amount:
+          payload?.amount,
+
+        status:
+          normalized.statusCode,
+
+        code:
+          normalized.code,
+
+        message:
+          normalized.message,
+      },
+    );
+
+    throw normalized;
+  }
+}
+
+// =============================================================================
+// PUBLIC: REQUEST-TO-PAY STATUS
+// =============================================================================
+
+async function getRequestToPayStatus({
+  reference,
+} = {}) {
+  const normalizedReference =
+    normalizeReference(reference);
 
   try {
-    const resp = await httpRequestWithRetry({
-      method: "post",
-      url: "/collection/v1_0/requesttopay",
-      data: body,
-      headers,
-    });
+    const response =
+      await httpRequest({
+        method:
+          'GET',
 
-    // MTN returns 202 Accepted with no body in some environments; return structured result
-    const result = {
-      status: resp.status,
-      data: resp.data || null,
-      externalId: extRef,
-      headers: resp.headers,
+        url:
+          `/collection/v1_0/requesttopay/${encodeURIComponent(
+            normalizedReference,
+          )}`,
+
+        headers:
+          buildHeaders(
+            normalizedReference,
+          ),
+      });
+
+    logger.info(
+      'MTN Request-to-Pay status fetched',
+      {
+        reference:
+          normalizedReference,
+
+        status:
+          response.status,
+      },
+    );
+
+    return {
+      status:
+        response.status,
+
+      reference:
+        normalizedReference,
+
+      data:
+        response.data ??
+        null,
+
+      headers:
+        response.headers,
     };
+  } catch (error) {
+    const normalized =
+      normalizeProviderError(
+        error,
+      );
 
-    logger?.info?.("MTN requestToPay initiated", { externalId: extRef, phone, amount });
-    return result;
-  } catch (err) {
-    logger?.error?.("MTN requestToPay failed", {
-      externalId: extRef,
-      phone,
-      amount,
-      message: err?.message,
-      status: err?.response?.status,
-      body: err?.response?.data,
-    });
+    logger.error(
+      'Failed to fetch MTN Request-to-Pay status',
+      {
+        reference:
+          normalizedReference,
 
-    const error = new Error("Failed to initiate request-to-pay");
-    error.details = {
-      externalId: extRef,
-      status: err?.response?.status,
-      body: err?.response?.data,
-      message: err?.message,
-    };
-    throw error;
+        status:
+          normalized.statusCode,
+
+        code:
+          normalized.code,
+
+        message:
+          normalized.message,
+      },
+    );
+
+    throw normalized;
   }
-};
+}
 
-/**
- * getRequestToPayStatus
- *
- * Fetches the status of a previously initiated Request-to-Pay using X-Reference-Id.
- *
- * Params:
- *  - reference: X-Reference-Id used when initiating the request
- *
- * Returns: MTN API response object
- */
-exports.getRequestToPayStatus = async ({ reference } = {}) => {
-  if (!reference) throw new Error("reference is required");
+// =============================================================================
+// DISBURSEMENT CORE
+// =============================================================================
 
-  const headers = {
-    Authorization: `Bearer ${TOKEN}`,
-    "X-Target-Environment": TARGET_ENV,
-  };
+async function initiatePayoutCore({
+  phone,
+  amount,
+  reference,
+  currency,
+  payerMessage,
+  payeeNote,
+  transferType,
+}) {
+  const normalizedPhone =
+    normalizePhone(phone);
 
-  try {
-    const resp = await httpRequestWithRetry({
-      method: "get",
-      url: `/collection/v1_0/requesttopay/${reference}`,
-      headers,
-    });
+  const normalizedAmount =
+    normalizeAmount(amount);
 
-    logger?.info?.("MTN requestToPay status fetched", { reference, status: resp.status });
-    return { status: resp.status, data: resp.data, headers: resp.headers };
-  } catch (err) {
-    logger?.error?.("Failed to fetch requestToPay status", {
-      reference,
-      message: err?.message,
-      status: err?.response?.status,
-      body: err?.response?.data,
-    });
+  const externalId =
+    normalizeReference(reference);
 
-    const error = new Error("Failed to fetch request-to-pay status");
-    error.details = {
-      reference,
-      status: err?.response?.status,
-      body: err?.response?.data,
-      message: err?.message,
-    };
-    throw error;
-  }
-};
+  const normalizedCurrency =
+    normalizeCurrency(currency);
 
-/**
- * initiatePayout (optional)
- *
- * Initiates a payout (disbursement) to a customer's MSISDN using the disbursement API.
- * Note: Many providers require a separate API key/permission for disbursements.
- *
- * Params:
- *  - phone, amount, reference, currency
- */
-exports.initiatePayout = async ({ phone, amount, reference, currency } = {}) => {
-  if (!phone) throw new Error("phone is required");
-  if (amount == null || Number(amount) <= 0) throw new Error("amount must be a positive number");
-
-  const extRef = reference || randomUUID();
   const body = {
-    amount: String(amount),
-    currency: (currency || DEFAULT_CURRENCY).toUpperCase(),
-    externalId: extRef,
+    amount:
+      normalizedAmount,
+
+    currency:
+      normalizedCurrency,
+
+    externalId,
+
     payee: {
-      partyIdType: "MSISDN",
-      partyId: phone,
+      partyIdType:
+        'MSISDN',
+
+      partyId:
+        normalizedPhone,
     },
-    payerMessage: `Payout ${extRef}`,
-    payeeNote: `Payout ${extRef}`,
+
+    payerMessage:
+      String(
+        payerMessage ||
+          `Payout ${externalId}`,
+      ).substring(0, 160),
+
+    payeeNote:
+      String(
+        payeeNote ||
+          `Payout ${externalId}`,
+      ).substring(0, 160),
   };
 
-  const headers = {
-    Authorization: `Bearer ${TOKEN}`,
-    "X-Reference-Id": extRef,
-    "X-Target-Environment": TARGET_ENV,
-  };
-
-  try {
-    const resp = await httpRequestWithRetry({
-      method: "post",
-      url: "/disbursement/v1_0/transfer",
-      data: body,
-      headers,
-    });
-
-    logger?.info?.("MTN initiatePayout initiated", { externalId: extRef, phone, amount });
-    return { status: resp.status, data: resp.data, externalId: extRef, headers: resp.headers };
-  } catch (err) {
-    logger?.error?.("MTN initiatePayout failed", {
-      externalId: extRef,
-      phone,
-      amount,
-      message: err?.message,
-      status: err?.response?.status,
-      body: err?.response?.data,
-    });
-
-    const error = new Error("Failed to initiate payout");
-    error.details = {
-      externalId: extRef,
-      status: err?.response?.status,
-      body: err?.response?.data,
-      message: err?.message,
-    };
-    throw error;
+  if (transferType) {
+    body.transferType =
+      String(
+        transferType,
+      ).trim();
   }
+
+  const response =
+    await httpRequest({
+      method:
+        'POST',
+
+      url:
+        '/disbursement/v1_0/transfer',
+
+      data:
+        body,
+
+      headers:
+        buildHeaders(
+          externalId,
+        ),
+    });
+
+  logger.info(
+    'MTN disbursement initiated',
+    {
+      externalId,
+
+      amount:
+        normalizedAmount,
+
+      currency:
+        normalizedCurrency,
+
+      status:
+        response.status,
+    },
+  );
+
+  return {
+    accepted:
+      response.status === 202,
+
+    status:
+      response.status,
+
+    externalId,
+
+    data:
+      response.data ??
+      null,
+
+    headers:
+      response.headers,
+  };
+}
+
+// =============================================================================
+// PUBLIC: PAYOUT
+// =============================================================================
+
+async function initiatePayout(
+  payload = {},
+) {
+  try {
+    return await initiatePayoutCore(
+      payload,
+    );
+  } catch (error) {
+    const normalized =
+      normalizeProviderError(
+        error,
+      );
+
+    logger.error(
+      'MTN disbursement failed',
+      {
+        externalId:
+          payload?.reference,
+
+        amount:
+          payload?.amount,
+
+        status:
+          normalized.statusCode,
+
+        code:
+          normalized.code,
+
+        message:
+          normalized.message,
+      },
+    );
+
+    throw normalized;
+  }
+}
+
+// =============================================================================
+// OPTIONAL: GENERIC HEALTH CHECK
+// =============================================================================
+
+async function healthCheck() {
+  return {
+    configured:
+      Boolean(
+        CONFIG.SUBSCRIPTION_KEY &&
+        CONFIG.TOKEN,
+      ),
+
+    targetEnvironment:
+      CONFIG.TARGET_ENV,
+
+    baseUrl:
+      CONFIG.BASE_URL,
+
+    circuitBreaker:
+      Boolean(momoBreaker),
+
+    timestamp:
+      new Date(),
+  };
+}
+
+// =============================================================================
+// CONFIG SNAPSHOT
+// =============================================================================
+//
+// Never return TOKEN/API keys/subscription keys.
+//
+
+function getConfigSnapshot() {
+  return {
+    baseUrl:
+      CONFIG.BASE_URL,
+
+    targetEnvironment:
+      CONFIG.TARGET_ENV,
+
+    defaultCurrency:
+      CONFIG.DEFAULT_CURRENCY,
+
+    requestTimeoutMs:
+      CONFIG.REQUEST_TIMEOUT_MS,
+
+    maxRetries:
+      CONFIG.MAX_RETRIES,
+
+    retryDelayMs:
+      CONFIG.RETRY_DELAY_MS,
+
+    credentialsConfigured: {
+      token:
+        Boolean(CONFIG.TOKEN),
+
+      subscriptionKey:
+        Boolean(
+          CONFIG.SUBSCRIPTION_KEY,
+        ),
+
+      apiUser:
+        Boolean(CONFIG.API_USER),
+
+      apiKey:
+        Boolean(CONFIG.API_KEY),
+    },
+
+    circuitBreakerConfigured:
+      Boolean(momoBreaker),
+  };
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+module.exports = {
+  requestToPay,
+
+  getRequestToPayStatus,
+
+  initiatePayout,
+
+  healthCheck,
+
+  getConfigSnapshot,
+
+  momoBreaker,
 };

@@ -1,210 +1,343 @@
-'use strict';
-
 /**
  * =============================================================================
  * TITech Community Capital LTD
  * Enterprise Process Environment Bootstrap
+ * =============================================================================
  *
  * File:
  *   backend/bootstrap/environment.js
  *
- * Production Grade
- * -----------------------------------------------------------------------------
- * Responsibilities
- * - Load environment variables exactly once.
- * - Preserve externally supplied environment variables.
- * - Normalize NODE_ENV consistently.
- * - Support .env, .env.<environment>, .env.local and
- *   .env.<environment>.local.
- * - Normalize booleans, numbers, URLs, lists and secrets.
- * - Support backward-compatible environment aliases.
- * - Validate critical application/runtime configuration.
- * - Enforce production safety requirements.
- * - Expose typed immutable configuration.
- * - Keep secrets out of diagnostics and validation messages.
- * - Provide safe runtime metadata.
- * - Expose a callable bootstrap contract for backend/bootstrap/app.js.
+ * Module:
+ *   ES Modules (ESM)
  *
- * Architectural boundary
+ * Responsibilities:
+ *   - Load environment variables exactly once.
+ *   - Preserve externally supplied environment variables.
+ *   - Normalize NODE_ENV.
+ *   - Support:
+ *       .env
+ *       .env.<environment>
+ *       .env.local
+ *       .env.<environment>.local
+ *   - Normalize booleans, integers, URLs, lists and secrets.
+ *   - Support backward-compatible environment aliases.
+ *   - Validate critical application/runtime configuration.
+ *   - Enforce production safety requirements.
+ *   - Expose immutable typed configuration.
+ *   - Keep secrets out of diagnostics.
+ *   - Provide safe runtime metadata.
+ *   - Expose initialize/start/bootstrap compatibility functions.
  *
- * process.env
- *      ↓
- * this module
- *      ↓
- * config/index.js
- *      ↓
- * observability / resilience / infrastructure
- *      ↓
- * services / middleware / routes
- *      ↓
- * server
+ * Architectural boundary:
  *
- * IMPORTANT:
- * This module MUST NOT:
- * - connect to MongoDB
- * - connect to Redis
- * - initialize queues
- * - initialize Socket.IO
- * - create an HTTP server
- * - initialize business services
- * - orchestrate application startup
+ *   process.env
+ *        ↓
+ *   environment.js
+ *        ↓
+ *   config/index.js
+ *        ↓
+ *   observability / resilience / infrastructure
+ *        ↓
+ *   services / middleware / routes
+ *        ↓
+ *   server
+ *
+ * MUST NOT:
+ *   - connect to MongoDB
+ *   - connect to Redis
+ *   - initialize queues
+ *   - initialize Socket.IO
+ *   - initialize business services
+ *   - create HTTP server
+ *   - orchestrate application startup
  *
  * =============================================================================
  */
 
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+'use strict';
 
-const dotenv = require('dotenv');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-/* =============================================================================
- * Constants
- * =============================================================================
- */
+import dotenv from 'dotenv';
 
-const NODE_ENVIRONMENTS = Object.freeze([
-  'development',
-  'test',
-  'staging',
-  'production',
-]);
+import {
+  fileURLToPath,
+} from 'node:url';
 
-const NODE_ENV_ALIASES = Object.freeze({
-  dev: 'development',
-  development: 'development',
+// =============================================================================
+// ESM PATH IDENTITY
+// =============================================================================
 
-  test: 'test',
+const CURRENT_FILE =
+  fileURLToPath(
+    import.meta.url,
+  );
 
-  stage: 'staging',
-  staging: 'staging',
+const CURRENT_DIRECTORY =
+  path.dirname(
+    CURRENT_FILE,
+  );
 
-  prod: 'production',
-  production: 'production',
-});
+const PROJECT_ROOT =
+  path.resolve(
+    CURRENT_DIRECTORY,
+    '..',
+    '..',
+  );
 
-const TRUE_VALUES = new Set([
-  '1',
-  'true',
-  'yes',
-  'on',
-  'enabled',
-]);
+// =============================================================================
+// CONSTANTS
+// =============================================================================
 
-const FALSE_VALUES = new Set([
-  '0',
-  'false',
-  'no',
-  'off',
-  'disabled',
-]);
+const NODE_ENVIRONMENTS =
+  Object.freeze([
+    'development',
+    'test',
+    'staging',
+    'production',
+  ]);
 
-const LOG_LEVELS = Object.freeze([
-  'fatal',
-  'error',
-  'warn',
-  'info',
-  'debug',
-  'trace',
-  'silent',
-]);
+const NODE_ENV_ALIASES =
+  Object.freeze({
+    dev: 'development',
+    development: 'development',
 
-const JWT_ALGORITHMS = Object.freeze([
-  'HS256',
-  'HS384',
-  'HS512',
-]);
+    test: 'test',
 
-const DEFAULTS = Object.freeze({
-  NODE_ENV: 'development',
+    stage: 'staging',
+    staging: 'staging',
 
-  APP_NAME: 'TITech Community Capital LTD',
-  SERVICE_NAME: 'titech-community-capital-backend',
-  APP_VERSION: '1.0.0',
+    prod: 'production',
+    production: 'production',
+  });
 
-  HOST: '0.0.0.0',
-  PORT: 5000,
+const TRUE_VALUES =
+  new Set([
+    '1',
+    'true',
+    'yes',
+    'on',
+    'enabled',
+  ]);
 
-  LOG_LEVEL: 'info',
-  LOG_PRETTY: true,
-  LOG_REDACT_SECRETS: true,
-  ENABLE_REQUEST_LOGGING: true,
+const FALSE_VALUES =
+  new Set([
+    '0',
+    'false',
+    'no',
+    'off',
+    'disabled',
+  ]);
 
-  TRUST_PROXY: 0,
+const LOG_LEVELS =
+  Object.freeze([
+    'fatal',
+    'error',
+    'warn',
+    'info',
+    'debug',
+    'trace',
+    'silent',
+  ]);
 
-  CORS_ORIGINS: '',
-  CORS_CREDENTIALS: true,
-  CORS_MAX_AGE_SECONDS: 86_400,
+const JWT_ALGORITHMS =
+  Object.freeze([
+    'HS256',
+    'HS384',
+    'HS512',
+  ]);
 
-  BODY_LIMIT: '1mb',
-  JSON_LIMIT: '1mb',
-  URLENCODED_LIMIT: '1mb',
+const DEFAULTS =
+  Object.freeze({
+    NODE_ENV:
+      'development',
 
-  REQUEST_TIMEOUT_MS: 60_000,
-  HEADERS_TIMEOUT_MS: 70_000,
-  KEEP_ALIVE_TIMEOUT_MS: 65_000,
-  SOCKET_TIMEOUT_MS: 65_000,
-  SHUTDOWN_TIMEOUT_MS: 30_000,
+    APP_NAME:
+      'TITech Community Capital LTD',
 
-  MONGODB_MAX_POOL_SIZE: 20,
-  MONGODB_MIN_POOL_SIZE: 5,
-  MONGODB_SERVER_SELECTION_TIMEOUT_MS: 10_000,
-  MONGODB_SOCKET_TIMEOUT_MS: 45_000,
-  MONGODB_CONNECT_TIMEOUT_MS: 10_000,
+    SERVICE_NAME:
+      'titech-community-capital-backend',
 
-  REDIS_CONNECT_TIMEOUT_MS: 10_000,
+    APP_VERSION:
+      '1.0.0',
 
-  JWT_ISSUER: 'titech-community-capital',
-  JWT_AUDIENCE: 'titech-community-capital-api',
-  JWT_ACCESS_EXPIRES_IN: '15m',
-  JWT_REFRESH_EXPIRES_IN: '30d',
+    HOST:
+      '0.0.0.0',
 
-  IDEMPOTENCY_TTL_SECONDS: 86_400,
+    PORT:
+      5000,
 
-  PASSWORD_MIN_LENGTH: 12,
+    LOG_LEVEL:
+      'info',
 
-  ENABLE_SWAGGER: false,
-  ENABLE_GRAPHQL: false,
-  ENABLE_METRICS: true,
-  ENABLE_HEALTH_CHECKS: true,
-  ENABLE_TRACING: false,
+    LOG_PRETTY:
+      true,
 
-  ENABLE_CSRF: false,
-  ENABLE_RATE_LIMITING: true,
+    LOG_REDACT_SECRETS:
+      true,
 
-  TLS_ENABLED: false,
-  TLS_REJECT_UNAUTHORIZED: true,
+    ENABLE_REQUEST_LOGGING:
+      true,
 
-  COOKIE_SECURE: false,
-  COOKIE_HTTP_ONLY: true,
-  COOKIE_SAME_SITE: 'lax',
+    TRUST_PROXY:
+      0,
 
-  COMPRESSION_ENABLED: true,
+    CORS_ORIGINS:
+      '',
 
-  GRACEFUL_SHUTDOWN: true,
+    CORS_CREDENTIALS:
+      true,
 
-  MONGODB_ENABLED: true,
-  REDIS_ENABLED: true,
-  QUEUE_ENABLED: true,
+    CORS_MAX_AGE_SECONDS:
+      86_400,
 
-  IDEMPOTENCY_ENABLED: true,
-});
+    CORS_METHODS:
+      'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS',
 
-/* =============================================================================
- * Errors
- * =============================================================================
- */
+    BODY_LIMIT:
+      '1mb',
+
+    JSON_LIMIT:
+      '1mb',
+
+    URLENCODED_LIMIT:
+      '1mb',
+
+    REQUEST_TIMEOUT_MS:
+      60_000,
+
+    HEADERS_TIMEOUT_MS:
+      70_000,
+
+    KEEP_ALIVE_TIMEOUT_MS:
+      65_000,
+
+    SOCKET_TIMEOUT_MS:
+      65_000,
+
+    SHUTDOWN_TIMEOUT_MS:
+      30_000,
+
+    MONGODB_MAX_POOL_SIZE:
+      20,
+
+    MONGODB_MIN_POOL_SIZE:
+      5,
+
+    MONGODB_SERVER_SELECTION_TIMEOUT_MS:
+      10_000,
+
+    MONGODB_SOCKET_TIMEOUT_MS:
+      45_000,
+
+    MONGODB_CONNECT_TIMEOUT_MS:
+      10_000,
+
+    REDIS_CONNECT_TIMEOUT_MS:
+      10_000,
+
+    JWT_ISSUER:
+      'titech-community-capital',
+
+    JWT_AUDIENCE:
+      'titech-community-capital-api',
+
+    JWT_ACCESS_EXPIRES_IN:
+      '15m',
+
+    JWT_REFRESH_EXPIRES_IN:
+      '30d',
+
+    IDEMPOTENCY_TTL_SECONDS:
+      86_400,
+
+    PASSWORD_MIN_LENGTH:
+      12,
+
+    ENABLE_SWAGGER:
+      false,
+
+    ENABLE_GRAPHQL:
+      false,
+
+    ENABLE_METRICS:
+      true,
+
+    ENABLE_HEALTH_CHECKS:
+      true,
+
+    ENABLE_TRACING:
+      false,
+
+    ENABLE_CSRF:
+      false,
+
+    ENABLE_RATE_LIMITING:
+      true,
+
+    TLS_ENABLED:
+      false,
+
+    TLS_REJECT_UNAUTHORIZED:
+      true,
+
+    COOKIE_SECURE:
+      false,
+
+    COOKIE_HTTP_ONLY:
+      true,
+
+    COOKIE_SAME_SITE:
+      'lax',
+
+    COMPRESSION_ENABLED:
+      true,
+
+    GRACEFUL_SHUTDOWN:
+      true,
+
+    MONGODB_ENABLED:
+      true,
+
+    REDIS_ENABLED:
+      true,
+
+    QUEUE_ENABLED:
+      true,
+
+    IDEMPOTENCY_ENABLED:
+      true,
+  });
+
+// =============================================================================
+// ERRORS
+// =============================================================================
 
 class EnvironmentError extends Error {
-  constructor(message, details = {}) {
-    super(message);
+  constructor(
+    message,
+    details = {},
+    cause = null,
+  ) {
+    super(
+      message,
+      cause
+        ? { cause }
+        : undefined,
+    );
 
-    this.name = 'EnvironmentError';
-    this.code = 'INVALID_ENVIRONMENT';
+    this.name =
+      'EnvironmentError';
 
-    this.details = Object.freeze({
-      ...details,
-    });
+    this.code =
+      'INVALID_ENVIRONMENT';
+
+    this.details =
+      Object.freeze({
+        ...details,
+      });
 
     Error.captureStackTrace?.(
       this,
@@ -213,19 +346,23 @@ class EnvironmentError extends Error {
   }
 }
 
-/* =============================================================================
- * General Utilities
- * =============================================================================
- */
+// =============================================================================
+// GENERAL UTILITIES
+// =============================================================================
 
-function hasOwn(object, key) {
+function hasOwn(
+  object,
+  key,
+) {
   return Object.prototype.hasOwnProperty.call(
     object,
     key,
   );
 }
 
-function isBlank(value) {
+function isBlank(
+  value,
+) {
   return (
     value === undefined ||
     value === null ||
@@ -233,18 +370,26 @@ function isBlank(value) {
   );
 }
 
-/**
- * Remove BOM, surrounding whitespace and accidental wrapping quotes.
- */
-function cleanString(value) {
-  if (value === undefined || value === null) {
+function cleanString(
+  value,
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
     return '';
   }
 
   return String(value)
-    .replace(/^\uFEFF/, '')
+    .replace(
+      /^\uFEFF/,
+      '',
+    )
     .trim()
-    .replace(/^(['"])(.*)\1$/s, '$2')
+    .replace(
+      /^(['"])(.*)\1$/s,
+      '$2',
+    )
     .trim();
 }
 
@@ -252,21 +397,27 @@ function normalizeString(
   value,
   fallback = undefined,
 ) {
-  const normalized = cleanString(value);
+  const normalized =
+    cleanString(value);
 
-  return normalized || fallback;
+  return (
+    normalized ||
+    fallback
+  );
 }
 
 function normalizeLowerCase(
   value,
   fallback = undefined,
 ) {
-  const normalized = normalizeString(
-    value,
-    fallback,
-  );
+  const normalized =
+    normalizeString(
+      value,
+      fallback,
+    );
 
-  return normalized === undefined
+  return normalized ===
+    undefined
     ? undefined
     : normalized.toLowerCase();
 }
@@ -275,12 +426,14 @@ function normalizeUpperCase(
   value,
   fallback = undefined,
 ) {
-  const normalized = normalizeString(
-    value,
-    fallback,
-  );
+  const normalized =
+    normalizeString(
+      value,
+      fallback,
+    );
 
-  return normalized === undefined
+  return normalized ===
+    undefined
     ? undefined
     : normalized.toUpperCase();
 }
@@ -289,17 +442,24 @@ function normalizeNodeEnvironment(
   value,
   fallback = DEFAULTS.NODE_ENV,
 ) {
-  const normalized = normalizeLowerCase(
-    value,
-    fallback,
-  );
+  const normalized =
+    normalizeLowerCase(
+      value,
+      fallback,
+    );
 
   return (
-    NODE_ENV_ALIASES[normalized] ||
+    NODE_ENV_ALIASES[
+      normalized
+    ] ||
     normalized ||
     fallback
   );
 }
+
+// =============================================================================
+// PARSERS
+// =============================================================================
 
 function parseBoolean(
   value,
@@ -314,24 +474,40 @@ function parseBoolean(
     return fallback;
   }
 
-  if (typeof value === 'boolean') {
+  if (
+    typeof value ===
+    'boolean'
+  ) {
     return value;
   }
 
-  const normalized = cleanString(value).toLowerCase();
+  const normalized =
+    cleanString(
+      value,
+    ).toLowerCase();
 
-  if (TRUE_VALUES.has(normalized)) {
+  if (
+    TRUE_VALUES.has(
+      normalized,
+    )
+  ) {
     return true;
   }
 
-  if (FALSE_VALUES.has(normalized)) {
+  if (
+    FALSE_VALUES.has(
+      normalized,
+    )
+  ) {
     return false;
   }
 
   throw new EnvironmentError(
     `Environment variable "${variableName}" must be a boolean.`,
     {
-      variable: variableName,
+      variable:
+        variableName,
+
       expected:
         'true/false, 1/0, yes/no, on/off, enabled/disabled',
     },
@@ -355,25 +531,39 @@ function parseInteger(
     return fallback;
   }
 
-  const normalized = cleanString(value);
+  const normalized =
+    cleanString(value);
 
-  if (!/^-?\d+$/.test(normalized)) {
+  if (
+    !/^-?\d+$/.test(
+      normalized,
+    )
+  ) {
     throw new EnvironmentError(
       `Environment variable "${variableName}" must be an integer.`,
       {
-        variable: variableName,
-        expected: 'integer',
+        variable:
+          variableName,
+
+        expected:
+          'integer',
       },
     );
   }
 
-  const parsed = Number(normalized);
+  const parsed =
+    Number(normalized);
 
-  if (!Number.isSafeInteger(parsed)) {
+  if (
+    !Number.isSafeInteger(
+      parsed,
+    )
+  ) {
     throw new EnvironmentError(
       `Environment variable "${variableName}" is outside the safe integer range.`,
       {
-        variable: variableName,
+        variable:
+          variableName,
       },
     );
   }
@@ -385,8 +575,11 @@ function parseInteger(
     throw new EnvironmentError(
       `Environment variable "${variableName}" must be >= ${min}.`,
       {
-        variable: variableName,
-        minimum: min,
+        variable:
+          variableName,
+
+        minimum:
+          min,
       },
     );
   }
@@ -398,8 +591,11 @@ function parseInteger(
     throw new EnvironmentError(
       `Environment variable "${variableName}" must be <= ${max}.`,
       {
-        variable: variableName,
-        maximum: max,
+        variable:
+          variableName,
+
+        maximum:
+          max,
       },
     );
   }
@@ -411,18 +607,26 @@ function parseList(
   value,
   fallback = [],
 ) {
-  if (isBlank(value)) {
-    return [...fallback];
+  if (
+    isBlank(value)
+  ) {
+    return [
+      ...fallback,
+    ];
   }
 
-  const source = Array.isArray(value)
-    ? value
-    : String(value).split(',');
+  const source =
+    Array.isArray(value)
+      ? value
+      : String(value).split(',');
 
   return [
     ...new Set(
       source
-        .map((item) => cleanString(item))
+        .map(
+          (item) =>
+            cleanString(item),
+        )
         .filter(Boolean),
     ),
   ];
@@ -437,46 +641,59 @@ function parseUrl(
     allowCredentials = true,
   } = {},
 ) {
-  if (isBlank(value)) {
+  if (
+    isBlank(value)
+  ) {
     return fallback;
   }
 
   let parsed;
 
   try {
-    parsed = new URL(
-      cleanString(value),
-    );
+    parsed =
+      new URL(
+        cleanString(value),
+      );
   } catch {
     throw new EnvironmentError(
       `Environment variable "${variableName}" must be a valid URL.`,
       {
-        variable: variableName,
+        variable:
+          variableName,
       },
     );
   }
 
   if (
     protocols.length > 0 &&
-    !protocols.includes(parsed.protocol)
+    !protocols.includes(
+      parsed.protocol,
+    )
   ) {
     throw new EnvironmentError(
       `Environment variable "${variableName}" uses an unsupported protocol.`,
       {
-        variable: variableName,
-        allowedProtocols: protocols,
+        variable:
+          variableName,
+
+        allowedProtocols:
+          protocols,
       },
     );
   }
 
   if (
     !allowCredentials &&
-    (parsed.username || parsed.password)
+    (
+      parsed.username ||
+      parsed.password
+    )
   ) {
     throw new EnvironmentError(
       `Environment variable "${variableName}" must not contain URL credentials.`,
       {
-        variable: variableName,
+        variable:
+          variableName,
       },
     );
   }
@@ -492,14 +709,19 @@ function parseSecret(
     minLength = 32,
   } = {},
 ) {
-  const normalized = normalizeString(value);
+  const normalized =
+    normalizeString(value);
 
-  if (normalized === undefined) {
+  if (
+    normalized ===
+    undefined
+  ) {
     if (required) {
       throw new EnvironmentError(
         `Required environment variable "${variableName}" is missing.`,
         {
-          variable: variableName,
+          variable:
+            variableName,
         },
       );
     }
@@ -508,13 +730,17 @@ function parseSecret(
   }
 
   if (
-    normalized.length < minLength
+    normalized.length <
+    minLength
   ) {
     throw new EnvironmentError(
       `Environment variable "${variableName}" does not meet the minimum length requirement.`,
       {
-        variable: variableName,
-        minimumLength: minLength,
+        variable:
+          variableName,
+
+        minimumLength:
+          minLength,
       },
     );
   }
@@ -527,11 +753,17 @@ function ensureEnum(
   allowed,
   variableName,
 ) {
-  if (!allowed.includes(value)) {
+  if (
+    !allowed.includes(
+      value,
+    )
+  ) {
     throw new EnvironmentError(
       `Environment variable "${variableName}" contains an unsupported value.`,
       {
-        variable: variableName,
+        variable:
+          variableName,
+
         allowed,
       },
     );
@@ -540,10 +772,9 @@ function ensureEnum(
   return value;
 }
 
-/* =============================================================================
- * Deep Freeze
- * =============================================================================
- */
+// =============================================================================
+// DEEP FREEZE
+// =============================================================================
 
 function deepFreeze(
   value,
@@ -553,21 +784,26 @@ function deepFreeze(
     value === null ||
     value === undefined ||
     (
-      typeof value !== 'object' &&
-      typeof value !== 'function'
+      typeof value !==
+        'object' &&
+      typeof value !==
+        'function'
     )
   ) {
     return value;
   }
 
-  if (seen.has(value)) {
+  if (
+    seen.has(value)
+  ) {
     return value;
   }
 
   seen.add(value);
 
   for (
-    const key of Reflect.ownKeys(value)
+    const key of
+      Reflect.ownKeys(value)
   ) {
     try {
       deepFreeze(
@@ -580,7 +816,9 @@ function deepFreeze(
   }
 
   try {
-    Object.freeze(value);
+    Object.freeze(
+      value,
+    );
   } catch {
     // Best effort.
   }
@@ -588,19 +826,23 @@ function deepFreeze(
   return value;
 }
 
-/* =============================================================================
- * Environment Aliases
- * =============================================================================
- */
+// =============================================================================
+// ENVIRONMENT ALIASES
+// =============================================================================
 
 function firstEnvironmentValue(
   names,
   fallback = undefined,
 ) {
-  for (const name of names) {
-    const value = process.env[name];
+  for (
+    const name of names
+  ) {
+    const value =
+      process.env[name];
 
-    if (!isBlank(value)) {
+    if (
+      !isBlank(value)
+    ) {
       return value;
     }
   }
@@ -608,44 +850,63 @@ function firstEnvironmentValue(
   return fallback;
 }
 
-/* =============================================================================
- * Environment File Loading
- * =============================================================================
- */
+// =============================================================================
+// ENVIRONMENT FILE LOADING
+// =============================================================================
+//
+// Important:
+//
+// Existing process.env variables always win.
+//
+// Files are loaded in deterministic order:
+//
+//   .env
+//   .env.<environment>
+//   .env.local
+//   .env.<environment>.local
+//
+// Because values are only written when undefined, externally supplied
+// environment variables cannot accidentally be overwritten.
+//
 
-const PROJECT_ROOT = path.resolve(
-  __dirname,
-  '..',
-  '..',
-);
+let environmentFilesLoaded = false;
+
+let loadedEnvironmentFiles =
+  Object.freeze([]);
 
 function loadEnvFile(
   filePath,
 ) {
-  if (!fs.existsSync(filePath)) {
+  if (
+    !fs.existsSync(
+      filePath,
+    )
+  ) {
     return false;
   }
 
-  const parsed = dotenv.parse(
-    fs.readFileSync(
-      filePath,
-      'utf8',
-    ),
-  );
+  const parsed =
+    dotenv.parse(
+      fs.readFileSync(
+        filePath,
+        'utf8',
+      ),
+    );
 
-  /*
-   * Existing process variables always win.
-   */
   for (
     const [
       key,
       value,
-    ] of Object.entries(parsed)
+    ] of Object.entries(
+      parsed,
+    )
   ) {
     if (
-      process.env[key] === undefined
+      process.env[key] ===
+      undefined
     ) {
-      process.env[key] = value;
+      process.env[key] =
+        value;
     }
   }
 
@@ -653,27 +914,37 @@ function loadEnvFile(
 }
 
 function loadDotEnv() {
-  const loadedFiles = [];
+  if (
+    environmentFilesLoaded
+  ) {
+    return loadedEnvironmentFiles;
+  }
 
-  const candidates = [];
+  const loaded =
+    [];
 
-  const baseEnvFile =
+  /*
+   * First load base .env.
+   */
+  const baseEnvPath =
     path.join(
       PROJECT_ROOT,
       '.env',
     );
 
-  candidates.push(
-    baseEnvFile,
-  );
+  if (
+    loadEnvFile(
+      baseEnvPath,
+    )
+  ) {
+    loaded.push(
+      baseEnvPath,
+    );
+  }
 
   /*
-   * Load the base .env first so NODE_ENV can be determined from it.
+   * NODE_ENV may itself be provided by .env.
    */
-  loadEnvFile(
-    baseEnvFile,
-  );
-
   const nodeEnv =
     normalizeNodeEnvironment(
       process.env.NODE_ENV,
@@ -683,346 +954,63 @@ function loadDotEnv() {
   process.env.NODE_ENV =
     nodeEnv;
 
-  candidates.push(
+  /*
+   * Then environment-specific/local layers.
+   */
+  const layeredFiles = [
     path.join(
       PROJECT_ROOT,
       `.env.${nodeEnv}`,
     ),
-  );
 
-  candidates.push(
     path.join(
       PROJECT_ROOT,
       '.env.local',
     ),
-  );
 
-  candidates.push(
     path.join(
       PROJECT_ROOT,
       `.env.${nodeEnv}.local`,
     ),
-  );
+  ];
 
-  /*
-   * Load remaining files in deterministic order.
-   */
   for (
-    const filePath of candidates
+    const filePath of
+      layeredFiles
   ) {
     if (
-      filePath ===
-      baseEnvFile
+      loadEnvFile(
+        filePath,
+      )
     ) {
-      if (
-        fs.existsSync(
-          filePath,
-        )
-      ) {
-        loadedFiles.push(
-          filePath,
-        );
-      }
-
-      continue;
-    }
-
-    if (
-      loadEnvFile(filePath)
-    ) {
-      loadedFiles.push(
+      loaded.push(
         filePath,
       );
     }
   }
 
-  return Object.freeze(
-    loadedFiles,
-  );
+  environmentFilesLoaded =
+    true;
+
+  loadedEnvironmentFiles =
+    Object.freeze(
+      loaded,
+    );
+
+  return loadedEnvironmentFiles;
 }
 
-/* =============================================================================
- * Validation
- * =============================================================================
- */
-
-function validateEnvironment(
-  environment,
-) {
-  const errors = [];
-
-  const nodeEnv =
-    environment?.app?.nodeEnv;
-
-  const isProduction =
-    Boolean(
-      environment?.runtime
-        ?.isProduction,
-    );
-
-  /*
-   * NODE_ENV
-   */
-  if (
-    !NODE_ENVIRONMENTS.includes(
-      nodeEnv,
-    )
-  ) {
-    errors.push(
-      `NODE_ENV must be one of: ${NODE_ENVIRONMENTS.join(', ')}`,
-    );
-  }
-
-  /*
-   * HTTP timeout relationship.
-   */
-  if (
-    environment.http.headersTimeoutMs <=
-    environment.http.keepAliveTimeoutMs
-  ) {
-    errors.push(
-      'HEADERS_TIMEOUT_MS must be greater than KEEP_ALIVE_TIMEOUT_MS.',
-    );
-  }
-
-  if (
-    environment.http.socketTimeoutMs <
-    environment.http.requestTimeoutMs
-  ) {
-    errors.push(
-      'SOCKET_TIMEOUT_MS must be greater than or equal to REQUEST_TIMEOUT_MS.',
-    );
-  }
-
-  /*
-   * MongoDB.
-   */
-  if (
-    environment.database.mongodb.enabled &&
-    !environment.database.mongodb.uri
-  ) {
-    errors.push(
-      'MONGODB_URI or MONGO_URI is required when MongoDB is enabled.',
-    );
-  }
-
-  if (
-    environment.database.mongodb.maxPoolSize <
-    environment.database.mongodb.minPoolSize
-  ) {
-    errors.push(
-      'MONGODB_MAX_POOL_SIZE must be greater than or equal to MONGODB_MIN_POOL_SIZE.',
-    );
-  }
-
-  /*
-   * Redis.
-   */
-  if (
-    environment.redis.enabled &&
-    !environment.redis.url
-  ) {
-    errors.push(
-      'REDIS_URL is required when Redis is enabled.',
-    );
-  }
-
-  /*
-   * Idempotency.
-   */
-  if (
-    environment.idempotency.enabled &&
-    environment.idempotency.ttlSeconds < 60
-  ) {
-    errors.push(
-      'IDEMPOTENCY_TTL_SECONDS must be at least 60 seconds.',
-    );
-  }
-
-  /*
-   * Rate limiting.
-   */
-  if (
-    environment.rateLimit.enabled &&
-    environment.rateLimit.max <= 0
-  ) {
-    errors.push(
-      'RATE_LIMIT_MAX must be greater than zero when rate limiting is enabled.',
-    );
-  }
-
-  /*
-   * CORS.
-   */
-  for (
-    const origin of
-      environment.cors.origins
-  ) {
-    if (origin === '*') {
-      if (isProduction) {
-        errors.push(
-          'Wildcard CORS origin (*) is not permitted in production.',
-        );
-      }
-
-      continue;
-    }
-
-    try {
-      const parsedOrigin =
-        new URL(origin);
-
-      if (
-        ![
-          'http:',
-          'https:',
-        ].includes(
-          parsedOrigin.protocol,
-        )
-      ) {
-        throw new Error(
-          'Unsupported origin protocol.',
-        );
-      }
-    } catch {
-      errors.push(
-        `CORS_ORIGINS contains an invalid origin: ${origin}`,
-      );
-    }
-  }
-
-  /*
-   * JWT.
-   */
-  if (isProduction) {
-    if (
-      !environment.jwt.accessSecret
-    ) {
-      errors.push(
-        'JWT_ACCESS_SECRET or JWT_SECRET is required in production.',
-      );
-    }
-
-    if (
-      !environment.jwt.refreshSecret
-    ) {
-      errors.push(
-        'JWT_REFRESH_SECRET or REFRESH_TOKEN_SECRET is required in production.',
-      );
-    }
-
-    if (
-      environment.jwt.accessSecret &&
-      environment.jwt.refreshSecret &&
-      environment.jwt.accessSecret ===
-        environment.jwt.refreshSecret
-    ) {
-      errors.push(
-        'JWT access and refresh secrets must be different in production.',
-      );
-    }
-
-    if (
-      !environment.security.encryptionKey
-    ) {
-      errors.push(
-        'SECURITY_ENCRYPTION_KEY is required in production.',
-      );
-    }
-
-    if (
-      !environment.cookie.secure
-    ) {
-      errors.push(
-        'COOKIE_SECURE must be enabled in production.',
-      );
-    }
-
-    if (
-      environment.security.requireTls &&
-      !environment.tls.enabled
-    ) {
-      errors.push(
-        'TLS is required by configuration but TLS_ENABLED is disabled.',
-      );
-    }
-
-    if (
-      !environment.cors.origins.length
-    ) {
-      errors.push(
-        'CORS_ORIGINS must contain at least one explicitly allowed origin in production.',
-      );
-    }
-
-    if (
-      environment.rateLimit.enabled ===
-      false
-    ) {
-      errors.push(
-        'Rate limiting must not be disabled in production.',
-      );
-    }
-
-    if (
-      environment.security.allowInsecureAuth
-    ) {
-      errors.push(
-        'ALLOW_INSECURE_AUTH must be disabled in production.',
-      );
-    }
-
-    if (
-      !environment.logging.redactSecrets
-    ) {
-      errors.push(
-        'LOG_REDACT_SECRETS must remain enabled in production.',
-      );
-    }
-  }
-
-  /*
-   * TLS.
-   */
-  if (
-    environment.tls.enabled
-  ) {
-    if (
-      !environment.tls.keyPath
-    ) {
-      errors.push(
-        'TLS_KEY_PATH is required when TLS_ENABLED=true.',
-      );
-    }
-
-    if (
-      !environment.tls.certPath
-    ) {
-      errors.push(
-        'TLS_CERT_PATH is required when TLS_ENABLED=true.',
-      );
-    }
-  }
-
-  if (errors.length > 0) {
-    throw new EnvironmentError(
-      `Environment validation failed:\n- ${errors.join('\n- ')}`,
-      {
-        errorCount:
-          errors.length,
-      },
-    );
-  }
-
-  return true;
-}
-
-/* =============================================================================
- * Build Environment
- * =============================================================================
- */
+// =============================================================================
+// BUILD ENVIRONMENT
+// =============================================================================
 
 function buildEnvironment() {
+  /*
+   * Environment files should already be loaded, but calling this function
+   * directly remains safe.
+   */
+  loadDotEnv();
+
   const nodeEnv =
     normalizeNodeEnvironment(
       process.env.NODE_ENV,
@@ -1043,13 +1031,16 @@ function buildEnvironment() {
     'development';
 
   const isTest =
-    nodeEnv === 'test';
+    nodeEnv ===
+    'test';
 
   const isStaging =
-    nodeEnv === 'staging';
+    nodeEnv ===
+    'staging';
 
   const isProduction =
-    nodeEnv === 'production';
+    nodeEnv ===
+    'production';
 
   const mongoUriRaw =
     firstEnvironmentValue([
@@ -1076,11 +1067,16 @@ function buildEnvironment() {
       'ENCRYPTION_KEY',
     ]);
 
+  const corsOriginsRaw =
+    firstEnvironmentValue([
+      'CORS_ORIGINS',
+      'CLIENT_ORIGIN',
+    ]);
+
   const environment = {
-    /* =========================================================================
-     * Application
-     * =========================================================================
-     */
+    // =========================================================================
+    // Application
+    // =========================================================================
 
     app: {
       name:
@@ -1108,14 +1104,19 @@ function buildEnvironment() {
       nodeEnv,
     },
 
-    /* =========================================================================
-     * Runtime
-     * =========================================================================
-     */
+    // =========================================================================
+    // Runtime
+    // =========================================================================
 
     runtime: {
       nodeVersion:
         process.version,
+
+      nodeMajor:
+        Number(
+          process.versions.node
+            .split('.')[0],
+        ),
 
       platform:
         process.platform,
@@ -1126,8 +1127,15 @@ function buildEnvironment() {
       pid:
         process.pid,
 
+      ppid:
+        process.ppid,
+
+      hostname:
+        os.hostname(),
+
       cpuCount:
-        os.cpus?.().length || 1,
+        os.cpus?.().length ||
+        1,
 
       memoryBytes:
         os.totalmem?.(),
@@ -1141,10 +1149,9 @@ function buildEnvironment() {
       isProduction,
     },
 
-    /* =========================================================================
-     * HTTP
-     * =========================================================================
-     */
+    // =========================================================================
+    // HTTP
+    // =========================================================================
 
     http: {
       host:
@@ -1160,8 +1167,12 @@ function buildEnvironment() {
           {
             variableName:
               'PORT',
-            min: 1,
-            max: 65_535,
+
+            min:
+              1,
+
+            max:
+              65_535,
           },
         ),
 
@@ -1172,8 +1183,12 @@ function buildEnvironment() {
           {
             variableName:
               'TRUST_PROXY',
-            min: 0,
-            max: 100,
+
+            min:
+              0,
+
+            max:
+              100,
           },
         ),
 
@@ -1203,8 +1218,12 @@ function buildEnvironment() {
           {
             variableName:
               'REQUEST_TIMEOUT_MS',
-            min: 1_000,
-            max: 86_400_000,
+
+            min:
+              1_000,
+
+            max:
+              86_400_000,
           },
         ),
 
@@ -1216,8 +1235,12 @@ function buildEnvironment() {
           {
             variableName:
               'HEADERS_TIMEOUT_MS',
-            min: 1_000,
-            max: 86_400_000,
+
+            min:
+              1_000,
+
+            max:
+              86_400_000,
           },
         ),
 
@@ -1229,8 +1252,12 @@ function buildEnvironment() {
           {
             variableName:
               'KEEP_ALIVE_TIMEOUT_MS',
-            min: 1_000,
-            max: 86_400_000,
+
+            min:
+              1_000,
+
+            max:
+              86_400_000,
           },
         ),
 
@@ -1241,8 +1268,12 @@ function buildEnvironment() {
           {
             variableName:
               'SOCKET_TIMEOUT_MS',
-            min: 1_000,
-            max: 86_400_000,
+
+            min:
+              1_000,
+
+            max:
+              86_400_000,
           },
         ),
 
@@ -1254,16 +1285,19 @@ function buildEnvironment() {
           {
             variableName:
               'SHUTDOWN_TIMEOUT_MS',
-            min: 1_000,
-            max: 86_400_000,
+
+            min:
+              1_000,
+
+            max:
+              86_400_000,
           },
         ),
     },
 
-    /* =========================================================================
-     * Logging
-     * =========================================================================
-     */
+    // =========================================================================
+    // Logging
+    // =========================================================================
 
     logging: {
       level:
@@ -1298,10 +1332,9 @@ function buildEnvironment() {
         ),
     },
 
-    /* =========================================================================
-     * Observability
-     * =========================================================================
-     */
+    // =========================================================================
+    // Observability
+    // =========================================================================
 
     observability: {
       metricsEnabled:
@@ -1309,6 +1342,13 @@ function buildEnvironment() {
           process.env.ENABLE_METRICS,
           DEFAULTS.ENABLE_METRICS,
           'ENABLE_METRICS',
+        ),
+
+      healthChecksEnabled:
+        parseBoolean(
+          process.env.ENABLE_HEALTH_CHECKS,
+          DEFAULTS.ENABLE_HEALTH_CHECKS,
+          'ENABLE_HEALTH_CHECKS',
         ),
 
       tracingEnabled:
@@ -1325,8 +1365,12 @@ function buildEnvironment() {
           {
             variableName:
               'METRICS_PORT',
-            min: 1,
-            max: 65_535,
+
+            min:
+              1,
+
+            max:
+              65_535,
           },
         ),
 
@@ -1337,10 +1381,14 @@ function buildEnvironment() {
           {
             variableName:
               'OTEL_EXPORTER_OTLP_ENDPOINT',
+
             protocols: [
               'http:',
               'https:',
             ],
+
+            allowCredentials:
+              false,
           },
         ),
 
@@ -1352,10 +1400,9 @@ function buildEnvironment() {
         ),
     },
 
-    /* =========================================================================
-     * Database
-     * =========================================================================
-     */
+    // =========================================================================
+    // MongoDB
+    // =========================================================================
 
     database: {
       mongodb: {
@@ -1373,10 +1420,12 @@ function buildEnvironment() {
             {
               variableName:
                 'MONGODB_URI',
+
               protocols: [
                 'mongodb:',
                 'mongodb+srv:',
               ],
+
               allowCredentials:
                 true,
             },
@@ -1397,8 +1446,12 @@ function buildEnvironment() {
             {
               variableName:
                 'MONGODB_MAX_POOL_SIZE',
-              min: 1,
-              max: 1_000,
+
+              min:
+                1,
+
+              max:
+                1_000,
             },
           ),
 
@@ -1409,8 +1462,12 @@ function buildEnvironment() {
             {
               variableName:
                 'MONGODB_MIN_POOL_SIZE',
-              min: 0,
-              max: 1_000,
+
+              min:
+                0,
+
+              max:
+                1_000,
             },
           ),
 
@@ -1421,8 +1478,12 @@ function buildEnvironment() {
             {
               variableName:
                 'MONGODB_SERVER_SELECTION_TIMEOUT_MS',
-              min: 100,
-              max: 300_000,
+
+              min:
+                100,
+
+              max:
+                300_000,
             },
           ),
 
@@ -1433,8 +1494,12 @@ function buildEnvironment() {
             {
               variableName:
                 'MONGODB_SOCKET_TIMEOUT_MS',
-              min: 1_000,
-              max: 600_000,
+
+              min:
+                1_000,
+
+              max:
+                600_000,
             },
           ),
 
@@ -1445,17 +1510,20 @@ function buildEnvironment() {
             {
               variableName:
                 'MONGODB_CONNECT_TIMEOUT_MS',
-              min: 100,
-              max: 300_000,
+
+              min:
+                100,
+
+              max:
+                300_000,
             },
           ),
       },
     },
 
-    /* =========================================================================
-     * Redis
-     * =========================================================================
-     */
+    // =========================================================================
+    // Redis
+    // =========================================================================
 
     redis: {
       enabled:
@@ -1475,10 +1543,12 @@ function buildEnvironment() {
           {
             variableName:
               'REDIS_URL',
+
             protocols: [
               'redis:',
               'rediss:',
             ],
+
             allowCredentials:
               true,
           },
@@ -1497,8 +1567,12 @@ function buildEnvironment() {
           {
             variableName:
               'REDIS_CONNECT_TIMEOUT_MS',
-            min: 100,
-            max: 300_000,
+
+            min:
+              100,
+
+            max:
+              300_000,
           },
         ),
 
@@ -1509,16 +1583,19 @@ function buildEnvironment() {
           {
             variableName:
               'REDIS_MAX_RETRIES',
-            min: 0,
-            max: 100,
+
+            min:
+              0,
+
+            max:
+              100,
           },
         ),
     },
 
-    /* =========================================================================
-     * Security
-     * =========================================================================
-     */
+    // =========================================================================
+    // Security
+    // =========================================================================
 
     security: {
       encryptionKey:
@@ -1527,9 +1604,12 @@ function buildEnvironment() {
           {
             variableName:
               'SECURITY_ENCRYPTION_KEY',
+
             required:
               isProduction,
-            minLength: 32,
+
+            minLength:
+              32,
           },
         ),
 
@@ -1540,8 +1620,12 @@ function buildEnvironment() {
           {
             variableName:
               'PASSWORD_MIN_LENGTH',
-            min: 8,
-            max: 128,
+
+            min:
+              8,
+
+            max:
+              128,
           },
         ),
 
@@ -1555,7 +1639,8 @@ function buildEnvironment() {
       allowInsecureAuth:
         parseBoolean(
           process.env.ALLOW_INSECURE_AUTH,
-          isDevelopment || isTest,
+          isDevelopment ||
+            isTest,
           'ALLOW_INSECURE_AUTH',
         ),
 
@@ -1567,10 +1652,9 @@ function buildEnvironment() {
         ),
     },
 
-    /* =========================================================================
-     * JWT
-     * =========================================================================
-     */
+    // =========================================================================
+    // JWT
+    // =========================================================================
 
     jwt: {
       accessSecret:
@@ -1579,9 +1663,12 @@ function buildEnvironment() {
           {
             variableName:
               'JWT_ACCESS_SECRET',
+
             required:
               isProduction,
-            minLength: 32,
+
+            minLength:
+              32,
           },
         ),
 
@@ -1591,9 +1678,12 @@ function buildEnvironment() {
           {
             variableName:
               'JWT_REFRESH_SECRET',
+
             required:
               isProduction,
-            minLength: 32,
+
+            minLength:
+              32,
           },
         ),
 
@@ -1632,21 +1722,18 @@ function buildEnvironment() {
         ),
     },
 
-    /* =========================================================================
-     * CORS
-     * =========================================================================
-     */
+    // =========================================================================
+    // CORS
+    // =========================================================================
 
     cors: {
       origins:
         parseList(
-          firstEnvironmentValue([
-            'CORS_ORIGINS',
-            'CLIENT_ORIGIN',
-          ]),
+          corsOriginsRaw,
           isDevelopment
             ? [
                 'http://localhost:3000',
+                'http://localhost:5173',
               ]
             : [],
         ),
@@ -1654,15 +1741,8 @@ function buildEnvironment() {
       methods:
         parseList(
           process.env.CORS_METHODS,
-          [
-            'GET',
-            'HEAD',
-            'POST',
-            'PUT',
-            'PATCH',
-            'DELETE',
-            'OPTIONS',
-          ],
+          DEFAULTS.CORS_METHODS
+            .split(','),
         ),
 
       allowedHeaders:
@@ -1693,16 +1773,19 @@ function buildEnvironment() {
           {
             variableName:
               'CORS_MAX_AGE_SECONDS',
-            min: 0,
-            max: 86_400,
+
+            min:
+              0,
+
+            max:
+              86_400,
           },
         ),
     },
 
-    /* =========================================================================
-     * Rate Limiting
-     * =========================================================================
-     */
+    // =========================================================================
+    // Rate Limiting
+    // =========================================================================
 
     rateLimit: {
       enabled:
@@ -1719,8 +1802,12 @@ function buildEnvironment() {
           {
             variableName:
               'RATE_LIMIT_WINDOW_MS',
-            min: 1_000,
-            max: 86_400_000,
+
+            min:
+              1_000,
+
+            max:
+              86_400_000,
           },
         ),
 
@@ -1731,16 +1818,19 @@ function buildEnvironment() {
           {
             variableName:
               'RATE_LIMIT_MAX',
-            min: 1,
-            max: 1_000_000,
+
+            min:
+              1,
+
+            max:
+              1_000_000,
           },
         ),
     },
 
-    /* =========================================================================
-     * Idempotency
-     * =========================================================================
-     */
+    // =========================================================================
+    // Idempotency
+    // =========================================================================
 
     idempotency: {
       enabled:
@@ -1758,7 +1848,10 @@ function buildEnvironment() {
           {
             variableName:
               'IDEMPOTENCY_TTL_SECONDS',
-            min: 60,
+
+            min:
+              60,
+
             max:
               7 * 86_400,
           },
@@ -1777,16 +1870,19 @@ function buildEnvironment() {
           {
             variableName:
               'IDEMPOTENCY_LOCK_TIMEOUT_MS',
-            min: 1_000,
-            max: 300_000,
+
+            min:
+              1_000,
+
+            max:
+              300_000,
           },
         ),
     },
 
-    /* =========================================================================
-     * Cookie
-     * =========================================================================
-     */
+    // =========================================================================
+    // Cookies
+    // =========================================================================
 
     cookie: {
       secure:
@@ -1831,10 +1927,9 @@ function buildEnvironment() {
         ),
     },
 
-    /* =========================================================================
-     * TLS
-     * =========================================================================
-     */
+    // =========================================================================
+    // TLS
+    // =========================================================================
 
     tls: {
       enabled:
@@ -1870,10 +1965,9 @@ function buildEnvironment() {
         ),
     },
 
-    /* =========================================================================
-     * Features
-     * =========================================================================
-     */
+    // =========================================================================
+    // Features
+    // =========================================================================
 
     features: {
       swaggerEnabled:
@@ -1912,10 +2006,9 @@ function buildEnvironment() {
         ),
     },
 
-    /* =========================================================================
-     * Queue
-     * =========================================================================
-     */
+    // =========================================================================
+    // Queue
+    // =========================================================================
 
     queue: {
       enabled:
@@ -1938,8 +2031,12 @@ function buildEnvironment() {
           {
             variableName:
               'QUEUE_DEFAULT_ATTEMPTS',
-            min: 1,
-            max: 100,
+
+            min:
+              1,
+
+            max:
+              100,
           },
         ),
 
@@ -1950,16 +2047,19 @@ function buildEnvironment() {
           {
             variableName:
               'QUEUE_BACKOFF_DELAY_MS',
-            min: 0,
-            max: 86_400_000,
+
+            min:
+              0,
+
+            max:
+              86_400_000,
           },
         ),
     },
 
-    /* =========================================================================
-     * URLs
-     * =========================================================================
-     */
+    // =========================================================================
+    // URLs
+    // =========================================================================
 
     urls: {
       app:
@@ -1972,10 +2072,12 @@ function buildEnvironment() {
           {
             variableName:
               'APP_URL',
+
             protocols: [
               'http:',
               'https:',
             ],
+
             allowCredentials:
               false,
           },
@@ -1988,10 +2090,12 @@ function buildEnvironment() {
           {
             variableName:
               'API_URL',
+
             protocols: [
               'http:',
               'https:',
             ],
+
             allowCredentials:
               false,
           },
@@ -2007,20 +2111,21 @@ function buildEnvironment() {
           {
             variableName:
               'FRONTEND_URL',
+
             protocols: [
               'http:',
               'https:',
             ],
+
             allowCredentials:
               false,
           },
         ),
     },
 
-    /* =========================================================================
-     * Deployment
-     * =========================================================================
-     */
+    // =========================================================================
+    // Deployment
+    // =========================================================================
 
     deployment: {
       region:
@@ -2046,7 +2151,6 @@ function buildEnvironment() {
         normalizeString(
           firstEnvironmentValue([
             'INSTANCE_ID',
-            'HOSTNAME',
           ]),
           undefined,
         ),
@@ -2076,15 +2180,17 @@ function buildEnvironment() {
         ),
     },
 
-    /* =========================================================================
-     * Flags
-     * =========================================================================
-     */
+    // =========================================================================
+    // Feature flags / Environment flags
+    // =========================================================================
 
     flags: {
       isProduction,
+
       isStaging,
+
       isDevelopment,
+
       isTest,
     },
   };
@@ -2098,10 +2204,380 @@ function buildEnvironment() {
   );
 }
 
-/* =============================================================================
- * Safe Metadata
- * =============================================================================
- */
+// =============================================================================
+// VALIDATION
+// =============================================================================
+
+function validateEnvironment(
+  environment,
+) {
+  const errors =
+    [];
+
+  const nodeEnv =
+    environment?.app
+      ?.nodeEnv;
+
+  const isProduction =
+    Boolean(
+      environment?.runtime
+        ?.isProduction,
+    );
+
+  // ---------------------------------------------------------------------------
+  // Environment
+  // ---------------------------------------------------------------------------
+
+  if (
+    !NODE_ENVIRONMENTS.includes(
+      nodeEnv,
+    )
+  ) {
+    errors.push(
+      `NODE_ENV must be one of: ${NODE_ENVIRONMENTS.join(', ')}`,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Node runtime
+  // ---------------------------------------------------------------------------
+  //
+  // TITech currently targets Node 20+.
+  //
+
+  const nodeMajor =
+    Number(
+      environment?.runtime
+        ?.nodeMajor,
+    );
+
+  if (
+    Number.isInteger(
+      nodeMajor,
+    ) &&
+    nodeMajor < 20
+  ) {
+    errors.push(
+      'Node.js 20 or newer is required.',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // HTTP timeouts
+  // ---------------------------------------------------------------------------
+
+  if (
+    environment.http
+      .headersTimeoutMs <=
+    environment.http
+      .keepAliveTimeoutMs
+  ) {
+    errors.push(
+      'HEADERS_TIMEOUT_MS must be greater than KEEP_ALIVE_TIMEOUT_MS.',
+    );
+  }
+
+  if (
+    environment.http
+      .socketTimeoutMs <
+    environment.http
+      .requestTimeoutMs
+  ) {
+    errors.push(
+      'SOCKET_TIMEOUT_MS must be greater than or equal to REQUEST_TIMEOUT_MS.',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // MongoDB
+  // ---------------------------------------------------------------------------
+
+  if (
+    environment.database
+      .mongodb
+      .enabled &&
+    !environment.database
+      .mongodb
+      .uri
+  ) {
+    errors.push(
+      'MONGODB_URI or MONGO_URI is required when MongoDB is enabled.',
+    );
+  }
+
+  if (
+    environment.database
+      .mongodb
+      .maxPoolSize <
+    environment.database
+      .mongodb
+      .minPoolSize
+  ) {
+    errors.push(
+      'MONGODB_MAX_POOL_SIZE must be greater than or equal to MONGODB_MIN_POOL_SIZE.',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Redis
+  // ---------------------------------------------------------------------------
+
+  if (
+    environment.redis.enabled &&
+    !environment.redis.url
+  ) {
+    errors.push(
+      'REDIS_URL is required when Redis is enabled.',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Idempotency
+  // ---------------------------------------------------------------------------
+
+  if (
+    environment.idempotency.enabled &&
+    environment.idempotency
+      .ttlSeconds < 60
+  ) {
+    errors.push(
+      'IDEMPOTENCY_TTL_SECONDS must be at least 60 seconds.',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Rate limiting
+  // ---------------------------------------------------------------------------
+
+  if (
+    environment.rateLimit.enabled &&
+    environment.rateLimit.max <= 0
+  ) {
+    errors.push(
+      'RATE_LIMIT_MAX must be greater than zero when rate limiting is enabled.',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // CORS
+  // ---------------------------------------------------------------------------
+
+  for (
+    const origin of
+      environment.cors.origins
+  ) {
+    if (
+      origin === '*'
+    ) {
+      if (
+        isProduction
+      ) {
+        errors.push(
+          'Wildcard CORS origin (*) is not permitted in production.',
+        );
+      }
+
+      continue;
+    }
+
+    try {
+      const parsed =
+        new URL(origin);
+
+      if (
+        ![
+          'http:',
+          'https:',
+        ].includes(
+          parsed.protocol,
+        )
+      ) {
+        throw new Error(
+          'Unsupported origin protocol.',
+        );
+      }
+    } catch {
+      errors.push(
+        `CORS_ORIGINS contains an invalid origin: ${origin}`,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cookie SameSite=None
+  // ---------------------------------------------------------------------------
+
+  if (
+    environment.cookie.sameSite ===
+      'none' &&
+    !environment.cookie.secure
+  ) {
+    errors.push(
+      'COOKIE_SECURE must be enabled when COOKIE_SAME_SITE=none.',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TLS
+  // ---------------------------------------------------------------------------
+
+  if (
+    environment.tls.enabled
+  ) {
+    if (
+      !environment.tls.keyPath
+    ) {
+      errors.push(
+        'TLS_KEY_PATH is required when TLS_ENABLED=true.',
+      );
+    }
+
+    if (
+      !environment.tls.certPath
+    ) {
+      errors.push(
+        'TLS_CERT_PATH is required when TLS_ENABLED=true.',
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Production security
+  // ---------------------------------------------------------------------------
+
+  if (
+    isProduction
+  ) {
+    if (
+      !environment.jwt
+        .accessSecret
+    ) {
+      errors.push(
+        'JWT_ACCESS_SECRET or JWT_SECRET is required in production.',
+      );
+    }
+
+    if (
+      !environment.jwt
+        .refreshSecret
+    ) {
+      errors.push(
+        'JWT_REFRESH_SECRET or REFRESH_TOKEN_SECRET is required in production.',
+      );
+    }
+
+    if (
+      environment.jwt
+        .accessSecret &&
+      environment.jwt
+        .refreshSecret &&
+      environment.jwt
+        .accessSecret ===
+        environment.jwt
+          .refreshSecret
+    ) {
+      errors.push(
+        'JWT access and refresh secrets must be different in production.',
+      );
+    }
+
+    if (
+      !environment.security
+        .encryptionKey
+    ) {
+      errors.push(
+        'SECURITY_ENCRYPTION_KEY is required in production.',
+      );
+    }
+
+    if (
+      !environment.cookie
+        .secure
+    ) {
+      errors.push(
+        'COOKIE_SECURE must be enabled in production.',
+      );
+    }
+
+    if (
+      environment.security
+        .requireTls &&
+      !environment.tls
+        .enabled
+    ) {
+      errors.push(
+        'TLS is required by configuration but TLS_ENABLED is disabled.',
+      );
+    }
+
+    if (
+      !environment.cors
+        .origins
+        .length
+    ) {
+      errors.push(
+        'CORS_ORIGINS must contain at least one explicitly allowed origin in production.',
+      );
+    }
+
+    if (
+      !environment.rateLimit
+        .enabled
+    ) {
+      errors.push(
+        'Rate limiting must not be disabled in production.',
+      );
+    }
+
+    if (
+      environment.security
+        .allowInsecureAuth
+    ) {
+      errors.push(
+        'ALLOW_INSECURE_AUTH must be disabled in production.',
+      );
+    }
+
+    if (
+      !environment.logging
+        .redactSecrets
+    ) {
+      errors.push(
+        'LOG_REDACT_SECRETS must remain enabled in production.',
+      );
+    }
+
+    if (
+      environment.features
+        .swaggerEnabled &&
+      !environment.tls
+        .enabled
+    ) {
+      /*
+       * Not a hard failure in itself, but the condition is intentionally left
+       * observable to deployment policy rather than silently changing swagger.
+       */
+    }
+  }
+
+  if (
+    errors.length > 0
+  ) {
+    throw new EnvironmentError(
+      `Environment validation failed:\n- ${errors.join('\n- ')}`,
+      {
+        errorCount:
+          errors.length,
+      },
+    );
+  }
+
+  return true;
+}
+
+// =============================================================================
+// SAFE METADATA
+// =============================================================================
 
 function buildSafeMetadata(
   environment,
@@ -2111,22 +2587,32 @@ function buildSafeMetadata(
       environment.app.name,
 
     serviceName:
-      environment.app.serviceName,
+      environment.app
+        .serviceName,
 
     version:
-      environment.app.version,
+      environment.app
+        .version,
 
     environment:
-      environment.app.environment,
+      environment.app
+        .environment,
 
     nodeVersion:
-      environment.runtime.nodeVersion,
+      environment.runtime
+        .nodeVersion,
+
+    nodeMajor:
+      environment.runtime
+        .nodeMajor,
 
     platform:
-      environment.runtime.platform,
+      environment.runtime
+        .platform,
 
     architecture:
-      environment.runtime.architecture,
+      environment.runtime
+        .architecture,
 
     host:
       environment.http.host,
@@ -2135,47 +2621,65 @@ function buildSafeMetadata(
       environment.http.port,
 
     mongodbEnabled:
-      environment.database.mongodb.enabled,
+      environment.database
+        .mongodb
+        .enabled,
 
     mongodbConfigured:
       Boolean(
-        environment.database.mongodb.uri,
+        environment.database
+          .mongodb
+          .uri,
       ),
 
     redisEnabled:
-      environment.redis.enabled,
+      environment.redis
+        .enabled,
 
     redisConfigured:
       Boolean(
-        environment.redis.url,
+        environment.redis
+          .url,
       ),
 
     metricsEnabled:
-      environment.observability.metricsEnabled,
+      environment
+        .observability
+        .metricsEnabled,
 
     tracingEnabled:
-      environment.observability.tracingEnabled,
+      environment
+        .observability
+        .tracingEnabled,
 
     rateLimitingEnabled:
-      environment.rateLimit.enabled,
+      environment
+        .rateLimit
+        .enabled,
 
     idempotencyEnabled:
-      environment.idempotency.enabled,
+      environment
+        .idempotency
+        .enabled,
 
     tlsEnabled:
-      environment.tls.enabled,
+      environment.tls
+        .enabled,
 
     csrfEnabled:
-      environment.security.enableCsrf,
+      environment.security
+        .enableCsrf,
 
     jwtAccessConfigured:
       Boolean(
-        environment.jwt.accessSecret,
+        environment.jwt
+          .accessSecret,
       ),
 
     jwtRefreshConfigured:
       Boolean(
-        environment.jwt.refreshSecret,
+        environment.jwt
+          .refreshSecret,
       ),
 
     loadedAt:
@@ -2183,13 +2687,11 @@ function buildSafeMetadata(
   });
 }
 
-/* =============================================================================
- * Canonical Bootstrap Initialization
- * =============================================================================
- */
+// =============================================================================
+// INITIALIZE ENVIRONMENT
+// =============================================================================
 
-const loadedEnvFiles =
-  loadDotEnv();
+loadDotEnv();
 
 const environment =
   buildEnvironment();
@@ -2199,6 +2701,18 @@ const safeMetadata =
     environment,
   );
 
+const loadedEnvFiles =
+  Object.freeze(
+    loadedEnvironmentFiles
+      .map(
+        (filePath) =>
+          path.relative(
+            PROJECT_ROOT,
+            filePath,
+          ),
+      ),
+  );
+
 const publicEnvironment =
   deepFreeze({
     ...environment,
@@ -2206,22 +2720,15 @@ const publicEnvironment =
     meta:
       safeMetadata,
 
-    loadedEnvFiles:
-      Object.freeze(
-        loadedEnvFiles.map(
-          (filePath) =>
-            path.relative(
-              process.cwd(),
-              filePath,
-            ),
-        ),
-      ),
+    loadedEnvFiles,
+
+    projectRoot:
+      PROJECT_ROOT,
   });
 
-/* =============================================================================
- * Helper API
- * =============================================================================
- */
+// =============================================================================
+// ACCESSORS
+// =============================================================================
 
 function get(
   name,
@@ -2241,7 +2748,9 @@ function get(
   return fallback;
 }
 
-function has(name) {
+function has(
+  name,
+) {
   return hasOwn(
     publicEnvironment,
     name,
@@ -2250,6 +2759,14 @@ function has(name) {
 
 function getEnvironment() {
   return publicEnvironment;
+}
+
+function getConfig() {
+  return publicEnvironment;
+}
+
+function getSafeMetadata() {
+  return publicEnvironment.meta;
 }
 
 function isProduction() {
@@ -2280,72 +2797,64 @@ function isStaging() {
   );
 }
 
-function getSafeMetadata() {
-  return publicEnvironment.meta;
-}
-
-/* =============================================================================
- * Bootstrap Contract
- * =============================================================================
- *
- * IMPORTANT:
- *
- * backend/bootstrap/app.js expects the environment bootstrap dependency to be
- * callable. Other parts of TITech also consume this module as a configuration
- * object.
- *
- * We therefore expose a callable function object:
- *
- *   const environment = require('./environment');
- *   await environment();
- *
- * while preserving:
- *
- *   environment.environment
- *   environment.configuration
- *   environment.config
- *   environment.getEnvironment()
- *   environment.getConfig()
- *   environment.validateEnvironment()
- * =============================================================================
- */
+// =============================================================================
+// BOOTSTRAP CONTRACT
+// =============================================================================
+//
+// ApplicationBootstrap.js looks for:
+//
+//   initialize
+//   init
+//   start
+//   bootstrap
+//   setup
+//
+// We provide the important variants so this module can be consumed safely by
+// different bootstrap adapters.
+//
 
 async function initialize(
   context = {},
 ) {
-  const configuration =
-    publicEnvironment;
-
   /*
-   * Validate the canonical immutable configuration again at the bootstrap
-   * boundary. This is intentionally cheap and prevents consumers from
-   * starting with an invalid object.
+   * Environment loading and validation have already happened at module load.
+   * Re-validating is cheap and ensures the lifecycle boundary receives a
+   * validated immutable configuration.
    */
   validateEnvironment(
-    configuration,
+    publicEnvironment,
   );
 
   if (
     context &&
-    typeof context === 'object'
+    typeof context ===
+      'object'
   ) {
     context.environment =
-      configuration;
+      publicEnvironment;
 
     context.configuration =
       context.configuration ||
-      configuration;
+      publicEnvironment;
+
+    context.config =
+      context.config ||
+      publicEnvironment;
   }
 
-  return configuration;
-}
+  return {
+    environment:
+      publicEnvironment,
 
-async function bootstrap(
-  context = {},
-) {
-  return initialize(
-    context,
-  );
+    configuration:
+      publicEnvironment,
+
+    config:
+      publicEnvironment,
+
+    meta:
+      safeMetadata,
+  };
 }
 
 async function start(
@@ -2356,7 +2865,7 @@ async function start(
   );
 }
 
-async function environmentBootstrap(
+async function bootstrap(
   context = {},
 ) {
   return initialize(
@@ -2364,153 +2873,150 @@ async function environmentBootstrap(
   );
 }
 
-function getConfig(
-  override = {},
+async function setup(
+  context = {},
 ) {
-  if (
-    !override ||
-    Object.keys(
-      override,
-    ).length === 0
-  ) {
-    return publicEnvironment;
-  }
-
-  /*
-   * buildEnvironment() intentionally reads process.env so that configuration
-   * remains centralized. We support only environment-level test overrides that
-   * are explicitly supplied to the builder.
-   */
-  if (
-    override &&
-    typeof override === 'object'
-  ) {
-    const originalValues = {};
-
-    for (
-      const [key, value]
-        of Object.entries(override)
-    ) {
-      originalValues[key] =
-        process.env[key];
-
-      if (
-        value === undefined ||
-        value === null
-      ) {
-        delete process.env[key];
-      } else {
-        process.env[key] =
-          String(value);
-      }
-    }
-
-    try {
-      return buildEnvironment();
-    } finally {
-      for (
-        const key of
-          Object.keys(override)
-      ) {
-        if (
-          originalValues[key] ===
-          undefined
-        ) {
-          delete process.env[key];
-        } else {
-          process.env[key] =
-            originalValues[key];
-        }
-      }
-    }
-  }
-
-  return publicEnvironment;
+  return initialize(
+    context,
+  );
 }
 
-/* =============================================================================
- * Callable Export Surface
- * =============================================================================
- */
+// =============================================================================
+// DEFAULT EXPORT
+// =============================================================================
+//
+// Export the callable bootstrap contract as the default export.
+//
+// This allows ApplicationBootstrap to unwrap it through native ESM import().
+//
+// =============================================================================
 
-Object.assign(
-  environmentBootstrap,
-  {
-    /*
-     * Canonical configuration.
-     */
-    environment:
-      publicEnvironment,
+const environmentBootstrap =
+  Object.assign(
+    async function environmentBootstrap(
+      context = {},
+    ) {
+      return initialize(
+        context,
+      );
+    },
+    {
+      environment:
+        publicEnvironment,
 
-    configuration:
-      publicEnvironment,
+      configuration:
+        publicEnvironment,
 
-    config:
-      publicEnvironment,
+      config:
+        publicEnvironment,
 
-    /*
-     * Bootstrap lifecycle contract.
-     */
-    initialize,
-    bootstrap,
-    start,
+      initialize,
 
-    /*
-     * Configuration access.
-     */
-    getEnvironment,
-    getConfig,
-    get,
+      start,
 
-    has,
+      bootstrap,
 
-    /*
-     * Environment helpers.
-     */
-    isProduction,
-    isDevelopment,
-    isTest,
-    isStaging,
+      setup,
 
-    /*
-     * Configuration builder / validation.
-     */
-    buildEnvironment,
-    validateEnvironment,
+      getEnvironment,
 
-    /*
-     * Safe diagnostics.
-     */
-    getSafeMetadata,
+      getConfig,
 
-    /*
-     * Environment file helpers.
-     */
-    normalizeNodeEnvironment,
-    loadDotEnv,
+      get,
 
-    /*
-     * Error class.
-     */
-    EnvironmentError,
+      has,
 
-    /*
-     * Safe metadata is also available directly for existing consumers.
-     */
-    meta:
-      safeMetadata,
+      isProduction,
 
-    loadedEnvFiles:
-      publicEnvironment.loadedEnvFiles,
-  },
-);
+      isDevelopment,
 
-/*
- * Freeze the callable API itself.
- *
- * The function remains callable after freezing.
- */
-module.exports =
-  Object.freeze(
-    environmentBootstrap,
+      isTest,
+
+      isStaging,
+
+      getSafeMetadata,
+
+      buildEnvironment,
+
+      validateEnvironment,
+
+      loadDotEnv,
+
+      normalizeNodeEnvironment,
+
+      EnvironmentError,
+
+      meta:
+        safeMetadata,
+
+      loadedEnvFiles,
+
+      projectRoot:
+        PROJECT_ROOT,
+    },
   );
+
+// =============================================================================
+// ESM EXPORTS
+// =============================================================================
+
+export {
+  EnvironmentError,
+
+  APPLICATION_NAME,
+};
+
+export const APPLICATION_NAME =
+  publicEnvironment.app.name;
+
+export const SERVICE_NAME =
+  publicEnvironment.app
+    .serviceName;
+
+export const VERSION =
+  publicEnvironment.app
+    .version;
+
+export {
+  DEFAULTS,
+
+  NODE_ENVIRONMENTS,
+
+  NODE_ENV_ALIASES,
+
+  loadDotEnv,
+
+  buildEnvironment,
+
+  validateEnvironment,
+
+  normalizeNodeEnvironment,
+
+  getEnvironment,
+
+  getConfig,
+
+  get,
+
+  has,
+
+  getSafeMetadata,
+
+  isProduction,
+
+  isDevelopment,
+
+  isTest,
+
+  isStaging,
+
+  initialize,
+
+  start,
+
+  bootstrap,
+
+  setup,
+};
+
+export default environmentBootstrap;

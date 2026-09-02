@@ -792,6 +792,26 @@ function normalizeSyncResult(result) {
     };
   }
 
+  const eventResults = Array.isArray(result.results)
+    ? result.results
+    : [];
+
+  const accepted = eventResults.filter(
+    event => event?.status === 'ACCEPTED',
+  );
+
+  const duplicates = eventResults.filter(
+    event => event?.status === 'DUPLICATE',
+  );
+
+  const conflicts = eventResults.filter(
+    event => event?.status === 'CONFLICT',
+  );
+
+  const failures = Array.isArray(result.failures)
+    ? result.failures
+    : [];
+
   return {
     status:
       result.status ||
@@ -801,17 +821,17 @@ function normalizeSyncResult(result) {
     accepted:
       Array.isArray(result.accepted)
         ? result.accepted
-        : [],
+        : accepted,
 
     duplicates:
       Array.isArray(result.duplicates)
         ? result.duplicates
-        : [],
+        : duplicates,
 
     conflicts:
       Array.isArray(result.conflicts)
         ? result.conflicts
-        : [],
+        : conflicts,
 
     rejected:
       Array.isArray(result.rejected)
@@ -821,12 +841,12 @@ function normalizeSyncResult(result) {
     failed:
       Array.isArray(result.failed)
         ? result.failed
-        : [],
+        : failures,
 
     processed:
       Number.isInteger(result.processed)
         ? result.processed
-        : undefined,
+        : eventResults.length || undefined,
 
     nextCursor:
       result.nextCursor ??

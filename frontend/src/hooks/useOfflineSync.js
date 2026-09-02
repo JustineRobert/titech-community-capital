@@ -101,8 +101,19 @@ import {
   useState,
 } from 'react';
 
-import api from '../services/api';
+import api, {
+  getDeviceId,
+  getTenant,
+} from '../services/api';
 import socket from '../services/socket';
+import {
+  createOfflineEvent,
+  enqueueOfflineEvent,
+  getPendingOfflineEvents,
+  countOfflineEvents,
+  removeOfflineEvent,
+  updateOfflineEvent,
+} from '../offline/browserOutbox';
 
 /*
 |--------------------------------------------------------------------------
@@ -678,10 +689,43 @@ export default function useOfflineSync(
           |
           */
 
+          const pendingEvents =
+            await getPendingOfflineEvents({
+              limit: batchSize,
+            });
+
+          if (pendingEvents.length === 0) {
+            const pendingCount =
+              await countOfflineEvents();
+
+            updateState(
+              (previous) => ({
+                ...previous,
+                syncing: false,
+                pendingCount,
+                status: getOnlineState()
+                  ? OFFLINE_SYNC_STATUS.SUCCESS
+                  : OFFLINE_SYNC_STATUS.OFFLINE,
+              })
+            );
+
+            return {
+              success: true,
+              status: OFFLINE_SYNC_STATUS.SUCCESS,
+              syncedEvents: [],
+              failedEvents: [],
+              conflicts: [],
+              receipts: [],
+            };
+          }
+
           const requestId =
             generateIdempotencyKey();
 
           const payload = {
+            events:
+              pendingEvents,
+
             cursor:
               cursorRef.current,
 
@@ -725,28 +769,84 @@ export default function useOfflineSync(
           |--------------------------------------------------------------------------
           */
 
+          const syncPayload =
+            result.sync ||
+            result;
+
           const syncedEvents =
             safeArray(
-              result.syncedEvents ??
-                result.synced ??
-                result.processed
+              syncPayload.accepted ??
+                result.syncedEvents ??
+                result.synced
+            );
+
+          const duplicateEvents =
+            safeArray(
+              syncPayload.duplicates
             );
 
           const failedEvents =
             safeArray(
-              result.failedEvents ??
+              syncPayload.failed ??
+                result.failedEvents ??
                 result.failed
             );
 
           const conflicts =
             safeArray(
-              result.conflicts
+              syncPayload.conflicts ??
+                result.conflicts
             );
 
           const receipts =
             safeArray(
-              result.receipts
+              syncPayload.receipts ??
+                result.receipts
             );
+
+          const eventIdOf =
+            (value) =>
+              typeof value === 'string'
+                ? value
+                : value?.eventId;
+
+          await Promise.all(
+            [
+              ...syncedEvents,
+              ...duplicateEvents,
+            ]
+              .map(eventIdOf)
+              .filter(Boolean)
+              .map(removeOfflineEvent)
+          );
+
+          await Promise.all(
+            [
+              ...failedEvents,
+              ...conflicts,
+            ]
+              .map(event => {
+                const eventId =
+                  eventIdOf(event);
+
+                return eventId
+                  ? updateOfflineEvent(
+                      eventId,
+                      {
+                        status:
+                          conflicts.includes(event)
+                            ? 'CONFLICT'
+                            : 'FAILED',
+                        lastError: event,
+                      }
+                    )
+                  : null;
+              })
+              .filter(Boolean)
+          );
+
+          const pendingCount =
+            await countOfflineEvents();
 
           const nextCursor =
             result.nextCursor ??
@@ -803,19 +903,14 @@ export default function useOfflineSync(
                 finalStatus,
 
               pendingCount:
-                Math.max(
-                  0,
-                  Number(
-                    previous.pendingCount
-                  ) -
-                    syncedEvents.length
-                ),
+                pendingCount,
 
               syncedCount:
                 Number(
                   previous.syncedCount
                 ) +
-                syncedEvents.length,
+                syncedEvents.length +
+                duplicateEvents.length,
 
               failedCount:
                 failedEvents.length,
@@ -840,7 +935,7 @@ export default function useOfflineSync(
                 nextCursor,
 
               serverCursor:
-                result.serverCursor ??
+                syncPayload.serverCursor ??
                 previous.serverCursor,
 
               conflicts,
@@ -925,6 +1020,8 @@ export default function useOfflineSync(
 
             syncedEvents,
 
+            duplicateEvents,
+
             failedEvents,
 
             conflicts,
@@ -960,6 +1057,56 @@ export default function useOfflineSync(
             return {
               success: false,
               reason: 'offline',
+            };
+          }
+
+          const serverSync =
+            error?.response?.data?.sync;
+
+          if (
+            serverSync &&
+            Array.isArray(serverSync.conflicts)
+          ) {
+            await Promise.all(
+              serverSync.conflicts
+                .map(conflict =>
+                  conflict?.eventId
+                    ? updateOfflineEvent(
+                        conflict.eventId,
+                        {
+                          status: 'CONFLICT',
+                          lastError: conflict,
+                        }
+                      )
+                    : null
+                )
+                .filter(Boolean)
+            );
+
+            const pendingCount =
+              await countOfflineEvents();
+
+            updateState(
+              previous => ({
+                ...previous,
+                syncing: false,
+                status: OFFLINE_SYNC_STATUS.CONFLICT,
+                pendingCount,
+                conflictCount:
+                  serverSync.conflicts.length,
+                conflicts:
+                  serverSync.conflicts,
+              })
+            );
+
+            if (typeof onConflict === 'function') {
+              onConflict(serverSync.conflicts);
+            }
+
+            return {
+              success: false,
+              status: OFFLINE_SYNC_STATUS.CONFLICT,
+              conflicts: serverSync.conflicts,
             };
           }
 
@@ -1084,6 +1231,68 @@ export default function useOfflineSync(
   | Manual Refresh
   |--------------------------------------------------------------------------
   */
+
+  const enqueue =
+    useCallback(
+      async ({
+        eventType,
+        payload = {},
+        tenantId = getTenant(),
+        userId = null,
+        aggregateType = null,
+        aggregateId = null,
+        idempotencyKey = generateIdempotencyKey(),
+      }) => {
+        const event =
+          await createOfflineEvent({
+            eventType,
+            payload,
+            tenantId,
+            deviceId: getDeviceId(),
+            userId,
+            aggregateType,
+            aggregateId,
+            idempotencyKey,
+          });
+
+        await enqueueOfflineEvent(event);
+
+        const pendingCount =
+          await countOfflineEvents();
+
+        updateState(
+          previous => ({
+            ...previous,
+            pendingCount,
+          })
+        );
+
+        if (
+          getOnlineState() &&
+          autoSync
+        ) {
+          sync({
+            force: true,
+            silent: true,
+          });
+        } else {
+          await requestBackgroundSync();
+        }
+
+        return {
+          queued: true,
+          confirmed: false,
+          eventId: event.eventId,
+          idempotencyKey: event.idempotencyKey,
+        };
+      },
+      [
+        autoSync,
+        requestBackgroundSync,
+        sync,
+        updateState,
+      ]
+    );
 
   const refresh =
     useCallback(async () => {
@@ -1660,6 +1869,8 @@ export default function useOfflineSync(
     */
 
     sync,
+
+    enqueue,
 
     refresh,
 

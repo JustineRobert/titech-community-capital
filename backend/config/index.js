@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -8,113 +7,36 @@
  * File:
  *   backend/config/index.js
  *
+ * Module:
+ *   ES Modules (ESM)
+ *
  * Purpose:
- *   Single canonical configuration composition and access boundary for the
- *   TITech Community Capital backend.
+ *   Single canonical configuration composition and access boundary.
  *
- * Responsibilities:
- *   - Consume the canonical environment bootstrap.
- *   - Compose strongly typed configuration modules.
- *   - Expose one immutable application configuration object.
- *   - Provide safe typed configuration accessors.
- *   - Provide compatibility helpers for legacy configuration consumers.
- *   - Centralize runtime/API/health/deployment metadata.
- *   - Provide sanitized configuration snapshots for diagnostics.
- *   - Prevent application modules from reading process.env directly.
- *   - Expose canonical environment flags.
- *   - Preserve deterministic configuration semantics.
- *
- * Configuration flow:
+ * Architecture:
  *
  *   process.env / .env
- *          │
- *          ▼
+ *          ↓
  *   bootstrap/environment.js
- *          │
- *          ▼
+ *          ↓
  *   config/*.config.js
- *          │
- *          ▼
- *   backend/config/index.js
- *          │
- *     ┌────┴───────────────────────────────┐
- *     │                                    │
- *     ▼                                    ▼
- *  application code                  infrastructure
+ *          ↓
+ *   config/index.js
+ *          ↓
+ *   application / infrastructure / middleware / routes
  *
- * IMPORTANT:
- *   This file MUST remain ESM.
- *
- * IMPORTANT:
- *   No direct process.env access is permitted here.
- *   Environment variables are owned by:
- *
- *     backend/bootstrap/environment.js
- *
- * IMPORTANT:
- *   Never expose secrets through snapshot(), toJSON(), diagnostics or logs.
-=======
-'use strict';
-
-/**
- * =============================================================================
- * TITech Community Capital LTD
- * TITech Community Capital Operating System
- * =============================================================================
- *
- * File:
- *   backend/routes/index.js
- *
- * Purpose:
- *   Enterprise production-grade HTTP route registration boundary.
- *
- * Responsibilities:
- *   - Register application API routes.
- *   - Register liveness/readiness/health endpoints.
- *   - Register operational metrics endpoint when available.
- *   - Register controlled internal diagnostics.
- *   - Centralize route prefixes.
- *   - Validate the Express application contract.
- *   - Prevent accidental duplicate route registration.
- *   - Preserve deterministic route ordering.
- *   - Normalize route-not-found errors.
- *   - Integrate with TITech runtime/readiness state.
- *   - Keep routing separate from middleware, controllers and business logic.
- *
- * This module does NOT:
- *   - initialize databases.
- *   - initialize Redis.
- *   - initialize queues.
- *   - initialize Socket.IO.
- *   - execute financial operations.
- *   - implement authentication.
- *   - implement authorization.
- *   - start the HTTP server.
- *   - own global middleware.
- *
- * =============================================================================
- *
- * Route architecture:
- *
- *   backend/bootstrap/app.js
- *            │
- *            ▼
- *      registerRoutes(app)
- *            │
- *      ┌─────┴────────────────────┐
- *      ▼                          ▼
- *   runtime routes             API routes
- *      │                          │
- *      ├── /live                  ├── /api/auth
- *      ├── /ready                 ├── /api/legal
- *      ├── /health                └── /api/email
- *      └── /metrics
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
+ * Rules:
+ *   - MUST remain ESM.
+ *   - MUST NOT read process.env directly.
+ *   - MUST NOT load dotenv.
+ *   - MUST NOT connect to infrastructure.
+ *   - MUST NOT expose secrets through diagnostics.
+ *   - MUST expose one immutable canonical configuration.
+ *   - Legacy aliases are supported only through normalized accessors.
  *
  * =============================================================================
  */
 
-<<<<<<< HEAD
 'use strict';
 
 import environment from '../bootstrap/environment.js';
@@ -128,86 +50,12 @@ import email from './email.config.js';
 import security from './security.config.js';
 import observability from './observability.config.js';
 import features from './features.config.js';
-=======
-const {
-    getApplicationState,
-    getHealthState,
-    isReady,
-    isLive
-} = require('../runtime/state');
 
-/**
- * =============================================================================
- * Optional configuration
- * =============================================================================
- */
-
-let configuration = null;
-
-try {
-
-    // eslint-disable-next-line global-require
-    configuration =
-        require('../config/configProvider');
-
-} catch {
-
-    configuration =
-        null;
-
-}
-
-/**
- * =============================================================================
- * Optional observability
- * =============================================================================
- */
-
-let observability = null;
-
-try {
-
-    // eslint-disable-next-line global-require
-    observability =
-        require('../bootstrap/observability');
-
-} catch {
-
-    observability =
-        null;
-
-}
-
-/**
- * =============================================================================
- * Optional logger
- * =============================================================================
- */
-
-let loggerModule = null;
-
-try {
-
-    // eslint-disable-next-line global-require
-    loggerModule =
-        require('../utils/logger');
-
-} catch {
-
-    loggerModule =
-        null;
-
-}
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
-
-/**
- * =============================================================================
- * Constants
- * =============================================================================
- */
+// =============================================================================
+// CONSTANTS
+// =============================================================================
 
 const COMPONENT =
-<<<<<<< HEAD
   'configuration';
 
 const APPLICATION_LEGAL_NAME =
@@ -230,18 +78,19 @@ const DEFAULTS = Object.freeze({
   deployment: Object.freeze({
     region: null,
     deploymentId: null,
+    instanceId: null,
+  }),
+
+  runtime: Object.freeze({
+    host: '0.0.0.0',
+    port: 5000,
   }),
 });
 
-/**
- * =============================================================================
- * Internal helpers
- * =============================================================================
- */
+// =============================================================================
+// INTERNAL HELPERS
+// =============================================================================
 
-/**
- * Return the first non-null/undefined candidate.
- */
 function firstDefined(...values) {
   for (const value of values) {
     if (
@@ -255,13 +104,10 @@ function firstDefined(...values) {
   return undefined;
 }
 
-/**
- * Safely clone plain configuration structures.
- *
- * This is intentionally conservative. Configuration modules should normally
- * contain JSON-compatible primitives, arrays and plain objects.
- */
-function cloneValue(value) {
+function cloneValue(
+  value,
+  seen = new WeakMap(),
+) {
   if (
     value === null ||
     typeof value !== 'object'
@@ -269,25 +115,43 @@ function cloneValue(value) {
     return value;
   }
 
+  if (seen.has(value)) {
+    return seen.get(value);
+  }
+
   if (Array.isArray(value)) {
-    return value.map(cloneValue);
+    const output = [];
+
+    seen.set(value, output);
+
+    for (const item of value) {
+      output.push(
+        cloneValue(item, seen),
+      );
+    }
+
+    return output;
   }
 
   const output = {};
 
-  for (const [key, child] of Object.entries(value)) {
-    output[key] = cloneValue(child);
+  seen.set(value, output);
+
+  for (const [
+    key,
+    child,
+  ] of Object.entries(value)) {
+    output[key] =
+      cloneValue(child, seen);
   }
 
   return output;
 }
 
-/**
- * Recursively freeze objects and arrays.
- *
- * This protects the canonical configuration from accidental runtime mutation.
- */
-function deepFreeze(value, seen = new WeakSet()) {
+function deepFreeze(
+  value,
+  seen = new WeakSet(),
+) {
   if (
     value === null ||
     typeof value !== 'object'
@@ -301,21 +165,24 @@ function deepFreeze(value, seen = new WeakSet()) {
 
   seen.add(value);
 
-  for (const child of Object.values(value)) {
-    deepFreeze(child, seen);
+  for (
+    const key of
+      Reflect.ownKeys(value)
+  ) {
+    deepFreeze(
+      value[key],
+      seen,
+    );
   }
 
   return Object.freeze(value);
 }
 
-/**
- * Read a dotted configuration path.
- *
- * Example:
- *
- *   getByPath(configuration, 'app.serviceName')
- */
-function getByPath(source, path, fallback = undefined) {
+function getByPath(
+  source,
+  path,
+  fallback = undefined,
+) {
   if (
     !source ||
     !path
@@ -328,23 +195,29 @@ function getByPath(source, path, fallback = undefined) {
       .split('.')
       .map(
         (segment) =>
-          segment.trim()
+          segment.trim(),
       )
       .filter(Boolean);
 
-  if (!segments.length) {
+  if (
+    segments.length === 0
+  ) {
     return fallback;
   }
 
-  let current = source;
+  let current =
+    source;
 
-  for (const segment of segments) {
+  for (
+    const segment of
+      segments
+  ) {
     if (
       current === null ||
       current === undefined ||
       !Object.prototype.hasOwnProperty.call(
         Object(current),
-        segment
+        segment,
       )
     ) {
       return fallback;
@@ -359,89 +232,100 @@ function getByPath(source, path, fallback = undefined) {
     : current;
 }
 
-/**
- * Normalize a route path.
- */
 function normalizePath(
   value,
-  fallback
+  fallback = '/',
 ) {
-  const resolved =
+  const candidate =
     String(
       firstDefined(
         value,
         fallback,
-        '/'
-      )
-    )
-      .trim()
-      .replace(
-        /\/+/g,
-        '/'
-      );
+        '/',
+      ),
+    ).trim();
 
-  if (!resolved || resolved === '/') {
-    return resolved === ''
-      ? fallback
-      : '/';
+  if (!candidate) {
+    return fallback;
   }
 
-  return resolved.startsWith('/')
-    ? resolved.replace(
-        /\/+$/,
-        ''
-      ) || '/'
-    : `/${resolved.replace(
-        /\/+$/,
-        ''
-      )}`;
+  const collapsed =
+    candidate
+      .replace(
+        /\/{2,}/g,
+        '/',
+      )
+      .replace(
+        /[?#].*$/g,
+        '',
+      );
+
+  if (
+    collapsed === '/'
+  ) {
+    return '/';
+  }
+
+  const normalized =
+    collapsed.startsWith('/')
+      ? collapsed
+      : `/${collapsed}`;
+
+  return (
+    normalized.replace(
+      /\/+$/g,
+      '',
+    ) || '/'
+  );
 }
 
-/**
- * Join two route path segments.
- */
 function joinPath(
   prefix,
-  path
+  routePath,
 ) {
   const normalizedPrefix =
     normalizePath(
       prefix,
-      ''
+      '',
     );
 
-  const normalizedPath =
+  const normalizedRoute =
     String(
       firstDefined(
-        path,
-        ''
-      )
+        routePath,
+        '',
+      ),
     )
       .trim()
       .replace(
-        /^\/+/,
-        ''
+        /^\/+/g,
+        '',
+      )
+      .replace(
+        /\/+$/g,
+        '',
       );
 
-  if (!normalizedPrefix) {
-    return normalizedPath
-      ? `/${normalizedPath}`
+  if (
+    !normalizedPrefix
+  ) {
+    return normalizedRoute
+      ? `/${normalizedRoute}`
       : '/';
   }
 
-  if (!normalizedPath) {
+  if (
+    !normalizedRoute
+  ) {
     return normalizedPrefix;
   }
 
-  return `${normalizedPrefix}/${normalizedPath}`;
+  return `${normalizedPrefix}/${normalizedRoute}`;
 }
 
-/**
- * Convert a value to a boolean using deterministic semantics.
- */
 function toBoolean(
   value,
-  fallback = false
+  fallback = false,
 ) {
   if (
     value === undefined ||
@@ -496,12 +380,9 @@ function toBoolean(
   return fallback;
 }
 
-/**
- * Convert a value to a finite number.
- */
 function toNumber(
   value,
-  fallback = undefined
+  fallback = undefined,
 ) {
   if (
     value === undefined ||
@@ -527,237 +408,358 @@ function toNumber(
     : fallback;
 }
 
-/**
- * =============================================================================
- * Canonical application values
- * =============================================================================
- */
+// =============================================================================
+// ENVIRONMENT FACADE NORMALIZATION
+// =============================================================================
+//
+// environment.js exposes a callable default export:
+//
+//   environment()
+//   environment.environment
+//   environment.runtime
+//   environment.http
+//
+// Normalize these into a stable local reference so configuration modules do
+// not depend on the callable-function shape.
+//
 
-const serviceName =
+const canonicalEnvironment =
+  environment?.environment ||
+  environment;
+
+const runtime =
+  canonicalEnvironment?.runtime ||
+  {};
+
+const http =
+  canonicalEnvironment?.http ||
+  {};
+
+const environmentFlags =
+  canonicalEnvironment?.flags ||
+  {};
+
+const environmentDeployment =
+  canonicalEnvironment?.deployment ||
+  {};
+
+const environmentMeta =
+  canonicalEnvironment?.meta ||
+  canonicalEnvironment?.meta?.metadata ||
+  {};
+
+const canonicalNodeEnv =
   firstDefined(
+    canonicalEnvironment?.app?.nodeEnv,
+    canonicalEnvironment?.app?.environment,
+    runtime?.nodeEnv,
+    runtime?.environment,
+    environmentFlags?.isProduction
+      ? 'production'
+      : environmentFlags?.isStaging
+        ? 'staging'
+        : environmentFlags?.isTest
+          ? 'test'
+          : 'development',
+  );
+
+const canonicalServiceName =
+  firstDefined(
+    canonicalEnvironment?.app?.serviceName,
     app?.serviceName,
     app?.name,
-    'titech-backend'
+    'titech-community-capital-backend',
   );
+
+const canonicalApplicationName =
+  firstDefined(
+    canonicalEnvironment?.app?.name,
+    app?.name,
+    'TITech Community Capital',
+  );
+
+const canonicalVersion =
+  firstDefined(
+    canonicalEnvironment?.app?.version,
+    app?.version,
+    '0.0.0',
+  );
+
+const canonicalHostname =
+  firstDefined(
+    runtime?.hostname,
+    canonicalEnvironment?.hostname,
+    environmentDeployment?.hostname,
+    app?.host,
+    DEFAULTS.runtime.host,
+  );
+
+const canonicalHost =
+  firstDefined(
+    http?.host,
+    app?.host,
+    DEFAULTS.runtime.host,
+  );
+
+const canonicalPort =
+  toNumber(
+    firstDefined(
+      http?.port,
+      app?.port,
+      DEFAULTS.runtime.port,
+    ),
+    DEFAULTS.runtime.port,
+  );
+
+// =============================================================================
+// CANONICAL APPLICATION VALUES
+// =============================================================================
+
+const serviceName =
+  String(
+    canonicalServiceName,
+  ).trim();
 
 const applicationName =
-  firstDefined(
-    app?.name,
-    'titech-community-capital'
-  );
+  String(
+    canonicalApplicationName,
+  ).trim();
 
 const applicationVersion =
-  firstDefined(
-    app?.version,
-    '0.0.0'
-  );
+  String(
+    canonicalVersion,
+  ).trim();
 
 const applicationEnvironment =
-  firstDefined(
-    app?.environment,
-    environment?.nodeEnv,
-    environment?.environment,
-    'development'
-  );
+  String(
+    canonicalNodeEnv,
+  ).trim().toLowerCase();
 
-const hostname =
-  firstDefined(
-    environment?.hostname,
-    environment?.host,
-    'localhost'
-  );
+// =============================================================================
+// FLAGS
+// =============================================================================
 
-/**
- * =============================================================================
- * Canonical API configuration
- * =============================================================================
- *
- * app.config.js may already expose API settings. When available, those values
- * remain authoritative. Otherwise, stable TITech defaults are used.
- * =============================================================================
- */
-
-const api = Object.freeze({
-  prefix:
-    normalizePath(
-      firstDefined(
-        app?.api?.prefix,
-        app?.apiPrefix,
-        DEFAULTS.api.prefix
+const flags =
+  Object.freeze({
+    isProduction:
+      Boolean(
+        environmentFlags?.isProduction ??
+          applicationEnvironment ===
+            'production',
       ),
-      DEFAULTS.api.prefix
-    ),
 
-  livenessPath:
-    normalizePath(
-      firstDefined(
-        app?.api?.livenessPath,
-        app?.livenessPath,
-        DEFAULTS.api.livenessPath
+    isStaging:
+      Boolean(
+        environmentFlags?.isStaging ??
+          applicationEnvironment ===
+            'staging',
       ),
-      DEFAULTS.api.livenessPath
-    ),
 
-  readinessPath:
-    normalizePath(
-      firstDefined(
-        app?.api?.readinessPath,
-        app?.readinessPath,
-        DEFAULTS.api.readinessPath
+    isDevelopment:
+      Boolean(
+        environmentFlags?.isDevelopment ??
+          applicationEnvironment ===
+            'development',
       ),
-      DEFAULTS.api.readinessPath
-    ),
 
-  healthPath:
-    normalizePath(
-      firstDefined(
-        app?.api?.healthPath,
-        app?.healthPath,
-        DEFAULTS.api.healthPath
+    isTest:
+      Boolean(
+        environmentFlags?.isTest ??
+          applicationEnvironment ===
+            'test',
       ),
-      DEFAULTS.api.healthPath
-    ),
 
-  metricsPath:
-    normalizePath(
-      firstDefined(
-        app?.api?.metricsPath,
-        app?.metricsPath,
-        DEFAULTS.api.metricsPath
+    isCI:
+      Boolean(
+        environmentFlags?.isCI ??
+          false,
       ),
-      DEFAULTS.api.metricsPath
-    ),
+  });
 
-  diagnosticsPath:
-    normalizePath(
-      firstDefined(
-        app?.api?.diagnosticsPath,
-        app?.diagnosticsPath,
-        DEFAULTS.api.diagnosticsPath
+// =============================================================================
+// CANONICAL API
+// =============================================================================
+
+const api =
+  Object.freeze({
+    prefix:
+      normalizePath(
+        firstDefined(
+          app?.api?.prefix,
+          app?.apiPrefix,
+          DEFAULTS.api.prefix,
+        ),
+        DEFAULTS.api.prefix,
       ),
-      DEFAULTS.api.diagnosticsPath
-    ),
-});
 
-/**
- * =============================================================================
- * Canonical health configuration
- * =============================================================================
- */
-
-const health = Object.freeze({
-  diagnosticsEnabled:
-    toBoolean(
-      firstDefined(
-        app?.health?.diagnosticsEnabled,
-        app?.diagnosticsEnabled,
-        security?.diagnosticsEnabled,
-        DEFAULTS.health.diagnosticsEnabled
+    livenessPath:
+      normalizePath(
+        firstDefined(
+          app?.api?.livenessPath,
+          app?.livenessPath,
+          DEFAULTS.api.livenessPath,
+        ),
+        DEFAULTS.api.livenessPath,
       ),
-      DEFAULTS.health.diagnosticsEnabled
-    ),
-});
 
-/**
- * =============================================================================
- * Canonical deployment metadata
- * =============================================================================
- *
- * bootstrap/environment.js is the sole owner of actual environment resolution.
- *
- * The properties below deliberately do NOT read process.env.
- * =============================================================================
- */
+    readinessPath:
+      normalizePath(
+        firstDefined(
+          app?.api?.readinessPath,
+          app?.readinessPath,
+          DEFAULTS.api.readinessPath,
+        ),
+        DEFAULTS.api.readinessPath,
+      ),
 
-const deployment = Object.freeze({
-  instanceId:
-    firstDefined(
-      environment?.instanceId,
-      environment?.instanceID,
-      environment?.hostname,
-      environment?.host,
-      hostname
-    ),
+    healthPath:
+      normalizePath(
+        firstDefined(
+          app?.api?.healthPath,
+          app?.healthPath,
+          DEFAULTS.api.healthPath,
+        ),
+        DEFAULTS.api.healthPath,
+      ),
 
-  region:
-    firstDefined(
-      environment?.deploymentRegion,
-      environment?.region,
-      DEFAULTS.deployment.region
-    ),
+    metricsPath:
+      normalizePath(
+        firstDefined(
+          app?.api?.metricsPath,
+          app?.metricsPath,
+          DEFAULTS.api.metricsPath,
+        ),
+        DEFAULTS.api.metricsPath,
+      ),
 
-  deploymentId:
-    firstDefined(
-      environment?.deploymentId,
-      environment?.deploymentID,
-      environment?.releaseId,
-      DEFAULTS.deployment.deploymentId
-    ),
+    diagnosticsPath:
+      normalizePath(
+        firstDefined(
+          app?.api?.diagnosticsPath,
+          app?.diagnosticsPath,
+          DEFAULTS.api.diagnosticsPath,
+        ),
+        DEFAULTS.api.diagnosticsPath,
+      ),
+  });
 
-  hostname,
+// =============================================================================
+// HEALTH
+// =============================================================================
 
-  nodeEnv:
-    firstDefined(
-      environment?.nodeEnv,
-      environment?.environment,
-      applicationEnvironment
-    ),
-});
+const health =
+  Object.freeze({
+    diagnosticsEnabled:
+      toBoolean(
+        firstDefined(
+          app?.health?.diagnosticsEnabled,
+          app?.diagnosticsEnabled,
+          security?.diagnosticsEnabled,
+          DEFAULTS.health
+            .diagnosticsEnabled,
+        ),
+        DEFAULTS.health
+          .diagnosticsEnabled,
+      ),
+  });
 
-/**
- * =============================================================================
- * Canonical runtime flags
- * =============================================================================
- */
+// =============================================================================
+// DEPLOYMENT
+// =============================================================================
 
-const flags = Object.freeze({
-  isProduction:
-    Boolean(
-      environment?.isProduction ??
-      applicationEnvironment === 'production'
-    ),
+const deployment =
+  Object.freeze({
+    instanceId:
+      firstDefined(
+        environmentDeployment?.instanceId,
+        environmentDeployment?.instanceID,
+        environmentDeployment?.hostname,
+        runtime?.hostname,
+        canonicalHostname,
+        DEFAULTS.deployment.instanceId,
+      ),
 
-  isStaging:
-    Boolean(
-      environment?.isStaging ??
-      applicationEnvironment === 'staging'
-    ),
+    region:
+      firstDefined(
+        environmentDeployment?.region,
+        DEFAULTS.deployment.region,
+      ),
 
-  isDevelopment:
-    Boolean(
-      environment?.isDevelopment ??
-      applicationEnvironment === 'development'
-    ),
+    deploymentId:
+      firstDefined(
+        environmentDeployment?.deploymentId,
+        environmentDeployment?.releaseId,
+        DEFAULTS.deployment
+          .deploymentId,
+      ),
 
-  isTest:
-    Boolean(
-      environment?.isTest ??
-      applicationEnvironment === 'test'
-    ),
+    hostname:
+      canonicalHostname,
 
-  isCI:
-    Boolean(
-      environment?.isCI ??
-      environment?.ci ??
-      false
-    ),
-});
+    releaseId:
+      firstDefined(
+        environmentDeployment?.releaseId,
+        null,
+      ),
 
-/**
- =============================================================================
- * Canonical structured configuration
- * =============================================================================
- *
- * NOTE:
- *   database remains nested under database.mongodb for compatibility with
- *   existing consumers.
- * =============================================================================
- */
+    commitSha:
+      firstDefined(
+        environmentDeployment?.commitSha,
+        null,
+      ),
+  });
+
+// =============================================================================
+// RUNTIME
+// =============================================================================
+//
+// Runtime is intentionally separated from application configuration.
+//
+
+const runtimeConfig =
+  Object.freeze({
+    nodeVersion:
+      runtime?.nodeVersion,
+
+    nodeMajor:
+      runtime?.nodeMajor,
+
+    platform:
+      runtime?.platform,
+
+    architecture:
+      runtime?.architecture,
+
+    pid:
+      runtime?.pid,
+
+    ppid:
+      runtime?.ppid,
+
+    hostname:
+      canonicalHostname,
+
+    cpuCount:
+      runtime?.cpuCount,
+
+    host:
+      canonicalHost,
+
+    port:
+      canonicalPort,
+  });
+
+// =============================================================================
+// COMPOSE CANONICAL CONFIGURATION
+// =============================================================================
 
 const configuration = {
-  // ---------------------------------------------------------------------------
+  // ===========================================================================
   // Identity
-  // ---------------------------------------------------------------------------
+  // ===========================================================================
+
+  component:
+    COMPONENT,
 
   application:
     applicationName,
@@ -776,40 +778,70 @@ const configuration = {
   nodeEnv:
     applicationEnvironment,
 
-  hostname,
+  // ===========================================================================
+  // Network
+  // ===========================================================================
 
   host:
-    app?.host,
+    canonicalHost,
 
   port:
-    toNumber(
-      app?.port,
-      undefined
-    ),
+    canonicalPort,
 
-  // ---------------------------------------------------------------------------
-  // Canonical modules
-  // ---------------------------------------------------------------------------
+  hostname:
+    canonicalHostname,
+
+  api,
+
+  // ===========================================================================
+  // Runtime
+  // ===========================================================================
+
+  runtime:
+    runtimeConfig,
+
+  // ===========================================================================
+  // Feature / environment flags
+  // ===========================================================================
+
+  flags,
+
+  // ===========================================================================
+  // Deployment
+  // ===========================================================================
+
+  deployment,
+
+  // ===========================================================================
+  // Health
+  // ===========================================================================
+
+  health,
+
+  // ===========================================================================
+  // Application-specific configuration modules
+  // ===========================================================================
 
   app,
 
-  runtime:
-    environment,
-
-  database: {
-    mongodb:
-      database,
-  },
+  database,
 
   auth,
 
   jwt:
     auth?.jwt,
 
-  session: {
-    secret:
-      auth?.sessionSecret,
-  },
+  session:
+    Object.freeze({
+      secret:
+        auth?.sessionSecret,
+
+      cookie:
+        auth?.cookie,
+
+      ttl:
+        auth?.sessionTtl,
+    }),
 
   cors,
 
@@ -822,76 +854,228 @@ const configuration = {
   observability,
 
   features,
-
-  // ---------------------------------------------------------------------------
-  // HTTP/API
-  // ---------------------------------------------------------------------------
-
-  api,
-
-  health,
-
-  // ---------------------------------------------------------------------------
-  // Runtime/deployment flags
-  // ---------------------------------------------------------------------------
-
-  flags,
-
-  // ---------------------------------------------------------------------------
-  // Deployment metadata
-  // ---------------------------------------------------------------------------
-
-  deployment,
 };
 
-/**
- * Deep-freeze the canonical configuration once.
- */
-deepFreeze(configuration);
+// =============================================================================
+// COMPOSED CONFIGURATION VALIDATION
+// =============================================================================
 
-/**
- * =============================================================================
- * Public configuration accessors
- * =============================================================================
- */
+function validateConfiguration(
+  value,
+) {
+  const errors =
+    [];
 
-/**
- * Return the canonical immutable configuration object.
- */
+  if (
+    !value.application
+  ) {
+    errors.push(
+      'application is required',
+    );
+  }
+
+  if (
+    !value.serviceName
+  ) {
+    errors.push(
+      'serviceName is required',
+    );
+  }
+
+  if (
+    !value.environment
+  ) {
+    errors.push(
+      'environment is required',
+    );
+  }
+
+  if (
+    !Number.isInteger(
+      value.port,
+    ) ||
+    value.port < 1 ||
+    value.port > 65_535
+  ) {
+    errors.push(
+      'port must be a valid TCP port',
+    );
+  }
+
+  if (
+    !value.api.prefix.startsWith('/')
+  ) {
+    errors.push(
+      'api.prefix must start with "/"',
+    );
+  }
+
+  if (
+    value.api.livenessPath ===
+    value.api.readinessPath &&
+    value.api.livenessPath !==
+      '/live'
+  ) {
+    /*
+     * Same paths are allowed in theory, but using distinct endpoints is the
+     * canonical default and this condition intentionally remains non-fatal.
+     */
+  }
+
+  if (
+    value.flags.isProduction &&
+    value.health.diagnosticsEnabled
+  ) {
+    /*
+     * Diagnostics can exist in production, but routes should require
+     * authorization. Configuration does not silently disable the feature.
+     */
+  }
+
+  if (
+    errors.length > 0
+  ) {
+    const error =
+      new Error(
+        `Canonical configuration validation failed: ${errors.join('; ')}`,
+      );
+
+    error.code =
+      'CONFIGURATION_VALIDATION_FAILED';
+
+    error.details = {
+      errors,
+    };
+
+    throw error;
+  }
+
+  return true;
+}
+
+validateConfiguration(
+  configuration,
+);
+
+// =============================================================================
+// FREEZE CANONICAL CONFIGURATION
+// =============================================================================
+
+deepFreeze(
+  configuration,
+);
+
+// =============================================================================
+// SAFE DIAGNOSTIC KEY FILTER
+// =============================================================================
+//
+// Avoid broad terms such as "database", "redis" and "connection", because
+// these can also occur in harmless metadata. Only redact fields that are
+// likely to carry credentials/secrets.
+//
+
+const SENSITIVE_KEY_PATTERN =
+  /(?:password|passwd|passcode|pin|otp|secret|token|private.?key|api.?key|access.?key|refresh.?token|client.?secret|encryption.?key|signing.?key|credential|authorization|cookie|dsn|uri)$/i;
+
+// =============================================================================
+// SANITIZATION
+// =============================================================================
+
+function sanitizeSnapshot(
+  value,
+  key = '',
+  seen = new WeakSet(),
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return value;
+  }
+
+  if (
+    key &&
+    SENSITIVE_KEY_PATTERN.test(
+      key,
+    )
+  ) {
+    return '[REDACTED]';
+  }
+
+  if (
+    typeof value !== 'object'
+  ) {
+    return value;
+  }
+
+  if (
+    seen.has(value)
+  ) {
+    return '[CIRCULAR]';
+  }
+
+  seen.add(value);
+
+  if (
+    Array.isArray(value)
+  ) {
+    return value.map(
+      (item) =>
+        sanitizeSnapshot(
+          item,
+          key,
+          seen,
+        ),
+    );
+  }
+
+  const output =
+    {};
+
+  for (
+    const [
+      childKey,
+      childValue,
+    ] of Object.entries(value)
+  ) {
+    output[childKey] =
+      sanitizeSnapshot(
+        childValue,
+        childKey,
+        seen,
+      );
+  }
+
+  return output;
+}
+
+// =============================================================================
+// PUBLIC ACCESSORS
+// =============================================================================
+
 export function getConfiguration() {
   return configuration;
 }
 
-/**
- * Read an arbitrary dotted configuration property.
- *
- * Compatible with consumers such as:
- *
- *   configuration.get('app.serviceName')
- *   configuration.get('observability.metricsEnabled')
- */
 export function get(
   path,
-  fallback = undefined
+  fallback = undefined,
 ) {
   return getByPath(
     configuration,
     path,
-    fallback
+    fallback,
   );
 }
 
-/**
- * Read a string configuration property.
- */
 export function getString(
   path,
-  fallback = undefined
+  fallback = undefined,
 ) {
   const value =
     get(
       path,
-      fallback
+      fallback,
     );
 
   if (
@@ -904,67 +1088,46 @@ export function getString(
   return String(value);
 }
 
-/**
- * Read a boolean configuration property.
- */
 export function getBoolean(
   path,
-  fallback = false
+  fallback = false,
 ) {
   return toBoolean(
     get(
       path,
-      fallback
+      fallback,
     ),
-    fallback
+    fallback,
   );
 }
 
-/**
- * Read a numeric configuration property.
- */
 export function getNumber(
   path,
-  fallback = undefined
+  fallback = undefined,
 ) {
   return toNumber(
     get(
       path,
-      fallback
+      fallback,
     ),
-    fallback
+    fallback,
   );
 }
 
-/**
- * Read an object configuration property.
- *
- * Returns the original immutable object when already present.
- */
 export function getObject(
   path,
-  fallback = undefined
+  fallback = undefined,
 ) {
-  const value =
-    get(
-      path,
-      fallback
-    );
-
-  return value;
+  return get(
+    path,
+    fallback,
+  );
 }
 
-/**
- * Determine the current environment.
- */
 export function getEnvironment() {
   return configuration.environment;
 }
 
-/**
- * Environment predicates retained for compatibility with existing
- * infrastructure modules.
- */
 export function isProduction() {
   return flags.isProduction;
 }
@@ -983,589 +1146,77 @@ export function isTest() {
 
 export function isCI() {
   return flags.isCI;
-=======
-    'routes';
-
-const DEFAULT_API_PREFIX =
-    '/api';
-
-const DEFAULT_HEALTH_PREFIX =
-    '';
-
-const DEFAULT_DIAGNOSTICS_PATH =
-    '/health/diagnostics';
-
-const DEFAULT_METRICS_PATH =
-    '/metrics';
-
-const DEFAULT_LIVE_PATH =
-    '/live';
-
-const DEFAULT_READY_PATH =
-    '/ready';
-
-const DEFAULT_HEALTH_PATH =
-    '/health';
-
-/**
- * =============================================================================
- * Internal runtime state
- * =============================================================================
- */
-
-let routesRegistered =
-    false;
-
-let registrationStarted =
-    false;
-
-let registrationCompleted =
-    false;
-
-let registrationError =
-    null;
-
-let registrationTimestamp =
-    null;
-
-const registeredRouteGroups =
-    new Set();
-
-/**
- * =============================================================================
- * Route groups
- * =============================================================================
- */
-
-const ROUTE_GROUPS =
-    Object.freeze({
-        API:
-            'api',
-
-        HEALTH:
-            'health',
-
-        DIAGNOSTICS:
-            'diagnostics',
-
-        METRICS:
-            'metrics',
-
-        NOT_FOUND:
-            'not_found'
-    });
-
-/**
- * =============================================================================
- * Logger
- * =============================================================================
- */
-
-function getLogger() {
-
-    try {
-
-        return (
-            loggerModule?.getLogger?.() ||
-            loggerModule?.logger ||
-            loggerModule
-        );
-
-    } catch {
-
-        return null;
-
-    }
-
 }
 
-function log(
-    level,
-    metadata,
-    message
-) {
+// =============================================================================
+// NETWORK / ROUTE ACCESSORS
+// =============================================================================
 
-    try {
-
-        const logger =
-            getLogger();
-
-        if (
-            logger &&
-            typeof logger[level] ===
-                'function'
-        ) {
-
-            logger[level](
-                {
-                    component:
-                        COMPONENT,
-
-                    ...metadata
-                },
-                message
-            );
-
-            return;
-
-        }
-
-    } catch {
-
-        // Logging failures must not prevent route registration.
-
-    }
-
-    const text =
-        `[${COMPONENT}] ${message}`;
-
-    if (
-        level === 'error' ||
-        level === 'fatal'
-    ) {
-
-        process.stderr.write(
-            `${text}\n`
-        );
-
-    } else {
-
-        process.stdout.write(
-            `${text}\n`
-        );
-
-    }
-
+export function getHost() {
+  return configuration.host;
 }
 
-/**
- * =============================================================================
- * Configuration helpers
- * =============================================================================
- */
-
-function getConfig(
-    path,
-    fallback = undefined
-) {
-
-    try {
-
-        if (
-            typeof configuration?.get ===
-                'function'
-        ) {
-
-            return configuration.get(
-                path,
-                fallback
-            );
-
-        }
-
-        if (
-            typeof configuration?.getObject ===
-                'function'
-        ) {
-
-            return configuration.getObject(
-                path,
-                fallback
-            );
-
-        }
-
-    } catch {
-
-        // Fall through to fallback.
-
-    }
-
-    return fallback;
-
+export function getPort() {
+  return configuration.port;
 }
-
-function getStringConfig(
-    path,
-    fallback
-) {
-
-    try {
-
-        if (
-            typeof configuration?.getString ===
-                'function'
-        ) {
-
-            return configuration.getString(
-                path,
-                fallback
-            );
-
-        }
-
-        if (
-            typeof configuration?.get ===
-                'function'
-        ) {
-
-            const value =
-                configuration.get(
-                    path,
-                    fallback
-                );
-
-            return value ===
-                    undefined ||
-                value ===
-                    null
-                ? fallback
-                : String(
-                    value
-                );
-
-        }
-
-    } catch {
-
-        // Fall through.
-
-    }
-
-    return fallback;
-
-}
-
-function isProductionEnvironment() {
-
-    try {
-
-        if (
-            typeof configuration?.isProduction ===
-                'function'
-        ) {
-
-            return Boolean(
-                configuration.isProduction()
-            );
-
-        }
-
-        return (
-            process.env.NODE_ENV ===
-            'production'
-        );
-
-    } catch {
-
-        return (
-            process.env.NODE_ENV ===
-            'production'
-        );
-
-    }
-
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
-}
-
-/**
- * =============================================================================
-<<<<<<< HEAD
- * Route configuration helpers
- * =============================================================================
- */
 
 export function getApiPrefix() {
   return configuration.api.prefix;
 }
 
 export function getLivenessPath() {
-  return configuration.api.livenessPath;
+  return configuration.api
+    .livenessPath;
 }
 
 export function getReadinessPath() {
-  return configuration.api.readinessPath;
+  return configuration.api
+    .readinessPath;
 }
 
 export function getHealthPath() {
-  return configuration.api.healthPath;
+  return configuration.api
+    .healthPath;
 }
 
 export function getMetricsPath() {
-  return configuration.api.metricsPath;
+  return configuration.api
+    .metricsPath;
 }
 
 export function getDiagnosticsPath() {
-  return configuration.api.diagnosticsPath;
+  return configuration.api
+    .diagnosticsPath;
 }
 
 export function joinRoutePathForApi(
-  path
+  routePath,
 ) {
   return joinPath(
     configuration.api.prefix,
-    path
+    routePath,
   );
 }
 
-/**
- * =============================================================================
- * Diagnostic configuration snapshot
- * =============================================================================
- *
- * IMPORTANT:
- *   Never return live references to configuration internals.
- *
- * The snapshot is intended for:
- *   - diagnostics
- *   - tests
- *   - operational introspection
- *   - controlled administrative tooling
- *
- * Secrets are deliberately removed/redacted.
- * =============================================================================
- */
+// =============================================================================
+// SAFE SNAPSHOTS
+// =============================================================================
 
-const SENSITIVE_KEY_PATTERN =
-  /(password|passwd|secret|token|private.?key|api.?key|access.?key|refresh.?token|client.?secret|encryption.?key|signing.?key|credential|authorization)/i;
-
-function sanitizeSnapshot(
-  value,
-  key = ''
-) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return value;
-  }
-
-  if (
-    SENSITIVE_KEY_PATTERN.test(
-      key
-    )
-  ) {
-    return '[REDACTED]';
-  }
-
-  if (
-    typeof value !== 'object'
-  ) {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(
-      (item) =>
-        sanitizeSnapshot(
-          item,
-          key
-        )
-    );
-  }
-
-  const output = {};
-
-  for (const [
-    childKey,
-    childValue
-  ] of Object.entries(value)) {
-    output[childKey] =
-      sanitizeSnapshot(
-        childValue,
-        childKey
-      );
-  }
-
-  return output;
-}
-
-/**
- * Return a detached, sanitized configuration snapshot.
- */
 export function snapshot() {
   return sanitizeSnapshot(
-    cloneValue(configuration)
+    cloneValue(
+      configuration,
+    ),
   );
 }
 
-/**
- * Alias used by operational/diagnostic consumers.
- */
 export function getSnapshot() {
   return snapshot();
-=======
- * Route prefix resolution
- * =============================================================================
- */
-
-function getApiPrefix() {
-
-    const configured =
-        getStringConfig(
-            'api.prefix',
-            DEFAULT_API_PREFIX
-        );
-
-    const normalized =
-        String(
-            configured ||
-                DEFAULT_API_PREFIX
-        )
-            .trim()
-            .replace(
-                /\/+/g,
-                '/'
-            );
-
-    if (
-        normalized === '/'
-    ) {
-
-        return '';
-
-    }
-
-    return normalized.startsWith('/')
-        ? normalized.replace(
-            /\/$/,
-            ''
-        )
-        : `/${normalized.replace(
-            /\/$/,
-            ''
-        )}`;
-
 }
 
-function joinRoutePath(
-    prefix,
-    path
-) {
-
-    const normalizedPrefix =
-        String(
-            prefix ||
-                ''
-        )
-            .trim()
-            .replace(
-                /\/$/,
-                ''
-            );
-
-    const normalizedPath =
-        String(
-            path ||
-                ''
-        )
-            .trim()
-            .replace(
-                /^\/+/,
-                ''
-            );
-
-    if (
-        !normalizedPrefix
-    ) {
-
-        return (
-            normalizedPath
-                ? `/${normalizedPath}`
-                : '/'
-        );
-
-    }
-
-    return normalizedPath
-        ? `${normalizedPrefix}/${normalizedPath}`
-        : normalizedPrefix;
-
-}
-
-/**
- * =============================================================================
- * Express application contract
- * =============================================================================
- */
-
-function assertExpressApplication(
-    app
-) {
-
-    if (
-        !app ||
-        typeof app.use !==
-            'function'
-    ) {
-
-        throw new TypeError(
-            'TITech route registration requires a valid Express application.'
-        );
-
-    }
-
-    if (
-        typeof app.get !==
-            'function'
-    ) {
-
-        throw new TypeError(
-            'TITech route registration requires Express application.get().'
-        );
-
-    }
-
-    if (
-        typeof app.set !==
-            'function'
-    ) {
-
-        log(
-            'warn',
-            {},
-            'Express application.set() is unavailable; route metadata will not be attached.'
-        );
-
-    }
-
-    return true;
-
-}
-
-/**
- * =============================================================================
- * Route registration guards
- * =============================================================================
- */
-
-function isGroupRegistered(
-    group
-) {
-
-    return registeredRouteGroups.has(
-        group
-    );
-
-}
-
-function markGroupRegistered(
-    group
-) {
-
-    registeredRouteGroups.add(
-        group
-    );
-
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880
-}
-
-/**
- * =============================================================================
-<<<<<<< HEAD
- * Configuration metadata
- * =============================================================================
- */
+// =============================================================================
+// SAFE METADATA
+// =============================================================================
 
 export function getMetadata() {
   return Object.freeze({
@@ -1576,7 +1227,8 @@ export function getMetadata() {
       configuration.application,
 
     applicationLegalName:
-      configuration.applicationLegalName,
+      configuration
+        .applicationLegalName,
 
     serviceName:
       configuration.serviceName,
@@ -1593,16 +1245,51 @@ export function getMetadata() {
     hostname:
       configuration.hostname,
 
+    runtime:
+      Object.freeze({
+        nodeVersion:
+          configuration.runtime
+            .nodeVersion,
+
+        nodeMajor:
+          configuration.runtime
+            .nodeMajor,
+
+        platform:
+          configuration.runtime
+            .platform,
+
+        architecture:
+          configuration.runtime
+            .architecture,
+      }),
+
     deployment:
       Object.freeze({
         instanceId:
-          configuration.deployment.instanceId,
+          configuration
+            .deployment
+            .instanceId,
 
         region:
-          configuration.deployment.region,
+          configuration
+            .deployment
+            .region,
 
         deploymentId:
-          configuration.deployment.deploymentId,
+          configuration
+            .deployment
+            .deploymentId,
+
+        releaseId:
+          configuration
+            .deployment
+            .releaseId,
+
+        commitSha:
+          configuration
+            .deployment
+            .commitSha,
       }),
 
     flags:
@@ -1610,20 +1297,9 @@ export function getMetadata() {
   });
 }
 
-/**
- * =============================================================================
- * Compatibility facade
- * =============================================================================
- *
- * This default export intentionally exposes both:
- *
- *   1. canonical nested configuration properties
- *   2. configuration accessor methods
- *
- * This allows legacy modules to migrate incrementally from configuration
- * providers without reintroducing process.env access.
- * =============================================================================
- */
+// =============================================================================
+// COMPATIBILITY FACADE
+// =============================================================================
 
 const configurationFacade =
   Object.freeze({
@@ -1644,12 +1320,16 @@ const configurationFacade =
     isTest,
     isCI,
 
+    getHost,
+    getPort,
+
     getApiPrefix,
     getLivenessPath,
     getReadinessPath,
     getHealthPath,
     getMetricsPath,
     getDiagnosticsPath,
+
     joinRoutePathForApi,
 
     snapshot,
@@ -1657,1370 +1337,39 @@ const configurationFacade =
     getMetadata,
   });
 
-/**
- * =============================================================================
- * Named exports
- * =============================================================================
- */
+// =============================================================================
+// EXPORTS
+// =============================================================================
 
 export {
   configuration,
   configurationFacade,
+
+  app,
+  database,
+  auth,
+  cors,
+  redis,
+  email,
+  security,
+  observability,
+  features,
+
   api,
   health,
-  deployment,
   flags,
+  deployment,
+  runtimeConfig,
+
   COMPONENT,
   APPLICATION_LEGAL_NAME,
   DEFAULTS,
+
+  environmentMeta,
 };
 
-/**
- * =============================================================================
- * Default export
- * =============================================================================
- */
+// =============================================================================
+// DEFAULT EXPORT
+// =============================================================================
 
 export default configurationFacade;
-=======
- * API routes
- * =============================================================================
- *
- * Individual route modules remain authoritative for:
- *   - authentication
- *   - validation
- *   - controllers
- *   - services
- *   - authorization
- *
- * This module only mounts them.
- * =============================================================================
- */
-
-function registerApiRoutes(
-    app
-) {
-
-    assertExpressApplication(
-        app
-    );
-
-    if (
-        isGroupRegistered(
-            ROUTE_GROUPS.API
-        )
-    ) {
-
-        return app;
-
-    }
-
-    const apiPrefix =
-        getApiPrefix();
-
-    /**
-     * -------------------------------------------------------------------------
-     * Authentication
-     * -------------------------------------------------------------------------
-     */
-
-    const authRoutes =
-        require('./auth');
-
-    if (
-        authRoutes
-    ) {
-
-        app.use(
-            joinRoutePath(
-                apiPrefix,
-                '/auth'
-            ),
-            authRoutes
-        );
-
-    }
-
-    /**
-     * -------------------------------------------------------------------------
-     * Legal
-     * -------------------------------------------------------------------------
-     */
-
-    const legalRoutes =
-        require('./legal.routes');
-
-    if (
-        legalRoutes
-    ) {
-
-        app.use(
-            joinRoutePath(
-                apiPrefix,
-                '/legal'
-            ),
-            legalRoutes
-        );
-
-    }
-
-    /**
-     * -------------------------------------------------------------------------
-     * Email
-     * -------------------------------------------------------------------------
-     */
-
-    const emailRoutes =
-        require('./email');
-
-    if (
-        emailRoutes
-    ) {
-
-        app.use(
-            joinRoutePath(
-                apiPrefix,
-                '/email'
-            ),
-            emailRoutes
-        );
-
-    }
-
-    markGroupRegistered(
-        ROUTE_GROUPS.API
-    );
-
-    return app;
-
-}
-
-/**
- * =============================================================================
- * Liveness
- * =============================================================================
- *
- * Liveness intentionally does not check dependencies.
- *
- * Kubernetes/container orchestrators should not restart a healthy process merely
- * because MongoDB/Redis is temporarily unavailable.
- * =============================================================================
- */
-
-function buildLivenessResponse() {
-
-    const live =
-        Boolean(
-            isLive()
-        );
-
-    return {
-        success:
-            live,
-
-        alive:
-            live,
-
-        status:
-            live
-                ? 'live'
-                : 'stopped',
-
-        service:
-            getStringConfig(
-                'app.serviceName',
-                process.env.SERVICE_NAME ||
-                    'titech-backend'
-            ),
-
-        application:
-            getStringConfig(
-                'app.name',
-                process.env.APP_NAME ||
-                    'titech-community-capital'
-            ),
-
-        version:
-            getStringConfig(
-                'app.version',
-                process.env.APP_VERSION ||
-                    '0.0.0'
-            ),
-
-        uptimeSeconds:
-            process.uptime(),
-
-        timestamp:
-            new Date().toISOString()
-    };
-
-}
-
-function registerLivenessRoute(
-    app
-) {
-
-    const path =
-        getStringConfig(
-            'api.livenessPath',
-            DEFAULT_LIVE_PATH
-        );
-
-    app.get(
-        path,
-        (
-            req,
-            res
-        ) => {
-
-            const response =
-                buildLivenessResponse();
-
-            return res
-                .status(
-                    response.success
-                        ? 200
-                        : 503
-                )
-                .json(
-                    response
-                );
-
-        }
-    );
-
-}
-
-/**
- * =============================================================================
- * Readiness
- * =============================================================================
- */
-
-function buildReadinessResponse() {
-
-    const ready =
-        Boolean(
-            isReady()
-        );
-
-    const health =
-        getHealthState() ||
-        {};
-
-    return {
-        success:
-            ready,
-
-        ready,
-
-        status:
-            ready
-                ? 'ready'
-                : 'not_ready',
-
-        service:
-            getStringConfig(
-                'app.serviceName',
-                process.env.SERVICE_NAME ||
-                    'titech-backend'
-            ),
-
-        phase:
-            health.phase ||
-            null,
-
-        healthy:
-            Boolean(
-                health.healthy
-            ),
-
-        live:
-            Boolean(
-                health.live
-            ),
-
-        started:
-            Boolean(
-                health.started
-            ),
-
-        starting:
-            Boolean(
-                health.starting
-            ),
-
-        shuttingDown:
-            Boolean(
-                health.shuttingDown
-            ),
-
-        stopped:
-            Boolean(
-                health.stopped
-            ),
-
-        failed:
-            Boolean(
-                health.failed
-            ),
-
-        timestamp:
-            new Date().toISOString()
-    };
-
-}
-
-function registerReadinessRoute(
-    app
-) {
-
-    const path =
-        getStringConfig(
-            'api.readinessPath',
-            DEFAULT_READY_PATH
-        );
-
-    app.get(
-        path,
-        (
-            req,
-            res
-        ) => {
-
-            const response =
-                buildReadinessResponse();
-
-            return res
-                .status(
-                    response.ready
-                        ? 200
-                        : 503
-                )
-                .json(
-                    response
-                );
-
-        }
-    );
-
-}
-
-/**
- * =============================================================================
- * General health
- * =============================================================================
- */
-
-function buildHealthResponse() {
-
-    const health =
-        getHealthState() ||
-        {};
-
-    const healthy =
-        Boolean(
-            health.healthy
-        ) &&
-        !health.failed;
-
-    return {
-        success:
-            healthy,
-
-        status:
-            healthy
-                ? 'healthy'
-                : 'degraded',
-
-        service:
-            getStringConfig(
-                'app.serviceName',
-                process.env.SERVICE_NAME ||
-                    'titech-backend'
-            ),
-
-        application:
-            getStringConfig(
-                'app.name',
-                process.env.APP_NAME ||
-                    'titech-community-capital'
-            ),
-
-        version:
-            getStringConfig(
-                'app.version',
-                process.env.APP_VERSION ||
-                    '0.0.0'
-            ),
-
-        live:
-            Boolean(
-                health.live
-            ),
-
-        ready:
-            Boolean(
-                health.ready
-            ),
-
-        healthy:
-            Boolean(
-                health.healthy
-            ),
-
-        started:
-            Boolean(
-                health.started
-            ),
-
-        starting:
-            Boolean(
-                health.starting
-            ),
-
-        shuttingDown:
-            Boolean(
-                health.shuttingDown
-            ),
-
-        stopped:
-            Boolean(
-                health.stopped
-            ),
-
-        failed:
-            Boolean(
-                health.failed
-            ),
-
-        phase:
-            health.phase ||
-            null,
-
-        lastHealthCheck:
-            health.lastHealthCheck ||
-            null,
-
-        uptimeSeconds:
-            process.uptime(),
-
-        timestamp:
-            new Date().toISOString()
-    };
-
-}
-
-function registerHealthRoute(
-    app
-) {
-
-    const path =
-        getStringConfig(
-            'api.healthPath',
-            DEFAULT_HEALTH_PATH
-        );
-
-    app.get(
-        path,
-        (
-            req,
-            res
-        ) => {
-
-            const response =
-                buildHealthResponse();
-
-            return res
-                .status(
-                    response.success
-                        ? 200
-                        : 503
-                )
-                .json(
-                    response
-                );
-
-        }
-    );
-
-}
-
-/**
- * =============================================================================
- * Metrics
- * =============================================================================
- *
- * Metrics implementation remains owned by observability.
- *
- * This module only exposes the existing metrics handler.
- * =============================================================================
- */
-
-function registerMetricsRoute(
-    app
-) {
-
-    if (
-        isGroupRegistered(
-            ROUTE_GROUPS.METRICS
-        )
-    ) {
-
-        return app;
-
-    }
-
-    const metricsEnabled =
-        getConfig(
-            'observability.metricsEnabled',
-            getConfig(
-                'features.metrics',
-                true
-            )
-        );
-
-    if (
-        metricsEnabled ===
-            false
-    ) {
-
-        markGroupRegistered(
-            ROUTE_GROUPS.METRICS
-        );
-
-        return app;
-
-    }
-
-    const metricsPath =
-        getStringConfig(
-            'api.metricsPath',
-            DEFAULT_METRICS_PATH
-        );
-
-    let metricsHandler =
-        null;
-
-    try {
-
-        if (
-            typeof observability?.metricsHandler ===
-                'function'
-        ) {
-
-            metricsHandler =
-                observability.metricsHandler();
-
-        } else if (
-            typeof observability?.observability?.metricsHandler ===
-                'function'
-        ) {
-
-            metricsHandler =
-                observability.observability.metricsHandler();
-
-        }
-
-    } catch (
-        error
-    ) {
-
-        log(
-            'warn',
-            {
-                error:
-                    {
-                        name:
-                            error?.name,
-
-                        message:
-                            error?.message
-                    }
-            },
-            'TITech observability metrics handler could not be initialized.'
-        );
-
-    }
-
-    /**
-     * Metrics should not be exposed through a broken placeholder endpoint.
-     * Only register the endpoint when the canonical observability subsystem
-     * provides it.
-     */
-    if (
-        typeof metricsHandler ===
-            'function'
-    ) {
-
-        app.get(
-            metricsPath,
-            metricsHandler
-        );
-
-        markGroupRegistered(
-            ROUTE_GROUPS.METRICS
-        );
-
-        return app;
-
-    }
-
-    log(
-        'warn',
-        {},
-        'TITech metrics endpoint was not registered because no metrics handler is available.'
-    );
-
-    return app;
-
-}
-
-/**
- * =============================================================================
- * Runtime health routes
- * =============================================================================
- */
-
-function registerHealthRoutes(
-    app
-) {
-
-    assertExpressApplication(
-        app
-    );
-
-    if (
-        isGroupRegistered(
-            ROUTE_GROUPS.HEALTH
-        )
-    ) {
-
-        return app;
-
-    }
-
-    registerLivenessRoute(
-        app
-    );
-
-    registerReadinessRoute(
-        app
-    );
-
-    registerHealthRoute(
-        app
-    );
-
-    markGroupRegistered(
-        ROUTE_GROUPS.HEALTH
-    );
-
-    return app;
-
-}
-
-/**
- * =============================================================================
- * Internal diagnostics
- * =============================================================================
- *
- * Diagnostics are intentionally unavailable in production unless explicitly
- * enabled AND authorized by a future security boundary.
- *
- * This route therefore defaults to 404 in production.
- * =============================================================================
- */
-
-function isDiagnosticsEnabled() {
-
-    const explicit =
-        getConfig(
-            'health.diagnosticsEnabled',
-            undefined
-        );
-
-    if (
-        explicit !==
-            undefined
-    ) {
-
-        return Boolean(
-            explicit
-        );
-
-    }
-
-    return (
-        !isProductionEnvironment()
-    );
-
-}
-
-function buildDiagnosticsResponse(
-    app
-) {
-
-    const state =
-        getApplicationState();
-
-    const health =
-        getHealthState();
-
-    let configurationSnapshot =
-        null;
-
-    try {
-
-        configurationSnapshot =
-            typeof configuration?.snapshot ===
-                'function'
-                ? configuration.snapshot()
-                : null;
-
-    } catch {
-
-        configurationSnapshot =
-            null;
-
-    }
-
-    let observabilitySnapshot =
-        null;
-
-    try {
-
-        if (
-            typeof observability?.snapshot ===
-                'function'
-        ) {
-
-            observabilitySnapshot =
-                observability.snapshot();
-
-        } else if (
-            typeof observability?.observability?.snapshot ===
-                'function'
-        ) {
-
-            observabilitySnapshot =
-                observability.observability.snapshot();
-
-        }
-
-    } catch {
-
-        observabilitySnapshot =
-            null;
-
-    }
-
-    return {
-        success:
-            true,
-
-        component:
-            COMPONENT,
-
-        timestamp:
-            new Date().toISOString(),
-
-        application:
-            {
-                name:
-                    getStringConfig(
-                        'app.name',
-                        process.env.APP_NAME ||
-                            'titech-community-capital'
-                    ),
-
-                service:
-                    getStringConfig(
-                        'app.serviceName',
-                        process.env.SERVICE_NAME ||
-                            'titech-backend'
-                    ),
-
-                version:
-                    getStringConfig(
-                        'app.version',
-                        process.env.APP_VERSION ||
-                            '0.0.0'
-                    ),
-
-                environment:
-                    getStringConfig(
-                        'app.environment',
-                        process.env.NODE_ENV ||
-                            'development'
-                    )
-            },
-
-        runtime:
-            {
-                node:
-                    process.version,
-
-                pid:
-                    process.pid,
-
-                platform:
-                    process.platform,
-
-                architecture:
-                    process.arch,
-
-                uptimeSeconds:
-                    process.uptime()
-            },
-
-        routes:
-            {
-                registered:
-                    routesRegistered,
-
-                registrationStarted,
-
-                registrationCompleted,
-
-                registrationTimestamp,
-
-                groups:
-                    [
-                        ...registeredRouteGroups
-                    ]
-            },
-
-        state,
-
-        health,
-
-        configuration:
-            configurationSnapshot,
-
-        observability:
-            observabilitySnapshot
-    };
-
-}
-
-function registerDiagnosticRoutes(
-    app
-) {
-
-    assertExpressApplication(
-        app
-    );
-
-    if (
-        isGroupRegistered(
-            ROUTE_GROUPS.DIAGNOSTICS
-        )
-    ) {
-
-        return app;
-
-    }
-
-    if (
-        !isDiagnosticsEnabled()
-    ) {
-
-        markGroupRegistered(
-            ROUTE_GROUPS.DIAGNOSTICS
-        );
-
-        return app;
-
-    }
-
-    app.get(
-        DEFAULT_DIAGNOSTICS_PATH,
-        (
-            req,
-            res
-        ) => {
-
-            /**
-             * Production defense-in-depth.
-             */
-            if (
-                isProductionEnvironment()
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-                        success:
-                            false,
-
-                        code:
-                            'NOT_FOUND',
-
-                        message:
-                            'Not found.'
-                    });
-
-            }
-
-            return res
-                .status(200)
-                .json(
-                    buildDiagnosticsResponse(
-                        app
-                    )
-                );
-
-        }
-    );
-
-    markGroupRegistered(
-        ROUTE_GROUPS.DIAGNOSTICS
-    );
-
-    return app;
-
-}
-
-/**
- * =============================================================================
- * Route-not-found error
- * =============================================================================
- */
-
-function createRouteNotFoundError(
-    req
-) {
-
-    const error =
-        new Error(
-            `Route not found: ${req.method} ${req.originalUrl}`
-        );
-
-    error.name =
-        'RouteNotFoundError';
-
-    error.code =
-        'ROUTE_NOT_FOUND';
-
-    error.status =
-        404;
-
-    error.statusCode =
-        404;
-
-    error.expose =
-        true;
-
-    error.method =
-        req.method;
-
-    error.path =
-        req.path ||
-        req.originalUrl;
-
-    return error;
-
-}
-
-function registerNotFoundHandler(
-    app
-) {
-
-    assertExpressApplication(
-        app
-    );
-
-    if (
-        isGroupRegistered(
-            ROUTE_GROUPS.NOT_FOUND
-        )
-    ) {
-
-        return app;
-
-    }
-
-    app.use(
-        (
-            req,
-            res,
-            next
-        ) => {
-
-            return next(
-                createRouteNotFoundError(
-                    req
-                )
-            );
-
-        }
-    );
-
-    markGroupRegistered(
-        ROUTE_GROUPS.NOT_FOUND
-    );
-
-    return app;
-
-}
-
-/**
- * =============================================================================
- * Route metadata
- * =============================================================================
- */
-
-function attachRouteMetadata(
-    app
-) {
-
-    try {
-
-        if (
-            typeof app.set ===
-                'function'
-        ) {
-
-            app.set(
-                'titech.routesRegistered',
-                true
-            );
-
-            app.set(
-                'titech.routeRegistrationTimestamp',
-                registrationTimestamp
-            );
-
-            app.set(
-                'titech.routeGroups',
-                Object.freeze(
-                    [
-                        ...registeredRouteGroups
-                    ]
-                )
-            );
-
-        }
-
-    } catch {
-
-        // Metadata is optional.
-
-    }
-
-}
-
-/**
- * =============================================================================
- * Main registration boundary
- * =============================================================================
- */
-
-function registerRoutes(
-    app
-) {
-
-    assertExpressApplication(
-        app
-    );
-
-    /**
-     * Duplicate invocation protection.
-     */
-    if (
-        routesRegistered
-    ) {
-
-        return app;
-
-    }
-
-    registrationStarted =
-        true;
-
-    registrationError =
-        null;
-
-    try {
-
-        /**
-         * ---------------------------------------------------------------------
-         * API routes
-         * ---------------------------------------------------------------------
-         */
-
-        registerApiRoutes(
-            app
-        );
-
-        /**
-         * ---------------------------------------------------------------------
-         * Health / runtime routes
-         * ---------------------------------------------------------------------
-         */
-
-        registerHealthRoutes(
-            app
-        );
-
-        /**
-         * ---------------------------------------------------------------------
-         * Metrics
-         * ---------------------------------------------------------------------
-         */
-
-        registerMetricsRoute(
-            app
-        );
-
-        /**
-         * ---------------------------------------------------------------------
-         * Diagnostics
-         * ---------------------------------------------------------------------
-         */
-
-        registerDiagnosticRoutes(
-            app
-        );
-
-        /**
-         * ---------------------------------------------------------------------
-         * NOT FOUND
-         * ---------------------------------------------------------------------
-         *
-         * This MUST be last among normal route definitions.
-         */
-
-        registerNotFoundHandler(
-            app
-        );
-
-        registrationCompleted =
-            true;
-
-        routesRegistered =
-            true;
-
-        registrationTimestamp =
-            new Date();
-
-        attachRouteMetadata(
-            app
-        );
-
-        log(
-            'info',
-            {
-                routeGroups:
-                    [
-                        ...registeredRouteGroups
-                    ],
-
-                apiPrefix:
-                    getApiPrefix()
-            },
-            'TITech HTTP routes registered successfully.'
-        );
-
-        return app;
-
-    } catch (
-        error
-    ) {
-
-        registrationError =
-            error;
-
-        registrationCompleted =
-            false;
-
-        routesRegistered =
-            false;
-
-        log(
-            'error',
-            {
-                error:
-                    {
-                        name:
-                            error?.name,
-
-                        code:
-                            error?.code,
-
-                        message:
-                            error?.message,
-
-                        stack:
-                            error?.stack
-                    }
-            },
-            'TITech HTTP route registration failed.'
-        );
-
-        throw error;
-
-    }
-
-}
-
-/**
- * =============================================================================
- * Route registration state
- * =============================================================================
- */
-
-function getRouteState() {
-
-    return Object.freeze({
-        component:
-            COMPONENT,
-
-        registered:
-            routesRegistered,
-
-        registrationStarted,
-
-        registrationCompleted,
-
-        registrationTimestamp,
-
-        error:
-            registrationError
-                ? {
-                    name:
-                        registrationError.name,
-
-                    code:
-                        registrationError.code,
-
-                    message:
-                        registrationError.message
-                }
-                : null,
-
-        groups:
-            Object.freeze(
-                [
-                    ...registeredRouteGroups
-                ]
-            )
-    });
-
-}
-
-/**
- * =============================================================================
- * Reset
- * =============================================================================
- *
- * Test/process isolation only.
- *
- * Express route stacks cannot safely be removed from a running production
- * application, so reset is limited to module bookkeeping. A new Express app
- * should be created for tests.
- * =============================================================================
- */
-
-function resetRouteState() {
-
-    routesRegistered =
-        false;
-
-    registrationStarted =
-        false;
-
-    registrationCompleted =
-        false;
-
-    registrationError =
-        null;
-
-    registrationTimestamp =
-        null;
-
-    registeredRouteGroups.clear();
-
-    return true;
-
-}
-
-/**
- * =============================================================================
- * Exports
- * =============================================================================
- */
-
-module.exports =
-    Object.freeze({
-
-        /**
-         * Main registration.
-         */
-        registerRoutes,
-
-        /**
-         * API.
-         */
-        registerApiRoutes,
-
-        /**
-         * Runtime health.
-         */
-        registerHealthRoutes,
-
-        registerLivenessRoute,
-
-        registerReadinessRoute,
-
-        registerHealthRoute,
-
-        /**
-         * Metrics.
-         */
-        registerMetricsRoute,
-
-        /**
-         * Diagnostics.
-         */
-        registerDiagnosticRoutes,
-
-        /**
-         * 404.
-         */
-        registerNotFoundHandler,
-
-        /**
-         * Helpers.
-         */
-        buildLivenessResponse,
-
-        buildReadinessResponse,
-
-        buildHealthResponse,
-
-        buildDiagnosticsResponse,
-
-        createRouteNotFoundError,
-
-        getApiPrefix,
-
-        joinRoutePath,
-
-        /**
-         * State.
-         */
-        getRouteState,
-
-        resetRouteState,
-
-        /**
-         * Constants.
-         */
-        COMPONENT,
-
-        ROUTE_GROUPS
-
-    });
->>>>>>> e171b5b5138dd4d5cecea24d20897464a3a34880

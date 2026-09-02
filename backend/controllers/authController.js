@@ -9,7 +9,7 @@
 
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const User = require('../models/User');
@@ -98,6 +98,12 @@ function createFallbackUserRecord(values = {}) {
 async function findFallbackUserByEmail(email) {
   const normalizedEmail = normalizeEmail(email);
   return FALLBACK_USERS.get(normalizedEmail) || null;
+}
+async function findFallbackUserById(userId) {
+  const normalizedUserId = String(userId);
+  return [...FALLBACK_USERS.values()].find(
+    (user) => String(user._id) === normalizedUserId
+  ) || null;
 }
 async function saveFallbackUser(user) {
   const normalizedEmail = normalizeEmail(user.email);
@@ -240,7 +246,7 @@ async function register(req, res) {
       });
     }
 
-    const tenantHeader = req.headers['x-tenant-id'];
+    const tenantHeader = req.headers?.['x-tenant-id'];
     const tenantId =
       tenantHeader &&
       mongoose.Types.ObjectId.isValid(tenantHeader)
@@ -515,7 +521,6 @@ async function refresh(req, res) {
         dbToken.revokedReason = 'expired';
         return res.status(401).json({ success: false, message: 'Refresh token expired', code: 'REFRESH_TOKEN_EXPIRED' });
       }
-      const user = await findFallbackUserByEmail((await findFallbackUserById(dbToken.userId))?.email || '');
       const fallbackUser = await findFallbackUserById(dbToken.userId);
       if (!fallbackUser) {
         return res.status(401).json({ success: false, message: 'User not found', code: 'USER_NOT_FOUND' });
@@ -525,10 +530,13 @@ async function refresh(req, res) {
         dbToken.revokedReason = 'account_disabled';
         return res.status(403).json({ success: false, message: 'Account disabled', code: 'ACCOUNT_DISABLED' });
       }
-      const { token: newRefreshToken } = await createRefreshToken(fallbackUser._id, dbToken.deviceInfo);
+      const {
+        token: newRefreshToken,
+        dbEntry: newDbToken,
+      } = await createRefreshToken(fallbackUser._id, dbToken.deviceInfo);
       dbToken.revokedAt = new Date();
       dbToken.revokedReason = 'rotated';
-      dbToken.replacedBy = newRefreshToken ? newRefreshToken : null;
+      dbToken.replacedBy = newDbToken.id;
       const accessToken = generateAccessToken(fallbackUser);
       setRefreshCookie(res, newRefreshToken);
       return res.status(200).json({ success: true, token: accessToken, expiresIn: ACCESS_TOKEN_EXP });

@@ -51,7 +51,7 @@
  */
 
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const validator = require("validator");
 

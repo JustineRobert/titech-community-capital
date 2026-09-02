@@ -16,7 +16,7 @@
  * Bootstrap contract:
  *
  *   const {
- *       registerRoutes
+ *       registerRoutes,
  *   } = require('../routes');
  *
  *   registerRoutes(app);
@@ -24,14 +24,14 @@
  * Responsibilities:
  *   - Register the canonical TITech API route registry.
  *   - Preserve CommonJS router compatibility.
- *   - Validate controller contracts during startup.
+ *   - Validate middleware/controller contracts during startup.
  *   - Enforce authentication on protected financial boundaries.
  *   - Enforce trusted tenant context for financial operations.
  *   - Require idempotency for financial mutations.
- *   - Apply request/correlation tracing.
+ *   - Establish request/correlation tracing metadata.
  *   - Validate financial route parameters.
- *   - Register liveness / health / readiness endpoints.
- *   - Prevent duplicate registration against the same Express app.
+ *   - Register liveness, health, readiness and metadata endpoints.
+ *   - Prevent duplicate registration against the same Express application.
  *   - Register a final route-level 404 handler.
  *
  * Non-responsibilities:
@@ -44,21 +44,18 @@
  *
  * Important:
  *   The final application error handler belongs to the application bootstrap
- *   layer, after route registration.
+ *   layer and must be registered after this route registry.
  *
  * =============================================================================
  */
 
-const express =
-    require('express');
-
-const crypto =
-    require('node:crypto');
+const express = require('express');
+const crypto = require('node:crypto');
 
 const {
     param,
-} =
-    require('express-validator');
+    validationResult,
+} = require('express-validator');
 
 /**
  * =============================================================================
@@ -67,12 +64,16 @@ const {
  */
 
 const SERVICE_NAME =
-    process.env.SERVICE_NAME ||
-    'titech-community-capital-backend';
+    normalizeEnvironmentValue(
+        process.env.SERVICE_NAME,
+        'titech-community-capital-backend',
+    );
 
 const APPLICATION_NAME =
-    process.env.APP_NAME ||
-    'TITech Community Capital';
+    normalizeEnvironmentValue(
+        process.env.APP_NAME,
+        'TITech Community Capital',
+    );
 
 const APPLICATION_LEGAL_NAME =
     'TITech Community Capital Ltd';
@@ -87,10 +88,20 @@ const ROUTE_REGISTRY_NAME =
     'titech-api-v1';
 
 const ROUTE_REGISTRY_VERSION =
-    '1.1.0';
+    '1.2.0';
 
 const API_VERSION =
     'v1';
+
+const NODE_ENV =
+    normalizeEnvironmentValue(
+        process.env.NODE_ENV,
+        'development',
+    );
+
+const IS_PRODUCTION =
+    NODE_ENV ===
+    'production';
 
 /**
  * =============================================================================
@@ -135,7 +146,125 @@ const ROUTE_METADATA =
 
         apiVersion:
             API_VERSION,
+
+        environment:
+            NODE_ENV,
     });
+
+/**
+ * =============================================================================
+ * Utility Functions
+ * =============================================================================
+ */
+
+function normalizeEnvironmentValue(
+    value,
+    fallback,
+) {
+    if (
+        value ===
+            undefined ||
+        value ===
+            null
+    ) {
+        return fallback;
+    }
+
+    const normalized =
+        String(
+            value,
+        ).trim();
+
+    return (
+        normalized ||
+        fallback
+    );
+}
+
+function normalizeString(
+    value,
+    fallback = null,
+) {
+    if (
+        value ===
+            undefined ||
+        value ===
+            null
+    ) {
+        return fallback;
+    }
+
+    const normalized =
+        String(
+            value,
+        ).trim();
+
+    return (
+        normalized ||
+        fallback
+    );
+}
+
+/**
+ * =============================================================================
+ * Standard API Error Response
+ * =============================================================================
+ *
+ * The route registry deliberately owns only route-level errors.
+ *
+ * Business/application exceptions continue to flow to the global application
+ * error handler via next(error).
+ * =============================================================================
+ */
+
+function sendRouteError(
+    res,
+    req,
+    {
+        statusCode = 400,
+        code,
+        message,
+        details,
+    },
+) {
+    const response =
+        {
+            success:
+                false,
+
+            error: {
+                code,
+                message,
+            },
+
+            requestId:
+                req.requestId,
+
+            correlationId:
+                req.correlationId,
+
+            timestamp:
+                new Date().toISOString(),
+        };
+
+    if (
+        details !==
+            undefined &&
+        details !==
+            null
+    ) {
+        response.error.details =
+            details;
+    }
+
+    return res
+        .status(
+            statusCode,
+        )
+        .json(
+            response,
+        );
+}
 
 /**
  * =============================================================================
@@ -164,7 +293,9 @@ function requireRouteDependency(
 ) {
     try {
         const loaded =
-            require(relativePath);
+            require(
+                relativePath,
+            );
 
         return resolveModuleExport(
             loaded,
@@ -193,34 +324,128 @@ function requireRouteDependency(
     }
 }
 
+function resolveOptionalModule(
+    candidates,
+) {
+    for (
+        const candidate of
+        candidates
+    ) {
+        try {
+            return resolveModuleExport(
+                require(
+                    candidate,
+                ),
+            );
+        } catch (
+            error
+        ) {
+            if (
+                error?.code !==
+                'MODULE_NOT_FOUND'
+            ) {
+                throw error;
+            }
+
+            /**
+             * Only continue when the candidate itself is missing.
+             *
+             * An installed module that throws during initialization must not
+             * be silently swallowed.
+             */
+            if (
+                error?.message &&
+                !error.message.includes(
+                    candidate,
+                )
+            ) {
+                throw error;
+            }
+        }
+    }
+
+    return null;
+}
+
+function resolveMiddlewareExport(
+    moduleValue,
+    exportNames,
+) {
+    if (
+        !moduleValue
+    ) {
+        return null;
+    }
+
+    if (
+        typeof moduleValue ===
+        'function'
+    ) {
+        return moduleValue;
+    }
+
+    for (
+        const exportName of
+        exportNames
+    ) {
+        if (
+            typeof moduleValue[
+                exportName
+            ] ===
+            'function'
+        ) {
+            return moduleValue[
+                exportName
+            ];
+        }
+    }
+
+    return null;
+}
+
 /**
  * =============================================================================
- * Request Metadata
+ * Request / Correlation Metadata
  * =============================================================================
  */
 
-function normalizeString(
+const REQUEST_ID_MAX_LENGTH =
+    128;
+
+function sanitizeTraceId(
     value,
-    fallback = null,
 ) {
+    const normalized =
+        normalizeString(
+            value,
+        );
+
     if (
-        value ===
-            undefined ||
-        value ===
-            null
+        !normalized
     ) {
-        return fallback;
+        return null;
     }
 
-    const normalized =
-        String(
-            value,
-        ).trim();
+    if (
+        normalized.length >
+        REQUEST_ID_MAX_LENGTH
+    ) {
+        return null;
+    }
 
-    return (
-        normalized ||
-        fallback
-    );
+    /**
+     * Request IDs are opaque identifiers, but rejecting control characters
+     * prevents malformed values from reaching response headers/log pipelines.
+     */
+    if (
+        /[\u0000-\u001F\u007F]/.test(
+            normalized,
+        )
+    ) {
+        return null;
+    }
+
+    return normalized;
 }
 
 function requestMetadata(
@@ -229,13 +454,13 @@ function requestMetadata(
     next,
 ) {
     const requestId =
-        normalizeString(
+        sanitizeTraceId(
             req.requestId,
         ) ||
-        normalizeString(
+        sanitizeTraceId(
             req.id,
         ) ||
-        normalizeString(
+        sanitizeTraceId(
             req.headers?.[
                 'x-request-id'
             ],
@@ -243,10 +468,10 @@ function requestMetadata(
         crypto.randomUUID();
 
     const correlationId =
-        normalizeString(
+        sanitizeTraceId(
             req.correlationId,
         ) ||
-        normalizeString(
+        sanitizeTraceId(
             req.headers?.[
                 'x-correlation-id'
             ],
@@ -278,7 +503,11 @@ router.use(
 
 /**
  * =============================================================================
- * Security Headers
+ * Route-Level Security Headers
+ * ============================================================================= *
+ *
+ * These are intentionally conservative and do not attempt to replace a
+ * dedicated application-wide security middleware such as Helmet.
  * =============================================================================
  */
 
@@ -298,6 +527,16 @@ router.use(
             'strict-origin-when-cross-origin',
         );
 
+        res.setHeader(
+            'X-Frame-Options',
+            'DENY',
+        );
+
+        res.setHeader(
+            'Permissions-Policy',
+            'camera=(), microphone=(), geolocation=()',
+        );
+
         next();
     },
 );
@@ -315,21 +554,21 @@ const authenticationModule =
     );
 
 const authenticate =
-    typeof authenticationModule ===
-        'function'
-        ? authenticationModule
-        : (
-            authenticationModule?.authenticate ||
-            authenticationModule?.verifyToken
-        );
+    resolveMiddlewareExport(
+        authenticationModule,
+        [
+            'authenticate',
+            'verifyToken',
+        ],
+    );
 
 if (
     typeof authenticate !==
     'function'
 ) {
     const error =
-        new Error(
-            'TITech authentication middleware must export authenticate() or verifyToken().',
+        new TypeError(
+            'TITech authentication middleware must export authenticate() or verifyToken(), or itself be callable.',
         );
 
     error.code =
@@ -340,11 +579,13 @@ if (
 
 /**
  * =============================================================================
- * Tenant Authorization
+ * Tenant Authorization Middleware
  * =============================================================================
  *
- * Financial operations must have a trusted tenant context before reaching the
- * financial controller.
+ * Tenant authorization is mandatory for financial boundaries.
+ *
+ * The registry deliberately supports the project's possible existing naming
+ * conventions without weakening the requirement.
  * =============================================================================
  */
 
@@ -366,13 +607,6 @@ const tenantAuthorization =
             'requireTenant',
             'tenantMiddleware',
         ],
-    ) ||
-    (
-        tenantAuthorizationModule &&
-        typeof tenantAuthorizationModule ===
-            'function'
-            ? tenantAuthorizationModule
-            : null
     );
 
 if (
@@ -380,7 +614,7 @@ if (
     'function'
 ) {
     const error =
-        new Error(
+        new TypeError(
             'TITech financial routes require trusted tenant authorization middleware.',
         );
 
@@ -408,12 +642,6 @@ const idempotencyFactory =
         [
             'idempotency',
         ],
-    ) ||
-    (
-        typeof idempotencyModule ===
-            'function'
-            ? idempotencyModule
-            : null
     );
 
 if (
@@ -421,7 +649,7 @@ if (
     'function'
 ) {
     const error =
-        new Error(
+        new TypeError(
             'TITech financial routes require a callable idempotency middleware factory.',
         );
 
@@ -459,6 +687,12 @@ const walletsController =
     requireRouteDependency(
         '../controllers/groupWalletController',
         'group wallet controller',
+    );
+
+const offlineSyncRoutes =
+    requireRouteDependency(
+        '../modules/offline/routes/offline-sync.routes',
+        'offline synchronization routes',
     );
 
 /**
@@ -587,15 +821,40 @@ function createFinancialIdempotency(
     operation,
     resource,
 ) {
-    const middleware =
-        idempotencyFactory({
-            operation,
+    let middleware;
 
-            resource,
+    try {
+        middleware =
+            idempotencyFactory({
+                operation,
 
-            required:
-                true,
-        });
+                resource,
+
+                required:
+                    true,
+            });
+    } catch (
+        error
+    ) {
+        const startupError =
+            new Error(
+                `Failed to create TITech idempotency middleware for "${operation}".`,
+            );
+
+        startupError.code =
+            'TITECH_IDEMPOTENCY_MIDDLEWARE_FACTORY_FAILED';
+
+        startupError.operation =
+            operation;
+
+        startupError.resource =
+            resource;
+
+        startupError.cause =
+            error;
+
+        throw startupError;
+    }
 
     if (
         typeof middleware !==
@@ -609,6 +868,12 @@ function createFinancialIdempotency(
         error.code =
             'TITECH_IDEMPOTENCY_MIDDLEWARE_INVALID';
 
+        error.operation =
+            operation;
+
+        error.resource =
+            resource;
+
         throw error;
     }
 
@@ -617,7 +882,7 @@ function createFinancialIdempotency(
 
 /**
  * =============================================================================
- * Financial Request Validation
+ * Request Body Validation
  * =============================================================================
  */
 
@@ -634,28 +899,36 @@ function requireObjectBody(
             req.body,
         )
     ) {
-        return res
-            .status(400)
-            .json({
-                success:
-                    false,
+        return sendRouteError(
+            res,
+            req,
+            {
+                statusCode:
+                    400,
 
                 code:
                     'TITECH_INVALID_REQUEST_BODY',
 
                 message:
                     'A JSON object request body is required.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-            });
+            },
+        );
     }
 
     next();
 }
+
+/**
+ * =============================================================================
+ * Idempotency-Key Validation
+ * =============================================================================
+ */
+
+const IDEMPOTENCY_KEY_MIN_LENGTH =
+    16;
+
+const IDEMPOTENCY_KEY_MAX_LENGTH =
+    255;
 
 function requireIdempotencyKey(
     req,
@@ -672,50 +945,42 @@ function requireIdempotencyKey(
     if (
         !key
     ) {
-        return res
-            .status(400)
-            .json({
-                success:
-                    false,
+        return sendRouteError(
+            res,
+            req,
+            {
+                statusCode:
+                    400,
 
                 code:
                     'IDEMPOTENCY_KEY_REQUIRED',
 
                 message:
                     'Idempotency-Key is required for financial mutations.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-            });
+            },
+        );
     }
 
     if (
         key.length <
-            16 ||
+            IDEMPOTENCY_KEY_MIN_LENGTH ||
         key.length >
-            255
+            IDEMPOTENCY_KEY_MAX_LENGTH
     ) {
-        return res
-            .status(400)
-            .json({
-                success:
-                    false,
+        return sendRouteError(
+            res,
+            req,
+            {
+                statusCode:
+                    400,
 
                 code:
                     'INVALID_IDEMPOTENCY_KEY',
 
                 message:
-                    'Idempotency-Key must contain between 16 and 255 characters.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-            });
+                    `Idempotency-Key must contain between ${IDEMPOTENCY_KEY_MIN_LENGTH} and ${IDEMPOTENCY_KEY_MAX_LENGTH} characters.`,
+            },
+        );
     }
 
     if (
@@ -723,24 +988,20 @@ function requireIdempotencyKey(
             key,
         )
     ) {
-        return res
-            .status(400)
-            .json({
-                success:
-                    false,
+        return sendRouteError(
+            res,
+            req,
+            {
+                statusCode:
+                    400,
 
                 code:
                     'INVALID_IDEMPOTENCY_KEY',
 
                 message:
                     'Idempotency-Key contains unsupported characters.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-            });
+            },
+        );
     }
 
     req.idempotencyKey =
@@ -751,11 +1012,51 @@ function requireIdempotencyKey(
 
 /**
  * =============================================================================
- * Group Wallet Parameter Validation
+ * Validation Result Middleware
  * =============================================================================
- *
- * The current controller contract indicates MongoDB-style IDs, so validate
- * these before the controller executes.
+ */
+
+function handleValidationResult(
+    req,
+    res,
+    next,
+) {
+    const errors =
+        validationResult(
+            req,
+        );
+
+    if (
+        errors.isEmpty()
+    ) {
+        return next();
+    }
+
+    return sendRouteError(
+        res,
+        req,
+        {
+            statusCode:
+                400,
+
+            code:
+                'TITECH_VALIDATION_FAILED',
+
+            message:
+                'One or more request parameters are invalid.',
+
+            details:
+                errors.array({
+                    onlyFirstError:
+                        true,
+                }),
+        },
+    );
+}
+
+/**
+ * =============================================================================
+ * Group Wallet Parameter Validation
  * =============================================================================
  */
 
@@ -772,24 +1073,20 @@ function validateWalletId(
     if (
         !id
     ) {
-        return res
-            .status(400)
-            .json({
-                success:
-                    false,
+        return sendRouteError(
+            res,
+            req,
+            {
+                statusCode:
+                    400,
 
                 code:
                     'GROUP_WALLET_ID_REQUIRED',
 
                 message:
                     'Group wallet ID is required.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-            });
+            },
+        );
     }
 
     if (
@@ -797,24 +1094,20 @@ function validateWalletId(
             id,
         )
     ) {
-        return res
-            .status(400)
-            .json({
-                success:
-                    false,
+        return sendRouteError(
+            res,
+            req,
+            {
+                statusCode:
+                    400,
 
                 code:
                     'INVALID_GROUP_WALLET_ID',
 
                 message:
                     'Group wallet ID must be a valid identifier.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-            });
+            },
+        );
     }
 
     next();
@@ -822,8 +1115,9 @@ function validateWalletId(
 
 /**
  * =============================================================================
- * Loan / Transaction Parameter Validation
- * ============================================================================= */
+ * MongoDB Parameter Validation
+ * =============================================================================
+ */
 
 function validateObjectIdParameter(
     parameterName,
@@ -841,23 +1135,27 @@ function validateObjectIdParameter(
             .withMessage(
                 `${parameterName} must be a valid identifier.`,
             ),
+
+        handleValidationResult,
     ];
 }
 
 /**
  * =============================================================================
- * Financial Routes
+ * Financial Route Middleware
  * =============================================================================
  *
- * IMPORTANT:
- * Authentication and tenant authorization are intentionally placed before
- * idempotency.
+ * Security ordering:
  *
- * This ensures idempotency scope is based on a trusted:
+ *   1. Authenticate principal
+ *   2. Resolve/verify trusted tenant context
+ *   3. Validate request body
+ *   4. Validate idempotency key
+ *   5. Resolve idempotency state
+ *   6. Execute financial controller
  *
- *   tenant + principal + key
- *
- * rather than an attacker-controlled identity.
+ * This prevents an unauthenticated or untrusted caller from establishing an
+ * idempotency namespace.
  * =============================================================================
  */
 
@@ -872,7 +1170,9 @@ const financialWriteChain = [
 ];
 
 /**
+ * =============================================================================
  * CONTRIBUTIONS
+ * =============================================================================
  */
 
 router.post(
@@ -900,7 +1200,9 @@ router.post(
 );
 
 /**
+ * =============================================================================
  * LOANS
+ * =============================================================================
  */
 
 router.post(
@@ -928,7 +1230,9 @@ router.post(
 );
 
 /**
+ * =============================================================================
  * LOAN REPAYMENTS
+ * =============================================================================
  */
 
 router.post(
@@ -955,9 +1259,14 @@ router.post(
     ),
 );
 
+router.use(
+    '/api',
+    offlineSyncRoutes,
+);
+
 /**
  * =============================================================================
- * GROUP WALLET ROUTES
+ * GROUP WALLET READ ROUTES
  * =============================================================================
  */
 
@@ -1009,60 +1318,18 @@ router.get(
 
 /**
  * =============================================================================
- * READ-ONLY FINANCIAL LOOKUP
- * ============================================================================= */
-
-router.get(
-    `${API_PREFIX}/transactions/:transactionId`,
-
-    authenticate,
-
-    tenantAuthorization,
-
-    ...validateObjectIdParameter(
-        'transactionId',
-    ),
-
-    asyncHandler(
-        async (
-            req,
-            res,
-            next,
-        ) => {
-            /**
-             * This route deliberately requires the controller contract to be
-             * extended before it is enabled.
-             *
-             * The current supplied registry exposes createContribution,
-             * createLoan, createRepayment, getBalance and getLedger only.
-             *
-             * Therefore we do not invent a transaction lookup controller here.
-             */
-            const error =
-                new Error(
-                    'Transaction lookup is not connected to the current canonical controller contract.',
-                );
-
-            error.code =
-                'TITECH_TRANSACTION_LOOKUP_NOT_CONFIGURED';
-
-            error.statusCode =
-                501;
-
-            next(
-                error,
-            );
-        },
-    ),
-);
-
-/**
- * =============================================================================
  * LIVENESS
  * =============================================================================
  *
- * The liveness endpoint does not require authentication and does not test
- * external dependencies. It only proves the HTTP process is alive.
+ * Liveness intentionally:
+ *   - requires no authentication;
+ *   - performs no database checks;
+ *   - performs no Redis checks;
+ *   - performs no external dependency checks.
+ *
+ * It answers one question:
+ *
+ *   "Is the HTTP process alive?"
  * =============================================================================
  */
 
@@ -1105,6 +1372,12 @@ router.get(
 /**
  * =============================================================================
  * HEALTH
+ * =============================================================================
+ *
+ * Health is intentionally lightweight.
+ *
+ * Dependency-specific health checks belong to the application's health
+ * subsystem rather than being duplicated inside this route registry.
  * =============================================================================
  */
 
@@ -1149,136 +1422,175 @@ router.get(
  * READINESS
  * =============================================================================
  *
- * The bootstrap layer may expose:
+ * Bootstrap may expose:
  *
- *   req.app.locals.titechReadiness
+ *   app.locals.titechReadiness
  *
- * The route itself does not duplicate database/Redis health logic.
+ * Supported forms:
+ *
+ *   () => boolean
+ *
+ * or:
+ *
+ *   async () => boolean
+ *
+ * Async readiness functions are intentionally supported because database,
+ * Redis, queue and other infrastructure readiness may be asynchronous.
  * =============================================================================
  */
 
 router.get(
     `${API_PREFIX}/ready`,
-    (
-        req,
-        res,
-    ) => {
-        const readiness =
-            req.app?.locals?.titechReadiness;
+    asyncHandler(
+        async (
+            req,
+            res,
+        ) => {
+            const readiness =
+                req.app?.locals
+                    ?.titechReadiness;
 
-        let isReady =
-            true;
+            let isReady =
+                true;
 
-        try {
             if (
                 typeof readiness ===
                 'function'
             ) {
-                isReady =
-                    Boolean(
-                        readiness(),
-                    );
+                try {
+                    isReady =
+                        Boolean(
+                            await readiness(),
+                        );
+                } catch {
+                    isReady =
+                        false;
+                }
             }
-        } catch {
-            isReady =
-                false;
-        }
 
-        return res
-            .status(
-                isReady
-                    ? 200
-                    : 503,
-            )
-            .json({
-                success:
-                    isReady,
-
-                status:
+            return res
+                .status(
                     isReady
-                        ? 'ready'
-                        : 'not_ready',
+                        ? 200
+                        : 503,
+                )
+                .json({
+                    success:
+                        isReady,
 
-                service:
-                    ROUTE_METADATA.service,
+                    status:
+                        isReady
+                            ? 'ready'
+                            : 'not_ready',
 
-                application:
-                    ROUTE_METADATA.application,
+                    service:
+                        ROUTE_METADATA.service,
 
-                version:
-                    ROUTE_METADATA.version,
+                    application:
+                        ROUTE_METADATA.application,
 
-                requestId:
-                    req.requestId,
+                    version:
+                        ROUTE_METADATA.version,
 
-                correlationId:
-                    req.correlationId,
+                    requestId:
+                        req.requestId,
 
-                timestamp:
-                    new Date().toISOString(),
-            });
-    },
+                    correlationId:
+                        req.correlationId,
+
+                    timestamp:
+                        new Date().toISOString(),
+                });
+        },
+    ),
 );
 
 /**
  * =============================================================================
  * Route Registry Metadata
  * =============================================================================
+ *
+ * Metadata is intentionally restricted to non-sensitive operational
+ * information. No credentials, secrets, connection strings, internal host
+ * information or controller details are exposed.
+ *
+ * In production, callers can optionally disable this endpoint with:
+ *
+ *   TITECH_EXPOSE_ROUTE_META=false
+ * =============================================================================
  */
 
-router.get(
-    `${API_PREFIX}/meta`,
-    (
-        req,
-        res,
-    ) => {
-        return res
-            .status(200)
-            .json({
-                success:
-                    true,
+const EXPOSE_ROUTE_META =
+    normalizeEnvironmentValue(
+        process.env.TITECH_EXPOSE_ROUTE_META,
+        IS_PRODUCTION
+            ? 'false'
+            : 'true',
+    ).toLowerCase() ===
+    'true';
 
-                service:
-                    ROUTE_METADATA.service,
+if (
+    EXPOSE_ROUTE_META
+) {
+    router.get(
+        `${API_PREFIX}/meta`,
+        (
+            req,
+            res,
+        ) => {
+            return res
+                .status(200)
+                .json({
+                    success:
+                        true,
 
-                application:
-                    ROUTE_METADATA.application,
+                    service:
+                        ROUTE_METADATA.service,
 
-                applicationLegalName:
-                    ROUTE_METADATA.applicationLegalName,
+                    application:
+                        ROUTE_METADATA.application,
 
-                registry:
-                    ROUTE_METADATA.registry,
+                    applicationLegalName:
+                        ROUTE_METADATA
+                            .applicationLegalName,
 
-                version:
-                    ROUTE_METADATA.version,
+                    registry:
+                        ROUTE_METADATA.registry,
 
-                apiVersion:
-                    ROUTE_METADATA.apiVersion,
+                    version:
+                        ROUTE_METADATA.version,
 
-                financialMutations:
-                    'tenant-scoped-and-idempotent',
+                    apiVersion:
+                        ROUTE_METADATA.apiVersion,
 
-                requestId:
-                    req.requestId,
+                    financialMutations:
+                        'tenant-scoped-and-idempotent',
 
-                correlationId:
-                    req.correlationId,
+                    requestId:
+                        req.requestId,
 
-                timestamp:
-                    new Date().toISOString(),
-            });
-    },
-);
+                    correlationId:
+                        req.correlationId,
+
+                    timestamp:
+                        new Date().toISOString(),
+                });
+        },
+    );
+}
 
 /**
  * =============================================================================
  * Route Registry 404
  * =============================================================================
  *
- * This should be the final middleware in this router.
+ * This must remain the final middleware in this router.
  *
- * The global application error handler remains responsible for exceptions.
+ * It handles only requests that reach the route registry without matching a
+ * registered route.
+ *
+ * Unexpected application/business exceptions continue to the global Express
+ * error handler.
  * =============================================================================
  */
 
@@ -1290,9 +1602,15 @@ function registerNotFoundHandler(
         typeof targetRouter.use !==
             'function'
     ) {
-        throw new TypeError(
-            'TITech route registry requires a valid Express router.',
-        );
+        const error =
+            new TypeError(
+                'TITech route registry requires a valid Express router.',
+            );
+
+        error.code =
+            'TITECH_ROUTE_REGISTRY_INVALID';
+
+        throw error;
     }
 
     targetRouter.use(
@@ -1344,6 +1662,16 @@ registerNotFoundHandler(
  * =============================================================================
  * Registration State
  * =============================================================================
+ *
+ * WeakSet ensures:
+ *
+ *   registerRoutes(app);
+ *   registerRoutes(app);
+ *
+ * does not mount the same registry twice.
+ *
+ * WeakSet also allows the Express application to be garbage collected.
+ * =============================================================================
  */
 
 const registeredApplications =
@@ -1357,7 +1685,7 @@ const registeredApplications =
  * Canonical:
  *
  *   const {
- *       registerRoutes
+ *       registerRoutes,
  *   } = require('../routes');
  *
  *   registerRoutes(app);
@@ -1365,9 +1693,8 @@ const registeredApplications =
  * Optional:
  *
  *   registerRoutes(app, {
- *       mountPath: '/'
+ *       mountPath: '/',
  *   });
- *
  * =============================================================================
  */
 
@@ -1407,6 +1734,22 @@ function registerRoutes(
             mountPath,
             ROUTER_MOUNT_PATH,
         );
+
+    if (
+        !normalizedMountPath.startsWith(
+            '/',
+        )
+    ) {
+        const error =
+            new TypeError(
+                'TITech route mountPath must start with "/".',
+            );
+
+        error.code =
+            'TITECH_ROUTE_MOUNT_PATH_INVALID';
+
+        throw error;
+    }
 
     app.use(
         normalizedMountPath,
@@ -1452,7 +1795,7 @@ function registerRoutes(
  */
 
 function getRouteRegistryDiagnostics() {
-    return {
+    return Object.freeze({
         service:
             ROUTE_METADATA.service,
 
@@ -1471,6 +1814,12 @@ function getRouteRegistryDiagnostics() {
         apiVersion:
             ROUTE_METADATA.apiVersion,
 
+        environment:
+            ROUTE_METADATA.environment,
+
+        exposeRouteMeta:
+            EXPOSE_ROUTE_META,
+
         authenticationMiddleware:
             typeof authenticate ===
             'function',
@@ -1483,103 +1832,44 @@ function getRouteRegistryDiagnostics() {
             typeof idempotencyFactory ===
             'function',
 
-        controllerContracts: {
-            contributions:
-                typeof createContribution ===
-                'function',
+        controllerContracts:
+            Object.freeze({
+                contributions:
+                    typeof createContribution ===
+                    'function',
 
-            loans:
-                typeof createLoan ===
-                'function',
+                loans:
+                    typeof createLoan ===
+                    'function',
 
-            repayments:
-                typeof createRepayment ===
-                'function',
+                repayments:
+                    typeof createRepayment ===
+                    'function',
 
-            groupWalletBalance:
-                typeof getBalance ===
-                'function',
+                groupWalletBalance:
+                    typeof getBalance ===
+                    'function',
 
-            groupWalletLedger:
-                typeof getLedger ===
-                'function',
-        },
-    };
-}
+                groupWalletLedger:
+                    typeof getLedger ===
+                    'function',
+            }),
 
-/**
- * =============================================================================
- * Optional Dependency Resolution
- * =============================================================================
- */
+        financialRoutePolicy:
+            Object.freeze({
+                authentication:
+                    'required',
 
-function resolveOptionalModule(
-    candidates,
-) {
-    for (
-        const candidate of
-        candidates
-    ) {
-        try {
-            return resolveModuleExport(
-                require(
-                    candidate,
-                ),
-            );
-        } catch (
-            error
-        ) {
-            /**
-             * Only ignore a missing candidate module.
-             *
-             * Errors originating from an installed module must surface.
-             */
-            if (
-                error?.code !==
-                'MODULE_NOT_FOUND'
-            ) {
-                throw error;
-            }
-        }
-    }
+                tenantContext:
+                    'required',
 
-    return null;
-}
+                idempotency:
+                    'required',
 
-function resolveMiddlewareExport(
-    moduleValue,
-    exportNames,
-) {
-    if (
-        !moduleValue
-    ) {
-        return null;
-    }
-
-    if (
-        typeof moduleValue ===
-        'function'
-    ) {
-        return moduleValue;
-    }
-
-    for (
-        const exportName of
-        exportNames
-    ) {
-        if (
-            typeof moduleValue[
-                exportName
-            ] ===
-            'function'
-        ) {
-            return moduleValue[
-                exportName
-            ];
-        }
-    }
-
-    return null;
+                requestBody:
+                    'object',
+            }),
+    });
 }
 
 /**
@@ -1587,15 +1877,18 @@ function resolveMiddlewareExport(
  * CommonJS Compatibility
  * =============================================================================
  *
- * Existing consumers can still do:
+ * Existing consumers may continue to use:
  *
  *   const routes = require('./routes');
+ *   app.use(routes);
  *
- * while the canonical bootstrap can do:
+ * while canonical bootstrap code can use:
  *
  *   const {
- *       registerRoutes
+ *       registerRoutes,
  *   } = require('./routes');
+ *
+ *   registerRoutes(app);
  * =============================================================================
  */
 
@@ -1616,6 +1909,9 @@ router.asyncHandler =
 
 router.API_PREFIX =
     API_PREFIX;
+
+router.API_VERSION =
+    API_VERSION;
 
 router.ROUTE_METADATA =
     ROUTE_METADATA;

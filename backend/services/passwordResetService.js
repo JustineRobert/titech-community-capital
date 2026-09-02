@@ -82,7 +82,7 @@
  */
 
 const crypto = require("crypto");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const mongoose = require("mongoose");
 const zxcvbn = require("zxcvbn");
 
