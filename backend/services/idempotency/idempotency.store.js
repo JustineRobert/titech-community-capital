@@ -76,6 +76,10 @@
  * =============================================================================
  */
 
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
 const crypto =
     require("crypto");
 
@@ -1517,7 +1521,7 @@ const IDEMPOTENCY_STORE_CONTRACT =
 // Exports
 // =============================================================================
 
-module.exports = {
+const idempotencyStoreModule = {
 
     IdempotencyStoreError,
 
@@ -1564,3 +1568,5 @@ module.exports = {
     deleteExpiredRecords
 
 };
+
+export default idempotencyStoreModule;

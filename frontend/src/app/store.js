@@ -22,7 +22,45 @@ import {
   REGISTER,
 } from "redux-persist";
 
-import storage from "redux-persist/lib/storage";
+const fallbackStorage = new Map();
+
+const storage = {
+  getItem(key) {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        return Promise.resolve(window.localStorage.getItem(key));
+      }
+    } catch {
+    }
+
+    return Promise.resolve(fallbackStorage.get(key) ?? null);
+  },
+
+  setItem(key, value) {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(key, value);
+        return Promise.resolve(value);
+      }
+    } catch {
+    }
+
+    fallbackStorage.set(key, value);
+    return Promise.resolve(value);
+  },
+
+  removeItem(key) {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch {
+    }
+
+    fallbackStorage.delete(key);
+    return Promise.resolve();
+  },
+};
 
 // ============================================================================
 // Core Reducers

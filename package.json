@@ -93,6 +93,7 @@
 "format:check": "prettier --check \"backend/**/*.{js,mjs,cjs,json,md,yml,yaml}\" \"frontend/**/*.{js,jsx,mjs,cjs,json,css,scss,md,yml,yaml}\" \"scripts/**/*.{js,mjs,cjs,json,md}\" \"*.{json,md,yml,yaml}\"",
 
 "check": "npm run lint && npm run format:check",
+"check:conflicts": "node scripts/check-conflicts.js",
 "check:all": "npm run check && npm run test",
 
 "test": "npm run test:backend && npm run test:frontend",

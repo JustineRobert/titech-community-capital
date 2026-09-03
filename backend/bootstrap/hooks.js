@@ -46,11 +46,13 @@
  * =============================================================================
  */
 
-const crypto = require("node:crypto");
+import crypto from "node:crypto";
+
+import phaseRunnerModule from "./phaseRunner.js";
 
 const {
   runPhase,
-} = require("./phaseRunner");
+} = phaseRunnerModule;
 
 /* =============================================================================
  * Constants
@@ -4112,7 +4114,7 @@ const publicApi = {
   resetForTests,
 };
 
-module.exports =
+const hooksModule =
   Object.freeze(publicApi);
 
 /* =============================================================================
@@ -4144,7 +4146,7 @@ if (
       requiredExports
   ) {
     if (
-      typeof module.exports[
+      typeof hooksModule[
         exportName
       ] === "undefined"
     ) {
@@ -4154,3 +4156,5 @@ if (
     }
   }
 }
+
+export default hooksModule;

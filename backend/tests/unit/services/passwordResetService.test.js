@@ -35,7 +35,7 @@
 
 const mongoose = require("mongoose");
 const crypto = require("crypto");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 
 const PasswordResetService = require(
   "../../../services/passwordResetService"
@@ -66,7 +66,7 @@ jest.mock(
 );
 
 jest.mock(
-  "bcryptjs"
+  "bcrypt"
 );
 
 /**
@@ -140,6 +140,7 @@ describe(
 
     beforeEach(() => {
       jest.clearAllMocks();
+      process.env.FRONTEND_URL = "http://localhost:5173";
 
       mockUser = {
         _id: new mongoose.Types.ObjectId(),
@@ -544,14 +545,16 @@ describe(
           User.findOneAndUpdate =
             jest
               .fn()
-              .mockResolvedValue({
-                _id:
-                  mockUser._id,
-                email:
-                  mockUser.email,
-                tenantId:
-                  mockUser.tenantId,
-              });
+              .mockReturnValue(
+                createQueryMock({
+                  _id:
+                    mockUser._id,
+                  email:
+                    mockUser.email,
+                  tenantId:
+                    mockUser.tenantId,
+                })
+              );
         });
 
         it(
@@ -632,7 +635,7 @@ describe(
               PasswordResetToken
                 .consumeAtomically
             ).toHaveBeenCalledWith(
-              token,
+              createValidTokenHash(token),
               expect.objectContaining({
                 userId:
                   mockUser._id,

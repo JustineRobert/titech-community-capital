@@ -2962,8 +2962,6 @@ const environmentBootstrap =
 
 export {
   EnvironmentError,
-
-  APPLICATION_NAME,
 };
 
 export const APPLICATION_NAME =

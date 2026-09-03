@@ -122,18 +122,25 @@
  * =============================================================================
  */
 
-const path = require("node:path");
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /* =============================================================================
  * HOOK ENGINE
  * =============================================================================
  */
 
+import hooksModule from "./hooks.js";
+
 const {
   hooks,
   startup,
   lifecycle,
-} = require("./hooks");
+} = hooksModule;
 
 /* =============================================================================
  * CONSTANTS
@@ -2900,9 +2907,6 @@ function buildInitializationResult(
     service:
       SERVICE_NAME,
 
-    application:
-      APPLICATION_NAME,
-
     state:
       "initialized",
 
@@ -3637,7 +3641,7 @@ function validateExportContract() {
   ) {
     if (
       !isFunction(
-        module.exports[name],
+        infrastructureModule[name],
       )
     ) {
       throw new Error(
@@ -3654,7 +3658,7 @@ function validateExportContract() {
  * =============================================================================
  */
 
-module.exports = Object.freeze({
+const infrastructureModule = Object.freeze({
   /* ---------------------------------------------------------------------------
    * Primary lifecycle API
    * ------------------------------------------------------------------------- */
@@ -3767,6 +3771,8 @@ module.exports = Object.freeze({
 
   LIFECYCLE_STATES,
 });
+
+export default infrastructureModule;
 
 /* =============================================================================
  * DEVELOPMENT SELF-CHECK

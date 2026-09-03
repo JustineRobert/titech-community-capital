@@ -1,5 +1,9 @@
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -439,7 +443,7 @@ function sanitizeSensitiveText(value) {
    * Common authorization headers.
    */
   text = text.replace(
-    /(authorization\s*[:=]\s*)(bearer\s+)?[^\s,;]+)/gi,
+    /(authorization\s*[:=]\s*)(bearer\s+)?[^\s,;]+/gi,
     '$1$2***',
   );
 
@@ -4840,7 +4844,7 @@ function wrapError(
  * =============================================================================
  */
 
-module.exports =
+const servicesModule =
   Object.freeze({
     /**
      * Registration.
@@ -4935,3 +4939,5 @@ module.exports =
      */
     ServicesBootstrapError,
   });
+
+export default servicesModule;

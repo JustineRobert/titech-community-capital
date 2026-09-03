@@ -11,7 +11,7 @@ export default [
 
     languageOptions: {
       ecmaVersion: "latest",
-      sourceType: "commonjs",
+      sourceType: "module",
 
       globals: {
         require: "readonly",
@@ -23,7 +23,11 @@ export default [
         setTimeout: "readonly",
         clearTimeout: "readonly",
         setInterval: "readonly",
-        clearInterval: "readonly"
+        clearInterval: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        AbortController: "readonly",
+        fetch: "readonly"
       }
     },
 
@@ -63,6 +67,13 @@ export default [
 
   // ✅ IGNORE FOLDERS
   {
-    ignores: ["node_modules", "logs", "dist"]
+    ignores: [
+      "node_modules/**",
+      "coverage/**",
+      "logs/**",
+      "dist/**",
+      "build/**",
+      "backup/**"
+    ]
   }
 ];

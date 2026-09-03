@@ -1,5 +1,7 @@
 "use strict";
 
+import runtimeState from "../runtime/state.js";
+
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -52,7 +54,7 @@ const {
   getApplicationState,
   getHealthState,
   isReady,
-} = require("../runtime/state");
+} = runtimeState;
 
 /* =============================================================================
  * CONSTANTS
@@ -1569,7 +1571,7 @@ function reset() {
  * =============================================================================
  */
 
-module.exports = {
+const readinessState = {
   DEFAULTS,
 
   INTERNAL_BLOCKERS,
@@ -1610,3 +1612,5 @@ module.exports = {
 
   reset,
 };
+
+export default readinessState;

@@ -33,6 +33,10 @@
 
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 const jwt = require('jsonwebtoken');
 
 // ============================================================================
@@ -1948,7 +1952,7 @@ function getAuthDiagnostics(
 // EXPORTS
 // ============================================================================
 
-module.exports = {
+const authModule = {
   // --------------------------------------------------------------------------
   // Canonical authentication
   // --------------------------------------------------------------------------
@@ -2043,3 +2047,5 @@ module.exports = {
     ...SUPPORTED_ALGORITHMS,
   ]),
 };
+
+export default authModule;

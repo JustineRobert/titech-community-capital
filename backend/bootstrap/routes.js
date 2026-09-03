@@ -1,5 +1,9 @@
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -1984,6 +1988,18 @@ async function initialize(
   options = {},
 ) {
   if (
+    app &&
+    typeof app.use !==
+      'function' &&
+    (app.application ||
+      app.bootstrap)
+  ) {
+    context = app;
+    app = context.application ||
+      context.bootstrap?.application;
+  }
+
+  if (
     app
   ) {
     setApplication(
@@ -2481,7 +2497,7 @@ function wrapError(
  * =============================================================================
  */
 
-module.exports =
+const routesModule =
   Object.freeze({
     /*
      * Registration.
@@ -2565,3 +2581,5 @@ module.exports =
 
     ROUTE_MODULE_CANDIDATES,
   });
+
+export default routesModule;

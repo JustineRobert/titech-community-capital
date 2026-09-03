@@ -1,5 +1,9 @@
 "use strict";
 
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
 /**
  * ============================================================================
  * TITech Community Capital LTD
@@ -30,8 +34,13 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
-const tenantService =
-    require("../services/tenantService");
+let tenantService = null;
+
+try {
+    tenantService = require("../services/tenantService");
+} catch {
+    tenantService = null;
+}
 
 const logger =
     require("../utils/logger");
@@ -141,7 +150,7 @@ function badRequest(
  * Middleware
  * ========================================================================== */
 
-module.exports = async function tenantMiddleware(
+const tenantMiddleware = async function tenantMiddleware(
     req,
     res,
     next
@@ -311,6 +320,17 @@ module.exports = async function tenantMiddleware(
          * Load Tenant
          * ---------------------------------------------------------------- */
 
+        if (
+            !tenantService ||
+            typeof tenantService.findById !== "function"
+        ) {
+            return res.status(503).json({
+                success: false,
+                code: "TENANT_SERVICE_UNAVAILABLE",
+                message: "Tenant verification is temporarily unavailable."
+            });
+        }
+
         const tenant =
             await tenantService.findById(
                 tenantId
@@ -447,3 +467,5 @@ module.exports = async function tenantMiddleware(
         });
     }
 };
+
+export default tenantMiddleware;

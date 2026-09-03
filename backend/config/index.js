@@ -1337,6 +1337,18 @@ const configurationFacade =
     getMetadata,
   });
 
+function initialize(
+  context = {},
+) {
+  return {
+    context: {
+      ...context,
+      config:
+        configurationFacade,
+    },
+  };
+}
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
@@ -1366,6 +1378,8 @@ export {
   DEFAULTS,
 
   environmentMeta,
+
+  initialize,
 };
 
 // =============================================================================

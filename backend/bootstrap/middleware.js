@@ -1,5 +1,9 @@
 "use strict";
 
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -65,12 +69,12 @@
 const crypto = require("crypto");
 const morgan = require("morgan");
 
+import dependenciesModule from "./dependencies.js";
+import configuration from "../config/index.js";
+
 const {
     dependencies
-} = require("./dependencies");
-
-const configuration =
-    require("../config");
+} = dependenciesModule;
 
 // =============================================================================
 // Dependency Resolution
@@ -1706,11 +1710,35 @@ function getMiddlewareDiagnostics() {
     };
 }
 
+function initialize(
+    context = {},
+) {
+    const application =
+        context.application ||
+        context.bootstrap?.application ||
+        express();
+
+    context.application = application;
+
+    return {
+        context: {
+            application,
+        },
+
+        middleware:
+            registerMiddleware(
+                application,
+            ),
+    };
+}
+
 // =============================================================================
 // Exports
 // =============================================================================
 
-module.exports = {
+const middlewareModule = {
+
+    initialize,
 
     registerMiddleware,
 
@@ -1731,3 +1759,5 @@ module.exports = {
     getIdempotencyKey
 
 };
+
+export default middlewareModule;

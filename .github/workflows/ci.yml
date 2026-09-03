@@ -1,0 +1,170 @@
+name: TITech Community Capital CI
+
+on:
+  push:
+    branches: [main, develop, 'release/**', 'feature/**', 'hotfix/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: titech-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  CI: true
+  MONGO_URI: mongodb://127.0.0.1:27017/titech_test
+  MONGODB_URI: mongodb://127.0.0.1:27017/titech_test
+  REDIS_URL: redis://127.0.0.1:6379
+  PORT: 5000
+
+jobs:
+  quality:
+    name: Static validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci --include=dev && npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev
+      - name: Validate runtime
+        run: node --version && npm --version
+      - name: Check for merge conflict markers
+        run: npm run check:conflicts
+      - name: Lint and format
+        run: npm run check
+
+  tests:
+    name: Unit and integration tests
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7-jammy
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci --include=dev && npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev
+      - name: Verify service readiness
+        run: |
+          node -e "const net=require('net'); const checks=[['MongoDB',27017],['Redis',6379]]; let pending=checks.length; for(const [name,port] of checks){const socket=net.createConnection({host:'127.0.0.1',port},()=>{console.log(name+' is reachable'); socket.destroy(); if(--pending===0) process.exit(0)}); socket.on('error',()=>process.exit(1));}"
+      - name: Run backend tests
+        run: npm run test:backend:ci
+      - name: Run frontend tests
+        run: npm run test:frontend:ci
+
+  build:
+    name: Production builds
+    runs-on: ubuntu-latest
+    needs: [quality, tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci --include=dev && npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev
+      - name: Build backend
+        run: npm run build:backend
+      - name: Build frontend
+        run: npm run build:frontend
+
+  security:
+    name: Dependency security
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci --include=dev && npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev
+      - name: Audit dependencies
+        run: npm audit --audit-level=high && npm audit --prefix backend --audit-level=high && npm audit --prefix frontend --audit-level=high
+
+  osv:
+    name: OSV dependency scan
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json
+            --lockfile=backend/package-lock.json
+            --lockfile=frontend/package-lock.json
+
+  trivy:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-latest
+    needs: [quality]
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+
+  codeql:
+    name: CodeQL analysis
+    runs-on: ubuntu-latest
+    needs: [quality]
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+      - uses: github/codeql-action/analyze@v3

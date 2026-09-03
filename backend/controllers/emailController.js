@@ -12,6 +12,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const emailService = require('../services/emailService');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
 const EmailAudit = require('../models/EmailAudit');
@@ -87,7 +88,7 @@ async function sendEmailVerification(req, res) {
  * Verify email with token
  * POST /api/email/verify
  */
-async function verifyEmail(req, res) {
+async function legacyVerifyEmail(req, res) {
   const { token } = req.body;
 
   if (!token) {
@@ -159,7 +160,7 @@ async function sendPasswordReset(req, res) {
  * Reset password with token
  * POST /api/email/reset-password
  */
-async function resetPassword(req, res) {
+async function legacyResetPassword(req, res) {
   const { token, newPassword } = req.body;
 
   if (!token || !newPassword) {

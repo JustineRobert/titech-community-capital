@@ -1,5 +1,9 @@
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -1392,6 +1396,8 @@ async function createContribution(
 // Exports
 // =============================================================================
 
-module.exports = Object.freeze({
+const contributionsControllerModule = Object.freeze({
     createContribution
 });
+
+export default contributionsControllerModule;

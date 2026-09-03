@@ -1,5 +1,9 @@
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -1987,7 +1991,7 @@ function snapshot() {
  * =============================================================================
  */
 
-module.exports =
+const loggerModule =
   Object.freeze({
     /* -------------------------------------------------------------------------
      * Core logger
@@ -2079,3 +2083,5 @@ module.exports =
 
     LOG_LEVELS,
   });
+
+export default loggerModule;

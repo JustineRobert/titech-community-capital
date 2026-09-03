@@ -1,5 +1,9 @@
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -2142,7 +2146,7 @@ for (
  * =============================================================================
  */
 
-module.exports =
+const dependenciesModule =
   Object.freeze({
     /**
      * Metadata.
@@ -2242,3 +2246,5 @@ module.exports =
      */
     registerBootstrapHooks,
   });
+
+export default dependenciesModule;

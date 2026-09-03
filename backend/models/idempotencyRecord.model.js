@@ -40,6 +40,10 @@
  * =============================================================================
  */
 
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
 const mongoose =
     require("mongoose");
 
@@ -830,7 +834,7 @@ const IdempotencyRecord =
 // Exports
 // =============================================================================
 
-module.exports = {
+const idempotencyRecordModule = {
 
     IdempotencyRecord,
 
@@ -839,3 +843,5 @@ module.exports = {
     IDEMPOTENCY_RESULT_TYPES
 
 };
+
+export default idempotencyRecordModule;

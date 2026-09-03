@@ -1,5 +1,9 @@
 "use strict";
 
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
 /**
 
 * =============================================================================
@@ -625,9 +629,9 @@ function sanitizeText(
 
   text =
     text.replace(
-      /(mongodb(?:+srv)?:/ /)([^ /\s:@]+)(?::[^@\s]*)?@/gi,
-        "$1***:***@",
-);
+      /(mongodb(?:\+srv)?:\/\/)([^/\s:@]+)(?::[^@\s]*)?@/gi,
+      "$1***:***@",
+    );
 
   text =
     text.replace(
@@ -1882,7 +1886,7 @@ function snapshotPhase(
 * =============================================================================
   */
 
-module.exports =
+const phaseRunnerModule =
   Object.freeze({
     MODULE_NAME,
 
@@ -1966,7 +1970,7 @@ if (
     requiredExports
   ) {
     if (
-      typeof module.exports[
+      typeof phaseRunnerModule[
       exportName
       ] ===
       "undefined"
@@ -1977,3 +1981,5 @@ if (
     }
   }
 }
+
+export default phaseRunnerModule;

@@ -1,5 +1,13 @@
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+import authModule from '../middleware/auth.js';
+import idempotencyModule from '../middleware/idempotency.js';
+import contributionsControllerModule from '../controllers/contributionsController.js';
+
 /**
  * =============================================================================
  * TITech Community Capital Ltd
@@ -548,10 +556,7 @@ router.use(
  */
 
 const authenticationModule =
-    requireRouteDependency(
-        '../middleware/auth',
-        'authentication middleware',
-    );
+    authModule;
 
 const authenticate =
     resolveMiddlewareExport(
@@ -630,12 +635,6 @@ if (
  * =============================================================================
  */
 
-const idempotencyModule =
-    requireRouteDependency(
-        '../middleware/idempotency',
-        'idempotency middleware',
-    );
-
 const idempotencyFactory =
     resolveMiddlewareExport(
         idempotencyModule,
@@ -666,10 +665,7 @@ if (
  */
 
 const contributionsController =
-    requireRouteDependency(
-        '../controllers/contributionsController',
-        'contributions controller',
-    );
+    contributionsControllerModule;
 
 const loansController =
     requireRouteDependency(
@@ -1922,5 +1918,4 @@ router.ROUTE_METADATA =
  * =============================================================================
  */
 
-module.exports =
-    router;
+export default router;

@@ -53,6 +53,10 @@
  * =============================================================================
  */
 
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
 const {
     createRequestFingerprint,
     createProcessingRecord,
@@ -1195,7 +1199,7 @@ async function failOperation({
 // Exports
 // =============================================================================
 
-module.exports = {
+const idempotencyServiceModule = {
 
     IdempotencyError,
 
@@ -1224,3 +1228,5 @@ module.exports = {
     buildRequestFingerprint
 
 };
+
+export default idempotencyServiceModule;

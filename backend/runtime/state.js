@@ -3175,7 +3175,7 @@ function resetApplicationState() {
  * =============================================================================
  */
 
-module.exports = {
+const runtimeState = {
   /* ---------------------------------------------------------------------------
    * Constants
    * ------------------------------------------------------------------------- */
@@ -3295,3 +3295,9 @@ module.exports = {
 
   resetApplicationState,
 };
+
+export {
+  runtimeState,
+};
+
+export default runtimeState;

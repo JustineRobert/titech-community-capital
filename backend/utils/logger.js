@@ -21,6 +21,10 @@
 
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -1007,5 +1011,4 @@ logger.startup(
  * Export
  * ========================================================================== */
 
-module.exports =
-  logger;
+export default logger;
