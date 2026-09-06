@@ -720,6 +720,75 @@ const passwordValidator = (
  * ============================================================================
  */
 
+/**
+ * Password-reset payload validation.
+ *
+ * `password` is canonical. `newPassword` remains accepted for compatibility
+ * with older clients/tests, but both values are normalized to one credential
+ * before controller execution.
+ */
+function resetPasswordValidator() {
+  return [
+    tokenValidator,
+
+    body().custom((_, { req }) => {
+      const candidate =
+        typeof req.body?.password === 'string' &&
+        req.body.password.length > 0
+          ? req.body.password
+          : req.body?.newPassword;
+
+      if (typeof candidate !== 'string' || !candidate.length) {
+        throw new Error('Password is required.');
+      }
+
+      if (candidate.length < MIN_PASSWORD_LENGTH || candidate.length > MAX_PASSWORD_LENGTH) {
+        throw new Error(
+          `Password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters.`,
+        );
+      }
+
+      if (!/[a-z]/.test(candidate)) {
+        throw new Error('Password must contain at least one lowercase letter.');
+      }
+
+      if (!/[A-Z]/.test(candidate)) {
+        throw new Error('Password must contain at least one uppercase letter.');
+      }
+
+      if (!/\d/.test(candidate)) {
+        throw new Error('Password must contain at least one number.');
+      }
+
+      if (!/[^A-Za-z0-9\s]/.test(candidate)) {
+        throw new Error('Password must contain at least one special character.');
+      }
+
+      return true;
+    }),
+
+    body('confirmPassword')
+      .optional()
+      .isString()
+      .withMessage('Password confirmation must be a string.')
+      .custom((value, { req }) => {
+        const candidate =
+          typeof req.body?.password === 'string' &&
+          req.body.password.length > 0
+            ? req.body.password
+            : req.body?.newPassword;
+
+        if (value !== candidate) {
+          throw new Error('Password confirmation does not match.');
+        }
+
+        return true;
+      }),
+
+    handleValidationErrors,
+  ];
+}
+
 function confirmPassword(
   passwordField,
   confirmationField,
@@ -839,21 +908,7 @@ router.post(
 
   passwordResetLimiter,
 
-  [
-    tokenValidator,
-
-    passwordValidator(
-      'password',
-      'Password',
-    ),
-
-    confirmPassword(
-      'password',
-      'confirmPassword',
-    ),
-
-    handleValidationErrors,
-  ],
+  resetPasswordValidator(),
 
   asyncHandler(
     emailController.resetPassword,

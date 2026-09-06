@@ -72,6 +72,10 @@
 
 'use strict';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 

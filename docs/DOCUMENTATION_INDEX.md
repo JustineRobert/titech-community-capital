@@ -64,9 +64,9 @@ Choose your journey based on your role:
 | --------------- | ------------------------ | --------------------------------------------- | ------------- |
 | Makefile        | All development commands | `./Makefile`                                  | Developers    |
 | .prettierrc     | Code formatting config   | `./.prettierrc`                               | All           |
-| Backend ESLint  | Backend code quality     | `community-savings-app-backend/.eslintrc.js`  | Backend devs  |
-| Frontend ESLint | Frontend code quality    | `community-savings-app-frontend/.eslintrc.js` | Frontend devs |
-| Test Suite      | Core module tests        | `community-savings-app-backend/tests/unit/`   | QA/Developers |
+| Backend ESLint  | Backend code quality     | `backend/.eslintrc.js`  | Backend devs  |
+| Frontend ESLint | Frontend code quality    | `frontend/.eslintrc.js` | Frontend devs |
+| Test Suite      | Core module tests        | `backend/tests/unit/`   | QA/Developers |
 | CI/CD Workflow  | GitHub Actions           | `.github/workflows/ci-cd.yml`                 | DevOps        |
 
 ---
@@ -463,3 +463,23 @@ You have everything you need:
 **Date:** January 15, 2026
 
 **Let's build something amazing!** 🚀
+
+---
+
+## 🔐 Authentication Documentation
+
+The canonical authentication lifecycle documentation is maintained under `docs/authentication/`.
+
+- [Authentication Index](./authentication/INDEX.md)
+- [Authentication Architecture](./authentication/authentication-architecture.md)
+- [Authentication Flow](./authentication/authentication-flow.md)
+- [Login / Sign In](./authentication/login.md)
+- [Logout / Sign Out](./authentication/logout.md)
+- [Registration / Create Account](./authentication/registration.md)
+- [Forgot Password](./authentication/forgot-password.md)
+- [Password Reset](./authentication/password-reset.md)
+- [Session Management](./authentication/session-management.md)
+- [Security Controls](./authentication/security-controls.md)
+- [Authentication API](./api/authentication.md)
+- [Authentication Testing](./testing/authentication-testing.md)
+- [Authentication Operations Runbook](./operations/authentication-runbook.md)

@@ -20,7 +20,7 @@
  *        ↓
  *   Authorization
  *        ↓
- *   Tenant Context
+ *   Trusted Tenant Context
  *        ↓
  *   Validation
  *        ↓
@@ -42,51 +42,93 @@
  *   - No client-controlled tenant override.
  *   - Financial mutations require idempotency.
  *
+ * Module system:
+ *   - CommonJS only.
+ *   - Do NOT mix import/export syntax with require/module.exports.
+ *
  * =============================================================================
  */
 
-const LoanWorkflowService =
-    require(
-        '../modules/loan/services/loanWorkflowService'
-    );
+const LoanWorkflowService = require(
+    '../modules/loan/services/loanWorkflowService'
+);
 
 const {
-    handleError
+    handleError,
 } = require(
-    '../middlewares/errorMiddleware'
+    '../middleware/errorMiddleware'
 );
 
 // =============================================================================
 // Constants
 // =============================================================================
 
-const COMPONENT =
-    'loans-controller';
+const COMPONENT = 'loans-controller';
 
-const ADMIN_ROLES =
-    Object.freeze([
-        'ADMIN',
-        'SUPER_ADMIN'
-    ]);
+const OPERATION = 'LOAN_DISBURSEMENT';
 
-const MAX_IDENTIFIER_LENGTH =
-    128;
+const ADMIN_ROLES = Object.freeze([
+    'ADMIN',
+    'SUPER_ADMIN',
+]);
 
-const MAX_IDEMPOTENCY_KEY_LENGTH =
-    256;
+const MAX_IDENTIFIER_LENGTH = 128;
+const MAX_IDEMPOTENCY_KEY_LENGTH = 256;
+const MAX_CORRELATION_ID_LENGTH = 128;
+const MAX_REQUEST_ID_LENGTH = 128;
 
-const DEFAULT_CURRENCY =
-    'UGX';
+const DEFAULT_CURRENCY = 'UGX';
 
-const CORRELATION_HEADERS =
-    Object.freeze([
-        'x-correlation-id',
-        'x-request-id',
-        'x-trace-id'
-    ]);
+const ISO_CURRENCY_PATTERN = /^[A-Z]{3}$/;
+
+/**
+ * Monetary values are deliberately accepted as decimal strings.
+ *
+ * Examples:
+ *   "1000"
+ *   "1000.5"
+ *   "1000.50"
+ *
+ * Rejected:
+ *   "1,000"
+ *   "1e6"
+ *   "-100"
+ *   ".50"
+ *   "01"
+ *   "100.123"
+ *   1000
+ */
+const FIXED_MONEY_PATTERN =
+    /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/;
+
+const ZERO_MONEY_PATTERN =
+    /^0(?:\.0{1,2})?$/;
+
+const CORRELATION_HEADERS = Object.freeze([
+    'x-correlation-id',
+    'x-request-id',
+    'x-trace-id',
+]);
 
 // =============================================================================
-// Utilities
+// Error Utility
+// =============================================================================
+
+function createLoanError(
+    message,
+    code,
+    statusCode = 422
+) {
+    const error = new Error(message);
+
+    error.code = code;
+    error.statusCode = statusCode;
+
+    return error;
+}
+
+// =============================================================================
+// String Validation
 // =============================================================================
 
 function normalizeString(
@@ -94,7 +136,7 @@ function normalizeString(
     field,
     {
         required = false,
-        maxLength = MAX_IDENTIFIER_LENGTH
+        maxLength = MAX_IDENTIFIER_LENGTH,
     } = {}
 ) {
     if (
@@ -102,76 +144,54 @@ function normalizeString(
         value === undefined
     ) {
         if (required) {
-            const error =
-                new Error(
-                    `${field} is required.`
-                );
-
-            error.code =
-                `LOAN_${field.toUpperCase()}_REQUIRED`;
-
-            error.statusCode =
-                422;
-
-            throw error;
+            throw createLoanError(
+                `${field} is required.`,
+                `LOAN_${field.toUpperCase()}_REQUIRED`
+            );
         }
 
         return null;
     }
 
-    const normalized =
-        String(value).trim();
+    if (typeof value !== 'string') {
+        throw createLoanError(
+            `${field} must be a string.`,
+            `LOAN_${field.toUpperCase()}_INVALID`
+        );
+    }
+
+    const normalized = value.trim();
 
     if (!normalized) {
         if (required) {
-            const error =
-                new Error(
-                    `${field} is required.`
-                );
-
-            error.code =
-                `LOAN_${field.toUpperCase()}_REQUIRED`;
-
-            error.statusCode =
-                422;
-
-            throw error;
+            throw createLoanError(
+                `${field} is required.`,
+                `LOAN_${field.toUpperCase()}_REQUIRED`
+            );
         }
 
         return null;
     }
 
-    if (
-        normalized.length >
-        maxLength
-    ) {
-        const error =
-            new Error(
-                `${field} exceeds the maximum allowed length.`
-            );
-
-        error.code =
-            `LOAN_${field.toUpperCase()}_TOO_LONG`;
-
-        error.statusCode =
-            422;
-
-        throw error;
+    if (normalized.length > maxLength) {
+        throw createLoanError(
+            `${field} exceeds the maximum allowed length.`,
+            `LOAN_${field.toUpperCase()}_TOO_LONG`
+        );
     }
 
     return normalized;
 }
 
-function getHeader(
-    req,
-    name
-) {
+// =============================================================================
+// Header Handling
+// =============================================================================
+
+function getHeader(req, name) {
     if (
-        typeof req?.get ===
-        'function'
+        typeof req?.get === 'function'
     ) {
-        const value =
-            req.get(name);
+        const value = req.get(name);
 
         if (
             typeof value === 'string' &&
@@ -182,9 +202,7 @@ function getHeader(
     }
 
     const value =
-        req?.headers?.[
-            String(name).toLowerCase()
-        ];
+        req?.headers?.[String(name).toLowerCase()];
 
     if (
         typeof value === 'string' &&
@@ -196,62 +214,81 @@ function getHeader(
     return null;
 }
 
-function getCorrelationId(
-    req
+function getBoundedHeader(
+    req,
+    name,
+    maxLength
 ) {
+    return normalizeString(
+        getHeader(req, name),
+        name,
+        {
+            required: false,
+            maxLength,
+        }
+    );
+}
+
+function getCorrelationId(req) {
     for (
         const header of CORRELATION_HEADERS
     ) {
-        const value =
-            getHeader(
-                req,
-                header
-            );
+        const value = getBoundedHeader(
+            req,
+            header,
+            MAX_CORRELATION_ID_LENGTH
+        );
 
         if (value) {
             return value;
         }
     }
 
-    return (
-        req?.correlationId ||
-        req?.requestId ||
-        null
+    return normalizeString(
+        req?.correlationId ??
+        req?.requestId ??
+        null,
+        'correlationId',
+        {
+            required: false,
+            maxLength: MAX_CORRELATION_ID_LENGTH,
+        }
     );
 }
 
-function getBody(
-    req
-) {
+// =============================================================================
+// Request Body
+// =============================================================================
+
+function getBody(req) {
+    const body = req?.body;
+
     if (
-        req?.body &&
-        typeof req.body === 'object' &&
-        !Array.isArray(req.body)
+        body &&
+        typeof body === 'object' &&
+        !Array.isArray(body)
     ) {
-        return req.body;
+        return body;
     }
 
     return {};
 }
 
 // =============================================================================
-// Tenant Context
+// Trusted Tenant Context
 // =============================================================================
 
-function resolveTenantId(
-    req
-) {
+function resolveTenantId(req, user) {
+    const tenantId =
+        req?.context?.tenantId ??
+        req?.auth?.tenantId ??
+        user?.tenantId;
+
     return normalizeString(
-        req?.tenant_id ||
-        req?.tenantId ||
-        req?.tenant?.id ||
-        req?.tenant?._id ||
-        req?.auth?.tenantId ||
-        req?.user?.tenantId ||
-        req?.context?.tenantId,
+        tenantId,
         'tenantId',
         {
-            required: true
+            required: true,
         }
     );
 }
@@ -260,24 +297,16 @@ function resolveTenantId(
 // Authentication
 // =============================================================================
 
-function requireUser(
-    req
-) {
+function requireUser(req) {
     if (
-        !req?.user
+        !req?.user ||
+        typeof req.user !== 'object'
     ) {
-        const error =
-            new Error(
-                'Authenticated user context is required.'
-            );
-
-        error.code =
-            'LOAN_AUTHENTICATION_REQUIRED';
-
-        error.statusCode =
-            401;
-
-        throw error;
+        throw createLoanError(
+            'Authenticated user context is required.',
+            'LOAN_AUTHENTICATION_REQUIRED',
+            401
+        );
     }
 
     return req.user;
@@ -287,29 +316,20 @@ function requireUser(
 // Authorization
 // =============================================================================
 
-function resolveRoles(
-    user
-) {
-    const roles = [];
-
+function resolveRoles(user) {
     const candidates = [
         user?.roles,
         user?.role,
-        user?.permissions?.roles
+        user?.permissions?.roles,
     ];
 
-    for (
-        const candidate of candidates
-    ) {
-        if (
-            Array.isArray(candidate)
-        ) {
-            roles.push(
-                ...candidate
-            );
+    const roles = [];
+
+    for (const candidate of candidates) {
+        if (Array.isArray(candidate)) {
+            roles.push(...candidate);
         } else if (
-            typeof candidate ===
-            'string'
+            typeof candidate === 'string'
         ) {
             roles.push(candidate);
         }
@@ -318,55 +338,60 @@ function resolveRoles(
     return [
         ...new Set(
             roles
-                .map(role =>
-                    String(role)
-                        .trim()
-                        .toUpperCase()
+                .filter(
+                    value =>
+                        typeof value === 'string'
+                )
+                .map(
+                    value =>
+                        value.trim().toUpperCase()
                 )
                 .filter(Boolean)
-        )
+        ),
     ];
 }
 
-function requireAdmin(
-    user
-) {
-    const roles =
-        resolveRoles(
-            user
-        );
+function requireAdmin(user) {
+    const roles = resolveRoles(user);
 
     const authorized =
         ADMIN_ROLES.some(
-            role =>
-                roles.includes(
-                    role
-                )
+            role => roles.includes(role)
         );
 
     if (!authorized) {
-        const error =
-            new Error(
-                'Forbidden.'
-            );
-
-        error.code =
-            'LOAN_ADMIN_AUTHORIZATION_REQUIRED';
-
-        error.statusCode =
-            403;
-
-        throw error;
+        throw createLoanError(
+            'Forbidden.',
+            'LOAN_ADMIN_AUTHORIZATION_REQUIRED',
+            403
+        );
     }
+}
+
+// =============================================================================
+// Principal Identity
+// =============================================================================
+
+function resolvePrincipalId(user) {
+    const principalId =
+        user?.id ??
+        user?._id;
+
+    return normalizeString(
+        principalId,
+        'principalId',
+        {
+            required: true,
+            maxLength: MAX_IDENTIFIER_LENGTH,
+        }
+    );
 }
 
 // =============================================================================
 // Idempotency
 // =============================================================================
 
-function requireIdempotencyKey(
-    req
-) {
+function requireIdempotencyKey(req) {
     return normalizeString(
         getHeader(
             req,
@@ -375,8 +400,7 @@ function requireIdempotencyKey(
         'idempotencyKey',
         {
             required: true,
-            maxLength:
-                MAX_IDEMPOTENCY_KEY_LENGTH
+            maxLength: MAX_IDEMPOTENCY_KEY_LENGTH,
         }
     );
 }
@@ -384,72 +408,43 @@ function requireIdempotencyKey(
 // =============================================================================
 // Monetary Validation
 // =============================================================================
-//
-// Keep the monetary value as a string.
-// Do not convert through JavaScript Number.
-// This is compatible with the financial boundary's exact-money design.
-// =============================================================================
 
-function normalizeAmount(
-    amount
-) {
+function normalizeAmount(amount) {
     if (
         amount === null ||
         amount === undefined
     ) {
-        const error =
-            new Error(
-                'amount is required.'
-            );
-
-        error.code =
-            'LOAN_AMOUNT_REQUIRED';
-
-        error.statusCode =
-            422;
-
-        throw error;
+        throw createLoanError(
+            'amount is required.',
+            'LOAN_AMOUNT_REQUIRED'
+        );
     }
 
-    const normalized =
-        String(amount).trim();
+    if (typeof amount !== 'string') {
+        throw createLoanError(
+            'amount must be supplied as a decimal string.',
+            'LOAN_INVALID_AMOUNT'
+        );
+    }
+
+    const normalized = amount.trim();
 
     if (
-        !/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(
-            normalized
-        )
+        !FIXED_MONEY_PATTERN.test(normalized)
     ) {
-        const error =
-            new Error(
-                'amount must be a fixed-point monetary value with at most two decimal places.'
-            );
-
-        error.code =
-            'LOAN_INVALID_AMOUNT';
-
-        error.statusCode =
-            422;
-
-        throw error;
+        throw createLoanError(
+            'amount must be a fixed-point monetary value with at most two decimal places.',
+            'LOAN_INVALID_AMOUNT'
+        );
     }
 
     if (
-        /^0(?:\.0{1,2})?$/.test(
-            normalized
-        )
+        ZERO_MONEY_PATTERN.test(normalized)
     ) {
-        const error =
-            new Error(
-                'amount must be greater than zero.'
-            );
-
-        error.code =
-            'LOAN_INVALID_AMOUNT';
-
-        error.statusCode =
-            422;
-
-        throw error;
+        throw createLoanError(
+            'amount must be greater than zero.',
+            'LOAN_INVALID_AMOUNT'
+        );
     }
 
     return normalized;
@@ -459,92 +454,57 @@ function normalizeAmount(
 // Currency
 // =============================================================================
 
-function normalizeCurrency(
-    currency
-) {
-    const normalized =
-        String(
-            currency ||
-            DEFAULT_CURRENCY
-        )
-            .trim()
-            .toUpperCase();
+function normalizeCurrency(currency) {
+    const normalized = String(
+        currency ?? DEFAULT_CURRENCY
+    )
+        .trim()
+        .toUpperCase();
 
     if (
-        !/^[A-Z]{3}$/.test(
-            normalized
-        )
+        !ISO_CURRENCY_PATTERN.test(normalized)
     ) {
-        const error =
-            new Error(
-                'currency must be a valid three-letter currency code.'
-            );
-
-        error.code =
-            'LOAN_INVALID_CURRENCY';
-
-        error.statusCode =
-            422;
-
-        throw error;
+        throw createLoanError(
+            'currency must be a valid three-letter currency code.',
+            'LOAN_INVALID_CURRENCY'
+        );
     }
 
     return normalized;
 }
 
 // =============================================================================
-// Main Controller
+// Controller
 // =============================================================================
 
 class LoansController {
-
-    /**
-     * =========================================================================
-     * CREATE / DISBURSE LOAN
-     * =========================================================================
-     *
-     * IMPORTANT:
-     *
-     * This method does not create a ledger entry itself.
-     *
-     * LoanWorkflowService is the business/workflow boundary and should delegate
-     * the actual financial mutation to the canonical financial transaction
-     * service.
-     */
     static async createLoan(
         req,
         res,
         next
     ) {
-        const startedAt =
-            Date.now();
+        const startedAt = Date.now();
 
         try {
-            const user =
-                requireUser(
-                    req
-                );
+            const user = requireUser(req);
 
-            requireAdmin(
-                user
-            );
+            requireAdmin(user);
 
             const tenantId =
                 resolveTenantId(
-                    req
+                    req,
+                    user
                 );
 
             const body =
-                getBody(
-                    req
-                );
+                getBody(req);
 
             const saccoId =
                 normalizeString(
                     body.saccoId,
                     'saccoId',
                     {
-                        required: true
+                        required: true,
                     }
                 );
 
@@ -553,7 +513,7 @@ class LoansController {
                     body.memberId,
                     'memberId',
                     {
-                        required: true
+                        required: true,
                     }
                 );
 
@@ -568,126 +528,80 @@ class LoansController {
                 );
 
             const idempotencyKey =
-                requireIdempotencyKey(
-                    req
-                );
+                requireIdempotencyKey(req);
 
             const correlationId =
-                getCorrelationId(
-                    req
+                getCorrelationId(req);
+
+            const requestId =
+                getBoundedHeader(
+                    req,
+                    'x-request-id',
+                    MAX_REQUEST_ID_LENGTH
                 );
 
-            /**
-             * Prefer workflow/service-generated transaction identifiers.
-             * Date.now() must NOT be used as an idempotency authority.
-             */
+            const principalId =
+                resolvePrincipalId(user);
+
             const requestContext = {
-                component:
-                    COMPONENT,
-
-                operation:
-                    'LOAN_DISBURSEMENT',
-
+                component: COMPONENT,
+                operation: OPERATION,
                 tenantId,
-
-                principalId:
-                    String(
-                        user.id ||
-                        user._id
-                    ),
-
+                principalId,
                 correlationId,
-
-                requestId:
-                    getHeader(
-                        req,
-                        'x-request-id'
-                    ),
-
+                requestId,
                 idempotencyKey,
-
                 endpoint:
-                    req.originalUrl,
-
+                    typeof req?.originalUrl === 'string'
+                        ? req.originalUrl
+                        : undefined,
                 method:
-                    req.method
+                    typeof req?.method === 'string'
+                        ? req.method.toUpperCase()
+                        : undefined,
             };
 
-            /**
-             * Keep the HTTP layer free of accounting logic.
-             *
-             * The workflow service should:
-             *
-             *   1. validate/authorize the loan
-             *   2. establish/participate in the financial transaction
-             *   3. mutate loan state
-             *   4. increment destination balance
-             *   5. create balanced double-entry ledger postings
-             *   6. record immutable audit evidence
-             *   7. commit atomically
-             */
             const result =
-                await LoanWorkflowService
-                    .disburseLoan(
-                        null,
-                        {
-                            saccoId,
-                            memberId,
-                            amount,
-                            currency,
-                            idempotencyKey,
-                            correlationId,
-                            metadata: {
-                                source:
-                                    COMPONENT,
-
-                                operation:
-                                    'LOAN_DISBURSEMENT'
-                            }
+                await LoanWorkflowService.disburseLoan(
+                    null,
+                    {
+                        saccoId,
+                        memberId,
+                        amount,
+                        currency,
+                        idempotencyKey,
+                        correlationId,
+                        metadata: {
+                            source: COMPONENT,
+                            operation: OPERATION,
                         },
-                        user,
-                        tenantId,
-                        requestContext
-                    );
+                    },
+                    user,
+                    tenantId,
+                    requestContext
+                );
 
             return res
-                .status(
-                    200
-                )
+                .status(200)
                 .json({
-                    success:
-                        true,
-
+                    success: true,
                     message:
                         'Loan disbursed successfully.',
-
                     timestamp:
                         new Date().toISOString(),
-
                     meta: {
-                        requestId:
-                            requestContext.requestId,
-
+                        requestId,
                         correlationId,
-
                         tenantId,
-
-                        operation:
-                            'LOAN_DISBURSEMENT',
-
+                        operation: OPERATION,
                         idempotencyKey,
-
                         executionTimeMs:
                             Date.now() -
-                            startedAt
+                            startedAt,
                     },
-
-                    data:
-                        result
+                    data: result,
                 });
-        } catch (
-            error
-        ) {
+        } catch (error) {
             return handleError(
                 error,
                 req,
@@ -698,5 +612,4 @@ class LoansController {
     }
 }
 
-module.exports =
-    LoansController;
+module.exports = LoansController;

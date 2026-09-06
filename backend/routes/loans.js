@@ -9,28 +9,24 @@
  * File:
  *   backend/routes/loans.js
  *
- * Purpose
- * ----------------------------------------------------------------------------
- * Secure HTTP routing boundary for TITech Community Capital loan lifecycle
- * operations.
+ * Purpose:
+ *   Secure HTTP routing boundary for TITech Community Capital loan lifecycle
+ *   operations.
  *
- * Authenticated member routes
- * ----------------------------------------------------------------------------
- * POST /api/loans
- * GET  /api/loans
- * GET  /api/loans/:loanId
- * GET  /api/loans/:loanId/schedule
- * GET  /api/loans/:loanId/summary
- * POST /api/loans/:loanId/repayment
+ * Authenticated member routes:
+ *   POST /api/loans
+ *   GET  /api/loans
+ *   GET  /api/loans/:loanId
+ *   GET  /api/loans/:loanId/schedule
+ *   GET  /api/loans/:loanId/summary
+ *   POST /api/loans/:loanId/repayment
  *
- * Administrative routes
- * ----------------------------------------------------------------------------
- * POST /api/loans/:loanId/approve
- * POST /api/loans/:loanId/reject
- * POST /api/loans/:loanId/disburse
+ * Administrative routes:
+ *   POST /api/loans/:loanId/approve
+ *   POST /api/loans/:loanId/reject
+ *   POST /api/loans/:loanId/disburse
  *
- * Architecture
- * ----------------------------------------------------------------------------
+ * Architecture:
  *
  *   HTTP Request
  *        ↓
@@ -46,7 +42,7 @@
  *        ↓
  *   Validation
  *        ↓
- *   Idempotency for financial mutations
+ *   Idempotency
  *        ↓
  *   RBAC / Administrative Authorization
  *        ↓
@@ -56,22 +52,23 @@
  *        ↓
  *   Financial Transaction / Ledger / Audit
  *
- * IMPORTANT
- * ----------------------------------------------------------------------------
- * This router MUST NOT:
+ * IMPORTANT:
+ *   This router must never:
  *
- *   ✗ calculate loan balances directly
- *   ✗ mutate loan balances directly
- *   ✗ write ledger entries directly
- *   ✗ approve/reject loans in the route layer
- *   ✗ select another tenant from query/body input
- *   ✗ bypass idempotency for financial mutations
- *
- * Those responsibilities belong to the controller/service/domain/repository
- * layers.
+ *   - calculate loan balances;
+ *   - mutate financial balances directly;
+ *   - write ledger entries;
+ *   - perform accounting;
+ *   - select a tenant from request body/query input;
+ *   - bypass idempotency for financial mutations;
+ *   - implement loan business decisions.
  *
  * ============================================================================
  */
+
+// ============================================================================
+// Dependencies
+// ============================================================================
 
 const express =
     require('express');
@@ -97,29 +94,49 @@ const {
 const auth =
     require('../middleware/auth');
 
-const loanController =
-    require('../controllers/loanController');
+// -----------------------------------------------------------------------------
+// Controller resolution
+// -----------------------------------------------------------------------------
+//
+// Prefer the existing plural filename used by the supplied controller:
+//   controllers/loansController.js
+//
+// Fall back to:
+//   controllers/loanController.js
+//
+// The method contract is still validated below.
+// -----------------------------------------------------------------------------
 
-/**
- * ============================================================================
- * ROUTER
- * ============================================================================
- */
+let loanController;
+
+try {
+    loanController =
+        require('../controllers/loansController');
+} catch (pluralError) {
+    try {
+        loanController =
+            require('../controllers/loanController');
+    } catch (singularError) {
+        throw new Error(
+            '[TITechLoanRoutes] Unable to load loan controller. ' +
+            'Expected ../controllers/loansController or ../controllers/loanController.'
+        );
+    }
+}
+
+// ============================================================================
+// Router
+// ============================================================================
 
 const router =
     express.Router({
-        strict:
-            false,
-
-        caseSensitive:
-            false,
+        strict: false,
+        caseSensitive: false,
     });
 
-/**
- * ============================================================================
- * METADATA
- * ============================================================================
- */
+// ============================================================================
+// Metadata
+// ============================================================================
 
 const ROUTER_NAME =
     'TITechLoanRoutes';
@@ -129,6 +146,15 @@ const ROUTER_VERSION =
 
 const SERVICE_NAME =
     'TITech Loan API';
+
+const OPERATION_PREFIX =
+    'LOAN';
+
+const MAX_HEADER_LENGTH =
+    128;
+
+const MAX_IDENTIFIER_LENGTH =
+    128;
 
 const MAX_DESCRIPTION_LENGTH =
     5000;
@@ -157,17 +183,27 @@ const MAX_LIMIT =
 const MAX_DURATION_MONTHS =
     360;
 
-const MAX_LOAN_AMOUNT =
-    Number(
-        process.env.TITECH_MAX_LOAN_AMOUNT ||
-        1_000_000_000_000_000
-    );
+const DEFAULT_LOAN_LIMIT =
+    '1000000000000000';
 
 /**
- * ============================================================================
- * CONTROLLER CONTRACT
- * ============================================================================
+ * Keep maximum monetary limits as strings.
+ *
+ * IMPORTANT:
+ * Do not convert financial limits to JavaScript Number.
+ *
+ * The controller/service layer must perform exact decimal comparison using
+ * the project's canonical money implementation.
  */
+const MAX_LOAN_AMOUNT =
+    normalizeMoneyString(
+        process.env.TITECH_MAX_LOAN_AMOUNT ||
+        DEFAULT_LOAN_LIMIT
+    );
+
+// ============================================================================
+// Controller Contract
+// ============================================================================
 
 const REQUIRED_CONTROLLERS =
     Object.freeze([
@@ -183,13 +219,10 @@ const REQUIRED_CONTROLLERS =
     ]);
 
 for (
-    const method
-    of REQUIRED_CONTROLLERS
+    const method of REQUIRED_CONTROLLERS
 ) {
     if (
-        typeof loanController?.[
-            method
-        ] !==
+        typeof loanController?.[method] !==
         'function'
     ) {
         throw new TypeError(
@@ -198,11 +231,9 @@ for (
     }
 }
 
-/**
- * ============================================================================
- * AUTHENTICATION CONTRACT
- * ============================================================================
- */
+// ============================================================================
+// Authentication Contract
+// ============================================================================
 
 const verifyToken =
     auth?.verifyToken ||
@@ -229,64 +260,144 @@ if (
     );
 }
 
-/**
- * ============================================================================
- * REQUEST METADATA
- * ============================================================================
- */
+// ============================================================================
+// Utility Functions
+// ============================================================================
 
 function normalizeString(
     value,
-    fallback = null
+    fallback = null,
+    {
+        maxLength = MAX_IDENTIFIER_LENGTH,
+        allowEmpty = false,
+    } = {}
 ) {
     if (
-        value ===
-            undefined ||
-        value ===
-            null
+        value === null ||
+        value === undefined
+    ) {
+        return fallback;
+    }
+
+    if (
+        Array.isArray(value) ||
+        (
+            typeof value !==
+            'string'
+        )
     ) {
         return fallback;
     }
 
     const normalized =
-        String(
-            value
-        ).trim();
+        value.trim();
 
-    return (
-        normalized ||
-        fallback
+    if (
+        !allowEmpty &&
+        !normalized
+    ) {
+        return fallback;
+    }
+
+    if (
+        normalized.length >
+        maxLength
+    ) {
+        return fallback;
+    }
+
+    return normalized;
+}
+
+function normalizeHeader(
+    value
+) {
+    return normalizeString(
+        value,
+        null,
+        {
+            maxLength:
+                MAX_HEADER_LENGTH,
+        }
     );
 }
+
+function isValidMoneyString(
+    value
+) {
+    return (
+        typeof value === 'string' &&
+        /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(
+            value.trim()
+        )
+    );
+}
+
+function normalizeMoneyString(
+    value
+) {
+    if (
+        typeof value !== 'string'
+    ) {
+        throw new TypeError(
+            'Financial monetary values must be decimal strings.'
+        );
+    }
+
+    const normalized =
+        value.trim();
+
+    if (
+        !isValidMoneyString(
+            normalized
+        )
+    ) {
+        throw new TypeError(
+            `Invalid monetary value: ${normalized}`
+        );
+    }
+
+    return normalized;
+}
+
+// ============================================================================
+// Request Metadata
+// ============================================================================
 
 function requestMetadata(
     req,
     res,
     next
 ) {
-    const requestId =
-        normalizeString(
+    const suppliedRequestId =
+        normalizeHeader(
             req.requestId
         ) ||
-        normalizeString(
+        normalizeHeader(
             req.id
         ) ||
-        normalizeString(
+        normalizeHeader(
             req.headers?.[
                 'x-request-id'
             ]
-        ) ||
+        );
+
+    const requestId =
+        suppliedRequestId ||
         crypto.randomUUID();
 
-    const correlationId =
-        normalizeString(
+    const suppliedCorrelationId =
+        normalizeHeader(
             req.correlationId
         ) ||
-        normalizeString(
+        normalizeHeader(
             req.headers?.[
                 'x-correlation-id'
             ]
-        ) ||
+        );
+
+    const correlationId =
+        suppliedCorrelationId ||
         requestId;
 
     req.requestId =
@@ -305,18 +416,16 @@ function requestMetadata(
         correlationId
     );
 
-    next();
+    return next();
 }
 
 router.use(
     requestMetadata
 );
 
-/**
- * ============================================================================
- * SECURITY HEADERS
- * ============================================================================
- */
+// ============================================================================
+// Security Headers
+// ============================================================================
 
 router.use(
     (
@@ -344,15 +453,13 @@ router.use(
             'no-cache'
         );
 
-        next();
+        return next();
     }
 );
 
-/**
- * ============================================================================
- * BODY PARSER
- * ============================================================================
- */
+// ============================================================================
+// Body Parser
+// ============================================================================
 
 router.use(
     express.json({
@@ -365,24 +472,24 @@ router.use(
     })
 );
 
-/**
- * ============================================================================
- * AUTHENTICATION
- * ============================================================================
- *
- * Every loan endpoint is authenticated.
- * ============================================================================
- */
+// ============================================================================
+// Authentication
+// ============================================================================
 
 router.use(
     verifyToken
 );
 
-/**
- * ============================================================================
- * TRUSTED TENANT CONTEXT
- * ============================================================================
- */
+// ============================================================================
+// Trusted Tenant / Actor Context
+// ============================================================================
+//
+// Prefer the canonical admin context middleware when available.
+//
+// SECURITY:
+//   Client-supplied body.tenantId/query.tenantId is never trusted.
+//
+// ============================================================================
 
 let adminContextMiddleware =
     null;
@@ -422,19 +529,39 @@ function fallbackTenantContext(
     res,
     next
 ) {
+    /**
+     * Only trusted server-side context is accepted.
+     *
+     * Deliberately excluded:
+     *   req.query.tenantId
+     *   req.body.tenantId
+     *   arbitrary tenant headers
+     *   req.tenantId unless established by trusted middleware
+     */
+
     const tenantId =
         normalizeString(
-            req.tenantId ||
-                req.user?.tenantId ||
-                req.auth?.tenantId
+            req.context?.tenantId
+        ) ||
+        normalizeString(
+            req.auth?.tenantId
+        ) ||
+        normalizeString(
+            req.user?.tenantId
         );
 
     const actorId =
         normalizeString(
-            req.user?.id ||
-                req.user?._id ||
-                req.user?.userId ||
-                req.auth?.userId
+            req.user?.id
+        ) ||
+        normalizeString(
+            req.user?._id
+        ) ||
+        normalizeString(
+            req.user?.userId
+        ) ||
+        normalizeString(
+            req.auth?.userId
         );
 
     if (
@@ -443,8 +570,7 @@ function fallbackTenantContext(
         return res
             .status(403)
             .json({
-                success:
-                    false,
+                success: false,
 
                 code:
                     'LOAN_TENANT_CONTEXT_REQUIRED',
@@ -466,8 +592,7 @@ function fallbackTenantContext(
         return res
             .status(401)
             .json({
-                success:
-                    false,
+                success: false,
 
                 code:
                     'LOAN_ACTOR_CONTEXT_REQUIRED',
@@ -502,7 +627,7 @@ function fallbackTenantContext(
                 req.correlationId,
         };
 
-    next();
+    return next();
 }
 
 router.use(
@@ -510,86 +635,64 @@ router.use(
     fallbackTenantContext
 );
 
-/**
- * ============================================================================
- * RATE LIMITERS
- * ============================================================================
- */
-
-const loanReadLimiter =
-    createLimiter({
-        windowMs:
-            60 *
-            1000,
-
-        max:
-            getPositiveIntegerEnv(
-                'TITECH_LOAN_READ_RATE_LIMIT',
-                120
-            ),
-
-        code:
-            'LOAN_READ_RATE_LIMITED',
-
-        message:
-            'Too many loan queries. Please try again later.',
-    });
-
-const loanWriteLimiter =
-    createLimiter({
-        windowMs:
-            60 *
-            1000,
-
-        max:
-            getPositiveIntegerEnv(
-                'TITECH_LOAN_WRITE_RATE_LIMIT',
-                30
-            ),
-
-        code:
-            'LOAN_WRITE_RATE_LIMITED',
-
-        message:
-            'Too many loan operation requests. Please try again later.',
-    });
-
-const loanApprovalLimiter =
-    createLimiter({
-        windowMs:
-            60 *
-            1000,
-
-        max:
-            getPositiveIntegerEnv(
-                'TITECH_LOAN_APPROVAL_RATE_LIMIT',
-                20
-            ),
-
-        code:
-            'LOAN_APPROVAL_RATE_LIMITED',
-
-        message:
-            'Too many loan administration requests. Please try again later.',
-    });
+// ============================================================================
+// Rate Limiting
+// ============================================================================
 
 function getPositiveIntegerEnv(
     name,
     fallback
 ) {
-    const value =
-        Number(
-            process.env[name]
-        );
+    const raw =
+        process.env[name];
 
-    return (
-        Number.isInteger(
+    if (
+        raw === undefined ||
+        raw === null ||
+        raw === ''
+    ) {
+        return fallback;
+    }
+
+    const value =
+        Number(raw);
+
+    if (
+        !Number.isSafeInteger(
             value
-        ) &&
-        value > 0
-    )
-        ? value
-        : fallback;
+        ) ||
+        value <= 0
+    ) {
+        return fallback;
+    }
+
+    return value;
+}
+
+function resolveActorKey(
+    req
+) {
+    return (
+        normalizeString(
+            req.user?.id
+        ) ||
+        normalizeString(
+            req.user?._id
+        ) ||
+        normalizeString(
+            req.user?.userId
+        ) ||
+        normalizeString(
+            req.auth?.userId
+        ) ||
+        normalizeString(
+            req.adminContext?.actorId
+        ) ||
+        normalizeString(
+            req.ip
+        ) ||
+        'unknown'
+    );
 }
 
 function createLimiter({
@@ -604,7 +707,7 @@ function createLimiter({
         max,
 
         standardHeaders:
-            'draft-8',
+            true,
 
         legacyHeaders:
             false,
@@ -615,18 +718,8 @@ function createLimiter({
         keyGenerator(
             req
         ) {
-            return (
-                normalizeString(
-                    req.user?.id ||
-                        req.user?._id ||
-                        req.user?.userId ||
-                        req.auth?.userId ||
-                        req.adminContext?.actorId
-                ) ||
-                normalizeString(
-                    req.ip
-                ) ||
-                'unknown'
+            return resolveActorKey(
+                req
             );
         },
 
@@ -637,7 +730,7 @@ function createLimiter({
             const retryAfter =
                 Math.ceil(
                     windowMs /
-                        1000
+                    1000
                 );
 
             res.setHeader(
@@ -672,11 +765,63 @@ function createLimiter({
     });
 }
 
-/**
- * ============================================================================
- * COMMON VALIDATION
- * ============================================================================
- */
+const loanReadLimiter =
+    createLimiter({
+        windowMs:
+            60 * 1000,
+
+        max:
+            getPositiveIntegerEnv(
+                'TITECH_LOAN_READ_RATE_LIMIT',
+                120
+            ),
+
+        code:
+            'LOAN_READ_RATE_LIMITED',
+
+        message:
+            'Too many loan queries. Please try again later.',
+    });
+
+const loanWriteLimiter =
+    createLimiter({
+        windowMs:
+            60 * 1000,
+
+        max:
+            getPositiveIntegerEnv(
+                'TITECH_LOAN_WRITE_RATE_LIMIT',
+                30
+            ),
+
+        code:
+            'LOAN_WRITE_RATE_LIMITED',
+
+        message:
+            'Too many loan operation requests. Please try again later.',
+    });
+
+const loanApprovalLimiter =
+    createLimiter({
+        windowMs:
+            60 * 1000,
+
+        max:
+            getPositiveIntegerEnv(
+                'TITECH_LOAN_APPROVAL_RATE_LIMIT',
+                20
+            ),
+
+        code:
+            'LOAN_APPROVAL_RATE_LIMITED',
+
+        message:
+            'Too many loan administration requests. Please try again later.',
+    });
+
+// ============================================================================
+// Common Validation
+// ============================================================================
 
 const loanIdValidator =
     param('loanId')
@@ -699,8 +844,7 @@ const paginationValidators =
             )
             .toInt()
             .isInt({
-                min:
-                    1,
+                min: 1,
             })
             .withMessage(
                 'page must be a positive integer.'
@@ -713,22 +857,17 @@ const paginationValidators =
             )
             .toInt()
             .isInt({
-                min:
-                    1,
-
-                max:
-                    MAX_LIMIT,
+                min: 1,
+                max: MAX_LIMIT,
             })
             .withMessage(
                 `limit must be between 1 and ${MAX_LIMIT}.`
             ),
     ];
 
-/**
- * ============================================================================
- * LOAN APPLICATION VALIDATION
- * ============================================================================
- */
+// ============================================================================
+// Loan Application Validation
+// ============================================================================
 
 const createLoanValidators =
     [
@@ -738,17 +877,37 @@ const createLoanValidators =
                 'amount is required.'
             )
             .bail()
-            .isFloat({
-                gt:
-                    0,
-
-                max:
-                    MAX_LOAN_AMOUNT,
-            })
+            .isString()
             .withMessage(
-                'amount must be positive and within the supported limit.'
+                'amount must be supplied as a decimal string.'
             )
-            .toFloat(),
+            .bail()
+            .matches(
+                /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/
+            )
+            .withMessage(
+                'amount must be a fixed-point monetary value with at most two decimal places.'
+            )
+            .bail()
+            .custom(
+                value =>
+                    !/^0(?:\.0{1,2})?$/.test(
+                        value
+                    )
+            )
+            .withMessage(
+                'amount must be greater than zero.'
+            )
+            .custom(
+                value =>
+                    compareMoneyStrings(
+                        value,
+                        MAX_LOAN_AMOUNT
+                    ) <= 0
+            )
+            .withMessage(
+                'amount exceeds the supported loan limit.'
+            ),
 
         body('duration')
             .exists()
@@ -770,17 +929,17 @@ const createLoanValidators =
 
         body('interestRate')
             .optional()
-            .isFloat({
-                min:
-                    0,
-
-                max:
-                    100,
-            })
+            .isString()
             .withMessage(
-                'interestRate must be between 0 and 100.'
+                'interestRate must be supplied as a decimal string.'
             )
-            .toFloat(),
+            .bail()
+            .matches(
+                /^(?:0|[1-9]\d*)(?:\.\d{1,4})?$/
+            )
+            .withMessage(
+                'interestRate must be a valid decimal value.'
+            ),
 
         body('purpose')
             .optional()
@@ -806,19 +965,13 @@ const createLoanValidators =
                 `description cannot exceed ${MAX_DESCRIPTION_LENGTH} characters.`
             ),
 
-        /**
-         * Tenant identity must come from trusted authentication context.
-         */
         body('tenantId')
             .not()
             .exists()
             .withMessage(
-                'tenantId must not be supplied in the loan application.'
+                'tenantId must not be supplied. Tenant context is server-controlled.'
             ),
 
-        /**
-         * Prevent client-side impersonation of another borrower.
-         */
         body('userId')
             .not()
             .exists()
@@ -827,11 +980,9 @@ const createLoanValidators =
             ),
     ];
 
-/**
- * ============================================================================
- * LOAN LIST VALIDATION
- * ============================================================================
- */
+// ============================================================================
+// Loan List Validation
+// ============================================================================
 
 const loanListValidators =
     [
@@ -878,13 +1029,18 @@ const loanListValidators =
             .withMessage(
                 'sortOrder must be asc or desc.'
             ),
+
+        query('tenantId')
+            .not()
+            .exists()
+            .withMessage(
+                'tenantId must not be supplied.'
+            ),
     ];
 
-/**
- * ============================================================================
- * REPAYMENT SCHEDULE VALIDATION
- * ============================================================================
- */
+// ============================================================================
+// Schedule Validation
+// ============================================================================
 
 const scheduleValidators =
     [
@@ -904,13 +1060,18 @@ const scheduleValidators =
             .withMessage(
                 'Invalid repayment schedule status.'
             ),
+
+        query('tenantId')
+            .not()
+            .exists()
+            .withMessage(
+                'tenantId must not be supplied.'
+            ),
     ];
 
-/**
- * ============================================================================
- * ADMIN ACTION VALIDATION
- * ============================================================================
- */
+// ============================================================================
+// Administrative Validation
+// ============================================================================
 
 const approvalValidators =
     [
@@ -991,11 +1152,9 @@ const disbursementValidators =
             ),
     ];
 
-/**
- * ============================================================================
- * REPAYMENT VALIDATION
- * ============================================================================
- */
+// ============================================================================
+// Repayment Validation
+// ============================================================================
 
 const repaymentValidators =
     [
@@ -1007,17 +1166,27 @@ const repaymentValidators =
                 'amount is required.'
             )
             .bail()
-            .isFloat({
-                gt:
-                    0,
-
-                max:
-                    MAX_LOAN_AMOUNT,
-            })
+            .isString()
             .withMessage(
-                'amount must be positive and within the supported limit.'
+                'amount must be supplied as a decimal string.'
             )
-            .toFloat(),
+            .bail()
+            .matches(
+                /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/
+            )
+            .withMessage(
+                'amount must be a fixed-point monetary value with at most two decimal places.'
+            )
+            .bail()
+            .custom(
+                value =>
+                    !/^0(?:\.0{1,2})?$/.test(
+                        value
+                    )
+            )
+            .withMessage(
+                'amount must be greater than zero.'
+            ),
 
         body('method')
             .optional()
@@ -1052,10 +1221,6 @@ const repaymentValidators =
                 'tenantId must not be supplied.'
             ),
 
-        /**
-         * The repayment service should derive the authenticated payer where
-         * appropriate rather than trusting body.userId.
-         */
         body('userId')
             .not()
             .exists()
@@ -1064,11 +1229,9 @@ const repaymentValidators =
             ),
     ];
 
-/**
- * ============================================================================
- * IDEMPOTENCY
- * ============================================================================
- */
+// ============================================================================
+// Idempotency
+// ============================================================================
 
 let idempotencyModule =
     null;
@@ -1081,20 +1244,6 @@ try {
 } catch {
     idempotencyModule =
         null;
-}
-
-const idempotencyFactory =
-    resolveIdempotencyFactory(
-        idempotencyModule
-    );
-
-if (
-    typeof idempotencyFactory !==
-    'function'
-) {
-    throw new Error(
-        `[${ROUTER_NAME}] Idempotency middleware factory is required for financial loan mutations.`
-    );
 }
 
 function resolveIdempotencyFactory(
@@ -1114,7 +1263,35 @@ function resolveIdempotencyFactory(
         return moduleValue.idempotency;
     }
 
+    if (
+        typeof moduleValue?.middleware ===
+        'function'
+    ) {
+        return moduleValue.middleware;
+    }
+
+    if (
+        typeof moduleValue?.create ===
+        'function'
+    ) {
+        return moduleValue.create;
+    }
+
     return null;
+}
+
+const idempotencyFactory =
+    resolveIdempotencyFactory(
+        idempotencyModule
+    );
+
+if (
+    typeof idempotencyFactory !==
+    'function'
+) {
+    throw new Error(
+        `[${ROUTER_NAME}] Idempotency middleware factory is required for loan mutation routes.`
+    );
 }
 
 function idempotency(
@@ -1124,11 +1301,8 @@ function idempotency(
     const middleware =
         idempotencyFactory({
             operation,
-
             resource,
-
-            required:
-                true,
+            required: true,
         });
 
     if (
@@ -1148,11 +1322,18 @@ function requireIdempotencyKey(
     res,
     next
 ) {
+    const raw =
+        req.headers?.[
+            'idempotency-key'
+        ];
+
     const key =
         normalizeString(
-            req.headers?.[
-                'idempotency-key'
-            ]
+            raw,
+            null,
+            {
+                maxLength: 255,
+            }
         );
 
     if (
@@ -1168,7 +1349,7 @@ function requireIdempotencyKey(
                     'IDEMPOTENCY_KEY_REQUIRED',
 
                 message:
-                    'Idempotency-Key is required for financial loan operations.',
+                    'Idempotency-Key is required for loan mutation operations.',
 
                 requestId:
                     req.requestId,
@@ -1204,6 +1385,9 @@ function requireIdempotencyKey(
             });
     }
 
+    /**
+     * Reject control characters.
+     */
     if (
         /[\u0000-\u001F\u007F]/.test(
             key
@@ -1232,14 +1416,47 @@ function requireIdempotencyKey(
     req.idempotencyKey =
         key;
 
-    next();
+    return next();
 }
 
-/**
- * ============================================================================
- * VALIDATION HELPER
- * ============================================================================
- */
+// ============================================================================
+// Body Validation Helper
+// ============================================================================
+
+function requireObjectBody(
+    req,
+    res,
+    next
+) {
+    if (
+        !req.body ||
+        typeof req.body !== 'object' ||
+        Array.isArray(
+            req.body
+        )
+    ) {
+        return res
+            .status(400)
+            .json({
+                success:
+                    false,
+
+                code:
+                    'INVALID_LOAN_REQUEST_BODY',
+
+                message:
+                    'A JSON object request body is required.',
+
+                requestId:
+                    req.requestId,
+
+                correlationId:
+                    req.correlationId,
+            });
+    }
+
+    return next();
+}
 
 function applyValidation(
     rules
@@ -1250,261 +1467,52 @@ function applyValidation(
     ];
 }
 
-/**
- * ============================================================================
- * MEMBER / USER LOAN ROUTES
- * ============================================================================
- */
+// ============================================================================
+// Async Controller Adapter
+// ============================================================================
 
-/**
- * POST /api/loans
- *
- * Create loan application.
- */
-router.post(
-    '/',
+function asyncHandler(
+    controllerMethod
+) {
+    if (
+        typeof controllerMethod !==
+        'function'
+    ) {
+        throw new TypeError(
+            `[${ROUTER_NAME}] Controller method must be a function.`
+        );
+    }
 
-    loanWriteLimiter,
+    return function wrappedLoanHandler(
+        req,
+        res,
+        next
+    ) {
+        return Promise
+            .resolve(
+                controllerMethod(
+                    req,
+                    res,
+                    next
+                )
+            )
+            .catch(
+                next
+            );
+    };
+}
 
-    requireObjectBody,
-
-    applyValidation(
-        createLoanValidators
-    ),
-
-    requireIdempotencyKey,
-
-    idempotency(
-        'LOAN_APPLICATION_CREATE',
-        'loans'
-    ),
-
-    asyncHandler(
-        loanController.createLoanApplication
-    )
-);
-
-/**
- * GET /api/loans
- *
- * The controller/service must return only loans the authenticated user is
- * authorized to see unless an explicitly privileged administrative scope has
- * been established.
- */
-router.get(
-    '/',
-
-    loanReadLimiter,
-
-    applyValidation(
-        loanListValidators
-    ),
-
-    asyncHandler(
-        loanController.listLoans
-    )
-);
-
-/**
- * GET /api/loans/:loanId/summary
- */
-router.get(
-    '/:loanId/summary',
-
-    loanReadLimiter,
-
-    applyValidation([
-        loanIdValidator,
-    ]),
-
-    asyncHandler(
-        loanController.getLoanSummary
-    )
-);
-
-/**
- * GET /api/loans/:loanId/schedule
- */
-router.get(
-    '/:loanId/schedule',
-
-    loanReadLimiter,
-
-    applyValidation(
-        scheduleValidators
-    ),
-
-    asyncHandler(
-        loanController.getRepaymentSchedule
-    )
-);
-
-/**
- * GET /api/loans/:loanId
- */
-router.get(
-    '/:loanId',
-
-    loanReadLimiter,
-
-    applyValidation([
-        loanIdValidator,
-    ]),
-
-    asyncHandler(
-        loanController.getLoanDetail
-    )
-);
-
-/**
- * ============================================================================
- * ADMIN LOAN LIFECYCLE
- * ============================================================================
- *
- * Loan approval/rejection/disbursement are privileged financial state changes.
- *
- * Final maker-checker, authorization, eligibility and workflow validation
- * belongs in the service layer.
- * ============================================================================
- */
-
-/**
- * POST /api/loans/:loanId/approve
- */
-router.post(
-    '/:loanId/approve',
-
-    loanApprovalLimiter,
-
-    requireRole(
-        'admin'
-    ),
-
-    requireObjectBody,
-
-    applyValidation(
-        approvalValidators
-    ),
-
-    requireIdempotencyKey,
-
-    idempotency(
-        'LOAN_APPROVAL',
-        'loan-approval'
-    ),
-
-    asyncHandler(
-        loanController.approveLoan
-    )
-);
-
-/**
- * POST /api/loans/:loanId/reject
- */
-router.post(
-    '/:loanId/reject',
-
-    loanApprovalLimiter,
-
-    requireRole(
-        'admin'
-    ),
-
-    requireObjectBody,
-
-    applyValidation(
-        rejectionValidators
-    ),
-
-    requireIdempotencyKey,
-
-    idempotency(
-        'LOAN_REJECTION',
-        'loan-rejection'
-    ),
-
-    asyncHandler(
-        loanController.rejectLoan
-    )
-);
-
-/**
- * POST /api/loans/:loanId/disburse
- *
- * This is a balance-affecting operation and therefore requires idempotency.
- */
-router.post(
-    '/:loanId/disburse',
-
-    loanApprovalLimiter,
-
-    requireRole(
-        'admin'
-    ),
-
-    requireObjectBody,
-
-    applyValidation(
-        disbursementValidators
-    ),
-
-    requireIdempotencyKey,
-
-    idempotency(
-        'LOAN_DISBURSEMENT',
-        'loan-disbursement'
-    ),
-
-    asyncHandler(
-        loanController.disburseLoan
-    )
-);
-
-/**
- * ============================================================================
- * LOAN REPAYMENT
- * ============================================================================
- *
- * Balance-affecting operation.
- *
- * Authentication + tenant context + validation + idempotency are mandatory.
- * ============================================================================
- */
-
-router.post(
-    '/:loanId/repayment',
-
-    loanWriteLimiter,
-
-    requireObjectBody,
-
-    applyValidation(
-        repaymentValidators
-    ),
-
-    requireIdempotencyKey,
-
-    idempotency(
-        'LOAN_REPAYMENT',
-        'loan-repayment'
-    ),
-
-    asyncHandler(
-        loanController.recordRepayment
-    )
-);
-
-/**
- * ============================================================================
- * HEALTH
- * ============================================================================
- */
+// ============================================================================
+// Health Endpoint
+// ============================================================================
+//
+// IMPORTANT:
+// Keep this BEFORE "/:loanId" so "health" is not interpreted as a loan ID.
+//
+// ============================================================================
 
 router.get(
     '/health',
-
-    loanReadLimiter,
-
     (
         req,
         res
@@ -1542,11 +1550,175 @@ router.get(
     }
 );
 
-/**
- * ============================================================================
- * NOT FOUND
- * ============================================================================
- */
+// ============================================================================
+// Authenticated Member Routes
+// ============================================================================
+
+// POST /api/loans
+router.post(
+    '/',
+    loanWriteLimiter,
+    requireObjectBody,
+    applyValidation(
+        createLoanValidators
+    ),
+    requireIdempotencyKey,
+    idempotency(
+        'LOAN_APPLICATION_CREATE',
+        'loans'
+    ),
+    asyncHandler(
+        loanController.createLoanApplication
+    )
+);
+
+// GET /api/loans
+router.get(
+    '/',
+    loanReadLimiter,
+    applyValidation(
+        loanListValidators
+    ),
+    asyncHandler(
+        loanController.listLoans
+    )
+);
+
+// GET /api/loans/:loanId/summary
+router.get(
+    '/:loanId/summary',
+    loanReadLimiter,
+    applyValidation([
+        loanIdValidator,
+    ]),
+    asyncHandler(
+        loanController.getLoanSummary
+    )
+);
+
+// GET /api/loans/:loanId/schedule
+router.get(
+    '/:loanId/schedule',
+    loanReadLimiter,
+    applyValidation(
+        scheduleValidators
+    ),
+    asyncHandler(
+        loanController.getRepaymentSchedule
+    )
+);
+
+// ============================================================================
+// Administrative Routes
+// ============================================================================
+
+// POST /api/loans/:loanId/approve
+router.post(
+    '/:loanId/approve',
+    loanApprovalLimiter,
+    requireRole(
+        'admin'
+    ),
+    requireObjectBody,
+    applyValidation(
+        approvalValidators
+    ),
+    requireIdempotencyKey,
+    idempotency(
+        'LOAN_APPROVAL',
+        'loan-approval'
+    ),
+    asyncHandler(
+        loanController.approveLoan
+    )
+);
+
+// POST /api/loans/:loanId/reject
+router.post(
+    '/:loanId/reject',
+    loanApprovalLimiter,
+    requireRole(
+        'admin'
+    ),
+    requireObjectBody,
+    applyValidation(
+        rejectionValidators
+    ),
+    requireIdempotencyKey,
+    idempotency(
+        'LOAN_REJECTION',
+        'loan-rejection'
+    ),
+    asyncHandler(
+        loanController.rejectLoan
+    )
+);
+
+// POST /api/loans/:loanId/disburse
+router.post(
+    '/:loanId/disburse',
+    loanApprovalLimiter,
+    requireRole(
+        'admin'
+    ),
+    requireObjectBody,
+    applyValidation(
+        disbursementValidators
+    ),
+    requireIdempotencyKey,
+    idempotency(
+        'LOAN_DISBURSEMENT',
+        'loan-disbursement'
+    ),
+    asyncHandler(
+        loanController.disburseLoan
+    )
+);
+
+// ============================================================================
+// Repayment
+// ============================================================================
+
+// POST /api/loans/:loanId/repayment
+router.post(
+    '/:loanId/repayment',
+    loanWriteLimiter,
+    requireObjectBody,
+    applyValidation(
+        repaymentValidators
+    ),
+    requireIdempotencyKey,
+    idempotency(
+        'LOAN_REPAYMENT',
+        'loan-repayment'
+    ),
+    asyncHandler(
+        loanController.recordRepayment
+    )
+);
+
+// ============================================================================
+// Loan Detail
+// ============================================================================
+//
+// Keep this AFTER all static /specialized routes.
+//
+// ============================================================================
+
+router.get(
+    '/:loanId',
+    loanReadLimiter,
+    applyValidation([
+        loanIdValidator,
+    ]),
+    asyncHandler(
+        loanController.getLoanDetail
+    )
+);
+
+// ============================================================================
+// 404
+// ============================================================================
 
 router.use(
     (
@@ -1577,11 +1749,9 @@ router.use(
     }
 );
 
-/**
- * ============================================================================
- * CENTRALIZED ERROR HANDLER
- * ============================================================================
- */
+// ============================================================================
+// Centralized Error Handler
+// ============================================================================
 
 router.use(
     (
@@ -1598,16 +1768,18 @@ router.use(
             );
         }
 
+        const rawStatus =
+            Number(
+                error?.statusCode
+            );
+
         const statusCode =
-            Number(
-                error?.statusCode
-            ) >= 400 &&
-            Number(
-                error?.statusCode
-            ) < 600
-                ? Number(
-                    error.statusCode
-                )
+            Number.isInteger(
+                rawStatus
+            ) &&
+            rawStatus >= 400 &&
+            rawStatus < 600
+                ? rawStatus
                 : 500;
 
         const clientError =
@@ -1654,6 +1826,21 @@ router.use(
                 error.details;
         }
 
+        /**
+         * Never expose stack traces or internal error details in production.
+         */
+        if (
+            process.env.NODE_ENV !==
+            'production' &&
+            error?.stack
+        ) {
+            response.debug =
+                {
+                    stack:
+                        error.stack,
+                };
+        }
+
         return res
             .status(
                 statusCode
@@ -1664,11 +1851,9 @@ router.use(
     }
 );
 
-/**
- * ============================================================================
- * ROUTER METADATA
- * ============================================================================
- */
+// ============================================================================
+// Router Metadata
+// ============================================================================
 
 router.routerName =
     ROUTER_NAME;
@@ -1679,188 +1864,120 @@ router.routerVersion =
 router.serviceName =
     SERVICE_NAME;
 
-/**
- * ============================================================================
- * EXPORT
- * ============================================================================
- */
+// ============================================================================
+// Export
+// ============================================================================
 
 module.exports =
     router;
 
-/**
- * ============================================================================
- * LOCAL HELPERS
- * ============================================================================
- */
+// ============================================================================
+// Exact Money Comparison
+// ============================================================================
+//
+// Compares non-negative decimal strings with up to two fractional digits.
+//
+// Returns:
+//   -1 if left < right
+//    0 if left = right
+//    1 if left > right
+//
+// This avoids Number()/parseFloat() for financial limits.
+// ============================================================================
 
-function requireObjectBody(
-    req,
-    res,
-    next
+function compareMoneyStrings(
+    left,
+    right
 ) {
-    if (
-        !req.body ||
-        typeof req.body !== 'object' ||
-        Array.isArray(
-            req.body
-        )
-    ) {
-        return res
-            .status(400)
-            .json({
-                success:
-                    false,
+    const normalize =
+        value => {
+            const normalized =
+                String(
+                    value
+                )
+                    .trim()
+                    .replace(
+                        /^(\d+)\.?\d*$/,
+                        '$1'
+                    );
 
-                code:
-                    'INVALID_LOAN_REQUEST_BODY',
-
-                message:
-                    'A JSON object request body is required.',
-
-                requestId:
-                    req.requestId,
-
-                correlationId:
-                    req.correlationId,
-            });
-    }
-
-    next();
-}
-
-function createRouteLimiter({
-    windowMs,
-    max,
-    code,
-    message,
-}) {
-    return rateLimit({
-        windowMs,
-        max,
-
-        standardHeaders:
-            'draft-8',
-
-        legacyHeaders:
-            false,
-
-        skipSuccessfulRequests:
-            false,
-
-        keyGenerator(
-            req
-        ) {
-            return (
-                normalizeString(
-                    req.user?.id ||
-                        req.user?._id ||
-                        req.user?.userId ||
-                        req.auth?.userId ||
-                        req.adminContext?.actorId
-                ) ||
-                normalizeString(
-                    req.ip
-                ) ||
-                'unknown'
-            );
-        },
-
-        handler(
-            req,
-            res
-        ) {
-            const retryAfter =
-                Math.ceil(
-                    windowMs /
-                        1000
+            const parts =
+                normalized.split(
+                    '.'
                 );
 
-            res.setHeader(
-                'Retry-After',
-                String(
-                    retryAfter
+            const whole =
+                parts[0]
+                    .replace(
+                        /^0+(?=\d)/,
+                        ''
+                    );
+
+            const fraction =
+                (
+                    parts[1] ||
+                    ''
                 )
-            );
+                    .padEnd(
+                        2,
+                        '0'
+                    )
+                    .slice(
+                        0,
+                        2
+                    );
 
-            return res
-                .status(429)
-                .json({
-                    success:
-                        false,
+            return {
+                whole,
+                fraction,
+            };
+        };
 
-                    code,
+    const a =
+        normalize(
+            left
+        );
 
-                    message,
+    const b =
+        normalize(
+            right
+        );
 
-                    retryAfter,
+    if (
+        a.whole.length !==
+        b.whole.length
+    ) {
+        return (
+            a.whole.length <
+            b.whole.length
+        )
+            ? -1
+            : 1;
+    }
 
-                    requestId:
-                        req.requestId,
+    if (
+        a.whole !==
+        b.whole
+    ) {
+        return (
+            a.whole <
+            b.whole
+        )
+            ? -1
+            : 1;
+    }
 
-                    correlationId:
-                        req.correlationId,
+    if (
+        a.fraction ===
+        b.fraction
+    ) {
+        return 0;
+    }
 
-                    timestamp:
-                        new Date().toISOString(),
-                });
-        },
-    });
+    return (
+        a.fraction <
+        b.fraction
+    )
+        ? -1
+        : 1;
 }
-
-const loanReadLimiter =
-    createRouteLimiter({
-        windowMs:
-            60 *
-            1000,
-
-        max:
-            getPositiveIntegerEnv(
-                'TITECH_LOAN_READ_RATE_LIMIT',
-                120
-            ),
-
-        code:
-            'LOAN_READ_RATE_LIMITED',
-
-        message:
-            'Too many loan queries. Please try again later.',
-    });
-
-const loanWriteLimiter =
-    createRouteLimiter({
-        windowMs:
-            60 *
-            1000,
-
-        max:
-            getPositiveIntegerEnv(
-                'TITECH_LOAN_WRITE_RATE_LIMIT',
-                30
-            ),
-
-        code:
-            'LOAN_WRITE_RATE_LIMITED',
-
-        message:
-            'Too many loan operation requests. Please try again later.',
-    });
-
-const loanApprovalLimiter =
-    createRouteLimiter({
-        windowMs:
-            60 *
-            1000,
-
-        max:
-            getPositiveIntegerEnv(
-                'TITECH_LOAN_APPROVAL_RATE_LIMIT',
-                20
-            ),
-
-        code:
-            'LOAN_APPROVAL_RATE_LIMITED',
-
-        message:
-            'Too many loan administration requests. Please try again later.',
-    });

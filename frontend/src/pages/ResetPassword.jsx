@@ -65,7 +65,7 @@ import "./ResetPassword.css";
 // ============================================================================
 
 const RESET_ENDPOINT =
-  "/api/email/reset-password";
+  "/api/auth/reset-password";
 
 const LOGIN_ROUTE = "/login";
 
@@ -74,7 +74,7 @@ const FORGOT_PASSWORD_ROUTE =
 
 const REDIRECT_DELAY = 3000;
 
-const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MIN_LENGTH = 12;
 
 const PASSWORD_SPECIAL_CHARACTER_REGEX =
   /[@$!%*?&]/;
@@ -630,10 +630,6 @@ export default function ResetPassword() {
       .get("token")
       ?.trim() || "";
 
-  const userId =
-    searchParams
-      .get("id")
-      ?.trim() || "";
 
   // ==========================================================================
   // Cleanup
@@ -807,7 +803,6 @@ export default function ResetPassword() {
             RESET_ENDPOINT,
             {
               token,
-              id: userId,
               password:
                 values.password,
               confirmPassword:
@@ -912,7 +907,7 @@ export default function ResetPassword() {
         }
       }
     },
-    [navigate, token, userId]
+    [navigate, token]
   );
 
   // ==========================================================================

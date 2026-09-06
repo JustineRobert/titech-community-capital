@@ -1,6 +1,6 @@
 // utils/validators.js
 // ============================================================================
-// Centralized express-validator rules and middleware for Community Savings App.
+// Centralized express-validator rules and middleware for TITech Community Capital.
 // - Provides reusable validation chains for common entities.
 // - Forwards errors to the global error handler via next({ status, errors }).
 // - Avoids circular dependencies and keeps controllers clean.
@@ -11,7 +11,7 @@ const { body, query, validationResult } = require('express-validator');
 const MAX_NAME_LEN = 100;
 const MAX_GROUP_NAME_LEN = 100;
 const MAX_GROUP_DESC_LEN = 500;
-const MIN_PASSWORD_LEN = 8;
+const MIN_PASSWORD_LEN = 12;
 const MAX_REASON_LEN = 300;
 
 /**

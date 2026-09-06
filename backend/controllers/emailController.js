@@ -1,4 +1,4 @@
-// community-savings-app-backend/controllers/emailController.js
+//backend/controllers/emailController.js
 
 /**
  * Email Controller
@@ -17,6 +17,7 @@ const logger = require('../utils/logger');
 const crypto = require('crypto');
 const EmailAudit = require('../models/EmailAudit');
 const PasswordResetService = require('../services/passwordResetService');
+const { hashResetToken } = require('../services/passwordResetService');
 
 const passwordResetService = new PasswordResetService({
   emailService: {
@@ -607,8 +608,13 @@ async function requestPasswordReset(req, res, next) {
         error: emailError.message,
       });
 
-      return res.status(500).json({
-        message: 'Failed to send password reset email. Please try again later.',
+      /**
+       * Preserve account-enumeration resistance even when delivery fails.
+       * Operational details are retained in logs/audit records only.
+       */
+      return res.status(200).json({
+        success: true,
+        message: 'If an account exists for this email, a password reset link has been sent.',
       });
     }
   } catch (err) {
@@ -628,36 +634,61 @@ async function resetPassword(req, res, next) {
     const {
       token,
       password,
+      newPassword,
       confirmPassword,
-      id,
-      userId,
     } = req.body;
 
-    if (!token || !password || !confirmPassword) {
+    const resolvedPassword =
+      typeof password === "string" && password.length > 0
+        ? password
+        : newPassword;
+
+    const resolvedConfirmPassword =
+      typeof confirmPassword === "string" && confirmPassword.length > 0
+        ? confirmPassword
+        : resolvedPassword;
+
+    if (!token || !resolvedPassword || !resolvedConfirmPassword) {
       return res.status(400).json({
         message: 'Token, password, and password confirmation are required.',
       });
     }
 
-    if (password !== confirmPassword) {
+    if (resolvedPassword !== resolvedConfirmPassword) {
       return res.status(400).json({
         message: 'Passwords do not match.',
       });
     }
 
-    const resetUserId = id || userId;
+    /**
+     * The reset token is the credential that identifies the reset operation.
+     * Never require the browser to submit a trusted userId alongside it: doing
+     * so creates an unnecessary client-controlled identity parameter.
+     *
+     * The token record remains scoped by purpose, lifecycle state and tenant
+     * context, while passwordResetService.resetPassword performs the atomic
+     * one-time consumption check.
+     */
+    const tokenHash =
+      hashResetToken(token);
 
-    if (!resetUserId || !mongoose.isValidObjectId(resetUserId)) {
+    const tokenRecord =
+      await PasswordResetToken.findActiveByHash(
+        tokenHash
+      );
+
+    if (!tokenRecord?.user) {
       return res.status(400).json({
-        message: 'A valid password reset link is required.',
+        message: 'Invalid or expired password reset token.',
       });
     }
 
     const result = await passwordResetService.resetPassword(
-      resetUserId,
+      tokenRecord.user,
       token,
-      password,
+      resolvedPassword,
       {
+        tenantId: tokenRecord.tenantId || null,
         requestIp: req.ip,
         userAgent: req.get('User-Agent'),
         requestId: req.requestId,

@@ -60,6 +60,15 @@ import contributionsControllerModule from '../controllers/contributionsControlle
 const express = require('express');
 const crypto = require('node:crypto');
 
+/**
+ * Canonical public authentication/email routers. These are mounted here so
+ * the application bootstrap has a single route-registration boundary.
+ * The routers retain ownership of validation, rate limiting, and controller
+ * orchestration; this registry only composes them into the application.
+ */
+const authRoutes = require('./auth');
+const emailRoutes = require('./email');
+
 const {
     param,
     validationResult,
@@ -1746,6 +1755,24 @@ function registerRoutes(
 
         throw error;
     }
+
+    /**
+     * Authentication boundary.
+     *
+     * These public routes intentionally use /api/auth and /api/email rather
+     * than the financial API version prefix. This preserves the existing
+     * external authentication contract while keeping route composition under
+     * the canonical registry/bootstrap architecture.
+     */
+    app.use(
+        '/api/auth',
+        authRoutes,
+    );
+
+    app.use(
+        '/api/email',
+        emailRoutes,
+    );
 
     app.use(
         normalizedMountPath,

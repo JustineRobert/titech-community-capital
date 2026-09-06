@@ -1,4 +1,10 @@
 // controllers/groupWalletController.js
+'use strict';
+
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 const { LedgerEntry } = require("../models");
 
 exports.getBalance = async (req, res) => {

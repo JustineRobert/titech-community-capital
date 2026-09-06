@@ -426,6 +426,14 @@ class PasswordResetService {
    * @returns {Object}
    */
   async createResetToken(user, options = {}) {
+    // Backward-compatible service contract: accept either a User object or
+    // an ObjectId. The database remains the authoritative source of identity.
+    if (user && !user._id && isValidObjectId(user)) {
+      user = await User.findById(user).select(
+        "_id email name tenantId"
+      );
+    }
+
     if (!user || !user._id) {
       throw new Error("A valid user is required");
     }
@@ -518,8 +526,7 @@ class PasswordResetService {
 
           const resetUrl =
             `${frontendUrl.replace(/\/+$/, "")}` +
-            `/reset-password?token=${encodeURIComponent(rawToken)}` +
-            `&id=${encodeURIComponent(String(userId))}`;
+            `/reset-password?token=${encodeURIComponent(rawToken)}`;
 
           await this.emailService.sendPasswordReset(
             user.email,
@@ -727,11 +734,17 @@ class PasswordResetService {
        * -----------------------------------------------------------------------
        */
 
-      session = await mongoose.startSession();
+      const useTransaction =
+        this.requireTransactions &&
+        process.env.NODE_ENV !== "test";
+
+      if (useTransaction) {
+        session = await mongoose.startSession();
+      }
 
       let resetResult = null;
 
-      await session.withTransaction(async () => {
+      const executeReset = async (transactionSession = null) => {
         /**
          * Consume token atomically.
          *
@@ -743,7 +756,7 @@ class PasswordResetService {
             {
               userId,
               tenantId,
-              session,
+              session: transactionSession,
               ip: options.requestIp || null,
               userAgent:
                 options.userAgent || null,
@@ -796,7 +809,7 @@ class PasswordResetService {
             {
               new: true,
               runValidators: true,
-              session,
+              session: transactionSession,
             }
           ).select(
             "_id email tenantId"
@@ -818,7 +831,7 @@ class PasswordResetService {
           "password_successfully_changed",
           {
             tenantId,
-            session,
+            session: transactionSession,
           }
         );
 
@@ -827,7 +840,17 @@ class PasswordResetService {
           tokenId: consumedToken._id,
           attemptsMade: 1,
         };
-      });
+      };
+
+      if (useTransaction) {
+        await session.withTransaction(() =>
+          executeReset(session)
+        );
+      } else {
+        // Controlled test/development path for standalone MongoDB. Production
+        // retains transaction-backed atomicity by default.
+        await executeReset(null);
+      }
 
       /**
        * -----------------------------------------------------------------------

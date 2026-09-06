@@ -177,6 +177,14 @@ if (
 }
 
 if (
+  typeof emailController.resetPassword !== 'function'
+) {
+  throw new Error(
+    `[${ROUTER_NAME}] Missing emailController.resetPassword export.`,
+  );
+}
+
+if (
   typeof authenticate !== 'function'
 ) {
   throw new Error(
@@ -800,6 +808,23 @@ router.post(
 
   asyncHandler(
     emailController.requestPasswordReset,
+  ),
+);
+
+/**
+ * POST /reset-password
+ *
+ * Canonical authentication compatibility endpoint. The password-reset
+ * implementation remains owned by emailController/passwordResetService so
+ * there is no second password-reset business implementation.
+ */
+router.post(
+  '/reset-password',
+
+  passwordResetLimiter,
+
+  asyncHandler(
+    emailController.resetPassword,
   ),
 );
 

@@ -57,7 +57,7 @@ const LoanWorkflowService =
 const {
     handleError
 } = require(
-    '../middlewares/errorMiddleware'
+    '../middleware/errorMiddleware'
 );
 
 // =============================================================================

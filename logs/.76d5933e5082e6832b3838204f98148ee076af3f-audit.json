@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "D:\\TITech Projects\\titech-community-capital-main\\logs\\.76d5933e5082e6832b3838204f98148ee076af3f-audit.json",
+    "files": [
+        {
+            "date": 1788546599718,
+            "name": "D:\\TITech Projects\\titech-community-capital-main\\logs\\2026-09-04-application.log",
+            "hash": "097229f15c8c93226b71484943e259ee916e554fa8319297e3050ab93bd9ebcc"
+        }
+    ],
+    "hashType": "sha256"
+}
