@@ -55,3 +55,51 @@ Community Savings App BooK/*.png
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs and runtime artifacts
+logs/
+backend/logs/
+*.log
+
+# Test/coverage artifacts
+coverage/
+.nyc_output/
+
+# Runtime-generated audit artifacts
+*-audit.json
+**/*-audit.json
+
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs and runtime artifacts
+logs/
+backend/logs/
+*.log
+
+# Test and coverage artifacts
+coverage/
+.nyc_output/
+
+# Generated audit artifacts
+*-audit.json
+
+logs/
+backend/logs/
+coverage/
+*-audit.json
