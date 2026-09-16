@@ -1,515 +1,741 @@
-"use strict";
-
 /**
- * =============================================================================
- * TITech Community Capital
- * TITech Community Capital Operating System
- * =============================================================================
+ * backend/models/PaymentIntent.js
+ * TITech Community Capital — Payment Intent Aggregate
  *
- * File:
- *   backend/models/PaymentIntent.js
+ * Architectural role:
+ * - Represents the intention to initiate an external payment.
+ * - Tracks client/API idempotency, provider selection, provider processing,
+ *   retries, provider responses, verification, resulting Payment linkage,
+ *   reconciliation, and ledger-posting state.
  *
- * Purpose:
- *   Enterprise-grade payment intent aggregate.
+ * Financial boundary:
+ * - PaymentIntent is NOT an accounting ledger.
+ * - PaymentIntent is NOT an account balance.
+ * - PaymentIntent does NOT mutate balances or ledger accounts.
+ * - A successful intent represents an approved/completed payment intent;
+ *   financial posting remains the responsibility of the canonical financial
+ *   transaction/ledger service.
  *
- * Architectural Role:
+ * Relationship:
  *
- *   Client/API Request
- *          ↓
- *   PaymentIntent
- *          ↓
- *   Payment Provider Adapter
- *          ↓
- *   Provider Confirmation / Webhook
- *          ↓
- *   Payment
- *          ↓
- *   Double-Entry Ledger
+ * Client/API
+ *    ↓
+ * PaymentIntent
+ *    ↓
+ * Provider Adapter
+ *    ↓
+ * Provider Confirmation / Webhook
+ *    ↓
+ * Payment
+ *    ↓
+ * FinancialTransactionService
+ *    ↓
+ * Double-Entry Ledger
  *
- * PaymentIntent represents the INTENTION to perform a payment.
+ * Important boundaries:
+ * - Provider authentication and webhook signature verification belong to the
+ *   provider adapter/service.
+ * - Tenant authorization belongs to the service/repository layer.
+ * - Password/PIN/OTP/card secrets must never be stored here.
+ * - Provider payloads must be sanitized before persistence.
+ * - PaymentIntent does not replace Payment.
+ * - PaymentIntent does not replace PaymentRefund.
  *
- * Payment represents the resulting external payment transaction.
+ * Security principles:
+ * - Native ESM only.
+ * - Decimal128 is used for persisted money.
+ * - No JavaScript floating-point arithmetic for monetary validation.
+ * - Tenant-scoped idempotency is enforced by a unique database index.
+ * - Provider event identity is unique within tenant + provider.
+ * - Sensitive client/network identifiers are stored only as hashes/fingerprints.
+ * - Generic update/delete operations are blocked.
+ * - State transitions are controlled.
+ * - Provider responses are bounded and sanitized.
+ * - Optimistic concurrency is enabled.
  *
- * The PaymentIntent MUST NOT be treated as the authoritative accounting
- * ledger or account-balance source of truth.
+ * Module format:
+ * - Native ECMAScript Modules (ESM)
  *
- * =============================================================================
+ * Collection:
+ * - payment_intents
  */
 
-const mongoose = require("mongoose");
+import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-/**
- * =============================================================================
+/* ==========================================================================
  * Constants
- * =============================================================================
- */
+ * ========================================================================== */
 
-const PAYMENT_INTENT_STATUSES = [
-  "pending",
-  "processing",
-  "succeeded",
-  "failed",
-  "canceled",
-];
+export const PAYMENT_INTENT_STATUSES = Object.freeze([
+  'PENDING',
+  'PROCESSING',
+  'SUCCEEDED',
+  'FAILED',
+  'CANCELLED',
+]);
 
-const PAYMENT_PROVIDERS = [
-  "MTN_MOMO",
-  "AIRTEL_MONEY",
-  "STRIPE",
-  "PAYPAL",
-];
+export const PAYMENT_PROVIDERS = Object.freeze([
+  'MTN_MOMO',
+  'AIRTEL_MONEY',
+  'STRIPE',
+  'PAYPAL',
+]);
 
-const PAYMENT_METHODS = [
-  "MOBILE_MONEY",
-  "CARD",
-  "BANK_TRANSFER",
-  "WALLET",
-  "OTHER",
-];
+export const PAYMENT_METHODS = Object.freeze([
+  'MOBILE_MONEY',
+  'CARD',
+  'BANK_TRANSFER',
+  'WALLET',
+  'OTHER',
+]);
 
-const SUPPORTED_CURRENCIES = [
-  "UGX",
-  "KES",
-  "TZS",
-  "RWF",
-  "NGN",
-  "GHS",
-  "XAF",
-  "ZAR",
-  "USD",
-  "EUR",
-];
+export const SUPPORTED_CURRENCIES = Object.freeze([
+  'UGX',
+  'KES',
+  'TZS',
+  'RWF',
+  'NGN',
+  'GHS',
+  'XAF',
+  'ZAR',
+  'USD',
+  'EUR',
+]);
+
+export const LEDGER_POSTING_STATUSES = Object.freeze([
+  'NOT_POSTED',
+  'PENDING',
+  'POSTED',
+  'FAILED',
+]);
+
+export const RECONCILIATION_STATUSES = Object.freeze([
+  'NOT_REQUIRED',
+  'PENDING',
+  'MATCHED',
+  'MISMATCHED',
+  'RESOLVED',
+]);
 
 const MAX_INTENT_ID_LENGTH = 128;
-const MAX_PROVIDER_LENGTH = 64;
 const MAX_IDEMPOTENCY_KEY_LENGTH = 256;
 const MAX_REQUEST_ID_LENGTH = 256;
 const MAX_PROVIDER_EVENT_ID_LENGTH = 256;
 const MAX_PROVIDER_REFERENCE_LENGTH = 256;
-const MAX_ERROR_MESSAGE_LENGTH = 1000;
+const MAX_PROVIDER_STATUS_LENGTH = 128;
+const MAX_ERROR_MESSAGE_LENGTH = 1_000;
 const MAX_ERROR_CODE_LENGTH = 128;
+const MAX_PROVIDER_MESSAGE_LENGTH = 1_000;
 const MAX_DESCRIPTION_LENGTH = 500;
-const MAX_DEVICE_ID_LENGTH = 256;
-const MAX_IP_LENGTH = 64;
-const MAX_USER_AGENT_LENGTH = 1024;
+const MAX_CHANNEL_LENGTH = 64;
+const MAX_SOURCE_LENGTH = 128;
+const MAX_FINGERPRINT_LENGTH = 256;
+const MAX_APP_VERSION_LENGTH = 64;
 const MAX_ATTEMPTS = 100;
+const MAX_METADATA_KEYS = 50;
+const MAX_METADATA_DEPTH = 4;
+const MAX_METADATA_ARRAY_LENGTH = 50;
+
+const MIN_INTENT_EXPIRY_MS = 30 * 1000;
+const DEFAULT_INTENT_EXPIRY_MS = 15 * 60 * 1000;
+
+const SENSITIVE_KEY_FRAGMENTS = Object.freeze([
+  'password',
+  'passwd',
+  'passcode',
+  'pin',
+  'otp',
+  'totp',
+  'secret',
+  'access_token',
+  'accesstoken',
+  'refresh_token',
+  'refreshtoken',
+  'id_token',
+  'idtoken',
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'private_key',
+  'privatekey',
+  'api_key',
+  'apikey',
+  'cvv',
+  'pan',
+  'cardnumber',
+]);
+
+const PAYMENT_INTENT_TRANSITIONS = Object.freeze({
+  PENDING: new Set([
+    'PROCESSING',
+    'SUCCEEDED',
+    'FAILED',
+    'CANCELLED',
+  ]),
+
+  PROCESSING: new Set([
+    'SUCCEEDED',
+    'FAILED',
+    'CANCELLED',
+  ]),
+
+  SUCCEEDED: new Set([]),
+
+  FAILED: new Set([
+    'PROCESSING',
+  ]),
+
+  CANCELLED: new Set([]),
+});
+
+/* ==========================================================================
+ * Decimal validation helpers
+ * ========================================================================== */
 
 /**
- * =============================================================================
- * Sub-Schemas
- * =============================================================================
- */
-
-/**
- * Provider response metadata.
+ * Accept ordinary finite decimal strings without using Number().
  *
- * Do not use this field for secrets, credentials, PINs, CVVs, access tokens,
- * refresh tokens or other authentication material.
+ * Examples:
+ *   100
+ *   100.00
+ *   0.50
+ *   123456789.123456
+ *
+ * Scientific notation is intentionally rejected at this persistence boundary
+ * so monetary representations remain predictable.
  */
-const ProviderResponseSchema = new Schema(
-  {
-    code: {
-      type: String,
-      trim: true,
-      maxlength: 256,
-      default: null,
-    },
+const DECIMAL_PATTERN =
+  /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
 
-    status: {
-      type: String,
-      trim: true,
-      maxlength: 256,
-      default: null,
-    },
-
-    reference: {
-      type: String,
-      trim: true,
-      maxlength: MAX_PROVIDER_REFERENCE_LENGTH,
-      default: null,
-    },
-
-    message: {
-      type: String,
-      trim: true,
-      maxlength: MAX_ERROR_MESSAGE_LENGTH,
-      default: null,
-    },
-
-    receivedAt: {
-      type: Date,
-      default: null,
-    },
-
-    data: {
-      type: Schema.Types.Mixed,
-      default: undefined,
-    },
-  },
-  {
-    _id: false,
-    id: false,
+function normalizeDecimalString(
+  value,
+  fieldName,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    throw new TypeError(
+      `${fieldName} is required.`,
+    );
   }
-);
 
-/**
- * Non-sensitive operational metadata.
- */
-const IntentMetadataSchema = new Schema(
-  {
-    requestId: {
-      type: String,
-      trim: true,
-      maxlength: MAX_REQUEST_ID_LENGTH,
-      default: null,
-      index: false,
-    },
+  const stringValue =
+    value instanceof mongoose.Types.Decimal128
+      ? value.toString()
+      : String(value).trim();
 
-    description: {
-      type: String,
-      trim: true,
-      maxlength: MAX_DESCRIPTION_LENGTH,
-      default: null,
-    },
-
-    channel: {
-      type: String,
-      trim: true,
-      maxlength: 64,
-      default: null,
-    },
-
-    source: {
-      type: String,
-      trim: true,
-      maxlength: 128,
-      default: null,
-    },
-
-    deviceId: {
-      type: String,
-      trim: true,
-      maxlength: MAX_DEVICE_ID_LENGTH,
-      default: null,
-    },
-
-    ipAddress: {
-      type: String,
-      trim: true,
-      maxlength: MAX_IP_LENGTH,
-      default: null,
-    },
-
-    userAgent: {
-      type: String,
-      trim: true,
-      maxlength: MAX_USER_AGENT_LENGTH,
-      default: null,
-    },
-
-    providerResponse: {
-      type: ProviderResponseSchema,
-      default: null,
-    },
-
-    extra: {
-      type: Schema.Types.Mixed,
-      default: undefined,
-    },
-  },
-  {
-    _id: false,
-    id: false,
+  if (
+    !DECIMAL_PATTERN.test(
+      stringValue,
+    )
+  ) {
+    throw new TypeError(
+      `${fieldName} must be a valid non-negative decimal amount.`,
+    );
   }
-);
 
-/**
- * =============================================================================
- * PaymentIntent Schema
- * =============================================================================
- */
+  return stringValue;
+}
 
-const PaymentIntentSchema = new Schema(
-  {
-    /**
-     * -------------------------------------------------------------------------
-     * Tenant
-     * -------------------------------------------------------------------------
-     *
-     * Required for TITech's multi-tenant financial architecture.
-     */
+function isPositiveDecimal(
+  value,
+) {
+  try {
+    const normalized =
+      normalizeDecimalString(
+        value,
+        'amount',
+      );
 
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: "Tenant",
-      required: true,
-      immutable: true,
-      index: true,
-    },
+    const [integerPart, fractionPart = ''] =
+      normalized.split('.');
 
-    /**
-     * -------------------------------------------------------------------------
-     * Intent Identity
-     * -------------------------------------------------------------------------
-     *
-     * Internal TITech identifier.
-     *
-     * This is NOT the provider transaction ID.
-     */
+    const integer =
+      integerPart.replace(
+        /^0+/,
+        '',
+      ) || '0';
 
-    intentId: {
-      type: String,
-      required: true,
-      unique: true,
-      immutable: true,
-      trim: true,
-      minlength: 8,
-      maxlength: MAX_INTENT_ID_LENGTH,
-    },
+    const fraction =
+      fractionPart.replace(
+        /0+$/,
+        '',
+      );
 
-    /**
-     * -------------------------------------------------------------------------
-     * User
-     * -------------------------------------------------------------------------
-     */
+    return (
+      integer !== '0' ||
+      fraction.length > 0
+    );
+  } catch {
+    return false;
+  }
+}
 
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      immutable: true,
-      index: true,
-    },
+/* ==========================================================================
+ * General helpers
+ * ========================================================================== */
 
-    /**
-     * -------------------------------------------------------------------------
-     * Financial Context
-     * -------------------------------------------------------------------------
-     */
+function normalizeTenantId(
+  value,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    throw new TypeError(
+      'tenantId is required.',
+    );
+  }
 
-    groupId: {
-      type: Schema.Types.ObjectId,
-      ref: "Group",
-      default: null,
-      immutable: true,
-      index: true,
-    },
+  const normalized =
+    String(value).trim();
 
-    contributionId: {
-      type: Schema.Types.ObjectId,
-      ref: "Contribution",
-      default: null,
-      immutable: true,
-      index: true,
-    },
+  if (!normalized) {
+    throw new TypeError(
+      'tenantId is required.',
+    );
+  }
 
-    loanId: {
-      type: Schema.Types.ObjectId,
-      ref: "Loan",
-      default: null,
-      immutable: true,
-      index: true,
-    },
+  return normalized;
+}
 
-    /**
-     * -------------------------------------------------------------------------
-     * Amount
-     * -------------------------------------------------------------------------
-     *
-     * Decimal128 is deliberately retained throughout the model.
-     *
-     * Do NOT use parseFloat() getters for authoritative financial values.
-     */
+function normalizeRequiredString(
+  value,
+  fieldName,
+  maxLength,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    throw new TypeError(
+      `${fieldName} is required.`,
+    );
+  }
 
-    amount: {
-      type: Schema.Types.Decimal128,
-      required: true,
+  const normalized =
+    String(value).trim();
 
-      validate: {
-        validator(value) {
-          if (value == null) {
-            return false;
-          }
+  if (!normalized) {
+    throw new TypeError(
+      `${fieldName} is required.`,
+    );
+  }
 
-          const numericValue = Number(value.toString());
+  if (
+    normalized.length > maxLength
+  ) {
+    throw new RangeError(
+      `${fieldName} exceeds the maximum length of ${maxLength}.`,
+    );
+  }
 
-          return (
-            Number.isFinite(numericValue) &&
-            numericValue > 0
-          );
-        },
+  return normalized;
+}
 
-        message: "Payment intent amount must be greater than zero",
-      },
-    },
+function normalizeNullableString(
+  value,
+  maxLength,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
 
-    /**
-     * -------------------------------------------------------------------------
-     * Currency
-     * -------------------------------------------------------------------------
-     */
+  const normalized =
+    String(value).trim();
 
-    currency: {
-      type: String,
-      enum: SUPPORTED_CURRENCIES,
-      required: true,
-      default: "UGX",
-      uppercase: true,
-      trim: true,
-      immutable: true,
-      index: true,
-    },
+  if (!normalized) {
+    return null;
+  }
 
-    /**
-     * -------------------------------------------------------------------------
-     * Lifecycle Status
-     * -------------------------------------------------------------------------
-     */
+  return normalized.slice(
+    0,
+    maxLength,
+  );
+}
 
-    status: {
-      type: String,
-      enum: PAYMENT_INTENT_STATUSES,
-      required: true,
-      default: "pending",
-      index: true,
-    },
+function normalizeObjectId(
+  value,
+  fieldName,
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null;
+  }
 
-    /**
-     * -------------------------------------------------------------------------
-     * Provider
-     * -------------------------------------------------------------------------
-     */
+  if (
+    !mongoose.isValidObjectId(
+      value,
+    )
+  ) {
+    throw new TypeError(
+      `${fieldName} must be a valid ObjectId.`,
+    );
+  }
 
-    provider: {
-      type: String,
-      enum: PAYMENT_PROVIDERS,
-      required: true,
-      uppercase: true,
-      trim: true,
-      immutable: true,
-      index: true,
-    },
+  return new mongoose.Types.ObjectId(
+    value,
+  );
+}
 
-    paymentMethod: {
-      type: String,
-      enum: PAYMENT_METHODS,
-      default: "MOBILE_MONEY",
-      index: true,
-    },
+function normalizeDate(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return new Date();
+  }
 
-    /**
-     * -------------------------------------------------------------------------
-     * Provider Identity
-     * -------------------------------------------------------------------------
-     */
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(value);
 
-    providerReference: {
-      type: String,
-      trim: true,
-      maxlength: MAX_PROVIDER_REFERENCE_LENGTH,
-      default: null,
-      index: true,
-    },
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    throw new TypeError(
+      'Invalid date.',
+    );
+  }
 
-    providerEventId: {
-      type: String,
-      trim: true,
-      maxlength: MAX_PROVIDER_EVENT_ID_LENGTH,
-      default: null,
-      index: true,
-    },
+  return date;
+}
 
-    providerStatus: {
-      type: String,
-      trim: true,
-      maxlength: 128,
-      default: null,
-    },
+function normalizeErrorMessage(
+  value,
+) {
+  return normalizeNullableString(
+    value,
+    MAX_ERROR_MESSAGE_LENGTH,
+  );
+}
 
-    /**
-     * -------------------------------------------------------------------------
-     * Idempotency
-     * -------------------------------------------------------------------------
-     *
-     * Idempotency is scoped to tenant + key.
-     */
+function normalizeProviderStatus(
+  value,
+) {
+  return normalizeNullableString(
+    value,
+    MAX_PROVIDER_STATUS_LENGTH,
+  );
+}
 
-    idempotencyKey: {
-      type: String,
-      trim: true,
-      maxlength: MAX_IDEMPOTENCY_KEY_LENGTH,
-      default: null,
-      select: false,
-    },
+function normalizeProviderReference(
+  value,
+) {
+  return normalizeNullableString(
+    value,
+    MAX_PROVIDER_REFERENCE_LENGTH,
+  );
+}
 
-    /**
-     * -------------------------------------------------------------------------
-     * Lifecycle Timestamps
-     * -------------------------------------------------------------------------
-     */
+/* ==========================================================================
+ * Metadata sanitization
+ * ========================================================================== */
 
-    initiatedAt: {
-      type: Date,
-      default: Date.now,
-      immutable: true,
-      index: true,
-    },
+function isSensitiveKey(key) {
+  const normalized =
+    String(key)
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]/g, '');
 
-    processingAt: {
-      type: Date,
-      default: null,
-    },
+  return SENSITIVE_KEY_FRAGMENTS.some(
+    (fragment) =>
+      normalized.includes(
+        fragment.replace(
+          /[_-]/g,
+          '',
+        ),
+      ),
+  );
+}
 
-    succeededAt: {
-      type: Date,
-      default: null,
-    },
+function sanitizeMetadata(
+  value,
+  depth = 0,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return {};
+  }
 
-    failedAt: {
-      type: Date,
-      default: null,
-    },
+  if (
+    depth > MAX_METADATA_DEPTH
+  ) {
+    return '[TRUNCATED]';
+  }
 
-    canceledAt: {
-      type: Date,
-      default: null,
-    },
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value;
+  }
 
-    /**
-     * -------------------------------------------------------------------------
-     * Failure Information
-     * -------------------------------------------------------------------------
-     */
+  if (
+    value instanceof Date
+  ) {
+    return value.toISOString();
+  }
 
-    error: {
+  if (
+    typeof value === 'bigint'
+  ) {
+    return value.toString();
+  }
+
+  if (
+    Buffer.isBuffer(value)
+  ) {
+    return '[BUFFER]';
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .slice(
+        0,
+        MAX_METADATA_ARRAY_LENGTH,
+      )
+      .map((item) =>
+        sanitizeMetadata(
+          item,
+          depth + 1,
+        ),
+      );
+  }
+
+  if (
+    typeof value === 'object'
+  ) {
+    const output = {};
+
+    const entries =
+      Object.entries(value).slice(
+        0,
+        MAX_METADATA_KEYS,
+      );
+
+    for (
+      const [key, childValue]
+        of entries
+    ) {
+      if (
+        isSensitiveKey(key)
+      ) {
+        output[key] = '[REDACTED]';
+        continue;
+      }
+
+      output[key] =
+        sanitizeMetadata(
+          childValue,
+          depth + 1,
+        );
+    }
+
+    if (
+      Object.keys(value).length >
+      MAX_METADATA_KEYS
+    ) {
+      output._truncatedKeys = true;
+    }
+
+    return output;
+  }
+
+  return `[UNSERIALIZABLE:${typeof value}]`;
+}
+
+/* ==========================================================================
+ * Provider response schema
+ * ========================================================================== */
+
+const ProviderResponseSchema =
+  new Schema(
+    {
       code: {
         type: String,
-        trim: true,
-        maxlength: MAX_ERROR_CODE_LENGTH,
         default: null,
+        trim: true,
+        maxlength: 256,
+      },
+
+      status: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 256,
+      },
+
+      reference: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_REFERENCE_LENGTH,
       },
 
       message: {
         type: String,
-        trim: true,
-        maxlength: MAX_ERROR_MESSAGE_LENGTH,
         default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_MESSAGE_LENGTH,
+      },
+
+      receivedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /**
+       * Provider data is selected out of normal API responses.
+       */
+      data: {
+        type: Schema.Types.Mixed,
+        default: undefined,
+        select: false,
+      },
+    },
+    {
+      _id: false,
+      id: false,
+      strict: 'throw',
+    },
+  );
+
+/* ==========================================================================
+ * Intent metadata schema
+ * ========================================================================== */
+
+const IntentMetadataSchema =
+  new Schema(
+    {
+      description: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_DESCRIPTION_LENGTH,
+      },
+
+      channel: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_CHANNEL_LENGTH,
+      },
+
+      source: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_SOURCE_LENGTH,
+      },
+
+      requestId: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_REQUEST_ID_LENGTH,
+      },
+
+      appVersion: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_APP_VERSION_LENGTH,
+      },
+
+      deviceIdHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
+
+      ipAddressHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
+
+      userAgentHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
+    },
+    {
+      _id: false,
+      id: false,
+      strict: 'throw',
+    },
+  );
+
+/* ==========================================================================
+ * Error schema
+ * ========================================================================== */
+
+const PaymentIntentErrorSchema =
+  new Schema(
+    {
+      code: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_ERROR_CODE_LENGTH,
+      },
+
+      message: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_ERROR_MESSAGE_LENGTH,
       },
 
       providerCode: {
         type: String,
+        default: null,
         trim: true,
         maxlength: 256,
-        default: null,
       },
 
       providerMessage: {
         type: String,
-        trim: true,
-        maxlength: MAX_ERROR_MESSAGE_LENGTH,
         default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_MESSAGE_LENGTH,
       },
 
       timestamp: {
@@ -517,218 +743,469 @@ const PaymentIntentSchema = new Schema(
         default: null,
       },
     },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Attempt / Retry State
-     * -------------------------------------------------------------------------
-     */
-
-    attempts: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: MAX_ATTEMPTS,
+    {
+      _id: false,
+      id: false,
+      strict: 'throw',
     },
+  );
 
-    lastAttemptAt: {
-      type: Date,
-      default: null,
+/* ==========================================================================
+ * PaymentIntent schema
+ * ========================================================================== */
+
+const PaymentIntentSchema =
+  new Schema(
+    {
+      /*
+       * ----------------------------------------------------------------------
+       * Tenant
+       * ----------------------------------------------------------------------
+       */
+
+      tenantId: {
+        type: String,
+        required: true,
+        immutable: true,
+        trim: true,
+        maxlength: 128,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Intent identity
+       * ----------------------------------------------------------------------
+       */
+
+      intentId: {
+        type: String,
+        required: true,
+        immutable: true,
+        trim: true,
+        minlength: 8,
+        maxlength:
+          MAX_INTENT_ID_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * User / business context
+       * ----------------------------------------------------------------------
+       */
+
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        immutable: true,
+        index: true,
+      },
+
+      groupId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Group',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      contributionId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Contribution',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      loanId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Loan',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Financial amount
+       * ----------------------------------------------------------------------
+       */
+
+      amount: {
+        type: Schema.Types.Decimal128,
+        required: true,
+      },
+
+      currency: {
+        type: String,
+        enum: SUPPORTED_CURRENCIES,
+        required: true,
+        default: 'UGX',
+        uppercase: true,
+        trim: true,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Lifecycle
+       * ----------------------------------------------------------------------
+       */
+
+      status: {
+        type: String,
+        enum: PAYMENT_INTENT_STATUSES,
+        required: true,
+        default: 'PENDING',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      initiatedAt: {
+        type: Date,
+        default: Date.now,
+        immutable: true,
+        index: true,
+      },
+
+      processingAt: {
+        type: Date,
+        default: null,
+      },
+
+      succeededAt: {
+        type: Date,
+        default: null,
+      },
+
+      failedAt: {
+        type: Date,
+        default: null,
+      },
+
+      canceledAt: {
+        type: Date,
+        default: null,
+      },
+
+      /**
+       * Intent expiration is an application lifecycle concept.
+       *
+       * It does not automatically delete the record.
+       */
+      expiresAt: {
+        type: Date,
+        required: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Provider
+       * ----------------------------------------------------------------------
+       */
+
+      provider: {
+        type: String,
+        enum: PAYMENT_PROVIDERS,
+        required: true,
+        immutable: true,
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      paymentMethod: {
+        type: String,
+        enum: PAYMENT_METHODS,
+        required: true,
+        default: 'MOBILE_MONEY',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      providerReference: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_REFERENCE_LENGTH,
+        index: true,
+      },
+
+      providerEventId: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_EVENT_ID_LENGTH,
+      },
+
+      providerStatus: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_STATUS_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Idempotency
+       * ----------------------------------------------------------------------
+       */
+
+      idempotencyKey: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_IDEMPOTENCY_KEY_LENGTH,
+        select: false,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Failure
+       * ----------------------------------------------------------------------
+       */
+
+      error: {
+        type: PaymentIntentErrorSchema,
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Retry / provider attempts
+       * ----------------------------------------------------------------------
+       */
+
+      attempts: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: MAX_ATTEMPTS,
+      },
+
+      lastAttemptAt: {
+        type: Date,
+        default: null,
+      },
+
+      nextAttemptAt: {
+        type: Date,
+        default: null,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Provider response
+       * ----------------------------------------------------------------------
+       */
+
+      providerResponse: {
+        type: ProviderResponseSchema,
+        default: null,
+        select: false,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Verification
+       * ----------------------------------------------------------------------
+       */
+
+      verificationRequired: {
+        type: Boolean,
+        default: false,
+      },
+
+      verificationAttempts: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+      },
+
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Resulting Payment
+       * ----------------------------------------------------------------------
+       */
+
+      paymentId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Payment',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Ledger integration
+       * ----------------------------------------------------------------------
+       */
+
+      ledgerEntryId: {
+        type: Schema.Types.ObjectId,
+        ref: 'LedgerEntry',
+        default: null,
+        index: true,
+      },
+
+      ledgerPostingStatus: {
+        type: String,
+        enum: LEDGER_POSTING_STATUSES,
+        default: 'NOT_POSTED',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      ledgerPostedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Reconciliation
+       * ----------------------------------------------------------------------
+       */
+
+      reconciliationStatus: {
+        type: String,
+        enum: RECONCILIATION_STATUSES,
+        default: 'PENDING',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      lastReconciledAt: {
+        type: Date,
+        default: null,
+      },
+
+      reconciliationNote: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 1_000,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Client / operational metadata
+       * ----------------------------------------------------------------------
+       *
+       * No arbitrary raw request payloads belong here.
+       */
+
+      metadata: {
+        type: IntentMetadataSchema,
+        default: () => ({}),
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Soft delete
+       * ----------------------------------------------------------------------
+       */
+
+      isDeleted: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      deletedAt: {
+        type: Date,
+        default: null,
+      },
+
+      deleteReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 500,
+      },
     },
+    {
+      timestamps: true,
 
-    nextAttemptAt: {
-      type: Date,
-      default: null,
-      index: true,
+      optimisticConcurrency: true,
+
+      versionKey: '__v',
+
+      collection: 'payment_intents',
+
+      minimize: true,
+
+      strict: 'throw',
+
+      toJSON: {
+        virtuals: true,
+        versionKey: false,
+
+        transform(doc, ret) {
+          ret.id =
+            ret._id.toString();
+
+          delete ret._id;
+          delete ret.__v;
+
+          delete ret.idempotencyKey;
+
+          delete ret.providerResponse;
+
+          if (ret.metadata) {
+            delete ret.metadata.deviceIdHash;
+            delete ret.metadata.ipAddressHash;
+            delete ret.metadata.userAgentHash;
+          }
+
+          return ret;
+        },
+      },
+
+      toObject: {
+        virtuals: true,
+        versionKey: false,
+      },
     },
+  );
 
-    /**
-     * -------------------------------------------------------------------------
-     * Provider Response
-     * -------------------------------------------------------------------------
-     *
-     * Kept separately from general metadata so provider reconciliation code
-     * has a predictable location.
-     */
-
-    providerResponse: {
-      type: ProviderResponseSchema,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Client Data
-     * -------------------------------------------------------------------------
-     *
-     * This field should contain only sanitized, non-secret client information.
-     *
-     * Do not persist arbitrary request bodies here.
-     */
-
-    clientData: {
-      type: Schema.Types.Mixed,
-      default: undefined,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Verification
-     * -------------------------------------------------------------------------
-     */
-
-    verificationRequired: {
-      type: Boolean,
-      default: false,
-    },
-
-    verificationAttempts: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100,
-    },
-
-    verifiedAt: {
-      type: Date,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Payment Result
-     * -------------------------------------------------------------------------
-     *
-     * Once succeeded, the resulting Payment record can be linked here.
-     */
-
-    paymentId: {
-      type: Schema.Types.ObjectId,
-      ref: "Payment",
-      default: null,
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Ledger Result
-     * -------------------------------------------------------------------------
-     */
-
-    ledgerEntryId: {
-      type: Schema.Types.ObjectId,
-      ref: "LedgerEntry",
-      default: null,
-      index: true,
-    },
-
-    ledgerPostingStatus: {
-      type: String,
-      enum: [
-        "NOT_POSTED",
-        "PENDING",
-        "POSTED",
-        "FAILED",
-      ],
-      default: "NOT_POSTED",
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Reconciliation
-     * -------------------------------------------------------------------------
-     */
-
-    reconciliationStatus: {
-      type: String,
-      enum: [
-        "NOT_REQUIRED",
-        "PENDING",
-        "MATCHED",
-        "MISMATCHED",
-        "RESOLVED",
-      ],
-      default: "PENDING",
-      index: true,
-    },
-
-    lastReconciledAt: {
-      type: Date,
-      default: null,
-    },
-
-    reconciliationNote: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Metadata
-     * -------------------------------------------------------------------------
-     */
-
-    metadata: {
-      type: IntentMetadataSchema,
-      default: () => ({}),
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Soft Delete
-     * -------------------------------------------------------------------------
-     */
-
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
-
-    deleteReason: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-
-    versionKey: false,
-
-    collection: "payment_intents",
-
-    strict: true,
-
-    minimize: true,
-
-    /**
-     * Do not convert Decimal128 to floating-point numbers automatically.
-     */
-    toJSON: {
-      getters: false,
-    },
-
-    toObject: {
-      getters: false,
-    },
-  }
-);
+/* ==========================================================================
+ * Indexes
+ * ========================================================================== */
 
 /**
- * =============================================================================
- * Indexes
- * =============================================================================
+ * One intent ID per tenant.
  */
+PaymentIntentSchema.index(
+  {
+    tenantId: 1,
+    intentId: 1,
+  },
+  {
+    unique: true,
+    name:
+      'uniq_payment_intent_tenant_intent_id',
+  },
+);
 
 /**
  * User intent history.
@@ -737,6 +1214,37 @@ PaymentIntentSchema.index({
   tenantId: 1,
   user: 1,
   createdAt: -1,
+  _id: -1,
+});
+
+/**
+ * Group intent history.
+ */
+PaymentIntentSchema.index({
+  tenantId: 1,
+  groupId: 1,
+  createdAt: -1,
+  _id: -1,
+});
+
+/**
+ * Contribution intent history.
+ */
+PaymentIntentSchema.index({
+  tenantId: 1,
+  contributionId: 1,
+  createdAt: -1,
+  _id: -1,
+});
+
+/**
+ * Loan intent history.
+ */
+PaymentIntentSchema.index({
+  tenantId: 1,
+  loanId: 1,
+  createdAt: -1,
+  _id: -1,
 });
 
 /**
@@ -749,39 +1257,33 @@ PaymentIntentSchema.index({
 });
 
 /**
- * Provider processing queue.
+ * Provider reference.
  */
 PaymentIntentSchema.index({
-  provider: 1,
-  status: 1,
-  createdAt: -1,
-});
-
-/**
- * Provider reference lookup.
- */
-PaymentIntentSchema.index({
+  tenantId: 1,
   provider: 1,
   providerReference: 1,
 });
 
 /**
- * Provider webhook deduplication.
+ * Provider webhook/event deduplication.
  */
 PaymentIntentSchema.index(
   {
+    tenantId: 1,
     provider: 1,
     providerEventId: 1,
   },
   {
     unique: true,
     sparse: true,
-    name: "uniq_payment_intent_provider_event",
-  }
+    name:
+      'uniq_payment_intent_provider_event',
+  },
 );
 
 /**
- * Tenant-scoped idempotency.
+ * Tenant-scoped API idempotency.
  */
 PaymentIntentSchema.index(
   {
@@ -791,60 +1293,54 @@ PaymentIntentSchema.index(
   {
     unique: true,
     sparse: true,
-    name: "uniq_payment_intent_tenant_idempotency",
-  }
+    name:
+      'uniq_payment_intent_idempotency',
+  },
 );
-
-/**
- * Request correlation.
- */
-PaymentIntentSchema.index({
-  "metadata.requestId": 1,
-});
 
 /**
  * Retry worker queue.
  */
 PaymentIntentSchema.index({
+  tenantId: 1,
   status: 1,
   nextAttemptAt: 1,
-});
-
-/**
- * Ledger posting queue.
- */
-PaymentIntentSchema.index({
-  ledgerPostingStatus: 1,
-  createdAt: -1,
 });
 
 /**
  * Reconciliation queue.
  */
 PaymentIntentSchema.index({
+  tenantId: 1,
   reconciliationStatus: 1,
   createdAt: -1,
 });
 
 /**
- * Group payment intents.
+ * Ledger posting queue.
  */
 PaymentIntentSchema.index({
   tenantId: 1,
-  groupId: 1,
+  ledgerPostingStatus: 1,
   createdAt: -1,
 });
 
 /**
- * =============================================================================
- * Virtuals
- * =============================================================================
+ * Expiring pending intents.
  */
+PaymentIntentSchema.index({
+  tenantId: 1,
+  status: 1,
+  expiresAt: 1,
+});
 
-/**
- * Exact display amount without floating-point conversion.
- */
-PaymentIntentSchema.virtual("displayAmount").get(function () {
+/* ==========================================================================
+ * Virtuals
+ * ========================================================================== */
+
+PaymentIntentSchema.virtual(
+  'displayAmount',
+).get(function getDisplayAmount() {
   if (this.amount == null) {
     return null;
   }
@@ -852,594 +1348,1474 @@ PaymentIntentSchema.virtual("displayAmount").get(function () {
   return `${this.currency} ${this.amount.toString()}`;
 });
 
-/**
- * Whether the intent reached a terminal state.
- */
-PaymentIntentSchema.virtual("isTerminal").get(function () {
+PaymentIntentSchema.virtual(
+  'isTerminal',
+).get(function getIsTerminal() {
   return [
-    "succeeded",
-    "failed",
-    "canceled",
+    'SUCCEEDED',
+    'FAILED',
+    'CANCELLED',
   ].includes(this.status);
 });
 
-/**
- * Whether this intent succeeded.
- */
-PaymentIntentSchema.virtual("isSucceeded").get(function () {
-  return this.status === "succeeded";
+PaymentIntentSchema.virtual(
+  'isSucceeded',
+).get(function getIsSucceeded() {
+  return this.status === 'SUCCEEDED';
 });
 
-/**
- * Whether ledger posting is complete.
- */
-PaymentIntentSchema.virtual("isLedgerPosted").get(function () {
-  return this.ledgerPostingStatus === "POSTED";
+PaymentIntentSchema.virtual(
+  'isExpired',
+).get(function getIsExpired() {
+  return (
+    this.expiresAt instanceof Date &&
+    this.expiresAt.getTime() <=
+      Date.now()
+  );
 });
 
-/**
- * =============================================================================
- * Query Helpers
- * =============================================================================
- */
+PaymentIntentSchema.virtual(
+  'isLedgerPosted',
+).get(function getIsLedgerPosted() {
+  return (
+    this.ledgerPostingStatus ===
+    'POSTED'
+  );
+});
 
-PaymentIntentSchema.query.active = function () {
-  return this.where({
-    isDeleted: false,
-  });
-};
+/* ==========================================================================
+ * Query helpers
+ * ========================================================================== */
 
-PaymentIntentSchema.query.pending = function () {
-  return this.where({
-    status: "pending",
-    isDeleted: false,
-  });
-};
-
-PaymentIntentSchema.query.processing = function () {
-  return this.where({
-    status: "processing",
-    isDeleted: false,
-  });
-};
-
-PaymentIntentSchema.query.succeeded = function () {
-  return this.where({
-    status: "succeeded",
-    isDeleted: false,
-  });
-};
-
-PaymentIntentSchema.query.failed = function () {
-  return this.where({
-    status: "failed",
-    isDeleted: false,
-  });
-};
-
-PaymentIntentSchema.query.needingReconciliation = function () {
-  return this.where({
-    reconciliationStatus: {
-      $in: [
-        "PENDING",
-        "MISMATCHED",
-      ],
-    },
-    isDeleted: false,
-  });
-};
-
-PaymentIntentSchema.query.needingLedgerPosting = function () {
-  return this.where({
-    status: "succeeded",
-    ledgerPostingStatus: {
-      $in: [
-        "NOT_POSTED",
-        "FAILED",
-      ],
-    },
-    isDeleted: false,
-  });
-};
-
-/**
- * =============================================================================
- * Instance Methods
- * =============================================================================
- */
-
-/**
- * Mark intent as processing.
- */
-PaymentIntentSchema.methods.markProcessing = function () {
-  if (this.status === "succeeded" || this.status === "canceled") {
-    throw new Error(
-      `Cannot process payment intent in ${this.status} state`
-    );
-  }
-
-  this.status = "processing";
-
-  if (!this.processingAt) {
-    this.processingAt = new Date();
-  }
-
-  this.lastAttemptAt = new Date();
-  this.attempts += 1;
-
-  return this.save();
-};
-
-/**
- * Mark intent as succeeded.
- */
-PaymentIntentSchema.methods.markSucceeded = function ({
-  providerReference = null,
-  providerStatus = null,
-  providerEventId = null,
-  paymentId = null,
-} = {}) {
-  if (this.status === "canceled") {
-    throw new Error(
-      "Cannot succeed a canceled payment intent"
-    );
-  }
-
-  const now = new Date();
-
-  this.status = "succeeded";
-  this.succeededAt = now;
-
-  this.providerReference = providerReference;
-  this.providerStatus = providerStatus;
-
-  if (providerEventId) {
-    this.providerEventId = providerEventId;
-  }
-
-  if (paymentId) {
-    this.paymentId = paymentId;
-  }
-
-  this.error = null;
-
-  return this.save();
-};
-
-/**
- * Mark intent as failed.
- */
-PaymentIntentSchema.methods.markFailed = function ({
-  code = null,
-  message = null,
-  providerCode = null,
-  providerMessage = null,
-  nextAttemptAt = null,
-} = {}) {
-  const now = new Date();
-
-  this.status = "failed";
-  this.failedAt = now;
-
-  this.error = {
-    code,
-    message,
-    providerCode,
-    providerMessage,
-    timestamp: now,
+PaymentIntentSchema.query.active =
+  function active() {
+    return this.where({
+      isDeleted: false,
+    });
   };
 
-  this.nextAttemptAt = nextAttemptAt;
-
-  return this.save();
-};
-
-/**
- * Mark intent as canceled.
- */
-PaymentIntentSchema.methods.markCanceled = function (
-  reason = null
-) {
-  const now = new Date();
-
-  this.status = "canceled";
-  this.canceledAt = now;
-
-  if (reason) {
-    this.error = {
-      code: "PAYMENT_INTENT_CANCELED",
-      message: reason,
-      timestamp: now,
-    };
-  }
-
-  return this.save();
-};
-
-/**
- * Register a retry attempt.
- */
-PaymentIntentSchema.methods.registerAttempt = function ({
-  nextAttemptAt = null,
-} = {}) {
-  if (this.attempts >= MAX_ATTEMPTS) {
-    throw new Error(
-      "Maximum payment intent attempts exceeded"
-    );
-  }
-
-  this.attempts += 1;
-  this.lastAttemptAt = new Date();
-  this.nextAttemptAt = nextAttemptAt;
-
-  return this.save();
-};
-
-/**
- * Mark verification complete.
- */
-PaymentIntentSchema.methods.markVerified = function () {
-  this.verifiedAt = new Date();
-
-  return this.save();
-};
-
-/**
- * Mark ledger posting successful.
- */
-PaymentIntentSchema.methods.markLedgerPosted = function (
-  ledgerEntryId
-) {
-  if (!ledgerEntryId) {
-    throw new Error("ledgerEntryId is required");
-  }
-
-  this.ledgerEntryId = ledgerEntryId;
-  this.ledgerPostingStatus = "POSTED";
-
-  return this.save();
-};
-
-/**
- * Mark reconciliation successful.
- */
-PaymentIntentSchema.methods.markReconciled = function () {
-  this.reconciliationStatus = "MATCHED";
-  this.lastReconciledAt = new Date();
-
-  return this.save();
-};
-
-/**
- * Soft delete.
- */
-PaymentIntentSchema.methods.softDelete = function (
-  reason = null
-) {
-  this.isDeleted = true;
-  this.deletedAt = new Date();
-  this.deleteReason = reason;
-
-  return this.save();
-};
-
-/**
- * =============================================================================
- * Static Methods
- * =============================================================================
- */
-
-/**
- * Find by internal intent ID.
- */
-PaymentIntentSchema.statics.findByIntentId = function (
-  intentId
-) {
-  return this.findOne({
-    intentId,
-    isDeleted: false,
-  });
-};
-
-/**
- * Find using tenant-scoped idempotency key.
- */
-PaymentIntentSchema.statics.findByIdempotencyKey = function (
-  tenantId,
-  idempotencyKey
-) {
-  if (!tenantId || !idempotencyKey) {
-    return null;
-  }
-
-  return this.findOne({
-    tenantId,
-    idempotencyKey,
-    isDeleted: false,
-  }).select("+idempotencyKey");
-};
-
-/**
- * Find by provider reference.
- */
-PaymentIntentSchema.statics.findByProviderReference = function (
-  provider,
-  providerReference
-) {
-  if (!provider || !providerReference) {
-    return null;
-  }
-
-  return this.findOne({
-    provider,
-    providerReference,
-    isDeleted: false,
-  });
-};
-
-/**
- * Find by provider event.
- */
-PaymentIntentSchema.statics.findByProviderEventId = function (
-  provider,
-  providerEventId
-) {
-  if (!provider || !providerEventId) {
-    return null;
-  }
-
-  return this.findOne({
-    provider,
-    providerEventId,
-    isDeleted: false,
-  });
-};
-
-/**
- * Atomically claim a pending intent for processing.
- *
- * This is important when multiple workers/processes are operating concurrently.
- */
-PaymentIntentSchema.statics.claimForProcessing = function (
-  intentId
-) {
-  const now = new Date();
-
-  return this.findOneAndUpdate(
-    {
-      intentId,
-      status: "pending",
+PaymentIntentSchema.query.pending =
+  function pending() {
+    return this.where({
+      status: 'PENDING',
       isDeleted: false,
-    },
-    {
-      $set: {
-        status: "processing",
-        processingAt: now,
-        lastAttemptAt: now,
-      },
+    });
+  };
 
-      $inc: {
-        attempts: 1,
+PaymentIntentSchema.query.processing =
+  function processing() {
+    return this.where({
+      status: 'PROCESSING',
+      isDeleted: false,
+    });
+  };
+
+PaymentIntentSchema.query.failed =
+  function failed() {
+    return this.where({
+      status: 'FAILED',
+      isDeleted: false,
+    });
+  };
+
+PaymentIntentSchema.query.succeeded =
+  function succeeded() {
+    return this.where({
+      status: 'SUCCEEDED',
+      isDeleted: false,
+    });
+  };
+
+PaymentIntentSchema.query.retryable =
+  function retryable() {
+    return this.where({
+      status: {
+        $in: [
+          'PENDING',
+          'PROCESSING',
+          'FAILED',
+        ],
       },
-    },
-    {
-      new: true,
+      isDeleted: false,
+      nextAttemptAt: {
+        $lte: new Date(),
+      },
+    });
+  };
+
+PaymentIntentSchema.query.needingLedgerPosting =
+  function needingLedgerPosting() {
+    return this.where({
+      status: 'SUCCEEDED',
+      ledgerPostingStatus: {
+        $in: [
+          'NOT_POSTED',
+          'FAILED',
+        ],
+      },
+      isDeleted: false,
+    });
+  };
+
+PaymentIntentSchema.query.needingReconciliation =
+  function needingReconciliation() {
+    return this.where({
+      reconciliationStatus: {
+        $in: [
+          'PENDING',
+          'MISMATCHED',
+        ],
+      },
+      isDeleted: false,
+    });
+  };
+
+/* ==========================================================================
+ * Instance lifecycle methods
+ * ========================================================================== */
+
+PaymentIntentSchema.methods.canTransitionTo =
+  function canTransitionTo(
+    targetStatus,
+  ) {
+    const normalized =
+      String(targetStatus)
+        .trim()
+        .toUpperCase();
+
+    return (
+      PAYMENT_INTENT_TRANSITIONS[
+        this.status
+      ]?.has(normalized) ?? false
+    );
+  };
+
+PaymentIntentSchema.methods.isTerminal =
+  function isTerminal() {
+    return [
+      'SUCCEEDED',
+      'FAILED',
+      'CANCELLED',
+    ].includes(this.status);
+  };
+
+PaymentIntentSchema.methods.markProcessing =
+  async function markProcessing() {
+    if (
+      !this.canTransitionTo(
+        'PROCESSING',
+      )
+    ) {
+      throw new Error(
+        `PaymentIntent cannot transition from ${this.status} to PROCESSING.`,
+      );
     }
-  );
-};
 
-/**
- * Atomically succeed an intent.
- */
-PaymentIntentSchema.statics.succeedAtomically = function (
-  intentId,
-  {
+    if (this.isExpired) {
+      throw new Error(
+        'PaymentIntent has expired.',
+      );
+    }
+
+    this.status = 'PROCESSING';
+    this.processingAt ??=
+      new Date();
+
+    this.attempts += 1;
+    this.lastAttemptAt =
+      new Date();
+    this.nextAttemptAt = null;
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.markSucceeded =
+  async function markSucceeded({
     providerReference = null,
     providerStatus = null,
     providerEventId = null,
     paymentId = null,
-  } = {}
-) {
-  const now = new Date();
+  } = {}) {
+    if (
+      this.status ===
+      'SUCCEEDED'
+    ) {
+      return this;
+    }
 
-  const set = {
-    status: "succeeded",
-    succeededAt: now,
-    providerReference,
-    providerStatus,
-    error: null,
+    if (
+      !this.canTransitionTo(
+        'SUCCEEDED',
+      )
+    ) {
+      throw new Error(
+        `PaymentIntent cannot transition from ${this.status} to SUCCEEDED.`,
+      );
+    }
+
+    const now = new Date();
+
+    this.status = 'SUCCEEDED';
+    this.succeededAt =
+      this.succeededAt ?? now;
+
+    this.providerReference =
+      normalizeProviderReference(
+        providerReference,
+      );
+
+    this.providerStatus =
+      normalizeProviderStatus(
+        providerStatus,
+      );
+
+    if (
+      providerEventId !== null
+    ) {
+      this.providerEventId =
+        normalizeNullableString(
+          providerEventId,
+          MAX_PROVIDER_EVENT_ID_LENGTH,
+        );
+    }
+
+    if (paymentId !== null) {
+      this.paymentId =
+        normalizeObjectId(
+          paymentId,
+          'paymentId',
+        );
+    }
+
+    this.failedAt = null;
+    this.nextAttemptAt = null;
+    this.error = null;
+
+    await this.save();
+
+    return this;
   };
 
-  if (providerEventId) {
-    set.providerEventId = providerEventId;
-  }
+PaymentIntentSchema.methods.markFailed =
+  async function markFailed({
+    code = null,
+    message = null,
+    providerCode = null,
+    providerMessage = null,
+    nextAttemptAt = null,
+  } = {}) {
+    if (
+      !this.canTransitionTo(
+        'FAILED',
+      )
+    ) {
+      throw new Error(
+        `PaymentIntent cannot transition from ${this.status} to FAILED.`,
+      );
+    }
 
-  if (paymentId) {
-    set.paymentId = paymentId;
-  }
+    const now = new Date();
 
-  return this.findOneAndUpdate(
-    {
-      intentId,
-      status: {
-        $in: [
-          "pending",
-          "processing",
+    this.status = 'FAILED';
+    this.failedAt = now;
+
+    this.error = {
+      code:
+        normalizeNullableString(
+          code,
+          MAX_ERROR_CODE_LENGTH,
+        ),
+
+      message:
+        normalizeErrorMessage(
+          message,
+        ),
+
+      providerCode:
+        normalizeNullableString(
+          providerCode,
+          256,
+        ),
+
+      providerMessage:
+        normalizeNullableString(
+          providerMessage,
+          MAX_PROVIDER_MESSAGE_LENGTH,
+        ),
+
+      timestamp: now,
+    };
+
+    this.nextAttemptAt =
+      nextAttemptAt
+        ? normalizeDate(
+            nextAttemptAt,
+          )
+        : null;
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.markCancelled =
+  async function markCancelled(
+    reason = null,
+  ) {
+    if (
+      !this.canTransitionTo(
+        'CANCELLED',
+      )
+    ) {
+      throw new Error(
+        `PaymentIntent cannot transition from ${this.status} to CANCELLED.`,
+      );
+    }
+
+    const now = new Date();
+
+    this.status = 'CANCELLED';
+    this.canceledAt = now;
+
+    this.nextAttemptAt = null;
+
+    if (reason) {
+      this.error = {
+        code:
+          'PAYMENT_INTENT_CANCELLED',
+
+        message:
+          normalizeErrorMessage(
+            reason,
+          ),
+
+        providerCode: null,
+        providerMessage: null,
+        timestamp: now,
+      };
+    }
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.registerAttempt =
+  async function registerAttempt({
+    nextAttemptAt = null,
+  } = {}) {
+    if (this.attempts >= MAX_ATTEMPTS) {
+      throw new Error(
+        'Maximum PaymentIntent attempts exceeded.',
+      );
+    }
+
+    if (this.isTerminal()) {
+      throw new Error(
+        `Cannot retry PaymentIntent in ${this.status} state.`,
+      );
+    }
+
+    this.attempts += 1;
+    this.lastAttemptAt =
+      new Date();
+
+    this.nextAttemptAt =
+      nextAttemptAt
+        ? normalizeDate(
+            nextAttemptAt,
+          )
+        : null;
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.markVerified =
+  async function markVerified() {
+    if (
+      !this.verificationRequired
+    ) {
+      this.verifiedAt ??=
+        new Date();
+
+      await this.save();
+
+      return this;
+    }
+
+    if (this.isExpired) {
+      throw new Error(
+        'Expired PaymentIntent cannot be verified.',
+      );
+    }
+
+    this.verifiedAt =
+      new Date();
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.markLedgerPending =
+  async function markLedgerPending() {
+    if (
+      this.status !==
+      'SUCCEEDED'
+    ) {
+      throw new Error(
+        'Only succeeded PaymentIntents can enter ledger posting.',
+      );
+    }
+
+    this.ledgerPostingStatus =
+      'PENDING';
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.markLedgerPosted =
+  async function markLedgerPosted(
+    ledgerEntryId,
+  ) {
+    const normalized =
+      normalizeObjectId(
+        ledgerEntryId,
+        'ledgerEntryId',
+      );
+
+    if (
+      !normalized
+    ) {
+      throw new TypeError(
+        'ledgerEntryId is required.',
+      );
+    }
+
+    if (
+      this.status !==
+      'SUCCEEDED'
+    ) {
+      throw new Error(
+        'Only succeeded PaymentIntents can be ledger-posted.',
+      );
+    }
+
+    this.ledgerEntryId =
+      normalized;
+
+    this.ledgerPostingStatus =
+      'POSTED';
+
+    this.ledgerPostedAt =
+      new Date();
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.markLedgerPostingFailed =
+  async function markLedgerPostingFailed(
+    reason = null,
+  ) {
+    this.ledgerPostingStatus =
+      'FAILED';
+
+    this.reconciliationNote =
+      normalizeNullableString(
+        reason,
+        1_000,
+      );
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.markReconciled =
+  async function markReconciled({
+    status = 'MATCHED',
+    note = null,
+  } = {}) {
+    const normalized =
+      String(status)
+        .trim()
+        .toUpperCase();
+
+    if (
+      !RECONCILIATION_STATUSES.includes(
+        normalized,
+      )
+    ) {
+      throw new TypeError(
+        `Unsupported reconciliation status: ${normalized}.`,
+      );
+    }
+
+    this.reconciliationStatus =
+      normalized;
+
+    this.lastReconciledAt =
+      new Date();
+
+    this.reconciliationNote =
+      normalizeNullableString(
+        note,
+        1_000,
+      );
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentIntentSchema.methods.softDelete =
+  async function softDelete(
+    reason = null,
+  ) {
+    if (
+      [
+        'PENDING',
+        'PROCESSING',
+      ].includes(
+        this.status,
+      )
+    ) {
+      throw new Error(
+        'An active PaymentIntent cannot be soft-deleted.',
+      );
+    }
+
+    this.isDeleted = true;
+    this.deletedAt =
+      new Date();
+
+    this.deleteReason =
+      normalizeNullableString(
+        reason,
+        500,
+      );
+
+    await this.save();
+
+    return this;
+  };
+
+/* ==========================================================================
+ * Static lookup methods
+ * ========================================================================== */
+
+PaymentIntentSchema.statics.findByIntentId =
+  function findByIntentId(
+    tenantId,
+    intentId,
+  ) {
+    return this.findOne({
+      tenantId:
+        normalizeTenantId(
+          tenantId,
+        ),
+
+      intentId:
+        normalizeRequiredString(
+          intentId,
+          'intentId',
+          MAX_INTENT_ID_LENGTH,
+        ),
+
+      isDeleted: false,
+    });
+  };
+
+PaymentIntentSchema.statics.findByIdempotencyKey =
+  function findByIdempotencyKey(
+    tenantId,
+    idempotencyKey,
+  ) {
+    if (
+      tenantId === null ||
+      tenantId === undefined ||
+      !idempotencyKey
+    ) {
+      return null;
+    }
+
+    return this.findOne({
+      tenantId:
+        normalizeTenantId(
+          tenantId,
+        ),
+
+      idempotencyKey:
+        normalizeRequiredString(
+          idempotencyKey,
+          'idempotencyKey',
+          MAX_IDEMPOTENCY_KEY_LENGTH,
+        ),
+
+      isDeleted: false,
+    }).select(
+      '+idempotencyKey',
+    );
+  };
+
+PaymentIntentSchema.statics.findByProviderReference =
+  function findByProviderReference(
+    tenantId,
+    provider,
+    providerReference,
+  ) {
+    if (
+      !tenantId ||
+      !provider ||
+      !providerReference
+    ) {
+      return null;
+    }
+
+    return this.findOne({
+      tenantId,
+      provider,
+      providerReference,
+      isDeleted: false,
+    });
+  };
+
+PaymentIntentSchema.statics.findByProviderEventId =
+  function findByProviderEventId(
+    tenantId,
+    provider,
+    providerEventId,
+  ) {
+    if (
+      !tenantId ||
+      !provider ||
+      !providerEventId
+    ) {
+      return null;
+    }
+
+    return this.findOne({
+      tenantId,
+      provider,
+      providerEventId,
+      isDeleted: false,
+    });
+  };
+
+/* ==========================================================================
+ * Atomic processing operations
+ * ========================================================================== */
+
+/**
+ * Atomically claim a pending/retryable intent.
+ */
+PaymentIntentSchema.statics.claimForProcessing =
+  async function claimForProcessing({
+    tenantId,
+    intentId,
+  } = {}) {
+    const normalizedTenantId =
+      normalizeTenantId(
+        tenantId,
+      );
+
+    const normalizedIntentId =
+      normalizeRequiredString(
+        intentId,
+        'intentId',
+        MAX_INTENT_ID_LENGTH,
+      );
+
+    const now =
+      new Date();
+
+    return this.findOneAndUpdate(
+      {
+        tenantId:
+          normalizedTenantId,
+
+        intentId:
+          normalizedIntentId,
+
+        status: {
+          $in: [
+            'PENDING',
+            'FAILED',
+          ],
+        },
+
+        isDeleted: false,
+
+        expiresAt: {
+          $gt: now,
+        },
+
+        $or: [
+          {
+            nextAttemptAt: null,
+          },
+          {
+            nextAttemptAt: {
+              $lte: now,
+            },
+          },
         ],
       },
-      isDeleted: false,
-    },
-    {
-      $set: set,
-    },
-    {
-      new: true,
+      {
+        $set: {
+          status: 'PROCESSING',
+          processingAt: now,
+          lastAttemptAt: now,
+          nextAttemptAt: null,
+        },
+
+        $inc: {
+          attempts: 1,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+        allowPaymentIntentMutation:
+          true,
+      },
+    ).exec();
+  };
+
+/**
+ * Atomically succeed an intent.
+ */
+PaymentIntentSchema.statics.succeedAtomically =
+  async function succeedAtomically({
+    tenantId,
+    intentId,
+    providerReference = null,
+    providerStatus = null,
+    providerEventId = null,
+    paymentId = null,
+  } = {}) {
+    const normalizedTenantId =
+      normalizeTenantId(
+        tenantId,
+      );
+
+    const normalizedIntentId =
+      normalizeRequiredString(
+        intentId,
+        'intentId',
+        MAX_INTENT_ID_LENGTH,
+      );
+
+    const now =
+      new Date();
+
+    const update = {
+      $set: {
+        status: 'SUCCEEDED',
+        succeededAt: now,
+
+        providerReference:
+          normalizeProviderReference(
+            providerReference,
+          ),
+
+        providerStatus:
+          normalizeProviderStatus(
+            providerStatus,
+          ),
+
+        failedAt: null,
+        nextAttemptAt: null,
+        error: null,
+      },
+    };
+
+    if (
+      providerEventId !== null &&
+      providerEventId !== undefined
+    ) {
+      update.$set.providerEventId =
+        normalizeNullableString(
+          providerEventId,
+          MAX_PROVIDER_EVENT_ID_LENGTH,
+        );
     }
-  );
-};
+
+    if (
+      paymentId !== null &&
+      paymentId !== undefined
+    ) {
+      update.$set.paymentId =
+        normalizeObjectId(
+          paymentId,
+          'paymentId',
+        );
+    }
+
+    return this.findOneAndUpdate(
+      {
+        tenantId:
+          normalizedTenantId,
+
+        intentId:
+          normalizedIntentId,
+
+        status: {
+          $in: [
+            'PENDING',
+            'PROCESSING',
+          ],
+        },
+
+        isDeleted: false,
+      },
+      update,
+      {
+        new: true,
+        runValidators: true,
+        allowPaymentIntentMutation:
+          true,
+      },
+    ).exec();
+  };
+
+/**
+ * Atomically fail an intent.
+ */
+PaymentIntentSchema.statics.failAtomically =
+  async function failAtomically({
+    tenantId,
+    intentId,
+    code = null,
+    message = null,
+    providerCode = null,
+    providerMessage = null,
+    nextAttemptAt = null,
+  } = {}) {
+    const normalizedTenantId =
+      normalizeTenantId(
+        tenantId,
+      );
+
+    const normalizedIntentId =
+      normalizeRequiredString(
+        intentId,
+        'intentId',
+        MAX_INTENT_ID_LENGTH,
+      );
+
+    const now =
+      new Date();
+
+    return this.findOneAndUpdate(
+      {
+        tenantId:
+          normalizedTenantId,
+
+        intentId:
+          normalizedIntentId,
+
+        status: {
+          $in: [
+            'PENDING',
+            'PROCESSING',
+          ],
+        },
+
+        isDeleted: false,
+      },
+      {
+        $set: {
+          status: 'FAILED',
+          failedAt: now,
+
+          error: {
+            code:
+              normalizeNullableString(
+                code,
+                MAX_ERROR_CODE_LENGTH,
+              ),
+
+            message:
+              normalizeErrorMessage(
+                message,
+              ),
+
+            providerCode:
+              normalizeNullableString(
+                providerCode,
+                256,
+              ),
+
+            providerMessage:
+              normalizeNullableString(
+                providerMessage,
+                MAX_PROVIDER_MESSAGE_LENGTH,
+              ),
+
+            timestamp: now,
+          },
+
+          nextAttemptAt:
+            nextAttemptAt
+              ? normalizeDate(
+                  nextAttemptAt,
+                )
+              : null,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+        allowPaymentIntentMutation:
+          true,
+      },
+    ).exec();
+  };
 
 /**
  * Atomically cancel an intent.
  */
-PaymentIntentSchema.statics.cancelAtomically = function (
-  intentId,
-  reason = null
-) {
-  const now = new Date();
+PaymentIntentSchema.statics.cancelAtomically =
+  async function cancelAtomically({
+    tenantId,
+    intentId,
+    reason = null,
+  } = {}) {
+    const normalizedTenantId =
+      normalizeTenantId(
+        tenantId,
+      );
 
-  return this.findOneAndUpdate(
-    {
-      intentId,
-      status: {
-        $in: [
-          "pending",
-          "processing",
-        ],
+    const normalizedIntentId =
+      normalizeRequiredString(
+        intentId,
+        'intentId',
+        MAX_INTENT_ID_LENGTH,
+      );
+
+    const now =
+      new Date();
+
+    return this.findOneAndUpdate(
+      {
+        tenantId:
+          normalizedTenantId,
+
+        intentId:
+          normalizedIntentId,
+
+        status: {
+          $in: [
+            'PENDING',
+            'PROCESSING',
+          ],
+        },
+
+        isDeleted: false,
       },
-      isDeleted: false,
-    },
-    {
-      $set: {
-        status: "canceled",
-        canceledAt: now,
-        error: reason
-          ? {
-              code: "PAYMENT_INTENT_CANCELED",
-              message: reason,
-              timestamp: now,
-            }
-          : null,
+      {
+        $set: {
+          status: 'CANCELLED',
+          canceledAt: now,
+          nextAttemptAt: null,
+
+          error: reason
+            ? {
+                code:
+                  'PAYMENT_INTENT_CANCELLED',
+
+                message:
+                  normalizeErrorMessage(
+                    reason,
+                  ),
+
+                providerCode: null,
+                providerMessage: null,
+                timestamp: now,
+              }
+            : null,
+        },
       },
-    },
-    {
-      new: true,
+      {
+        new: true,
+        runValidators: true,
+        allowPaymentIntentMutation:
+          true,
+      },
+    ).exec();
+  };
+
+/**
+ * Atomically attach the resulting Payment.
+ */
+PaymentIntentSchema.statics.attachPaymentAtomically =
+  async function attachPaymentAtomically({
+    tenantId,
+    intentId,
+    paymentId,
+  } = {}) {
+    const normalizedPaymentId =
+      normalizeObjectId(
+        paymentId,
+        'paymentId',
+      );
+
+    if (!normalizedPaymentId) {
+      throw new TypeError(
+        'paymentId is required.',
+      );
     }
-  );
-};
+
+    return this.findOneAndUpdate(
+      {
+        tenantId:
+          normalizeTenantId(
+            tenantId,
+          ),
+
+        intentId:
+          normalizeRequiredString(
+            intentId,
+            'intentId',
+            MAX_INTENT_ID_LENGTH,
+          ),
+
+        status: 'SUCCEEDED',
+
+        isDeleted: false,
+
+        paymentId: null,
+      },
+      {
+        $set: {
+          paymentId:
+            normalizedPaymentId,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+        allowPaymentIntentMutation:
+          true,
+      },
+    ).exec();
+  };
 
 /**
- * =============================================================================
- * Lifecycle Validation
- * =============================================================================
+ * Atomically register a provider event.
+ *
+ * The database unique index also protects against the same provider event
+ * being attached to multiple records.
  */
+PaymentIntentSchema.statics.registerProviderEvent =
+  async function registerProviderEvent({
+    tenantId,
+    intentId,
+    providerEventId,
+  } = {}) {
+    const normalizedEventId =
+      normalizeRequiredString(
+        providerEventId,
+        'providerEventId',
+        MAX_PROVIDER_EVENT_ID_LENGTH,
+      );
 
-PaymentIntentSchema.pre("validate", function (next) {
-  /**
-   * Successful intents require succeededAt.
-   */
-  if (
-    this.status === "succeeded" &&
-    !this.succeededAt
+    return this.findOneAndUpdate(
+      {
+        tenantId:
+          normalizeTenantId(
+            tenantId,
+          ),
+
+        intentId:
+          normalizeRequiredString(
+            intentId,
+            'intentId',
+            MAX_INTENT_ID_LENGTH,
+          ),
+
+        isDeleted: false,
+
+        providerEventId: null,
+      },
+      {
+        $set: {
+          providerEventId:
+            normalizedEventId,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+        allowPaymentIntentMutation:
+          true,
+      },
+    ).exec();
+  };
+
+/**
+ * Atomically mark ledger posting pending.
+ */
+PaymentIntentSchema.statics.markLedgerPendingAtomically =
+  async function markLedgerPendingAtomically({
+    tenantId,
+    intentId,
+  } = {}) {
+    return this.findOneAndUpdate(
+      {
+        tenantId:
+          normalizeTenantId(
+            tenantId,
+          ),
+
+        intentId:
+          normalizeRequiredString(
+            intentId,
+            'intentId',
+            MAX_INTENT_ID_LENGTH,
+          ),
+
+        status: 'SUCCEEDED',
+
+        ledgerPostingStatus: {
+          $in: [
+            'NOT_POSTED',
+            'FAILED',
+          ],
+        },
+
+        isDeleted: false,
+      },
+      {
+        $set: {
+          ledgerPostingStatus:
+            'PENDING',
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+        allowPaymentIntentMutation:
+          true,
+      },
+    ).exec();
+  };
+
+/* ==========================================================================
+ * Validation
+ * ========================================================================== */
+
+PaymentIntentSchema.pre(
+  'validate',
+  function validatePaymentIntent(
+    next,
   ) {
-    this.succeededAt = new Date();
-  }
+    try {
+      /*
+       * Monetary validation.
+       */
+      if (
+        !isPositiveDecimal(
+          this.amount,
+        )
+      ) {
+        this.invalidate(
+          'amount',
+          'PaymentIntent amount must be greater than zero.',
+        );
+      }
 
-  /**
-   * Failed intents require failedAt.
-   */
-  if (
-    this.status === "failed" &&
-    !this.failedAt
+      /*
+       * Timestamp consistency.
+       */
+      if (
+        this.status ===
+          'PROCESSING' &&
+        !this.processingAt
+      ) {
+        this.processingAt =
+          new Date();
+      }
+
+      if (
+        this.status ===
+          'SUCCEEDED' &&
+        !this.succeededAt
+      ) {
+        this.succeededAt =
+          new Date();
+      }
+
+      if (
+        this.status ===
+          'FAILED' &&
+        !this.failedAt
+      ) {
+        this.failedAt =
+          new Date();
+      }
+
+      if (
+        this.status ===
+          'CANCELLED' &&
+        !this.canceledAt
+      ) {
+        this.canceledAt =
+          new Date();
+      }
+
+      /*
+       * Successful intents cannot retain failed lifecycle state.
+       */
+      if (
+        this.status ===
+        'SUCCEEDED'
+      ) {
+        this.failedAt = null;
+        this.nextAttemptAt =
+          null;
+        this.error = null;
+      }
+
+      /*
+       * Ledger state consistency.
+       */
+      if (
+        this.ledgerPostingStatus ===
+          'POSTED' &&
+        !this.ledgerEntryId
+      ) {
+        this.invalidate(
+          'ledgerEntryId',
+          'ledgerEntryId is required when ledgerPostingStatus=POSTED.',
+        );
+      }
+
+      if (
+        this.ledgerPostingStatus ===
+          'POSTED' &&
+        !this.ledgerPostedAt
+      ) {
+        this.ledgerPostedAt =
+          new Date();
+      }
+
+      if (
+        this.ledgerPostingStatus ===
+          'NOT_POSTED' &&
+        this.ledgerPostedAt
+      ) {
+        this.invalidate(
+          'ledgerPostedAt',
+          'ledgerPostedAt requires ledgerPostingStatus=POSTED.',
+        );
+      }
+
+      /*
+       * Resulting Payment should only exist for a successful intent.
+       */
+      if (
+        this.paymentId &&
+        this.status !==
+          'SUCCEEDED'
+      ) {
+        this.invalidate(
+          'paymentId',
+          'paymentId can only be attached to a succeeded PaymentIntent.',
+        );
+      }
+
+      /*
+       * Expiry must occur after initiation.
+       */
+      if (
+        this.expiresAt &&
+        this.initiatedAt &&
+        this.expiresAt.getTime() <=
+          this.initiatedAt.getTime()
+      ) {
+        this.invalidate(
+          'expiresAt',
+          'expiresAt must be after initiatedAt.',
+        );
+      }
+
+      /*
+       * Attempt bounds.
+       */
+      if (
+        this.attempts < 0 ||
+        this.attempts > MAX_ATTEMPTS
+      ) {
+        this.invalidate(
+          'attempts',
+          `attempts must be between 0 and ${MAX_ATTEMPTS}.`,
+        );
+      }
+
+      /*
+       * Verification consistency.
+       */
+      if (
+        this.verifiedAt &&
+        !this.verificationRequired
+      ) {
+        /**
+         * A provider may perform implicit verification. Do not reject it.
+         */
+      }
+
+      /*
+       * Metadata sanitization.
+       */
+      if (
+        this.metadata
+      ) {
+        this.metadata =
+          new IntentMetadataSchema(
+            this.metadata,
+          );
+      }
+
+      if (
+        this.providerResponse
+      ) {
+        this.providerResponse =
+          new ProviderResponseSchema(
+            this.providerResponse,
+          );
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/* ==========================================================================
+ * Mutation protection
+ * ========================================================================== */
+
+/**
+ * PaymentIntent records must not be physically hard-deleted by application
+ * code.
+ */
+PaymentIntentSchema.pre(
+  [
+    'deleteOne',
+    'deleteMany',
+    'findOneAndDelete',
+    'findByIdAndDelete',
+  ],
+  function preventHardDelete(
+    next,
   ) {
-    this.failedAt = new Date();
-  }
-
-  /**
-   * Canceled intents require canceledAt.
-   */
-  if (
-    this.status === "canceled" &&
-    !this.canceledAt
-  ) {
-    this.canceledAt = new Date();
-  }
-
-  /**
-   * Processing intents require processingAt.
-   */
-  if (
-    this.status === "processing" &&
-    !this.processingAt
-  ) {
-    this.processingAt = new Date();
-  }
-
-  /**
-   * Successful intents should not retain a failure timestamp.
-   */
-  if (this.status === "succeeded") {
-    this.failedAt = null;
-  }
-
-  /**
-   * Ledger-posted state requires ledger identity.
-   */
-  if (
-    this.ledgerPostingStatus === "POSTED" &&
-    !this.ledgerEntryId
-  ) {
-    this.invalidate(
-      "ledgerEntryId",
-      "ledgerEntryId is required when ledgerPostingStatus is POSTED"
+    next(
+      new mongoose.Error.MongooseError(
+        'PaymentIntent hard deletion is disabled.',
+      ),
     );
-  }
-
-  next();
-});
+  },
+);
 
 /**
- * =============================================================================
- * Soft Delete Protection
- * =============================================================================
+ * Generic query mutations are disabled.
+ *
+ * Controlled atomic methods above explicitly opt in.
  */
+PaymentIntentSchema.pre(
+  [
+    'updateOne',
+    'updateMany',
+    'findOneAndUpdate',
+    'findByIdAndUpdate',
+    'replaceOne',
+  ],
+  function preventGenericMutation(
+    next,
+  ) {
+    const options =
+      this.getOptions();
 
-PaymentIntentSchema.pre(/^find/, function (next) {
-  const options = this.getOptions();
+    if (
+      options.allowPaymentIntentMutation ===
+      true
+    ) {
+      return next();
+    }
 
-  if (!options.includeDeleted) {
-    this.where({
-      isDeleted: false,
-    });
-  }
+    next(
+      new mongoose.Error.MongooseError(
+        'Generic PaymentIntent updates are disabled. Use controlled lifecycle methods.',
+      ),
+    );
+  },
+);
 
-  next();
-});
+PaymentIntentSchema.pre(
+  'bulkWrite',
+  function preventBulkWrite(
+    next,
+  ) {
+    next(
+      new mongoose.Error.MongooseError(
+        'bulkWrite is disabled for PaymentIntent.',
+      ),
+    );
+  },
+);
 
-/**
- * =============================================================================
- * Serialization Protection
- * =============================================================================
- */
+/* ==========================================================================
+ * Soft-delete query protection
+ * ========================================================================== */
 
-PaymentIntentSchema.methods.toJSON = function () {
-  const obj = this.toObject();
+PaymentIntentSchema.pre(
+  /^find/,
+  function hideDeletedIntents(
+    next,
+  ) {
+    const options =
+      this.getOptions();
 
-  /**
-   * Never expose idempotency keys through generic API serialization.
-   */
-  delete obj.idempotencyKey;
+    if (
+      !options.includeDeleted
+    ) {
+      this.where({
+        isDeleted: false,
+      });
+    }
 
-  /**
-   * Avoid accidentally returning raw provider payloads through generic APIs.
-   */
-  if (obj.metadata) {
-    delete obj.metadata.providerResponse;
-  }
+    next();
+  },
+);
 
-  delete obj.providerResponse;
+/* ==========================================================================
+ * Model export
+ * ========================================================================== */
 
-  return obj;
-};
-
-/**
- * =============================================================================
- * Model Export
- * =============================================================================
- */
-
-module.exports =
+const PaymentIntent =
   mongoose.models.PaymentIntent ||
   mongoose.model(
-    "PaymentIntent",
-    PaymentIntentSchema
+    'PaymentIntent',
+    PaymentIntentSchema,
   );
+
+export default PaymentIntent;
+
+export {
+  PaymentIntentSchema,
+  ProviderResponseSchema,
+  IntentMetadataSchema,
+  PaymentIntentErrorSchema,
+  PAYMENT_INTENT_TRANSITIONS,
+};

@@ -1,54 +1,57 @@
-# --- General ---
-node_modules/
-*.log
-*.gz
-*.pid
-*.seed
-.DS_Store
-Thumbs.db
+# =============================================================================
+# TITech Community Capital - Frontend Git Ignore
+# =============================================================================
 
-# --- Environment files ---
+# Dependencies
+node_modules/
+
+# Environment files
 .env
 .env.*
-.env.local
-.env.*.local
-community-savings-app-backend/.env
-community-savings-app-frontend/.env
+!.env.example
 
-# --- Build outputs ---
+# Logs
+logs/
+*.log
+
+# Build outputs
 dist/
 build/
-coverage/
+
+# Vite / Vitest
 .vite/
 .vitest/
 
-# --- Docker ---
-docker-compose.override.yml
-
-# --- Test reports ---
+# Test and coverage artifacts
+coverage/
+.nyc_output/
 test-reports/
 junit.xml
 *.coverage
 *.lcov
 
-# --- Backend specific ---
-community-savings-app-backend/nodemon.json
-community-savings-app-backend/package-lock.json
-community-savings-app-backend/logs/
-community-savings-app-backend/tmp/
+# Runtime / temporary files
+tmp/
 
-# --- Frontend specific ---
-community-savings-app-frontend/package-lock.json
-community-savings-app-frontend/logs/
-community-savings-app-frontend/tmp/
-community-savings-app-frontend/public/images/*.png
+# Generated audit artifacts
+*-audit.json
 
-# --- OS / IDE ---
+# Project-specific generated images
+public/images/*.png
+
+# Docker local overrides
+docker-compose.override.yml
+
+# IDE / editor
 .vscode/
 .idea/
 *.swp
 
-# --- Misc ---
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Package-manager debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

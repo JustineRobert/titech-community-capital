@@ -1,936 +1,1745 @@
-'use strict';
-
 /**
  * ============================================================================
+ * backend/models/Account.js
  * TITech Community Capital LTD
- * ENTERPRISE ACCOUNT MODEL
+ * Enterprise Financial Account Aggregate
  * ============================================================================
  *
- * File:
- *   backend/models/Account.js
- *
- * Purpose:
- *   Enterprise financial account model for the TITech Community Capital
- *   multi-tenant SACCO / community-finance platform.
- *
- * Supported Accounts
+ * Architectural role
  * ----------------------------------------------------------------------------
- *   SAVINGS
- *   SHARES
- *   FIXED_DEPOSIT
- *   LOAN
- *   WALLET
- *   SETTLEMENT
- *   GL
+ * Account is the canonical operational financial-account persistence
+ * aggregate for TITech Community Capital's multi-tenant SACCO and
+ * community-finance platform.
  *
- * Architectural Position
- * ----------------------------------------------------------------------------
+ * Supported account types:
  *
- *                  Transaction
- *                       |
- *                       v
- *                 Ledger Entry
- *                       |
- *                       v
- *                    Account
- *                       |
- *              +--------+--------+
- *              |                 |
- *              v                 v
- *          Current Balance   Reporting
+ *   - SAVINGS
+ *   - SHARES
+ *   - FIXED_DEPOSIT
+ *   - LOAN
+ *   - WALLET
+ *   - SETTLEMENT
+ *   - GL
+ *
+ * Account sits between financial transaction/ledger workflows and operational
+ * account-state/reporting projections:
+ *
+ *   Transaction / Financial Service
+ *                │
+ *                ▼
+ *           Ledger Entry
+ *                │
+ *                ▼
+ *             Account
+ *          ┌─────┴─────┐
+ *          ▼           ▼
+ *   Current State   Reporting
  *
  * IMPORTANT
  * ----------------------------------------------------------------------------
- * This model represents the operational account state.
+ * Account IS:
+ *   - the operational source of persisted account state;
+ *   - the operational source of current account balances;
+ *   - the operational source of account lifecycle state;
+ *   - the operational source of reconciliation/accounting-posting state;
+ *   - a tenant-scoped financial persistence boundary.
  *
- * The authoritative accounting history should be maintained by the
- * double-entry ledger / ledger-entry subsystem.
+ * Account is NOT:
+ *   - the authoritative double-entry ledger;
+ *   - a transaction history store;
+ *   - an authorization mechanism;
+ *   - a loan approval engine;
+ *   - an interest/fee calculation engine;
+ *   - a payment-provider integration;
+ *   - a KYC/AML decision engine;
+ *   - a reconciliation engine;
+ *   - a replacement for BalanceRepository;
+ *   - a replacement for LedgerRepository;
+ *   - a replacement for FinancialTransactionService.
  *
- * Account balances MUST NOT be changed casually from controllers.
- * Financial mutations should preferably occur through a transaction service
- * or ledger service using atomic database operations / MongoDB transactions.
- *
- * Production Features
+ * Financial design principles
  * ----------------------------------------------------------------------------
- * ✅ Multi-tenant isolation
- * ✅ Financial account classification
- * ✅ Double-entry ledger ready
- * ✅ Savings accounts
- * ✅ Shares accounts
- * ✅ Fixed deposits
- * ✅ Loan accounts
- * ✅ Wallet accounts
- * ✅ Settlement accounts
- * ✅ General ledger accounts
- * ✅ Monetary precision using Decimal128
- * ✅ Available / blocked balances
- * ✅ Loan exposure tracking
- * ✅ Account lifecycle controls
- * ✅ Compliance state
- * ✅ Reconciliation support
- * ✅ Accounting posting state
- * ✅ Audit metadata
- * ✅ Optimistic concurrency
- * ✅ Soft archival
- * ✅ Strict validation
- * ✅ Tenant-aware compound indexes
- * ✅ Safe JSON serialization
+ *   - Monetary fields use MongoDB Decimal128.
+ *   - Persisted monetary values are never JavaScript Number fields.
+ *   - Financial calculations avoid JavaScript floating-point arithmetic.
+ *   - Decimal128 values serialize as strings.
+ *   - Tenant ownership is mandatory and immutable.
+ *   - Account identity is immutable.
+ *   - Account number is immutable.
+ *   - Account type is immutable.
+ *   - Currency is immutable.
+ *   - Opening account state is preserved.
+ *   - Current financial state is explicitly represented.
+ *   - Available/blocked balances are bounded by document invariants.
+ *   - Financial mutations are delegated to controlled repository/service paths.
+ *   - Atomic balance operations are session-aware.
+ *   - Balance mutation sequencing is tracked through revision/balanceRevision.
+ *
+ * Tenancy
+ * ----------------------------------------------------------------------------
+ * Every account belongs to exactly one TITech tenant.
+ *
+ * tenantId remains a String in this model to preserve compatibility with the
+ * existing TITech tenancy subsystem used by the legacy account model.
+ *
+ * Cross-tenant authorization MUST still be enforced by services/repositories.
+ *
+ * Status
+ * ----------------------------------------------------------------------------
+ * PENDING:
+ *   Account exists but is not yet operational.
+ *
+ * ACTIVE:
+ *   Account may participate in permitted financial operations.
+ *
+ * DORMANT:
+ *   Account remains open but has entered a non-active operational state.
+ *
+ * BLOCKED:
+ *   Account activity has been blocked by an operational/compliance decision.
+ *
+ * CLOSED:
+ *   Account has been permanently closed.
+ *
+ * Module format
+ * ----------------------------------------------------------------------------
+ * Native ESM.
+ *
  * ============================================================================
  */
 
-const mongoose = require('mongoose');
+'use strict';
+
+import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-/**
+/*
  * ============================================================================
  * CONSTANTS
  * ============================================================================
  */
 
-const ACCOUNT_TYPES = [
-    'SAVINGS',
-    'SHARES',
-    'FIXED_DEPOSIT',
-    'LOAN',
-    'WALLET',
-    'SETTLEMENT',
-    'GL'
-];
+export const ACCOUNT_TYPES = Object.freeze([
+  'SAVINGS',
+  'SHARES',
+  'FIXED_DEPOSIT',
+  'LOAN',
+  'WALLET',
+  'SETTLEMENT',
+  'GL',
+]);
 
-const ACCOUNT_CATEGORIES = [
-    'ASSET',
-    'LIABILITY',
-    'EQUITY',
-    'INCOME',
-    'EXPENSE'
-];
+export const ACCOUNT_CATEGORIES = Object.freeze([
+  'ASSET',
+  'LIABILITY',
+  'EQUITY',
+  'INCOME',
+  'EXPENSE',
+]);
 
-const ACCOUNT_STATUSES = [
-    'PENDING',
-    'ACTIVE',
-    'DORMANT',
-    'BLOCKED',
-    'CLOSED'
-];
+export const ACCOUNT_STATUSES = Object.freeze([
+  'PENDING',
+  'ACTIVE',
+  'DORMANT',
+  'BLOCKED',
+  'CLOSED',
+]);
 
-const MOMO_PROVIDERS = [
-    'MTN',
-    'AIRTEL'
-];
+export const MOMO_PROVIDERS = Object.freeze([
+  'MTN',
+  'AIRTEL',
+]);
 
-const DECIMAL_ZERO = '0.00';
+export const INTEREST_RATE_TYPES = Object.freeze([
+  'NONE',
+  'FLAT',
+  'REDUCING_BALANCE',
+  'COMPOUND',
+  'TIERED',
+]);
 
-/**
+export const INTEREST_ACCRUAL_FREQUENCIES =
+  Object.freeze([
+    'NONE',
+    'DAILY',
+    'WEEKLY',
+    'MONTHLY',
+    'QUARTERLY',
+    'ANNUALLY',
+  ]);
+
+export const DECIMAL_ZERO = '0.00';
+
+export const ACCOUNT_ID_MAX_LENGTH = 128;
+export const TENANT_ID_MAX_LENGTH = 100;
+export const ACCOUNT_NUMBER_MAX_LENGTH = 100;
+export const OWNER_ID_MAX_LENGTH = 128;
+export const TRANSACTION_ID_MAX_LENGTH = 128;
+export const CURRENCY_MAX_LENGTH = 3;
+export const MAX_RISK_FLAGS = 50;
+export const MAX_METADATA_KEYS = 50;
+export const MAX_METADATA_DEPTH = 8;
+export const MAX_METADATA_STRING_LENGTH = 4096;
+
+export const CURRENCY_REGEX = /^[A-Z]{3}$/;
+
+export const IDENTIFIER_REGEX =
+  /^[a-zA-Z0-9._:-]+$/;
+
+/*
  * ============================================================================
- * HELPERS
+ * DECIMAL128 HELPERS
  * ============================================================================
  */
 
 /**
- * Convert a value safely into Decimal128.
+ * Return an exact Decimal128 zero.
+ */
+export function decimal128Zero() {
+  return mongoose.Types.Decimal128.fromString(
+    DECIMAL_ZERO,
+  );
+}
+
+/**
+ * Convert a value into Decimal128 without using JavaScript Number arithmetic.
  *
- * Decimal128 is used for persisted monetary values to avoid the rounding
- * problems associated with JavaScript Number.
+ * Monetary callers should normally supply strings or existing Decimal128
+ * values.
  */
-function toDecimal(value) {
-    if (
-        value === null ||
-        value === undefined ||
-        value === ''
-    ) {
-        return mongoose.Types.Decimal128.fromString(DECIMAL_ZERO);
-    }
+export function toDecimal(
+  value,
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return decimal128Zero();
+  }
 
-    if (
-        value instanceof mongoose.Types.Decimal128
-    ) {
-        return value;
-    }
+  if (
+    mongoose.isDecimal128(
+      value,
+    )
+  ) {
+    return value;
+  }
 
-    const numericValue = String(value).trim();
+  const normalized =
+    String(value).trim();
 
-    if (!/^-?\d+(\.\d+)?$/.test(numericValue)) {
-        throw new Error(
-            `Invalid monetary value: ${numericValue}`
-        );
-    }
-
-    return mongoose.Types.Decimal128.fromString(
-        numericValue
+  if (!normalized) {
+    throw new TypeError(
+      'Monetary value cannot be empty.',
     );
+  }
+
+  /*
+   * Accept ordinary decimal/scientific notation but explicitly reject
+   * non-finite values and negative values.
+   */
+  const parts =
+    parseDecimal(
+      normalized,
+    );
+
+  if (
+    parts.sign < 0
+  ) {
+    throw new Error(
+      `Negative monetary value is not permitted: ${normalized}`,
+    );
+  }
+
+  return mongoose.Types.Decimal128.fromString(
+    normalized,
+  );
 }
 
 /**
- * Convert Decimal128 to a numeric value for compatibility with existing
- * application consumers.
+ * Parse a finite decimal string exactly into:
  *
- * NOTE:
- * Financial calculations should preferably remain in Decimal128 form.
+ *   coefficient / 10^scale
+ *
+ * This helper intentionally uses BigInt for validation/comparison only.
  */
-function decimalToNumber(value) {
-    if (
-        value === null ||
-        value === undefined
-    ) {
-        return 0;
-    }
+export function parseDecimal(
+  value,
+) {
+  const text =
+    String(value)
+      .trim()
+      .toLowerCase();
 
-    if (
-        value instanceof mongoose.Types.Decimal128
-    ) {
-        return Number(value.toString());
-    }
+  if (!text) {
+    throw new Error(
+      'Invalid decimal value.',
+    );
+  }
 
-    return Number(value);
+  if (
+    [
+      'nan',
+      '+nan',
+      '-nan',
+      'infinity',
+      '+infinity',
+      '-infinity',
+      'inf',
+      '+inf',
+      '-inf',
+    ].includes(text)
+  ) {
+    throw new Error(
+      'Non-finite decimal values are not valid monetary values.',
+    );
+  }
+
+  const match =
+    text.match(
+      /^([+-]?)(?:(\d+)(?:\.(\d+))?|\.(\d+))(?:e([+-]?\d+))?$/,
+    );
+
+  if (!match) {
+    throw new Error(
+      `Invalid decimal value: ${text}`,
+    );
+  }
+
+  const signChar =
+    match[1] || '';
+
+  const integerPart =
+    match[2] ?? '';
+
+  const fractionFromInteger =
+    match[3] ?? '';
+
+  const fractionOnly =
+    match[4] ?? '';
+
+  const exponent =
+    Number(
+      match[5] ?? '0',
+    );
+
+  if (
+    !Number.isSafeInteger(
+      exponent,
+    )
+  ) {
+    throw new Error(
+      'Invalid decimal exponent.',
+    );
+  }
+
+  const fractionalPart =
+    fractionFromInteger ||
+    fractionOnly;
+
+  const digits =
+    (
+      integerPart +
+      fractionalPart
+    ).replace(
+      /^0+(?=\d)/,
+      '',
+    ) || '0';
+
+  let coefficient =
+    BigInt(digits);
+
+  let scale =
+    fractionalPart.length -
+    exponent;
+
+  if (
+    scale < 0
+  ) {
+    coefficient *=
+      10n **
+      BigInt(-scale);
+
+    scale = 0;
+  }
+
+  return {
+    sign:
+      signChar === '-'
+        ? -1
+        : 1,
+
+    coefficient,
+
+    scale,
+  };
 }
 
 /**
+ * Compare two finite non-negative decimal strings exactly.
+ *
+ * Returns:
+ *   -1 left < right
+ *    0 left === right
+ *    1 left > right
+ */
+export function compareDecimals(
+  left,
+  right,
+) {
+  const a =
+    parseDecimal(left);
+
+  const b =
+    parseDecimal(right);
+
+  if (
+    a.sign < 0 ||
+    b.sign < 0
+  ) {
+    throw new Error(
+      'compareDecimals only accepts non-negative decimal values.',
+    );
+  }
+
+  const scale =
+    Math.max(
+      a.scale,
+      b.scale,
+    );
+
+  const leftCoefficient =
+    a.coefficient *
+    10n **
+      BigInt(
+        scale - a.scale,
+      );
+
+  const rightCoefficient =
+    b.coefficient *
+    10n **
+      BigInt(
+        scale - b.scale,
+      );
+
+  if (
+    leftCoefficient <
+    rightCoefficient
+  ) {
+    return -1;
+  }
+
+  if (
+    leftCoefficient >
+    rightCoefficient
+  ) {
+    return 1;
+  }
+
+  return 0;
+}
+
+/**
+ * Exact subtraction for non-negative Decimal128 values.
+ *
+ * Requires left >= right.
+ */
+export function subtractDecimals(
+  left,
+  right,
+) {
+  const a =
+    parseDecimal(
+      left.toString(),
+    );
+
+  const b =
+    parseDecimal(
+      right.toString(),
+    );
+
+  if (
+    a.sign < 0 ||
+    b.sign < 0
+  ) {
+    throw new Error(
+      'subtractDecimals only accepts non-negative values.',
+    );
+  }
+
+  const scale =
+    Math.max(
+      a.scale,
+      b.scale,
+    );
+
+  const leftCoefficient =
+    a.coefficient *
+    10n **
+      BigInt(
+        scale - a.scale,
+      );
+
+  const rightCoefficient =
+    b.coefficient *
+    10n **
+      BigInt(
+        scale - b.scale,
+      );
+
+  if (
+    leftCoefficient <
+    rightCoefficient
+  ) {
+    throw new Error(
+      'Decimal subtraction would produce a negative value.',
+    );
+  }
+
+  const difference =
+    leftCoefficient -
+    rightCoefficient;
+
+  let digits =
+    difference.toString();
+
+  if (
+    scale === 0
+  ) {
+    return mongoose.Types.Decimal128.fromString(
+      digits,
+    );
+  }
+
+  digits =
+    digits.padStart(
+      scale + 1,
+      '0',
+    );
+
+  const splitIndex =
+    digits.length - scale;
+
+  const integerPart =
+    digits.slice(
+      0,
+      splitIndex,
+    );
+
+  const fractionalPart =
+    digits
+      .slice(
+        splitIndex,
+      )
+      .replace(
+        /0+$/,
+        '',
+      );
+
+  const result =
+    fractionalPart
+      ? `${integerPart}.${fractionalPart}`
+      : integerPart;
+
+  return mongoose.Types.Decimal128.fromString(
+    result,
+  );
+}
+
+function validateNonNegativeDecimal128(
+  value,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return true;
+  }
+
+  if (
+    !mongoose.isDecimal128(
+      value,
+    )
+  ) {
+    return false;
+  }
+
+  try {
+    const parsed =
+      parseDecimal(
+        value.toString(),
+      );
+
+    return (
+      parsed.sign >= 0
+    );
+  } catch {
+    return false;
+  }
+}
+
+/*
  * ============================================================================
- * ACCOUNT SCHEMA
+ * IDENTIFIER / METADATA HELPERS
  * ============================================================================
  */
 
-const AccountSchema = new Schema(
+export function validateIdentifier(
+  value,
+) {
+  if (
+    typeof value !== 'string'
+  ) {
+    return false;
+  }
+
+  const normalized =
+    value.trim();
+
+  return (
+    normalized.length >= 1 &&
+    normalized.length <=
+      ACCOUNT_ID_MAX_LENGTH &&
+    IDENTIFIER_REGEX.test(
+      normalized,
+    )
+  );
+}
+
+export function validateTenantId(
+  value,
+) {
+  if (
+    typeof value !== 'string'
+  ) {
+    return false;
+  }
+
+  const normalized =
+    value.trim().toLowerCase();
+
+  return (
+    normalized.length >= 1 &&
+    normalized.length <=
+      TENANT_ID_MAX_LENGTH &&
+    /^[a-zA-Z0-9._:-]+$/.test(
+      normalized,
+    )
+  );
+}
+
+function validateOptionalIdentifier(
+  value,
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return true;
+  }
+
+  return validateIdentifier(
+    value,
+  );
+}
+
+function validateMetadata(
+  value,
+  depth = 0,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return;
+  }
+
+  if (
+    depth > MAX_METADATA_DEPTH
+  ) {
+    throw new RangeError(
+      `Metadata nesting exceeds ${MAX_METADATA_DEPTH} levels.`,
+    );
+  }
+
+  if (
+    typeof value === 'string'
+  ) {
+    if (
+      value.length >
+      MAX_METADATA_STRING_LENGTH
+    ) {
+      throw new RangeError(
+        `Metadata string exceeds ${MAX_METADATA_STRING_LENGTH} characters.`,
+      );
+    }
+
+    return;
+  }
+
+  if (
+    Array.isArray(value)
+  ) {
+    if (
+      value.length >
+      MAX_METADATA_KEYS
+    ) {
+      throw new RangeError(
+        `Metadata arrays cannot contain more than ${MAX_METADATA_KEYS} items.`,
+      );
+    }
+
+    value.forEach(
+      (item) =>
+        validateMetadata(
+          item,
+          depth + 1,
+        ),
+    );
+
+    return;
+  }
+
+  if (
+    typeof value ===
+      'object'
+  ) {
+    const keys =
+      Object.keys(value);
+
+    if (
+      keys.length >
+      MAX_METADATA_KEYS
+    ) {
+      throw new RangeError(
+        `Metadata cannot contain more than ${MAX_METADATA_KEYS} keys.`,
+      );
+    }
+
+    Object.values(value).forEach(
+      (child) =>
+        validateMetadata(
+          child,
+          depth + 1,
+        ),
+    );
+  }
+}
+
+function decimalToString(
+  value,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return value;
+  }
+
+  if (
+    mongoose.isDecimal128(
+      value,
+    )
+  ) {
+    return value.toString();
+  }
+
+  return String(value);
+}
+
+/*
+ * ============================================================================
+ * SCHEMA
+ * ============================================================================
+ */
+
+const AccountSchema =
+  new Schema(
     {
-        /**
-         * ====================================================================
-         * MULTI-TENANCY
-         * ====================================================================
-         */
+      /*
+       * ----------------------------------------------------------------------
+       * MULTI-TENANCY
+       * ----------------------------------------------------------------------
+       */
+      tenantId: {
+        type: String,
 
-        tenantId: {
-            type: String,
-            required: [true, 'Tenant ID is required'],
-            trim: true,
-            minlength: 1,
-            maxlength: 100,
-            index: true
+        required: [
+          true,
+          'Tenant ID is required',
+        ],
+
+        trim: true,
+
+        lowercase: true,
+
+        minlength: 1,
+
+        maxlength:
+          TENANT_ID_MAX_LENGTH,
+
+        immutable: true,
+
+        index: true,
+
+        validate: {
+          validator:
+            validateTenantId,
+
+          message:
+            'Invalid TITech tenant identifier.',
+        },
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * OWNERSHIP / RELATIONSHIPS
+       * ----------------------------------------------------------------------
+       */
+      member: {
+        type: Schema.Types.ObjectId,
+        ref: 'Member',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * ACCOUNT IDENTIFICATION
+       * ----------------------------------------------------------------------
+       */
+      accountNumber: {
+        type: String,
+
+        required: [
+          true,
+          'Account number is required',
+        ],
+
+        trim: true,
+
+        uppercase: true,
+
+        minlength: 3,
+
+        maxlength:
+          ACCOUNT_NUMBER_MAX_LENGTH,
+
+        immutable: true,
+
+        validate: {
+          validator:
+            validateIdentifier,
+
+          message:
+            'Invalid account number.',
+        },
+      },
+
+      accountName: {
+        type: String,
+
+        required: [
+          true,
+          'Account name is required',
+        ],
+
+        trim: true,
+
+        minlength: 2,
+
+        maxlength: 200,
+      },
+
+      externalReference: {
+        type: String,
+
+        trim: true,
+
+        maxlength: 200,
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * CLASSIFICATION
+       * ----------------------------------------------------------------------
+       */
+      accountType: {
+        type: String,
+
+        enum: ACCOUNT_TYPES,
+
+        required: [
+          true,
+          'Account type is required',
+        ],
+
+        uppercase: true,
+
+        immutable: true,
+
+        index: true,
+      },
+
+      accountCategory: {
+        type: String,
+
+        enum: ACCOUNT_CATEGORIES,
+
+        required: [
+          true,
+          'Account category is required',
+        ],
+
+        uppercase: true,
+
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * CURRENCY
+       * ----------------------------------------------------------------------
+       */
+      currency: {
+        type: String,
+
+        default: 'UGX',
+
+        uppercase: true,
+
+        trim: true,
+
+        minlength:
+          CURRENCY_MAX_LENGTH,
+
+        maxlength:
+          CURRENCY_MAX_LENGTH,
+
+        immutable: true,
+
+        validate: {
+          validator(value) {
+            return CURRENCY_REGEX.test(
+              String(value),
+            );
+          },
+
+          message:
+            'Currency must be a valid ISO 4217 three-letter code.',
         },
 
-        /**
-         * ====================================================================
-         * OWNERSHIP / RELATIONSHIPS
-         * ====================================================================
-         */
+        index: true,
+      },
 
-        member: {
-            type: Schema.Types.ObjectId,
-            ref: 'Member',
-            default: null,
-            index: true
+      /*
+       * ----------------------------------------------------------------------
+       * BALANCES
+       * ----------------------------------------------------------------------
+       *
+       * Decimal128 is mandatory for persisted monetary values.
+       */
+      balance: {
+        type:
+          Schema.Types.Decimal128,
+
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Balance must be a finite, non-negative Decimal128 value.',
         },
+      },
 
-        user: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null,
-            index: true
+      availableBalance: {
+        type:
+          Schema.Types.Decimal128,
+
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Available balance must be a finite, non-negative Decimal128 value.',
         },
+      },
 
-        /**
-         * ====================================================================
-         * ACCOUNT IDENTIFICATION
-         * ====================================================================
-         */
+      blockedBalance: {
+        type:
+          Schema.Types.Decimal128,
 
-        accountNumber: {
-            type: String,
-            required: [true, 'Account number is required'],
-            trim: true,
-            uppercase: true,
-            minlength: 3,
-            maxlength: 100
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Blocked balance must be a finite, non-negative Decimal128 value.',
         },
+      },
 
-        accountName: {
-            type: String,
-            required: [true, 'Account name is required'],
-            trim: true,
-            minlength: 2,
-            maxlength: 200
+      accruedInterest: {
+        type:
+          Schema.Types.Decimal128,
+
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Accrued interest must be a finite, non-negative Decimal128 value.',
         },
+      },
 
-        /**
-         * Optional external/core-banking reference.
-         */
-        externalReference: {
-            type: String,
-            trim: true,
-            maxlength: 200,
-            default: null
+      totalCredits: {
+        type:
+          Schema.Types.Decimal128,
+
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Total credits must be a finite, non-negative Decimal128 value.',
         },
+      },
 
-        /**
-         * ====================================================================
-         * ACCOUNT CLASSIFICATION
-         * ====================================================================
-         */
+      totalDebits: {
+        type:
+          Schema.Types.Decimal128,
 
-        accountType: {
-            type: String,
-            enum: ACCOUNT_TYPES,
-            required: [true, 'Account type is required'],
-            index: true
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Total debits must be a finite, non-negative Decimal128 value.',
         },
+      },
 
-        accountCategory: {
-            type: String,
-            enum: ACCOUNT_CATEGORIES,
-            required: [true, 'Account category is required'],
-            index: true
+      transactionCount: {
+        type: Number,
+
+        required: true,
+
+        default: 0,
+
+        min: 0,
+
+        validate: {
+          validator(value) {
+            return (
+              Number.isSafeInteger(
+                value,
+              ) &&
+              value >= 0
+            );
+          },
+
+          message:
+            'transactionCount must be a non-negative safe integer.',
         },
+      },
 
-        /**
-         * ====================================================================
-         * CURRENCY
-         * ====================================================================
-         */
+      /*
+       * ----------------------------------------------------------------------
+       * LOAN ACCOUNT STATE
+       * ----------------------------------------------------------------------
+       */
+      outstandingPrincipal: {
+        type:
+          Schema.Types.Decimal128,
 
-        currency: {
-            type: String,
-            default: 'UGX',
-            uppercase: true,
-            trim: true,
-            minlength: 3,
-            maxlength: 3,
-            match: [
-                /^[A-Z]{3}$/,
-                'Currency must be a valid ISO 4217 code'
-            ]
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Outstanding principal must be a valid non-negative Decimal128 value.',
         },
+      },
 
-        /**
-         * ====================================================================
-         * BALANCES
-         * ====================================================================
-         *
-         * Decimal128 is mandatory for persisted financial amounts.
-         */
+      outstandingInterest: {
+        type:
+          Schema.Types.Decimal128,
 
-        balance: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Outstanding interest must be a valid non-negative Decimal128 value.',
         },
+      },
 
-        availableBalance: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
+      penaltyBalance: {
+        type:
+          Schema.Types.Decimal128,
+
+        required: true,
+
+        default:
+          decimal128Zero,
+
+        validate: {
+          validator:
+            validateNonNegativeDecimal128,
+
+          message:
+            'Penalty balance must be a valid non-negative Decimal128 value.',
         },
+      },
 
-        blockedBalance: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
+      /*
+       * ----------------------------------------------------------------------
+       * INTEREST
+       * ----------------------------------------------------------------------
+       */
+      interestRate: {
+        type: Number,
+
+        default: 0,
+
+        min: 0,
+
+        max: 100,
+
+        validate: {
+          validator(value) {
+            return Number.isFinite(
+              value,
+            );
+          },
+
+          message:
+            'Interest rate must be finite.',
         },
+      },
 
-        accruedInterest: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
+      interestRateType: {
+        type: String,
+
+        enum:
+          INTEREST_RATE_TYPES,
+
+        default: 'NONE',
+
+        uppercase: true,
+      },
+
+      interestAccrualFrequency: {
+        type: String,
+
+        enum:
+          INTEREST_ACCRUAL_FREQUENCIES,
+
+        default: 'NONE',
+
+        uppercase: true,
+      },
+
+      interestLastCalculatedAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * FIXED DEPOSIT
+       * ----------------------------------------------------------------------
+       */
+      maturityDate: {
+        type: Date,
+
+        default: null,
+
+        index: true,
+      },
+
+      openedAt: {
+        type: Date,
+
+        required: true,
+
+        default: Date.now,
+
+        immutable: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * MOBILE MONEY
+       * ----------------------------------------------------------------------
+       */
+      momoEnabled: {
+        type: Boolean,
+
+        default: false,
+      },
+
+      momoProvider: {
+        type: String,
+
+        enum:
+          MOMO_PROVIDERS,
+
+        default: null,
+
+        uppercase: true,
+      },
+
+      momoAccountNumber: {
+        type: String,
+
+        trim: true,
+
+        maxlength: 30,
+
+        default: null,
+      },
+
+      momoVerified: {
+        type: Boolean,
+
+        default: false,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * RECONCILIATION
+       * ----------------------------------------------------------------------
+       */
+      reconciled: {
+        type: Boolean,
+
+        default: false,
+
+        index: true,
+      },
+
+      reconciledAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      reconciliationReference: {
+        type: String,
+
+        trim: true,
+
+        maxlength: 200,
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * ACCOUNTING POSTING
+       * ----------------------------------------------------------------------
+       */
+      accountingPosted: {
+        type: Boolean,
+
+        default: false,
+
+        index: true,
+      },
+
+      accountingPostedAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      ledgerAccountCode: {
+        type: String,
+
+        trim: true,
+
+        uppercase: true,
+
+        maxlength: 100,
+
+        default: null,
+      },
+
+      ledgerReference: {
+        type: String,
+
+        trim: true,
+
+        maxlength: 200,
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * COMPLIANCE
+       * ----------------------------------------------------------------------
+       */
+      kycVerified: {
+        type: Boolean,
+
+        default: false,
+
+        index: true,
+      },
+
+      amlChecked: {
+        type: Boolean,
+
+        default: false,
+
+        index: true,
+      },
+
+      sanctionsScreened: {
+        type: Boolean,
+
+        default: false,
+
+        index: true,
+      },
+
+      complianceReviewedAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      complianceReference: {
+        type: String,
+
+        trim: true,
+
+        maxlength: 200,
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * RISK
+       * ----------------------------------------------------------------------
+       */
+      riskScore: {
+        type: Number,
+
+        default: 0,
+
+        min: 0,
+
+        max: 100,
+
+        validate: {
+          validator(value) {
+            return Number.isFinite(
+              value,
+            );
+          },
+
+          message:
+            'Risk score must be finite.',
         },
+      },
 
-        /**
-         * Running total of credits posted to the account.
-         */
-        totalCredits: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
+      riskFlagged: {
+        type: Boolean,
+
+        default: false,
+
+        index: true,
+      },
+
+      riskReason: {
+        type: String,
+
+        trim: true,
+
+        maxlength: 500,
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * STATUS / LIFECYCLE
+       * ----------------------------------------------------------------------
+       */
+      status: {
+        type: String,
+
+        enum:
+          ACCOUNT_STATUSES,
+
+        default: 'PENDING',
+
+        required: true,
+
+        uppercase: true,
+
+        index: true,
+      },
+
+      statusReason: {
+        type: String,
+
+        trim: true,
+
+        maxlength: 500,
+
+        default: null,
+      },
+
+      statusChangedAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      blockedAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      blockedBy: {
+        type: Schema.Types.ObjectId,
+
+        ref: 'User',
+
+        default: null,
+      },
+
+      closedAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      closedBy: {
+        type: Schema.Types.ObjectId,
+
+        ref: 'User',
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * TRANSACTION ACTIVITY
+       * ----------------------------------------------------------------------
+       */
+      lastTransactionAt: {
+        type: Date,
+
+        default: null,
+
+        index: true,
+      },
+
+      lastCreditAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      lastDebitAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      lastTransactionId: {
+        type: String,
+
+        trim: true,
+
+        maxlength:
+          TRANSACTION_ID_MAX_LENGTH,
+
+        default: null,
+
+        validate: {
+          validator:
+            validateOptionalIdentifier,
+
+          message:
+            'Invalid last transaction identifier.',
         },
+      },
 
-        /**
-         * Running total of debits posted to the account.
-         */
-        totalDebits: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
+      lastBalanceMutationAt: {
+        type: Date,
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * AUDIT ATTRIBUTION
+       * ----------------------------------------------------------------------
+       */
+      createdBy: {
+        type: Schema.Types.ObjectId,
+
+        ref: 'User',
+
+        default: null,
+
+        immutable: true,
+      },
+
+      updatedBy: {
+        type: Schema.Types.ObjectId,
+
+        ref: 'User',
+
+        default: null,
+      },
+
+      auditReference: {
+        type: String,
+
+        trim: true,
+
+        maxlength: 200,
+
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * WORKFLOW / CONCURRENCY
+       * ----------------------------------------------------------------------
+       */
+      workflowVersion: {
+        type: Number,
+
+        default: 1,
+
+        min: 1,
+
+        validate: {
+          validator(value) {
+            return (
+              Number.isSafeInteger(
+                value,
+              ) &&
+              value >= 1
+            );
+          },
+
+          message:
+            'workflowVersion must be a positive safe integer.',
         },
+      },
 
-        /**
-         * Number of successfully posted financial transactions.
-         */
-        transactionCount: {
-            type: Number,
-            default: 0,
-            min: 0
+      revision: {
+        type: Number,
+
+        default: 0,
+
+        min: 0,
+
+        validate: {
+          validator(value) {
+            return (
+              Number.isSafeInteger(
+                value,
+              ) &&
+              value >= 0
+            );
+          },
+
+          message:
+            'revision must be a non-negative safe integer.',
         },
+      },
 
-        /**
-         * ====================================================================
-         * LOAN ACCOUNT DATA
-         * ====================================================================
-         */
+      /*
+       * Explicit financial mutation sequence.
+       */
+      balanceRevision: {
+        type: Number,
 
-        outstandingPrincipal: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
+        default: 0,
+
+        min: 0,
+
+        validate: {
+          validator(value) {
+            return (
+              Number.isSafeInteger(
+                value,
+              ) &&
+              value >= 0
+            );
+          },
+
+          message:
+            'balanceRevision must be a non-negative safe integer.',
         },
+      },
 
-        outstandingInterest: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
-        },
+      /*
+       * ----------------------------------------------------------------------
+       * SOFT DELETE / ARCHIVAL
+       * ----------------------------------------------------------------------
+       */
+      isDeleted: {
+        type: Boolean,
 
-        penaltyBalance: {
-            type: Schema.Types.Decimal128,
-            default: DECIMAL_ZERO,
-            min: 0
-        },
+        default: false,
 
-        /**
-         * ====================================================================
-         * INTEREST
-         * ====================================================================
-         */
+        index: true,
+      },
 
-        interestRate: {
-            type: Number,
-            default: 0,
-            min: 0,
-            max: 100
-        },
+      deletedAt: {
+        type: Date,
 
-        interestRateType: {
-            type: String,
-            enum: [
-                'NONE',
-                'FLAT',
-                'REDUCING_BALANCE',
-                'COMPOUND',
-                'TIERED'
-            ],
-            default: 'NONE'
-        },
+        default: null,
+      },
 
-        interestAccrualFrequency: {
-            type: String,
-            enum: [
-                'NONE',
-                'DAILY',
-                'WEEKLY',
-                'MONTHLY',
-                'QUARTERLY',
-                'ANNUALLY'
-            ],
-            default: 'NONE'
-        },
+      deletedBy: {
+        type: Schema.Types.ObjectId,
 
-        interestLastCalculatedAt: {
-            type: Date,
-            default: null
-        },
+        ref: 'User',
 
-        /**
-         * ====================================================================
-         * FIXED DEPOSIT
-         * ====================================================================
-         */
+        default: null,
+      },
 
-        maturityDate: {
-            type: Date,
-            default: null,
-            index: true
-        },
+      /*
+       * ----------------------------------------------------------------------
+       * NON-FINANCIAL METADATA
+       * ----------------------------------------------------------------------
+       */
+      metadata: {
+        type: Schema.Types.Mixed,
 
-        openedAt: {
-            type: Date,
-            default: Date.now,
-            immutable: true
-        },
+        default: undefined,
 
-        /**
-         * ====================================================================
-         * MOBILE MONEY
-         * ====================================================================
-         */
+        validate: {
+          validator(value) {
+            try {
+              validateMetadata(
+                value,
+              );
 
-        momoEnabled: {
-            type: Boolean,
-            default: false
-        },
-
-        momoProvider: {
-            type: String,
-            enum: MOMO_PROVIDERS,
-            default: null
-        },
-
-        momoAccountNumber: {
-            type: String,
-            trim: true,
-            maxlength: 30,
-            default: null
-        },
-
-        momoVerified: {
-            type: Boolean,
-            default: false
-        },
-
-        /**
-         * ====================================================================
-         * RECONCILIATION
-         * ====================================================================
-         */
-
-        reconciled: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        reconciledAt: {
-            type: Date,
-            default: null
-        },
-
-        reconciliationReference: {
-            type: String,
-            trim: true,
-            maxlength: 200,
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * ACCOUNTING
-         * ====================================================================
-         */
-
-        accountingPosted: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        accountingPostedAt: {
-            type: Date,
-            default: null
-        },
-
-        ledgerAccountCode: {
-            type: String,
-            trim: true,
-            uppercase: true,
-            maxlength: 100,
-            default: null
-        },
-
-        ledgerReference: {
-            type: String,
-            trim: true,
-            maxlength: 200,
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * COMPLIANCE
-         * ====================================================================
-         */
-
-        kycVerified: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        amlChecked: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        sanctionsScreened: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        complianceReviewedAt: {
-            type: Date,
-            default: null
-        },
-
-        complianceReference: {
-            type: String,
-            trim: true,
-            maxlength: 200,
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * RISK
-         * ====================================================================
-         */
-
-        riskScore: {
-            type: Number,
-            default: 0,
-            min: 0,
-            max: 100
-        },
-
-        riskFlagged: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        riskReason: {
-            type: String,
-            trim: true,
-            maxlength: 500,
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * STATUS / LIFECYCLE
-         * ====================================================================
-         */
-
-        status: {
-            type: String,
-            enum: ACCOUNT_STATUSES,
-            default: 'ACTIVE',
-            index: true
-        },
-
-        statusReason: {
-            type: String,
-            trim: true,
-            maxlength: 500,
-            default: null
-        },
-
-        blockedAt: {
-            type: Date,
-            default: null
-        },
-
-        blockedBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null
-        },
-
-        closedAt: {
-            type: Date,
-            default: null
-        },
-
-        closedBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * TRANSACTION ACTIVITY
-         * ====================================================================
-         */
-
-        lastTransactionAt: {
-            type: Date,
-            default: null,
-            index: true
-        },
-
-        lastCreditAt: {
-            type: Date,
-            default: null
-        },
-
-        lastDebitAt: {
-            type: Date,
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * AUDIT
-         * ====================================================================
-         */
-
-        createdBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null
-        },
-
-        updatedBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null
-        },
-
-        auditReference: {
-            type: String,
-            trim: true,
-            maxlength: 200,
-            default: null
-        },
-
-        /**
-         * Application workflow version.
-         *
-         * Useful when financial workflows evolve without rewriting historical
-         * account records.
-         */
-        workflowVersion: {
-            type: Number,
-            default: 1,
-            min: 1
-        },
-
-        /**
-         * Optimistic concurrency version.
-         */
-        revision: {
-            type: Number,
-            default: 0,
-            min: 0
-        },
-
-        /**
-         * ====================================================================
-         * SOFT DELETE / ARCHIVAL
-         * ====================================================================
-         */
-
-        isDeleted: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        deletedAt: {
-            type: Date,
-            default: null
-        },
-
-        deletedBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * METADATA
-         * ====================================================================
-         *
-         * Integration metadata should never be used for authoritative
-         * accounting balances.
-         */
-
-        metadata: {
-            type: Schema.Types.Mixed,
-            default: {}
-        }
-    },
-    {
-        timestamps: true,
-
-        /**
-         * Disable Mongoose __v because revision is explicitly maintained.
-         */
-        versionKey: false,
-
-        optimisticConcurrency: true,
-
-        toJSON: {
-            virtuals: true,
-            getters: true,
-            transform(doc, ret) {
-                ret.id = ret._id
-                    ? ret._id.toString()
-                    : undefined;
-
-                delete ret._id;
-
-                return ret;
+              return true;
+            } catch {
+              return false;
             }
+          },
+
+          message:
+            'Invalid account metadata.',
         },
+      },
+    },
 
-        toObject: {
-            virtuals: true,
-            getters: true
-        }
-    }
-);
+    {
+      timestamps: true,
 
-/**
- * ============================================================================
- * DECIMAL GETTERS
- * ============================================================================
- *
- * Getters make API responses convenient while MongoDB continues to persist
- * Decimal128 values.
- */
+      strict: true,
 
-AccountSchema.path('balance').get(decimalToNumber);
-AccountSchema.path('availableBalance').get(decimalToNumber);
-AccountSchema.path('blockedBalance').get(decimalToNumber);
-AccountSchema.path('accruedInterest').get(decimalToNumber);
-AccountSchema.path('totalCredits').get(decimalToNumber);
-AccountSchema.path('totalDebits').get(decimalToNumber);
-AccountSchema.path('outstandingPrincipal').get(decimalToNumber);
-AccountSchema.path('outstandingInterest').get(decimalToNumber);
-AccountSchema.path('penaltyBalance').get(decimalToNumber);
+      strictQuery: true,
 
-/**
- * ============================================================================
- * VIRTUALS
- * ============================================================================
- */
+      /*
+       * Retain __v because optimisticConcurrency is enabled.
+       *
+       * revision and balanceRevision remain explicit application-level
+       * sequencing values.
+       */
+      versionKey: '__v',
 
-/**
- * Account is operationally active.
- */
-AccountSchema.virtual('isActive')
-    .get(function () {
-        return (
-            this.status === 'ACTIVE' &&
-            !this.isDeleted
-        );
-    });
+      optimisticConcurrency: true,
 
-/**
- * Account is dormant.
- */
-AccountSchema.virtual('isDormant')
-    .get(function () {
-        return this.status === 'DORMANT';
-    });
+      collection: 'accounts',
 
-/**
- * Account is blocked.
- */
-AccountSchema.virtual('isBlocked')
-    .get(function () {
-        return this.status === 'BLOCKED';
-    });
+      minimize: false,
 
-/**
- * Account is closed.
- */
-AccountSchema.virtual('isClosed')
-    .get(function () {
-        return this.status === 'CLOSED';
-    });
+      toJSON: {
+        virtuals: true,
 
-/**
- * Total loan exposure.
- */
-AccountSchema.virtual('totalExposure')
-    .get(function () {
-        return (
-            decimalToNumber(this.outstandingPrincipal) +
-            decimalToNumber(this.outstandingInterest) +
-            decimalToNumber(this.penaltyBalance)
-        );
-    });
+        getters: false,
 
-/**
- * Total funds that are not currently blocked.
- */
-AccountSchema.virtual('calculatedAvailableBalance')
-    .get(function () {
-        const balance =
-            decimalToNumber(this.balance);
+        transform(
+          _doc,
+          ret,
+        ) {
+          if (
+            ret._id !==
+            undefined
+          ) {
+            ret.id =
+              String(
+                ret._id,
+              );
 
-        const blocked =
-            decimalToNumber(this.blockedBalance);
+            delete ret._id;
+          }
 
-        return Math.max(
-            0,
-            balance - blocked
-        );
-    });
+          delete ret.__v;
 
-/**
- * ============================================================================
- * VALIDATION
- * ============================================================================
- */
-
-/**
- * Account ownership validation.
- *
- * Customer-owned accounts should normally have a member or user.
- * GL / settlement accounts may legitimately have neither.
- */
-AccountSchema.pre('validate', function (next) {
-    const customerAccountTypes = [
-        'SAVINGS',
-        'SHARES',
-        'FIXED_DEPOSIT',
-        'LOAN',
-        'WALLET'
-    ];
-
-    if (
-        customerAccountTypes.includes(this.accountType) &&
-        !this.member &&
-        !this.user
-    ) {
-        return next(
-            new Error(
-                'Customer financial accounts must belong to a member or user'
-            )
-        );
-    }
-
-    if (
-        this.momoEnabled &&
-        !this.momoProvider
-    ) {
-        return next(
-            new Error(
-                'MoMo provider is required when mobile money is enabled'
-            )
-        );
-    }
-
-    if (
-        this.status === 'CLOSED' &&
-        !this.closedAt
-    ) {
-        this.closedAt = new Date();
-    }
-
-    if (
-        this.status !== 'CLOSED' &&
-        this.closedAt
-    ) {
-        this.closedAt = null;
-    }
-
-    next();
-});
-
-/**
- * ============================================================================
- * PRE-SAVE FINANCIAL SAFETY
- * ============================================================================
- */
-
-AccountSchema.pre('save', function (next) {
-    try {
-        /**
-         * Normalize monetary fields.
-         */
-        const monetaryFields = [
+          const monetaryFields = [
             'balance',
             'availableBalance',
             'blockedBalance',
@@ -939,719 +1748,2240 @@ AccountSchema.pre('save', function (next) {
             'totalDebits',
             'outstandingPrincipal',
             'outstandingInterest',
-            'penaltyBalance'
-        ];
+            'penaltyBalance',
+            'calculatedAvailableBalance',
+            'totalExposure',
+          ];
 
-        for (const field of monetaryFields) {
+          for (
+            const field of monetaryFields
+          ) {
             if (
-                this[field] !== undefined &&
-                this[field] !== null
+              ret[field] !==
+              undefined
             ) {
-                this[field] = toDecimal(
-                    this[field]
+              ret[field] =
+                decimalToString(
+                  ret[field],
                 );
             }
-        }
+          }
 
-        /**
-         * Account invariants.
-         */
-        const balance =
-            decimalToNumber(this.balance);
+          return ret;
+        },
+      },
 
-        const available =
-            decimalToNumber(
-                this.availableBalance
-            );
+      toObject: {
+        virtuals: true,
 
-        const blocked =
-            decimalToNumber(
-                this.blockedBalance
-            );
+        getters: false,
 
-        if (balance < 0) {
-            return next(
-                new Error(
-                    'Account balance cannot be negative'
-                )
-            );
-        }
-
-        if (blocked < 0) {
-            return next(
-                new Error(
-                    'Blocked balance cannot be negative'
-                )
-            );
-        }
-
-        if (blocked > balance) {
-            return next(
-                new Error(
-                    'Blocked balance cannot exceed account balance'
-                )
-            );
-        }
-
-        if (available < 0) {
-            return next(
-                new Error(
-                    'Available balance cannot be negative'
-                )
-            );
-        }
-
-        if (available > balance) {
-            this.availableBalance =
-                this.balance;
-        }
-
-        /**
-         * A deleted account should not remain operational.
-         */
-        if (
-            this.isDeleted &&
-            this.status !== 'CLOSED'
+        transform(
+          _doc,
+          ret,
         ) {
-            this.status = 'CLOSED';
-        }
+          if (
+            ret._id !==
+            undefined
+          ) {
+            ret.id =
+              String(
+                ret._id,
+              );
 
-        /**
-         * Revision increments whenever the document is persisted.
+            delete ret._id;
+          }
+
+          delete ret.__v;
+
+          return ret;
+        },
+      },
+    },
+  );
+
+/*
+ * ============================================================================
+ * FINANCIAL INVARIANTS
+ * ============================================================================
+ */
+
+AccountSchema.pre(
+  'validate',
+  function validateAccountInvariants(
+    next,
+  ) {
+    try {
+      /*
+       * Customer financial accounts should normally identify their member
+       * or user. GL/settlement accounts may legitimately have neither.
+       */
+      const customerAccountTypes =
+        [
+          'SAVINGS',
+          'SHARES',
+          'FIXED_DEPOSIT',
+          'LOAN',
+          'WALLET',
+        ];
+
+      if (
+        customerAccountTypes.includes(
+          this.accountType,
+        ) &&
+        !this.member &&
+        !this.user
+      ) {
+        this.invalidate(
+          'member',
+          'Customer financial accounts must belong to a member or user.',
+        );
+      }
+
+      /*
+       * MoMo configuration must be internally coherent.
+       */
+      if (
+        this.momoEnabled &&
+        !this.momoProvider
+      ) {
+        this.invalidate(
+          'momoProvider',
+          'MoMo provider is required when mobile money is enabled.',
+        );
+      }
+
+      if (
+        !this.momoEnabled &&
+        this.momoVerified
+      ) {
+        this.invalidate(
+          'momoVerified',
+          'A disabled MoMo account cannot remain verified.',
+        );
+      }
+
+      /*
+       * Fixed deposits should carry maturity information.
+       */
+      if (
+        this.accountType ===
+          'FIXED_DEPOSIT' &&
+        !this.maturityDate
+      ) {
+        this.invalidate(
+          'maturityDate',
+          'Fixed-deposit accounts require maturityDate.',
+        );
+      }
+
+      /*
+       * Loan account classification requires the loan exposure fields to
+       * remain valid even when they are zero.
+       */
+      if (
+        this.accountType !==
+          'LOAN'
+      ) {
+        /*
+         * No automatic clearing is performed because historical data may use
+         * these values for reporting compatibility.
          */
-        if (!this.isNew) {
-            this.revision =
-                Number(this.revision || 0) + 1;
-        }
+      }
 
-        next();
-    } catch (error) {
-        next(error);
+      /*
+       * Lifecycle coherence.
+       */
+      if (
+        this.status ===
+        'CLOSED'
+      ) {
+        this.isDeleted = false;
+
+        if (
+          !this.closedAt
+        ) {
+          this.closedAt =
+            new Date();
+        }
+      }
+
+      if (
+        this.status ===
+        'BLOCKED'
+      ) {
+        if (
+          !this.blockedAt
+        ) {
+          this.blockedAt =
+            new Date();
+        }
+      }
+
+      /*
+       * Non-deleted accounts cannot carry deletion timestamps.
+       */
+      if (
+        !this.isDeleted &&
+        this.deletedAt
+      ) {
+        this.invalidate(
+          'deletedAt',
+          'deletedAt must be null for non-deleted accounts.',
+        );
+      }
+
+      /*
+       * Deleted accounts are operationally closed.
+       */
+      if (
+        this.isDeleted &&
+        this.status !==
+          'CLOSED'
+      ) {
+        this.status =
+          'CLOSED';
+
+        if (
+          !this.closedAt
+        ) {
+          this.closedAt =
+            new Date();
+        }
+      }
+
+      /*
+       * Monetary invariants.
+       */
+      const monetaryFields = [
+        'balance',
+        'availableBalance',
+        'blockedBalance',
+        'accruedInterest',
+        'totalCredits',
+        'totalDebits',
+        'outstandingPrincipal',
+        'outstandingInterest',
+        'penaltyBalance',
+      ];
+
+      for (
+        const field of monetaryFields
+      ) {
+        const value =
+          this[field];
+
+        if (
+          value !== null &&
+          value !== undefined &&
+          !validateNonNegativeDecimal128(
+            value,
+          )
+        ) {
+          this.invalidate(
+            field,
+            `${field} must be a finite, non-negative Decimal128 value.`,
+          );
+        }
+      }
+
+      /*
+       * blockedBalance <= balance
+       */
+      if (
+        this.balance &&
+        this.blockedBalance
+      ) {
+        if (
+          compareDecimals(
+            this.blockedBalance.toString(),
+            this.balance.toString(),
+          ) > 0
+        ) {
+          this.invalidate(
+            'blockedBalance',
+            'Blocked balance cannot exceed account balance.',
+          );
+        }
+      }
+
+      /*
+       * availableBalance <= balance
+       */
+      if (
+        this.balance &&
+        this.availableBalance
+      ) {
+        if (
+          compareDecimals(
+            this.availableBalance.toString(),
+            this.balance.toString(),
+          ) > 0
+        ) {
+          this.invalidate(
+            'availableBalance',
+            'Available balance cannot exceed account balance.',
+          );
+        }
+      }
+
+      /*
+       * availableBalance should equal balance - blockedBalance.
+       *
+       * This catches stale materialized balance state during normal document
+       * validation. Atomic repository mutations remain responsible for
+       * preserving the same invariant under concurrency.
+       */
+      if (
+        this.balance &&
+        this.blockedBalance &&
+        this.availableBalance
+      ) {
+        const expected =
+          subtractDecimals(
+            this.balance,
+            this.blockedBalance,
+          );
+
+        if (
+          expected.toString() !==
+          this.availableBalance.toString()
+        ) {
+          this.invalidate(
+            'availableBalance',
+            'Available balance must equal balance minus blockedBalance.',
+          );
+        }
+      }
+
+      if (
+        this.interestRateType ===
+          'NONE' &&
+        this.interestRate !==
+          0
+      ) {
+        this.invalidate(
+          'interestRate',
+          'Interest rate must be zero when interestRateType is NONE.',
+        );
+      }
+
+      if (
+        this.statusChangedAt ===
+          null &&
+        this.isModified(
+          'status',
+        )
+      ) {
+        this.statusChangedAt =
+          new Date();
+      }
+
+      next();
+    } catch (
+      error
+    ) {
+      next(error);
     }
-});
+  },
+);
+
+/*
+ * ============================================================================
+ * QUERY MUTATION BOUNDARY
+ * ============================================================================
+ *
+ * Account financial mutations must pass through a controlled repository or
+ * financial service.
+ *
+ * Internal financial repository operations can explicitly set:
+ *
+ *   allowFinancialMutation: true
+ *
+ * This does not perform authorization.
+ * ============================================================================
+ */
+
+const FINANCIAL_MUTATION_FIELDS =
+  Object.freeze([
+    'balance',
+    'availableBalance',
+    'blockedBalance',
+    'accruedInterest',
+    'totalCredits',
+    'totalDebits',
+    'transactionCount',
+    'outstandingPrincipal',
+    'outstandingInterest',
+    'penaltyBalance',
+    'balanceRevision',
+    'lastTransactionAt',
+    'lastCreditAt',
+    'lastDebitAt',
+    'lastTransactionId',
+    'lastBalanceMutationAt',
+  ]);
+
+const IDENTITY_FIELDS =
+  Object.freeze([
+    '_id',
+    'tenantId',
+    'accountNumber',
+    'accountType',
+    'currency',
+    'openedAt',
+  ]);
+
+function updateTouchesField(
+  update,
+  field,
+) {
+  if (
+    !update ||
+    typeof update !==
+      'object' ||
+    Array.isArray(update)
+  ) {
+    return false;
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      update,
+      field,
+    )
+  ) {
+    return true;
+  }
+
+  for (
+    const operator of [
+      '$set',
+      '$setOnInsert',
+      '$inc',
+      '$mul',
+      '$unset',
+      '$min',
+      '$max',
+      '$currentDate',
+      '$rename',
+    ]
+  ) {
+    const payload =
+      update[
+        operator
+      ];
+
+    if (
+      !payload ||
+      typeof payload !==
+        'object' ||
+      Array.isArray(payload)
+    ) {
+      continue;
+    }
+
+    for (
+      const key of Object.keys(
+        payload,
+      )
+    ) {
+      if (
+        key === field ||
+        key.startsWith(
+          `${field}.`,
+        ) ||
+        (operator ===
+          '$rename' &&
+          payload[key] ===
+            field)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function updateTouchesAnyField(
+  update,
+  fields,
+) {
+  return fields.some(
+    (field) =>
+      updateTouchesField(
+        update,
+        field,
+      ),
+  );
+}
+
+function rejectAccountMutation(
+  next,
+) {
+  const options =
+    typeof this.getOptions ===
+    'function'
+      ? this.getOptions() ||
+        {}
+      : this.options || {};
+
+  if (
+    options.allowFinancialMutation ===
+    true
+  ) {
+    return next();
+  }
+
+  const update =
+    typeof this.getUpdate ===
+    'function'
+      ? this.getUpdate()
+      : {};
+
+  if (
+    Array.isArray(
+      update,
+    )
+  ) {
+    return next(
+      new Error(
+        'Account update pipelines are disabled.',
+      ),
+    );
+  }
+
+  if (
+    updateTouchesAnyField(
+      update,
+      FINANCIAL_MUTATION_FIELDS,
+    )
+  ) {
+    return next(
+      new Error(
+        'Direct financial account mutation is prohibited. Use BalanceRepository/FinancialTransactionService.',
+      ),
+    );
+  }
+
+  if (
+    updateTouchesAnyField(
+      update,
+      IDENTITY_FIELDS,
+    )
+  ) {
+    return next(
+      new Error(
+        'Account identity and core financial classification fields are immutable.',
+      ),
+    );
+  }
+
+  /*
+   * All ordinary query mutation paths remain blocked so lifecycle,
+   * compliance, accounting, reconciliation and audit invariants cannot be
+   * bypassed accidentally.
+   */
+  return next(
+    new Error(
+      `Direct ${this.op} mutation on Account is disabled; use a controlled Account/financial-service operation.`,
+    ),
+  );
+}
+
+for (
+  const operation of [
+    'updateOne',
+    'updateMany',
+    'findOneAndUpdate',
+  ]
+) {
+  AccountSchema.pre(
+    operation,
+    rejectAccountMutation,
+  );
+}
+
+for (
+  const operation of [
+    'replaceOne',
+    'findOneAndReplace',
+  ]
+) {
+  AccountSchema.pre(
+    operation,
+    function rejectReplacement(
+      next,
+    ) {
+      next(
+        new Error(
+          'Account replacement is disabled. Use controlled repository operations.',
+        ),
+      );
+    },
+  );
+}
+
+AccountSchema.pre(
+  'bulkWrite',
+  function rejectBulkWrite(
+    next,
+  ) {
+    next(
+      new Error(
+        'Account.bulkWrite() is disabled. Use controlled financial/repository operations.',
+      ),
+    );
+  },
+);
+
+/*
+ * ============================================================================
+ * HARD DELETE PROTECTION
+ * ============================================================================
+ */
+
+for (
+  const operation of [
+    'deleteOne',
+    'deleteMany',
+    'findOneAndDelete',
+    'findOneAndRemove',
+  ]
+) {
+  AccountSchema.pre(
+    operation,
+    function rejectDelete(
+      next,
+    ) {
+      next(
+        new Error(
+          'Financial accounts cannot be hard-deleted through normal application workflows. Close/archive the account instead.',
+        ),
+      );
+    },
+  );
+}
+
+AccountSchema.pre(
+  'deleteOne',
+  {
+    document: true,
+    query: false,
+  },
+  function rejectDocumentDelete(
+    next,
+  ) {
+    next(
+      new Error(
+        'Financial accounts cannot be hard-deleted through normal application workflows.',
+      ),
+    );
+  },
+);
+
+/*
+ * ============================================================================
+ * VIRTUALS
+ * ============================================================================
+ */
 
 /**
+ * Exact available balance:
+ *
+ *   balance - blockedBalance
+ *
+ * Returned as Decimal128.
+ */
+AccountSchema.virtual(
+  'calculatedAvailableBalance',
+).get(
+  function calculatedAvailableBalance() {
+    try {
+      if (
+        !this.balance ||
+        !this.blockedBalance
+      ) {
+        return decimal128Zero();
+      }
+
+      if (
+        compareDecimals(
+          this.blockedBalance.toString(),
+          this.balance.toString(),
+        ) > 0
+      ) {
+        return null;
+      }
+
+      return subtractDecimals(
+        this.balance,
+        this.blockedBalance,
+      );
+    } catch {
+      return null;
+    }
+  },
+);
+
+/**
+ * Total loan exposure:
+ *
+ * principal + interest + penalties
+ */
+AccountSchema.virtual(
+  'totalExposure',
+).get(
+  function totalExposure() {
+    try {
+      const principal =
+        this.outstandingPrincipal ??
+        decimal128Zero();
+
+      const interest =
+        this.outstandingInterest ??
+        decimal128Zero();
+
+      const penalties =
+        this.penaltyBalance ??
+        decimal128Zero();
+
+      const principalPlusInterest =
+        addDecimals(
+          principal,
+          interest,
+        );
+
+      return addDecimals(
+        principalPlusInterest,
+        penalties,
+      );
+    } catch {
+      return null;
+    }
+  },
+);
+
+/*
+ * ============================================================================
+ * EXACT DECIMAL ADDITION HELPER
+ * ============================================================================
+ */
+
+function addDecimals(
+  left,
+  right,
+) {
+  const a =
+    parseDecimal(
+      left.toString(),
+    );
+
+  const b =
+    parseDecimal(
+      right.toString(),
+    );
+
+  if (
+    a.sign < 0 ||
+    b.sign < 0
+  ) {
+    throw new Error(
+      'addDecimals only accepts non-negative values.',
+    );
+  }
+
+  const scale =
+    Math.max(
+      a.scale,
+      b.scale,
+    );
+
+  const leftCoefficient =
+    a.coefficient *
+    10n **
+      BigInt(
+        scale - a.scale,
+      );
+
+  const rightCoefficient =
+    b.coefficient *
+    10n **
+      BigInt(
+        scale - b.scale,
+      );
+
+  const total =
+    leftCoefficient +
+    rightCoefficient;
+
+  let digits =
+    total.toString();
+
+  if (
+    scale === 0
+  ) {
+    return mongoose.Types.Decimal128.fromString(
+      digits,
+    );
+  }
+
+  digits =
+    digits.padStart(
+      scale + 1,
+      '0',
+    );
+
+  const splitIndex =
+    digits.length - scale;
+
+  const integerPart =
+    digits.slice(
+      0,
+      splitIndex,
+    );
+
+  const fractionalPart =
+    digits
+      .slice(
+        splitIndex,
+      )
+      .replace(
+        /0+$/,
+        '',
+      );
+
+  return mongoose.Types.Decimal128.fromString(
+    fractionalPart
+      ? `${integerPart}.${fractionalPart}`
+      : integerPart,
+  );
+}
+
+/*
+ * ============================================================================
+ * INSTANCE METHODS — STATE
+ * ============================================================================
+ */
+
+AccountSchema.methods.isActive =
+  function isActive() {
+    return (
+      this.status ===
+        'ACTIVE' &&
+      !this.isDeleted
+    );
+  };
+
+AccountSchema.methods.isDormant =
+  function isDormant() {
+    return (
+      this.status ===
+      'DORMANT'
+    );
+  };
+
+AccountSchema.methods.isBlocked =
+  function isBlocked() {
+    return (
+      this.status ===
+      'BLOCKED'
+    );
+  };
+
+AccountSchema.methods.isClosed =
+  function isClosed() {
+    return (
+      this.status ===
+      'CLOSED'
+    );
+  };
+
+AccountSchema.methods.isOperational =
+  function isOperational() {
+    return (
+      this.status ===
+        'ACTIVE' &&
+      !this.isDeleted
+    );
+  };
+
+AccountSchema.methods.canDeposit =
+  function canDeposit() {
+    return (
+      this.isOperational()
+    );
+  };
+
+AccountSchema.methods.canWithdraw =
+  function canWithdraw() {
+    return (
+      this.isOperational() &&
+      this.calculatedAvailableBalance !==
+        null
+    );
+  };
+
+/*
  * ============================================================================
  * INSTANCE METHODS — LIFECYCLE
  * ============================================================================
  */
 
 AccountSchema.methods.activate =
-    async function (updatedBy = null) {
-        if (this.isDeleted) {
-            throw new Error(
-                'Deleted accounts cannot be activated'
-            );
-        }
+  async function activate(
+    updatedBy = null,
+    options = {},
+  ) {
+    if (
+      this.isDeleted
+    ) {
+      throw new Error(
+        'Deleted accounts cannot be activated.',
+      );
+    }
 
-        if (this.status === 'CLOSED') {
-            throw new Error(
-                'Closed accounts cannot be activated'
-            );
-        }
+    if (
+      this.status ===
+      'CLOSED'
+    ) {
+      throw new Error(
+        'Closed accounts cannot be activated.',
+      );
+    }
 
-        this.status = 'ACTIVE';
-        this.statusReason = null;
-        this.updatedBy = updatedBy;
+    this.status =
+      'ACTIVE';
 
-        return this.save();
-    };
+    this.statusReason =
+      null;
+
+    this.statusChangedAt =
+      new Date();
+
+    this.updatedBy =
+      updatedBy;
+
+    this.revision += 1;
+
+    return this.save({
+      session:
+        options.session,
+    });
+  };
 
 AccountSchema.methods.markDormant =
-    async function (
-        reason = 'Account marked dormant',
-        updatedBy = null
+  async function markDormant(
+    reason =
+      'Account marked dormant',
+    updatedBy = null,
+    options = {},
+  ) {
+    if (
+      this.status ===
+      'CLOSED'
     ) {
-        if (this.status === 'CLOSED') {
-            throw new Error(
-                'Closed accounts cannot be marked dormant'
-            );
-        }
+      throw new Error(
+        'Closed accounts cannot be marked dormant.',
+      );
+    }
 
-        this.status = 'DORMANT';
-        this.statusReason = reason;
-        this.updatedBy = updatedBy;
+    this.status =
+      'DORMANT';
 
-        return this.save();
-    };
+    this.statusReason =
+      String(
+        reason,
+      )
+        .trim()
+        .slice(
+          0,
+          500,
+        );
+
+    this.statusChangedAt =
+      new Date();
+
+    this.updatedBy =
+      updatedBy;
+
+    this.revision += 1;
+
+    return this.save({
+      session:
+        options.session,
+    });
+  };
 
 AccountSchema.methods.block =
-    async function (
-        reason = 'Account blocked',
-        updatedBy = null
+  async function block(
+    reason =
+      'Account blocked',
+    updatedBy = null,
+    options = {},
+  ) {
+    if (
+      this.status ===
+      'CLOSED'
     ) {
-        if (this.status === 'CLOSED') {
-            throw new Error(
-                'Closed accounts cannot be blocked'
-            );
-        }
+      throw new Error(
+        'Closed accounts cannot be blocked.',
+      );
+    }
 
-        this.status = 'BLOCKED';
-        this.statusReason = reason;
-        this.blockedAt = new Date();
-        this.blockedBy = updatedBy;
-        this.updatedBy = updatedBy;
+    this.status =
+      'BLOCKED';
 
-        return this.save();
-    };
+    this.statusReason =
+      String(
+        reason,
+      )
+        .trim()
+        .slice(
+          0,
+          500,
+        );
+
+    this.blockedAt =
+      new Date();
+
+    this.blockedBy =
+      updatedBy;
+
+    this.statusChangedAt =
+      new Date();
+
+    this.updatedBy =
+      updatedBy;
+
+    this.revision += 1;
+
+    return this.save({
+      session:
+        options.session,
+    });
+  };
 
 AccountSchema.methods.close =
-    async function (
-        reason = 'Account closed',
-        updatedBy = null
+  async function close(
+    reason =
+      'Account closed',
+    updatedBy = null,
+    options = {},
+  ) {
+    const balance =
+      this.balance ??
+      decimal128Zero();
+
+    const blocked =
+      this.blockedBalance ??
+      decimal128Zero();
+
+    if (
+      compareDecimals(
+        balance.toString(),
+        '0',
+      ) !== 0
     ) {
-        const balance =
-            decimalToNumber(this.balance);
+      throw new Error(
+        'Account cannot be closed while balance is not zero.',
+      );
+    }
 
-        const blocked =
-            decimalToNumber(
-                this.blockedBalance
-            );
+    if (
+      compareDecimals(
+        blocked.toString(),
+        '0',
+      ) !== 0
+    ) {
+      throw new Error(
+        'Account cannot be closed while funds are blocked.',
+      );
+    }
 
-        if (balance !== 0) {
-            throw new Error(
-                'Account cannot be closed while balance is not zero'
-            );
-        }
+    this.status =
+      'CLOSED';
 
-        if (blocked !== 0) {
-            throw new Error(
-                'Account cannot be closed while funds are blocked'
-            );
-        }
+    this.statusReason =
+      String(
+        reason,
+      )
+        .trim()
+        .slice(
+          0,
+          500,
+        );
 
-        this.status = 'CLOSED';
-        this.statusReason = reason;
-        this.closedAt = new Date();
-        this.closedBy = updatedBy;
-        this.updatedBy = updatedBy;
+    this.closedAt =
+      new Date();
 
-        return this.save();
-    };
+    this.closedBy =
+      updatedBy;
+
+    this.statusChangedAt =
+      new Date();
+
+    this.updatedBy =
+      updatedBy;
+
+    this.revision += 1;
+
+    return this.save({
+      session:
+        options.session,
+    });
+  };
 
 /**
+ * Soft archive/delete.
+ *
+ * The account remains physically present for historical financial reference.
+ */
+AccountSchema.methods.softDelete =
+  async function softDelete(
+    deletedBy = null,
+    reason =
+      'Account archived',
+    options = {},
+  ) {
+    if (
+      this.status ===
+      'CLOSED'
+    ) {
+      return this;
+    }
+
+    this.isDeleted =
+      true;
+
+    this.deletedAt =
+      new Date();
+
+    this.deletedBy =
+      deletedBy;
+
+    this.status =
+      'CLOSED';
+
+    this.statusReason =
+      String(
+        reason,
+      )
+        .trim()
+        .slice(
+          0,
+          500,
+        );
+
+    this.closedAt =
+      this.closedAt ||
+      new Date();
+
+    this.closedBy =
+      this.closedBy ||
+      deletedBy;
+
+    this.statusChangedAt =
+      new Date();
+
+    this.updatedBy =
+      deletedBy;
+
+    this.revision += 1;
+
+    return this.save({
+      session:
+        options.session,
+    });
+  };
+
+/*
  * ============================================================================
- * INSTANCE METHODS — RECONCILIATION
+ * INSTANCE METHODS — RECONCILIATION / ACCOUNTING
  * ============================================================================
  */
 
 AccountSchema.methods.markReconciled =
-    async function (
-        reference = null,
-        updatedBy = null
-    ) {
-        this.reconciled = true;
-        this.reconciledAt = new Date();
-        this.reconciliationReference =
-            reference;
-        this.updatedBy = updatedBy;
+  async function markReconciled(
+    reference = null,
+    updatedBy = null,
+    options = {},
+  ) {
+    this.reconciled =
+      true;
 
-        return this.save();
-    };
+    this.reconciledAt =
+      new Date();
+
+    this.reconciliationReference =
+      reference;
+
+    this.updatedBy =
+      updatedBy;
+
+    this.revision += 1;
+
+    return this.save({
+      session:
+        options.session,
+    });
+  };
 
 AccountSchema.methods.markAccountingPosted =
-    async function (
-        ledgerReference = null,
-        updatedBy = null
-    ) {
-        this.accountingPosted = true;
-        this.accountingPostedAt =
-            new Date();
-        this.ledgerReference =
-            ledgerReference;
-        this.updatedBy = updatedBy;
+  async function markAccountingPosted(
+    ledgerReference = null,
+    updatedBy = null,
+    options = {},
+  ) {
+    this.accountingPosted =
+      true;
 
-        return this.save();
-    };
+    this.accountingPostedAt =
+      new Date();
 
-/**
+    this.ledgerReference =
+      ledgerReference;
+
+    this.updatedBy =
+      updatedBy;
+
+    this.revision += 1;
+
+    return this.save({
+      session:
+        options.session,
+    });
+  };
+
+/*
  * ============================================================================
- * INSTANCE METHODS — SAFE OPERATIONAL BALANCE HELPERS
- * ============================================================================
- *
- * IMPORTANT:
- * These helpers are intended for controlled service-layer usage.
- *
- * For concurrent financial operations, prefer atomic MongoDB updates or a
- * MongoDB transaction in the financial service rather than loading a document,
- * modifying it in memory, and saving it.
- */
-
-/**
- * Credit account operationally.
- */
-AccountSchema.methods.credit =
-    async function (
-        amount,
-        updatedBy = null
-    ) {
-        const value = Number(amount);
-
-        if (
-            !Number.isFinite(value) ||
-            value <= 0
-        ) {
-            throw new Error(
-                'Credit amount must be greater than zero'
-            );
-        }
-
-        this.balance =
-            toDecimal(
-                decimalToNumber(this.balance) +
-                value
-            );
-
-        this.availableBalance =
-            toDecimal(
-                Math.max(
-                    0,
-                    decimalToNumber(
-                        this.balance
-                    ) -
-                    decimalToNumber(
-                        this.blockedBalance
-                    )
-                )
-            );
-
-        this.totalCredits =
-            toDecimal(
-                decimalToNumber(
-                    this.totalCredits
-                ) + value
-            );
-
-        this.transactionCount =
-            Number(this.transactionCount || 0) + 1;
-
-        this.lastTransactionAt =
-            new Date();
-
-        this.lastCreditAt =
-            new Date();
-
-        this.updatedBy =
-            updatedBy;
-
-        return this.save();
-    };
-
-/**
- * Debit account operationally.
- */
-AccountSchema.methods.debit =
-    async function (
-        amount,
-        updatedBy = null
-    ) {
-        const value = Number(amount);
-
-        if (
-            !Number.isFinite(value) ||
-            value <= 0
-        ) {
-            throw new Error(
-                'Debit amount must be greater than zero'
-            );
-        }
-
-        const available =
-            this.calculatedAvailableBalance;
-
-        if (available < value) {
-            throw new Error(
-                'Insufficient available funds'
-            );
-        }
-
-        this.balance =
-            toDecimal(
-                decimalToNumber(this.balance) -
-                value
-            );
-
-        this.availableBalance =
-            toDecimal(
-                Math.max(
-                    0,
-                    decimalToNumber(
-                        this.balance
-                    ) -
-                    decimalToNumber(
-                        this.blockedBalance
-                    )
-                )
-            );
-
-        this.totalDebits =
-            toDecimal(
-                decimalToNumber(
-                    this.totalDebits
-                ) + value
-            );
-
-        this.transactionCount =
-            Number(this.transactionCount || 0) + 1;
-
-        this.lastTransactionAt =
-            new Date();
-
-        this.lastDebitAt =
-            new Date();
-
-        this.updatedBy =
-            updatedBy;
-
-        return this.save();
-    };
-
-/**
- * ============================================================================
- * STATIC METHODS
+ * STATIC QUERY HELPERS
  * ============================================================================
  */
 
-/**
- * Find an account inside a specific tenant.
- */
 AccountSchema.statics.findByAccountNumber =
-    function (
+  function findByAccountNumber(
+    tenantId,
+    accountNumber,
+    options = {},
+  ) {
+    if (
+      !validateTenantId(
         tenantId,
-        accountNumber
+      )
     ) {
-        return this.findOne({
-            tenantId,
-            accountNumber:
-                String(accountNumber)
-                    .trim()
-                    .toUpperCase(),
-            isDeleted: false
-        });
-    };
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
 
-/**
- * Find customer accounts.
- */
+    const normalizedNumber =
+      String(
+        accountNumber ??
+          '',
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      !validateIdentifier(
+        normalizedNumber,
+      )
+    ) {
+      throw new TypeError(
+        'Invalid accountNumber.',
+      );
+    }
+
+    const query =
+      this.findOne({
+        tenantId:
+          String(
+            tenantId,
+          )
+            .trim()
+            .toLowerCase(),
+
+        accountNumber:
+          normalizedNumber,
+
+        isDeleted:
+          false,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session,
+      );
+    }
+
+    return query;
+  };
+
 AccountSchema.statics.findCustomerAccounts =
-    function (
+  function findCustomerAccounts(
+    tenantId,
+    ownerId,
+    options = {},
+  ) {
+    if (
+      !validateTenantId(
         tenantId,
-        ownerId
+      )
     ) {
-        return this.find({
-            tenantId,
-            $or: [
-                { member: ownerId },
-                { user: ownerId }
-            ],
-            isDeleted: false
-        }).sort({
-            createdAt: -1
-        });
-    };
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
 
-/**
- * Find active accounts.
- */
+    if (
+      !mongoose.isObjectIdOrHexString(
+        ownerId,
+      )
+    ) {
+      throw new mongoose.Error.CastError(
+        'ObjectId',
+        ownerId,
+        'ownerId',
+      );
+    }
+
+    const query =
+      this.find({
+        tenantId:
+          String(
+            tenantId,
+          )
+            .trim()
+            .toLowerCase(),
+
+        $or: [
+          {
+            member:
+              ownerId,
+          },
+          {
+            user:
+              ownerId,
+          },
+        ],
+
+        isDeleted:
+          false,
+      }).sort({
+        createdAt: -1,
+        _id: -1,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session,
+      );
+    }
+
+    return query;
+  };
+
 AccountSchema.statics.findActive =
-    function (tenantId) {
-        return this.find({
-            tenantId,
-            status: 'ACTIVE',
-            isDeleted: false
-        });
-    };
+  function findActive(
+    tenantId,
+    options = {},
+  ) {
+    if (
+      !validateTenantId(
+        tenantId,
+      )
+    ) {
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
 
-/**
- * Find accounts requiring reconciliation.
- */
+    const query =
+      this.find({
+        tenantId:
+          String(
+            tenantId,
+          )
+            .trim()
+            .toLowerCase(),
+
+        status:
+          'ACTIVE',
+
+        isDeleted:
+          false,
+      }).sort({
+        createdAt: -1,
+        _id: -1,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session,
+      );
+    }
+
+    return query;
+  };
+
 AccountSchema.statics.findUnreconciled =
-    function (tenantId) {
-        return this.find({
-            tenantId,
-            reconciled: false,
-            isDeleted: false
-        }).sort({
-            createdAt: 1
-        });
-    };
+  function findUnreconciled(
+    tenantId,
+    options = {},
+  ) {
+    if (
+      !validateTenantId(
+        tenantId,
+      )
+    ) {
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
 
-/**
- * Find accounts that have not been accounting-posted.
- */
+    const query =
+      this.find({
+        tenantId:
+          String(
+            tenantId,
+          )
+            .trim()
+            .toLowerCase(),
+
+        reconciled:
+          false,
+
+        isDeleted:
+          false,
+      }).sort({
+        createdAt: 1,
+        _id: 1,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session,
+      );
+    }
+
+    return query;
+  };
+
 AccountSchema.statics.findUnposted =
-    function (tenantId) {
-        return this.find({
-            tenantId,
-            accountingPosted: false,
-            isDeleted: false
-        }).sort({
-            createdAt: 1
-        });
-    };
+  function findUnposted(
+    tenantId,
+    options = {},
+  ) {
+    if (
+      !validateTenantId(
+        tenantId,
+      )
+    ) {
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
 
-/**
+    const query =
+      this.find({
+        tenantId:
+          String(
+            tenantId,
+          )
+            .trim()
+            .toLowerCase(),
+
+        accountingPosted:
+          false,
+
+        isDeleted:
+          false,
+      }).sort({
+        createdAt: 1,
+        _id: 1,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session,
+      );
+    }
+
+    return query;
+  };
+
+/*
  * ============================================================================
- * ATOMIC BALANCE OPERATIONS
+ * ATOMIC FINANCIAL OPERATIONS
  * ============================================================================
  *
- * These operations are safer than document.save() for concurrent workers.
- *
- * A production transaction service should still record the corresponding
- * ledger entry in the same MongoDB transaction where applicable.
+ * These methods are retained as controlled primitives for the repository
+ * layer. Financial services should normally coordinate the corresponding
+ * ledger entry in the same MongoDB transaction.
+ * ============================================================================
  */
 
 /**
- * Atomically credit an account.
+ * Atomically credit an ACTIVE account.
+ *
+ * amount MUST be a positive exact decimal string/Decimal128 value.
  */
 AccountSchema.statics.atomicCredit =
-    async function (
-        accountId,
-        tenantId,
-        amount,
-        updatedBy = null,
-        session = null
+  async function atomicCredit(
+    {
+      accountId,
+      tenantId,
+      amount,
+      transactionId = null,
+      updatedBy = null,
+      session = null,
+    } = {},
+  ) {
+    if (
+      accountId ===
+        undefined ||
+      accountId === null
     ) {
-        const value = Number(amount);
+      throw new TypeError(
+        'accountId is required.',
+      );
+    }
 
-        if (
-            !Number.isFinite(value) ||
-            value <= 0
-        ) {
-            throw new Error(
-                'Credit amount must be greater than zero'
-            );
-        }
+    if (
+      !validateTenantId(
+        tenantId,
+      )
+    ) {
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
 
-        const result =
-            await this.findOneAndUpdate(
-                {
-                    _id: accountId,
-                    tenantId,
-                    status: 'ACTIVE',
-                    isDeleted: false
-                },
-                {
-                    $inc: {
-                        balance: value,
-                        availableBalance: value,
-                        totalCredits: value,
-                        transactionCount: 1
-                    },
-                    $set: {
-                        lastTransactionAt:
-                            new Date(),
-                        lastCreditAt:
-                            new Date(),
-                        updatedBy
-                    }
-                },
-                {
-                    new: true,
-                    session
-                }
-            );
+    const credit =
+      toDecimal(
+        amount,
+      );
 
-        if (!result) {
-            throw new Error(
-                'Active account not found'
-            );
-        }
+    if (
+      compareDecimals(
+        credit.toString(),
+        '0',
+      ) <= 0
+    ) {
+      throw new Error(
+        'Credit amount must be greater than zero.',
+      );
+    }
 
-        return result;
-    };
+    const now =
+      new Date();
+
+    const result =
+      await this.findOneAndUpdate(
+        {
+          _id:
+            String(accountId),
+
+          tenantId:
+            String(
+              tenantId,
+            )
+              .trim()
+              .toLowerCase(),
+
+          status:
+            'ACTIVE',
+
+          isDeleted:
+            false,
+        },
+        {
+          $inc: {
+            balance:
+              credit,
+
+            availableBalance:
+              credit,
+
+            totalCredits:
+              credit,
+
+            transactionCount:
+              1,
+          },
+
+          $set: {
+            lastTransactionAt:
+              now,
+
+            lastCreditAt:
+              now,
+
+            lastTransactionId:
+              transactionId,
+
+            lastBalanceMutationAt:
+              now,
+
+            updatedBy,
+          },
+
+          $inc: {
+            balanceRevision:
+              1,
+
+            revision:
+              1,
+
+            balance:
+              credit,
+
+            availableBalance:
+              credit,
+
+            totalCredits:
+              credit,
+
+            transactionCount:
+              1,
+          },
+        },
+        {
+          new: true,
+
+          runValidators:
+            true,
+
+          allowFinancialMutation:
+            true,
+
+          session,
+        },
+      );
+
+    if (
+      !result
+    ) {
+      throw new Error(
+        'Active account not found or unavailable.',
+      );
+    }
+
+    return result;
+  };
 
 /**
- * Atomically debit an account only when sufficient available funds exist.
- *
- * This conditional update prevents two concurrent workers from independently
- * observing the same balance and both successfully overdrawing the account.
+ * Atomically debit an ACTIVE account only when enough unblocked funds exist.
  */
 AccountSchema.statics.atomicDebit =
-    async function (
-        accountId,
-        tenantId,
-        amount,
-        updatedBy = null,
-        session = null
+  async function atomicDebit(
+    {
+      accountId,
+      tenantId,
+      amount,
+      transactionId = null,
+      updatedBy = null,
+      session = null,
+    } = {},
+  ) {
+    if (
+      accountId ===
+        undefined ||
+      accountId === null
     ) {
-        const value = Number(amount);
+      throw new TypeError(
+        'accountId is required.',
+      );
+    }
 
-        if (
-            !Number.isFinite(value) ||
-            value <= 0
-        ) {
-            throw new Error(
-                'Debit amount must be greater than zero'
-            );
-        }
+    if (
+      !validateTenantId(
+        tenantId,
+      )
+    ) {
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
 
-        const result =
-            await this.findOneAndUpdate(
-                {
-                    _id: accountId,
-                    tenantId,
-                    status: 'ACTIVE',
-                    isDeleted: false,
+    const debit =
+      toDecimal(
+        amount,
+      );
 
-                    $expr: {
-                        $gte: [
-                            {
-                                $subtract: [
-                                    {
-                                        $toDouble:
-                                            '$balance'
-                                    },
-                                    {
-                                        $toDouble:
-                                            '$blockedBalance'
-                                    }
-                                ]
-                            },
-                            value
-                        ]
-                    }
-                },
-                {
-                    $inc: {
-                        balance: -value,
-                        availableBalance: -value,
-                        totalDebits: value,
-                        transactionCount: 1
-                    },
-                    $set: {
-                        lastTransactionAt:
-                            new Date(),
-                        lastDebitAt:
-                            new Date(),
-                        updatedBy
-                    }
-                },
-                {
-                    new: true,
-                    session
-                }
-            );
+    if (
+      compareDecimals(
+        debit.toString(),
+        '0',
+      ) <= 0
+    ) {
+      throw new Error(
+        'Debit amount must be greater than zero.',
+      );
+    }
 
-        if (!result) {
-            throw new Error(
-                'Insufficient funds or account unavailable'
-            );
-        }
+    const now =
+      new Date();
 
-        return result;
-    };
+    /*
+     * The filter itself enforces:
+     *
+     *   balance - blockedBalance >= debit
+     *
+     * using MongoDB Decimal128 arithmetic.
+     */
+    const result =
+      await this.findOneAndUpdate(
+        {
+          _id:
+            String(accountId),
+
+          tenantId:
+            String(
+              tenantId,
+            )
+              .trim()
+              .toLowerCase(),
+
+          status:
+            'ACTIVE',
+
+          isDeleted:
+            false,
+
+          $expr: {
+            $gte: [
+              {
+                $subtract: [
+                  '$balance',
+                  '$blockedBalance',
+                ],
+              },
+
+              debit,
+            ],
+          },
+        },
+        {
+          $inc: {
+            balance:
+              mongoose.Types.Decimal128.fromString(
+                `-${debit.toString()}`,
+              ),
+
+            availableBalance:
+              mongoose.Types.Decimal128.fromString(
+                `-${debit.toString()}`,
+              ),
+
+            totalDebits:
+              debit,
+
+            transactionCount:
+              1,
+
+            balanceRevision:
+              1,
+
+            revision:
+              1,
+          },
+
+          $set: {
+            lastTransactionAt:
+              now,
+
+            lastDebitAt:
+              now,
+
+            lastTransactionId:
+              transactionId,
+
+            lastBalanceMutationAt:
+              now,
+
+            updatedBy,
+          },
+        },
+        {
+          new: true,
+
+          runValidators:
+            true,
+
+          allowFinancialMutation:
+            true,
+
+          session,
+        },
+      );
+
+    if (
+      !result
+    ) {
+      throw new Error(
+        'Insufficient available funds or account unavailable.',
+      );
+    }
+
+    return result;
+  };
+
+/*
+ * ============================================================================
+ * BALANCE RESERVATION OPERATIONS
+ * ============================================================================
+ */
 
 /**
+ * Atomically reserve funds.
+ */
+AccountSchema.statics.reserveFunds =
+  async function reserveFunds(
+    {
+      accountId,
+      tenantId,
+      amount,
+      transactionId = null,
+      updatedBy = null,
+      session = null,
+    } = {},
+  ) {
+    if (
+      !validateTenantId(
+        tenantId,
+      )
+    ) {
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
+
+    const reserve =
+      toDecimal(
+        amount,
+      );
+
+    if (
+      compareDecimals(
+        reserve.toString(),
+        '0',
+      ) <= 0
+    ) {
+      throw new Error(
+        'Reservation amount must be greater than zero.',
+      );
+    }
+
+    const negativeReserve =
+      mongoose.Types.Decimal128.fromString(
+        `-${reserve.toString()}`,
+      );
+
+    const result =
+      await this.findOneAndUpdate(
+        {
+          _id:
+            String(accountId),
+
+          tenantId:
+            String(
+              tenantId,
+            )
+              .trim()
+              .toLowerCase(),
+
+          status:
+            'ACTIVE',
+
+          isDeleted:
+            false,
+
+          $expr: {
+            $gte: [
+              {
+                $subtract: [
+                  '$balance',
+                  '$blockedBalance',
+                ],
+              },
+
+              reserve,
+            ],
+          },
+        },
+        {
+          $inc: {
+            blockedBalance:
+              reserve,
+
+            availableBalance:
+              negativeReserve,
+
+            balanceRevision:
+              1,
+
+            revision:
+              1,
+          },
+
+          $set: {
+            lastTransactionId:
+              transactionId,
+
+            lastBalanceMutationAt:
+              new Date(),
+
+            updatedBy,
+          },
+        },
+        {
+          new: true,
+
+          runValidators:
+            true,
+
+          allowFinancialMutation:
+            true,
+
+          session,
+        },
+      );
+
+    if (
+      !result
+    ) {
+      throw new Error(
+        'Insufficient available funds or account unavailable.',
+      );
+    }
+
+    return result;
+  };
+
+/**
+ * Release previously reserved funds.
+ */
+AccountSchema.statics.releaseFunds =
+  async function releaseFunds(
+    {
+      accountId,
+      tenantId,
+      amount,
+      transactionId = null,
+      updatedBy = null,
+      session = null,
+    } = {},
+  ) {
+    if (
+      !validateTenantId(
+        tenantId,
+      )
+    ) {
+      throw new TypeError(
+        'Invalid tenantId.',
+      );
+    }
+
+    const release =
+      toDecimal(
+        amount,
+      );
+
+    if (
+      compareDecimals(
+        release.toString(),
+        '0',
+      ) <= 0
+    ) {
+      throw new Error(
+        'Release amount must be greater than zero.',
+      );
+    }
+
+    const result =
+      await this.findOneAndUpdate(
+        {
+          _id:
+            String(accountId),
+
+          tenantId:
+            String(
+              tenantId,
+            )
+              .trim()
+              .toLowerCase(),
+
+          status:
+            'ACTIVE',
+
+          isDeleted:
+            false,
+
+          $expr: {
+            $gte: [
+              '$blockedBalance',
+              release,
+            ],
+          },
+        },
+        {
+          $inc: {
+            blockedBalance:
+              mongoose.Types.Decimal128.fromString(
+                `-${release.toString()}`,
+              ),
+
+            availableBalance:
+              release,
+
+            balanceRevision:
+              1,
+
+            revision:
+              1,
+          },
+
+          $set: {
+            lastTransactionId:
+              transactionId,
+
+            lastBalanceMutationAt:
+              new Date(),
+
+            updatedBy,
+          },
+        },
+        {
+          new: true,
+
+          runValidators:
+            true,
+
+          allowFinancialMutation:
+            true,
+
+          session,
+        },
+      );
+
+    if (
+      !result
+    ) {
+      throw new Error(
+        'Reserved balance is insufficient or account unavailable.',
+      );
+    }
+
+    return result;
+  };
+
+/*
  * ============================================================================
  * INDEXES
  * ============================================================================
  */
 
-/**
- * One account number per tenant.
- *
- * Tenant isolation is deliberately part of the unique key.
+/*
+ * Tenant + account number uniqueness.
  */
 AccountSchema.index(
-    {
-        tenantId: 1,
-        accountNumber: 1
-    },
-    {
-        unique: true,
-        name: 'uq_account_tenant_account_number'
-    }
+  {
+    tenantId: 1,
+    accountNumber: 1,
+  },
+  {
+    unique: true,
+
+    name:
+      'uq_account_tenant_account_number',
+  },
 );
 
-/**
- * External references must also be tenant-scoped.
+/*
+ * Tenant + external reference.
  */
 AccountSchema.index(
-    {
-        tenantId: 1,
-        externalReference: 1
-    },
-    {
-        unique: true,
-        sparse: true,
-        name: 'uq_account_tenant_external_reference'
-    }
+  {
+    tenantId: 1,
+    externalReference: 1,
+  },
+  {
+    unique: true,
+
+    sparse: true,
+
+    name:
+      'uq_account_tenant_external_reference',
+  },
 );
 
+/*
+ * Member account lookup.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    member: 1,
-    status: 1
+  tenantId: 1,
+  member: 1,
+  status: 1,
+  accountType: 1,
 });
 
+/*
+ * User account lookup.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    user: 1,
-    status: 1
+  tenantId: 1,
+  user: 1,
+  status: 1,
+  accountType: 1,
 });
 
+/*
+ * Account classification.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    accountType: 1,
-    status: 1
+  tenantId: 1,
+  accountType: 1,
+  status: 1,
+  currency: 1,
 });
 
+/*
+ * Accounting category.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    accountCategory: 1,
-    status: 1
+  tenantId: 1,
+  accountCategory: 1,
+  status: 1,
 });
 
+/*
+ * General operational status.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    status: 1,
-    createdAt: -1
+  tenantId: 1,
+  status: 1,
+  createdAt: -1,
+  _id: -1,
 });
 
+/*
+ * Transaction activity.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    lastTransactionAt: -1
+  tenantId: 1,
+  lastTransactionAt: -1,
+  _id: -1,
 });
 
+/*
+ * Reconciliation workflow.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    reconciled: 1,
-    updatedAt: -1
+  tenantId: 1,
+  reconciled: 1,
+  updatedAt: -1,
 });
 
+/*
+ * Accounting posting workflow.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    accountingPosted: 1,
-    updatedAt: -1
+  tenantId: 1,
+  accountingPosted: 1,
+  updatedAt: -1,
 });
 
+/*
+ * Risk investigation.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    riskFlagged: 1,
-    riskScore: -1
+  tenantId: 1,
+  riskFlagged: 1,
+  riskScore: -1,
 });
 
+/*
+ * Fixed-deposit maturity.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    maturityDate: 1
+  tenantId: 1,
+  maturityDate: 1,
 });
 
+/*
+ * Soft-deleted/closed administration.
+ */
 AccountSchema.index({
-    tenantId: 1,
-    isDeleted: 1,
-    status: 1
+  tenantId: 1,
+  isDeleted: 1,
+  status: 1,
 });
 
-/**
+/*
+ * Mobile-money provider reference.
+ */
+AccountSchema.index({
+  tenantId: 1,
+  momoProvider: 1,
+  momoAccountNumber: 1,
+});
+
+/*
+ * Ledger account lookup.
+ */
+AccountSchema.index({
+  tenantId: 1,
+  ledgerAccountCode: 1,
+});
+
+/*
+ * Balance mutation sequencing.
+ */
+AccountSchema.index({
+  tenantId: 1,
+  balanceRevision: -1,
+});
+
+/*
  * ============================================================================
- * MODEL EXPORT
+ * MODEL
  * ============================================================================
  */
 
-module.exports =
-    mongoose.models.Account ||
-    mongoose.model(
-        'Account',
-        AccountSchema
-    );
+const Account =
+  mongoose.models.Account ||
+  mongoose.model(
+    'Account',
+    AccountSchema,
+  );
+
+/*
+ * ============================================================================
+ * EXPORTS
+ * ============================================================================
+ */
+
+export {
+  AccountSchema,
+};
+
+export default Account;
+
+/*
+ * ============================================================================
+ * END OF TITech COMMUNITY CAPITAL LTD ENTERPRISE FINANCIAL ACCOUNT MODEL
+ * ============================================================================
+ */

@@ -1,508 +1,1757 @@
-'use strict';
-
 /**
  * ============================================================================
- * CONVERSATION EXPORT MODEL
+ * backend/models/ConversationExport.js
+ * TITech Community Capital LTD
+ * Enterprise Conversation Export Model
  * ============================================================================
- * TITech Community Capital LTD (ACFOS)
- * TITechChat Enterprise Communication Platform
  *
- * PURPOSE
+ * Architectural role
  * ----------------------------------------------------------------------------
- * Manages conversation export requests, generation, downloads, retention,
- * compliance investigations, regulatory reporting, and evidence preservation.
+ * ConversationExport represents the lifecycle and metadata of an export job.
  *
- * Supports:
+ * It is NOT:
+ *   - the conversation source of truth;
+ *   - an authorization system;
+ *   - a permanent public file URL store;
+ *   - a compliance archive by itself.
  *
- * ✅ Conversation History Export
- * ✅ PDF Export
- * ✅ CSV Export
- * ✅ Excel Export
- * ✅ JSON Export
- * ✅ Compliance Reporting
- * ✅ Regulatory Investigations
- * ✅ Audit Evidence Preservation
- * ✅ Export Download Tracking
- * ✅ Export Expiration Policies
- * ✅ Export Queue Processing
- * ✅ Background Jobs
- * ✅ Administrative Reporting
- * ✅ Multi-Tenant Isolation
- *
- * FEATURES
+ * Security principles
  * ----------------------------------------------------------------------------
- * ✅ Enterprise Grade Validation
- * ✅ Export Lifecycle Tracking
- * ✅ Compliance Ready
- * ✅ Audit Ready
- * ✅ Background Processing Ready
- * ✅ Search Ready
- * ✅ Analytics Ready
- * ✅ Multi-Tenant Ready
- * ✅ Horizontal Scaling Ready
- * ✅ Storage Provider Agnostic
- * ✅ Retention Policy Ready
+ * - Mandatory tenant isolation.
+ * - Export authorization belongs to the service layer.
+ * - Generated files are referenced by storage key, not trusted public URL.
+ * - Processing uses an explicit state machine.
+ * - Processing lease prevents abandoned jobs from remaining PROCESSING forever.
+ * - Download counting is atomic.
+ * - Sensitive export contents are not stored in this document.
+ * - Retention and file expiration are separate concepts.
  *
- * RELATED MODULES
+ * Module format
  * ----------------------------------------------------------------------------
- * Conversation
- * Message
- * User
- * MessageAudit
- * Notification
- * AuditLog
- * SupportTicket
- * Loan
- * Savings
- * Transaction
+ * Native ESM.
  *
  * ============================================================================
  */
 
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-const ConversationExportSchema = new Schema(
-  {
-    /*
-    |--------------------------------------------------------------------------
-    | Ownership
-    |--------------------------------------------------------------------------
-    */
+// =============================================================================
+// CONSTANTS
+// =============================================================================
 
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Tenant',
-      default: null,
-      index: true,
-    },
+const EXPORT_TYPES = Object.freeze([
+  "PDF",
+  "CSV",
+  "XLSX",
+  "JSON",
+  "TXT",
+  "ZIP",
+]);
 
-    conversationId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Conversation',
-      required: true,
-      index: true,
-    },
+const EXPORT_STATUSES = Object.freeze([
+  "PENDING",
+  "PROCESSING",
+  "READY",
+  "FAILED",
+  "EXPIRED",
+  "CANCELLED",
+]);
 
-    requestedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      index: true,
-    },
+const STORAGE_PROVIDERS = Object.freeze([
+  "LOCAL",
+  "AWS_S3",
+  "AZURE_BLOB",
+  "GCP_STORAGE",
+  "MINIO",
+]);
 
-    approvedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
+const EXPORT_PURPOSES = Object.freeze([
+  "USER_REQUEST",
+  "AUDIT",
+  "COMPLIANCE",
+  "REGULATORY",
+  "INVESTIGATION",
+  "LEGAL",
+  "BACKUP",
+]);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Export Information
-    |--------------------------------------------------------------------------
-    */
+const LINKED_ENTITY_TYPES = Object.freeze([
+  "GROUP",
+  "LOAN",
+  "SAVINGS",
+  "TRANSACTION",
+  "SUPPORT",
+]);
 
-    exportType: {
-      type: String,
-      enum: [
-        'PDF',
-        'CSV',
-        'XLSX',
-        'JSON',
-        'TXT',
-        'ZIP',
-      ],
-      default: 'PDF',
-      uppercase: true,
-      index: true,
-    },
+const MAX_REASON_LENGTH = 2000;
+const MAX_FILE_NAME_LENGTH = 255;
+const MAX_STORAGE_KEY_LENGTH = 1024;
+const MAX_MIME_TYPE_LENGTH = 150;
+const MAX_CHECKSUM_LENGTH = 256;
+const MAX_ERROR_LENGTH = 2000;
+const MAX_USER_AGENT_LENGTH = 1000;
+const MAX_IP_LENGTH = 128;
+const MAX_REQUEST_ID_LENGTH = 128;
+const MAX_CORRELATION_ID_LENGTH = 128;
+const MAX_METADATA_KEYS = 50;
+const MAX_METADATA_BYTES = 32 * 1024;
+const MAX_PARTICIPANTS = 5000;
 
-    status: {
-      type: String,
-      enum: [
-        'PENDING',
-        'PROCESSING',
-        'READY',
-        'FAILED',
-        'EXPIRED',
-        'CANCELLED',
-      ],
-      default: 'PENDING',
-      uppercase: true,
-      index: true,
-    },
+const DEFAULT_PROCESSING_LEASE_MS = 5 * 60 * 1000;
 
-    reason: {
-      type: String,
-      trim: true,
-      maxlength: 2000,
-    },
+// =============================================================================
+// HELPERS
+// =============================================================================
 
-    /*
-    |--------------------------------------------------------------------------
-    | Generated File
-    |--------------------------------------------------------------------------
-    */
+function normalizeOptionalString(
+  value,
+  fieldName,
+  maxLength
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
 
-    fileName: {
-      type: String,
-      trim: true,
-    },
+  if (typeof value !== "string") {
+    throw new TypeError(
+      `${fieldName} must be a string.`
+    );
+  }
 
-    fileUrl: {
-      type: String,
-      trim: true,
-    },
+  const normalized = value.trim();
 
-    storageProvider: {
-      type: String,
-      enum: [
-        'LOCAL',
-        'AWS_S3',
-        'AZURE_BLOB',
-        'GCP_STORAGE',
-        'MINIO',
-      ],
-      uppercase: true,
-      default: 'LOCAL',
-    },
+  if (!normalized) {
+    return null;
+  }
 
-    mimeType: {
-      type: String,
-      trim: true,
-    },
+  if (normalized.length > maxLength) {
+    throw new RangeError(
+      `${fieldName} exceeds maximum length of ${maxLength}.`
+    );
+  }
 
-    fileSize: {
-      type: Number,
-      default: 0,
-    },
+  return normalized;
+}
 
-    checksum: {
-      type: String,
-      trim: true,
-    },
+function normalizeRequiredString(
+  value,
+  fieldName,
+  maxLength
+) {
+  const normalized =
+    normalizeOptionalString(
+      value,
+      fieldName,
+      maxLength
+    );
 
-    /*
-    |--------------------------------------------------------------------------
-    | Export Filters
-    |--------------------------------------------------------------------------
-    */
+  if (!normalized) {
+    throw new Error(
+      `${fieldName} is required.`
+    );
+  }
 
-    filters: {
-      startDate: Date,
-      endDate: Date,
+  return normalized;
+}
+
+function estimateBytes(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return 0;
+  }
+
+  try {
+    return Buffer.byteLength(
+      JSON.stringify(value),
+      "utf8"
+    );
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
+}
+
+function parsePositiveInteger(
+  value,
+  fieldName,
+  defaultValue = 0
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return defaultValue;
+  }
+
+  const number =
+    Number(value);
+
+  if (
+    !Number.isInteger(number) ||
+    number < 0
+  ) {
+    throw new TypeError(
+      `${fieldName} must be a non-negative integer.`
+    );
+  }
+
+  return number;
+}
+
+// =============================================================================
+// FILTER SCHEMA
+// =============================================================================
+
+const exportFilterSchema =
+  new Schema(
+    {
+      startDate: {
+        type: Date,
+        default: null,
+      },
+
+      endDate: {
+        type: Date,
+        default: null,
+      },
+
       includeDeletedMessages: {
         type: Boolean,
+        required: true,
         default: false,
       },
+
       includeAttachments: {
         type: Boolean,
+        required: true,
         default: true,
       },
+
       includeAuditLogs: {
         type: Boolean,
+        required: true,
         default: false,
       },
-      participants: [
-        {
-          type: Schema.Types.ObjectId,
-          ref: 'User',
+
+      participants: {
+        type: [
+          {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+          },
+        ],
+        default: [],
+        validate: {
+          validator(values) {
+            return (
+              Array.isArray(values) &&
+              values.length <=
+                MAX_PARTICIPANTS
+            );
+          },
+          message:
+            `An export cannot specify more than ${MAX_PARTICIPANTS} participants.`,
         },
-      ],
-    },
-
-    /*
-    |--------------------------------------------------------------------------
-    | Processing Information
-    |--------------------------------------------------------------------------
-    */
-
-    queuedAt: {
-      type: Date,
-      default: Date.now,
-    },
-
-    processingStartedAt: {
-      type: Date,
-      default: null,
-    },
-
-    completedAt: {
-      type: Date,
-      default: null,
-    },
-
-    expiresAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-
-    lastDownloadedAt: {
-      type: Date,
-      default: null,
-    },
-
-    downloadCount: {
-      type: Number,
-      default: 0,
-    },
-
-    /*
-    |--------------------------------------------------------------------------
-    | Compliance Information
-    |--------------------------------------------------------------------------
-    */
-
-    purpose: {
-      type: String,
-      enum: [
-        'USER_REQUEST',
-        'AUDIT',
-        'COMPLIANCE',
-        'REGULATORY',
-        'INVESTIGATION',
-        'LEGAL',
-        'BACKUP',
-      ],
-      default: 'USER_REQUEST',
-      uppercase: true,
-      index: true,
-    },
-
-    linkedEntityType: {
-      type: String,
-      enum: [
-        'GROUP',
-        'LOAN',
-        'SAVINGS',
-        'TRANSACTION',
-        'SUPPORT',
-      ],
-      uppercase: true,
-      default: null,
-      index: true,
-    },
-
-    linkedEntityId: {
-      type: Schema.Types.ObjectId,
-      default: null,
-      index: true,
-    },
-
-    /*
-    |--------------------------------------------------------------------------
-    | Security & Tracking
-    |--------------------------------------------------------------------------
-    */
-
-    requestId: {
-      type: String,
-      trim: true,
-      index: true,
-    },
-
-    correlationId: {
-      type: String,
-      trim: true,
-      index: true,
-    },
-
-    ipAddress: {
-      type: String,
-      trim: true,
-    },
-
-    userAgent: {
-      type: String,
-      trim: true,
-    },
-
-    error: {
-      type: String,
-      trim: true,
-    },
-
-    metadata: {
-      type: Map,
-      of: Schema.Types.Mixed,
-      default: {},
-    },
-  },
-  {
-    timestamps: true,
-    versionKey: false,
-
-    toJSON: {
-      virtuals: true,
-
-      transform(doc, ret) {
-        ret.id = ret._id.toString();
-        delete ret._id;
-        return ret;
       },
     },
+    {
+      _id: false,
+      id: false,
+      strict: true,
+      minimize: false,
+    }
+  );
 
-    toObject: {
-      virtuals: true,
+// =============================================================================
+// SCHEMA
+// =============================================================================
+
+const conversationExportSchema =
+  new Schema(
+    {
+      // -----------------------------------------------------------------------
+      // TENANT
+      // -----------------------------------------------------------------------
+
+      tenantId: {
+        type: Schema.Types.ObjectId,
+        ref: "Tenant",
+        required: true,
+        immutable: true,
+        index: true,
+      },
+
+      // -----------------------------------------------------------------------
+      // SOURCE CONVERSATION
+      // -----------------------------------------------------------------------
+
+      conversationId: {
+        type: Schema.Types.ObjectId,
+        ref: "Conversation",
+        required: true,
+        immutable: true,
+        index: true,
+      },
+
+      // -----------------------------------------------------------------------
+      // REQUESTOR / APPROVAL
+      // -----------------------------------------------------------------------
+
+      requestedBy: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        immutable: true,
+        index: true,
+      },
+
+      approvedBy: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      approvedAt: {
+        type: Date,
+        default: null,
+        immutable: true,
+      },
+
+      // -----------------------------------------------------------------------
+      // EXPORT DEFINITION
+      // -----------------------------------------------------------------------
+
+      exportType: {
+        type: String,
+        enum: EXPORT_TYPES,
+        required: true,
+        default: "PDF",
+        uppercase: true,
+        trim: true,
+        immutable: true,
+        index: true,
+      },
+
+      purpose: {
+        type: String,
+        enum: EXPORT_PURPOSES,
+        required: true,
+        default: "USER_REQUEST",
+        uppercase: true,
+        trim: true,
+        immutable: true,
+        index: true,
+      },
+
+      reason: {
+        type: String,
+        trim: true,
+        maxlength: MAX_REASON_LENGTH,
+        immutable: true,
+      },
+
+      filters: {
+        type: exportFilterSchema,
+        required: true,
+        default: () => ({}),
+        immutable: true,
+      },
+
+      // -----------------------------------------------------------------------
+      // LIFECYCLE
+      // -----------------------------------------------------------------------
+
+      status: {
+        type: String,
+        enum: EXPORT_STATUSES,
+        required: true,
+        default: "PENDING",
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      queuedAt: {
+        type: Date,
+        required: true,
+        default: Date.now,
+        immutable: true,
+        index: true,
+      },
+
+      processingStartedAt: {
+        type: Date,
+        default: null,
+      },
+
+      processingLeaseExpiresAt: {
+        type: Date,
+        default: null,
+        index: true,
+      },
+
+      completedAt: {
+        type: Date,
+        default: null,
+      },
+
+      // -----------------------------------------------------------------------
+      // FILE / STORAGE
+      // -----------------------------------------------------------------------
+
+      fileName: {
+        type: String,
+        trim: true,
+        maxlength: MAX_FILE_NAME_LENGTH,
+        default: null,
+      },
+
+      /**
+       * Internal object-storage key/reference.
+       *
+       * Do NOT treat this as a public URL.
+       */
+      storageKey: {
+        type: String,
+        trim: true,
+        maxlength: MAX_STORAGE_KEY_LENGTH,
+        default: null,
+        select: false,
+      },
+
+      storageProvider: {
+        type: String,
+        enum: STORAGE_PROVIDERS,
+        uppercase: true,
+        trim: true,
+        default: "LOCAL",
+      },
+
+      mimeType: {
+        type: String,
+        trim: true,
+        maxlength: MAX_MIME_TYPE_LENGTH,
+        default: null,
+      },
+
+      fileSize: {
+        type: Number,
+        required: true,
+        default: 0,
+        min: 0,
+        validate: {
+          validator(value) {
+            return (
+              Number.isFinite(value) &&
+              Number.isInteger(value) &&
+              value >= 0
+            );
+          },
+          message:
+            "fileSize must be a non-negative integer.",
+        },
+      },
+
+      checksum: {
+        type: String,
+        trim: true,
+        maxlength: MAX_CHECKSUM_LENGTH,
+        default: null,
+      },
+
+      // -----------------------------------------------------------------------
+      // FILE ACCESS / EXPIRATION
+      // -----------------------------------------------------------------------
+
+      fileExpiresAt: {
+        type: Date,
+        default: null,
+        index: true,
+      },
+
+      // -----------------------------------------------------------------------
+      // DOWNLOAD TRACKING
+      // -----------------------------------------------------------------------
+
+      lastDownloadedAt: {
+        type: Date,
+        default: null,
+      },
+
+      downloadCount: {
+        type: Number,
+        required: true,
+        default: 0,
+        min: 0,
+        validate: {
+          validator(value) {
+            return (
+              Number.isInteger(value) &&
+              value >= 0
+            );
+          },
+          message:
+            "downloadCount must be a non-negative integer.",
+        },
+      },
+
+      // -----------------------------------------------------------------------
+      // COMPLIANCE / LINKAGE
+      // -----------------------------------------------------------------------
+
+      linkedEntityType: {
+        type: String,
+        enum: [
+          ...LINKED_ENTITY_TYPES,
+          null,
+        ],
+        uppercase: true,
+        trim: true,
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      linkedEntityId: {
+        type: Schema.Types.ObjectId,
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      // -----------------------------------------------------------------------
+      // REQUEST TRACEABILITY
+      // -----------------------------------------------------------------------
+
+      requestId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_REQUEST_ID_LENGTH,
+        immutable: true,
+        index: true,
+      },
+
+      correlationId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_CORRELATION_ID_LENGTH,
+        immutable: true,
+        index: true,
+      },
+
+      ipAddress: {
+        type: String,
+        trim: true,
+        maxlength: MAX_IP_LENGTH,
+        immutable: true,
+      },
+
+      userAgent: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_USER_AGENT_LENGTH,
+        immutable: true,
+      },
+
+      // -----------------------------------------------------------------------
+      // ERROR
+      // -----------------------------------------------------------------------
+
+      error: {
+        type: String,
+        trim: true,
+        maxlength: MAX_ERROR_LENGTH,
+        default: null,
+      },
+
+      // -----------------------------------------------------------------------
+      // RETENTION
+      // -----------------------------------------------------------------------
+
+      /**
+       * Retention of the export RECORD.
+       *
+       * This is intentionally distinct from fileExpiresAt.
+       */
+      retentionExpiresAt: {
+        type: Date,
+        default: null,
+        index: true,
+      },
+
+      // -----------------------------------------------------------------------
+      // METADATA
+      // -----------------------------------------------------------------------
+
+      metadata: {
+        type: Map,
+        of: Schema.Types.Mixed,
+        default: undefined,
+      },
     },
-  }
-);
+    {
+      timestamps: true,
 
-/*
-|--------------------------------------------------------------------------
-| Indexes
-|--------------------------------------------------------------------------
-*/
+      versionKey: "__v",
 
-ConversationExportSchema.index({
-  conversationId: 1,
-  createdAt: -1,
-});
+      strict: true,
+      strictQuery: true,
+      minimize: false,
 
-ConversationExportSchema.index({
-  requestedBy: 1,
-  createdAt: -1,
-});
+      collection:
+        "conversation_exports",
 
-ConversationExportSchema.index({
-  tenantId: 1,
-  createdAt: -1,
-});
+      optimisticConcurrency: true,
 
-ConversationExportSchema.index({
-  status: 1,
-  createdAt: -1,
-});
+      toJSON: {
+        virtuals: true,
 
-ConversationExportSchema.index({
-  exportType: 1,
-  status: 1,
-});
+        transform(
+          doc,
+          ret
+        ) {
+          ret.id =
+            ret._id?.toString();
 
-ConversationExportSchema.index({
-  purpose: 1,
-  createdAt: -1,
-});
+          delete ret._id;
+          delete ret.__v;
 
-ConversationExportSchema.index({
-  linkedEntityType: 1,
-  linkedEntityId: 1,
-});
+          /**
+           * storageKey is deliberately excluded from ordinary responses.
+           *
+           * The download service should generate an authorized/short-lived
+           * URL after checking tenant + requester permissions.
+           */
+          delete ret.storageKey;
 
-ConversationExportSchema.index({
-  requestId: 1,
-});
+          return ret;
+        },
+      },
 
-ConversationExportSchema.index({
-  correlationId: 1,
-});
+      toObject: {
+        virtuals: true,
+      },
+    }
+  );
 
-/*
-|--------------------------------------------------------------------------
-| Virtuals
-|--------------------------------------------------------------------------
-*/
+// =============================================================================
+// VIRTUALS
+// =============================================================================
 
-ConversationExportSchema.virtual('id').get(function () {
+conversationExportSchema.virtual(
+  "id"
+).get(function () {
   return this._id.toString();
 });
 
-/*
-|--------------------------------------------------------------------------
-| Static Methods
-|--------------------------------------------------------------------------
-*/
+conversationExportSchema.virtual(
+  "isProcessingLeaseExpired"
+).get(function () {
+  return (
+    this.status ===
+      "PROCESSING" &&
+    this.processingLeaseExpiresAt &&
+    new Date() >=
+      this.processingLeaseExpiresAt
+  );
+});
 
-ConversationExportSchema.statics.createExport =
-  function (payload) {
-    return this.create(payload);
-  };
+conversationExportSchema.virtual(
+  "isFileExpired"
+).get(function () {
+  return (
+    this.fileExpiresAt &&
+    new Date() >=
+      this.fileExpiresAt
+  );
+});
 
-ConversationExportSchema.statics.findPending =
-  function () {
-    return this.find({
-      status: 'PENDING',
-    }).sort({
-      createdAt: 1,
-    });
-  };
+// =============================================================================
+// VALIDATION
+// =============================================================================
 
-ConversationExportSchema.statics.findReady =
-  function () {
-    return this.find({
-      status: 'READY',
-    });
-  };
+conversationExportSchema.pre(
+  "validate",
+  function validateConversationExport(
+    next
+  ) {
+    try {
+      if (!this.tenantId) {
+        throw new Error(
+          "tenantId is required."
+        );
+      }
 
-/*
-|--------------------------------------------------------------------------
-| Instance Methods
-|--------------------------------------------------------------------------
-*/
+      if (!this.conversationId) {
+        throw new Error(
+          "conversationId is required."
+        );
+      }
 
-ConversationExportSchema.methods.startProcessing =
-  async function () {
-    this.status = 'PROCESSING';
-    this.processingStartedAt = new Date();
+      if (!this.requestedBy) {
+        throw new Error(
+          "requestedBy is required."
+        );
+      }
 
-    await this.save();
+      // -----------------------------------------------------------------------
+      // Filter date validation
+      // -----------------------------------------------------------------------
 
-    return this;
-  };
+      if (
+        this.filters?.startDate &&
+        this.filters?.endDate &&
+        this.filters.startDate >
+          this.filters.endDate
+      ) {
+        throw new Error(
+          "filters.startDate cannot be later than filters.endDate."
+        );
+      }
 
-ConversationExportSchema.methods.markReady =
-  async function ({
-    fileUrl,
-    fileName,
-    fileSize = 0,
-    checksum = null,
-  }) {
-    this.status = 'READY';
-    this.fileUrl = fileUrl;
-    this.fileName = fileName;
-    this.fileSize = fileSize;
-    this.checksum = checksum;
-    this.completedAt = new Date();
+      // -----------------------------------------------------------------------
+      // Approval validation
+      // -----------------------------------------------------------------------
 
-    await this.save();
+      if (
+        this.approvedAt &&
+        !this.approvedBy
+      ) {
+        throw new Error(
+          "approvedBy is required when approvedAt is set."
+        );
+      }
 
-    return this;
-  };
+      // -----------------------------------------------------------------------
+      // Processing state
+      // -----------------------------------------------------------------------
 
-ConversationExportSchema.methods.markFailed =
-  async function (error) {
-    this.status = 'FAILED';
-    this.error = error;
-    this.completedAt = new Date();
+      if (
+        this.status ===
+        "PROCESSING"
+      ) {
+        if (
+          !this.processingStartedAt
+        ) {
+          throw new Error(
+            "PROCESSING exports require processingStartedAt."
+          );
+        }
 
-    await this.save();
+        if (
+          !this.processingLeaseExpiresAt
+        ) {
+          throw new Error(
+            "PROCESSING exports require processingLeaseExpiresAt."
+          );
+        }
 
-    return this;
-  };
+        if (
+          this.completedAt
+        ) {
+          throw new Error(
+            "PROCESSING exports cannot have completedAt."
+          );
+        }
+      }
 
-ConversationExportSchema.methods.markDownloaded =
-  async function () {
-    this.downloadCount += 1;
-    this.lastDownloadedAt = new Date();
+      // -----------------------------------------------------------------------
+      // READY state
+      // -----------------------------------------------------------------------
 
-    await this.save();
+      if (
+        this.status ===
+        "READY"
+      ) {
+        if (
+          !this.storageKey
+        ) {
+          throw new Error(
+            "READY exports require storageKey."
+          );
+        }
 
-    return this;
-  };
+        if (
+          !this.fileName
+        ) {
+          throw new Error(
+            "READY exports require fileName."
+          );
+        }
 
-ConversationExportSchema.methods.expire =
-  async function () {
-    this.status = 'EXPIRED';
+        if (
+          !this.completedAt
+        ) {
+          throw new Error(
+            "READY exports require completedAt."
+          );
+        }
 
-    await this.save();
+        if (
+          this.error
+        ) {
+          throw new Error(
+            "READY exports cannot contain an error."
+          );
+        }
+      }
 
-    return this;
-  };
+      // -----------------------------------------------------------------------
+      // FAILED state
+      // -----------------------------------------------------------------------
 
-module.exports = mongoose.model(
-  'ConversationExport',
-  ConversationExportSchema
+      if (
+        this.status ===
+        "FAILED" &&
+        !this.error
+      ) {
+        throw new Error(
+          "FAILED exports require an error."
+        );
+      }
+
+      // -----------------------------------------------------------------------
+      // EXPIRED state
+      // -----------------------------------------------------------------------
+
+      if (
+        this.status ===
+        "EXPIRED" &&
+        !this.fileExpiresAt &&
+        !this.completedAt
+      ) {
+        throw new Error(
+          "EXPIRED exports require file expiration or prior completion."
+        );
+      }
+
+      // -----------------------------------------------------------------------
+      // Metadata safety
+      // -----------------------------------------------------------------------
+
+      if (
+        this.metadata
+      ) {
+        const metadataObject =
+          Object.fromEntries(
+            this.metadata
+          );
+
+        if (
+          Object.keys(
+            metadataObject
+          ).length >
+          MAX_METADATA_KEYS
+        ) {
+          throw new RangeError(
+            `metadata cannot contain more than ${MAX_METADATA_KEYS} keys.`
+          );
+        }
+
+        if (
+          estimateBytes(
+            metadataObject
+          ) >
+          MAX_METADATA_BYTES
+        ) {
+          throw new RangeError(
+            "metadata exceeds maximum permitted size."
+          );
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // File expiration
+      // -----------------------------------------------------------------------
+
+      if (
+        this.fileExpiresAt &&
+        this.completedAt &&
+        this.fileExpiresAt <=
+          this.completedAt
+      ) {
+        throw new Error(
+          "fileExpiresAt must be later than completedAt."
+        );
+      }
+
+      return next();
+    } catch (error) {
+      return next(error);
+    }
+  }
 );
+
+// =============================================================================
+// INDEXES
+// =============================================================================
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    conversationId: 1,
+    createdAt: -1,
+  },
+  {
+    name:
+      "idx_export_tenant_conversation_created",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    requestedBy: 1,
+    createdAt: -1,
+  },
+  {
+    name:
+      "idx_export_tenant_requester_created",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    status: 1,
+    queuedAt: 1,
+  },
+  {
+    name:
+      "idx_export_tenant_status_queue",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    status: 1,
+    processingLeaseExpiresAt: 1,
+  },
+  {
+    name:
+      "idx_export_processing_lease",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    exportType: 1,
+    status: 1,
+    createdAt: -1,
+  },
+  {
+    name:
+      "idx_export_tenant_type_status_created",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    purpose: 1,
+    createdAt: -1,
+  },
+  {
+    name:
+      "idx_export_tenant_purpose_created",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    linkedEntityType: 1,
+    linkedEntityId: 1,
+    createdAt: -1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_export_tenant_linked_entity",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    requestId: 1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_export_tenant_request_id",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    correlationId: 1,
+    createdAt: -1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_export_tenant_correlation",
+  }
+);
+
+conversationExportSchema.index(
+  {
+    tenantId: 1,
+    fileExpiresAt: 1,
+    status: 1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_export_file_expiration",
+  }
+);
+
+/**
+ * Export-record retention.
+ *
+ * Records should only receive retentionExpiresAt once retention policy allows
+ * cleanup.
+ */
+conversationExportSchema.index(
+  {
+    retentionExpiresAt: 1,
+  },
+  {
+    expireAfterSeconds: 0,
+    sparse: true,
+    name:
+      "ttl_export_record_retention",
+  }
+);
+
+// =============================================================================
+// STATIC METHODS
+// =============================================================================
+
+/**
+ * Create export request.
+ */
+conversationExportSchema.statics.createExport =
+  async function (
+    payload,
+    {
+      session = null,
+    } = {}
+  ) {
+    if (!payload) {
+      throw new Error(
+        "Export payload is required."
+      );
+    }
+
+    const exportDocument =
+      new this({
+        ...payload,
+        tenantId:
+          payload.tenantId,
+        queuedAt:
+          new Date(),
+      });
+
+    await exportDocument.save(
+      session
+        ? { session }
+        : undefined
+    );
+
+    return exportDocument;
+  };
+
+/**
+ * Find pending jobs within a tenant.
+ */
+conversationExportSchema.statics.findPending =
+  async function (
+    tenantId,
+    {
+      limit = 50,
+      session = null,
+    } = {}
+  ) {
+    const normalizedLimit =
+      Math.min(
+        200,
+        Math.max(
+          1,
+          parsePositiveInteger(
+            limit,
+            "limit",
+            50
+          )
+        )
+      );
+
+    const query =
+      this.find({
+        tenantId,
+        status: "PENDING",
+      })
+        .sort({
+          queuedAt: 1,
+          _id: 1,
+        })
+        .limit(
+          normalizedLimit
+        );
+
+    if (session) {
+      query.session(
+        session
+      );
+    }
+
+    return query.exec();
+  };
+
+/**
+ * Find ready exports within a tenant.
+ */
+conversationExportSchema.statics.findReady =
+  async function (
+    tenantId,
+    {
+      limit = 50,
+      session = null,
+    } = {}
+  ) {
+    const normalizedLimit =
+      Math.min(
+        200,
+        Math.max(
+          1,
+          parsePositiveInteger(
+            limit,
+            "limit",
+            50
+          )
+        )
+      );
+
+    const query =
+      this.find({
+        tenantId,
+        status: "READY",
+      })
+        .sort({
+          completedAt: -1,
+          _id: -1,
+        })
+        .limit(
+          normalizedLimit
+        );
+
+    if (session) {
+      query.session(
+        session
+      );
+    }
+
+    return query.exec();
+  };
+
+/**
+ * Find expired processing jobs.
+ */
+conversationExportSchema.statics.findExpiredProcessing =
+  async function (
+    {
+      tenantId = null,
+      limit = 100,
+      now = new Date(),
+      session = null,
+    } = {}
+  ) {
+    const filter = {
+      status:
+        "PROCESSING",
+      processingLeaseExpiresAt: {
+        $lte: now,
+      },
+    };
+
+    if (tenantId) {
+      filter.tenantId =
+        tenantId;
+    }
+
+    const normalizedLimit =
+      Math.min(
+        500,
+        Math.max(
+          1,
+          parsePositiveInteger(
+            limit,
+            "limit",
+            100
+          )
+        )
+      );
+
+    const query =
+      this.find(filter)
+        .sort({
+          processingLeaseExpiresAt:
+            1,
+          _id: 1,
+        })
+        .limit(
+          normalizedLimit
+        );
+
+    if (session) {
+      query.session(
+        session
+      );
+    }
+
+    return query.exec();
+  };
+
+/**
+ * Find one tenant-scoped export by ID.
+ */
+conversationExportSchema.statics.findTenantExport =
+  async function (
+    tenantId,
+    exportId,
+    {
+      session = null,
+      includeStorageKey = false,
+    } = {}
+  ) {
+    let query =
+      this.findOne({
+        _id: exportId,
+        tenantId,
+      });
+
+    if (
+      includeStorageKey
+    ) {
+      query =
+        query.select(
+          "+storageKey"
+        );
+    }
+
+    if (session) {
+      query.session(
+        session
+      );
+    }
+
+    return query.exec();
+  };
+
+// =============================================================================
+// INSTANCE METHODS
+// =============================================================================
+
+/**
+ * Start processing with a lease.
+ *
+ * Uses an atomic state predicate so two workers cannot acquire the same PENDING
+ * job simultaneously through this method.
+ */
+conversationExportSchema.methods.startProcessing =
+  async function (
+    {
+      leaseMs =
+        DEFAULT_PROCESSING_LEASE_MS,
+      session = null,
+      now = new Date(),
+    } = {}
+  ) {
+    if (
+      this.status !==
+      "PENDING"
+    ) {
+      throw new Error(
+        `Export cannot start from status ${this.status}.`
+      );
+    }
+
+    if (
+      !Number.isInteger(
+        leaseMs
+      ) ||
+      leaseMs <= 0
+    ) {
+      throw new RangeError(
+        "leaseMs must be a positive integer."
+      );
+    }
+
+    const options = {
+      new: true,
+    };
+
+    if (session) {
+      options.session =
+        session;
+    }
+
+    const updated =
+      await this.constructor.findOneAndUpdate(
+        {
+          _id: this._id,
+          status: "PENDING",
+        },
+        {
+          $set: {
+            status:
+              "PROCESSING",
+
+            processingStartedAt:
+              now,
+
+            processingLeaseExpiresAt:
+              new Date(
+                now.getTime() +
+                  leaseMs
+              ),
+          },
+        },
+        options
+      );
+
+    if (!updated) {
+      throw new Error(
+        "Export was already claimed or is no longer pending."
+      );
+    }
+
+    return updated;
+  };
+
+/**
+ * Extend processing lease.
+ */
+conversationExportSchema.methods.heartbeat =
+  async function (
+    {
+      leaseMs =
+        DEFAULT_PROCESSING_LEASE_MS,
+      session = null,
+      now = new Date(),
+    } = {}
+  ) {
+    if (
+      !Number.isInteger(
+        leaseMs
+      ) ||
+      leaseMs <= 0
+    ) {
+      throw new RangeError(
+        "leaseMs must be a positive integer."
+      );
+    }
+
+    const options = {
+      new: true,
+    };
+
+    if (session) {
+      options.session =
+        session;
+    }
+
+    const updated =
+      await this.constructor.findOneAndUpdate(
+        {
+          _id: this._id,
+          status:
+            "PROCESSING",
+          processingLeaseExpiresAt:
+            {
+              $gt: now,
+            },
+        },
+        {
+          $set: {
+            processingLeaseExpiresAt:
+              new Date(
+                now.getTime() +
+                  leaseMs
+              ),
+          },
+        },
+        options
+      );
+
+    if (!updated) {
+      throw new Error(
+        "Processing lease is no longer active."
+      );
+    }
+
+    return updated;
+  };
+
+/**
+ * Mark export ready.
+ */
+conversationExportSchema.methods.markReady =
+  async function (
+    {
+      storageKey,
+      fileName,
+      mimeType = null,
+      fileSize = 0,
+      checksum = null,
+      fileExpiresAt = null,
+      session = null,
+      completedAt = new Date(),
+    } = {}
+  ) {
+    const normalizedStorageKey =
+      normalizeRequiredString(
+        storageKey,
+        "storageKey",
+        MAX_STORAGE_KEY_LENGTH
+      );
+
+    const normalizedFileName =
+      normalizeRequiredString(
+        fileName,
+        "fileName",
+        MAX_FILE_NAME_LENGTH
+      );
+
+    if (
+      !Number.isInteger(
+        fileSize
+      ) ||
+      fileSize < 0
+    ) {
+      throw new RangeError(
+        "fileSize must be a non-negative integer."
+      );
+    }
+
+    const options = {
+      new: true,
+    };
+
+    if (session) {
+      options.session =
+        session;
+    }
+
+    const updated =
+      await this.constructor.findOneAndUpdate(
+        {
+          _id: this._id,
+          status:
+            "PROCESSING",
+        },
+        {
+          $set: {
+            status:
+              "READY",
+
+            storageKey:
+              normalizedStorageKey,
+
+            fileName:
+              normalizedFileName,
+
+            mimeType:
+              mimeType
+                ? String(
+                    mimeType
+                  ).trim()
+                : null,
+
+            fileSize,
+
+            checksum:
+              checksum
+                ? String(
+                    checksum
+                  ).trim()
+                : null,
+
+            fileExpiresAt:
+              fileExpiresAt
+                ? new Date(
+                    fileExpiresAt
+                  )
+                : null,
+
+            completedAt,
+
+            processingLeaseExpiresAt:
+              null,
+
+            error:
+              null,
+          },
+        },
+        options
+      );
+
+    if (!updated) {
+      throw new Error(
+        "Export is no longer in PROCESSING state."
+      );
+    }
+
+    return updated;
+  };
+
+/**
+ * Mark export failed.
+ */
+conversationExportSchema.methods.markFailed =
+  async function (
+    error,
+    {
+      session = null,
+      completedAt = new Date(),
+    } = {}
+  ) {
+    const normalizedError =
+      normalizeRequiredString(
+        typeof error === "string"
+          ? error
+          : error?.message,
+        "error",
+        MAX_ERROR_LENGTH
+      );
+
+    const options = {
+      new: true,
+    };
+
+    if (session) {
+      options.session =
+        session;
+    }
+
+    const updated =
+      await this.constructor.findOneAndUpdate(
+        {
+          _id: this._id,
+          status:
+            "PROCESSING",
+        },
+        {
+          $set: {
+            status:
+              "FAILED",
+
+            error:
+              normalizedError,
+
+            completedAt,
+
+            processingLeaseExpiresAt:
+              null,
+          },
+        },
+        options
+      );
+
+    if (!updated) {
+      throw new Error(
+        "Export is no longer in PROCESSING state."
+      );
+    }
+
+    return updated;
+  };
+
+/**
+ * Mark a download atomically.
+ */
+conversationExportSchema.methods.markDownloaded =
+  async function (
+    {
+      session = null,
+      downloadedAt = new Date(),
+    } = {}
+  ) {
+    const options = {
+      new: true,
+      runValidators: false,
+    };
+
+    if (session) {
+      options.session =
+        session;
+    }
+
+    const updated =
+      await this.constructor.findOneAndUpdate(
+        {
+          _id: this._id,
+          status:
+            "READY",
+          fileExpiresAt: {
+            $gt: downloadedAt,
+          },
+        },
+        {
+          $inc: {
+            downloadCount:
+              1,
+          },
+
+          $set: {
+            lastDownloadedAt:
+              downloadedAt,
+          },
+        },
+        options
+      );
+
+    if (!updated) {
+      throw new Error(
+        "Export is not available for download."
+      );
+    }
+
+    return updated;
+  };
+
+/**
+ * Expire the generated file/export.
+ */
+conversationExportSchema.methods.expire =
+  async function (
+    {
+      session = null,
+    } = {}
+  ) {
+    const options = {
+      new: true,
+    };
+
+    if (session) {
+      options.session =
+        session;
+    }
+
+    const updated =
+      await this.constructor.findOneAndUpdate(
+        {
+          _id: this._id,
+          status:
+            "READY",
+        },
+        {
+          $set: {
+            status:
+              "EXPIRED",
+
+            fileExpiresAt:
+              new Date(),
+
+            storageKey:
+              null,
+          },
+        },
+        options
+      );
+
+    if (!updated) {
+      throw new Error(
+        "Only READY exports can be expired."
+      );
+    }
+
+    return updated;
+  };
+
+/**
+ * Cancel an export.
+ */
+conversationExportSchema.methods.cancel =
+  async function (
+    {
+      session = null,
+    } = {}
+  ) {
+    const options = {
+      new: true,
+    };
+
+    if (session) {
+      options.session =
+        session;
+    }
+
+    const updated =
+      await this.constructor.findOneAndUpdate(
+        {
+          _id: this._id,
+          status: {
+            $in: [
+              "PENDING",
+              "PROCESSING",
+            ],
+          },
+        },
+        {
+          $set: {
+            status:
+              "CANCELLED",
+
+            processingLeaseExpiresAt:
+              null,
+          },
+        },
+        options
+      );
+
+    if (!updated) {
+      throw new Error(
+        "Only PENDING or PROCESSING exports can be cancelled."
+      );
+    }
+
+    return updated;
+  };
+
+// =============================================================================
+// MODEL EXPORT
+// =============================================================================
+
+const ConversationExport =
+  mongoose.models.ConversationExport ||
+  mongoose.model(
+    "ConversationExport",
+    conversationExportSchema
+  );
+
+export default ConversationExport;
+
+export {
+  EXPORT_TYPES,
+  EXPORT_STATUSES,
+  STORAGE_PROVIDERS,
+  EXPORT_PURPOSES,
+  LINKED_ENTITY_TYPES,
+};

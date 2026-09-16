@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * ============================================================================
  * TITech Community Capital LTD
@@ -7,2089 +5,2395 @@
  * ============================================================================
  *
  * File:
- *   models/Transaction.js
+ *   backend/modules/transaction/transaction.model.js
  *
- * Purpose
- * -------
- * Persistent transaction record for the financial engine.
+ * Purpose:
+ *   Canonical persistent transaction record for the TITech financial engine.
  *
- * Responsibilities
- * ----------------
- * • Persist financial transaction identity
- * • Enforce tenant isolation
- * • Preserve monetary precision using Decimal128
- * • Enforce transaction lifecycle states
- * • Support idempotency
- * • Support distributed correlation
- * • Support AML/Fraud/KYC/Compliance correlation
- * • Support ledger linkage
- * • Support reconciliation
- * • Support auditability
- * • Support optimistic concurrency
+ * Responsibilities:
+ *   - Persist financial transaction identity
+ *   - Enforce tenant isolation
+ *   - Preserve monetary precision using Decimal128
+ *   - Enforce transaction lifecycle states
+ *   - Support idempotency
+ *   - Support distributed correlation
+ *   - Support AML / Fraud / KYC / Compliance correlation
+ *   - Support payment-provider correlation
+ *   - Support ledger linkage
+ *   - Support reconciliation
+ *   - Support auditability
+ *   - Support optimistic concurrency
  *
- * Financial Principle
- * -------------------
- * A Transaction is a business-financial record.
+ * ============================================================================
+ * FINANCIAL ARCHITECTURE
+ * ============================================================================
+ *
+ * Transaction is a BUSINESS-FINANCIAL record.
  *
  * The immutable ledger/journal remains the accounting source of truth.
- * This model must therefore never be used to silently rewrite historical
- * financial values.
  *
- * Once financial posting has occurred:
+ * Transaction is therefore NOT:
  *
+ *   - a second ledger
+ *   - a balance calculator
+ *   - a wallet
+ *   - a replacement for Ledger
+ *
+ * Canonical path:
+ *
+ *   User
+ *      ↓
+ *   Institution / Tenant
+ *      ↓
+ *   Group
+ *      ↓
+ *   Member
+ *      ↓
+ *   Contribution / Loan / Payment
+ *      ↓
+ *   Payment Request / Provider
+ *      ↓
+ *   Callback / Validation
+ *      ↓
+ *   Idempotency
+ *      ↓
+ *   Transaction
+ *      ↓
+ *   Ledger
+ *      ↓
+ *   Balance / Account Aggregate
+ *      ↓
+ *   Reconciliation
+ *      ↓
+ *   Receipt / Outbox / Audit
+ *
+ * Once financial posting has occurred, the following transaction identity/value
+ * fields MUST NOT be changed:
+ *
+ *   tenantId
+ *   transactionId
  *   amount
  *   currency
- *   tenantId
  *   type
  *   idempotencyKey
- *   transactionId
+ *   reference
+ *   userId
+ *   customerId
+ *   account references
+ *   provider references
+ *   correlation references
  *
- * must not be changed.
+ * A reversal MUST be represented by a NEW transaction.
  *
- * Status transitions are controlled explicitly.
+ * ============================================================================
+ * ESM
+ * ============================================================================
+ *
+ * The TITech repository uses package.json:
+ *
+ *   "type": "module"
+ *
+ * This file therefore intentionally uses native ESM.
  *
  * ============================================================================
  */
 
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
-const {
-    Schema
-} = mongoose;
-
+const { Schema } = mongoose;
 
 /**
  * ============================================================================
- * Constants
+ * CONSTANTS
  * ============================================================================
  */
 
-const MODEL_NAME =
-    'Transaction';
+export const MODEL_NAME = "Transaction";
 
-const COLLECTION_NAME =
-    'transactions';
+export const COLLECTION_NAME = "transactions";
 
-
-const VALID_STATUSES = Object.freeze([
-
-    'pending',
-
-    'completed',
-
-    'failed',
-
-    'canceled'
-
+export const VALID_STATUSES = Object.freeze([
+  "pending",
+  "completed",
+  "failed",
+  "canceled",
 ]);
 
-
-const VALID_TYPES = Object.freeze([
-
-    'deposit',
-
-    'withdrawal',
-
-    'transfer',
-
-    'payment',
-
-    'loan',
-
-    'repayment'
-
+export const VALID_TYPES = Object.freeze([
+  "deposit",
+  "withdrawal",
+  "transfer",
+  "payment",
+  "loan",
+  "repayment",
 ]);
 
-
-const TERMINAL_STATUSES = new Set([
-
-    'completed',
-
-    'failed',
-
-    'canceled'
-
+export const TERMINAL_STATUSES = Object.freeze([
+  "completed",
+  "failed",
+  "canceled",
 ]);
 
+export const INITIAL_STATUS = "pending";
 
-const INITIAL_STATUS =
-    'pending';
-
-
-/**
- * ============================================================================
- * Decimal Validation
- * ============================================================================
- *
- * Decimal128 is used for financial precision.
- *
- * Do not convert to Number merely to determine whether the value is valid.
- * ============================================================================
- */
-
-function validatePositiveDecimal(value) {
-
-    if (
-        value === undefined ||
-        value === null
-    ) {
-
-        return false;
-
-    }
-
-    try {
-
-        const decimal =
-            value instanceof mongoose.Types.Decimal128
-                ? value
-                : mongoose.Types.Decimal128.fromString(
-                    String(value)
-                );
-
-        const normalized =
-            decimal.toString();
-
-        if (
-            normalized === 'NaN' ||
-            normalized === 'Infinity' ||
-            normalized === '-Infinity'
-        ) {
-
-            return false;
-
-        }
-
-        return (
-            decimal.toString() !== '0' &&
-            !normalized.startsWith('-')
-        );
-
-    }
-    catch (_) {
-
-        return false;
-
-    }
-
-}
-
-
-/**
- * ============================================================================
- * Currency Validation
- * ============================================================================
- */
-
-function isValidCurrency(value) {
-
-    if (
-        typeof value !== 'string'
-    ) {
-
-        return false;
-
-    }
-
-    return /^[A-Z]{3}$/.test(
-        value.trim().toUpperCase()
-    );
-
-}
-
-
-/**
- * ============================================================================
- * Identifier Validation
- * ============================================================================
- */
-
-function isValidIdentifier(value) {
-
-    if (
-        typeof value !== 'string'
-    ) {
-
-        return false;
-
-    }
-
-    const normalized =
-        value.trim();
-
-    return (
-        normalized.length > 0 &&
-        normalized.length <= 256
-    );
-
-}
-
-
-/**
- * ============================================================================
- * Status Transition Policy
- * ============================================================================
- *
- * Financial lifecycle:
- *
- * pending
- *   ├── completed
- *   ├── failed
- *   └── canceled
- *
- * terminal states cannot be silently moved elsewhere.
- *
- * A reversal is a NEW financial transaction rather than a status mutation.
- * ============================================================================
- */
-
-const ALLOWED_STATUS_TRANSITIONS = Object.freeze({
-
+export const ALLOWED_STATUS_TRANSITIONS =
+  Object.freeze({
     pending: Object.freeze([
-
-        'completed',
-
-        'failed',
-
-        'canceled'
-
+      "completed",
+      "failed",
+      "canceled",
     ]),
 
     completed: Object.freeze([]),
-
     failed: Object.freeze([]),
-
-    canceled: Object.freeze([])
-
-});
-
+    canceled: Object.freeze([]),
+  });
 
 /**
  * ============================================================================
- * Transaction Schema
+ * CONFIGURATION
+ * ============================================================================
+ */
+
+const MAX_TRANSACTION_ID_LENGTH = 128;
+const MAX_REFERENCE_LENGTH = 256;
+const MAX_IDEMPOTENCY_KEY_LENGTH = 512;
+const MAX_CORRELATION_ID_LENGTH = 256;
+const MAX_REQUEST_ID_LENGTH = 256;
+
+const MAX_PRINCIPAL_ID_LENGTH = 256;
+const MAX_ACCOUNT_ID_LENGTH = 256;
+
+const MAX_PROVIDER_LENGTH = 128;
+const MAX_PROVIDER_TRANSACTION_ID_LENGTH = 256;
+const MAX_OPERATION_LENGTH = 128;
+
+const MAX_DESCRIPTION_LENGTH = 2000;
+
+const MAX_SCREENING_ID_LENGTH = 128;
+
+/**
+ * ============================================================================
+ * OBJECT ID HELPERS
+ * ============================================================================
+ */
+
+export function toObjectId(value) {
+  if (
+    value instanceof mongoose.Types.ObjectId
+  ) {
+    return value;
+  }
+
+  if (
+    !value ||
+    !mongoose.Types.ObjectId.isValid(
+      value
+    )
+  ) {
+    return null;
+  }
+
+  return new mongoose.Types.ObjectId(
+    value
+  );
+}
+
+export function isValidObjectId(
+  value
+) {
+  return Boolean(
+    value &&
+      mongoose.Types.ObjectId.isValid(
+        value
+      )
+  );
+}
+
+/**
+ * ============================================================================
+ * DECIMAL128 HELPERS
+ * ============================================================================
+ */
+
+export function toDecimal128(value) {
+  if (
+    value instanceof
+    mongoose.Types.Decimal128
+  ) {
+    return value;
+  }
+
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const normalized =
+    String(value).trim();
+
+  /**
+   * Financial inputs should use conventional decimal notation.
+   *
+   * This intentionally rejects:
+   *   NaN
+   *   Infinity
+   *   scientific notation
+   *   arbitrary non-decimal strings
+   */
+  if (
+    !/^\d+(?:\.\d{1,18})?$/.test(
+      normalized
+    )
+  ) {
+    throw new Error(
+      "Invalid monetary Decimal128 value."
+    );
+  }
+
+  return mongoose.Types.Decimal128.fromString(
+    normalized
+  );
+}
+
+export function decimalToString(
+  value
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return "0.00";
+  }
+
+  if (
+    value instanceof
+    mongoose.Types.Decimal128
+  ) {
+    return value.toString();
+  }
+
+  return String(value);
+}
+
+/**
+ * ============================================================================
+ * VALIDATION HELPERS
+ * ============================================================================
+ */
+
+/**
+ * A transaction amount must be strictly greater than zero.
+ *
+ * We intentionally do not convert to JavaScript Number.
+ */
+export function validatePositiveDecimal(
+  value
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return false;
+  }
+
+  try {
+    const decimal =
+      toDecimal128(value);
+
+    if (!decimal) {
+      return false;
+    }
+
+    const normalized =
+      decimal.toString();
+
+    if (
+      normalized === "NaN" ||
+      normalized === "Infinity" ||
+      normalized === "-Infinity"
+    ) {
+      return false;
+    }
+
+    /**
+     * Decimal128 canonical zero may appear as 0, 0.0, 0.00, etc.
+     */
+    return (
+      normalized !== "0" &&
+      /^0+(?:\.0+)?$/.test(
+        normalized
+      ) === false &&
+      !normalized.startsWith("-")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Currency must be an ISO-style three-letter uppercase code.
+ */
+export function isValidCurrency(
+  value
+) {
+  return (
+    typeof value === "string" &&
+    /^[A-Z]{3}$/.test(
+      value.trim().toUpperCase()
+    )
+  );
+}
+
+function isValidStringIdentifier(
+  value,
+  maxLength = 256
+) {
+  if (
+    typeof value !== "string"
+  ) {
+    return false;
+  }
+
+  const normalized =
+    value.trim();
+
+  return (
+    normalized.length > 0 &&
+    normalized.length <= maxLength
+  );
+}
+
+/**
+ * ============================================================================
+ * IMMUTABILITY POLICY
+ * ============================================================================
+ *
+ * Fields representing the financial identity or original economic instruction
+ * are immutable after transaction creation.
+ *
+ * Status is intentionally handled separately because lifecycle transitions are
+ * valid only when they follow the explicit transition policy.
+ */
+
+export const IMMUTABLE_FINANCIAL_FIELDS =
+  Object.freeze([
+    "tenantId",
+    "transactionId",
+    "type",
+    "amount",
+    "currency",
+    "idempotencyKey",
+    "reference",
+    "userId",
+    "customerId",
+    "debitAccountId",
+    "creditAccountId",
+    "provider",
+    "operation",
+    "providerTransactionId",
+    "journalId",
+    "ledgerTransactionId",
+    "fraudScreeningId",
+    "amlScreeningId",
+    "complianceDecisionId",
+    "riskDecision",
+    "correlationId",
+    "requestId",
+  ]);
+
+/**
+ * These fields are validly writable as part of lifecycle processing.
+ */
+const MUTABLE_OPERATIONAL_FIELDS =
+  new Set([
+    "status",
+    "completedAt",
+    "failedAt",
+    "canceledAt",
+    "metadata",
+    "description",
+    "archived",
+  ]);
+
+/**
+ * ============================================================================
+ * TRANSACTION SCHEMA
  * ============================================================================
  */
 
 const TransactionSchema =
-    new Schema({
+  new Schema(
+    {
+      /**
+       * ========================================================================
+       * TENANT ISOLATION
+       * ========================================================================
+       */
 
-        /**
-         * ---------------------------------------------------------------------
-         * Tenant Isolation
-         * ---------------------------------------------------------------------
-         */
+      tenantId: {
+        type: Schema.Types.ObjectId,
+        ref: "Tenant",
+        required: [
+          true,
+          "tenantId is required",
+        ],
+        immutable: true,
+        index: true,
+      },
 
-        tenantId: {
+      /**
+       * ========================================================================
+       * BUSINESS TRANSACTION IDENTITY
+       * ========================================================================
+       *
+       * MongoDB `_id` is the persistence identity.
+       *
+       * transactionId is TITech's public/business identity.
+       */
 
-            type:
-                String,
+      transactionId: {
+        type: String,
+        required: [
+          true,
+          "transactionId is required",
+        ],
+        trim: true,
+        maxlength:
+          MAX_TRANSACTION_ID_LENGTH,
+        immutable: true,
+        index: true,
+        default: () =>
+          new mongoose.Types.ObjectId()
+            .toString(),
+      },
 
-            required:
-                true,
+      /**
+       * ========================================================================
+       * BUSINESS REFERENCE
+       * ========================================================================
+       */
 
-            trim:
-                true,
+      reference: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_REFERENCE_LENGTH,
+        immutable: true,
+        sparse: true,
+        index: true,
+      },
 
-            maxlength:
-                256,
+      /**
+       * ========================================================================
+       * TRANSACTION TYPE
+       * ========================================================================
+       */
 
-            immutable:
-                true,
+      type: {
+        type: String,
+        required: true,
+        enum: VALID_TYPES,
+        trim: true,
+        lowercase: true,
+        immutable: true,
+        index: true,
+      },
 
-            index:
-                true,
+      /**
+       * ========================================================================
+       * MONETARY AMOUNT
+       * ========================================================================
+       */
 
-            validate: {
+      amount: {
+        type: Schema.Types.Decimal128,
+        required: true,
+        immutable: true,
 
-                validator:
-                    isValidIdentifier,
+        validate: {
+          validator:
+            validatePositiveDecimal,
 
-                message:
-                    'tenantId is required and must be a valid identifier'
-
-            }
-
+          message:
+            "Amount must be a positive monetary value",
         },
+      },
 
+      /**
+       * ========================================================================
+       * CURRENCY
+       * ========================================================================
+       */
 
-        /**
-         * ---------------------------------------------------------------------
-         * Public Transaction Identity
-         * ---------------------------------------------------------------------
-         *
-         * Separate business identity from MongoDB _id.
-         */
+      currency: {
+        type: String,
+        required: true,
+        default: "UGX",
+        trim: true,
+        uppercase: true,
+        minlength: 3,
+        maxlength: 3,
+        immutable: true,
 
-        transactionId: {
+        validate: {
+          validator:
+            isValidCurrency,
 
-            type:
-                String,
-
-            required:
-                true,
-
-            trim:
-                true,
-
-            maxlength:
-                128,
-
-            immutable:
-                true,
-
-            index:
-                true,
-
-            default:
-                () =>
-                    new mongoose.Types.ObjectId()
-                        .toString()
-
+          message:
+            "Currency must be a valid 3-letter currency code",
         },
+      },
 
+      /**
+       * ========================================================================
+       * LIFECYCLE STATUS
+       * ========================================================================
+       */
 
-        /**
-         * ---------------------------------------------------------------------
-         * Business Reference
-         * ---------------------------------------------------------------------
-         */
+      status: {
+        type: String,
+        enum: VALID_STATUSES,
+        default: INITIAL_STATUS,
+        required: true,
+        lowercase: true,
+        trim: true,
+        index: true,
+      },
 
-        reference: {
+      /**
+       * ========================================================================
+       * IDEMPOTENCY
+       * ========================================================================
+       *
+       * Uniqueness is tenant-scoped.
+       *
+       * The dedicated TransactionIdempotencyManager remains the higher-level
+       * orchestration authority. This index provides persistence-level
+       * protection against duplicate transaction identities.
+       */
 
-            type:
-                String,
+      idempotencyKey: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_IDEMPOTENCY_KEY_LENGTH,
+        immutable: true,
+        sparse: true,
+      },
 
-            trim:
-                true,
+      /**
+       * ========================================================================
+       * DISTRIBUTED CORRELATION
+       * ========================================================================
+       */
 
-            maxlength:
-                256,
+      correlationId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_CORRELATION_ID_LENGTH,
+        index: true,
+        immutable: true,
+        sparse: true,
+      },
 
-            immutable:
-                true,
+      requestId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_REQUEST_ID_LENGTH,
+        immutable: true,
+        sparse: true,
+      },
 
-            index:
-                true
+      /**
+       * ========================================================================
+       * ACTOR / CUSTOMER
+       * ========================================================================
+       *
+       * Kept as String for compatibility with the existing transaction
+       * ecosystem. Where a canonical MongoDB User/Member ObjectId is available,
+       * services may additionally persist that identity in metadata or a future
+       * migration field.
+       */
 
+      userId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_PRINCIPAL_ID_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      customerId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_PRINCIPAL_ID_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      /**
+       * ========================================================================
+       * ACCOUNT LINKAGE
+       * ========================================================================
+       *
+       * Business account identifiers are retained as strings because the
+       * existing financial stack may use external/account-number identities.
+       *
+       * Ledger remains authoritative for accounting.
+       */
+
+      debitAccountId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_ACCOUNT_ID_LENGTH,
+        immutable: true,
+        sparse: true,
+      },
+
+      creditAccountId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_ACCOUNT_ID_LENGTH,
+        immutable: true,
+        sparse: true,
+      },
+
+      /**
+       * ========================================================================
+       * LEDGER LINKAGE
+       * ========================================================================
+       */
+
+      journalId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_ACCOUNT_ID_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      ledgerTransactionId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_ACCOUNT_ID_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      /**
+       * ========================================================================
+       * PAYMENT PROVIDER
+       * ========================================================================
+       */
+
+      provider: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        maxlength:
+          MAX_PROVIDER_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      providerTransactionId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_TRANSACTION_ID_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      operation: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        maxlength:
+          MAX_OPERATION_LENGTH,
+        immutable: true,
+        sparse: true,
+      },
+
+      /**
+       * ========================================================================
+       * DESCRIPTION
+       * ========================================================================
+       */
+
+      description: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_DESCRIPTION_LENGTH,
+        default: "",
+      },
+
+      /**
+       * ========================================================================
+       * RISK / COMPLIANCE
+       * ========================================================================
+       */
+
+      fraudScreeningId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_SCREENING_ID_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      amlScreeningId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_SCREENING_ID_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      complianceDecisionId: {
+        type: String,
+        trim: true,
+        maxlength:
+          MAX_SCREENING_ID_LENGTH,
+        immutable: true,
+        index: true,
+        sparse: true,
+      },
+
+      riskDecision: {
+        type: String,
+        enum: [
+          "APPROVE",
+          "REVIEW",
+          "BLOCK",
+        ],
+        uppercase: true,
+        trim: true,
+        immutable: true,
+        sparse: true,
+      },
+
+      /**
+       * ========================================================================
+       * METADATA
+       * ========================================================================
+       *
+       * Metadata is contextual data only.
+       *
+       * It MUST NOT become the hidden financial source of truth.
+       */
+
+      metadata: {
+        type: Schema.Types.Mixed,
+        default: () => ({}),
+      },
+
+      /**
+       * ========================================================================
+       * ARCHIVAL
+       * ========================================================================
+       */
+
+      archived: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      /**
+       * ========================================================================
+       * LIFECYCLE TIMESTAMPS
+       * ========================================================================
+       */
+
+      completedAt: {
+        type: Date,
+        default: null,
+        immutable: true,
+      },
+
+      failedAt: {
+        type: Date,
+        default: null,
+        immutable: true,
+      },
+
+      canceledAt: {
+        type: Date,
+        default: null,
+        immutable: true,
+      },
+    },
+    {
+      collection:
+        COLLECTION_NAME,
+
+      strict: true,
+
+      timestamps: true,
+
+      versionKey: "version",
+
+      optimisticConcurrency: true,
+
+      minimize: false,
+
+      toJSON: {
+        getters: true,
+        virtuals: true,
+
+        transform(doc, ret) {
+          if (ret._id) {
+            ret.id =
+              ret._id.toString();
+          }
+
+          delete ret._id;
+          delete ret.version;
+
+          if (
+            ret.amount !==
+              undefined &&
+            ret.amount !== null
+          ) {
+            ret.amount =
+              ret.amount.toString();
+          }
+
+          return ret;
         },
+      },
 
+      toObject: {
+        getters: true,
+        virtuals: true,
 
-        /**
-         * ---------------------------------------------------------------------
-         * Transaction Type
-         * ---------------------------------------------------------------------
-         */
+        transform(doc, ret) {
+          if (ret._id) {
+            ret.id =
+              ret._id.toString();
+          }
 
-        type: {
+          delete ret._id;
+          delete ret.version;
 
-            type:
-                String,
+          if (
+            ret.amount !==
+              undefined &&
+            ret.amount !== null
+          ) {
+            ret.amount =
+              ret.amount.toString();
+          }
 
-            required:
-                true,
-
-            enum:
-                VALID_TYPES,
-
-            trim:
-                true,
-
-            lowercase:
-                true,
-
-            immutable:
-                true,
-
-            index:
-                true
-
+          return ret;
         },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Monetary Amount
-         * ---------------------------------------------------------------------
-         */
-
-        amount: {
-
-            type:
-                Schema.Types.Decimal128,
-
-            required:
-                true,
-
-            immutable:
-                true,
-
-            validate: {
-
-                validator:
-                    validatePositiveDecimal,
-
-                message:
-                    'Amount must be a positive monetary value'
-
-            }
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Currency
-         * ---------------------------------------------------------------------
-         */
-
-        currency: {
-
-            type:
-                String,
-
-            required:
-                true,
-
-            default:
-                'UGX',
-
-            trim:
-                true,
-
-            uppercase:
-                true,
-
-            minlength:
-                3,
-
-            maxlength:
-                3,
-
-            immutable:
-                true,
-
-            validate: {
-
-                validator:
-                    isValidCurrency,
-
-                message:
-                    'Currency must be a valid 3-letter currency code'
-
-            }
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Transaction Status
-         * ---------------------------------------------------------------------
-         */
-
-        status: {
-
-            type:
-                String,
-
-            enum:
-                VALID_STATUSES,
-
-            default:
-                INITIAL_STATUS,
-
-            required:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Idempotency
-         * ---------------------------------------------------------------------
-         *
-         * Uniqueness is enforced by the compound:
-         *
-         *   tenantId + idempotencyKey
-         *
-         * rather than globally.
-         */
-
-        idempotencyKey: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                512,
-
-            immutable:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Correlation
-         * ---------------------------------------------------------------------
-         */
-
-        correlationId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            index:
-                true,
-
-            immutable:
-                true
-
-        },
-
-
-        requestId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            immutable:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Actor / User
-         * ---------------------------------------------------------------------
-         */
-
-        userId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        customerId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Account Linkage
-         * ---------------------------------------------------------------------
-         *
-         * These are business references to the affected accounts.
-         * The immutable ledger remains authoritative for accounting.
-         */
-
-        debitAccountId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            immutable:
-                true
-
-        },
-
-
-        creditAccountId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            immutable:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Ledger Linkage
-         * ---------------------------------------------------------------------
-         */
-
-        journalId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        ledgerTransactionId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Payment Provider Context
-         * ---------------------------------------------------------------------
-         */
-
-        provider: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            uppercase:
-                true,
-
-            maxlength:
-                128,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        providerTransactionId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                256,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        operation: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            uppercase:
-                true,
-
-            maxlength:
-                128,
-
-            immutable:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Description
-         * ---------------------------------------------------------------------
-         */
-
-        description: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                2000
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Risk / Compliance Linkage
-         * ---------------------------------------------------------------------
-         */
-
-        fraudScreeningId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                128,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        amlScreeningId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                128,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        complianceDecisionId: {
-
-            type:
-                String,
-
-            trim:
-                true,
-
-            maxlength:
-                128,
-
-            immutable:
-                true,
-
-            index:
-                true
-
-        },
-
-
-        riskDecision: {
-
-            type:
-                String,
-
-            enum: [
-
-                'APPROVE',
-
-                'REVIEW',
-
-                'BLOCK'
-
-            ],
-
-            immutable:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Metadata
-         * ---------------------------------------------------------------------
-         *
-         * Metadata must not be used as the source of accounting truth.
-         *
-         * Use a function to avoid sharing a mutable object between documents.
-         */
-
-        metadata: {
-
-            type:
-                Schema.Types.Mixed,
-
-            default:
-                () =>
-                    ({})
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Archive Flag
-         * ---------------------------------------------------------------------
-         */
-
-        archived: {
-
-            type:
-                Boolean,
-
-            default:
-                false,
-
-            index:
-                true
-
-        },
-
-
-        /**
-         * ---------------------------------------------------------------------
-         * Lifecycle Timestamps
-         * ---------------------------------------------------------------------
-         */
-
-        completedAt: {
-
-            type:
-                Date,
-
-            immutable:
-                true
-
-        },
-
-
-        failedAt: {
-
-            type:
-                Date,
-
-            immutable:
-                true
-
-        },
-
-
-        canceledAt: {
-
-            type:
-                Date,
-
-            immutable:
-                true
-
-        }
-
-    }, {
-
-        collection:
-            COLLECTION_NAME,
-
-        strict:
-            true,
-
-        timestamps:
-            true,
-
-        versionKey:
-            'version',
-
-        optimisticConcurrency:
-            true,
-
-        minimize:
-            false,
-
-        toJSON: {
-
-            getters:
-                true,
-
-            virtuals:
-                true
-
-        },
-
-        toObject: {
-
-            getters:
-                true,
-
-            virtuals:
-                true
-
-        }
-
-    });
-
+      },
+    }
+  );
 
 /**
  * ============================================================================
- * Decimal128 JSON Serialization
+ * VIRTUALS
+ * ============================================================================
+ */
+
+TransactionSchema.virtual(
+  "isTerminal"
+).get(
+  function isTerminal() {
+    return TERMINAL_STATUSES.includes(
+      this.status
+    );
+  }
+);
+
+TransactionSchema.virtual(
+  "isCompleted"
+).get(
+  function isCompleted() {
+    return (
+      this.status ===
+      "completed"
+    );
+  }
+);
+
+TransactionSchema.virtual(
+  "isFailed"
+).get(
+  function isFailed() {
+    return (
+      this.status ===
+      "failed"
+    );
+  }
+);
+
+TransactionSchema.virtual(
+  "isCanceled"
+).get(
+  function isCanceled() {
+    return (
+      this.status ===
+      "canceled"
+    );
+  }
+);
+
+/**
+ * ============================================================================
+ * PRE-VALIDATION
+ * ============================================================================
+ */
+
+TransactionSchema.pre(
+  "validate",
+  function normalizeTransaction(
+    next
+  ) {
+    /**
+     * Tenant must be a real ObjectId.
+     */
+    const tenant =
+      toObjectId(
+        this.tenantId
+      );
+
+    if (!tenant) {
+      return next(
+        new Error(
+          "A valid tenantId is required for Transaction."
+        )
+      );
+    }
+
+    this.tenantId =
+      tenant;
+
+    /**
+     * Normalize identifiers.
+     */
+    if (this.transactionId) {
+      this.transactionId =
+        String(
+          this.transactionId
+        ).trim();
+    }
+
+    if (this.reference) {
+      this.reference =
+        String(
+          this.reference
+        ).trim();
+    }
+
+    if (this.idempotencyKey) {
+      this.idempotencyKey =
+        String(
+          this.idempotencyKey
+        ).trim();
+    }
+
+    if (this.correlationId) {
+      this.correlationId =
+        String(
+          this.correlationId
+        ).trim();
+    }
+
+    if (this.requestId) {
+      this.requestId =
+        String(
+          this.requestId
+        ).trim();
+    }
+
+    /**
+     * Normalize currency/type/status.
+     */
+    if (this.currency) {
+      this.currency =
+        String(
+          this.currency
+        )
+          .trim()
+          .toUpperCase();
+    }
+
+    if (this.type) {
+      this.type =
+        String(
+          this.type
+        )
+          .trim()
+          .toLowerCase();
+    }
+
+    if (this.status) {
+      this.status =
+        String(
+          this.status
+        )
+          .trim()
+          .toLowerCase();
+    }
+
+    /**
+     * Metadata must remain an object.
+     */
+    if (
+      this.metadata !== null &&
+      (
+        typeof this.metadata !==
+          "object" ||
+        Array.isArray(
+          this.metadata
+        )
+      )
+    ) {
+      return next(
+        new Error(
+          "Transaction metadata must be an object."
+        )
+      );
+    }
+
+    /**
+     * Amount remains Decimal128.
+     */
+    if (
+      this.amount !==
+        undefined &&
+      this.amount !== null &&
+      !(
+        this.amount instanceof
+        mongoose.Types.Decimal128
+      )
+    ) {
+      try {
+        this.amount =
+          toDecimal128(
+            this.amount
+          );
+      } catch (error) {
+        return next(error);
+      }
+    }
+
+    return next();
+  }
+);
+
+/**
+ * ============================================================================
+ * PRE-VALIDATION STATUS RULE
+ * ============================================================================
+ *
+ * New transactions MUST start pending.
+ *
+ * Services wanting an alternative initial lifecycle should create the record
+ * pending and then perform an explicit transition.
+ */
+
+TransactionSchema.pre(
+  "validate",
+  function validateInitialStatus(
+    next
+  ) {
+    if (
+      this.isNew &&
+      this.status !==
+        INITIAL_STATUS
+    ) {
+      return next(
+        new Error(
+          "New transactions must start in pending status."
+        )
+      );
+    }
+
+    return next();
+  }
+);
+
+/**
+ * ============================================================================
+ * DOCUMENT STATUS TRANSITION GUARD
  * ============================================================================
  *
  * IMPORTANT:
  *
- * Do NOT automatically convert Decimal128 into Number.
+ * The old implementation attempted to obtain an original status using
+ * `get()`. That is not a reliable general-purpose mechanism for all document
+ * update paths.
  *
- * Monetary values can exceed JavaScript's safe integer/precision boundary.
- *
- * The serialized amount is returned as a string:
- *
- *   "100.25"
- *
- * rather than an imprecise JavaScript Number.
+ * For document saves, inspect the document's original value through the
+ * internally tracked state where available. The preferred production mutation
+ * path for status changes is the explicit lifecycle methods or the static
+ * atomic transition helper below.
+ */
+
+TransactionSchema.pre(
+  "save",
+  function guardDocumentStatus(
+    next
+  ) {
+    if (
+      this.isNew ||
+      !this.isModified("status")
+    ) {
+      return next();
+    }
+
+    /**
+     * When a document was loaded from MongoDB, `$__original_save_options` is
+     * not a portable original-value API. Therefore the safest rule is:
+     *
+     * - lifecycle methods explicitly validate from the current state;
+     * - arbitrary save-based status mutation is rejected unless the transition
+     *   is represented by the supported lifecycle method.
+     *
+     * The private marker is applied by those lifecycle methods.
+     */
+    const lifecycleTransition =
+      this.$locals
+        ?.titechLifecycleTransition;
+
+    if (!lifecycleTransition) {
+      return next(
+        new Error(
+          "Transaction status must be changed through an explicit lifecycle method."
+        )
+      );
+    }
+
+    return next();
+  }
+);
+
+/**
+ * ============================================================================
+ * LIFECYCLE TIMESTAMP ENFORCEMENT
  * ============================================================================
  */
 
-function transformDecimalAmount(
-    doc,
-    ret
-) {
+TransactionSchema.pre(
+  "save",
+  function enforceLifecycleTimestamps(
+    next
+  ) {
+    if (
+      !this.isModified(
+        "status"
+      )
+    ) {
+      return next();
+    }
+
+    switch (this.status) {
+      case "completed":
+        this.completedAt =
+          this.completedAt ||
+          new Date();
+        break;
+
+      case "failed":
+        this.failedAt =
+          this.failedAt ||
+          new Date();
+        break;
+
+      case "canceled":
+        this.canceledAt =
+          this.canceledAt ||
+          new Date();
+        break;
+
+      default:
+        break;
+    }
+
+    return next();
+  }
+);
+
+/**
+ * ============================================================================
+ * FINANCIAL FIELD IMMUTABILITY
+ * ============================================================================
+ */
+
+TransactionSchema.pre(
+  "save",
+  function preventFinancialMutation(
+    next
+  ) {
+    if (this.isNew) {
+      return next();
+    }
+
+    const changedFields =
+      this.modifiedPaths();
+
+    const forbiddenChanges =
+      changedFields.filter(
+        (field) =>
+          IMMUTABLE_FINANCIAL_FIELDS.includes(
+            field
+          )
+      );
 
     if (
-        ret.amount !== undefined &&
-        ret.amount !== null
+      forbiddenChanges.length >
+      0
     ) {
-
-        ret.amount =
-            ret.amount.toString();
-
+      return next(
+        new Error(
+          `Immutable transaction fields cannot be modified: ${forbiddenChanges.join(", ")}`
+        )
+      );
     }
 
-    return ret;
+    return next();
+  }
+);
 
+/**
+ * ============================================================================
+ * QUERY-LEVEL UPDATE PROTECTION
+ * ============================================================================
+ *
+ * Direct query updates remain dangerous because they bypass normal document
+ * lifecycle semantics.
+ *
+ * Immutable financial fields are categorically rejected.
+ *
+ * Status changes are also rejected unless a recognized lifecycle operation
+ * explicitly opts into the controlled atomic transition helper.
+ */
+
+const QUERY_UPDATE_OPERATIONS =
+  Object.freeze([
+    "updateOne",
+    "updateMany",
+    "findOneAndUpdate",
+    "findByIdAndUpdate",
+  ]);
+
+function flattenUpdateFields(
+  update
+) {
+  if (
+    !update ||
+    Array.isArray(update) ||
+    typeof update !==
+      "object"
+  ) {
+    return {};
+  }
+
+  const flattened = {};
+
+  for (
+    const [key, value]
+      of Object.entries(
+        update
+      )
+  ) {
+    if (
+      key.startsWith("$")
+    ) {
+      if (
+        value &&
+        typeof value ===
+          "object" &&
+        !Array.isArray(
+          value
+        )
+      ) {
+        for (
+          const [
+            nestedKey,
+            nestedValue,
+          ] of Object.entries(
+            value
+          )
+        ) {
+          flattened[
+            nestedKey
+          ] = nestedValue;
+        }
+      }
+
+      continue;
+    }
+
+    flattened[key] =
+      value;
+  }
+
+  return flattened;
 }
 
-
-TransactionSchema.options.toJSON.transform =
-    function transactionJSONTransform(
-        doc,
-        ret
-    ) {
-
-        delete ret.__v;
-
-        return transformDecimalAmount(
-            doc,
-            ret
-        );
-
-    };
-
-
-TransactionSchema.options.toObject.transform =
-    function transactionObjectTransform(
-        doc,
-        ret
-    ) {
-
-        delete ret.__v;
-
-        return transformDecimalAmount(
-            doc,
-            ret
-        );
-
-    };
-
-
-/**
- * ============================================================================
- * Status Transition Validation
- * ============================================================================
- */
-
-TransactionSchema.pre(
-    'validate',
-    function validateStatusTransition(
-        next
-    ) {
-
-        /**
-         * New document.
-         */
-        if (
-            this.isNew
-        ) {
-
-            if (
-                this.status !==
-                INITIAL_STATUS
-            ) {
-
-                return next(
-                    new Error(
-                        'New transactions must start in pending status'
-                    )
-                );
-
-            }
-
-            return next();
-
-        }
-
-
-        /**
-         * Status has not changed.
-         */
-        if (
-            !this.isModified('status')
-        ) {
-
-            return next();
-
-        }
-
-
-        const originalStatus =
-            this.get(
-                'status',
-                null,
-                {
-                    getters:
-                        false
-                }
-            );
-
-
-        /**
-         * Mongoose does not always expose the original value through
-         * get() during all update flows, so query-based status updates
-         * are additionally guarded below.
-         */
-        if (
-            originalStatus &&
-            originalStatus !== this.status
-        ) {
-
-            const allowed =
-                ALLOWED_STATUS_TRANSITIONS[
-                    originalStatus
-                ] || [];
-
-
-            if (
-                !allowed.includes(
-                    this.status
-                )
-            ) {
-
-                return next(
-                    new Error(
-                        `Invalid transaction status transition: ${originalStatus} -> ${this.status}`
-                    )
-                );
-
-            }
-
-        }
-
-
-        next();
-
-    }
-);
-
-
-/**
- * ============================================================================
- * Lifecycle Timestamp Enforcement
- * ============================================================================
- */
-
-TransactionSchema.pre(
-    'save',
-    function enforceLifecycleTimestamps(
-        next
-    ) {
-
-        if (
-            this.isModified('status')
-        ) {
-
-            switch (
-                this.status
-            ) {
-
-                case 'completed':
-
-                    this.completedAt =
-                        this.completedAt ||
-                        new Date();
-
-                    break;
-
-
-                case 'failed':
-
-                    this.failedAt =
-                        this.failedAt ||
-                        new Date();
-
-                    break;
-
-
-                case 'canceled':
-
-                    this.canceledAt =
-                        this.canceledAt ||
-                        new Date();
-
-                    break;
-
-
-                default:
-                    break;
-
-            }
-
-        }
-
-
-        next();
-
-    }
-);
-
-
-/**
- * ============================================================================
- * Financial Field Immutability
- * ============================================================================
- *
- * Even though immutable:true exists on the fields, this explicit guard makes
- * the business invariant obvious and protects future maintainers from
- * accidentally relaxing individual field definitions.
- * ============================================================================
- */
-
-const IMMUTABLE_FINANCIAL_FIELDS = [
-
-    'tenantId',
-
-    'transactionId',
-
-    'type',
-
-    'amount',
-
-    'currency',
-
-    'idempotencyKey',
-
-    'reference',
-
-    'userId',
-
-    'customerId',
-
-    'debitAccountId',
-
-    'creditAccountId',
-
-    'provider',
-
-    'operation',
-
-    'providerTransactionId',
-
-    'journalId',
-
-    'ledgerTransactionId',
-
-    'fraudScreeningId',
-
-    'amlScreeningId',
-
-    'complianceDecisionId',
-
-    'riskDecision',
-
-    'correlationId',
-
-    'requestId'
-
-];
-
-
-TransactionSchema.pre(
-    'save',
-    function preventFinancialMutation(
-        next
-    ) {
-
-        if (
-            this.isNew
-        ) {
-
-            return next();
-
-        }
-
-
-        const changedFields =
-            this.modifiedPaths();
-
-
-        const forbiddenChanges =
-            changedFields.filter(
-                field =>
-                    IMMUTABLE_FINANCIAL_FIELDS.includes(
-                        field
-                    )
-            );
-
-
-        if (
-            forbiddenChanges.length > 0
-        ) {
-
-            return next(
-                new Error(
-
-                    `Immutable transaction fields cannot be modified: ${forbiddenChanges.join(', ')}`
-
-                )
-            );
-
-        }
-
-
-        next();
-
-    }
-);
-
-
-/**
- * ============================================================================
- * Query-Level Financial Immutability
- * ============================================================================
- *
- * Direct update operations on financial identity/value fields are rejected.
- *
- * Status updates are intentionally allowed only through explicit lifecycle
- * methods below.
- * ============================================================================
- */
-
-const BLOCKED_UPDATE_OPERATIONS = [
-
-    'updateOne',
-
-    'updateMany',
-
-    'findOneAndUpdate',
-
-    'findByIdAndUpdate'
-
-];
-
+function queryAllowsLifecycle(
+  query
+) {
+  const options =
+    query.getOptions?.() || {};
+
+  return (
+    options.__titechLifecycle ===
+    true
+  );
+}
 
 for (
-    const operation
-    of BLOCKED_UPDATE_OPERATIONS
+  const operation of
+    QUERY_UPDATE_OPERATIONS
 ) {
+  TransactionSchema.pre(
+    operation,
+    function preventUnsafeUpdate(
+      next
+    ) {
+      const update =
+        this.getUpdate();
 
-    TransactionSchema.pre(
-        operation,
-        function preventUnsafeUpdate(
-            next
-        ) {
+      /**
+       * Pipeline updates cannot safely preserve this financial lifecycle
+       * contract and are rejected.
+       */
+      if (
+        Array.isArray(
+          update
+        )
+      ) {
+        return next(
+          new Error(
+            "Aggregation-pipeline updates are not permitted on Transaction."
+          )
+        );
+      }
 
-            const update =
-                this.getUpdate() ||
-                {};
+      const flattened =
+        flattenUpdateFields(
+          update
+        );
 
+      const attemptedImmutable =
+        Object.keys(
+          flattened
+        ).filter(
+          (field) =>
+            IMMUTABLE_FINANCIAL_FIELDS.includes(
+              field
+            )
+        );
 
-            const updatePayload = {
+      if (
+        attemptedImmutable.length >
+        0
+      ) {
+        return next(
+          new Error(
+            `Direct mutation of immutable transaction fields is prohibited: ${attemptedImmutable.join(", ")}`
+          )
+        );
+      }
 
-                ...(update.$set || {}),
+      /**
+       * Prevent ordinary callers from bypassing lifecycle validation.
+       */
+      if (
+        Object.prototype.hasOwnProperty.call(
+          flattened,
+          "status"
+        ) &&
+        !queryAllowsLifecycle(
+          this
+        )
+      ) {
+        return next(
+          new Error(
+            "Transaction status must be changed through an explicit lifecycle method."
+          )
+        );
+      }
 
-                ...(update.$setOnInsert || {}),
-
-                ...Object.keys(update)
-                    .filter(
-                        key =>
-                            !key.startsWith('$')
-                    )
-                    .reduce(
-                        (
-                            result,
-                            key
-                        ) => {
-
-                            result[key] =
-                                update[key];
-
-                            return result;
-
-                        },
-                        {}
-                    )
-
-            };
-
-
-            const attemptedFields =
-                Object.keys(
-                    updatePayload
-                ).filter(
-                    field =>
-                        IMMUTABLE_FINANCIAL_FIELDS.includes(
-                            field
-                        )
-                );
-
-
-            if (
-                attemptedFields.length > 0
-            ) {
-
-                return next(
-                    new Error(
-
-                        `Direct mutation of immutable transaction fields is prohibited: ${attemptedFields.join(', ')}`
-
-                    )
-                );
-
-            }
-
-
-            next();
-
-        }
-    );
-
+      return next();
+    }
+  );
 }
-
 
 /**
  * ============================================================================
- * Delete Protection
- * ============================================================================
- *
- * Financial transaction history should not disappear via application-level
- * delete calls.
- *
- * Archive/retention controls should be implemented separately.
+ * DELETE PROTECTION
  * ============================================================================
  */
 
-const DELETE_OPERATIONS = [
-
-    'deleteOne',
-
-    'deleteMany',
-
-    'findOneAndDelete',
-
-    'findByIdAndDelete'
-
-];
-
+const DELETE_OPERATIONS =
+  Object.freeze([
+    "deleteOne",
+    "deleteMany",
+    "findOneAndDelete",
+    "findByIdAndDelete",
+  ]);
 
 for (
-    const operation
-    of DELETE_OPERATIONS
+  const operation of
+    DELETE_OPERATIONS
 ) {
-
-    TransactionSchema.pre(
-        operation,
-        function preventFinancialDeletion(
-            next
-        ) {
-
-            next(
-                new Error(
-                    'Financial transaction records cannot be deleted through the application'
-                )
-            );
-
-        }
-    );
-
+  TransactionSchema.pre(
+    operation,
+    function preventFinancialDeletion(
+      next
+    ) {
+      return next(
+        new Error(
+          "Financial transaction records cannot be deleted through the application."
+        )
+      );
+    }
+  );
 }
-
 
 /**
  * ============================================================================
- * Compound Indexes
+ * INDEXES
  * ============================================================================
- *
- * All operational indexes are tenant-prefixed where appropriate.
  */
-
 
 /**
  * Tenant transaction timeline.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    createdAt:
-        -1
-
-}, {
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    createdAt: -1,
+  },
+  {
     name:
-        'idx_transaction_tenant_created'
-
-});
-
+      "idx_transaction_tenant_created",
+  }
+);
 
 /**
- * Tenant/type/status transaction queries.
+ * Tenant/type/status transaction queues.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    type:
-        1,
-
-    status:
-        1,
-
-    createdAt:
-        -1
-
-}, {
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    type: 1,
+    status: 1,
+    createdAt: -1,
+  },
+  {
     name:
-        'idx_transaction_tenant_type_status_created'
-
-});
-
+      "idx_transaction_tenant_type_status_created",
+  }
+);
 
 /**
  * Tenant-scoped idempotency.
- *
- * IMPORTANT:
- * This replaces the old globally unique idempotency key behavior.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    idempotencyKey:
-        1
-
-}, {
-
-    unique:
-        true,
-
-    sparse:
-        true,
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    idempotencyKey: 1,
+  },
+  {
+    unique: true,
+    sparse: true,
     name:
-        'uniq_transaction_tenant_idempotency'
-
-});
-
+      "uniq_transaction_tenant_idempotency",
+  }
+);
 
 /**
  * Tenant/reference lookup.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    reference:
-        1
-
-}, {
-
-    sparse:
-        true,
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    reference: 1,
+  },
+  {
+    sparse: true,
     name:
-        'idx_transaction_tenant_reference'
-
-});
-
+      "idx_transaction_tenant_reference",
+  }
+);
 
 /**
- * Transaction business identity.
+ * Tenant/business transaction identity.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    transactionId:
-        1
-
-}, {
-
-    unique:
-        true,
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    transactionId: 1,
+  },
+  {
+    unique: true,
     name:
-        'uniq_transaction_tenant_transaction_id'
-
-});
-
+      "uniq_transaction_tenant_transaction_id",
+  }
+);
 
 /**
  * Customer transaction history.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    customerId:
-        1,
-
-    createdAt:
-        -1
-
-}, {
-
-    sparse:
-        true,
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    customerId: 1,
+    createdAt: -1,
+  },
+  {
+    sparse: true,
     name:
-        'idx_transaction_tenant_customer_created'
+      "idx_transaction_tenant_customer_created",
+  }
+);
 
-});
-
+/**
+ * User transaction history.
+ */
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    userId: 1,
+    createdAt: -1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_transaction_tenant_user_created",
+  }
+);
 
 /**
  * Provider transaction lookup.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    provider:
-        1,
-
-    providerTransactionId:
-        1
-
-}, {
-
-    sparse:
-        true,
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    provider: 1,
+    providerTransactionId: 1,
+  },
+  {
+    sparse: true,
     name:
-        'idx_transaction_provider_reference'
-
-});
-
+      "idx_transaction_provider_reference",
+  }
+);
 
 /**
  * Correlation tracing.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    correlationId:
-        1,
-
-    createdAt:
-        -1
-
-}, {
-
-    sparse:
-        true,
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    correlationId: 1,
+    createdAt: -1,
+  },
+  {
+    sparse: true,
     name:
-        'idx_transaction_correlation'
-
-});
-
+      "idx_transaction_correlation",
+  }
+);
 
 /**
  * Ledger linkage.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    ledgerTransactionId:
-        1
-
-}, {
-
-    sparse:
-        true,
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    ledgerTransactionId: 1,
+  },
+  {
+    sparse: true,
     name:
-        'idx_transaction_ledger_link'
-
-});
-
+      "idx_transaction_ledger_link",
+  }
+);
 
 /**
- * AML/Fraud/Compliance linkage.
+ * Journal linkage.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    fraudScreeningId:
-        1
-
-}, {
-
-    sparse:
-        true,
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    journalId: 1,
+  },
+  {
+    sparse: true,
     name:
-        'idx_transaction_fraud_screening'
-
-});
-
-
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    amlScreeningId:
-        1
-
-}, {
-
-    sparse:
-        true,
-
-    name:
-        'idx_transaction_aml_screening'
-
-});
-
-
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    complianceDecisionId:
-        1
-
-}, {
-
-    sparse:
-        true,
-
-    name:
-        'idx_transaction_compliance_decision'
-
-});
-
+      "idx_transaction_journal_link",
+  }
+);
 
 /**
- * Review-oriented query.
+ * AML / Fraud / Compliance linkage.
  */
-TransactionSchema.index({
-
-    tenantId:
-        1,
-
-    status:
-        1,
-
-    archived:
-        1,
-
-    createdAt:
-        -1
-
-}, {
-
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    fraudScreeningId: 1,
+  },
+  {
+    sparse: true,
     name:
-        'idx_transaction_operational_queue'
+      "idx_transaction_fraud_screening",
+  }
+);
 
-});
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    amlScreeningId: 1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_transaction_aml_screening",
+  }
+);
 
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    complianceDecisionId: 1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_transaction_compliance_decision",
+  }
+);
+
+/**
+ * Operational queue.
+ */
+TransactionSchema.index(
+  {
+    tenantId: 1,
+    status: 1,
+    archived: 1,
+    createdAt: -1,
+  },
+  {
+    name:
+      "idx_transaction_operational_queue",
+  }
+);
 
 /**
  * ============================================================================
- * Static Methods
+ * STATIC QUERY HELPERS
  * ============================================================================
  */
 
 /**
- * Find by business transaction ID within a tenant.
+ * Find a transaction by its business transaction identity.
  */
 TransactionSchema.statics.findByTransactionId =
-    function findByTransactionId({
+  function findByTransactionId({
+    tenantId,
+    transactionId,
+  } = {}) {
+    const tenantObjectId =
+      toObjectId(
+        tenantId
+      );
 
-        tenantId,
+    if (
+      !tenantObjectId ||
+      !isValidStringIdentifier(
+        transactionId,
+        MAX_TRANSACTION_ID_LENGTH
+      )
+    ) {
+      return this.findOne({
+        _id: null,
+      });
+    }
 
-        transactionId
+    return this.findOne({
+      tenantId:
+        tenantObjectId,
 
-    }) {
-
-        return this.findOne({
-
-            tenantId,
-
-            transactionId
-
-        });
-
-    };
-
+      transactionId:
+        String(
+          transactionId
+        ).trim(),
+    });
+  };
 
 /**
  * Find by tenant-scoped idempotency key.
  */
 TransactionSchema.statics.findByIdempotencyKey =
-    function findByIdempotencyKey({
+  function findByIdempotencyKey({
+    tenantId,
+    idempotencyKey,
+  } = {}) {
+    const tenantObjectId =
+      toObjectId(
+        tenantId
+      );
 
-        tenantId,
+    if (
+      !tenantObjectId ||
+      !isValidStringIdentifier(
+        idempotencyKey,
+        MAX_IDEMPOTENCY_KEY_LENGTH
+      )
+    ) {
+      return this.findOne({
+        _id: null,
+      });
+    }
 
-        idempotencyKey
+    return this.findOne({
+      tenantId:
+        tenantObjectId,
 
-    }) {
-
-        return this.findOne({
-
-            tenantId,
-
-            idempotencyKey
-
-        });
-
-    };
-
+      idempotencyKey:
+        String(
+          idempotencyKey
+        ).trim(),
+    });
+  };
 
 /**
- * Find latest transaction for a customer.
+ * Find latest customer transaction.
  */
 TransactionSchema.statics.findLatestForCustomer =
-    function findLatestForCustomer({
+  function findLatestForCustomer({
+    tenantId,
+    customerId,
+  } = {}) {
+    const tenantObjectId =
+      toObjectId(
+        tenantId
+      );
 
-        tenantId,
-
+    if (
+      !tenantObjectId ||
+      !isValidStringIdentifier(
         customerId
+      )
+    ) {
+      return this.findOne({
+        _id: null,
+      });
+    }
 
-    }) {
+    return this.findOne({
+      tenantId:
+        tenantObjectId,
 
-        return this.findOne({
+      customerId:
+        String(
+          customerId
+        ).trim(),
+    }).sort({
+      createdAt: -1,
+    });
+  };
 
-            tenantId,
+/**
+ * Tenant-wide transaction summary.
+ */
+TransactionSchema.statics.summarizeTenant =
+  async function summarizeTenant(
+    tenantId,
+    {
+      from = null,
+      to = null,
+      status = null,
+      type = null,
+    } = {}
+  ) {
+    const tenantObjectId =
+      toObjectId(
+        tenantId
+      );
 
-            customerId
+    if (!tenantObjectId) {
+      return {
+        totalAmount: "0.00",
+        transactionCount: 0,
+      };
+    }
 
-        })
-            .sort({
-
-                createdAt:
-                    -1
-
-            });
-
+    const match = {
+      tenantId:
+        tenantObjectId,
     };
 
+    if (status) {
+      match.status =
+        status;
+    }
+
+    if (type) {
+      match.type =
+        type;
+    }
+
+    if (from || to) {
+      match.createdAt = {};
+
+      if (from) {
+        match.createdAt.$gte =
+          new Date(from);
+      }
+
+      if (to) {
+        match.createdAt.$lte =
+          new Date(to);
+      }
+    }
+
+    const rows =
+      await this.aggregate([
+        {
+          $match: match,
+        },
+
+        {
+          $group: {
+            _id: null,
+
+            totalAmount: {
+              $sum: "$amount",
+            },
+
+            transactionCount: {
+              $sum: 1,
+            },
+          },
+        },
+      ]);
+
+    if (
+      !rows ||
+      !rows[0]
+    ) {
+      return {
+        totalAmount: "0.00",
+        transactionCount: 0,
+      };
+    }
+
+    return {
+      totalAmount:
+        decimalToString(
+          rows[0]
+            .totalAmount
+        ),
+
+      transactionCount:
+        rows[0]
+          .transactionCount,
+    };
+  };
 
 /**
  * ============================================================================
- * Lifecycle Methods
+ * ATOMIC STATUS TRANSITION
  * ============================================================================
  *
- * These methods are the preferred way to change transaction status.
+ * Preferred query-level lifecycle primitive for services that need atomic
+ * transition semantics without loading and saving the document.
+ *
+ * Example:
+ *
+ *   await Transaction.transitionStatus({
+ *     tenantId,
+ *     transactionId,
+ *     from: "pending",
+ *     to: "completed",
+ *     session
+ *   });
+ *
+ * The transition is guarded by:
+ *   - tenant
+ *   - transaction identity
+ *   - expected current status
+ *
+ * This prevents stale workers from completing a transaction that another
+ * worker has already finalized.
+ * ============================================================================
+ */
+
+TransactionSchema.statics.transitionStatus =
+  async function transitionStatus({
+    tenantId,
+    transactionId,
+    from,
+    to,
+    session = null,
+  } = {}) {
+    const tenantObjectId =
+      toObjectId(
+        tenantId
+      );
+
+    if (!tenantObjectId) {
+      throw new Error(
+        "A valid tenantId is required."
+      );
+    }
+
+    if (
+      !VALID_STATUSES.includes(
+        from
+      ) ||
+      !VALID_STATUSES.includes(
+        to
+      )
+    ) {
+      throw new Error(
+        "Invalid transaction status."
+      );
+    }
+
+    const allowed =
+      ALLOWED_STATUS_TRANSITIONS[
+        from
+      ] || [];
+
+    if (
+      !allowed.includes(to)
+    ) {
+      throw new Error(
+        `Invalid transaction status transition: ${from} -> ${to}`
+      );
+    }
+
+    const filter = {
+      tenantId:
+        tenantObjectId,
+
+      transactionId:
+        String(
+          transactionId
+        ).trim(),
+
+      status:
+        from,
+    };
+
+    const update = {
+      $set: {
+        status: to,
+      },
+    };
+
+    if (to === "completed") {
+      update.$set.completedAt =
+        new Date();
+    }
+
+    if (to === "failed") {
+      update.$set.failedAt =
+        new Date();
+    }
+
+    if (to === "canceled") {
+      update.$set.canceledAt =
+        new Date();
+    }
+
+    const options = {
+      new: true,
+      runValidators: true,
+
+      /**
+       * Internal marker recognized only by the model's query protection
+       * middleware.
+       */
+      __titechLifecycle:
+        true,
+    };
+
+    if (session) {
+      options.session =
+        session;
+    }
+
+    const updated =
+      await this.findOneAndUpdate(
+        filter,
+        update,
+        options
+      );
+
+    if (!updated) {
+      throw new Error(
+        `Transaction transition failed. Expected status ${from} for transaction ${transactionId}.`
+      );
+    }
+
+    return updated;
+  };
+
+/**
+ * ============================================================================
+ * LIFECYCLE INSTANCE METHODS
  * ============================================================================
  */
 
 TransactionSchema.methods.complete =
-    async function complete() {
+  async function complete({
+    session = null,
+  } = {}) {
+    if (
+      this.status !==
+      "pending"
+    ) {
+      throw new Error(
+        `Transaction cannot be completed from status: ${this.status}`
+      );
+    }
 
-        if (
-            this.status !==
-            'pending'
-        ) {
+    /**
+     * Explicit lifecycle marker allows the document-save middleware to
+     * distinguish authorized lifecycle transitions from arbitrary status
+     * mutation.
+     */
+    this.$locals =
+      this.$locals || {};
 
-            throw new Error(
+    this.$locals
+      .titechLifecycleTransition =
+      true;
 
-                `Transaction cannot be completed from status: ${this.status}`
+    this.status =
+      "completed";
 
-            );
+    this.completedAt =
+      new Date();
 
-        }
-
-        this.status =
-            'completed';
-
-        this.completedAt =
-            new Date();
-
-        return this.save();
-
-    };
-
+    return this.save(
+      session
+        ? { session }
+        : undefined
+    );
+  };
 
 TransactionSchema.methods.fail =
-    async function fail() {
+  async function fail({
+    session = null,
+  } = {}) {
+    if (
+      this.status !==
+      "pending"
+    ) {
+      throw new Error(
+        `Transaction cannot be failed from status: ${this.status}`
+      );
+    }
 
-        if (
-            this.status !==
-            'pending'
-        ) {
+    this.$locals =
+      this.$locals || {};
 
-            throw new Error(
+    this.$locals
+      .titechLifecycleTransition =
+      true;
 
-                `Transaction cannot be failed from status: ${this.status}`
+    this.status =
+      "failed";
 
-            );
+    this.failedAt =
+      new Date();
 
-        }
-
-        this.status =
-            'failed';
-
-        this.failedAt =
-            new Date();
-
-        return this.save();
-
-    };
-
+    return this.save(
+      session
+        ? { session }
+        : undefined
+    );
+  };
 
 TransactionSchema.methods.cancel =
-    async function cancel() {
+  async function cancel({
+    session = null,
+  } = {}) {
+    if (
+      this.status !==
+      "pending"
+    ) {
+      throw new Error(
+        `Transaction cannot be canceled from status: ${this.status}`
+      );
+    }
 
-        if (
-            this.status !==
-            'pending'
-        ) {
+    this.$locals =
+      this.$locals || {};
 
-            throw new Error(
+    this.$locals
+      .titechLifecycleTransition =
+      true;
 
-                `Transaction cannot be canceled from status: ${this.status}`
+    this.status =
+      "canceled";
 
-            );
+    this.canceledAt =
+      new Date();
 
-        }
-
-        this.status =
-            'canceled';
-
-        this.canceledAt =
-            new Date();
-
-        return this.save();
-
-    };
-
+    return this.save(
+      session
+        ? { session }
+        : undefined
+    );
+  };
 
 /**
  * ============================================================================
- * Operational Summary
+ * OPERATIONAL SUMMARY
  * ============================================================================
  */
 
 TransactionSchema.methods.toOperationalSummary =
-    function toOperationalSummary() {
+  function toOperationalSummary() {
+    return {
+      id:
+        this._id,
 
-        return {
+      transactionId:
+        this.transactionId,
 
-            transactionId:
-                this.transactionId,
+      tenantId:
+        this.tenantId,
 
-            tenantId:
-                this.tenantId,
+      type:
+        this.type,
 
-            type:
-                this.type,
+      amount:
+        decimalToString(
+          this.amount
+        ),
 
-            amount:
-                this.amount?.toString?.(),
+      currency:
+        this.currency,
 
-            currency:
-                this.currency,
+      status:
+        this.status,
 
-            status:
-                this.status,
+      reference:
+        this.reference,
 
-            reference:
-                this.reference,
+      provider:
+        this.provider,
 
-            provider:
-                this.provider,
+      providerTransactionId:
+        this.providerTransactionId,
 
-            providerTransactionId:
-                this.providerTransactionId,
+      correlationId:
+        this.correlationId,
 
-            correlationId:
-                this.correlationId,
+      requestId:
+        this.requestId,
 
-            requestId:
-                this.requestId,
+      userId:
+        this.userId,
 
-            customerId:
-                this.customerId,
+      customerId:
+        this.customerId,
 
-            journalId:
-                this.journalId,
+      journalId:
+        this.journalId,
 
-            ledgerTransactionId:
-                this.ledgerTransactionId,
+      ledgerTransactionId:
+        this.ledgerTransactionId,
 
-            fraudScreeningId:
-                this.fraudScreeningId,
+      fraudScreeningId:
+        this.fraudScreeningId,
 
-            amlScreeningId:
-                this.amlScreeningId,
+      amlScreeningId:
+        this.amlScreeningId,
 
-            complianceDecisionId:
-                this.complianceDecisionId,
+      complianceDecisionId:
+        this.complianceDecisionId,
 
-            createdAt:
-                this.createdAt,
+      createdAt:
+        this.createdAt,
 
-            updatedAt:
-                this.updatedAt
+      updatedAt:
+        this.updatedAt,
 
-        };
+      completedAt:
+        this.completedAt,
 
+      failedAt:
+        this.failedAt,
+
+      canceledAt:
+        this.canceledAt,
     };
-
-
-/**
- * ============================================================================
- * Model Registration
- * ============================================================================
- */
-
-const Transaction =
-    mongoose.models[MODEL_NAME] ||
-    mongoose.model(
-        MODEL_NAME,
-        TransactionSchema
-    );
-
+  };
 
 /**
  * ============================================================================
- * Exports
+ * FINANCIAL SNAPSHOT
  * ============================================================================
  */
 
-module.exports =
-    Transaction;
+TransactionSchema.methods.getFinancialSnapshot =
+  function getFinancialSnapshot() {
+    return {
+      transactionId:
+        this.transactionId,
 
-module.exports.Transaction =
-    Transaction;
+      tenantId:
+        this.tenantId,
 
-module.exports.TransactionSchema =
-    TransactionSchema;
+      type:
+        this.type,
 
-module.exports.VALID_STATUSES =
-    VALID_STATUSES;
+      amount:
+        decimalToString(
+          this.amount
+        ),
 
-module.exports.VALID_TYPES =
-    VALID_TYPES;
+      currency:
+        this.currency,
 
-module.exports.ALLOWED_STATUS_TRANSITIONS =
-    ALLOWED_STATUS_TRANSITIONS;
+      status:
+        this.status,
+
+      idempotencyKey:
+        this.idempotencyKey,
+
+      debitAccountId:
+        this.debitAccountId,
+
+      creditAccountId:
+        this.creditAccountId,
+
+      journalId:
+        this.journalId,
+
+      ledgerTransactionId:
+        this.ledgerTransactionId,
+
+      provider:
+        this.provider,
+
+      providerTransactionId:
+        this.providerTransactionId,
+
+      reconciliationRequired:
+        !this.ledgerTransactionId,
+    };
+  };
+
+/**
+ * ============================================================================
+ * MODEL METADATA
+ * ============================================================================
+ */
+
+export const TRANSACTION_MODEL_METADATA =
+  Object.freeze({
+    modelName:
+      MODEL_NAME,
+
+    collection:
+      COLLECTION_NAME,
+
+    schemaVersion: 2,
+
+    tenantField:
+      "tenantId",
+
+    tenantFieldType:
+      "ObjectId",
+
+    financialEntity:
+      true,
+
+    ledgerAuthority:
+      false,
+
+    transactionPostingAuthority:
+      "TransactionService",
+
+    accountingAuthority:
+      "Ledger",
+
+    monetaryType:
+      "Decimal128",
+
+    amountTransport:
+      "string",
+
+    idempotencyScope:
+      "tenant",
+
+    transactionIdentityScope:
+      "tenant",
+
+    reversalModel:
+      "new transaction",
+
+    deletionPolicy:
+      "application-delete-prohibited",
+
+    concurrency:
+      "optimistic + atomic status predicate",
+  });
+
+/**
+ * ============================================================================
+ * MODEL REGISTRATION
+ * ============================================================================
+ */
+
+export const Transaction =
+  mongoose.models[
+    MODEL_NAME
+  ] ||
+  mongoose.model(
+    MODEL_NAME,
+    TransactionSchema
+  );
+
+/**
+ * ============================================================================
+ * ESM EXPORTS
+ * ============================================================================
+ */
+
+export {
+  TransactionSchema,
+};
+
+export default Transaction;

@@ -1,9 +1,7 @@
-'use strict';
-
 /**
  * ============================================================================
  * TITech Community Capital LTD
- * Enterprise Community Finance Operating System
+ * Enterprise Savings Model
  * ============================================================================
  *
  * File:
@@ -12,67 +10,83 @@
  * Purpose:
  *   Enterprise-grade savings account / savings portfolio aggregate.
  *
- * Architectural Position:
- *   Member
+ * Architectural position:
+ *
+ *   Tenant
  *      │
- *      ▼
- *   Savings
- *      │
- *      ├── Transaction
- *      │       │
- *      │       ▼
- *      │     Ledger
- *      │
- *      ├── Interest Engine
- *      ├── Dividend Engine
- *      ├── Mobile Money
- *      ├── Risk / Fraud
- *      ├── Compliance
- *      └── Reporting
+ *      └── Member
+ *           │
+ *           └── Savings
+ *                │
+ *                ├── Transaction Service
+ *                │      │
+ *                │      └── Ledger
+ *                │
+ *                ├── Interest Engine
+ *                ├── Dividend Engine
+ *                ├── Mobile Money
+ *                ├── Risk / Fraud
+ *                ├── Compliance
+ *                └── Reporting
  *
  * IMPORTANT FINANCIAL DESIGN
  * ----------------------------------------------------------------------------
- * This model is NOT the financial ledger.
+ * Savings is a financial account aggregate / reporting snapshot.
  *
- * Monetary movements MUST be performed through the transaction/ledger layer.
- * The Savings document represents the current account aggregate and reporting
- * snapshot.
+ * It is NOT an independent accounting engine.
  *
- * Never use this model directly to perform an un-audited monetary transfer.
+ * Monetary movements MUST be performed through the canonical transaction /
+ * ledger service boundary.
  *
- * Enterprise capabilities:
+ * Example:
  *
- * ✅ Multi-tenant isolation
- * ✅ Savings account lifecycle
- * ✅ Transaction/ledger references
- * ✅ Idempotency support
- * ✅ Financial reconciliation support
- * ✅ Optimistic concurrency protection
- * ✅ Decimal128 monetary precision
- * ✅ Interest management
- * ✅ Dividend management
- * ✅ Goal savings
- * ✅ Fixed/maturity savings
- * ✅ Mobile money metadata
- * ✅ KYC / AML state
- * ✅ Risk / fraud state
- * ✅ Account blocking
- * ✅ Closure controls
- * ✅ Dormancy tracking
- * ✅ Audit metadata
- * ✅ Workflow versioning
- * ✅ Operational timestamps
- * ✅ High-value compound indexes
+ *   Payment / Deposit / Withdrawal
+ *         ↓
+ *   Transaction Service
+ *         ↓
+ *   Transaction / Ledger
+ *         ↓
+ *   Savings aggregate update
+ *         ↓
+ *   Reconciliation / Outbox / Audit / Receipt
+ *
+ * Savings MUST NOT:
+ *   - create a second ledger
+ *   - mutate unrelated accounts
+ *   - bypass idempotency
+ *   - perform unaudited transfers
+ *   - become the source of truth for transaction history
+ *
+ * FINANCIAL PRECISION
+ * ----------------------------------------------------------------------------
+ * Monetary fields use MongoDB Decimal128.
+ *
+ * Decimal128 values are deliberately NOT converted to JavaScript Number for
+ * financial calculations inside the model.
+ *
+ * The authoritative transaction service should perform financial arithmetic
+ * with deterministic decimal arithmetic and then persist Decimal128 values.
+ *
+ * TENANCY
+ * ----------------------------------------------------------------------------
+ * tenantId is a MongoDB ObjectId referencing Tenant.
+ *
+ * Every operational query must be tenant-scoped.
+ *
+ * ESM
+ * ----------------------------------------------------------------------------
+ * The TITech repository uses package.json "type": "module".
+ *
+ * Consumers should use:
+ *
+ *   import Savings from "../models/Savings.js";
  *
  * ============================================================================
  */
 
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
-const {
-    Schema
-} = mongoose;
-
+const { Schema } = mongoose;
 
 /**
  * ============================================================================
@@ -80,147 +94,758 @@ const {
  * ============================================================================
  */
 
-const SAVINGS_TYPES = Object.freeze([
-    'REGULAR',
-    'GOAL',
-    'FIXED',
-    'CHILD',
-    'GROUP',
-    'INVESTMENT'
+export const SAVINGS_TYPES = Object.freeze([
+  "REGULAR",
+  "GOAL",
+  "FIXED",
+  "CHILD",
+  "GROUP",
+  "INVESTMENT",
 ]);
 
-const SAVINGS_STATUSES = Object.freeze([
-    'PENDING',
-    'ACTIVE',
-    'DORMANT',
-    'BLOCKED',
-    'CLOSED'
+export const SAVINGS_STATUSES = Object.freeze([
+  "PENDING",
+  "ACTIVE",
+  "DORMANT",
+  "BLOCKED",
+  "CLOSED",
 ]);
 
-const ACTIVITY_TYPES = Object.freeze([
-    'DEPOSIT',
-    'WITHDRAWAL',
-    'INTEREST',
-    'DIVIDEND',
-    'ADJUSTMENT',
-    'REVERSAL',
-    'FEE',
-    'REFUND',
-    'TRANSFER_IN',
-    'TRANSFER_OUT'
+export const ACTIVITY_TYPES = Object.freeze([
+  "DEPOSIT",
+  "WITHDRAWAL",
+  "INTEREST",
+  "DIVIDEND",
+  "ADJUSTMENT",
+  "REVERSAL",
+  "FEE",
+  "REFUND",
+  "TRANSFER_IN",
+  "TRANSFER_OUT",
 ]);
 
-const MOMO_PROVIDERS = Object.freeze([
-    'MTN',
-    'AIRTEL'
+export const MOMO_PROVIDERS = Object.freeze([
+  "MTN",
+  "AIRTEL",
 ]);
 
-const BLOCK_REASONS = Object.freeze([
-    'COMPLIANCE',
-    'FRAUD',
-    'AML',
-    'KYC',
-    'COURT_ORDER',
-    'OPERATIONAL',
-    'MEMBER_REQUEST',
-    'RISK',
-    'OTHER'
+export const BLOCK_REASONS = Object.freeze([
+  "COMPLIANCE",
+  "FRAUD",
+  "AML",
+  "KYC",
+  "COURT_ORDER",
+  "OPERATIONAL",
+  "MEMBER_REQUEST",
+  "RISK",
+  "OTHER",
 ]);
 
+export const INTEREST_RATE_TYPES =
+  Object.freeze([
+    "NONE",
+    "FLAT",
+    "ANNUAL",
+    "MONTHLY",
+    "DAILY",
+    "TIERED",
+  ]);
+
+export const MATURITY_INSTRUCTIONS =
+  Object.freeze([
+    "PAYOUT",
+    "RENEW",
+    "TRANSFER_TO_REGULAR",
+    "HOLD",
+  ]);
+
+export const RECONCILIATION_STATUSES =
+  Object.freeze([
+    "PENDING",
+    "MATCHED",
+    "MISMATCH",
+    "UNDER_REVIEW",
+  ]);
+
+export const RISK_LEVELS =
+  Object.freeze([
+    "LOW",
+    "MEDIUM",
+    "HIGH",
+    "CRITICAL",
+  ]);
 
 /**
  * ============================================================================
- * MONEY FIELD DEFINITION
- * ============================================================================
- *
- * Decimal128 is preferred for financial values over JavaScript Number.
- *
- * Existing applications may contain Number values. Mongoose will normally
- * cast compatible values to Decimal128 when reading/writing this model.
- *
- * Financial calculations should still be performed by the transaction/ledger
- * service using deterministic decimal arithmetic.
+ * CONFIGURATION
  * ============================================================================
  */
 
-const moneyField = {
-    type: Schema.Types.Decimal128,
-    default: '0.00',
-    min: 0
-};
+const MAX_SAVINGS_NUMBER_LENGTH = 100;
+const MAX_SAVINGS_NAME_LENGTH = 150;
+const MAX_REFERENCE_LENGTH = 200;
+const MAX_RECENT_ACTIVITIES = 100;
 
+/**
+ * Score thresholds retained from the supplied model.
+ */
+const RISK_CRITICAL_THRESHOLD = 800;
+const RISK_HIGH_THRESHOLD = 600;
+const RISK_MEDIUM_THRESHOLD = 350;
+
+/**
+ * ============================================================================
+ * OBJECT ID / NORMALIZATION HELPERS
+ * ============================================================================
+ */
+
+export function toObjectId(value) {
+  if (
+    value instanceof
+    mongoose.Types.ObjectId
+  ) {
+    return value;
+  }
+
+  if (
+    !value ||
+    !mongoose.Types.ObjectId.isValid(
+      value
+    )
+  ) {
+    return null;
+  }
+
+  return new mongoose.Types.ObjectId(
+    value
+  );
+}
+
+export function isValidObjectId(
+  value
+) {
+  return Boolean(
+    value &&
+      mongoose.Types.ObjectId.isValid(
+        value
+      )
+  );
+}
+
+function normalizeString(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return value
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeUppercase(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return value
+    .trim()
+    .toUpperCase();
+}
+
+/**
+ * ============================================================================
+ * DECIMAL128 HELPERS
+ * ============================================================================
+ *
+ * These helpers deliberately operate on Decimal128 string representations.
+ *
+ * They are intended for model invariants, not for replacing the canonical
+ * financial decimal arithmetic implementation used by the transaction layer.
+ * ============================================================================
+ */
+
+function decimal128Zero() {
+  return mongoose.Types.Decimal128
+    .fromString("0.00");
+}
+
+function decimal128FromValue(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return decimal128Zero();
+  }
+
+  if (
+    value instanceof
+    mongoose.Types.Decimal128
+  ) {
+    return value;
+  }
+
+  const stringValue =
+    String(value).trim();
+
+  if (!stringValue) {
+    return decimal128Zero();
+  }
+
+  try {
+    return mongoose.Types.Decimal128
+      .fromString(stringValue);
+  } catch {
+    return decimal128Zero();
+  }
+}
+
+/**
+ * Exact Decimal128 addition/subtraction helper for the limited invariant
+ * calculations performed in this model.
+ *
+ * This intentionally uses decimal strings rather than Number.
+ *
+ * Supported:
+ *   - ordinary decimal numbers
+ *   - positive values
+ *   - negative intermediate results
+ */
+function decimalToParts(value) {
+  const normalized =
+    decimal128FromValue(value)
+      .toString()
+      .trim();
+
+  const negative =
+    normalized.startsWith("-");
+
+  const unsigned =
+    negative
+      ? normalized.slice(1)
+      : normalized;
+
+  const [wholePart = "0", fractionPart = ""] =
+    unsigned.split(".");
+
+  return {
+    negative,
+    whole:
+      wholePart.replace(
+        /^0+(?=\d)/,
+        ""
+      ) || "0",
+    fraction:
+      fractionPart || "",
+  };
+}
+
+function compareUnsignedParts(
+  left,
+  right
+) {
+  if (
+    left.whole.length !==
+    right.whole.length
+  ) {
+    return left.whole.length >
+      right.whole.length
+      ? 1
+      : -1;
+  }
+
+  if (left.whole !== right.whole) {
+    return left.whole > right.whole
+      ? 1
+      : -1;
+  }
+
+  const maxFractionLength =
+    Math.max(
+      left.fraction.length,
+      right.fraction.length
+    );
+
+  const leftFraction =
+    left.fraction.padEnd(
+      maxFractionLength,
+      "0"
+    );
+
+  const rightFraction =
+    right.fraction.padEnd(
+      maxFractionLength,
+      "0"
+    );
+
+  if (leftFraction === rightFraction) {
+    return 0;
+  }
+
+  return leftFraction > rightFraction
+    ? 1
+    : -1;
+}
+
+function addUnsignedStrings(
+  left,
+  right
+) {
+  const decimalPlaces =
+    Math.max(
+      left.fraction.length,
+      right.fraction.length
+    );
+
+  const leftFraction =
+    left.fraction.padEnd(
+      decimalPlaces,
+      "0"
+    );
+
+  const rightFraction =
+    right.fraction.padEnd(
+      decimalPlaces,
+      "0"
+    );
+
+  const leftDigits =
+    `${left.whole}${leftFraction}`;
+
+  const rightDigits =
+    `${right.whole}${rightFraction}`;
+
+  let carry = 0;
+  let result = "";
+
+  const maxLength =
+    Math.max(
+      leftDigits.length,
+      rightDigits.length
+    );
+
+  for (
+    let index = 0;
+    index < maxLength;
+    index += 1
+  ) {
+    const leftIndex =
+      leftDigits.length -
+      1 -
+      index;
+
+    const rightIndex =
+      rightDigits.length -
+      1 -
+      index;
+
+    const leftDigit =
+      leftIndex >= 0
+        ? Number(leftDigits[leftIndex])
+        : 0;
+
+    const rightDigit =
+      rightIndex >= 0
+        ? Number(
+            rightDigits[rightIndex]
+          )
+        : 0;
+
+    const total =
+      leftDigit +
+      rightDigit +
+      carry;
+
+    result =
+      String(total % 10) +
+      result;
+
+    carry =
+      Math.floor(total / 10);
+  }
+
+  if (carry > 0) {
+    result =
+      String(carry) +
+      result;
+  }
+
+  if (decimalPlaces === 0) {
+    return {
+      whole: result || "0",
+      fraction: "",
+    };
+  }
+
+  const split =
+    result.length -
+    decimalPlaces;
+
+  const whole =
+    result.slice(0, split) || "0";
+
+  const fraction =
+    result.slice(split)
+      .padStart(
+        decimalPlaces,
+        "0"
+      );
+
+  return {
+    whole,
+    fraction,
+  };
+}
+
+function subtractUnsignedStrings(
+  larger,
+  smaller
+) {
+  const decimalPlaces =
+    Math.max(
+      larger.fraction.length,
+      smaller.fraction.length
+    );
+
+  const largerFraction =
+    larger.fraction.padEnd(
+      decimalPlaces,
+      "0"
+    );
+
+  const smallerFraction =
+    smaller.fraction.padEnd(
+      decimalPlaces,
+      "0"
+    );
+
+  const largerDigits =
+    `${larger.whole}${largerFraction}`;
+
+  const smallerDigits =
+    `${smaller.whole}${smallerFraction}`;
+
+  let borrow = 0;
+  let result = "";
+
+  for (
+    let index = 0;
+    index < largerDigits.length;
+    index += 1
+  ) {
+    const largerIndex =
+      largerDigits.length -
+      1 -
+      index;
+
+    const smallerIndex =
+      smallerDigits.length -
+      1 -
+      index;
+
+    let left =
+      Number(
+        largerDigits[largerIndex]
+      ) - borrow;
+
+    const right =
+      smallerIndex >= 0
+        ? Number(
+            smallerDigits[
+              smallerIndex
+            ]
+          )
+        : 0;
+
+    if (left < right) {
+      left += 10;
+      borrow = 1;
+    } else {
+      borrow = 0;
+    }
+
+    result =
+      String(left - right) +
+      result;
+  }
+
+  result =
+    result.replace(
+      /^0+(?=\d)/,
+      ""
+    );
+
+  if (decimalPlaces === 0) {
+    return {
+      whole: result || "0",
+      fraction: "",
+    };
+  }
+
+  const split =
+    result.length -
+    decimalPlaces;
+
+  return {
+    whole:
+      result.slice(0, split) || "0",
+    fraction:
+      result
+        .slice(split)
+        .padStart(
+          decimalPlaces,
+          "0"
+        ),
+  };
+}
+
+function partsToString(
+  parts,
+  negative = false
+) {
+  const fraction =
+    parts.fraction.replace(
+      /0+$/,
+      ""
+    );
+
+  const unsigned =
+    fraction.length > 0
+      ? `${parts.whole}.${fraction}`
+      : parts.whole;
+
+  if (
+    negative &&
+    unsigned !== "0"
+  ) {
+    return `-${unsigned}`;
+  }
+
+  return unsigned;
+}
+
+export function decimalAdd(
+  left,
+  right
+) {
+  const leftParts =
+    decimalToParts(left);
+
+  const rightParts =
+    decimalToParts(right);
+
+  if (
+    leftParts.negative ===
+    rightParts.negative
+  ) {
+    return decimal128FromValue(
+      partsToString(
+        addUnsignedStrings(
+          leftParts,
+          rightParts
+        ),
+        leftParts.negative
+      )
+    );
+  }
+
+  const comparison =
+    compareUnsignedParts(
+      leftParts,
+      rightParts
+    );
+
+  if (comparison === 0) {
+    return decimal128Zero();
+  }
+
+  const larger =
+    comparison > 0
+      ? leftParts
+      : rightParts;
+
+  const smaller =
+    comparison > 0
+      ? rightParts
+      : leftParts;
+
+  const difference =
+    subtractUnsignedStrings(
+      larger,
+      smaller
+    );
+
+  const negative =
+    comparison > 0
+      ? leftParts.negative
+      : rightParts.negative;
+
+  return decimal128FromValue(
+    partsToString(
+      difference,
+      negative
+    )
+  );
+}
+
+export function decimalSubtract(
+  left,
+  right
+) {
+  const rightParts =
+    decimalToParts(right);
+
+  return decimalAdd(
+    left,
+    decimal128FromValue(
+      partsToString(
+        rightParts,
+        !rightParts.negative
+      )
+    )
+  );
+}
+
+export function decimalCompare(
+  left,
+  right
+) {
+  const leftDecimal =
+    decimal128FromValue(left);
+
+  const rightDecimal =
+    decimal128FromValue(right);
+
+  const leftParts =
+    decimalToParts(
+      leftDecimal
+    );
+
+  const rightParts =
+    decimalToParts(
+      rightDecimal
+    );
+
+  if (
+    leftParts.negative &&
+    !rightParts.negative
+  ) {
+    return -1;
+  }
+
+  if (
+    !leftParts.negative &&
+    rightParts.negative
+  ) {
+    return 1;
+  }
+
+  const comparison =
+    compareUnsignedParts(
+      leftParts,
+      rightParts
+    );
+
+  return leftParts.negative
+    ? comparison * -1
+    : comparison;
+}
+
+/**
+ * Convert a Decimal128 value to a plain string.
+ *
+ * This is safe for API transport and avoids Number precision loss.
+ */
+export function decimalToString(
+  value
+) {
+  return decimal128FromValue(
+    value
+  ).toString();
+}
+
+/**
+ * ============================================================================
+ * MONEY FIELD
+ * ============================================================================
+ */
+
+const moneyField = Object.freeze({
+  type: Schema.Types.Decimal128,
+  default: "0.00",
+});
 
 /**
  * ============================================================================
  * SAVINGS ACTIVITY SNAPSHOT
  * ============================================================================
  *
- * This is deliberately a lightweight activity snapshot.
+ * Lightweight operational snapshot only.
  *
- * It is NOT a replacement for the immutable Transaction or Ledger records.
- * ============================================================================
+ * Historical financial truth remains in Transaction / Ledger.
  */
 
-const SavingsActivitySchema = new Schema(
+const SavingsActivitySchema =
+  new Schema(
     {
-        transactionId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Transaction',
-            index: true
-        },
+      transactionId: {
+        type: Schema.Types.ObjectId,
+        ref: "Transaction",
+        index: true,
+      },
 
-        ledgerEntryId: {
-            type: Schema.Types.ObjectId,
-            ref: 'LedgerEntry',
-            index: true
-        },
+      ledgerEntryId: {
+        type: Schema.Types.ObjectId,
+        ref: "LedgerEntry",
+        index: true,
+      },
 
-        type: {
-            type: String,
-            enum: ACTIVITY_TYPES,
-            required: true,
-            uppercase: true,
-            trim: true
-        },
+      type: {
+        type: String,
+        enum: ACTIVITY_TYPES,
+        required: true,
+        uppercase: true,
+        trim: true,
+      },
 
-        amount: {
-            ...moneyField,
-            required: true
-        },
+      amount: {
+        ...moneyField,
+        required: true,
+      },
 
-        transactionDate: {
-            type: Date,
-            required: true,
-            default: Date.now
-        },
+      transactionDate: {
+        type: Date,
+        required: true,
+        default: Date.now,
+      },
 
-        reference: {
-            type: String,
-            trim: true,
-            maxlength: 150
-        },
+      reference: {
+        type: String,
+        trim: true,
+        maxlength: 150,
+        set: normalizeString,
+      },
 
-        externalReference: {
-            type: String,
-            trim: true,
-            maxlength: 200
-        },
+      externalReference: {
+        type: String,
+        trim: true,
+        maxlength: MAX_REFERENCE_LENGTH,
+        set: normalizeString,
+      },
 
-        /**
-         * Idempotency reference associated with the originating financial
-         * operation.
-         */
-        idempotencyKey: {
-            type: String,
-            trim: true,
-            maxlength: 200
-        }
+      /**
+       * Idempotency key from originating financial operation.
+       */
+      idempotencyKey: {
+        type: String,
+        trim: true,
+        maxlength: MAX_REFERENCE_LENGTH,
+        set: normalizeString,
+      },
     },
     {
-        _id: false
+      _id: false,
     }
-);
-
+  );
 
 /**
  * ============================================================================
@@ -228,816 +853,613 @@ const SavingsActivitySchema = new Schema(
  * ============================================================================
  */
 
-const SavingsSchema = new Schema(
+const SavingsSchema =
+  new Schema(
     {
-
-        /**
-         * ====================================================================
-         * TENANCY
-         * ====================================================================
-         */
-
-        tenantId: {
-            type: String,
-            required: true,
-            trim: true,
-            minlength: 1,
-            maxlength: 100,
-            index: true
-        },
-
-
-        /**
-         * ====================================================================
-         * MEMBER OWNERSHIP
-         * ====================================================================
-         */
-
-        member: {
-            type: Schema.Types.ObjectId,
-            ref: 'Member',
-            required: true,
-            index: true
-        },
-
-        account: {
-            type: Schema.Types.ObjectId,
-            ref: 'Account',
-            index: true
-        },
-
-
-        /**
-         * ====================================================================
-         * IDENTIFICATION
-         * ====================================================================
-         */
-
-        savingsNumber: {
-            type: String,
-            required: true,
-            trim: true,
-            uppercase: true,
-            minlength: 3,
-            maxlength: 100
-        },
-
-        savingsName: {
-            type: String,
-            default: 'Regular Savings',
-            trim: true,
-            maxlength: 150
-        },
-
-        savingsType: {
-            type: String,
-            enum: SAVINGS_TYPES,
-            default: 'REGULAR',
-            uppercase: true,
-            trim: true,
-            index: true
-        },
-
-
-        /**
-         * ====================================================================
-         * CURRENCY
-         * ====================================================================
-         *
-         * Currency MUST be immutable after financial activity begins.
-         * ====================================================================
-         */
-
-        currency: {
-            type: String,
-            default: 'UGX',
-            required: true,
-            uppercase: true,
-            trim: true,
-            minlength: 3,
-            maxlength: 3
-        },
-
-
-        /**
-         * ====================================================================
-         * ACCOUNT BALANCES
-         * ====================================================================
-         *
-         * balance:
-         *   Total book balance.
-         *
-         * availableBalance:
-         *   Amount available for withdrawal/transfer.
-         *
-         * blockedBalance:
-         *   Amount legally/compliance/operationally restricted.
-         * ====================================================================
-         */
-
-        balance: {
-            ...moneyField
-        },
-
-        availableBalance: {
-            ...moneyField
-        },
-
-        blockedBalance: {
-            ...moneyField
-        },
-
-
-        /**
-         * ====================================================================
-         * FINANCIAL AGGREGATES
-         * ====================================================================
-         */
-
-        totalDeposits: {
-            ...moneyField
-        },
-
-        totalWithdrawals: {
-            ...moneyField
-        },
-
-        totalInterestEarned: {
-            ...moneyField
-        },
-
-        totalDividendsEarned: {
-            ...moneyField
-        },
-
-        totalFeesCharged: {
-            ...moneyField
-        },
-
-        totalReversals: {
-            ...moneyField
-        },
-
-        netSavings: {
-            type: Schema.Types.Decimal128,
-            default: '0.00'
-        },
-
-        totalTransactions: {
-            type: Number,
-            default: 0,
-            min: 0
-        },
-
-
-        /**
-         * ====================================================================
-         * INTEREST MANAGEMENT
-         * ====================================================================
-         */
-
-        interestRate: {
-            type: Number,
-            default: 0,
-            min: 0,
-            max: 100
-        },
-
-        interestRateType: {
-            type: String,
-            enum: [
-                'NONE',
-                'FLAT',
-                'ANNUAL',
-                'MONTHLY',
-                'DAILY',
-                'TIERED'
-            ],
-            default: 'ANNUAL',
-            uppercase: true
-        },
-
-        accruedInterest: {
-            ...moneyField
-        },
-
-        interestLastCalculatedAt: {
-            type: Date
-        },
-
-        interestLastPostedAt: {
-            type: Date
-        },
-
-        interestCalculationVersion: {
-            type: Number,
-            default: 1,
-            min: 1
-        },
-
-
-        /**
-         * ====================================================================
-         * DIVIDENDS
-         * ====================================================================
-         */
-
-        dividendEligible: {
-            type: Boolean,
-            default: true
-        },
-
-        totalDividendsEarned: {
-            ...moneyField
-        },
-
-        lastDividendPostedAt: {
-            type: Date
-        },
-
-
-        /**
-         * ====================================================================
-         * GOAL / MATURITY
-         * ====================================================================
-         */
-
-        targetAmount: {
-            ...moneyField
-        },
-
-        targetDate: {
-            type: Date
-        },
-
-        maturityDate: {
-            type: Date
-        },
-
-        maturityInstruction: {
-            type: String,
-            enum: [
-                'PAYOUT',
-                'RENEW',
-                'TRANSFER_TO_REGULAR',
-                'HOLD'
-            ],
-            default: 'PAYOUT'
-        },
-
-
-        /**
-         * ====================================================================
-         * MOBILE MONEY
-         * ====================================================================
-         */
-
-        momoEnabled: {
-            type: Boolean,
-            default: false
-        },
-
-        momoProvider: {
-            type: String,
-            enum: MOMO_PROVIDERS
-        },
-
-        momoPhoneNumber: {
-            type: String,
-            trim: true,
-            maxlength: 30
-        },
-
-        momoLastTransactionAt: {
-            type: Date
-        },
-
-
-        /**
-         * ====================================================================
-         * COMPLIANCE
-         * ====================================================================
-         */
-
-        kycVerified: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        kycVerifiedAt: {
-            type: Date
-        },
-
-        amlChecked: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        amlCheckedAt: {
-            type: Date
-        },
-
-        complianceReviewRequired: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        complianceReviewAt: {
-            type: Date
-        },
-
-
-        /**
-         * ====================================================================
-         * STATUS / LIFECYCLE
-         * ====================================================================
-         */
-
-        status: {
-            type: String,
-            enum: SAVINGS_STATUSES,
-            default: 'ACTIVE',
-            uppercase: true,
-            trim: true,
-            index: true
-        },
-
-        activatedAt: {
-            type: Date
-        },
-
-        dormantAt: {
-            type: Date
-        },
-
-        closedAt: {
-            type: Date
-        },
-
-        closureReason: {
-            type: String,
-            trim: true,
-            maxlength: 500
-        },
-
-
-        /**
-         * ====================================================================
-         * BLOCKING
-         * ====================================================================
-         */
-
-        blocked: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        blockReason: {
-            type: String,
-            enum: BLOCK_REASONS
-        },
-
-        blockedAt: {
-            type: Date
-        },
-
-        blockedBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User'
-        },
-
-        blockReference: {
-            type: String,
-            trim: true,
-            maxlength: 200
-        },
-
-
-        /**
-         * ====================================================================
-         * RISK / FRAUD
-         * ====================================================================
-         */
-
-        fraudFlagged: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        fraudFlaggedAt: {
-            type: Date
-        },
-
-        fraudFlagReason: {
-            type: String,
-            trim: true,
-            maxlength: 500
-        },
-
-        riskScore: {
-            type: Number,
-            default: 0,
-            min: 0,
-            max: 1000
-        },
-
-        riskLevel: {
-            type: String,
-            enum: [
-                'LOW',
-                'MEDIUM',
-                'HIGH',
-                'CRITICAL'
-            ],
-            default: 'LOW',
-            index: true
-        },
-
-
-        /**
-         * ====================================================================
-         * TRANSACTION STATISTICS
-         * ====================================================================
-         */
-
-        lastTransactionAt: {
-            type: Date
-        },
-
-        lastDepositAt: {
-            type: Date
-        },
-
-        lastWithdrawalAt: {
-            type: Date
-        },
-
-        lastInterestAt: {
-            type: Date
-        },
-
-
-        /**
-         * ====================================================================
-         * RECENT ACTIVITY
-         * ====================================================================
-         *
-         * This should remain bounded.
-         *
-         * Do NOT use this array as the historical transaction ledger.
-         * ====================================================================
-         */
-
-        recentActivities: {
-            type: [SavingsActivitySchema],
-            default: []
-        },
-
-
-        /**
-         * ====================================================================
-         * IDEMPOTENCY / RECONCILIATION
-         * ====================================================================
-         */
-
-        lastTransactionId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Transaction'
-        },
-
-        lastLedgerEntryId: {
-            type: Schema.Types.ObjectId,
-            ref: 'LedgerEntry'
-        },
-
-        reconciliationStatus: {
-            type: String,
-            enum: [
-                'PENDING',
-                'MATCHED',
-                'MISMATCH',
-                'UNDER_REVIEW'
-            ],
-            default: 'MATCHED',
-            index: true
-        },
-
-        lastReconciledAt: {
-            type: Date
-        },
-
-        reconciliationReference: {
-            type: String,
-            trim: true,
-            maxlength: 200
-        },
-
-
-        /**
-         * ====================================================================
-         * AUDIT
-         * ====================================================================
-         */
-
-        createdBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User'
-        },
-
-        updatedBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User'
-        },
-
-        auditReference: {
-            type: String,
-            trim: true,
-            maxlength: 200
-        },
-
-        lastAuditAt: {
-            type: Date
-        },
-
-
-        /**
-         * ====================================================================
-         * WORKFLOW / CONCURRENCY
-         * ====================================================================
-         */
-
-        workflowVersion: {
-            type: Number,
-            default: 1,
-            min: 1
-        },
-
-        /**
-         * Incremented whenever a financial aggregate is changed.
-         *
-         * Services may use this value for optimistic concurrency checks.
-         */
-        financialVersion: {
-            type: Number,
-            default: 0,
-            min: 0
-        },
-
-        /**
-         * Schema/application version.
-         */
-        schemaVersion: {
-            type: Number,
-            default: 1,
-            min: 1
-        }
+      /**
+       * ========================================================================
+       * TENANCY
+       * ========================================================================
+       */
+
+      tenantId: {
+        type: Schema.Types.ObjectId,
+        ref: "Tenant",
+        required: true,
+        index: true,
+      },
+
+      /**
+       * ========================================================================
+       * MEMBER OWNERSHIP
+       * ========================================================================
+       */
+
+      member: {
+        type: Schema.Types.ObjectId,
+        ref: "Member",
+        required: true,
+        index: true,
+      },
+
+      account: {
+        type: Schema.Types.ObjectId,
+        ref: "Account",
+        default: null,
+        index: true,
+      },
+
+      /**
+       * ========================================================================
+       * IDENTIFICATION
+       * ========================================================================
+       */
+
+      savingsNumber: {
+        type: String,
+        required: true,
+        trim: true,
+        uppercase: true,
+        minlength: 3,
+        maxlength: MAX_SAVINGS_NUMBER_LENGTH,
+        set: normalizeUppercase,
+      },
+
+      savingsName: {
+        type: String,
+        default: "Regular Savings",
+        trim: true,
+        maxlength: MAX_SAVINGS_NAME_LENGTH,
+        set: normalizeString,
+      },
+
+      savingsType: {
+        type: String,
+        enum: SAVINGS_TYPES,
+        default: "REGULAR",
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      /**
+       * ========================================================================
+       * CURRENCY
+       * ========================================================================
+       *
+       * Currency should be treated as immutable after financial activity
+       * begins. Enforce this at the service layer using financialVersion /
+       * transaction state.
+       */
+
+      currency: {
+        type: String,
+        default: "UGX",
+        required: true,
+        uppercase: true,
+        trim: true,
+        minlength: 3,
+        maxlength: 3,
+        match: /^[A-Z]{3}$/,
+      },
+
+      /**
+       * ========================================================================
+       * ACCOUNT BALANCES
+       * ========================================================================
+       *
+       * These are account aggregate values.
+       *
+       * They are not an alternative to the transaction / ledger history.
+       */
+
+      balance: {
+        ...moneyField,
+      },
+
+      availableBalance: {
+        ...moneyField,
+      },
+
+      blockedBalance: {
+        ...moneyField,
+      },
+
+      /**
+       * ========================================================================
+       * FINANCIAL AGGREGATES
+       * ========================================================================
+       */
+
+      totalDeposits: {
+        ...moneyField,
+      },
+
+      totalWithdrawals: {
+        ...moneyField,
+      },
+
+      totalInterestEarned: {
+        ...moneyField,
+      },
+
+      totalDividendsEarned: {
+        ...moneyField,
+      },
+
+      totalFeesCharged: {
+        ...moneyField,
+      },
+
+      totalReversals: {
+        ...moneyField,
+      },
+
+      /**
+       * Reporting aggregate.
+       *
+       * This value is derived and must never be treated as ledger authority.
+       */
+      netSavings: {
+        ...moneyField,
+      },
+
+      totalTransactions: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: Number.MAX_SAFE_INTEGER,
+      },
+
+      /**
+       * ========================================================================
+       * INTEREST MANAGEMENT
+       * ========================================================================
+       */
+
+      interestRate: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+      },
+
+      interestRateType: {
+        type: String,
+        enum: INTEREST_RATE_TYPES,
+        default: "ANNUAL",
+        uppercase: true,
+        trim: true,
+      },
+
+      accruedInterest: {
+        ...moneyField,
+      },
+
+      interestLastCalculatedAt: {
+        type: Date,
+        default: null,
+      },
+
+      interestLastPostedAt: {
+        type: Date,
+        default: null,
+      },
+
+      interestCalculationVersion: {
+        type: Number,
+        default: 1,
+        min: 1,
+      },
+
+      /**
+       * ========================================================================
+       * DIVIDENDS
+       * ========================================================================
+       */
+
+      dividendEligible: {
+        type: Boolean,
+        default: true,
+      },
+
+      lastDividendPostedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /**
+       * ========================================================================
+       * GOAL / MATURITY
+       * ========================================================================
+       */
+
+      targetAmount: {
+        ...moneyField,
+      },
+
+      targetDate: {
+        type: Date,
+        default: null,
+      },
+
+      maturityDate: {
+        type: Date,
+        default: null,
+      },
+
+      maturityInstruction: {
+        type: String,
+        enum: MATURITY_INSTRUCTIONS,
+        default: "PAYOUT",
+        uppercase: true,
+        trim: true,
+      },
+
+      /**
+       * ========================================================================
+       * MOBILE MONEY
+       * ========================================================================
+       */
+
+      momoEnabled: {
+        type: Boolean,
+        default: false,
+      },
+
+      momoProvider: {
+        type: String,
+        enum: MOMO_PROVIDERS,
+        default: null,
+        uppercase: true,
+        trim: true,
+      },
+
+      momoPhoneNumber: {
+        type: String,
+        trim: true,
+        maxlength: 30,
+      },
+
+      momoLastTransactionAt: {
+        type: Date,
+        default: null,
+      },
+
+      /**
+       * ========================================================================
+       * COMPLIANCE
+       * ========================================================================
+       */
+
+      kycVerified: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      kycVerifiedAt: {
+        type: Date,
+        default: null,
+      },
+
+      amlChecked: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      amlCheckedAt: {
+        type: Date,
+        default: null,
+      },
+
+      complianceReviewRequired: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      complianceReviewAt: {
+        type: Date,
+        default: null,
+      },
+
+      /**
+       * ========================================================================
+       * STATUS / LIFECYCLE
+       * ========================================================================
+       */
+
+      status: {
+        type: String,
+        enum: SAVINGS_STATUSES,
+        default: "ACTIVE",
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      activatedAt: {
+        type: Date,
+        default: null,
+      },
+
+      dormantAt: {
+        type: Date,
+        default: null,
+      },
+
+      closedAt: {
+        type: Date,
+        default: null,
+      },
+
+      closureReason: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        set: normalizeString,
+      },
+
+      /**
+       * ========================================================================
+       * BLOCKING
+       * ========================================================================
+       */
+
+      blocked: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      blockReason: {
+        type: String,
+        enum: BLOCK_REASONS,
+        default: null,
+        uppercase: true,
+        trim: true,
+      },
+
+      blockedAt: {
+        type: Date,
+        default: null,
+      },
+
+      blockedBy: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+
+      blockReference: {
+        type: String,
+        trim: true,
+        maxlength: MAX_REFERENCE_LENGTH,
+        set: normalizeString,
+      },
+
+      /**
+       * ========================================================================
+       * RISK / FRAUD
+       * ========================================================================
+       */
+
+      fraudFlagged: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      fraudFlaggedAt: {
+        type: Date,
+        default: null,
+      },
+
+      fraudFlagReason: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        set: normalizeString,
+      },
+
+      riskScore: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 1000,
+      },
+
+      riskLevel: {
+        type: String,
+        enum: RISK_LEVELS,
+        default: "LOW",
+        uppercase: true,
+        index: true,
+      },
+
+      /**
+       * ========================================================================
+       * TRANSACTION STATISTICS
+       * ========================================================================
+       */
+
+      lastTransactionAt: {
+        type: Date,
+        default: null,
+      },
+
+      lastDepositAt: {
+        type: Date,
+        default: null,
+      },
+
+      lastWithdrawalAt: {
+        type: Date,
+        default: null,
+      },
+
+      lastInterestAt: {
+        type: Date,
+        default: null,
+      },
+
+      /**
+       * ========================================================================
+       * RECENT ACTIVITY
+       * ========================================================================
+       *
+       * Deliberately bounded.
+       *
+       * Never use this array as the historical ledger.
+       */
+
+      recentActivities: {
+        type: [SavingsActivitySchema],
+        default: [],
+      },
+
+      /**
+       * ========================================================================
+       * IDEMPOTENCY / RECONCILIATION
+       * ========================================================================
+       */
+
+      lastTransactionId: {
+        type: Schema.Types.ObjectId,
+        ref: "Transaction",
+        default: null,
+      },
+
+      lastLedgerEntryId: {
+        type: Schema.Types.ObjectId,
+        ref: "LedgerEntry",
+        default: null,
+      },
+
+      reconciliationStatus: {
+        type: String,
+        enum: RECONCILIATION_STATUSES,
+        default: "MATCHED",
+        index: true,
+      },
+
+      lastReconciledAt: {
+        type: Date,
+        default: null,
+      },
+
+      reconciliationReference: {
+        type: String,
+        trim: true,
+        maxlength: MAX_REFERENCE_LENGTH,
+        set: normalizeString,
+      },
+
+      /**
+       * ========================================================================
+       * AUDIT
+       * ========================================================================
+       */
+
+      createdBy: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+
+      updatedBy: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+
+      auditReference: {
+        type: String,
+        trim: true,
+        maxlength: MAX_REFERENCE_LENGTH,
+        set: normalizeString,
+      },
+
+      lastAuditAt: {
+        type: Date,
+        default: null,
+      },
+
+      /**
+       * ========================================================================
+       * WORKFLOW / CONCURRENCY
+       * ========================================================================
+       */
+
+      workflowVersion: {
+        type: Number,
+        default: 1,
+        min: 1,
+      },
+
+      /**
+       * Version of the aggregate financial state.
+       *
+       * Transaction services may use this in optimistic-concurrency predicates.
+       */
+      financialVersion: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+
+      schemaVersion: {
+        type: Number,
+        default: 2,
+        min: 1,
+      },
     },
     {
-        timestamps: true,
+      timestamps: true,
 
-        /**
-         * Keep Mongoose's __v available for optimistic concurrency and
-         * operational diagnostics.
-         */
-        versionKey: '__v',
+      versionKey: "__v",
 
-        optimisticConcurrency: true,
+      optimisticConcurrency: true,
 
-        minimize: false,
+      minimize: false,
 
-        strict: true,
+      strict: true,
 
-        toJSON: {
-            virtuals: true,
+      toJSON: {
+        virtuals: true,
 
-            transform(doc, ret) {
-                if (ret._id) {
-                    ret.id = ret._id.toString();
-                }
+        transform(doc, ret) {
+          if (ret._id) {
+            ret.id =
+              ret._id.toString();
+          }
 
-                delete ret._id;
+          delete ret._id;
+          delete ret.__v;
 
-                /**
-                 * Decimal128 serializes safely as strings rather than floating
-                 * point JavaScript numbers.
-                 */
-                return ret;
-            }
+          return ret;
         },
+      },
 
-        toObject: {
-            virtuals: true
-        }
+      toObject: {
+        virtuals: true,
+
+        transform(doc, ret) {
+          if (ret._id) {
+            ret.id =
+              ret._id.toString();
+          }
+
+          delete ret._id;
+          delete ret.__v;
+
+          return ret;
+        },
+      },
     }
-);
-
-
-/**
- * ============================================================================
- * INDEXES
- * ============================================================================
- */
-
-/**
- * One savings number per tenant.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        savingsNumber: 1
-    },
-    {
-        unique: true,
-        name: 'uq_savings_tenant_number'
-    }
-);
-
-
-/**
- * Member savings portfolio.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        member: 1,
-        status: 1
-    },
-    {
-        name: 'idx_savings_tenant_member_status'
-    }
-);
-
-
-/**
- * Account lookup.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        account: 1
-    },
-    {
-        sparse: true,
-        name: 'idx_savings_tenant_account'
-    }
-);
-
-
-/**
- * Savings type / portfolio reporting.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        savingsType: 1,
-        status: 1
-    },
-    {
-        name: 'idx_savings_type_status'
-    }
-);
-
-
-/**
- * Operational status queues.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        status: 1,
-        updatedAt: -1
-    },
-    {
-        name: 'idx_savings_status_updated'
-    }
-);
-
-
-/**
- * Balance reporting.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        balance: -1
-    },
-    {
-        name: 'idx_savings_balance'
-    }
-);
-
-
-/**
- * Fraud/risk operations.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        fraudFlagged: 1,
-        riskLevel: 1
-    },
-    {
-        name: 'idx_savings_risk_operations'
-    }
-);
-
-
-/**
- * Compliance queue.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        complianceReviewRequired: 1,
-        updatedAt: -1
-    },
-    {
-        name: 'idx_savings_compliance_review'
-    }
-);
-
-
-/**
- * Reconciliation queue.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        reconciliationStatus: 1,
-        updatedAt: -1
-    },
-    {
-        name: 'idx_savings_reconciliation'
-    }
-);
-
-
-/**
- * Dormancy detection.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        status: 1,
-        lastTransactionAt: 1
-    },
-    {
-        name: 'idx_savings_dormancy'
-    }
-);
-
-
-/**
- * Maturity processing.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        savingsType: 1,
-        maturityDate: 1,
-        status: 1
-    },
-    {
-        sparse: true,
-        name: 'idx_savings_maturity'
-    }
-);
-
-
-/**
- * Goal savings reporting.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        savingsType: 1,
-        targetDate: 1
-    },
-    {
-        sparse: true,
-        name: 'idx_savings_goals'
-    }
-);
-
-
-/**
- * Recent creation/reporting.
- */
-SavingsSchema.index(
-    {
-        tenantId: 1,
-        createdAt: -1
-    },
-    {
-        name: 'idx_savings_created'
-    }
-);
-
+  );
 
 /**
  * ============================================================================
@@ -1045,151 +1467,207 @@ SavingsSchema.index(
  * ============================================================================
  */
 
-SavingsSchema.virtual('isActive')
-    .get(function () {
-        return this.status === 'ACTIVE' && !this.blocked;
-    });
+SavingsSchema.virtual(
+  "isActive"
+).get(function isActive() {
+  return (
+    this.status === "ACTIVE" &&
+    this.blocked !== true
+  );
+});
 
+SavingsSchema.virtual(
+  "isDormant"
+).get(function isDormant() {
+  return this.status === "DORMANT";
+});
 
-SavingsSchema.virtual('isDormant')
-    .get(function () {
-        return this.status === 'DORMANT';
-    });
+SavingsSchema.virtual(
+  "isBlocked"
+).get(function isBlocked() {
+  return (
+    this.status === "BLOCKED" ||
+    this.blocked === true
+  );
+});
 
+SavingsSchema.virtual(
+  "isClosed"
+).get(function isClosed() {
+  return this.status === "CLOSED";
+});
 
-SavingsSchema.virtual('isBlocked')
-    .get(function () {
-        return this.status === 'BLOCKED' || this.blocked === true;
-    });
+SavingsSchema.virtual(
+  "goalAchievementPercentage"
+).get(
+  function goalAchievementPercentage() {
+    const target =
+      decimal128FromValue(
+        this.targetAmount
+      );
 
-
-SavingsSchema.virtual('isClosed')
-    .get(function () {
-        return this.status === 'CLOSED';
-    });
-
-
-SavingsSchema.virtual('goalAchievementPercentage')
-    .get(function () {
-        const target = decimalToNumber(
-            this.targetAmount
-        );
-
-        const balance = decimalToNumber(
-            this.balance
-        );
-
-        if (target <= 0) {
-            return 0;
-        }
-
-        return Math.min(
-            100,
-            Number(
-                ((balance / target) * 100).toFixed(2)
-            )
-        );
-    });
-
-
-SavingsSchema.virtual('utilizedBlockedPercentage')
-    .get(function () {
-        const balance = decimalToNumber(
-            this.balance
-        );
-
-        const blocked = decimalToNumber(
-            this.blockedBalance
-        );
-
-        if (balance <= 0) {
-            return 0;
-        }
-
-        return Number(
-            ((blocked / balance) * 100).toFixed(2)
-        );
-    });
-
-
-/**
- * ============================================================================
- * DECIMAL HELPER
- * ============================================================================
- */
-
-function decimalToNumber(value) {
-    if (
-        value === null ||
-        value === undefined
-    ) {
-        return 0;
-    }
+    const balance =
+      decimal128FromValue(
+        this.balance
+      );
 
     if (
-        typeof value === 'number'
+      decimalCompare(
+        target,
+        decimal128Zero()
+      ) <= 0
     ) {
-        return Number.isFinite(value)
-            ? value
-            : 0;
+      return 0;
     }
+
+    /**
+     * This percentage is an analytics representation.
+     *
+     * A small conversion to Number is acceptable only after the exact
+     * Decimal128 comparison has already occurred, because this is UI
+     * percentage output rather than a monetary persistence calculation.
+     */
+    const targetNumber =
+      Number(
+        target.toString()
+      );
+
+    const balanceNumber =
+      Number(
+        balance.toString()
+      );
 
     if (
-        value &&
-        typeof value.toString === 'function'
+      !Number.isFinite(
+        targetNumber
+      ) ||
+      !Number.isFinite(
+        balanceNumber
+      )
     ) {
-        const parsed = Number(
-            value.toString()
-        );
-
-        return Number.isFinite(parsed)
-            ? parsed
-            : 0;
+      return 0;
     }
 
-    return 0;
-}
+    return Math.min(
+      100,
+      Number(
+        (
+          (balanceNumber /
+            targetNumber) *
+          100
+        ).toFixed(2)
+      )
+    );
+  }
+);
 
+SavingsSchema.virtual(
+  "utilizedBlockedPercentage"
+).get(
+  function utilizedBlockedPercentage() {
+    const balance =
+      decimal128FromValue(
+        this.balance
+      );
+
+    const blocked =
+      decimal128FromValue(
+        this.blockedBalance
+      );
+
+    if (
+      decimalCompare(
+        balance,
+        decimal128Zero()
+      ) <= 0
+    ) {
+      return 0;
+    }
+
+    const balanceNumber =
+      Number(
+        balance.toString()
+      );
+
+    const blockedNumber =
+      Number(
+        blocked.toString()
+      );
+
+    if (
+      !Number.isFinite(
+        balanceNumber
+      ) ||
+      !Number.isFinite(
+        blockedNumber
+      )
+    ) {
+      return 0;
+    }
+
+    return Number(
+      (
+        (blockedNumber /
+          balanceNumber) *
+        100
+      ).toFixed(2)
+    );
+  }
+);
+
+SavingsSchema.virtual(
+  "availableAfterBlocked"
+).get(
+  function availableAfterBlocked() {
+    return decimalToString(
+      this.availableBalance
+    );
+  }
+);
 
 /**
  * ============================================================================
  * RISK CALCULATION
  * ============================================================================
- *
- * This is deliberately conservative.
- *
- * A sophisticated TITech risk engine should eventually calculate this outside
- * the model using transaction behaviour, AML signals, repayment behaviour,
- * velocity, fraud indicators and member-level risk.
- * ============================================================================
  */
 
-function calculateRiskLevel(score) {
-    const normalized = Math.max(
-        0,
-        Math.min(
-            1000,
-            Math.round(
-                Number(score) || 0
-            )
+export function calculateRiskLevel(
+  score
+) {
+  const normalized =
+    Math.max(
+      0,
+      Math.min(
+        1000,
+        Math.round(
+          Number(score) || 0
         )
+      )
     );
 
-    if (normalized >= 800) {
-        return 'CRITICAL';
-    }
+  if (
+    normalized >=
+    RISK_CRITICAL_THRESHOLD
+  ) {
+    return "CRITICAL";
+  }
 
-    if (normalized >= 600) {
-        return 'HIGH';
-    }
+  if (
+    normalized >=
+    RISK_HIGH_THRESHOLD
+  ) {
+    return "HIGH";
+  }
 
-    if (normalized >= 350) {
-        return 'MEDIUM';
-    }
+  if (
+    normalized >=
+    RISK_MEDIUM_THRESHOLD
+  ) {
+    return "MEDIUM";
+  }
 
-    return 'LOW';
+  return "LOW";
 }
-
 
 /**
  * ============================================================================
@@ -1198,416 +1676,751 @@ function calculateRiskLevel(score) {
  */
 
 SavingsSchema.pre(
-    'validate',
-    function (next) {
+  "validate",
+  function savingsValidation(next) {
+    /**
+     * ------------------------------------------------------------------------
+     * TENANT
+     * ------------------------------------------------------------------------
+     */
 
-        /**
-         * ---------------------------------------------------------------
-         * Balance invariants
-         * ---------------------------------------------------------------
-         */
+    const tenantObjectId =
+      toObjectId(
+        this.tenantId
+      );
 
-        const balance =
-            decimalToNumber(
-                this.balance
-            );
-
-        const availableBalance =
-            decimalToNumber(
-                this.availableBalance
-            );
-
-        const blockedBalance =
-            decimalToNumber(
-                this.blockedBalance
-            );
-
-        if (
-            availableBalance >
-            balance
-        ) {
-            return next(
-                new Error(
-                    'Savings available balance cannot exceed total balance.'
-                )
-            );
-        }
-
-        if (
-            blockedBalance >
-            balance
-        ) {
-            return next(
-                new Error(
-                    'Savings blocked balance cannot exceed total balance.'
-                )
-            );
-        }
-
-        /**
-         * Available + blocked cannot exceed book balance.
-         */
-        if (
-            availableBalance +
-            blockedBalance >
-            balance + 0.000001
-        ) {
-            return next(
-                new Error(
-                    'Savings available balance plus blocked balance cannot exceed total balance.'
-                )
-            );
-        }
-
-
-        /**
-         * ---------------------------------------------------------------
-         * Goal validation
-         * ---------------------------------------------------------------
-         */
-
-        if (
-            this.savingsType === 'GOAL' &&
-            decimalToNumber(
-                this.targetAmount
-            ) <= 0
-        ) {
-            return next(
-                new Error(
-                    'Goal savings accounts must have a positive target amount.'
-                )
-            );
-        }
-
-
-        /**
-         * ---------------------------------------------------------------
-         * Fixed savings validation
-         * ---------------------------------------------------------------
-         */
-
-        if (
-            this.savingsType === 'FIXED' &&
-            !this.maturityDate
-        ) {
-            return next(
-                new Error(
-                    'Fixed savings accounts must have a maturity date.'
-                )
-            );
-        }
-
-
-        /**
-         * ---------------------------------------------------------------
-         * Mobile money validation
-         * ---------------------------------------------------------------
-         */
-
-        if (
-            this.momoEnabled &&
-            !this.momoProvider
-        ) {
-            return next(
-                new Error(
-                    'A mobile money provider is required when mobile money is enabled.'
-                )
-            );
-        }
-
-
-        /**
-         * ---------------------------------------------------------------
-         * Closure validation
-         * ---------------------------------------------------------------
-         */
-
-        if (
-            this.status === 'CLOSED' &&
-            !this.closedAt
-        ) {
-            this.closedAt = new Date();
-        }
-
-
-        /**
-         * ---------------------------------------------------------------
-         * Risk level
-         * ---------------------------------------------------------------
-         */
-
-        this.riskLevel =
-            calculateRiskLevel(
-                this.riskScore
-            );
-
-
-        next();
+    if (!tenantObjectId) {
+      return next(
+        new Error(
+          "A valid tenantId is required for Savings."
+        )
+      );
     }
-);
 
+    this.tenantId =
+      tenantObjectId;
+
+    /**
+     * ------------------------------------------------------------------------
+     * MEMBER
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      !toObjectId(
+        this.member
+      )
+    ) {
+      return next(
+        new Error(
+          "A valid member reference is required for Savings."
+        )
+      );
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * BALANCE INVARIANTS
+     * ------------------------------------------------------------------------
+     */
+
+    const balance =
+      decimal128FromValue(
+        this.balance
+      );
+
+    const availableBalance =
+      decimal128FromValue(
+        this.availableBalance
+      );
+
+    const blockedBalance =
+      decimal128FromValue(
+        this.blockedBalance
+      );
+
+    if (
+      decimalCompare(
+        availableBalance,
+        balance
+      ) > 0
+    ) {
+      return next(
+        new Error(
+          "Savings available balance cannot exceed total balance."
+        )
+      );
+    }
+
+    if (
+      decimalCompare(
+        blockedBalance,
+        balance
+      ) > 0
+    ) {
+      return next(
+        new Error(
+          "Savings blocked balance cannot exceed total balance."
+        )
+      );
+    }
+
+    const availablePlusBlocked =
+      decimalAdd(
+        availableBalance,
+        blockedBalance
+      );
+
+    if (
+      decimalCompare(
+        availablePlusBlocked,
+        balance
+      ) > 0
+    ) {
+      return next(
+        new Error(
+          "Savings available balance plus blocked balance cannot exceed total balance."
+        )
+      );
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * NON-NEGATIVE MONEY
+     * ------------------------------------------------------------------------
+     */
+
+    const monetaryFields = [
+      "balance",
+      "availableBalance",
+      "blockedBalance",
+      "totalDeposits",
+      "totalWithdrawals",
+      "totalInterestEarned",
+      "totalDividendsEarned",
+      "totalFeesCharged",
+      "totalReversals",
+      "accruedInterest",
+      "targetAmount",
+    ];
+
+    for (
+      const field of monetaryFields
+    ) {
+      const value =
+        decimal128FromValue(
+          this[field]
+        );
+
+      if (
+        decimalCompare(
+          value,
+          decimal128Zero()
+        ) < 0
+      ) {
+        return next(
+          new Error(
+            `Savings ${field} cannot be negative.`
+          )
+        );
+      }
+
+      this[field] = value;
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * GOAL SAVINGS
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      this.savingsType === "GOAL" &&
+      decimalCompare(
+        this.targetAmount,
+        decimal128Zero()
+      ) <= 0
+    ) {
+      return next(
+        new Error(
+          "Goal savings accounts must have a positive target amount."
+        )
+      );
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * FIXED SAVINGS
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      this.savingsType === "FIXED" &&
+      !this.maturityDate
+    ) {
+      return next(
+        new Error(
+          "Fixed savings accounts must have a maturity date."
+        )
+      );
+    }
+
+    if (
+      this.maturityDate &&
+      !(
+        this.maturityDate instanceof
+        Date
+      )
+    ) {
+      this.maturityDate =
+        new Date(
+          this.maturityDate
+        );
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * MOBILE MONEY
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      this.momoEnabled &&
+      !this.momoProvider
+    ) {
+      return next(
+        new Error(
+          "A mobile money provider is required when mobile money is enabled."
+        )
+      );
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * COMPLIANCE
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      this.kycVerified &&
+      !this.kycVerifiedAt
+    ) {
+      this.kycVerifiedAt =
+        new Date();
+    }
+
+    if (
+      this.amlChecked &&
+      !this.amlCheckedAt
+    ) {
+      this.amlCheckedAt =
+        new Date();
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * BLOCKING
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      this.blocked &&
+      !this.blockedAt
+    ) {
+      this.blockedAt =
+        new Date();
+    }
+
+    if (
+      this.blocked &&
+      !this.blockReason
+    ) {
+      this.blockReason =
+        "OTHER";
+    }
+
+    if (
+      this.status === "BLOCKED"
+    ) {
+      this.blocked = true;
+
+      if (!this.blockedAt) {
+        this.blockedAt =
+          new Date();
+      }
+
+      if (!this.blockReason) {
+        this.blockReason =
+          "OPERATIONAL";
+      }
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * CLOSED
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      this.status === "CLOSED" &&
+      !this.closedAt
+    ) {
+      this.closedAt =
+        new Date();
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * RISK LEVEL
+     * ------------------------------------------------------------------------
+     */
+
+    this.riskLevel =
+      calculateRiskLevel(
+        this.riskScore
+      );
+
+    /**
+     * ------------------------------------------------------------------------
+     * RECENT ACTIVITY BOUND
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      Array.isArray(
+        this.recentActivities
+      ) &&
+      this.recentActivities.length >
+        MAX_RECENT_ACTIVITIES
+    ) {
+      this.recentActivities =
+        this.recentActivities.slice(
+          -MAX_RECENT_ACTIVITIES
+        );
+    }
+
+    return next();
+  }
+);
 
 /**
  * ============================================================================
- * PRE-SAVE FINANCIAL AGGREGATE NORMALIZATION
+ * PRE-SAVE DERIVED AGGREGATE NORMALIZATION
  * ============================================================================
  *
- * IMPORTANT:
- * This computes reporting aggregates only.
+ * This hook computes reporting metadata only.
  *
- * It does NOT perform a financial transaction.
+ * It does not initiate, reverse or settle a financial transaction.
+ *
+ * The authoritative account balance must be supplied by the financial
+ * transaction service / repository boundary.
  * ============================================================================
  */
 
 SavingsSchema.pre(
-    'save',
-    function (next) {
+  "save",
+  function savingsPreSave(next) {
+    /**
+     * ------------------------------------------------------------------------
+     * NET SAVINGS
+     * ------------------------------------------------------------------------
+     *
+     * netSavings is a reporting aggregate:
+     *
+     *   deposits
+     * + interest
+     * + dividends
+     * + reversals
+     * - withdrawals
+     * - fees
+     *
+     * This must not be interpreted as the authoritative ledger balance.
+     */
 
-        const deposits =
-            decimalToNumber(
-                this.totalDeposits
-            );
+    const deposits =
+      this.totalDeposits;
 
-        const withdrawals =
-            decimalToNumber(
-                this.totalWithdrawals
-            );
+    const withdrawals =
+      this.totalWithdrawals;
 
-        const interest =
-            decimalToNumber(
-                this.totalInterestEarned
-            );
+    const interest =
+      this.totalInterestEarned;
 
-        const dividends =
-            decimalToNumber(
-                this.totalDividendsEarned
-            );
+    const dividends =
+      this.totalDividendsEarned;
 
-        const fees =
-            decimalToNumber(
-                this.totalFeesCharged
-            );
+    const fees =
+      this.totalFeesCharged;
 
-        const reversals =
-            decimalToNumber(
-                this.totalReversals
-            );
+    const reversals =
+      this.totalReversals;
 
-        /**
-         * Net savings is a reporting aggregate.
-         *
-         * The authoritative account balance remains `balance`.
-         */
-        const net =
-            deposits +
-            interest +
-            dividends +
-            reversals -
-            withdrawals -
-            fees;
+    let net =
+      decimalAdd(
+        deposits,
+        interest
+      );
 
-        this.netSavings =
-            mongoose.Types.Decimal128.fromString(
-                Math.max(
-                    0,
-                    net
-                ).toFixed(2)
-            );
+    net =
+      decimalAdd(
+        net,
+        dividends
+      );
 
+    net =
+      decimalAdd(
+        net,
+        reversals
+      );
 
-        /**
-         * Account lifecycle timestamps.
-         */
+    net =
+      decimalSubtract(
+        net,
+        withdrawals
+      );
 
-        if (
-            this.isModified('status')
-        ) {
+    net =
+      decimalSubtract(
+        net,
+        fees
+      );
 
-            if (
-                this.status === 'ACTIVE' &&
-                !this.activatedAt
-            ) {
-                this.activatedAt =
-                    new Date();
-            }
-
-            if (
-                this.status === 'DORMANT' &&
-                !this.dormantAt
-            ) {
-                this.dormantAt =
-                    new Date();
-            }
-
-            if (
-                this.status === 'CLOSED' &&
-                !this.closedAt
-            ) {
-                this.closedAt =
-                    new Date();
-            }
-        }
-
-
-        /**
-         * Keep blocked status synchronized.
-         */
-        if (
-            this.status === 'BLOCKED'
-        ) {
-            this.blocked = true;
-        }
-
-
-        /**
-         * Financial version changes whenever core financial aggregates are
-         * modified.
-         */
-        const financialFields = [
-            'balance',
-            'availableBalance',
-            'blockedBalance',
-            'totalDeposits',
-            'totalWithdrawals',
-            'totalInterestEarned',
-            'totalDividendsEarned',
-            'totalFeesCharged',
-            'totalReversals',
-            'accruedInterest',
-            'totalTransactions'
-        ];
-
-        if (
-            financialFields.some(
-                field =>
-                    this.isModified(field)
-            )
-        ) {
-            this.financialVersion =
-                (this.financialVersion || 0) + 1;
-        }
-
-
-        next();
+    /**
+     * Reporting snapshot should not become negative.
+     *
+     * Importantly, we do not alter `balance` here.
+     */
+    if (
+      decimalCompare(
+        net,
+        decimal128Zero()
+      ) < 0
+    ) {
+      net =
+        decimal128Zero();
     }
-);
 
+    this.netSavings = net;
+
+    /**
+     * ------------------------------------------------------------------------
+     * STATUS TIMESTAMPS
+     * ------------------------------------------------------------------------
+     */
+
+    if (
+      this.isModified(
+        "status"
+      )
+    ) {
+      if (
+        this.status === "ACTIVE" &&
+        !this.activatedAt
+      ) {
+        this.activatedAt =
+          new Date();
+      }
+
+      if (
+        this.status === "DORMANT" &&
+        !this.dormantAt
+      ) {
+        this.dormantAt =
+          new Date();
+      }
+
+      if (
+        this.status === "CLOSED" &&
+        !this.closedAt
+      ) {
+        this.closedAt =
+          new Date();
+      }
+
+      if (
+        this.status === "BLOCKED"
+      ) {
+        this.blocked = true;
+
+        if (!this.blockedAt) {
+          this.blockedAt =
+            new Date();
+        }
+      }
+    }
+
+    /**
+     * ------------------------------------------------------------------------
+     * FINANCIAL VERSION
+     * ------------------------------------------------------------------------
+     *
+     * The version changes whenever core account aggregates change through a
+     * document save. Financial services should still use an atomic query
+     * predicate on this value where concurrent writes matter.
+     */
+
+    const financialFields = [
+      "balance",
+      "availableBalance",
+      "blockedBalance",
+      "totalDeposits",
+      "totalWithdrawals",
+      "totalInterestEarned",
+      "totalDividendsEarned",
+      "totalFeesCharged",
+      "totalReversals",
+      "accruedInterest",
+      "totalTransactions",
+    ];
+
+    if (
+      financialFields.some(
+        (field) =>
+          this.isModified(field)
+      )
+    ) {
+      this.financialVersion =
+        Number(
+          this.financialVersion || 0
+        ) + 1;
+    }
+
+    return next();
+  }
+);
 
 /**
  * ============================================================================
- * QUERY SAFETY HELPERS
- * ============================================================================
- *
- * These helpers are intentionally simple and can be used by repositories and
- * services without duplicating status logic.
+ * TENANT QUERY HELPERS
  * ============================================================================
  */
 
 SavingsSchema.statics.buildTenantQuery =
-    function ({
-        tenantId,
-        ...criteria
-    } = {}) {
+  function buildTenantQuery({
+    tenantId,
+    ...criteria
+  } = {}) {
+    const tenantObjectId =
+      toObjectId(tenantId);
 
-        if (
-            !tenantId
-        ) {
-            throw new Error(
-                'tenantId is required for Savings tenant-scoped queries.'
-            );
-        }
+    if (!tenantObjectId) {
+      throw new Error(
+        "A valid tenantId is required for Savings tenant-scoped queries."
+      );
+    }
 
-        return {
-            tenantId: String(
-                tenantId
-            ),
-            ...criteria
-        };
+    return {
+      tenantId:
+        tenantObjectId,
+      ...criteria,
+    };
+  };
+
+SavingsSchema.statics.findTenantSavings =
+  function findTenantSavings(
+    tenantId,
+    savingsId,
+    {
+      includeClosed = true,
+    } = {}
+  ) {
+    const tenantObjectId =
+      toObjectId(tenantId);
+
+    const savingsObjectId =
+      toObjectId(savingsId);
+
+    if (
+      !tenantObjectId ||
+      !savingsObjectId
+    ) {
+      return this.findOne({
+        _id: null,
+      });
+    }
+
+    const query = {
+      _id: savingsObjectId,
+      tenantId: tenantObjectId,
     };
 
+    if (!includeClosed) {
+      query.status = {
+        $ne: "CLOSED",
+      };
+    }
 
-/**
- * ============================================================================
- * ACTIVE ACCOUNT QUERY
- * ============================================================================
- */
+    return this.findOne(
+      query
+    );
+  };
 
 SavingsSchema.statics.activeAccountQuery =
-    function (tenantId, savingsId) {
+  function activeAccountQuery(
+    tenantId,
+    savingsId
+  ) {
+    const tenantObjectId =
+      toObjectId(tenantId);
 
-        if (
-            !tenantId ||
-            !savingsId
-        ) {
-            throw new Error(
-                'tenantId and savingsId are required.'
-            );
-        }
+    const savingsObjectId =
+      toObjectId(savingsId);
 
-        return {
-            _id: savingsId,
-            tenantId: String(tenantId),
-            status: 'ACTIVE',
-            blocked: false
-        };
+    if (
+      !tenantObjectId ||
+      !savingsObjectId
+    ) {
+      throw new Error(
+        "Valid tenantId and savingsId are required."
+      );
+    }
+
+    return {
+      _id: savingsObjectId,
+      tenantId: tenantObjectId,
+      status: "ACTIVE",
+      blocked: false,
+      reconciliationStatus: {
+        $nin: [
+          "MISMATCH",
+          "UNDER_REVIEW",
+        ],
+      },
     };
-
+  };
 
 /**
  * ============================================================================
  * FINANCIAL MUTATION QUERY
  * ============================================================================
  *
- * Services can use the current financialVersion as an optimistic concurrency
- * condition.
+ * This helper DOES NOT mutate the account.
+ *
+ * It builds an atomic predicate suitable for the canonical financial service.
+ *
+ * Example conceptual usage:
+ *
+ *   const filter =
+ *     Savings.buildFinancialMutationQuery({
+ *       tenantId,
+ *       savingsId,
+ *       financialVersion,
+ *     });
+ *
+ *   await Savings.updateOne(
+ *     filter,
+ *     update,
+ *     { session }
+ *   );
+ *
+ * Actual transaction/idempotency/ledger semantics remain outside the model.
  * ============================================================================
  */
 
 SavingsSchema.statics.buildFinancialMutationQuery =
-    function ({
-        tenantId,
-        savingsId,
-        financialVersion
-    } = {}) {
+  function buildFinancialMutationQuery({
+    tenantId,
+    savingsId,
+    financialVersion,
+  } = {}) {
+    const tenantObjectId =
+      toObjectId(tenantId);
 
-        if (
-            !tenantId ||
-            !savingsId
-        ) {
-            throw new Error(
-                'tenantId and savingsId are required for financial mutation.'
-            );
-        }
+    const savingsObjectId =
+      toObjectId(savingsId);
 
-        const query = {
-            _id: savingsId,
-            tenantId: String(tenantId),
-            status: 'ACTIVE',
-            blocked: false
-        };
+    if (
+      !tenantObjectId ||
+      !savingsObjectId
+    ) {
+      throw new Error(
+        "Valid tenantId and savingsId are required for financial mutation."
+      );
+    }
 
-        if (
-            Number.isInteger(
-                financialVersion
-            )
-        ) {
-            query.financialVersion =
-                financialVersion;
-        }
-
-        return query;
+    const query = {
+      _id: savingsObjectId,
+      tenantId: tenantObjectId,
+      status: "ACTIVE",
+      blocked: false,
+      reconciliationStatus: {
+        $nin: [
+          "MISMATCH",
+          "UNDER_REVIEW",
+        ],
+      },
     };
 
+    if (
+      Number.isInteger(
+        financialVersion
+      )
+    ) {
+      query.financialVersion =
+        financialVersion;
+    }
+
+    return query;
+  };
 
 /**
  * ============================================================================
- * STATIC RISK HELPER
+ * ACTIVE / PORTFOLIO QUERIES
  * ============================================================================
  */
 
-SavingsSchema.statics.calculateRiskLevel =
-    calculateRiskLevel;
+SavingsSchema.statics.findMemberSavings =
+  function findMemberSavings(
+    tenantId,
+    memberId,
+    {
+      status = null,
+      limit = 100,
+    } = {}
+  ) {
+    const tenantObjectId =
+      toObjectId(tenantId);
 
+    const memberObjectId =
+      toObjectId(memberId);
+
+    if (
+      !tenantObjectId ||
+      !memberObjectId
+    ) {
+      return this.findOne({
+        _id: null,
+      });
+    }
+
+    const query = {
+      tenantId:
+        tenantObjectId,
+      member:
+        memberObjectId,
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    return this.find(query)
+      .sort({
+        createdAt: -1,
+      })
+      .limit(
+        Math.min(
+          100,
+          Math.max(
+            1,
+            Number.parseInt(
+              limit,
+              10
+            ) || 100
+          )
+        )
+      );
+  };
 
 /**
  * ============================================================================
@@ -1615,74 +2428,501 @@ SavingsSchema.statics.calculateRiskLevel =
  * ============================================================================
  */
 
+SavingsSchema.methods.belongsToTenant =
+  function belongsToTenant(
+    tenantId
+  ) {
+    return Boolean(
+      this.tenantId &&
+        tenantId &&
+        String(
+          this.tenantId
+        ) ===
+          String(tenantId)
+    );
+  };
+
 SavingsSchema.methods.canTransact =
-    function () {
-
-        return (
-            this.status === 'ACTIVE' &&
-            this.blocked !== true &&
-            this.reconciliationStatus !== 'MISMATCH' &&
-            this.reconciliationStatus !== 'UNDER_REVIEW'
-        );
-    };
-
+  function canTransact() {
+    return (
+      this.status === "ACTIVE" &&
+      this.blocked !== true &&
+      this.reconciliationStatus !==
+        "MISMATCH" &&
+      this.reconciliationStatus !==
+        "UNDER_REVIEW"
+    );
+  };
 
 SavingsSchema.methods.isMature =
-    function (referenceDate = new Date()) {
+  function isMature(
+    referenceDate = new Date()
+  ) {
+    if (
+      !this.maturityDate
+    ) {
+      return false;
+    }
 
-        if (
-            !this.maturityDate
-        ) {
-            return false;
-        }
+    const maturity =
+      this.maturityDate instanceof
+      Date
+        ? this.maturityDate
+        : new Date(
+            this.maturityDate
+          );
 
-        return (
-            new Date(
-                this.maturityDate
-            ) <= referenceDate
-        );
-    };
+    return (
+      !Number.isNaN(
+        maturity.getTime()
+      ) &&
+      maturity <=
+        referenceDate
+    );
+  };
 
+SavingsSchema.methods.isGoalReached =
+  function isGoalReached() {
+    if (
+      this.savingsType !==
+      "GOAL"
+    ) {
+      return false;
+    }
 
+    return (
+      decimalCompare(
+        this.balance,
+        this.targetAmount
+      ) >= 0
+    );
+  };
+
+/**
+ * Return the financial aggregate snapshot.
+ *
+ * Decimal128 values are deliberately retained as strings for safe application
+ * transport rather than converted to Number.
+ */
 SavingsSchema.methods.getFinancialSnapshot =
-    function () {
+  function getFinancialSnapshot() {
+    return {
+      savingsId:
+        this._id,
 
-        return {
-            savingsId:
-                this._id,
+      tenantId:
+        this.tenantId,
 
-            tenantId:
-                this.tenantId,
+      member:
+        this.member,
 
-            member:
-                this.member,
+      account:
+        this.account,
 
-            savingsNumber:
-                this.savingsNumber,
+      savingsNumber:
+        this.savingsNumber,
 
-            currency:
-                this.currency,
+      currency:
+        this.currency,
 
-            balance:
-                this.balance,
+      balance:
+        decimalToString(
+          this.balance
+        ),
 
-            availableBalance:
-                this.availableBalance,
+      availableBalance:
+        decimalToString(
+          this.availableBalance
+        ),
 
-            blockedBalance:
-                this.blockedBalance,
+      blockedBalance:
+        decimalToString(
+          this.blockedBalance
+        ),
 
-            accruedInterest:
-                this.accruedInterest,
+      totalDeposits:
+        decimalToString(
+          this.totalDeposits
+        ),
 
-            financialVersion:
-                this.financialVersion,
+      totalWithdrawals:
+        decimalToString(
+          this.totalWithdrawals
+        ),
 
-            reconciliationStatus:
-                this.reconciliationStatus
-        };
+      totalInterestEarned:
+        decimalToString(
+          this.totalInterestEarned
+        ),
+
+      totalDividendsEarned:
+        decimalToString(
+          this.totalDividendsEarned
+        ),
+
+      totalFeesCharged:
+        decimalToString(
+          this.totalFeesCharged
+        ),
+
+      totalReversals:
+        decimalToString(
+          this.totalReversals
+        ),
+
+      accruedInterest:
+        decimalToString(
+          this.accruedInterest
+        ),
+
+      netSavings:
+        decimalToString(
+          this.netSavings
+        ),
+
+      financialVersion:
+        this.financialVersion,
+
+      reconciliationStatus:
+        this.reconciliationStatus,
     };
+  };
 
+/**
+ * Add a bounded operational activity snapshot.
+ *
+ * This is intentionally not a transaction-posting method.
+ */
+SavingsSchema.methods.appendRecentActivity =
+  function appendRecentActivity(
+    activity
+  ) {
+    if (
+      !activity ||
+      typeof activity !==
+        "object"
+    ) {
+      throw new Error(
+        "Savings activity must be an object."
+      );
+    }
+
+    if (
+      !ACTIVITY_TYPES.includes(
+        activity.type
+      )
+    ) {
+      throw new Error(
+        `Unsupported savings activity type: ${activity.type}`
+      );
+    }
+
+    const amount =
+      decimal128FromValue(
+        activity.amount
+      );
+
+    if (
+      decimalCompare(
+        amount,
+        decimal128Zero()
+      ) < 0
+    ) {
+      throw new Error(
+        "Savings activity amount cannot be negative."
+      );
+    }
+
+    this.recentActivities =
+      this.recentActivities || [];
+
+    this.recentActivities.push({
+      ...activity,
+      amount,
+    });
+
+    if (
+      this.recentActivities.length >
+      MAX_RECENT_ACTIVITIES
+    ) {
+      this.recentActivities =
+        this.recentActivities.slice(
+          -MAX_RECENT_ACTIVITIES
+        );
+    }
+
+    return this;
+  };
+
+/**
+ * ============================================================================
+ * MODEL INDEXES
+ * ============================================================================
+ */
+
+/**
+ * One savings account number per tenant.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    savingsNumber: 1,
+  },
+  {
+    unique: true,
+    name:
+      "uq_savings_tenant_number",
+  }
+);
+
+/**
+ * Member savings portfolio.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    member: 1,
+    status: 1,
+  },
+  {
+    name:
+      "idx_savings_tenant_member_status",
+  }
+);
+
+/**
+ * Account lookup.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    account: 1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_savings_tenant_account",
+  }
+);
+
+/**
+ * Savings type / portfolio reporting.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    savingsType: 1,
+    status: 1,
+  },
+  {
+    name:
+      "idx_savings_type_status",
+  }
+);
+
+/**
+ * Operational status queue.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    status: 1,
+    updatedAt: -1,
+  },
+  {
+    name:
+      "idx_savings_status_updated",
+  }
+);
+
+/**
+ * Balance reporting.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    balance: -1,
+  },
+  {
+    name:
+      "idx_savings_balance",
+  }
+);
+
+/**
+ * Risk operations.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    fraudFlagged: 1,
+    riskLevel: 1,
+  },
+  {
+    name:
+      "idx_savings_risk_operations",
+  }
+);
+
+/**
+ * Compliance queue.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    complianceReviewRequired: 1,
+    updatedAt: -1,
+  },
+  {
+    name:
+      "idx_savings_compliance_review",
+  }
+);
+
+/**
+ * Reconciliation queue.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    reconciliationStatus: 1,
+    updatedAt: -1,
+  },
+  {
+    name:
+      "idx_savings_reconciliation",
+  }
+);
+
+/**
+ * Dormancy detection.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    status: 1,
+    lastTransactionAt: 1,
+  },
+  {
+    name:
+      "idx_savings_dormancy",
+  }
+);
+
+/**
+ * Maturity processing.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    savingsType: 1,
+    maturityDate: 1,
+    status: 1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_savings_maturity",
+  }
+);
+
+/**
+ * Goal reporting.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    savingsType: 1,
+    targetDate: 1,
+  },
+  {
+    sparse: true,
+    name:
+      "idx_savings_goals",
+  }
+);
+
+/**
+ * Recent creation/reporting.
+ */
+SavingsSchema.index(
+  {
+    tenantId: 1,
+    createdAt: -1,
+  },
+  {
+    name:
+      "idx_savings_created",
+  }
+);
+
+/**
+ * Transaction reference lookup.
+ */
+SavingsSchema.index({
+  tenantId: 1,
+  lastTransactionId: 1,
+});
+
+/**
+ * Reconciliation reference lookup.
+ */
+SavingsSchema.index({
+  tenantId: 1,
+  reconciliationReference: 1,
+});
+
+/**
+ * ============================================================================
+ * MODEL METADATA
+ * ============================================================================
+ */
+
+export const SAVINGS_MODEL_METADATA =
+  Object.freeze({
+    modelName: "Savings",
+
+    schemaVersion: 2,
+
+    tenantField:
+      "tenantId",
+
+    tenantFieldType:
+      "ObjectId",
+
+    memberField:
+      "member",
+
+    financialAggregate:
+      true,
+
+    financialLedgerAuthority:
+      false,
+
+    financialPostingAuthority:
+      "TransactionService",
+
+    ledgerAuthority:
+      "Transaction/Ledger",
+
+    monetaryType:
+      "Decimal128",
+
+    financialMutationGuard:
+      "financialVersion",
+
+    transactionHistoryAuthority:
+      "Transaction",
+
+    recentActivityPurpose:
+      "operational snapshot",
+
+    reconciliationRequired:
+      true,
+
+    supportedCurrencies:
+      "ISO-4217 3-letter code",
+  });
 
 /**
  * ============================================================================
@@ -1690,30 +2930,19 @@ SavingsSchema.methods.getFinancialSnapshot =
  * ============================================================================
  */
 
-const Savings =
-    mongoose.models.Savings ||
-    mongoose.model(
-        'Savings',
-        SavingsSchema
-    );
+export const Savings =
+  mongoose.models.Savings ||
+  mongoose.model(
+    "Savings",
+    SavingsSchema
+  );
 
+export default Savings;
 
 /**
- * ============================================================================
- * EXPORTS
- * ============================================================================
+ * Export the schema for tests/migrations/introspection.
  */
-
-module.exports = Savings;
-
-module.exports.SavingsSchema =
-    SavingsSchema;
-
-module.exports.SAVINGS_TYPES =
-    SAVINGS_TYPES;
-
-module.exports.SAVINGS_STATUSES =
-    SAVINGS_STATUSES;
-
-module.exports.ACTIVITY_TYPES =
-    ACTIVITY_TYPES;
+export {
+  SavingsSchema,
+  SavingsActivitySchema,
+};

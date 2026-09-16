@@ -1,9 +1,5 @@
 'use strict';
 
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -19,40 +15,28 @@ const require = createRequire(import.meta.url);
  * Responsibilities:
  *   - Register the application routing lifecycle with bootstrap.
  *   - Resolve the canonical Express application.
- *   - Resolve the authoritative application configuration.
+ *   - Resolve authoritative application configuration.
  *   - Bind authentication configuration before loading route modules.
  *   - Load the canonical route registry deterministically.
  *   - Mount existing routes without replacing their implementation.
  *   - Prevent duplicate initialization / mounting.
+ *   - Serialize concurrent start/stop operations.
  *   - Support multiple legacy route registration contracts.
- *   - Integrate readiness.
- *   - Integrate observability without making startup dependent on telemetry.
+ *   - Integrate readiness and observability safely.
  *   - Provide deterministic route diagnostics.
- *   - Support graceful shutdown semantics.
+ *   - Support graceful logical shutdown and safe restart/resume.
  *
- * Architecture:
+ * ESM COMPATIBILITY:
  *
- *   environment
- *       ↓
- *   configuration
- *       ↓
- *   logger
- *       ↓
- *   observability
- *       ↓
- *   readiness
- *       ↓
- *   resilience
- *       ↓
- *   infrastructure
- *       ↓
- *   middleware
- *       ↓
- *   authentication configuration binding
- *       ↓
- *   routes
- *       ↓
- *   HTTP server
+ *   backend/package.json declares:
+ *
+ *       "type": "module"
+ *
+ *   Therefore native project-local modules are loaded through import()/static
+ *   import declarations.
+ *
+ *   createRequire() exists ONLY as a narrow compatibility bridge for genuine
+ *   legacy CommonJS route implementations.
  *
  * IMPORTANT:
  *
@@ -73,75 +57,34 @@ const require = createRequire(import.meta.url);
  * =============================================================================
  */
 
-const {
-  hooks,
-  lifecycle,
-} = require('./hooks');
+import { createRequire } from 'node:module';
+
+import * as hooksModule from './hooks.js';
+
+const require = createRequire(import.meta.url);
 
 /**
- * -----------------------------------------------------------------------------
- * Optional readiness dependency
- * -----------------------------------------------------------------------------
+ * =============================================================================
+ * MODULE BINDINGS
+ * =============================================================================
+ *
+ * hooks.js is a required bootstrap dependency.
+ *
+ * readinessState, observability and authentication remain dynamically resolved
+ * because the adapter intentionally tolerates optional/migrating integrations.
+ *
+ * =============================================================================
  */
 
-let readinessModule = null;
+const hooks =
+  hooksModule?.hooks ??
+  hooksModule?.default?.hooks ??
+  null;
 
-try {
-  // eslint-disable-next-line global-require
-  readinessModule =
-    require('./readinessState');
-} catch {
-  readinessModule = null;
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Optional observability dependency
- * -----------------------------------------------------------------------------
- */
-
-let observabilityModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  observabilityModule =
-    require('./observability');
-} catch {
-  observabilityModule = null;
-}
-
-/**
- * -----------------------------------------------------------------------------
- * Authentication composition dependency
- * -----------------------------------------------------------------------------
- *
- * IMPORTANT:
- *
- * This import is intentionally safe because the enhanced auth middleware no
- * longer performs module-load-time JWT secret validation.
- *
- * The resolved bootstrap configuration is explicitly bound before the route
- * registry is loaded.
- * -----------------------------------------------------------------------------
- */
-
-let authModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  authModule =
-    require('../middleware/auth');
-} catch (error) {
-  /**
-   * Keep route bootstrap load-safe.
-   *
-   * If authentication middleware itself becomes unavailable, the actual route
-   * phase will surface a deterministic dependency error.
-   */
-  authModule = {
-    __loadError: error,
-  };
-}
+const lifecycle =
+  hooksModule?.lifecycle ??
+  hooksModule?.default?.lifecycle ??
+  null;
 
 /**
  * =============================================================================
@@ -149,52 +92,83 @@ try {
  * =============================================================================
  */
 
-const COMPONENT =
-  'routes';
+const COMPONENT = 'routes';
 
 const SERVICE_NAME =
   process.env.SERVICE_NAME ||
   process.env.OTEL_SERVICE_NAME ||
   'titech-community-capital-backend';
 
-const DEFAULT_PRIORITY =
-  100;
+const DEFAULT_PRIORITY = 100;
 
-const DEFAULT_TIMEOUT_MS =
-  30_000;
+const DEFAULT_TIMEOUT_MS = 30_000;
 
-const DEFAULT_READINESS_TIMEOUT_MS =
-  5_000;
+const DEFAULT_READINESS_TIMEOUT_MS = 5_000;
 
-const DEFAULT_DEPENDENCIES =
-  Object.freeze([
-    'middleware',
-  ]);
+const DEFAULT_API_PREFIX = '/api';
 
-const DEFAULT_API_PREFIX =
-  '/api';
+const DEFAULT_HEALTH_PREFIX = '/health';
 
-const DEFAULT_HEALTH_PREFIX =
-  '/health';
+const DEFAULT_METRICS_PATH = '/metrics';
 
-const DEFAULT_METRICS_PATH =
-  '/metrics';
+const DEFAULT_DEPENDENCIES = Object.freeze([
+  'middleware',
+]);
 
-const ROUTE_MODULE_CANDIDATES =
-  Object.freeze([
-    '../routes',
-    '../routes/index',
-    '../api/routes',
-    '../api',
-  ]);
+const ROUTE_MODULE_CANDIDATES = Object.freeze([
+  /*
+   * Native ESM candidates.
+   *
+   * Explicit filenames are preferred because native ESM does not perform the
+   * same directory/index resolution as CommonJS.
+   */
+  '../routes/index.js',
+  '../routes.js',
+  '../routes/index',
+  '../routes',
 
-const ROUTE_REGISTRATION_METHODS =
-  Object.freeze([
-    'registerRoutes',
-    'mountRoutes',
-    'configureRoutes',
-    'initializeRoutes',
-  ]);
+  '../api/routes/index.js',
+  '../api/routes.js',
+  '../api/routes/index',
+  '../api/routes',
+
+  '../api/index.js',
+  '../api.js',
+  '../api/index',
+  '../api',
+]);
+
+const ROUTE_REGISTRATION_METHODS = Object.freeze([
+  'registerRoutes',
+  'mountRoutes',
+  'configureRoutes',
+  'initializeRoutes',
+]);
+
+const AUTH_CONFIGURATION_METHODS = Object.freeze([
+  'configureAuth',
+  'configureAuthentication',
+  'initializeAuth',
+]);
+
+const ROUTE_LIFECYCLE_STATES = Object.freeze({
+  IDLE: 'idle',
+  STARTING: 'starting',
+  MOUNTED: 'mounted',
+  STOPPING: 'stopping',
+  STOPPED: 'stopped',
+  FAILED: 'failed',
+});
+
+/**
+ * Module errors which indicate that attempting CommonJS compatibility is
+ * meaningful.
+ */
+const COMMONJS_FALLBACK_ERROR_CODES = new Set([
+  'ERR_REQUIRE_ESM',
+  'ERR_UNKNOWN_FILE_EXTENSION',
+  'ERR_UNSUPPORTED_DIR_IMPORT',
+]);
 
 /**
  * =============================================================================
@@ -203,14 +177,10 @@ const ROUTE_REGISTRATION_METHODS =
  */
 
 class RoutesBootstrapError extends Error {
-  constructor(
-    message,
-    options = {},
-  ) {
+  constructor(message, options = {}) {
     super(message);
 
-    this.name =
-      'RoutesBootstrapError';
+    this.name = 'RoutesBootstrapError';
 
     this.code =
       options.code ||
@@ -224,10 +194,9 @@ class RoutesBootstrapError extends Error {
       options.cause ||
       null;
 
-    this.details =
-      Object.freeze({
-        ...(options.details || {}),
-      });
+    this.details = Object.freeze({
+      ...(options.details || {}),
+    });
 
     Error.captureStackTrace?.(
       this,
@@ -242,53 +211,54 @@ class RoutesBootstrapError extends Error {
  * =============================================================================
  */
 
-let application =
-  null;
+let application = null;
 
-let router =
-  null;
+let router = null;
 
-let routeModule =
-  null;
+let routeModule = null;
 
-let routeModulePath =
-  null;
+let routeModulePath = null;
 
-let registered =
-  false;
+let routeRegistrationMode = null;
 
-let mounted =
-  false;
+let registered = false;
 
-let stopped =
-  false;
+let lifecycleState =
+  ROUTE_LIFECYCLE_STATES.IDLE;
 
-let failed =
-  false;
+let mounted = false;
 
-let registrationResult =
-  null;
+let stopped = false;
 
-let startPromise =
-  null;
+let failed = false;
 
-let stopPromise =
-  null;
+let registrationResult = null;
 
-let lastError =
-  null;
+let startPromise = null;
 
-let routeCount =
-  0;
+let stopPromise = null;
 
-let mountedAt =
-  null;
+let lastError = null;
 
-let stoppedAt =
-  null;
+let lastTransitionAt = null;
 
-let authenticationConfigured =
-  false;
+let routeCount = 0;
+
+let mountedAt = null;
+
+let stoppedAt = null;
+
+let authenticationConfigured = false;
+
+let authenticationConfigurationTarget = null;
+
+let readinessModule = null;
+
+let observabilityModule = null;
+
+let authModule = null;
+
+let authModuleLoadError = null;
 
 /**
  * =============================================================================
@@ -296,25 +266,29 @@ let authenticationConfigured =
  * =============================================================================
  */
 
-function isObjectLike(
-  value,
-) {
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function isFunction(value) {
+  return typeof value === 'function';
+}
+
+function isObjectLike(value) {
   return (
     value !== null &&
     typeof value === 'object'
   );
 }
 
-function isFunction(
-  value,
-) {
-  return typeof value === 'function';
+function isPromiseLike(value) {
+  return Boolean(
+    value &&
+      typeof value.then === 'function',
+  );
 }
 
-function normalizeString(
-  value,
-  fallback = null,
-) {
+function normalizeString(value, fallback = null) {
   if (
     value === null ||
     value === undefined
@@ -322,106 +296,17 @@ function normalizeString(
     return fallback;
   }
 
-  const normalized =
-    String(value).trim();
+  const normalized = String(value).trim();
 
-  return (
-    normalized ||
-    fallback
-  );
+  return normalized || fallback;
 }
 
-function moduleExists(
-  modulePath,
-) {
-  try {
-    require.resolve(
-      modulePath,
-    );
-
-    return true;
-  } catch (error) {
-    if (
-      error?.code ===
-      'MODULE_NOT_FOUND'
-    ) {
-      return false;
-    }
-
-    throw error;
-  }
+function setLifecycleState(state) {
+  lifecycleState = state;
+  lastTransitionAt = nowIso();
 }
 
-function unwrapModule(
-  value,
-) {
-  if (
-    value &&
-    value.default &&
-    Object.keys(value).length === 1
-  ) {
-    return value.default;
-  }
-
-  return value;
-}
-
-function getContextConfiguration(
-  context = {},
-) {
-  return (
-    context?.configuration ??
-    context?.config ??
-    context?.servicesContext?.config ??
-    context?.serviceContext?.config ??
-    null
-  );
-}
-
-function getContextEnvironment(
-  context = {},
-) {
-  return (
-    context?.environment ??
-    context?.configuration?.environment ??
-    context?.config?.environment ??
-    null
-  );
-}
-
-function getContextLogger(
-  context = {},
-) {
-  return (
-    context?.logger ??
-    context?.servicesContext?.logger ??
-    context?.serviceContext?.logger ??
-    null
-  );
-}
-
-function getContextApplication(
-  context = {},
-) {
-  return (
-    context?.app ??
-    context?.application ??
-    null
-  );
-}
-
-/**
- * =============================================================================
- * SAFE ERROR DIAGNOSTICS
- * =============================================================================
- *
- * Authentication tokens, JWT secrets, cookies and request headers are never
- * included here.
- */
-
-function serializeSafeError(
-  error,
-) {
+function serializeSafeError(error) {
   if (!error) {
     return null;
   }
@@ -445,6 +330,264 @@ function serializeSafeError(
   };
 }
 
+function getContextConfiguration(context = {}) {
+  return (
+    context?.configuration ??
+    context?.config ??
+    context?.servicesContext?.configuration ??
+    context?.servicesContext?.config ??
+    context?.serviceContext?.configuration ??
+    context?.serviceContext?.config ??
+    null
+  );
+}
+
+function getContextEnvironment(context = {}) {
+  return (
+    context?.environment ??
+    context?.configuration?.environment ??
+    context?.config?.environment ??
+    null
+  );
+}
+
+function getContextLogger(context = {}) {
+  return (
+    context?.logger ??
+    context?.servicesContext?.logger ??
+    context?.serviceContext?.logger ??
+    null
+  );
+}
+
+function getContextApplication(context = {}) {
+  return (
+    context?.app ??
+    context?.application ??
+    context?.servicesContext?.app ??
+    context?.serviceContext?.app ??
+    null
+  );
+}
+
+/**
+ * =============================================================================
+ * MODULE NORMALIZATION
+ * =============================================================================
+ */
+
+function hasSupportedContract(
+  value,
+  methods = [],
+) {
+  if (!value) {
+    return false;
+  }
+
+  if (
+    isFunction(value) ||
+    isExpressRouterLike(value)
+  ) {
+    return true;
+  }
+
+  return methods.some(
+    method => isFunction(value?.[method]),
+  );
+}
+
+function unwrapModule(
+  value,
+  methods = [],
+) {
+  if (!value) {
+    return value;
+  }
+
+  const defaultExport = value.default;
+
+  if (
+    defaultExport !== undefined &&
+    defaultExport !== null &&
+    hasSupportedContract(
+      defaultExport,
+      methods,
+    )
+  ) {
+    return defaultExport;
+  }
+
+  if (
+    value.__esModule &&
+    defaultExport !== undefined
+  ) {
+    return defaultExport;
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      value,
+      'default',
+    ) &&
+    Object.keys(value).length === 1
+  ) {
+    return defaultExport;
+  }
+
+  return value;
+}
+
+async function importModule(
+  specifier,
+  {
+    required = false,
+    label = specifier,
+    methods = [],
+  } = {},
+) {
+  try {
+    const imported = await import(
+      specifier
+    );
+
+    return unwrapModule(
+      imported,
+      methods,
+    );
+  } catch (error) {
+    const code = error?.code;
+
+    /*
+     * Native ESM should be authoritative. CommonJS compatibility is attempted
+     * only when Node explicitly reports a module-format incompatibility.
+     */
+    if (
+      !COMMONJS_FALLBACK_ERROR_CODES.has(
+        code,
+      )
+    ) {
+      if (
+        !required &&
+        code ===
+          'ERR_MODULE_NOT_FOUND'
+      ) {
+        return null;
+      }
+
+      throw error;
+    }
+
+    try {
+      const legacy = require(
+        specifier,
+      );
+
+      return unwrapModule(
+        legacy,
+        methods,
+      );
+    } catch (legacyError) {
+      if (!required) {
+        return null;
+      }
+
+      throw new RoutesBootstrapError(
+        `Failed to load ${label}.`,
+        {
+          code:
+            'ROUTES_DEPENDENCY_LOAD_FAILED',
+          phase: 'routes',
+          cause: legacyError,
+          details: {
+            specifier,
+            importError:
+              serializeSafeError(error),
+          },
+        },
+      );
+    }
+  }
+}
+
+async function loadOptionalDependencies() {
+  if (
+    readinessModule === null
+  ) {
+    try {
+      readinessModule =
+        await importModule(
+          './readinessState.js',
+          {
+            required: false,
+            label:
+              'TITech readiness integration',
+            methods: [
+              'register',
+            ],
+          },
+        );
+    } catch (error) {
+      readinessModule = null;
+
+      emitObservabilityEvent(
+        'routes.readiness.load_failed',
+        {
+          error:
+            serializeSafeError(error),
+        },
+      );
+    }
+  }
+
+  if (
+    observabilityModule === null
+  ) {
+    try {
+      observabilityModule =
+        await importModule(
+          './observability.js',
+          {
+            required: false,
+            label:
+              'TITech observability integration',
+            methods: [
+              'emitEvent',
+            ],
+          },
+        );
+    } catch {
+      observabilityModule = null;
+    }
+  }
+
+  if (
+    authModule === null &&
+    authModuleLoadError === null
+  ) {
+    try {
+      authModule =
+        await importModule(
+          '../middleware/auth.js',
+          {
+            required: true,
+            label:
+              'TITech authentication middleware',
+            methods:
+              AUTH_CONFIGURATION_METHODS,
+          },
+        );
+    } catch (error) {
+      /*
+       * Preserve the exact dependency failure. Authentication is required
+       * during route composition and will produce a deterministic bootstrap
+       * failure when binding is attempted.
+       */
+      authModuleLoadError = error;
+      authModule = null;
+    }
+  }
+}
+
 /**
  * =============================================================================
  * OBSERVABILITY
@@ -455,52 +598,120 @@ function emitObservabilityEvent(
   event,
   payload = {},
 ) {
+  const enriched = {
+    component: COMPONENT,
+    service: SERVICE_NAME,
+    event,
+    timestamp: nowIso(),
+    ...payload,
+  };
+
   try {
-    const enriched =
-      {
-        component:
-          COMPONENT,
+    let result = null;
 
-        service:
-          SERVICE_NAME,
+    const emitter =
+      observabilityModule?.observability
+        ?.emitEvent ??
+      observabilityModule?.emitEvent;
 
-        event,
+    if (isFunction(emitter)) {
+      const target =
+        observabilityModule?.observability &&
+        isFunction(
+          observabilityModule
+            .observability
+            .emitEvent,
+        )
+          ? observabilityModule
+              .observability
+              .emitEvent
+          : observabilityModule.emitEvent;
 
-        ...payload,
-      };
-
-    if (
-      observabilityModule
-        ?.observability
-        ?.emitEvent &&
-      isFunction(
-        observabilityModule
-          .observability
-          .emitEvent,
-      )
-    ) {
-      return observabilityModule
-        .observability
-        .emitEvent(
-          event,
-          enriched,
-        );
-    }
-
-    if (
-      isFunction(
-        observabilityModule?.emitEvent,
-      )
-    ) {
-      return observabilityModule.emitEvent(
+      result = target(
         event,
         enriched,
       );
     }
+
+    if (isPromiseLike(result)) {
+      void Promise.resolve(result).catch(
+        () => undefined,
+      );
+    }
+
+    return result;
   } catch {
     /*
-     * Observability must never block application startup/shutdown.
+     * Telemetry must never break application startup/shutdown.
      */
+    return null;
+  }
+}
+
+/**
+ * =============================================================================
+ * APPLICATION VALIDATION
+ * =============================================================================
+ */
+
+function assertApplication(value) {
+  if (
+    !value ||
+    !isFunction(value.use)
+  ) {
+    throw new RoutesBootstrapError(
+      'A valid Express-compatible application instance is required.',
+      {
+        code:
+          'ROUTES_APPLICATION_INVALID',
+        phase: 'routes',
+      },
+    );
+  }
+}
+
+/**
+ * =============================================================================
+ * ROUTER DETECTION
+ * =============================================================================
+ */
+
+function isExpressRouterLike(candidate) {
+  if (!candidate) {
+    return false;
+  }
+
+  return (
+    isFunction(candidate.use) ||
+    Array.isArray(candidate.stack)
+  );
+}
+
+function findRouter(candidate) {
+  if (!candidate) {
+    return null;
+  }
+
+  if (
+    isExpressRouterLike(candidate)
+  ) {
+    return candidate;
+  }
+
+  const candidates = [
+    candidate.router,
+    candidate.routes,
+    candidate.apiRouter,
+    candidate.httpRouter,
+    candidate.default,
+  ];
+
+  for (const item of candidates) {
+    if (
+      isExpressRouterLike(item)
+    ) {
+      return item;
+    }
   }
 
   return null;
@@ -508,124 +719,14 @@ function emitObservabilityEvent(
 
 /**
  * =============================================================================
- * ROUTE MODULE RESOLUTION
- * =============================================================================
- */
-
-function resolveRouteModule() {
-  if (
-    routeModule
-  ) {
-    return {
-      module:
-        routeModule,
-
-      path:
-        routeModulePath,
-    };
-  }
-
-  for (
-    const candidate of
-      ROUTE_MODULE_CANDIDATES
-  ) {
-    if (
-      !moduleExists(
-        candidate,
-      )
-    ) {
-      continue;
-    }
-
-    try {
-      const loaded =
-        require(candidate);
-
-      const normalized =
-        unwrapModule(
-          loaded,
-        );
-
-      if (
-        !normalized
-      ) {
-        throw new RoutesBootstrapError(
-          'TITech route module resolved to an empty export.',
-          {
-            code:
-              'ROUTES_MODULE_EMPTY',
-
-            details: {
-              candidate,
-            },
-          },
-        );
-      }
-
-      routeModule =
-        normalized;
-
-      routeModulePath =
-        candidate;
-
-      return {
-        module:
-          routeModule,
-
-        path:
-          routeModulePath,
-      };
-    } catch (error) {
-      /*
-       * IMPORTANT:
-       *
-       * Preserve the original error as cause.
-       *
-       * This prevents the old "Failed to load route module" diagnostic
-       * black-box problem where the useful dependency exception was lost.
-       */
-
-      throw new RoutesBootstrapError(
-        'Failed to load the TITech route module.',
-        {
-          code:
-            'ROUTES_MODULE_LOAD_FAILED',
-
-          phase:
-            'routes',
-
-          cause:
-            error,
-
-          details: {
-            candidate,
-          },
-        },
-      );
-    }
-  }
-
-  return {
-    module:
-      null,
-
-    path:
-      null,
-  };
-}
-
-/**
- * =============================================================================
- * ROUTE CONTRACT DISCOVERY
+ * ROUTE REGISTRATION CONTRACT
  * =============================================================================
  */
 
 function findRegistrationFunction(
   candidate,
 ) {
-  if (
-    !candidate
-  ) {
+  if (!candidate) {
     return null;
   }
 
@@ -639,13 +740,10 @@ function findRegistrationFunction(
       )
     ) {
       return {
-        name:
-          method,
-
-        fn:
-          candidate[method].bind(
-            candidate,
-          ),
+        name: method,
+        fn: candidate[
+          method
+        ].bind(candidate),
       };
     }
   }
@@ -653,128 +751,14 @@ function findRegistrationFunction(
   return null;
 }
 
-function isExpressRouterLike(
-  candidate,
-) {
-  if (
-    !candidate
-  ) {
-    return false;
-  }
-
-  if (
-    typeof candidate !==
-    'function'
-  ) {
-    return (
-      isFunction(
-        candidate.use,
-      ) ||
-      Array.isArray(
-        candidate.stack,
-      )
-    );
-  }
-
-  return (
-    isFunction(
-      candidate.use,
-    ) ||
-    Array.isArray(
-      candidate.stack,
-    )
-  );
-}
-
-function findRouter(
-  candidate,
-) {
-  if (
-    !candidate
-  ) {
-    return null;
-  }
-
-  /*
-   * Direct router export.
-   */
-  if (
-    isExpressRouterLike(
-      candidate,
-    )
-  ) {
-    return candidate;
-  }
-
-  /*
-   * Common named exports.
-   */
-  const candidates = [
-    candidate.router,
-    candidate.routes,
-    candidate.apiRouter,
-    candidate.httpRouter,
-    candidate.default,
-  ];
-
-  for (
-    const item of
-      candidates
-  ) {
-    if (
-      isExpressRouterLike(
-        item,
-      )
-    ) {
-      return item;
-    }
-  }
-
-  return null;
-}
-
-/**
- * =============================================================================
- * VALIDATION
- * =============================================================================
- */
-
-function assertApplication(
-  value,
-) {
-  if (
-    !value ||
-    !isFunction(
-      value.use,
-    )
-  ) {
-    throw new RoutesBootstrapError(
-      'A valid Express-compatible application instance is required.',
-      {
-        code:
-          'ROUTES_APPLICATION_INVALID',
-
-        phase:
-          'routes',
-      },
-    );
-  }
-}
-
-function assertRouteContract(
-  value,
-) {
-  if (
-    !value
-  ) {
+function assertRouteContract(value) {
+  if (!value) {
     throw new RoutesBootstrapError(
       'TITech route implementation is unavailable.',
       {
         code:
           'ROUTES_IMPLEMENTATION_UNAVAILABLE',
-
-        phase:
-          'routes',
+        phase: 'routes',
       },
     );
   }
@@ -785,14 +769,10 @@ function assertRouteContract(
     );
 
   const resolvedRouter =
-    findRouter(
-      value,
-    );
+    findRouter(value);
 
   const callable =
-    isFunction(
-      value,
-    );
+    isFunction(value);
 
   if (
     !registration &&
@@ -804,10 +784,7 @@ function assertRouteContract(
       {
         code:
           'ROUTES_IMPLEMENTATION_INVALID',
-
-        phase:
-          'routes',
-
+        phase: 'routes',
         details: {
           supportedContracts: [
             'registerRoutes(app, context)',
@@ -825,13 +802,228 @@ function assertRouteContract(
 
 /**
  * =============================================================================
+ * ROUTE MODULE RESOLUTION
+ * =============================================================================
+ */
+
+function isCandidateMissing(
+  error,
+  candidate,
+) {
+  if (
+    error?.code !==
+    'ERR_MODULE_NOT_FOUND'
+  ) {
+    return false;
+  }
+
+  const message =
+    String(error?.message || '');
+
+  return (
+    message.includes(candidate) ||
+    message.includes(
+      candidate.replace(
+        /^\.\//,
+        '',
+      ),
+    )
+  );
+}
+
+async function resolveRouteModule() {
+  if (routeModule) {
+    return {
+      module: routeModule,
+      path: routeModulePath,
+    };
+  }
+
+  const failures = [];
+
+  for (
+    const candidate of
+      ROUTE_MODULE_CANDIDATES
+  ) {
+    let importError = null;
+
+    try {
+      const loaded =
+        await import(candidate);
+
+      const normalized =
+        unwrapModule(
+          loaded,
+          ROUTE_REGISTRATION_METHODS,
+        );
+
+      if (!normalized) {
+        throw new RoutesBootstrapError(
+          'TITech route module resolved to an empty export.',
+          {
+            code:
+              'ROUTES_MODULE_EMPTY',
+            phase: 'routes',
+            details: {
+              candidate,
+            },
+          },
+        );
+      }
+
+      assertRouteContract(
+        normalized,
+      );
+
+      routeModule = normalized;
+
+      routeModulePath = candidate;
+
+      return {
+        module: routeModule,
+        path: routeModulePath,
+      };
+    } catch (error) {
+      importError = error;
+
+      if (
+        isCandidateMissing(
+          error,
+          candidate,
+        )
+      ) {
+        continue;
+      }
+
+      /*
+       * Do not conceal real dependency/runtime errors behind route discovery.
+       */
+      if (
+        !COMMONJS_FALLBACK_ERROR_CODES.has(
+          error?.code,
+        )
+      ) {
+        throw new RoutesBootstrapError(
+          'Failed to import the TITech route module.',
+          {
+            code:
+              'ROUTES_MODULE_IMPORT_FAILED',
+            phase: 'routes',
+            cause: error,
+            details: {
+              candidate,
+            },
+          },
+        );
+      }
+    }
+
+    /*
+     * Genuine legacy CommonJS compatibility.
+     */
+    try {
+      const legacyLoaded =
+        require(candidate);
+
+      const normalized =
+        unwrapModule(
+          legacyLoaded,
+          ROUTE_REGISTRATION_METHODS,
+        );
+
+      if (!normalized) {
+        throw new RoutesBootstrapError(
+          'TITech legacy route module resolved to an empty export.',
+          {
+            code:
+              'ROUTES_MODULE_EMPTY',
+            phase: 'routes',
+            details: {
+              candidate,
+            },
+          },
+        );
+      }
+
+      assertRouteContract(
+        normalized,
+      );
+
+      routeModule = normalized;
+
+      routeModulePath =
+        `${candidate}:commonjs`;
+
+      return {
+        module: routeModule,
+        path: routeModulePath,
+      };
+    } catch (requireError) {
+      failures.push({
+        candidate,
+        importError:
+          serializeSafeError(
+            importError,
+          ),
+        requireError:
+          serializeSafeError(
+            requireError,
+          ),
+      });
+
+      /*
+       * A found module which fails evaluation must not be silently skipped.
+       */
+      if (
+        !isCandidateMissing(
+          requireError,
+          candidate,
+        ) &&
+        requireError?.code !==
+          'MODULE_NOT_FOUND'
+      ) {
+        throw new RoutesBootstrapError(
+          'Failed to load the TITech legacy route module.',
+          {
+            code:
+              'ROUTES_MODULE_LOAD_FAILED',
+            phase: 'routes',
+            cause: requireError,
+            details: {
+              candidate,
+              importError:
+                serializeSafeError(
+                  importError,
+                ),
+            },
+          },
+        );
+      }
+    }
+  }
+
+  throw new RoutesBootstrapError(
+    'No TITech route module could be resolved.',
+    {
+      code:
+        'ROUTES_MODULE_NOT_FOUND',
+      phase: 'routes',
+      details: {
+        candidates:
+          ROUTE_MODULE_CANDIDATES,
+        failures,
+      },
+    },
+  );
+}
+
+/**
+ * =============================================================================
  * ROUTE COUNT
  * =============================================================================
  */
 
-function inspectRouteCount(
-  target,
-) {
+function inspectRouteCount(target) {
   try {
     if (
       Array.isArray(
@@ -850,15 +1042,13 @@ function inspectRouteCount(
     }
 
     if (
-      Array.isArray(
-        target?.stack,
-      )
+      Array.isArray(target?.stack)
     ) {
       return target.stack.length;
     }
   } catch {
     /*
-     * Diagnostics only.
+     * Diagnostics must never throw.
      */
   }
 
@@ -886,45 +1076,50 @@ function resolveRouteConfiguration(
     ) || {};
 
   const routeConfig =
-    config.routes ||
-    config.routing ||
+    config.routes ??
+    config.routing ??
     {};
-
-  const nodeEnv =
-    normalizeString(
-      process.env.NODE_ENV,
-      'development',
-    );
 
   return Object.freeze({
     enabled:
       options.enabled !== undefined
-        ? Boolean(
-            options.enabled,
-          )
-        : routeConfig.enabled !== undefined
+        ? Boolean(options.enabled)
+        : routeConfig.enabled !==
+            undefined
           ? Boolean(
               routeConfig.enabled,
             )
           : true,
 
     apiPrefix:
-      options.apiPrefix ||
-      routeConfig.apiPrefix ||
-      process.env.API_PREFIX ||
-      DEFAULT_API_PREFIX,
+      normalizeString(
+        options.apiPrefix,
+        normalizeString(
+          routeConfig.apiPrefix,
+          process.env.API_PREFIX ||
+            DEFAULT_API_PREFIX,
+        ),
+      ),
 
     healthPrefix:
-      options.healthPrefix ||
-      routeConfig.healthPrefix ||
-      process.env.HEALTH_PREFIX ||
-      DEFAULT_HEALTH_PREFIX,
+      normalizeString(
+        options.healthPrefix,
+        normalizeString(
+          routeConfig.healthPrefix,
+          process.env.HEALTH_PREFIX ||
+            DEFAULT_HEALTH_PREFIX,
+        ),
+      ),
 
     metricsPath:
-      options.metricsPath ||
-      routeConfig.metricsPath ||
-      process.env.METRICS_PATH ||
-      DEFAULT_METRICS_PATH,
+      normalizeString(
+        options.metricsPath,
+        normalizeString(
+          routeConfig.metricsPath,
+          process.env.METRICS_PATH ||
+            DEFAULT_METRICS_PATH,
+        ),
+      ),
 
     versionPrefix:
       options.versionPrefix ??
@@ -933,151 +1128,152 @@ function resolveRouteConfiguration(
       '',
 
     environment:
-      environment?.runtime?.nodeEnv ||
-      environment?.app?.nodeEnv ||
-      environment?.app?.environment ||
-      nodeEnv,
+      environment?.runtime?.nodeEnv ??
+      environment?.app?.nodeEnv ??
+      environment?.app?.environment ??
+      process.env.NODE_ENV ??
+      'development',
   });
 }
 
 /**
  * =============================================================================
- * AUTHENTICATION CONFIGURATION BINDING
- * =============================================================================
- *
- * This is the critical fix for the route startup failure discovered in:
- *
- *   routes/index.js
- *       ↓
- *   ../middleware/auth
- *       ↓
- *   JWT configuration
- *
- * The authoritative configuration is already available from bootstrap.
- *
- * We bind it into the auth module BEFORE require('../routes') is executed.
- *
- * The enhanced auth middleware still remains lazy and safe when imported
- * independently.
+ * AUTHENTICATION CONFIGURATION
  * =============================================================================
  */
 
-function bindAuthenticationConfiguration(
+async function bindAuthenticationConfiguration(
   context = {},
 ) {
-  if (
-    authenticationConfigured
-  ) {
-    return true;
-  }
-
-  if (
-    !authModule
-  ) {
-    throw new RoutesBootstrapError(
-      'TITech authentication middleware is unavailable.',
-      {
-        code:
-          'ROUTES_AUTH_MODULE_UNAVAILABLE',
-
-        phase:
-          'routes',
-
-        cause:
-          authModule?.__loadError ||
-          null,
-      },
-    );
-  }
+  await loadOptionalDependencies();
 
   const configuration =
     getContextConfiguration(
       context,
     );
 
-  if (
-    !configuration
-  ) {
+  const environment =
+    getContextEnvironment(
+      context,
+    );
+
+  const logger =
+    getContextLogger(context);
+
+  if (!configuration) {
     throw new RoutesBootstrapError(
       'TITech application configuration is unavailable while composing authentication.',
       {
         code:
           'ROUTES_AUTH_CONFIGURATION_UNAVAILABLE',
-
-        phase:
-          'routes',
+        phase: 'routes',
       },
     );
   }
 
-  if (
-    !isFunction(
-      authModule.configureAuth,
-    )
-  ) {
-    /*
-     * Backward compatibility:
-     *
-     * The enhanced auth middleware makes configuration injection available,
-     * but older auth modules can still be used if they resolve configuration
-     * themselves.
-     *
-     * Do not silently mark the module configured in the modern path unless it
-     * actually supports the contract.
-     */
-    authenticationConfigured =
-      false;
+  if (!authModule) {
+    throw new RoutesBootstrapError(
+      'TITech authentication middleware is unavailable.',
+      {
+        code:
+          'ROUTES_AUTH_MODULE_UNAVAILABLE',
+        phase: 'routes',
+        cause:
+          authModuleLoadError,
+      },
+    );
+  }
+
+  const methodName =
+    AUTH_CONFIGURATION_METHODS.find(
+      name =>
+        isFunction(
+          authModule[name],
+        ),
+    );
+
+  /*
+   * Older authentication implementations may configure themselves and not
+   * expose an explicit composition hook.
+   */
+  if (!methodName) {
+    authenticationConfigured = false;
+    authenticationConfigurationTarget =
+      null;
+
+    emitObservabilityEvent(
+      'authentication.configuration.binding_skipped',
+      {
+        reason:
+          'legacy_contract_not_supported',
+      },
+    );
 
     return false;
   }
 
+  if (
+    authenticationConfigured &&
+    authenticationConfigurationTarget ===
+      configuration
+  ) {
+    return true;
+  }
+
   try {
-    authModule.configureAuth({
-      configuration,
-      config:
+    const result =
+      authModule[methodName]({
         configuration,
+        config: configuration,
+        environment,
+        logger,
+      });
 
-      environment:
-        getContextEnvironment(
-          context,
-        ),
+    if (isPromiseLike(result)) {
+      throw new RoutesBootstrapError(
+        'TITech authentication configuration binding must be synchronous.',
+        {
+          code:
+            'ROUTES_AUTH_CONFIGURATION_BIND_ASYNC',
+          phase: 'routes',
+        },
+      );
+    }
 
-      logger:
-        getContextLogger(
-          context,
-        ),
-    });
+    authenticationConfigured = true;
 
-    authenticationConfigured =
-      true;
+    authenticationConfigurationTarget =
+      configuration;
 
     emitObservabilityEvent(
       'authentication.configuration.bound',
       {
-        configured:
-          true,
-
-        /*
-         * No secret values.
-         */
-        component:
-          COMPONENT,
+        method: methodName,
+        configured: true,
       },
     );
 
     return true;
   } catch (error) {
+    authenticationConfigured = false;
+
+    authenticationConfigurationTarget =
+      null;
+
+    if (
+      error instanceof
+      RoutesBootstrapError
+    ) {
+      throw error;
+    }
+
     throw new RoutesBootstrapError(
       'Failed to bind TITech authentication configuration during route composition.',
       {
         code:
           'ROUTES_AUTH_CONFIGURATION_BIND_FAILED',
-
-        phase:
-          'routes',
-
-        cause:
-          error,
+        phase: 'routes',
+        cause: error,
       },
     );
   }
@@ -1089,104 +1285,62 @@ function bindAuthenticationConfiguration(
  * =============================================================================
  */
 
-function registerReadinessDependency(
+async function registerReadinessDependency(
   context = {},
   options = {},
 ) {
-  if (
-    !readinessModule
-  ) {
-    return null;
-  }
-
-  const register =
-    readinessModule.register;
-
-  const has =
-    readinessModule.has;
+  await loadOptionalDependencies();
 
   if (
+    !readinessModule ||
     !isFunction(
-      register,
+      readinessModule.register,
     )
   ) {
     return null;
   }
 
   if (
-    isFunction(has) &&
-    has(COMPONENT)
+    isFunction(readinessModule.has) &&
+    readinessModule.has(COMPONENT)
   ) {
     return null;
   }
 
   try {
-    return register({
-      name:
-        COMPONENT,
+    return readinessModule.register({
+      name: COMPONENT,
 
       severity:
         options.readinessSeverity ||
         'required',
 
       enabled:
-        options.enabled !==
-        false,
-
-      readiness:
-        async () => ({
-          ready:
-            mounted &&
-            !failed &&
-            !stopped,
-
-          routes:
-            routeCount,
-        }),
-
-      health:
-        async () => ({
-          status:
-            failed
-              ? 'unhealthy'
-              : stopped
-                ? 'stopped'
-                : mounted
-                  ? 'healthy'
-                  : 'not_ready',
-
-          ready:
-            mounted &&
-            !failed &&
-            !stopped,
-
-          routes:
-            routeCount,
-
-          implementation:
-            routeModulePath,
-
-          authenticationConfigured,
-        }),
+        options.enabled !== false,
 
       timeoutMs:
         Number.isInteger(
           options.readinessTimeoutMs,
-        )
+        ) &&
+        options.readinessTimeoutMs > 0
           ? options.readinessTimeoutMs
           : DEFAULT_READINESS_TIMEOUT_MS,
 
-      metadata: {
-        component:
-          COMPONENT,
+      readiness: async () => ({
+        ready: isReady(),
+        routes: routeCount,
+      }),
 
-        service:
-          SERVICE_NAME,
+      health: async () =>
+        health(),
+
+      metadata: {
+        component: COMPONENT,
+        service: SERVICE_NAME,
       },
     });
   } catch (error) {
-    lastError =
-      error;
+    lastError = error;
 
     emitObservabilityEvent(
       'routes.readiness_registration_failed',
@@ -1198,83 +1352,117 @@ function registerReadinessDependency(
       },
     );
 
+    /*
+     * Readiness integration is auxiliary. The route lifecycle itself remains
+     * authoritative.
+     */
     return null;
   }
 }
 
 /**
  * =============================================================================
- * APPLICATION INJECTION
+ * APPLICATION / ROUTE INJECTION
  * =============================================================================
  */
 
-function setApplication(
-  app,
-) {
-  assertApplication(
-    app,
-  );
+function setApplication(app) {
+  assertApplication(app);
 
   if (
-    mounted
+    mounted &&
+    application &&
+    application !== app
   ) {
     throw new RoutesBootstrapError(
       'Cannot replace the application after routes have been mounted.',
       {
         code:
           'ROUTES_APPLICATION_LOCKED',
-
-        phase:
-          'routes',
+        phase: 'routes',
       },
     );
   }
 
-  application =
-    app;
+  application = app;
 
   return application;
 }
-
-/**
- * =============================================================================
- * ROUTE MODULE INJECTION
- * =============================================================================
- */
 
 function setRouteModule(
   value,
   options = {},
 ) {
-  if (
-    mounted
-  ) {
+  if (mounted) {
     throw new RoutesBootstrapError(
       'Cannot replace the route module after routes have been mounted.',
       {
         code:
           'ROUTES_MODULE_LOCKED',
-
-        phase:
-          'routes',
+        phase: 'routes',
       },
     );
   }
 
-  assertRouteContract(
-    value,
-  );
-
-  routeModule =
+  const normalized =
     unwrapModule(
       value,
+      ROUTE_REGISTRATION_METHODS,
     );
+
+  assertRouteContract(
+    normalized,
+  );
+
+  routeModule = normalized;
 
   routeModulePath =
     options.path ||
     'provided:route-module';
 
+  routeRegistrationMode = null;
+
   return routeModule;
+}
+
+/**
+ * =============================================================================
+ * APPLICATION/CONTEXT SAFETY
+ * =============================================================================
+ */
+
+function buildRouteContext(
+  context = {},
+  app,
+  routeConfig,
+) {
+  return Object.freeze({
+    ...context,
+
+    application: app,
+
+    app,
+
+    configuration:
+      getContextConfiguration(
+        context,
+      ),
+
+    config:
+      getContextConfiguration(
+        context,
+      ),
+
+    environment:
+      getContextEnvironment(
+        context,
+      ),
+
+    logger:
+      getContextLogger(context),
+
+    routes: routeConfig,
+  });
 }
 
 /**
@@ -1288,57 +1476,7 @@ async function mountRoutes(
   context = {},
   options = {},
 ) {
-  assertApplication(
-    app,
-  );
-
-  /*
-   * Bind the authoritative authentication configuration BEFORE loading the
-   * route registry.
-   *
-   * This is the important composition-order guarantee.
-   */
-  bindAuthenticationConfiguration(
-    context,
-  );
-
-  const resolved =
-    routeModule
-      ? {
-          module:
-            routeModule,
-
-          path:
-            routeModulePath,
-        }
-      : resolveRouteModule();
-
-  const module =
-    resolved.module;
-
-  if (
-    !module
-  ) {
-    throw new RoutesBootstrapError(
-      'No TITech route module could be resolved.',
-      {
-        code:
-          'ROUTES_MODULE_NOT_FOUND',
-
-        phase:
-          'routes',
-
-        details: {
-          candidates:
-            ROUTE_MODULE_CANDIDATES,
-        },
-      },
-    );
-  }
-
-  assertRouteContract(
-    module,
-  );
+  assertApplication(app);
 
   const routeConfig =
     resolveRouteConfiguration(
@@ -1346,69 +1484,55 @@ async function mountRoutes(
       options,
     );
 
-  if (
-    !routeConfig.enabled
-  ) {
+  if (!routeConfig.enabled) {
     return {
-      enabled:
-        false,
-
-      mounted:
-        false,
-
-      reason:
-        'disabled',
-
-      path:
-        resolved.path,
+      enabled: false,
+      mounted: false,
+      reason: 'disabled',
+      path: routeModulePath,
+      routeCount: 0,
     };
   }
 
+  /*
+   * Critical ordering:
+   *
+   *   configuration
+   *        ↓
+   *   authentication binding
+   *        ↓
+   *   route module import
+   *        ↓
+   *   route registration
+   */
+  await bindAuthenticationConfiguration(
+    context,
+  );
+
+  const resolved =
+    routeModule
+      ? {
+          module: routeModule,
+          path: routeModulePath,
+        }
+      : await resolveRouteModule();
+
+  const module =
+    resolved.module;
+
+  assertRouteContract(module);
+
   const routeContext =
-    Object.freeze({
-      ...context,
-
-      configuration:
-        getContextConfiguration(
-          context,
-        ),
-
-      config:
-        getContextConfiguration(
-          context,
-        ),
-
-      environment:
-        getContextEnvironment(
-          context,
-        ),
-
-      logger:
-        getContextLogger(
-          context,
-        ),
-
-      routes:
-        routeConfig,
-
-      application:
-        app,
-    });
-
-  const registration =
-    findRegistrationFunction(
-      module,
+    buildRouteContext(
+      context,
+      app,
+      routeConfig,
     );
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Preferred registration contract
-   * ---------------------------------------------------------------------------
-   */
+  const registration =
+    findRegistrationFunction(module);
 
-  if (
-    registration
-  ) {
+  if (registration) {
     const result =
       await registration.fn(
         app,
@@ -1416,57 +1540,43 @@ async function mountRoutes(
       );
 
     router =
-      findRouter(
-        result,
-      );
+      findRouter(result) ||
+      findRouter(module) ||
+      router;
 
-    routeCount =
-      Math.max(
-        inspectRouteCount(
-          app,
-        ),
-        inspectRouteCount(
-          result,
-        ),
-      );
+    routeRegistrationMode =
+      registration.name;
+
+    routeCount = Math.max(
+      inspectRouteCount(app),
+      inspectRouteCount(result),
+      inspectRouteCount(router),
+      routeCount,
+    );
 
     return {
-      enabled:
-        true,
-
-      mounted:
-        true,
-
-      mode:
-        registration.name,
-
-      path:
-        resolved.path,
-
+      enabled: true,
+      mounted: true,
+      mode: registration.name,
+      path: resolved.path,
       routeCount,
-
       result,
     };
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Direct Express Router contract
-   * ---------------------------------------------------------------------------
+  /*
+   * Direct Express Router.
    */
-
   const resolvedRouter =
-    findRouter(
-      module,
-    );
+    findRouter(module);
 
-  if (
-    resolvedRouter
-  ) {
+  if (resolvedRouter) {
     const mountPath =
-      options.mountPath ||
-      routeConfig.apiPrefix ||
-      '/';
+      normalizeString(
+        options.mountPath,
+        routeConfig.apiPrefix ||
+          '/',
+      );
 
     app.use(
       mountPath,
@@ -1476,41 +1586,31 @@ async function mountRoutes(
     router =
       resolvedRouter;
 
-    routeCount =
+    routeRegistrationMode =
+      'router';
+
+    routeCount = Math.max(
       inspectRouteCount(
         resolvedRouter,
-      );
+      ),
+      inspectRouteCount(app),
+      routeCount,
+    );
 
     return {
-      enabled:
-        true,
-
-      mounted:
-        true,
-
-      mode:
-        'router',
-
+      enabled: true,
+      mounted: true,
+      mode: 'router',
       mountPath,
-
-      path:
-        resolved.path,
-
+      path: resolved.path,
       routeCount,
     };
   }
 
-  /**
-   * ---------------------------------------------------------------------------
-   * Callable route module contract
-   * ---------------------------------------------------------------------------
+  /*
+   * Callable route module.
    */
-
-  if (
-    isFunction(
-      module,
-    )
-  ) {
+  if (isFunction(module)) {
     const result =
       await module(
         app,
@@ -1518,35 +1618,26 @@ async function mountRoutes(
       );
 
     router =
-      findRouter(
-        result,
-      );
+      findRouter(result) ||
+      findRouter(module) ||
+      router;
 
-    routeCount =
-      Math.max(
-        inspectRouteCount(
-          app,
-        ),
-        inspectRouteCount(
-          result,
-        ),
-      );
+    routeRegistrationMode =
+      'function';
+
+    routeCount = Math.max(
+      inspectRouteCount(app),
+      inspectRouteCount(result),
+      inspectRouteCount(router),
+      routeCount,
+    );
 
     return {
-      enabled:
-        true,
-
-      mounted:
-        true,
-
-      mode:
-        'function',
-
-      path:
-        resolved.path,
-
+      enabled: true,
+      mounted: true,
+      mode: 'function',
+      path: resolved.path,
       routeCount,
-
       result,
     };
   }
@@ -1556,16 +1647,317 @@ async function mountRoutes(
     {
       code:
         'ROUTES_MOUNT_CONTRACT_FAILED',
-
-      phase:
-        'routes',
+      phase: 'routes',
     },
   );
 }
 
 /**
  * =============================================================================
- * HOOK REGISTRATION
+ * LIFECYCLE START
+ * =============================================================================
+ *
+ * Safe restart semantics:
+ *
+ *   A route tree cannot be generically "unmounted" from Express.
+ *
+ *   Therefore:
+ *
+ *     start → mount
+ *     stop  → logical stop
+ *     start → resume existing mounted tree
+ *
+ * This prevents accidental duplicate app.use()/router mounting.
+ */
+
+async function ensureStarted(
+  context = {},
+  options = {},
+) {
+  if (
+    mounted &&
+    !stopped &&
+    !failed
+  ) {
+    return {
+      app: application,
+      router,
+      routeCount,
+      authenticationConfigured,
+      resumed: false,
+    };
+  }
+
+  if (
+    mounted &&
+    stopped &&
+    !failed
+  ) {
+    stopped = false;
+    failed = false;
+
+    stoppedAt = null;
+
+    setLifecycleState(
+      ROUTE_LIFECYCLE_STATES.MOUNTED,
+    );
+
+    emitObservabilityEvent(
+      'routes.resumed',
+      {
+        routeCount,
+        modulePath:
+          routeModulePath,
+        registrationMode:
+          routeRegistrationMode,
+        authenticationConfigured,
+      },
+    );
+
+    return {
+      app: application,
+      router,
+      routeCount,
+      authenticationConfigured,
+      resumed: true,
+    };
+  }
+
+  if (startPromise) {
+    return startPromise;
+  }
+
+  if (stopPromise) {
+    await stopPromise;
+  }
+
+  startPromise = (async () => {
+    setLifecycleState(
+      ROUTE_LIFECYCLE_STATES.STARTING,
+    );
+
+    failed = false;
+
+    try {
+      const targetApp =
+        getContextApplication(
+          context,
+        ) ||
+        options.app ||
+        application;
+
+      assertApplication(targetApp);
+
+      application = targetApp;
+
+      const result =
+        await mountRoutes(
+          targetApp,
+          context,
+          options,
+        );
+
+      mounted =
+        result.mounted === true;
+
+      stopped = false;
+
+      failed = false;
+
+      registered = true;
+
+      stoppedAt = null;
+
+      mountedAt = mounted
+        ? new Date()
+        : null;
+
+      routeCount = Math.max(
+        routeCount,
+        result.routeCount || 0,
+        inspectRouteCount(
+          targetApp,
+        ),
+      );
+
+      lastError = null;
+
+      setLifecycleState(
+        mounted
+          ? ROUTE_LIFECYCLE_STATES.MOUNTED
+          : ROUTE_LIFECYCLE_STATES.STOPPED,
+      );
+
+      emitObservabilityEvent(
+        'routes.mounted',
+        {
+          routeCount,
+          modulePath:
+            routeModulePath,
+          registrationMode:
+            routeRegistrationMode,
+          authenticationConfigured,
+        },
+      );
+
+      return result;
+    } catch (error) {
+      mounted = false;
+
+      failed = true;
+
+      lastError = error;
+
+      setLifecycleState(
+        ROUTE_LIFECYCLE_STATES.FAILED,
+      );
+
+      emitObservabilityEvent(
+        'routes.mount_failed',
+        {
+          error:
+            serializeSafeError(
+              error,
+            ),
+          modulePath:
+            routeModulePath,
+        },
+      );
+
+      throw wrapError(
+        error,
+        'ROUTES_MOUNT_FAILED',
+        'startup',
+        'TITech route mounting failed.',
+      );
+    } finally {
+      startPromise = null;
+    }
+  })();
+
+  return startPromise;
+}
+
+/**
+ * =============================================================================
+ * LIFECYCLE STOP
+ * =============================================================================
+ *
+ * Express has no safe generic public API for removing arbitrary route trees.
+ *
+ * Therefore this adapter performs a logical stop/readiness transition rather
+ * than physically deleting route registrations.
+ *
+ * The mounted tree is preserved so a later start can resume it safely without
+ * duplicating routes.
+ */
+
+async function ensureStopped() {
+  if (
+    stopped &&
+    mounted &&
+    !failed
+  ) {
+    return true;
+  }
+
+  if (
+    stopPromise
+  ) {
+    return stopPromise;
+  }
+
+  if (startPromise) {
+    try {
+      await startPromise;
+    } catch {
+      /*
+       * Preserve the startup failure while completing shutdown bookkeeping.
+       */
+    }
+  }
+
+  stopPromise = (async () => {
+    setLifecycleState(
+      ROUTE_LIFECYCLE_STATES.STOPPING,
+    );
+
+    try {
+      if (!mounted) {
+        stopped = true;
+
+        failed = false;
+
+        stoppedAt = new Date();
+
+        setLifecycleState(
+          ROUTE_LIFECYCLE_STATES.STOPPED,
+        );
+
+        return true;
+      }
+
+      /*
+       * Do not remove Express route registrations.
+       *
+       * The HTTP server owns actual socket lifecycle.
+       */
+      stopped = true;
+
+      failed = false;
+
+      stoppedAt = new Date();
+
+      setLifecycleState(
+        ROUTE_LIFECYCLE_STATES.STOPPED,
+      );
+
+      emitObservabilityEvent(
+        'routes.unmounted',
+        {
+          routeCount,
+          note:
+            'logical_route_shutdown',
+        },
+      );
+
+      return true;
+    } catch (error) {
+      failed = true;
+
+      stopped = false;
+
+      lastError = error;
+
+      setLifecycleState(
+        ROUTE_LIFECYCLE_STATES.FAILED,
+      );
+
+      emitObservabilityEvent(
+        'routes.stop_failed',
+        {
+          error:
+            serializeSafeError(error),
+        },
+      );
+
+      throw wrapError(
+        error,
+        'ROUTES_STOP_FAILED',
+        'shutdown',
+        'TITech routes shutdown failed.',
+      );
+    } finally {
+      stopPromise = null;
+    }
+  })();
+
+  return stopPromise;
+}
+
+/**
+ * =============================================================================
+ * BOOTSTRAP HOOK REGISTRATION
  * =============================================================================
  */
 
@@ -1573,28 +1965,16 @@ function registerRoutesHooks(
   context = {},
   options = {},
 ) {
-  /*
-   * Duplicate protection.
-   */
   if (
     hooks &&
-    isFunction(
-      hooks.has,
-    ) &&
-    hooks.has(
-      COMPONENT,
-    )
+    isFunction(hooks.has) &&
+    hooks.has(COMPONENT)
   ) {
-    registered =
-      true;
+    registered = true;
 
     registrationResult =
-      isFunction(
-        hooks.get,
-      )
-        ? hooks.get(
-            COMPONENT,
-          )
+      isFunction(hooks.get)
+        ? hooks.get(COMPONENT)
         : null;
 
     return registrationResult;
@@ -1605,57 +1985,46 @@ function registerRoutesHooks(
       context,
     );
 
-  if (
-    options.app
-  ) {
-    setApplication(
-      options.app,
-    );
-  } else if (
-    contextApp
-  ) {
-    setApplication(
-      contextApp,
-    );
+  if (options.app) {
+    setApplication(options.app);
+  } else if (contextApp) {
+    setApplication(contextApp);
   }
 
   /*
-   * Bind authentication immediately when configuration is already available.
-   *
-   * If the route hook is registered earlier than configuration resolution,
-   * mountRoutes() repeats the binding safely.
+   * Authentication and readiness are intentionally resolved during the async
+   * start phase. This keeps hook registration synchronous and avoids hidden
+   * promise work during module/bootstrap discovery.
    */
-  if (
-    getContextConfiguration(
-      context,
-    )
-  ) {
-    bindAuthenticationConfiguration(
-      context,
-    );
-  }
-
-  registerReadinessDependency(
-    context,
-    options,
-  );
-
-  if (
-    !isFunction(
-      lifecycle,
-    )
-  ) {
+  if (!isFunction(lifecycle)) {
     throw new RoutesBootstrapError(
       'TITech bootstrap lifecycle registrar is unavailable.',
       {
         code:
           'ROUTES_LIFECYCLE_UNAVAILABLE',
-
-        phase:
-          'routes',
+        phase: 'routes',
       },
     );
   }
+
+  /*
+   * Readiness registration is optional and asynchronous. It is deliberately
+   * initiated without making hook registration itself asynchronous.
+   */
+  void registerReadinessDependency(
+    context,
+    options,
+  ).catch(error => {
+    lastError = error;
+
+    emitObservabilityEvent(
+      'routes.readiness_registration_failed',
+      {
+        error:
+          serializeSafeError(error),
+      },
+    );
+  });
 
   registrationResult =
     lifecycle(
@@ -1688,283 +2057,40 @@ function registerRoutesHooks(
             : DEFAULT_TIMEOUT_MS,
 
         critical:
-          options.critical !==
-          false,
+          options.critical !== false,
 
         enabled:
-          options.enabled !==
-          false,
+          options.enabled !== false,
 
         metadata: {
-          component:
-            COMPONENT,
-
-          service:
-            SERVICE_NAME,
-
+          component: COMPONENT,
+          service: SERVICE_NAME,
           implementation:
             routeModulePath ||
             'backend/routes',
         },
 
-        /**
-         * ---------------------------------------------------------------------
-         * START
-         * ---------------------------------------------------------------------
-         */
+        start: async hookContext =>
+          ensureStarted(
+            hookContext || context,
+            options,
+          ),
 
-        start:
-          async hookContext => {
-            if (
-              startPromise
-            ) {
-              return startPromise;
-            }
+        ready: async () =>
+          isReady(),
 
-            startPromise =
-              (async () => {
-                try {
-                  const runtimeContext =
-                    hookContext ||
-                    context ||
-                    {};
+        health: async () =>
+          health(),
 
-                  const targetApp =
-                    options.app ||
-                    getContextApplication(
-                      runtimeContext,
-                    ) ||
-                    application;
-
-                  assertApplication(
-                    targetApp,
-                  );
-
-                  application =
-                    targetApp;
-
-                  /*
-                   * The definitive auth configuration bind occurs immediately
-                   * before route loading.
-                   */
-                  bindAuthenticationConfiguration(
-                    runtimeContext,
-                  );
-
-                  const result =
-                    await mountRoutes(
-                      targetApp,
-                      runtimeContext,
-                      options,
-                    );
-
-                  mounted =
-                    result.mounted ===
-                    true;
-
-                  stopped =
-                    false;
-
-                  failed =
-                    false;
-
-                  registered =
-                    true;
-
-                  stoppedAt =
-                    null;
-
-                  mountedAt =
-                    mounted
-                      ? new Date()
-                      : null;
-
-                  lastError =
-                    null;
-
-                  routeCount =
-                    Math.max(
-                      routeCount,
-                      result.routeCount ||
-                        0,
-                      inspectRouteCount(
-                        targetApp,
-                      ),
-                    );
-
-                  if (
-                    isObjectLike(
-                      runtimeContext,
-                    )
-                  ) {
-                    runtimeContext.routes =
-                      {
-                        app:
-                          application,
-
-                        router,
-
-                        count:
-                          routeCount,
-
-                        module:
-                          routeModule,
-
-                        modulePath:
-                          routeModulePath,
-
-                        authenticationConfigured,
-                      };
-                  }
-
-                  emitObservabilityEvent(
-                    'routes.mounted',
-                    {
-                      routeCount,
-
-                      modulePath:
-                        routeModulePath,
-
-                      authenticationConfigured,
-                    },
-                  );
-
-                  return result;
-                } catch (error) {
-                  mounted =
-                    false;
-
-                  failed =
-                    true;
-
-                  lastError =
-                    error;
-
-                  emitObservabilityEvent(
-                    'routes.mount_failed',
-                    {
-                      error:
-                        serializeSafeError(
-                          error,
-                        ),
-
-                      modulePath:
-                        routeModulePath,
-                    },
-                  );
-
-                  throw wrapError(
-                    error,
-                    'ROUTES_MOUNT_FAILED',
-                    'startup',
-                    'TITech route mounting failed.',
-                  );
-                }
-              })();
-
-            try {
-              return await startPromise;
-            } finally {
-              if (
-                failed
-              ) {
-                startPromise =
-                  null;
-              }
-            }
-          },
-
-        /**
-         * ---------------------------------------------------------------------
-         * READY
-         * ---------------------------------------------------------------------
-         */
-
-        ready:
-          async () => {
-            return (
-              mounted &&
-              !failed &&
-              !stopped
-            );
-          },
-
-        /**
-         * ---------------------------------------------------------------------
-         * HEALTH
-         * ---------------------------------------------------------------------
-         */
-
-        health:
-          async () => ({
-            status:
-              failed
-                ? 'unhealthy'
-                : stopped
-                  ? 'stopped'
-                  : mounted
-                    ? 'healthy'
-                    : 'not_ready',
-
-            ready:
-              mounted &&
-              !failed &&
-              !stopped,
-
-            component:
-              COMPONENT,
-
-            service:
-              SERVICE_NAME,
-
-            routeCount,
-
-            modulePath:
-              routeModulePath,
-
-            authenticationConfigured,
-          }),
-
-        /**
-         * ---------------------------------------------------------------------
-         * STOP
-         * ---------------------------------------------------------------------
-         */
-
-        stop:
-          async () => {
-            mounted =
-              false;
-
-            stopped =
-              true;
-
-            stoppedAt =
-              new Date();
-
-            emitObservabilityEvent(
-              'routes.unmounted',
-              {
-                routeCount,
-              },
-            );
-
-            return true;
-          },
+        stop: async () =>
+          ensureStopped(),
       },
     );
 
-  registered =
-    true;
+  registered = true;
 
   return registrationResult;
 }
-
-/**
- * =============================================================================
- * BOOTSTRAP COMPATIBILITY
- * =============================================================================
- */
 
 function registerBootstrapHooks(
   context = {},
@@ -1987,195 +2113,80 @@ async function initialize(
   context = {},
   options = {},
 ) {
+  /*
+   * initialize(context, options)
+   */
   if (
     app &&
-    typeof app.use !==
-      'function' &&
-    (app.application ||
-      app.bootstrap)
+    !isFunction(app.use) &&
+    isObjectLike(app)
   ) {
+    options = context || {};
+
     context = app;
-    app = context.application ||
-      context.bootstrap?.application;
-  }
 
-  if (
-    app
-  ) {
-    setApplication(
-      app,
-    );
-  }
-
-  if (
-    context?.app ||
-    context?.application
-  ) {
-    setApplication(
+    app =
       getContextApplication(
         context,
-      ),
-    );
+      );
   }
 
-  const target =
-    application;
-
-  assertApplication(
-    target,
-  );
-
-  if (
-    mounted &&
-    !stopped &&
-    !failed
-  ) {
-    return {
-      app:
-        target,
-
-      router,
-
-      routeCount,
-
-      authenticationConfigured,
-    };
+  if (app) {
+    setApplication(app);
   }
 
-  if (
-    startPromise
-  ) {
-    return startPromise;
-  }
-
-  /*
-   * Configuration may be available here even when route hooks have not been
-   * registered. Bind it before require('../routes').
-   */
-  bindAuthenticationConfiguration(
-    context,
-  );
-
-  startPromise =
-    mountRoutes(
-      target,
-      {
-        ...context,
-
-        app:
-          target,
-
-        configuration:
-          getContextConfiguration(
-            context,
-          ),
-
-        config:
-          getContextConfiguration(
-            context,
-          ),
-      },
-      options,
-    )
-      .then(
-        result => {
-          mounted =
-            result.mounted ===
-            true;
-
-          registered =
-            true;
-
-          stopped =
-            false;
-
-          failed =
-            false;
-
-          mountedAt =
-            mounted
-              ? new Date()
-              : null;
-
-          routeCount =
-            Math.max(
-              routeCount,
-              result.routeCount ||
-                0,
-              inspectRouteCount(
-                target,
-              ),
-            );
-
-          emitObservabilityEvent(
-            'routes.initialized',
-            {
-              routeCount,
-
-              modulePath:
-                routeModulePath,
-
-              authenticationConfigured,
-            },
-          );
-
-          return {
-            app:
-              target,
-
-            router,
-
-            routeCount,
-
-            authenticationConfigured,
-
-            ...result,
-          };
-        },
-      )
-      .catch(
-        error => {
-          failed =
-            true;
-
-          mounted =
-            false;
-
-          lastError =
-            error;
-
-          emitObservabilityEvent(
-            'routes.initialization_failed',
-            {
-              error:
-                serializeSafeError(
-                  error,
-                ),
-            },
-          );
-
-          throw wrapError(
-            error,
-            'ROUTES_INITIALIZATION_FAILED',
-            'initialization',
-            'TITech route initialization failed.',
-          );
-        },
+  if (!application) {
+    const contextApp =
+      getContextApplication(
+        context,
       );
 
-  try {
-    return await startPromise;
-  } finally {
-    /*
-     * A successful initialization must not retain a resolved promise forever.
-     */
-    if (
-      !failed
-    ) {
-      startPromise =
-        null;
+    if (contextApp) {
+      setApplication(contextApp);
     }
   }
+
+  assertApplication(application);
+
+  const effectiveContext = {
+    ...context,
+
+    app: application,
+
+    application,
+
+    configuration:
+      getContextConfiguration(
+        context,
+      ),
+
+    config:
+      getContextConfiguration(
+        context,
+      ),
+  };
+
+  const effectiveOptions = {
+    ...options,
+    app: application,
+  };
+
+  return ensureStarted(
+    effectiveContext,
+    effectiveOptions,
+  );
+}
+
+async function start(
+  app,
+  context = {},
+  options = {},
+) {
+  return initialize(
+    app,
+    context,
+    options,
+  );
 }
 
 /**
@@ -2185,61 +2196,7 @@ async function initialize(
  */
 
 async function shutdown() {
-  if (
-    stopped
-  ) {
-    return true;
-  }
-
-  if (
-    stopPromise
-  ) {
-    return stopPromise;
-  }
-
-  stopPromise =
-    (async () => {
-      try {
-        mounted =
-          false;
-
-        stopped =
-          true;
-
-        stoppedAt =
-          new Date();
-
-        emitObservabilityEvent(
-          'routes.shutdown',
-          {
-            routeCount,
-          },
-        );
-
-        return true;
-      } catch (error) {
-        failed =
-          true;
-
-        stopped =
-          false;
-
-        lastError =
-          error;
-
-        throw wrapError(
-          error,
-          'ROUTES_SHUTDOWN_FAILED',
-          'shutdown',
-          'TITech routes shutdown failed.',
-        );
-      } finally {
-        stopPromise =
-          null;
-      }
-    })();
-
-  return stopPromise;
+  return ensureStopped();
 }
 
 async function stop() {
@@ -2268,51 +2225,12 @@ function getRouteCount() {
   return routeCount;
 }
 
-function getState() {
-  return Object.freeze({
-    component:
-      COMPONENT,
-
-    service:
-      SERVICE_NAME,
-
-    registered,
-
-    mounted,
-
-    stopped,
-
-    failed,
-
-    ready:
-      mounted &&
-      !stopped &&
-      !failed,
-
-    routeCount,
-
-    modulePath:
-      routeModulePath,
-
-    authenticationConfigured,
-
-    mountedAt,
-
-    stoppedAt,
-
-    lastError:
-      serializeSafeError(
-        lastError,
-      ),
-  });
-}
-
 function isRegistered() {
   return registered;
 }
 
 function isMounted() {
-  return mounted;
+  return mounted && !stopped;
 }
 
 function isStopped() {
@@ -2320,11 +2238,17 @@ function isStopped() {
 }
 
 function isFailed() {
-  return failed;
+  return (
+    failed ||
+    lifecycleState ===
+      ROUTE_LIFECYCLE_STATES.FAILED
+  );
 }
 
 function isReady() {
   return (
+    lifecycleState ===
+      ROUTE_LIFECYCLE_STATES.MOUNTED &&
     mounted &&
     !stopped &&
     !failed
@@ -2333,17 +2257,91 @@ function isReady() {
 
 /**
  * =============================================================================
+ * HEALTH / READINESS
+ * =============================================================================
+ */
+
+async function readiness() {
+  const ready = isReady();
+
+  return {
+    ready,
+
+    status:
+      ready
+        ? 'ready'
+        : failed
+          ? 'not_ready'
+          : stopped
+            ? 'stopped'
+            : 'not_ready',
+
+    routes: routeCount,
+
+    component: COMPONENT,
+
+    service: SERVICE_NAME,
+
+    state: lifecycleState,
+
+    modulePath: routeModulePath,
+
+    registrationMode:
+      routeRegistrationMode,
+
+    authenticationConfigured,
+  };
+}
+
+async function health() {
+  return {
+    status:
+      failed
+        ? 'unhealthy'
+        : stopped
+          ? 'stopped'
+          : mounted
+            ? 'healthy'
+            : 'not_ready',
+
+    ready: isReady(),
+
+    component: COMPONENT,
+
+    service: SERVICE_NAME,
+
+    state: lifecycleState,
+
+    routeCount,
+
+    modulePath: routeModulePath,
+
+    registrationMode:
+      routeRegistrationMode,
+
+    authenticationConfigured,
+
+    applicationAvailable:
+      Boolean(application),
+
+    routerAvailable:
+      Boolean(router),
+  };
+}
+
+/**
+ * =============================================================================
  * DIAGNOSTICS
  * =============================================================================
  */
 
-function snapshot() {
+function getState() {
   return Object.freeze({
-    component:
-      COMPONENT,
+    component: COMPONENT,
 
-    service:
-      SERVICE_NAME,
+    service: SERVICE_NAME,
+
+    state: lifecycleState,
 
     registered,
 
@@ -2353,35 +2351,49 @@ function snapshot() {
 
     failed,
 
-    ready:
-      isReady(),
+    ready: isReady(),
 
     routeCount,
 
     modulePath:
       routeModulePath,
 
+    registrationMode:
+      routeRegistrationMode,
+
     authenticationConfigured,
 
     applicationAvailable:
-      Boolean(
-        application,
-      ),
+      Boolean(application),
 
     routerAvailable:
-      Boolean(
-        router,
-      ),
+      Boolean(router),
 
     mountedAt,
 
     stoppedAt,
 
+    lastTransitionAt,
+
     lastError:
-      serializeSafeError(
-        lastError,
-      ),
+      serializeSafeError(lastError),
   });
+}
+
+function snapshot() {
+  return Object.freeze({
+    ...getState(),
+
+    lifecycle:
+      ROUTE_LIFECYCLE_STATES,
+
+    routeCandidates:
+      ROUTE_MODULE_CANDIDATES,
+  });
+}
+
+function getDiagnostics() {
+  return snapshot();
 }
 
 /**
@@ -2389,72 +2401,81 @@ function snapshot() {
  * RESET
  * =============================================================================
  *
- * Intended for tests / process-isolated bootstrap resets.
+ * reset() is a local adapter-state reset.
+ *
+ * It must never be used while the route lifecycle is active.
+ *
+ * If the external bootstrap hook registry supports unregister/remove semantics,
+ * that should be performed by the lifecycle manager itself.
  */
 
 function reset() {
   if (
-    mounted
+    mounted ||
+    lifecycleState ===
+      ROUTE_LIFECYCLE_STATES.STARTING ||
+    lifecycleState ===
+      ROUTE_LIFECYCLE_STATES.STOPPING
   ) {
     throw new RoutesBootstrapError(
-      'Cannot reset route bootstrap while routes are mounted.',
+      'Cannot reset route bootstrap while routes are active or transitioning.',
       {
         code:
           'ROUTES_RESET_NOT_ALLOWED',
-
-        phase:
-          'routes',
+        phase: 'routes',
       },
     );
   }
 
-  application =
+  application = null;
+
+  router = null;
+
+  routeModule = null;
+
+  routeModulePath = null;
+
+  routeRegistrationMode = null;
+
+  registered = false;
+
+  lifecycleState =
+    ROUTE_LIFECYCLE_STATES.IDLE;
+
+  mounted = false;
+
+  stopped = false;
+
+  failed = false;
+
+  registrationResult = null;
+
+  startPromise = null;
+
+  stopPromise = null;
+
+  lastError = null;
+
+  lastTransitionAt = null;
+
+  routeCount = 0;
+
+  mountedAt = null;
+
+  stoppedAt = null;
+
+  authenticationConfigured = false;
+
+  authenticationConfigurationTarget =
     null;
 
-  router =
-    null;
+  readinessModule = null;
 
-  routeModule =
-    null;
+  observabilityModule = null;
 
-  routeModulePath =
-    null;
+  authModule = null;
 
-  registered =
-    false;
-
-  mounted =
-    false;
-
-  stopped =
-    false;
-
-  failed =
-    false;
-
-  registrationResult =
-    null;
-
-  startPromise =
-    null;
-
-  stopPromise =
-    null;
-
-  lastError =
-    null;
-
-  routeCount =
-    0;
-
-  mountedAt =
-    null;
-
-  stoppedAt =
-    null;
-
-  authenticationConfigured =
-    false;
+  authModuleLoadError = null;
 
   return true;
 }
@@ -2472,8 +2493,7 @@ function wrapError(
   message,
 ) {
   if (
-    error instanceof
-    RoutesBootstrapError
+    error instanceof RoutesBootstrapError
   ) {
     return error;
   }
@@ -2482,11 +2502,8 @@ function wrapError(
     message,
     {
       code,
-
       phase,
-
-      cause:
-        error,
+      cause: error,
     },
   );
 }
@@ -2497,89 +2514,111 @@ function wrapError(
  * =============================================================================
  */
 
-const routesModule =
-  Object.freeze({
-    /*
-     * Registration.
-     */
-    registerRoutesHooks,
-
+const routesModule = Object.freeze({
+  registerRoutesHooks,
+  registerBootstrapHooks,
+  bootstrap:
     registerBootstrapHooks,
 
-    bootstrap:
-      registerBootstrapHooks,
+  setApplication,
+  setRouteModule,
+  mountRoutes,
 
-    /*
-     * Application / route injection.
-     */
-    setApplication,
+  initialize,
+  start,
+  shutdown,
+  stop,
 
-    setRouteModule,
+  getApplication,
+  getRouter,
+  getRouteModule,
+  getRouteCount,
 
-    mountRoutes,
+  getState,
+  getDiagnostics,
+  snapshot,
 
-    /*
-     * Explicit lifecycle.
-     */
-    initialize,
+  isRegistered,
+  isMounted,
+  isStopped,
+  isFailed,
+  isReady,
 
-    start:
-      initialize,
+  readiness,
+  health,
 
-    shutdown,
+  resolveRouteConfiguration,
+  bindAuthenticationConfiguration,
 
-    stop,
+  reset,
 
-    /*
-     * Runtime access.
-     */
-    getApplication,
+  RoutesBootstrapError,
 
-    getRouter,
+  COMPONENT,
+  SERVICE_NAME,
 
-    getRouteModule,
+  DEFAULT_API_PREFIX,
+  DEFAULT_HEALTH_PREFIX,
+  DEFAULT_METRICS_PATH,
 
-    getRouteCount,
+  ROUTE_MODULE_CANDIDATES,
+  ROUTE_REGISTRATION_METHODS,
+  AUTH_CONFIGURATION_METHODS,
 
-    /*
-     * State.
-     */
-    getState,
+  ROUTE_LIFECYCLE_STATES,
+});
 
-    snapshot,
+export {
+  routesModule,
+  RoutesBootstrapError,
 
-    isRegistered,
+  registerRoutesHooks,
+  registerBootstrapHooks,
 
-    isMounted,
+  setApplication,
+  setRouteModule,
+  mountRoutes,
 
-    isStopped,
+  initialize,
+  start,
+  shutdown,
+  stop,
 
-    isFailed,
+  getApplication,
+  getRouter,
+  getRouteModule,
+  getRouteCount,
 
-    isReady,
+  getState,
+  getDiagnostics,
+  snapshot,
 
-    /*
-     * Testing/process reset.
-     */
-    reset,
+  isRegistered,
+  isMounted,
+  isStopped,
+  isFailed,
+  isReady,
 
-    /*
-     * Diagnostics/configuration.
-     */
-    resolveRouteConfiguration,
+  readiness,
+  health,
 
-    bindAuthenticationConfiguration,
+  resolveRouteConfiguration,
+  bindAuthenticationConfiguration,
 
-    /*
-     * Constants/errors.
-     */
-    RoutesBootstrapError,
+  reset,
 
-    COMPONENT,
+  COMPONENT,
+  SERVICE_NAME,
 
-    SERVICE_NAME,
+  DEFAULT_API_PREFIX,
+  DEFAULT_HEALTH_PREFIX,
+  DEFAULT_METRICS_PATH,
 
-    ROUTE_MODULE_CANDIDATES,
-  });
+  ROUTE_MODULE_CANDIDATES,
+  ROUTE_REGISTRATION_METHODS,
+  AUTH_CONFIGURATION_METHODS,
+
+  ROUTE_LIFECYCLE_STATES,
+};
 
 export default routesModule;

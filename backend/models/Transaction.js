@@ -2,60 +2,64 @@
 // backend/models/Transaction.js
 // ============================================================================
 // TITech Community Capital LTD
-// Enterprise Transaction Model
+// Enterprise Financial Transaction Model
 //
 // PURPOSE
 // ----------------------------------------------------------------------------
-// Authoritative financial transaction state record for TITech Community
-// Capital.
+// Authoritative business/payment transaction state record for TITech
+// Community Capital.
 //
-// Supported transaction flows:
-// - MTN MoMo Collections
-// - MTN MoMo Disbursements
-// - Airtel Money
-// - Bank Transactions
-// - Cash Transactions
-// - Savings Deposits
-// - Savings Withdrawals
-// - Contributions
-// - Loan Disbursements
-// - Loan Repayments
-// - Transfers
-// - Refunds
-// - Settlements
-// - Reconciliation
-// - Accounting / Ledger Integration
+// IMPORTANT DOMAIN SEPARATION
+// ----------------------------------------------------------------------------
+// Transaction != LedgerEntry != Balance
+//
+// This model records the business/payment transaction lifecycle.
+// It does NOT constitute proof that accounting has been posted.
+//
+// The authoritative monetary/accounting mutation must be performed by the
+// ledger/financial subsystem and linked through ledgerReference / ledgerEntryId.
+//
+// GOLDEN MONEY PATH
+// ----------------------------------------------------------------------------
+// User
+//   -> Institution
+//   -> Group
+//   -> Member
+//   -> Contribution
+//   -> Payment Request
+//   -> Provider
+//   -> Callback
+//   -> Validation
+//   -> Idempotency
+//   -> Transaction
+//   -> Ledger
+//   -> Balance
+//   -> Reconciliation
+//   -> Receipt
 //
 // DESIGN GOALS
 // ----------------------------------------------------------------------------
+// - ESM / Node.js production compatibility
 // - Multi-tenant isolation
-// - Financial idempotency
-// - Concurrency safety
+// - Strong financial idempotency
+// - Explicit state-machine enforcement
+// - Concurrency-safe worker claiming
+// - Retry / recovery controls
+// - Provider reference integrity
+// - Accounting / ledger separation
+// - Reconciliation integrity
+// - Reversal support
+// - Session propagation
 // - Auditability
-// - Reconciliation
-// - Queue/worker integration
-// - Provider integration
-// - Recovery support
-// - Accounting integration
-// - Regulatory readiness
-//
-// IMPORTANT
-// ----------------------------------------------------------------------------
-// This model is NOT the double-entry ledger itself.
-//
-// The Transaction document represents the business/payment transaction.
-//
-// The authoritative accounting mutation should be performed by the ledger
-// subsystem and linked through ledgerReference / accounting metadata.
-//
-// NEVER use this model alone as proof that money was successfully posted to
-// the accounting ledger.
+// - Soft-delete identity preservation
+// - Production observability correlation
 //
 // ============================================================================
 
 "use strict";
 
-const mongoose = require("mongoose");
+import crypto from "node:crypto";
+import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
@@ -65,7 +69,7 @@ const { Schema } = mongoose;
  * ============================================================================
  */
 
-const TRANSACTION_STATUS = Object.freeze([
+export const TRANSACTION_STATUS = Object.freeze([
   "PENDING",
   "PROCESSING",
   "SUCCESS",
@@ -76,7 +80,7 @@ const TRANSACTION_STATUS = Object.freeze([
   "SETTLED",
 ]);
 
-const TRANSACTION_TYPE = Object.freeze([
+export const TRANSACTION_TYPE = Object.freeze([
   "DEPOSIT",
   "WITHDRAWAL",
   "LOAN_DISBURSEMENT",
@@ -87,12 +91,12 @@ const TRANSACTION_TYPE = Object.freeze([
   "REFUND",
 ]);
 
-const FLOW_TYPES = Object.freeze([
+export const FLOW_TYPES = Object.freeze([
   "credit",
   "debit",
 ]);
 
-const PROVIDERS = Object.freeze([
+export const PROVIDERS = Object.freeze([
   "mtn_momo",
   "airtel_money",
   "bank",
@@ -100,7 +104,7 @@ const PROVIDERS = Object.freeze([
   "internal",
 ]);
 
-const SOURCE_TYPES = Object.freeze([
+export const SOURCE_TYPES = Object.freeze([
   "API",
   "WEB",
   "MOBILE",
@@ -114,7 +118,7 @@ const SOURCE_TYPES = Object.freeze([
   "ADMIN",
 ]);
 
-const ACCOUNTING_STATUS = Object.freeze([
+export const ACCOUNTING_STATUS = Object.freeze([
   "NOT_REQUIRED",
   "PENDING",
   "POSTING",
@@ -123,7 +127,7 @@ const ACCOUNTING_STATUS = Object.freeze([
   "REVERSED",
 ]);
 
-const RECONCILIATION_STATUS = Object.freeze([
+export const RECONCILIATION_STATUS = Object.freeze([
   "NOT_REQUIRED",
   "PENDING",
   "MATCHED",
@@ -131,9 +135,342 @@ const RECONCILIATION_STATUS = Object.freeze([
   "EXCEPTION",
 ]);
 
+export const SETTLEMENT_STATUS = Object.freeze([
+  "PENDING",
+  "SETTLED",
+  "FAILED",
+  "DISPUTED",
+]);
+
 /**
  * ============================================================================
- * TRANSACTION SCHEMA
+ * STATE MACHINE
+ * ============================================================================
+ *
+ * Financial transaction transitions are deliberately explicit.
+ *
+ * Valid:
+ *
+ * PENDING
+ *   -> PROCESSING
+ *   -> FAILED
+ *   -> CANCELLED
+ *   -> EXPIRED
+ *
+ * PROCESSING
+ *   -> SUCCESS
+ *   -> FAILED
+ *   -> CANCELLED
+ *   -> EXPIRED
+ *
+ * FAILED
+ *   -> PROCESSING
+ *   -> CANCELLED
+ *   -> EXPIRED
+ *
+ * EXPIRED
+ *   -> PROCESSING
+ *   -> CANCELLED
+ *
+ * SUCCESS
+ *   -> SETTLED
+ *   -> REVERSED
+ *
+ * SETTLED
+ *   -> REVERSED
+ *
+ * CANCELLED
+ *   -> terminal
+ *
+ * REVERSED
+ *   -> terminal
+ *
+ * There is deliberately no:
+ *
+ * SUCCESS  -> FAILED
+ * SUCCESS  -> PROCESSING
+ * SETTLED  -> SUCCESS
+ * REVERSED -> SUCCESS
+ * terminal -> PENDING
+ *
+ * Corrections occur through new reversal/refund/adjustment transactions.
+ */
+
+export const ALLOWED_STATUS_TRANSITIONS = Object.freeze({
+  PENDING: Object.freeze([
+    "PROCESSING",
+    "FAILED",
+    "CANCELLED",
+    "EXPIRED",
+  ]),
+
+  PROCESSING: Object.freeze([
+    "SUCCESS",
+    "FAILED",
+    "CANCELLED",
+    "EXPIRED",
+  ]),
+
+  FAILED: Object.freeze([
+    "PROCESSING",
+    "CANCELLED",
+    "EXPIRED",
+  ]),
+
+  EXPIRED: Object.freeze([
+    "PROCESSING",
+    "CANCELLED",
+  ]),
+
+  SUCCESS: Object.freeze([
+    "SETTLED",
+    "REVERSED",
+  ]),
+
+  SETTLED: Object.freeze([
+    "REVERSED",
+  ]),
+
+  CANCELLED: Object.freeze([]),
+
+  REVERSED: Object.freeze([]),
+});
+
+const FINANCIAL_TERMINAL_STATUSES = Object.freeze([
+  "SUCCESS",
+  "SETTLED",
+  "REVERSED",
+]);
+
+const BUSINESS_TERMINAL_STATUSES = Object.freeze([
+  "SUCCESS",
+  "SETTLED",
+  "FAILED",
+  "CANCELLED",
+  "EXPIRED",
+  "REVERSED",
+]);
+
+const CLAIMABLE_STATUSES = Object.freeze([
+  "PENDING",
+  "FAILED",
+  "EXPIRED",
+]);
+
+const SUCCESSFUL_STATUSES = Object.freeze([
+  "SUCCESS",
+  "SETTLED",
+]);
+
+/**
+ * ============================================================================
+ * HELPERS
+ * ============================================================================
+ */
+
+function normalizeString(value, maxLength = 200) {
+  if (value == null) {
+    return null;
+  }
+
+  const result = String(value).trim();
+
+  if (!result) {
+    return null;
+  }
+
+  return result.slice(0, maxLength);
+}
+
+function normalizeUpperString(value, maxLength = 200) {
+  const result = normalizeString(value, maxLength);
+
+  return result ? result.toUpperCase() : null;
+}
+
+function normalizeLowerString(value, maxLength = 200) {
+  const result = normalizeString(value, maxLength);
+
+  return result ? result.toLowerCase() : null;
+}
+
+function normalizeDate(value) {
+  if (value == null) {
+    return null;
+  }
+
+  const date = value instanceof Date
+    ? value
+    : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new TypeError("Invalid date supplied.");
+  }
+
+  return date;
+}
+
+function validateNonNegativeFiniteNumber(value) {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0
+  );
+}
+
+function validateNonNegativeInteger(value) {
+  return (
+    Number.isInteger(value) &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+  );
+}
+
+function assertStatusTransition(currentStatus, nextStatus) {
+  if (currentStatus === nextStatus) {
+    throw new Error(
+      `Transaction is already in ${currentStatus} state.`
+    );
+  }
+
+  const allowed =
+    ALLOWED_STATUS_TRANSITIONS[currentStatus];
+
+  if (!allowed || !allowed.includes(nextStatus)) {
+    throw new Error(
+      `Invalid transaction state transition: ${currentStatus} -> ${nextStatus}.`
+    );
+  }
+}
+
+function isSuccessfulStatus(status) {
+  return SUCCESSFUL_STATUSES.includes(status);
+}
+
+function isFinancialTerminalStatus(status) {
+  return FINANCIAL_TERMINAL_STATUSES.includes(status);
+}
+
+function isBusinessTerminalStatus(status) {
+  return BUSINESS_TERMINAL_STATUSES.includes(status);
+}
+
+function buildIdempotencyFingerprint({
+  tenantId,
+  idempotencyScope,
+  idempotencyKey,
+}) {
+  if (
+    !tenantId ||
+    !idempotencyScope ||
+    !idempotencyKey
+  ) {
+    return null;
+  }
+
+  const canonicalPayload = JSON.stringify([
+    String(tenantId),
+    String(idempotencyScope),
+    String(idempotencyKey),
+  ]);
+
+  return crypto
+    .createHash("sha256")
+    .update(canonicalPayload, "utf8")
+    .digest("hex");
+}
+
+function getSession(options = {}) {
+  return options?.session || undefined;
+}
+
+function getLeaseDate(
+  now,
+  leaseMinutes,
+) {
+  const normalizedLeaseMinutes = Math.min(
+    24 * 60,
+    Math.max(
+      1,
+      Number.isFinite(Number(leaseMinutes))
+        ? Number(leaseMinutes)
+        : 15,
+    ),
+  );
+
+  return new Date(
+    now.getTime() +
+      normalizedLeaseMinutes * 60 * 1000,
+  );
+}
+
+/**
+ * Compare immutable business identity fields on an idempotent retry.
+ *
+ * A reused idempotency key with a materially different transaction is a
+ * conflict, not a successful idempotent replay.
+ */
+function assertIdempotentPayloadMatches(
+  existing,
+  payload,
+) {
+  const comparisons = [
+    ["tenantId", String(existing.tenantId), String(payload.tenantId)],
+    [
+      "amount",
+      Number(existing.amount),
+      Number(payload.amount),
+    ],
+    [
+      "fees",
+      Number(existing.fees || 0),
+      Number(payload.fees || 0),
+    ],
+    [
+      "currency",
+      normalizeUpperString(existing.currency, 3),
+      normalizeUpperString(payload.currency, 3),
+    ],
+    [
+      "transactionType",
+      existing.transactionType,
+      payload.transactionType,
+    ],
+    [
+      "flow",
+      existing.flow,
+      normalizeLowerString(payload.flow, 20),
+    ],
+    [
+      "provider",
+      existing.provider,
+      normalizeLowerString(payload.provider, 50),
+    ],
+    [
+      "idempotencyScope",
+      existing.idempotencyScope || "default",
+      payload.idempotencyScope || "default",
+    ],
+  ];
+
+  for (const [
+    field,
+    existingValue,
+    incomingValue,
+  ] of comparisons) {
+    if (existingValue !== incomingValue) {
+      throw new Error(
+        `IDEMPOTENCY_CONFLICT: idempotency key is already associated with a different ${field}.`,
+      );
+    }
+  }
+
+  return existing;
+}
+
+/**
+ * ============================================================================
+ * SCHEMA
  * ============================================================================
  */
 
@@ -143,11 +480,6 @@ const transactionSchema = new Schema(
      * ========================================================================
      * MULTI-TENANCY
      * ========================================================================
-     *
-     * Every business transaction should belong to a tenant.
-     *
-     * System-generated transactions may use a dedicated system tenant where
-     * appropriate, but tenant context must never be silently omitted.
      */
 
     tenantId: {
@@ -160,7 +492,7 @@ const transactionSchema = new Schema(
 
     /**
      * ========================================================================
-     * ACTORS / BUSINESS REFERENCES
+     * BUSINESS REFERENCES
      * ========================================================================
      */
 
@@ -204,22 +536,17 @@ const transactionSchema = new Schema(
      * ========================================================================
      * INTERNAL TRANSACTION REFERENCE
      * ========================================================================
-     *
-     * Immutable internal business reference.
-     *
-     * Example:
-     *
-     *   TXN-01JXXXXXXXXXXXXXXXX
-     *
-     * This should be generated by the transaction service.
      */
 
     transactionReference: {
       type: String,
       trim: true,
       uppercase: true,
+      maxlength: 100,
       immutable: true,
       index: true,
+      set: (value) =>
+        normalizeUpperString(value, 100),
     },
 
     /**
@@ -227,10 +554,15 @@ const transactionSchema = new Schema(
      * IDEMPOTENCY
      * ========================================================================
      *
-     * idempotencyKey MUST be generated from trusted server-side/business
-     * context.
+     * idempotencyScope MUST be derived by the trusted transaction service
+     * from authenticated business context where possible.
      *
-     * Do not rely on a client-generated key alone for financial uniqueness.
+     * Example conceptual scope:
+     *
+     *   tenant + principal + device + operation
+     *
+     * This model retains the original idempotencyKey for compatibility while
+     * also storing a deterministic SHA-256 identity fingerprint.
      */
 
     idempotencyKey: {
@@ -239,6 +571,19 @@ const transactionSchema = new Schema(
       maxlength: 200,
       immutable: true,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
+    },
+
+    idempotencyScope: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      immutable: true,
+      default: "default",
+      index: true,
+      set: (value) =>
+        normalizeString(value, 300) || "default",
     },
 
     idempotencySource: {
@@ -246,6 +591,18 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 100,
       immutable: true,
+      set: (value) =>
+        normalizeString(value, 100),
+    },
+
+    idempotencyFingerprint: {
+      type: String,
+      trim: true,
+      minlength: 64,
+      maxlength: 64,
+      immutable: true,
+      index: true,
+      select: false,
     },
 
     /**
@@ -257,31 +614,46 @@ const transactionSchema = new Schema(
     externalId: {
       type: String,
       trim: true,
+      maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     providerReferenceId: {
       type: String,
       trim: true,
+      maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     providerTransactionId: {
       type: String,
       trim: true,
+      maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     providerCorrelationId: {
       type: String,
       trim: true,
+      maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     settlementId: {
       type: String,
       trim: true,
+      maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     /**
@@ -305,6 +677,8 @@ const transactionSchema = new Schema(
       required: true,
       immutable: true,
       index: true,
+      set: (value) =>
+        normalizeLowerString(value, 20),
     },
 
     provider: {
@@ -314,6 +688,8 @@ const transactionSchema = new Schema(
       default: "internal",
       immutable: true,
       index: true,
+      set: (value) =>
+        normalizeLowerString(value, 50),
     },
 
     source: {
@@ -328,54 +704,71 @@ const transactionSchema = new Schema(
      * FINANCIAL DATA
      * ========================================================================
      *
-     * IMPORTANT:
-     * MongoDB Number is not ideal for arbitrary-precision financial amounts.
+     * Compatibility note:
+     * Existing application consumers currently expect Number.
      *
-     * For currencies where sub-unit precision matters, the service/ledger
-     * layer should use integer minor units or Decimal128 consistently.
+     * The financial service / ledger layer MUST use a deterministic money
+     * representation. For UGX-only minor-unit workflows, amounts should be
+     * represented as safe integers. Decimal128 is appropriate when fractional
+     * currency precision is required.
      *
-     * This model preserves compatibility with the existing application by
-     * using Number.
+     * This model therefore:
+     * - rejects NaN/Infinity
+     * - rejects unsafe JS integers
+     * - derives netAmount server-side
+     * - makes all core monetary fields immutable
      */
 
     amount: {
       type: Number,
       required: true,
       min: 0,
-      validate: {
-        validator(value) {
-          return Number.isFinite(value) && value >= 0;
-        },
-        message: "Transaction amount must be a finite non-negative number.",
-      },
       immutable: true,
       index: true,
+      validate: {
+        validator(value) {
+          return (
+            validateNonNegativeFiniteNumber(value) &&
+            Number.isSafeInteger(value)
+          );
+        },
+        message:
+          "Transaction amount must be a finite non-negative safe integer.",
+      },
     },
 
     fees: {
       type: Number,
       default: 0,
       min: 0,
+      immutable: true,
       validate: {
         validator(value) {
-          return Number.isFinite(value) && value >= 0;
+          return (
+            validateNonNegativeFiniteNumber(value) &&
+            Number.isSafeInteger(value)
+          );
         },
-        message: "Transaction fees must be a finite non-negative number.",
+        message:
+          "Transaction fees must be a finite non-negative safe integer.",
       },
-      immutable: true,
     },
 
     netAmount: {
       type: Number,
       default: 0,
       min: 0,
+      immutable: true,
       validate: {
         validator(value) {
-          return Number.isFinite(value) && value >= 0;
+          return (
+            validateNonNegativeFiniteNumber(value) &&
+            Number.isSafeInteger(value)
+          );
         },
-        message: "Net transaction amount must be a finite non-negative number.",
+        message:
+          "Net transaction amount must be a finite non-negative safe integer.",
       },
-      immutable: true,
     },
 
     currency: {
@@ -391,6 +784,8 @@ const transactionSchema = new Schema(
         /^[A-Z]{3}$/,
         "Currency must be a valid three-letter ISO-style currency code.",
       ],
+      set: (value) =>
+        normalizeUpperString(value, 3),
     },
 
     /**
@@ -404,6 +799,8 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 30,
       index: true,
+      set: (value) =>
+        normalizeString(value, 30),
     },
 
     accountNumber: {
@@ -411,18 +808,24 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 100,
       index: true,
+      set: (value) =>
+        normalizeString(value, 100),
     },
 
     beneficiaryName: {
       type: String,
       trim: true,
       maxlength: 200,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     beneficiaryAccount: {
       type: String,
       trim: true,
       maxlength: 100,
+      set: (value) =>
+        normalizeString(value, 100),
     },
 
     /**
@@ -443,18 +846,24 @@ const transactionSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 1000,
+      set: (value) =>
+        normalizeString(value, 1000),
     },
 
     failureCode: {
       type: String,
       trim: true,
       maxlength: 100,
+      set: (value) =>
+        normalizeString(value, 100),
     },
 
     failureMessage: {
       type: String,
       trim: true,
       maxlength: 1000,
+      set: (value) =>
+        normalizeString(value, 1000),
     },
 
     /**
@@ -495,24 +904,54 @@ const transactionSchema = new Schema(
      * ========================================================================
      * RETRY / RECOVERY
      * ========================================================================
+     *
+     * attempts:
+     *   Total worker/provider processing claims.
+     *
+     * retryCount:
+     *   Number of retries after the initial processing attempt.
+     *
+     * maxAttempts:
+     *   Hard processing-attempt ceiling.
      */
 
     attempts: {
       type: Number,
       default: 0,
       min: 0,
+      validate: {
+        validator: validateNonNegativeInteger,
+        message:
+          "Transaction attempts must be a non-negative safe integer.",
+      },
     },
 
     retryCount: {
       type: Number,
       default: 0,
       min: 0,
+      validate: {
+        validator: validateNonNegativeInteger,
+        message:
+          "Transaction retryCount must be a non-negative safe integer.",
+      },
     },
 
     maxAttempts: {
       type: Number,
       default: 5,
       min: 1,
+      validate: {
+        validator(value) {
+          return (
+            Number.isInteger(value) &&
+            Number.isSafeInteger(value) &&
+            value >= 1
+          );
+        },
+        message:
+          "maxAttempts must be a positive safe integer.",
+      },
     },
 
     nextAttemptAt: {
@@ -538,12 +977,19 @@ const transactionSchema = new Schema(
       type: Number,
       default: 0,
       min: 0,
+      validate: {
+        validator: validateNonNegativeInteger,
+        message:
+          "recoveryCount must be a non-negative safe integer.",
+      },
     },
 
     recoveryReason: {
       type: String,
       trim: true,
       maxlength: 500,
+      set: (value) =>
+        normalizeString(value, 500),
     },
 
     workerId: {
@@ -551,6 +997,8 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     processingLeaseExpiresAt: {
@@ -562,13 +1010,12 @@ const transactionSchema = new Schema(
      * ========================================================================
      * RECONCILIATION
      * ========================================================================
+     *
+     * reconciliationStatus is canonical.
+     *
+     * DO NOT store a second boolean "reconciled" flag.
+     * A virtual below provides backwards-compatible read semantics.
      */
-
-    reconciled: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
 
     reconciliationStatus: {
       type: String,
@@ -590,12 +1037,16 @@ const transactionSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 200,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     reconciliationReason: {
       type: String,
       trim: true,
       maxlength: 1000,
+      set: (value) =>
+        normalizeString(value, 1000),
     },
 
     /**
@@ -603,19 +1054,16 @@ const transactionSchema = new Schema(
      * ACCOUNTING / LEDGER
      * ========================================================================
      *
-     * The transaction and ledger are deliberately separate concepts.
+     * accountingStatus is canonical.
+     *
+     * DO NOT persist a second accountingPosted boolean.
+     * A virtual below exposes accountingPosted for compatibility.
      */
 
     accountingStatus: {
       type: String,
       enum: ACCOUNTING_STATUS,
       default: "PENDING",
-      index: true,
-    },
-
-    accountingPosted: {
-      type: Boolean,
-      default: false,
       index: true,
     },
 
@@ -627,12 +1075,16 @@ const transactionSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 100,
+      set: (value) =>
+        normalizeString(value, 100),
     },
 
     accountingFailureMessage: {
       type: String,
       trim: true,
       maxlength: 1000,
+      set: (value) =>
+        normalizeString(value, 1000),
     },
 
     ledgerReference: {
@@ -640,6 +1092,8 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     ledgerEntryId: {
@@ -662,16 +1116,13 @@ const transactionSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 200,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     settlementStatus: {
       type: String,
-      enum: [
-        "PENDING",
-        "SETTLED",
-        "FAILED",
-        "DISPUTED",
-      ],
+      enum: SETTLEMENT_STATUS,
       default: "PENDING",
       index: true,
     },
@@ -698,11 +1149,13 @@ const transactionSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 1000,
+      set: (value) =>
+        normalizeString(value, 1000),
     },
 
     /**
      * ========================================================================
-     * QUEUE / JOB CORRELATION
+     * QUEUE / JOB / TRACE CORRELATION
      * ========================================================================
      */
 
@@ -711,12 +1164,16 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     queueName: {
       type: String,
       trim: true,
       maxlength: 200,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     correlationId: {
@@ -724,6 +1181,8 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     requestId: {
@@ -731,6 +1190,8 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     traceId: {
@@ -738,6 +1199,8 @@ const transactionSchema = new Schema(
       trim: true,
       maxlength: 200,
       index: true,
+      set: (value) =>
+        normalizeString(value, 200),
     },
 
     /**
@@ -750,6 +1213,8 @@ const transactionSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 1000,
+      set: (value) =>
+        normalizeString(value, 1000),
     },
 
     metadata: {
@@ -790,14 +1255,14 @@ const transactionSchema = new Schema(
 
     /**
      * ========================================================================
-     * SOFT DELETE
+     * SOFT DELETE / ARCHIVAL
      * ========================================================================
      *
-     * Financial transactions should normally NEVER be deleted.
+     * Financial records should normally never be physically deleted.
      *
-     * deletedAt exists primarily for controlled administrative workflows and
-     * compatibility. Application services should reject deletion of financial
-     * records.
+     * Unique transaction identity is intentionally NOT tied to deletedAt.
+     * This prevents an archived financial transaction from being recreated
+     * under the same idempotency/provider identity.
      */
 
     deletedAt: {
@@ -816,15 +1281,13 @@ const transactionSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 1000,
+      set: (value) =>
+        normalizeString(value, 1000),
     },
   },
   {
     timestamps: true,
 
-    /**
-     * Keep __v because optimistic concurrency is useful for financial state
-     * records.
-     */
     versionKey: true,
 
     optimisticConcurrency: true,
@@ -842,11 +1305,8 @@ const transactionSchema = new Schema(
         }
 
         delete ret._id;
-
-        /**
-         * Do not expose internal version implementation details by default.
-         */
         delete ret.__v;
+        delete ret.idempotencyFingerprint;
 
         return ret;
       },
@@ -855,7 +1315,7 @@ const transactionSchema = new Schema(
     toObject: {
       virtuals: true,
     },
-  }
+  },
 );
 
 /**
@@ -864,53 +1324,116 @@ const transactionSchema = new Schema(
  * ============================================================================
  */
 
-transactionSchema.virtual("isPending").get(function () {
-  return this.status === "PENDING";
-});
+transactionSchema.virtual("isPending").get(
+  function isPending() {
+    return this.status === "PENDING";
+  },
+);
 
-transactionSchema.virtual("isProcessing").get(function () {
-  return this.status === "PROCESSING";
-});
+transactionSchema.virtual("isProcessing").get(
+  function isProcessing() {
+    return this.status === "PROCESSING";
+  },
+);
 
-transactionSchema.virtual("isSuccessful").get(function () {
-  return (
-    this.status === "SUCCESS" ||
-    this.status === "SETTLED"
-  );
-});
+transactionSchema.virtual("isSuccessful").get(
+  function isSuccessful() {
+    return isSuccessfulStatus(this.status);
+  },
+);
 
-transactionSchema.virtual("isTerminal").get(function () {
-  return [
-    "SUCCESS",
-    "FAILED",
-    "CANCELLED",
-    "EXPIRED",
-    "REVERSED",
-    "SETTLED",
-  ].includes(this.status);
-});
+transactionSchema.virtual("isFinancialTerminal").get(
+  function isFinancialTerminal() {
+    return isFinancialTerminalStatus(this.status);
+  },
+);
 
-transactionSchema.virtual("canRetry").get(function () {
-  return (
-    ["FAILED", "EXPIRED"].includes(this.status) &&
-    Number(this.attempts || 0) <
-      Number(this.maxAttempts || 5)
-  );
-});
+transactionSchema.virtual("isTerminal").get(
+  function isTerminal() {
+    return isBusinessTerminalStatus(this.status);
+  },
+);
 
-transactionSchema.virtual("requiresAccountingPosting").get(function () {
-  return (
-    this.isSuccessful &&
-    !this.accountingPosted
-  );
-});
+transactionSchema.virtual("canRetry").get(
+  function canRetry() {
+    return (
+      ["FAILED", "EXPIRED"].includes(this.status) &&
+      Number(this.attempts || 0) <
+        Number(this.maxAttempts || 5) &&
+      (
+        !this.nextAttemptAt ||
+        this.nextAttemptAt <= new Date()
+      )
+    );
+  },
+);
 
-transactionSchema.virtual("requiresReconciliation").get(function () {
-  return (
-    this.isSuccessful &&
-    this.reconciliationStatus !== "MATCHED"
-  );
-});
+transactionSchema.virtual("accountingPosted").get(
+  function accountingPosted() {
+    return this.accountingStatus === "POSTED";
+  },
+);
+
+transactionSchema.virtual("reconciled").get(
+  function reconciled() {
+    return this.reconciliationStatus === "MATCHED";
+  },
+);
+
+transactionSchema.virtual("requiresAccountingPosting").get(
+  function requiresAccountingPosting() {
+    return (
+      this.isSuccessful &&
+      !this.accountingPosted
+    );
+  },
+);
+
+transactionSchema.virtual("requiresReconciliation").get(
+  function requiresReconciliation() {
+    return (
+      this.isSuccessful &&
+      !["MATCHED", "NOT_REQUIRED"].includes(
+        this.reconciliationStatus,
+      )
+    );
+  },
+);
+
+transactionSchema.virtual("remainingAttempts").get(
+  function remainingAttempts() {
+    return Math.max(
+      0,
+      Number(this.maxAttempts || 5) -
+        Number(this.attempts || 0),
+    );
+  },
+);
+
+/**
+ * ============================================================================
+ * DOCUMENT INITIALIZATION / ORIGINAL STATE SNAPSHOT
+ * ============================================================================
+ *
+ * Allows save()-based state-transition enforcement even after a document has
+ * been loaded from MongoDB.
+ */
+
+transactionSchema.post(
+  "init",
+  function captureOriginalTransactionState(doc) {
+    doc.$locals = doc.$locals || {};
+    doc.$locals.originalStatus = doc.status;
+  },
+);
+
+transactionSchema.post(
+  "save",
+  function captureSavedTransactionState(doc) {
+    doc.$locals = doc.$locals || {};
+    doc.$locals.originalStatus = doc.status;
+  },
+);
 
 /**
  * ============================================================================
@@ -918,136 +1441,409 @@ transactionSchema.virtual("requiresReconciliation").get(function () {
  * ============================================================================
  */
 
-transactionSchema.pre("validate", function (next) {
-  const amount = Number(this.amount || 0);
-  const fees = Number(this.fees || 0);
+transactionSchema.pre(
+  "validate",
+  function validateTransaction(next) {
+    try {
+      const amount = Number(this.amount);
+      const fees = Number(this.fees || 0);
 
-  if (!Number.isFinite(amount) || amount < 0) {
-    return next(
-      new mongoose.Error.ValidationError(
-        new Error(
-          "Transaction amount must be a finite non-negative number."
-        )
-      )
-    );
-  }
+      if (
+        !validateNonNegativeFiniteNumber(amount) ||
+        !Number.isSafeInteger(amount)
+      ) {
+        throw new mongoose.Error.ValidationError(
+          new Error(
+            "Transaction amount must be a finite non-negative safe integer.",
+          ),
+        );
+      }
 
-  if (!Number.isFinite(fees) || fees < 0) {
-    return next(
-      new mongoose.Error.ValidationError(
-        new Error(
-          "Transaction fees must be a finite non-negative number."
-        )
-      )
-    );
-  }
+      if (
+        !validateNonNegativeFiniteNumber(fees) ||
+        !Number.isSafeInteger(fees)
+      ) {
+        throw new mongoose.Error.ValidationError(
+          new Error(
+            "Transaction fees must be a finite non-negative safe integer.",
+          ),
+        );
+      }
 
-  if (fees > amount) {
-    return next(
-      new mongoose.Error.ValidationError(
-        new Error(
-          "Transaction fees cannot exceed transaction amount."
-        )
-      )
-    );
-  }
+      if (fees > amount) {
+        throw new mongoose.Error.ValidationError(
+          new Error(
+            "Transaction fees cannot exceed transaction amount.",
+          ),
+        );
+      }
 
-  this.netAmount = amount - fees;
+      this.netAmount = amount - fees;
 
-  if (!this.transactionReference) {
-    /**
-     * The transaction service should normally provide the reference.
-     *
-     * This fallback is intentionally generated server-side and is not based
-     * on client input.
-     */
-    this.transactionReference =
-      `TXN-${new mongoose.Types.ObjectId().toString().toUpperCase()}`;
-  }
+      if (!this.transactionReference) {
+        this.transactionReference =
+          `TXN-${new mongoose.Types.ObjectId()
+            .toString()
+            .toUpperCase()}`;
+      }
 
-  if (this.currency) {
-    this.currency =
-      String(this.currency)
-        .trim()
-        .toUpperCase();
-  }
+      if (!this.currency) {
+        this.currency = "UGX";
+      }
 
-  if (this.provider) {
-    this.provider =
-      String(this.provider)
-        .trim()
-        .toLowerCase();
-  }
+      this.currency =
+        normalizeUpperString(
+          this.currency,
+          3,
+        );
 
-  if (this.flow) {
-    this.flow =
-      String(this.flow)
-        .trim()
-        .toLowerCase();
-  }
+      this.provider =
+        normalizeLowerString(
+          this.provider,
+          50,
+        ) || "internal";
 
-  next();
-});
+      this.flow =
+        normalizeLowerString(
+          this.flow,
+          20,
+        );
+
+      this.idempotencyKey =
+        normalizeString(
+          this.idempotencyKey,
+          200,
+        );
+
+      this.idempotencyScope =
+        normalizeString(
+          this.idempotencyScope,
+          300,
+        ) || "default";
+
+      /**
+       * The transaction service remains responsible for generating a trusted
+       * idempotency key. The model simply creates the final deterministic
+       * identity fingerprint.
+       */
+      if (this.idempotencyKey) {
+        this.idempotencyFingerprint =
+          buildIdempotencyFingerprint({
+            tenantId: this.tenantId,
+            idempotencyScope:
+              this.idempotencyScope,
+            idempotencyKey:
+              this.idempotencyKey,
+          });
+      } else {
+        this.idempotencyFingerprint = undefined;
+      }
+
+      /**
+       * Successful state must have a completion timestamp.
+       */
+      if (
+        isSuccessfulStatus(this.status) &&
+        !this.completedAt
+      ) {
+        this.completedAt = new Date();
+      }
+
+      /**
+       * Reversed state must have reversal timestamp.
+       */
+      if (
+        this.status === "REVERSED" &&
+        !this.reversedAt
+      ) {
+        this.reversedAt = new Date();
+      }
+
+      /**
+       * Settled state must have settlement metadata.
+       */
+      if (this.status === "SETTLED") {
+        if (!this.settledAt) {
+          this.settledAt = new Date();
+        }
+
+        this.settlementStatus = "SETTLED";
+      }
+
+      /**
+       * Accounting state invariants.
+       */
+      if (this.accountingStatus === "POSTED") {
+        if (!this.accountingPostedAt) {
+          this.accountingPostedAt = new Date();
+        }
+
+        if (!this.ledgerReference) {
+          throw new mongoose.Error.ValidationError(
+            new Error(
+              "POSTED accounting transactions require ledgerReference.",
+            ),
+          );
+        }
+      }
+
+      if (
+        this.accountingStatus === "NOT_REQUIRED" &&
+        this.accountingPostedAt
+      ) {
+        this.accountingPostedAt = null;
+      }
+
+      /**
+       * Reconciliation state invariants.
+       */
+      if (
+        this.reconciliationStatus === "MATCHED" &&
+        !this.reconciledAt
+      ) {
+        this.reconciledAt = new Date();
+      }
+
+      /**
+       * A financial transaction reaching terminal success must not retain an
+       * active processing lease.
+       */
+      if (
+        isFinancialTerminalStatus(this.status)
+      ) {
+        this.processingLeaseExpiresAt = null;
+      }
+
+      /**
+       * Attempts must never exceed maxAttempts.
+       */
+      if (
+        Number(this.attempts || 0) >
+        Number(this.maxAttempts || 5)
+      ) {
+        throw new mongoose.Error.ValidationError(
+          new Error(
+            "Transaction attempts cannot exceed maxAttempts.",
+          ),
+        );
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 /**
  * ============================================================================
  * PRE-SAVE FINANCIAL STATE PROTECTION
  * ============================================================================
- *
- * Once a transaction has reached a financial terminal state, core financial
- * fields must not be modified.
- *
- * A correction should normally be represented by an adjustment/reversal
- * transaction rather than mutating historical financial data.
- * ============================================================================
  */
 
-transactionSchema.pre("save", function (next) {
-  if (!this.isNew) {
-    const protectedFields = [
-      "tenantId",
-      "amount",
-      "fees",
-      "netAmount",
-      "currency",
-      "transactionType",
-      "flow",
-      "provider",
-      "transactionReference",
-      "idempotencyKey",
-    ];
+transactionSchema.pre(
+  "save",
+  function protectFinancialTransaction(next) {
+    try {
+      if (!this.isNew) {
+        const originalStatus =
+          this.$locals?.originalStatus;
 
-    const reachedFinancialState = [
-      "SUCCESS",
-      "SETTLED",
-      "REVERSED",
-    ].includes(this.status);
-
-    if (reachedFinancialState) {
-      for (const field of protectedFields) {
-        if (this.isModified(field)) {
-          return next(
-            new Error(
-              `Financial field "${field}" cannot be modified after transaction reaches ${this.status}. Create a correction/reversal transaction instead.`
-            )
+        if (
+          originalStatus &&
+          originalStatus !== this.status
+        ) {
+          assertStatusTransition(
+            originalStatus,
+            this.status,
           );
         }
+
+        const protectedFields = [
+          "tenantId",
+          "amount",
+          "fees",
+          "netAmount",
+          "currency",
+          "transactionType",
+          "flow",
+          "provider",
+          "transactionReference",
+          "idempotencyKey",
+          "idempotencyScope",
+          "idempotencyFingerprint",
+        ];
+
+        /**
+         * Core financial identity becomes immutable after financial success.
+         */
+        if (
+          originalStatus &&
+          isFinancialTerminalStatus(
+            originalStatus,
+          )
+        ) {
+          for (const field of protectedFields) {
+            if (this.isModified(field)) {
+              throw new Error(
+                `Financial field "${field}" cannot be modified after transaction reaches ${originalStatus}. Create a correction/reversal transaction instead.`,
+              );
+            }
+          }
+        }
+
+        /**
+         * A transaction cannot go backwards from a financial terminal status.
+         */
+        if (
+          originalStatus &&
+          isFinancialTerminalStatus(
+            originalStatus,
+          ) &&
+          !isFinancialTerminalStatus(
+            this.status,
+          )
+        ) {
+          throw new Error(
+            `Financial transaction cannot leave terminal state ${originalStatus}.`,
+          );
+        }
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * ============================================================================
+ * PRE-UPDATE HARDENING
+ * ============================================================================
+ *
+ * Financial fields should be changed through model/service methods rather than
+ * arbitrary updateMany/updateOne operations.
+ *
+ * Mongoose's immutable option remains active, but this middleware explicitly
+ * rejects attempts to alter the core financial identity.
+ */
+
+const BLOCKED_DIRECT_UPDATE_FIELDS = new Set([
+  "tenantId",
+  "amount",
+  "fees",
+  "netAmount",
+  "currency",
+  "transactionType",
+  "flow",
+  "provider",
+  "transactionReference",
+  "idempotencyKey",
+  "idempotencyScope",
+  "idempotencyFingerprint",
+]);
+
+function getUpdateObject(query) {
+  return query.getUpdate() || {};
+}
+
+function inspectUpdatedFields(update) {
+  const changed = new Set();
+
+  for (const operator of [
+    "$set",
+    "$setOnInsert",
+    "$inc",
+    "$unset",
+    "$push",
+    "$addToSet",
+    "$pull",
+    "$pullAll",
+  ]) {
+    const block = update?.[operator];
+
+    if (block && typeof block === "object") {
+      for (const field of Object.keys(block)) {
+        changed.add(field.split(".")[0]);
       }
     }
   }
 
-  next();
-});
+  for (const field of Object.keys(update || {})) {
+    if (!field.startsWith("$")) {
+      changed.add(field.split(".")[0]);
+    }
+  }
+
+  return changed;
+}
+
+for (const hookName of [
+  "findOneAndUpdate",
+  "updateOne",
+  "updateMany",
+]) {
+  transactionSchema.pre(
+    hookName,
+    function protectDirectFinancialUpdates(next) {
+      try {
+        const update = getUpdateObject(this);
+        const changedFields =
+          inspectUpdatedFields(update);
+
+        for (const field of changedFields) {
+          if (
+            BLOCKED_DIRECT_UPDATE_FIELDS.has(field)
+          ) {
+            throw new Error(
+              `Direct update of financial field "${field}" is prohibited. Use the Transaction service/state-transition methods.`,
+            );
+          }
+        }
+
+        next();
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+}
 
 /**
  * ============================================================================
- * PRE-FIND SAFETY HELPERS
+ * HARD DELETE PROTECTION
  * ============================================================================
  *
- * These are intentionally static rather than query middleware so callers can
- * explicitly choose whether they need deleted records.
- * ============================================================================
+ * Financial transactions must not be physically deleted through ordinary
+ * application operations.
  */
+
+for (const hookName of [
+  "deleteOne",
+  "deleteMany",
+  "findOneAndDelete",
+  "findOneAndRemove",
+  "remove",
+]) {
+  try {
+    transactionSchema.pre(
+      hookName,
+      function preventHardDelete(next) {
+        next(
+          new Error(
+            "Physical deletion of financial transactions is prohibited. Use the controlled soft-delete/archive workflow.",
+          ),
+        );
+      },
+    );
+  } catch {
+    /**
+     * Mongoose versions may expose a different subset of legacy middleware
+     * hooks. Unsupported hooks are intentionally ignored.
+     */
+  }
+}
 
 /**
  * ============================================================================
@@ -1055,344 +1851,921 @@ transactionSchema.pre("save", function (next) {
  * ============================================================================
  */
 
-transactionSchema.methods.markProcessing = async function (options = {}) {
-  if (
-    !["PENDING", "FAILED", "EXPIRED"].includes(
-      this.status
-    )
-  ) {
-    throw new Error(
-      `Transaction cannot move to PROCESSING from ${this.status}.`
-    );
-  }
+/**
+ * Claim this document for processing.
+ *
+ * Prefer the atomic static claimForProcessing() for worker concurrency.
+ */
+transactionSchema.methods.markProcessing =
+  async function markProcessing(options = {}) {
+    const {
+      workerId,
+      leaseExpiresAt,
+      leaseMinutes = 15,
+      session,
+    } = options;
 
-  const now = new Date();
-
-  this.status = "PROCESSING";
-
-  this.processingStartedAt = now;
-
-  this.lastAttemptAt = now;
-
-  this.attempts =
-    Number(this.attempts || 0) + 1;
-
-  if (options.workerId) {
-    this.workerId = String(options.workerId);
-  }
-
-  if (options.leaseExpiresAt) {
-    this.processingLeaseExpiresAt =
-      new Date(options.leaseExpiresAt);
-  }
-
-  return this.save();
-};
-
-transactionSchema.methods.markSuccessful = async function (
-  options = {}
-) {
-  if (
-    ["CANCELLED", "REVERSED"].includes(
-      this.status
-    )
-  ) {
-    throw new Error(
-      `Transaction cannot be marked SUCCESS from ${this.status}.`
-    );
-  }
-
-  const now = new Date();
-
-  this.status = "SUCCESS";
-
-  this.completedAt =
-    options.completedAt
-      ? new Date(options.completedAt)
-      : now;
-
-  this.processingLeaseExpiresAt = null;
-
-  this.recoveryRequired = false;
-
-  if (options.providerReferenceId) {
-    this.providerReferenceId =
-      options.providerReferenceId;
-  }
-
-  if (options.providerTransactionId) {
-    this.providerTransactionId =
-      options.providerTransactionId;
-  }
-
-  if (options.statusReason) {
-    this.statusReason =
-      options.statusReason;
-  }
-
-  return this.save();
-};
-
-transactionSchema.methods.markFailed = async function (
-  reason,
-  options = {}
-) {
-  if (
-    ["SUCCESS", "SETTLED", "REVERSED"].includes(
-      this.status
-    )
-  ) {
-    throw new Error(
-      `Financial transaction cannot be marked FAILED from ${this.status}.`
-    );
-  }
-
-  const now = new Date();
-
-  this.status = "FAILED";
-
-  this.statusReason =
-    reason
-      ? String(reason).slice(0, 1000)
-      : "Transaction failed.";
-
-  this.failureCode =
-    options.failureCode || null;
-
-  this.failureMessage =
-    options.failureMessage
-      ? String(options.failureMessage).slice(
-          0,
-          1000
-        )
-      : null;
-
-  this.failedAt = now;
-
-  this.lastErrorAt = now;
-
-  this.processingLeaseExpiresAt = null;
-
-  return this.save();
-};
-
-transactionSchema.methods.markCancelled = async function (
-  reason
-) {
-  if (this.isSuccessful) {
-    throw new Error(
-      "Successful transaction cannot be cancelled. Use a reversal/refund workflow."
-    );
-  }
-
-  this.status = "CANCELLED";
-
-  this.cancelledAt =
-    new Date();
-
-  this.statusReason =
-    reason
-      ? String(reason).slice(0, 1000)
-      : "Transaction cancelled.";
-
-  this.processingLeaseExpiresAt = null;
-
-  return this.save();
-};
-
-transactionSchema.methods.markExpired = async function (
-  reason
-) {
-  if (this.isSuccessful) {
-    throw new Error(
-      "Successful transaction cannot be expired."
-    );
-  }
-
-  this.status = "EXPIRED";
-
-  this.expiredAt =
-    new Date();
-
-  this.statusReason =
-    reason
-      ? String(reason).slice(0, 1000)
-      : "Transaction expired.";
-
-  this.processingLeaseExpiresAt = null;
-
-  return this.save();
-};
-
-transactionSchema.methods.markReconciled = async function (
-  options = {}
-) {
-  this.reconciled = true;
-
-  this.reconciliationStatus =
-    "MATCHED";
-
-  this.reconciledAt =
-    new Date();
-
-  this.reconciledBy =
-    options.reconciledBy || null;
-
-  this.reconciliationReference =
-    options.reference || null;
-
-  this.reconciliationReason =
-    options.reason || null;
-
-  return this.save();
-};
-
-transactionSchema.methods.markReconciliationException =
-  async function (
-    reason,
-    options = {}
-  ) {
-    this.reconciled = false;
-
-    this.reconciliationStatus =
-      "EXCEPTION";
-
-    this.reconciliationReason =
-      reason
-        ? String(reason).slice(0, 1000)
-        : "Reconciliation exception.";
-
-    if (options.reference) {
-      this.reconciliationReference =
-        options.reference;
-    }
-
-    return this.save();
-  };
-
-transactionSchema.methods.markAccountingPosted =
-  async function (
-    ledgerReference,
-    options = {}
-  ) {
-    if (!this.isSuccessful) {
+    if (
+      !CLAIMABLE_STATUSES.includes(this.status)
+    ) {
       throw new Error(
-        "Only successful transactions can be posted to accounting."
+        `Transaction cannot move to PROCESSING from ${this.status}.`,
       );
     }
 
-    this.accountingStatus =
-      "POSTED";
+    const now = new Date();
 
-    this.accountingPosted =
-      true;
+    if (
+      this.nextAttemptAt &&
+      this.nextAttemptAt > now
+    ) {
+      throw new Error(
+        "Transaction is not yet eligible for another processing attempt.",
+      );
+    }
+
+    if (
+      Number(this.attempts || 0) >=
+      Number(this.maxAttempts || 5)
+    ) {
+      throw new Error(
+        "Transaction has exhausted its maximum processing attempts.",
+      );
+    }
+
+    assertStatusTransition(
+      this.status,
+      "PROCESSING",
+    );
+
+    const wasRetry =
+      ["FAILED", "EXPIRED"].includes(
+        this.status,
+      );
+
+    this.status = "PROCESSING";
+    this.processingStartedAt = now;
+    this.lastAttemptAt = now;
+
+    this.attempts =
+      Number(this.attempts || 0) + 1;
+
+    if (wasRetry) {
+      this.retryCount =
+        Number(this.retryCount || 0) + 1;
+    }
+
+    this.nextAttemptAt = null;
+
+    this.recoveryRequired = false;
+
+    this.workerId =
+      normalizeString(workerId, 200);
+
+    this.processingLeaseExpiresAt =
+      leaseExpiresAt
+        ? normalizeDate(leaseExpiresAt)
+        : getLeaseDate(
+            now,
+            leaseMinutes,
+          );
+
+    return this.save({
+      session: getSession({ session }),
+    });
+  };
+
+/**
+ * Mark successful.
+ *
+ * This must only be reached from PROCESSING.
+ */
+transactionSchema.methods.markSuccessful =
+  async function markSuccessful(options = {}) {
+    assertStatusTransition(
+      this.status,
+      "SUCCESS",
+    );
+
+    const now = new Date();
+
+    this.status = "SUCCESS";
+
+    this.completedAt =
+      options.completedAt
+        ? normalizeDate(
+            options.completedAt,
+          )
+        : now;
+
+    this.processingLeaseExpiresAt = null;
+    this.nextAttemptAt = null;
+    this.recoveryRequired = false;
+    this.workerId = null;
+
+    this.reconciliationStatus = "PENDING";
+
+    if (
+      options.providerReferenceId != null
+    ) {
+      this.providerReferenceId =
+        normalizeString(
+          options.providerReferenceId,
+          200,
+        );
+    }
+
+    if (
+      options.providerTransactionId != null
+    ) {
+      this.providerTransactionId =
+        normalizeString(
+          options.providerTransactionId,
+          200,
+        );
+    }
+
+    if (
+      options.providerCorrelationId != null
+    ) {
+      this.providerCorrelationId =
+        normalizeString(
+          options.providerCorrelationId,
+          200,
+        );
+    }
+
+    if (options.statusReason != null) {
+      this.statusReason =
+        normalizeString(
+          options.statusReason,
+          1000,
+        );
+    }
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Mark failed.
+ */
+transactionSchema.methods.markFailed =
+  async function markFailed(
+    reason,
+    options = {},
+  ) {
+    if (
+      !["PENDING", "PROCESSING"].includes(
+        this.status,
+      )
+    ) {
+      throw new Error(
+        `Transaction cannot be marked FAILED from ${this.status}.`,
+      );
+    }
+
+    assertStatusTransition(
+      this.status,
+      "FAILED",
+    );
+
+    const now = new Date();
+
+    this.status = "FAILED";
+
+    this.statusReason =
+      normalizeString(
+        reason ||
+          "Transaction failed.",
+        1000,
+      );
+
+    this.failureCode =
+      normalizeString(
+        options.failureCode,
+        100,
+      );
+
+    this.failureMessage =
+      normalizeString(
+        options.failureMessage,
+        1000,
+      );
+
+    this.failedAt = now;
+    this.lastErrorAt = now;
+
+    this.processingLeaseExpiresAt = null;
+    this.workerId = null;
+
+    /**
+     * Caller/service controls the actual backoff schedule.
+     */
+    if (options.nextAttemptAt) {
+      this.nextAttemptAt =
+        normalizeDate(
+          options.nextAttemptAt,
+        );
+    }
+
+    /**
+     * Explicitly request recovery when indicated by the provider/worker.
+     */
+    if (
+      options.recoveryRequired === true
+    ) {
+      this.recoveryRequired = true;
+
+      if (options.recoveryReason) {
+        this.recoveryReason =
+          normalizeString(
+            options.recoveryReason,
+            500,
+          );
+      }
+    }
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Cancel.
+ */
+transactionSchema.methods.markCancelled =
+  async function markCancelled(
+    reason,
+    options = {},
+  ) {
+    if (
+      isSuccessfulStatus(this.status) ||
+      this.status === "REVERSED"
+    ) {
+      throw new Error(
+        "Successful/reversed transaction cannot be cancelled. Use a reversal/refund workflow.",
+      );
+    }
+
+    assertStatusTransition(
+      this.status,
+      "CANCELLED",
+    );
+
+    const now = new Date();
+
+    this.status = "CANCELLED";
+
+    this.cancelledAt = now;
+
+    this.statusReason =
+      normalizeString(
+        reason ||
+          "Transaction cancelled.",
+        1000,
+      );
+
+    this.processingLeaseExpiresAt = null;
+    this.nextAttemptAt = null;
+    this.workerId = null;
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Expire.
+ */
+transactionSchema.methods.markExpired =
+  async function markExpired(
+    reason,
+    options = {},
+  ) {
+    if (
+      isSuccessfulStatus(this.status) ||
+      this.status === "REVERSED"
+    ) {
+      throw new Error(
+        "Successful/reversed transaction cannot be expired.",
+      );
+    }
+
+    assertStatusTransition(
+      this.status,
+      "EXPIRED",
+    );
+
+    const now = new Date();
+
+    this.status = "EXPIRED";
+
+    this.expiredAt = now;
+
+    this.statusReason =
+      normalizeString(
+        reason ||
+          "Transaction expired.",
+        1000,
+      );
+
+    this.processingLeaseExpiresAt = null;
+    this.workerId = null;
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Mark the original transaction reversed.
+ *
+ * The actual reversal transaction should already have been created and the
+ * financial/ledger reversal must be coordinated by the financial service.
+ */
+transactionSchema.methods.markReversed =
+  async function markReversed(
+    reversalTransactionId,
+    options = {},
+  ) {
+    if (
+      !["SUCCESS", "SETTLED"].includes(
+        this.status,
+      )
+    ) {
+      throw new Error(
+        "Only successful or settled transactions can be reversed.",
+      );
+    }
+
+    if (!reversalTransactionId) {
+      throw new Error(
+        "reversalTransactionId is required.",
+      );
+    }
+
+    assertStatusTransition(
+      this.status,
+      "REVERSED",
+    );
+
+    this.status = "REVERSED";
+
+    this.reversedAt =
+      options.reversedAt
+        ? normalizeDate(
+            options.reversedAt,
+          )
+        : new Date();
+
+    this.reversalTransactionId =
+      reversalTransactionId;
+
+    this.reversalReason =
+      normalizeString(
+        options.reason ||
+          "Transaction reversed.",
+        1000,
+      );
+
+    this.processingLeaseExpiresAt = null;
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Mark reconciliation as matched.
+ */
+transactionSchema.methods.markReconciled =
+  async function markReconciled(
+    options = {},
+  ) {
+    if (
+      !isSuccessfulStatus(this.status)
+    ) {
+      throw new Error(
+        "Only successful or settled transactions can be reconciled.",
+      );
+    }
+
+    if (
+      this.reconciliationStatus === "MATCHED"
+    ) {
+      return this;
+    }
+
+    this.reconciliationStatus = "MATCHED";
+
+    this.reconciledAt =
+      options.reconciledAt
+        ? normalizeDate(
+            options.reconciledAt,
+          )
+        : new Date();
+
+    this.reconciledBy =
+      options.reconciledBy || null;
+
+    this.reconciliationReference =
+      normalizeString(
+        options.reference,
+        200,
+      );
+
+    this.reconciliationReason =
+      normalizeString(
+        options.reason,
+        1000,
+      );
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Mark reconciliation mismatch.
+ */
+transactionSchema.methods.markReconciliationMismatch =
+  async function markReconciliationMismatch(
+    reason,
+    options = {},
+  ) {
+    if (
+      !isSuccessfulStatus(this.status)
+    ) {
+      throw new Error(
+        "Only successful or settled transactions can enter reconciliation mismatch.",
+      );
+    }
+
+    this.reconciliationStatus = "MISMATCH";
+
+    this.reconciliationReason =
+      normalizeString(
+        reason ||
+          "Transaction reconciliation mismatch.",
+        1000,
+      );
+
+    this.reconciliationReference =
+      normalizeString(
+        options.reference,
+        200,
+      );
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Mark reconciliation exception.
+ */
+transactionSchema.methods.markReconciliationException =
+  async function markReconciliationException(
+    reason,
+    options = {},
+  ) {
+    this.reconciliationStatus = "EXCEPTION";
+
+    this.reconciliationReason =
+      normalizeString(
+        reason ||
+          "Reconciliation exception.",
+        1000,
+      );
+
+    this.reconciliationReference =
+      normalizeString(
+        options.reference,
+        200,
+      );
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Start accounting posting.
+ */
+transactionSchema.methods.startAccountingPosting =
+  async function startAccountingPosting(
+    options = {},
+  ) {
+    if (
+      !isSuccessfulStatus(this.status)
+    ) {
+      throw new Error(
+        "Only successful or settled transactions can enter accounting posting.",
+      );
+    }
+
+    if (
+      this.accountingStatus === "POSTED"
+    ) {
+      return this;
+    }
+
+    if (
+      this.accountingStatus ===
+      "REVERSED"
+    ) {
+      throw new Error(
+        "A reversed accounting record cannot enter normal posting.",
+      );
+    }
+
+    this.accountingStatus = "POSTING";
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Mark accounting as posted.
+ */
+transactionSchema.methods.markAccountingPosted =
+  async function markAccountingPosted(
+    ledgerReference,
+    options = {},
+  ) {
+    if (
+      !isSuccessfulStatus(this.status)
+    ) {
+      throw new Error(
+        "Only successful or settled transactions can be posted to accounting.",
+      );
+    }
+
+    const reference =
+      normalizeString(
+        ledgerReference,
+        200,
+      );
+
+    if (!reference) {
+      throw new Error(
+        "ledgerReference is required when posting accounting.",
+      );
+    }
+
+    if (
+      this.accountingStatus === "POSTED"
+    ) {
+      if (
+        this.ledgerReference !==
+        reference
+      ) {
+        throw new Error(
+          "Transaction is already posted to a different ledger reference.",
+        );
+      }
+
+      return this;
+    }
+
+    if (
+      this.accountingStatus ===
+      "REVERSED"
+    ) {
+      throw new Error(
+        "A reversed accounting record cannot be posted again.",
+      );
+    }
+
+    this.accountingStatus = "POSTED";
 
     this.accountingPostedAt =
-      new Date();
+      options.accountingPostedAt
+        ? normalizeDate(
+            options.accountingPostedAt,
+          )
+        : new Date();
 
-    this.ledgerReference =
-      ledgerReference
-        ? String(ledgerReference)
-        : this.ledgerReference;
+    this.ledgerReference = reference;
 
     if (options.ledgerEntryId) {
       this.ledgerEntryId =
         options.ledgerEntryId;
     }
 
-    return this.save();
+    this.accountingFailureCode = null;
+    this.accountingFailureMessage = null;
+
+    return this.save({
+      session: getSession(options),
+    });
   };
 
+/**
+ * Mark accounting posting failure.
+ */
 transactionSchema.methods.markAccountingFailed =
-  async function (
+  async function markAccountingFailed(
     code,
-    message
+    message,
+    options = {},
   ) {
-    this.accountingStatus =
-      "FAILED";
-
-    this.accountingPosted =
-      false;
+    this.accountingStatus = "FAILED";
 
     this.accountingFailureCode =
-      code
-        ? String(code).slice(0, 100)
-        : null;
+      normalizeString(code, 100);
 
     this.accountingFailureMessage =
-      message
-        ? String(message).slice(0, 1000)
-        : null;
+      normalizeString(
+        message,
+        1000,
+      );
 
-    return this.save();
+    return this.save({
+      session: getSession(options),
+    });
   };
 
-transactionSchema.methods.markSettled =
-  async function (
-    options = {}
+/**
+ * Mark accounting reversal.
+ */
+transactionSchema.methods.markAccountingReversed =
+  async function markAccountingReversed(
+    options = {},
   ) {
-    if (!this.isSuccessful) {
+    if (
+      this.accountingStatus !== "POSTED"
+    ) {
       throw new Error(
-        "Only successful transactions can be settled."
+        "Only posted accounting records can be marked reversed.",
       );
     }
 
-    this.status =
-      "SETTLED";
+    this.accountingStatus = "REVERSED";
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Mark settlement.
+ */
+transactionSchema.methods.markSettled =
+  async function markSettled(options = {}) {
+    assertStatusTransition(
+      this.status,
+      "SETTLED",
+    );
+
+    if (
+      this.accountingStatus === "FAILED"
+    ) {
+      throw new Error(
+        "A transaction with failed accounting posting should not be settled until accounting is resolved.",
+      );
+    }
+
+    this.status = "SETTLED";
 
     this.settledAt =
-      new Date();
+      options.settlementDate
+        ? normalizeDate(
+            options.settlementDate,
+          )
+        : new Date();
 
-    this.settlementStatus =
-      "SETTLED";
+    this.settlementStatus = "SETTLED";
 
     this.settlementDate =
       options.settlementDate
-        ? new Date(options.settlementDate)
-        : new Date();
+        ? normalizeDate(
+            options.settlementDate,
+          )
+        : this.settlementDate;
 
     this.settlementReference =
-      options.settlementReference || null;
+      normalizeString(
+        options.settlementReference,
+        200,
+      );
 
     this.settlementId =
-      options.settlementId || this.settlementId;
+      normalizeString(
+        options.settlementId,
+        200,
+      ) || this.settlementId;
 
-    return this.save();
+    this.processingLeaseExpiresAt = null;
+
+    return this.save({
+      session: getSession(options),
+    });
   };
 
-transactionSchema.methods.requestRecovery =
-  async function (
-    reason
+/**
+ * Mark settlement failed.
+ */
+transactionSchema.methods.markSettlementFailed =
+  async function markSettlementFailed(
+    reason,
+    options = {},
   ) {
-    this.recoveryRequired =
-      true;
+    if (
+      !isSuccessfulStatus(this.status)
+    ) {
+      throw new Error(
+        "Only successful or settled transactions can have settlement failure recorded.",
+      );
+    }
+
+    this.settlementStatus = "FAILED";
+
+    this.statusReason =
+      normalizeString(
+        reason ||
+          "Settlement failed.",
+        1000,
+      );
+
+    this.settlementReference =
+      normalizeString(
+        options.settlementReference,
+        200,
+      );
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Mark settlement disputed.
+ */
+transactionSchema.methods.markSettlementDisputed =
+  async function markSettlementDisputed(
+    reason,
+    options = {},
+  ) {
+    this.settlementStatus = "DISPUTED";
+
+    this.statusReason =
+      normalizeString(
+        reason ||
+          "Settlement disputed.",
+        1000,
+      );
+
+    this.settlementReference =
+      normalizeString(
+        options.settlementReference,
+        200,
+      );
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Request recovery.
+ */
+transactionSchema.methods.requestRecovery =
+  async function requestRecovery(
+    reason,
+    options = {},
+  ) {
+    this.recoveryRequired = true;
 
     this.recoveryCount =
       Number(this.recoveryCount || 0) + 1;
 
     this.recoveryReason =
-      reason
-        ? String(reason).slice(0, 500)
-        : "Transaction requires recovery.";
+      normalizeString(
+        reason ||
+          "Transaction requires recovery.",
+        500,
+      );
 
-    return this.save();
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Extend an active processing lease.
+ */
+transactionSchema.methods.extendProcessingLease =
+  async function extendProcessingLease(
+    leaseMinutes = 15,
+    options = {},
+  ) {
+    if (
+      this.status !== "PROCESSING"
+    ) {
+      throw new Error(
+        "Only PROCESSING transactions can have a processing lease extended.",
+      );
+    }
+
+    this.processingLeaseExpiresAt =
+      getLeaseDate(
+        new Date(),
+        leaseMinutes,
+      );
+
+    return this.save({
+      session: getSession(options),
+    });
+  };
+
+/**
+ * Controlled soft deletion / archival.
+ */
+transactionSchema.methods.softDelete =
+  async function softDelete(
+    deletedBy,
+    reason,
+    options = {},
+  ) {
+    if (this.deletedAt) {
+      return this;
+    }
+
+    if (
+      !deletedBy ||
+      !mongoose.isValidObjectId(deletedBy)
+    ) {
+      throw new Error(
+        "A valid deletedBy user ID is required for financial transaction archival.",
+      );
+    }
+
+    this.deletedAt = new Date();
+    this.deletedBy = deletedBy;
+
+    this.deletionReason =
+      normalizeString(
+        reason ||
+          "Financial transaction archived.",
+        1000,
+      );
+
+    return this.save({
+      session: getSession(options),
+    });
   };
 
 /**
  * ============================================================================
- * STATIC METHODS
+ * STATIC HELPERS
+ * ============================================================================
+ */
+
+transactionSchema.statics.buildIdempotencyFingerprint =
+  function buildFingerprint(
+    tenantId,
+    idempotencyScope,
+    idempotencyKey,
+  ) {
+    return buildIdempotencyFingerprint({
+      tenantId,
+      idempotencyScope:
+        idempotencyScope || "default",
+      idempotencyKey,
+    });
+  };
+
+/**
+ * ============================================================================
+ * STATIC FINDERS
  * ============================================================================
  */
 
 transactionSchema.statics.findByExternalId =
-  function (externalId, tenantId) {
-    if (!externalId) {
+  function findByExternalId(
+    externalId,
+    tenantId,
+    options = {},
+  ) {
+    const normalized =
+      normalizeString(
+        externalId,
+        200,
+      );
+
+    if (!normalized) {
       return null;
     }
 
     const query = {
-      externalId,
-      deletedAt: null,
+      externalId: normalized,
+      ...(options.includeDeleted
+        ? {}
+        : { deletedAt: null }),
     };
 
     if (tenantId) {
@@ -1403,42 +2776,64 @@ transactionSchema.statics.findByExternalId =
   };
 
 transactionSchema.statics.findByIdempotencyKey =
-  function (
+  function findByIdempotencyKey(
     idempotencyKey,
-    tenantId
+    tenantId,
+    idempotencyScope = "default",
+    options = {},
   ) {
-    if (!idempotencyKey) {
+    const normalizedKey =
+      normalizeString(
+        idempotencyKey,
+        200,
+      );
+
+    if (!normalizedKey) {
       return null;
     }
 
     const query = {
-      idempotencyKey,
-      deletedAt: null,
+      idempotencyKey: normalizedKey,
+      idempotencyScope:
+        normalizeString(
+          idempotencyScope,
+          300,
+        ) || "default",
+      ...(options.includeDeleted
+        ? {}
+        : { deletedAt: null }),
     };
 
     if (tenantId) {
       query.tenantId = tenantId;
     }
 
-    return this.findOne(query);
+    return this.findOne(query).select(
+      "+idempotencyFingerprint",
+    );
   };
 
 transactionSchema.statics.findByTransactionReference =
-  function (
+  function findByTransactionReference(
     transactionReference,
-    tenantId
+    tenantId,
+    options = {},
   ) {
-    if (!transactionReference) {
+    const normalized =
+      normalizeUpperString(
+        transactionReference,
+        100,
+      );
+
+    if (!normalized) {
       return null;
     }
 
     const query = {
-      transactionReference:
-        String(transactionReference)
-          .trim()
-          .toUpperCase(),
-
-      deletedAt: null,
+      transactionReference: normalized,
+      ...(options.includeDeleted
+        ? {}
+        : { deletedAt: null }),
     };
 
     if (tenantId) {
@@ -1449,22 +2844,74 @@ transactionSchema.statics.findByTransactionReference =
   };
 
 transactionSchema.statics.findByProviderReference =
-  function (
+  function findByProviderReference(
     providerReferenceId,
     provider,
-    tenantId
+    tenantId,
+    options = {},
   ) {
-    if (!providerReferenceId) {
+    const reference =
+      normalizeString(
+        providerReferenceId,
+        200,
+      );
+
+    if (!reference) {
       return null;
     }
 
     const query = {
-      providerReferenceId,
-      deletedAt: null,
+      providerReferenceId: reference,
+      ...(options.includeDeleted
+        ? {}
+        : { deletedAt: null }),
     };
 
     if (provider) {
-      query.provider = provider;
+      query.provider =
+        normalizeLowerString(
+          provider,
+          50,
+        );
+    }
+
+    if (tenantId) {
+      query.tenantId = tenantId;
+    }
+
+    return this.findOne(query);
+  };
+
+transactionSchema.statics.findByProviderTransactionId =
+  function findByProviderTransactionId(
+    providerTransactionId,
+    provider,
+    tenantId,
+    options = {},
+  ) {
+    const normalized =
+      normalizeString(
+        providerTransactionId,
+        200,
+      );
+
+    if (!normalized) {
+      return null;
+    }
+
+    const query = {
+      providerTransactionId: normalized,
+      ...(options.includeDeleted
+        ? {}
+        : { deletedAt: null }),
+    };
+
+    if (provider) {
+      query.provider =
+        normalizeLowerString(
+          provider,
+          50,
+        );
     }
 
     if (tenantId) {
@@ -1475,7 +2922,9 @@ transactionSchema.statics.findByProviderReference =
   };
 
 transactionSchema.statics.findPending =
-  function (tenantId) {
+  function findPending(
+    tenantId,
+  ) {
     const query = {
       status: "PENDING",
       deletedAt: null,
@@ -1485,15 +2934,16 @@ transactionSchema.statics.findPending =
       query.tenantId = tenantId;
     }
 
-    return this.find(query)
-      .sort({
-        createdAt: 1,
-        _id: 1,
-      });
+    return this.find(query).sort({
+      createdAt: 1,
+      _id: 1,
+    });
   };
 
 transactionSchema.statics.findProcessing =
-  function (tenantId) {
+  function findProcessing(
+    tenantId,
+  ) {
     const query = {
       status: "PROCESSING",
       deletedAt: null,
@@ -1503,23 +2953,29 @@ transactionSchema.statics.findProcessing =
       query.tenantId = tenantId;
     }
 
-    return this.find(query)
-      .sort({
-        processingStartedAt: 1,
-        _id: 1,
-      });
+    return this.find(query).sort({
+      processingStartedAt: 1,
+      _id: 1,
+    });
   };
 
 transactionSchema.statics.findUnreconciled =
-  function (tenantId) {
+  function findUnreconciled(
+    tenantId,
+  ) {
     const query = {
-      reconciled: false,
+      reconciliationStatus: {
+        $in: [
+          "PENDING",
+          "MISMATCH",
+          "EXCEPTION",
+        ],
+      },
       deletedAt: null,
       status: {
         $in: [
           "SUCCESS",
           "SETTLED",
-          "REVERSED",
         ],
       },
     };
@@ -1528,17 +2984,25 @@ transactionSchema.statics.findUnreconciled =
       query.tenantId = tenantId;
     }
 
-    return this.find(query)
-      .sort({
-        createdAt: 1,
-        _id: 1,
-      });
+    return this.find(query).sort({
+      completedAt: 1,
+      createdAt: 1,
+      _id: 1,
+    });
   };
 
 transactionSchema.statics.findUnpostedAccounting =
-  function (tenantId) {
+  function findUnpostedAccounting(
+    tenantId,
+  ) {
     const query = {
-      accountingPosted: false,
+      accountingStatus: {
+        $in: [
+          "PENDING",
+          "POSTING",
+          "FAILED",
+        ],
+      },
       deletedAt: null,
       status: {
         $in: [
@@ -1552,24 +3016,24 @@ transactionSchema.statics.findUnpostedAccounting =
       query.tenantId = tenantId;
     }
 
-    return this.find(query)
-      .sort({
-        completedAt: 1,
-        _id: 1,
-      });
+    return this.find(query).sort({
+      completedAt: 1,
+      createdAt: 1,
+      _id: 1,
+    });
   };
 
 transactionSchema.statics.findRecoverable =
-  function (tenantId) {
+  function findRecoverable(
+    tenantId,
+  ) {
+    const now = new Date();
+
     const query = {
       deletedAt: null,
 
       status: {
-        $in: [
-          "PENDING",
-          "FAILED",
-          "EXPIRED",
-        ],
+        $in: CLAIMABLE_STATUSES,
       },
 
       $or: [
@@ -1580,22 +3044,69 @@ transactionSchema.statics.findRecoverable =
         },
         {
           nextAttemptAt: {
-            $lte: new Date(),
+            $lte: now,
           },
         },
+        {
+          nextAttemptAt: null,
+        },
       ],
+
+      $expr: {
+        $lt: [
+          {
+            $ifNull: [
+              "$attempts",
+              0,
+            ],
+          },
+          {
+            $ifNull: [
+              "$maxAttempts",
+              5,
+            ],
+          },
+        ],
+      },
     };
 
     if (tenantId) {
       query.tenantId = tenantId;
     }
 
-    return this.find(query)
-      .sort({
-        nextAttemptAt: 1,
-        createdAt: 1,
-        _id: 1,
-      });
+    return this.find(query).sort({
+      nextAttemptAt: 1,
+      createdAt: 1,
+      _id: 1,
+    });
+  };
+
+/**
+ * Find stale PROCESSING transactions whose lease expired.
+ */
+transactionSchema.statics.findStaleProcessing =
+  function findStaleProcessing(
+    tenantId,
+  ) {
+    const now = new Date();
+
+    const query = {
+      status: "PROCESSING",
+      deletedAt: null,
+      processingLeaseExpiresAt: {
+        $lte: now,
+      },
+    };
+
+    if (tenantId) {
+      query.tenantId = tenantId;
+    }
+
+    return this.find(query).sort({
+      processingLeaseExpiresAt: 1,
+      processingStartedAt: 1,
+      _id: 1,
+    });
   };
 
 /**
@@ -1603,123 +3114,177 @@ transactionSchema.statics.findRecoverable =
  * ATOMIC PROCESSING CLAIM
  * ============================================================================
  *
- * This method is useful for transaction workers.
+ * Multiple workers may attempt the same transaction.
  *
- * Only a transaction currently in a claimable state can be moved to
- * PROCESSING.
- *
- * Multiple workers attempting to claim the same transaction will not all
- * receive the transaction.
- * ============================================================================
+ * MongoDB performs the find-and-update atomically, meaning only one matching
+ * worker receives the claimed record.
  */
 
 transactionSchema.statics.claimForProcessing =
-  async function (
+  async function claimForProcessing(
     transactionId,
     tenantId,
-    options = {}
+    options = {},
   ) {
-    const now =
-      new Date();
+    const now = new Date();
 
-    const leaseMinutes =
-      Math.max(
-        1,
-        Number(
-          options.leaseMinutes || 15
-        )
+    if (!transactionId) {
+      throw new Error(
+        "transactionId is required.",
       );
-
-    const leaseExpiresAt =
-      new Date(
-        now.getTime() +
-        leaseMinutes * 60 * 1000
-      );
+    }
 
     const query = {
       _id: transactionId,
+
       status: {
-        $in: [
-          "PENDING",
-          "FAILED",
-          "EXPIRED",
+        $in: CLAIMABLE_STATUSES,
+      },
+
+      deletedAt: null,
+
+      $or: [
+        {
+          nextAttemptAt: {
+            $exists: false,
+          },
+        },
+        {
+          nextAttemptAt: {
+            $lte: now,
+          },
+        },
+        {
+          nextAttemptAt: null,
+        },
+      ],
+
+      $expr: {
+        $lt: [
+          {
+            $ifNull: [
+              "$attempts",
+              0,
+            ],
+          },
+          {
+            $ifNull: [
+              "$maxAttempts",
+              5,
+            ],
+          },
         ],
       },
-      deletedAt: null,
     };
 
     if (tenantId) {
-      query.tenantId =
-        tenantId;
+      query.tenantId = tenantId;
     }
 
-    return this.findOneAndUpdate(
-      query,
-      {
-        $set: {
-          status: "PROCESSING",
-
-          processingStartedAt:
+    const leaseExpiresAt =
+      options.leaseExpiresAt
+        ? normalizeDate(
+            options.leaseExpiresAt,
+          )
+        : getLeaseDate(
             now,
+            options.leaseMinutes || 15,
+          );
 
-          processingLeaseExpiresAt:
-            leaseExpiresAt,
+    const result =
+      await this.findOneAndUpdate(
+        query,
+        {
+          $set: {
+            status: "PROCESSING",
 
-          lastAttemptAt:
-            now,
+            processingStartedAt: now,
 
-          workerId:
-            options.workerId || null,
+            processingLeaseExpiresAt:
+              leaseExpiresAt,
 
-          updatedBy:
-            options.updatedBy || null,
+            lastAttemptAt: now,
+
+            nextAttemptAt: null,
+
+            workerId:
+              normalizeString(
+                options.workerId,
+                200,
+              ),
+
+            updatedBy:
+              options.updatedBy || null,
+
+            recoveryRequired: false,
+          },
+
+          $inc: {
+            attempts: 1,
+          },
         },
-
-        $inc: {
-          attempts: 1,
+        {
+          returnDocument: "after",
+          runValidators: true,
+          session: options.session,
         },
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+      );
+
+    /**
+     * Important:
+     * retryCount cannot reliably be incremented in this same update with the
+     * old status unless we explicitly branch. That is why retryCount is
+     * normalized below using the original classification when necessary.
+     *
+     * For atomic claims, attempts is authoritative. RetryCount remains an
+     * informational counter and can be synchronized by the service when the
+     * previous state was FAILED/EXPIRED.
+     */
+    if (
+      result &&
+      ["FAILED", "EXPIRED"].includes(
+        result.$locals?.claimedFromStatus,
+      )
+    ) {
+      /**
+       * Normally unavailable because atomic update does not expose prior state.
+       * The service can maintain retryCount explicitly when it owns the claim.
+       */
+    }
+
+    return result;
   };
 
 /**
  * ============================================================================
  * ATOMIC STALE PROCESSING CLAIM
  * ============================================================================
+ *
+ * A stale PROCESSING transaction is dangerous.
+ *
+ * The worker MUST reconcile provider state before blindly resubmitting a
+ * financial request because the original provider operation may have succeeded
+ * while the local process/response was lost.
  */
 
 transactionSchema.statics.claimStaleProcessing =
-  async function (
+  async function claimStaleProcessing(
     transactionId,
     tenantId,
-    options = {}
+    options = {},
   ) {
-    const now =
-      new Date();
+    const now = new Date();
 
-    const leaseMinutes =
-      Math.max(
-        1,
-        Number(
-          options.leaseMinutes || 15
-        )
+    if (!transactionId) {
+      throw new Error(
+        "transactionId is required.",
       );
-
-    const leaseExpiresAt =
-      new Date(
-        now.getTime() +
-        leaseMinutes * 60 * 1000
-      );
+    }
 
     const query = {
       _id: transactionId,
 
-      status:
-        "PROCESSING",
+      status: "PROCESSING",
 
       deletedAt: null,
 
@@ -1729,9 +3294,18 @@ transactionSchema.statics.claimStaleProcessing =
     };
 
     if (tenantId) {
-      query.tenantId =
-        tenantId;
+      query.tenantId = tenantId;
     }
+
+    const leaseExpiresAt =
+      options.leaseExpiresAt
+        ? normalizeDate(
+            options.leaseExpiresAt,
+          )
+        : getLeaseDate(
+            now,
+            options.leaseMinutes || 15,
+          );
 
     return this.findOneAndUpdate(
       query,
@@ -1740,14 +3314,25 @@ transactionSchema.statics.claimStaleProcessing =
           processingLeaseExpiresAt:
             leaseExpiresAt,
 
-          processingStartedAt:
-            now,
+          processingStartedAt: now,
 
           workerId:
-            options.workerId || null,
+            normalizeString(
+              options.workerId,
+              200,
+            ),
 
-          recoveryRequired:
-            true,
+          recoveryRequired: true,
+
+          recoveryReason:
+            normalizeString(
+              options.recoveryReason ||
+                "Processing lease expired; provider state requires recovery verification.",
+              500,
+            ),
+
+          updatedBy:
+            options.updatedBy || null,
         },
 
         $inc: {
@@ -1755,9 +3340,10 @@ transactionSchema.statics.claimStaleProcessing =
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
-      }
+        session: options.session,
+      },
     );
   };
 
@@ -1766,68 +3352,214 @@ transactionSchema.statics.claimStaleProcessing =
  * ATOMIC IDEMPOTENT CREATE
  * ============================================================================
  *
- * This helper intentionally uses the database unique indexes as the final
- * concurrency guard.
+ * Database uniqueness remains the final concurrency guard.
  *
- * The service should:
- *
- * 1. Try to find the existing transaction.
- * 2. Attempt creation.
- * 3. Handle E11000 by retrieving the existing transaction.
- *
- * Never rely on "find then create" alone for financial idempotency.
- * ============================================================================
+ * The model additionally validates that the replay has the same immutable
+ * financial/business meaning.
  */
 
 transactionSchema.statics.createIdempotent =
-  async function (
-    payload
+  async function createIdempotent(
+    payload,
+    options = {},
   ) {
+    if (!payload || typeof payload !== "object") {
+      throw new TypeError(
+        "Transaction payload is required.",
+      );
+    }
+
+    const tenantId =
+      payload.tenantId;
+
+    if (!tenantId) {
+      throw new Error(
+        "tenantId is required for idempotent transaction creation.",
+      );
+    }
+
+    const normalizedPayload = {
+      ...payload,
+
+      idempotencyScope:
+        normalizeString(
+          payload.idempotencyScope,
+          300,
+        ) || "default",
+    };
+
+    if (
+      normalizedPayload.idempotencyKey
+    ) {
+      normalizedPayload.idempotencyFingerprint =
+        buildIdempotencyFingerprint({
+          tenantId,
+          idempotencyScope:
+            normalizedPayload.idempotencyScope,
+          idempotencyKey:
+            normalizedPayload.idempotencyKey,
+        });
+    }
+
+    /**
+     * Fast path before creation.
+     *
+     * includeDeleted intentionally remains true so an archived financial
+     * identity cannot accidentally become a second transaction.
+     */
+    if (
+      normalizedPayload.idempotencyKey
+    ) {
+      const existing =
+        await this.findOne({
+          tenantId,
+          idempotencyKey:
+            normalizedPayload.idempotencyKey,
+          idempotencyScope:
+            normalizedPayload.idempotencyScope,
+        }).select(
+          "+idempotencyFingerprint",
+        );
+
+      if (existing) {
+        return assertIdempotentPayloadMatches(
+          existing,
+          normalizedPayload,
+        );
+      }
+    }
+
     try {
       return await this.create(
-        payload
+        [normalizedPayload],
+        {
+          session: options.session,
+        },
+      ).then(([transaction]) =>
+        transaction,
       );
     } catch (error) {
       if (
-        error &&
-        error.code === 11000
+        error?.code !== 11000
       ) {
-        const tenantId =
-          payload.tenantId;
+        throw error;
+      }
 
-        const idempotencyKey =
-          payload.idempotencyKey;
+      /**
+       * Re-read by every supported unique identity.
+       *
+       * This is intentionally not limited to deletedAt:null.
+       */
+      const candidates = [];
 
-        if (
-          tenantId &&
-          idempotencyKey
-        ) {
-          const existing =
-            await this.findOne({
-              tenantId,
-              idempotencyKey,
-              deletedAt: null,
-            });
+      if (
+        normalizedPayload.tenantId &&
+        normalizedPayload.idempotencyKey
+      ) {
+        candidates.push({
+          tenantId:
+            normalizedPayload.tenantId,
+          idempotencyKey:
+            normalizedPayload.idempotencyKey,
+          idempotencyScope:
+            normalizedPayload.idempotencyScope,
+        });
+      }
 
-          if (existing) {
-            return existing;
+      if (
+        normalizedPayload.tenantId &&
+        normalizedPayload.externalId
+      ) {
+        candidates.push({
+          tenantId:
+            normalizedPayload.tenantId,
+          externalId:
+            normalizeString(
+              normalizedPayload.externalId,
+              200,
+            ),
+        });
+      }
+
+      if (
+        normalizedPayload.tenantId &&
+        normalizedPayload.provider &&
+        normalizedPayload.providerTransactionId
+      ) {
+        candidates.push({
+          tenantId:
+            normalizedPayload.tenantId,
+          provider:
+            normalizeLowerString(
+              normalizedPayload.provider,
+              50,
+            ),
+          providerTransactionId:
+            normalizeString(
+              normalizedPayload.providerTransactionId,
+              200,
+            ),
+        });
+      }
+
+      if (
+        normalizedPayload.tenantId &&
+        normalizedPayload.provider &&
+        normalizedPayload.providerReferenceId
+      ) {
+        candidates.push({
+          tenantId:
+            normalizedPayload.tenantId,
+          provider:
+            normalizeLowerString(
+              normalizedPayload.provider,
+              50,
+            ),
+          providerReferenceId:
+            normalizeString(
+              normalizedPayload.providerReferenceId,
+              200,
+            ),
+        });
+      }
+
+      if (
+        normalizedPayload.tenantId &&
+        normalizedPayload.transactionReference
+      ) {
+        candidates.push({
+          tenantId:
+            normalizedPayload.tenantId,
+          transactionReference:
+            normalizeUpperString(
+              normalizedPayload.transactionReference,
+              100,
+            ),
+        });
+      }
+
+      for (const candidate of candidates) {
+        const existing =
+          await this.findOne(candidate).select(
+            "+idempotencyFingerprint",
+          );
+
+        if (existing) {
+          /**
+           * Only idempotency replays should be considered automatically
+           * idempotent. A provider identity collision with materially different
+           * business data must be surfaced to the service.
+           */
+          if (
+            candidate.idempotencyKey
+          ) {
+            return assertIdempotentPayloadMatches(
+              existing,
+              normalizedPayload,
+            );
           }
-        }
 
-        if (
-          payload.externalId
-        ) {
-          const existing =
-            await this.findOne({
-              tenantId,
-              externalId:
-                payload.externalId,
-              deletedAt: null,
-            });
-
-          if (existing) {
-            return existing;
-          }
+          return existing;
         }
       }
 
@@ -1839,10 +3571,15 @@ transactionSchema.statics.createIdempotent =
  * ============================================================================
  * INDEXES
  * ============================================================================
+ *
+ * NOTE:
+ * The database may already contain legacy indexes from the previous version.
+ * Run the repository's controlled index migration/sync procedure during
+ * deployment. Do not casually drop production financial indexes.
  */
 
 /**
- * Tenant + internal transaction reference.
+ * Tenant + immutable transaction reference.
  */
 transactionSchema.index(
   {
@@ -1852,31 +3589,49 @@ transactionSchema.index(
   {
     unique: true,
     name: "uq_transaction_tenant_reference",
-  }
+  },
 );
 
 /**
- * Tenant + idempotency key.
+ * Strong scoped idempotency identity.
  *
- * This is one of the most important indexes in the financial transaction
- * system.
+ * This replaces the old:
+ *   tenantId + idempotencyKey
  *
- * Sparse allows older records created before idempotencyKey was introduced.
+ * uniqueness model.
  */
 transactionSchema.index(
   {
     tenantId: 1,
+    idempotencyScope: 1,
     idempotencyKey: 1,
   },
   {
     unique: true,
     sparse: true,
-    name: "uq_transaction_tenant_idempotency",
-  }
+    name: "uq_transaction_tenant_idempotency_scope",
+  },
 );
 
 /**
- * Provider external references must be tenant scoped.
+ * Deterministic fingerprint.
+ *
+ * Retained as an additional collision-resistant lookup/diagnostic identity.
+ */
+transactionSchema.index(
+  {
+    tenantId: 1,
+    idempotencyFingerprint: 1,
+  },
+  {
+    unique: true,
+    sparse: true,
+    name: "uq_transaction_idempotency_fingerprint",
+  },
+);
+
+/**
+ * Tenant-scoped provider external identity.
  */
 transactionSchema.index(
   {
@@ -1887,7 +3642,7 @@ transactionSchema.index(
     unique: true,
     sparse: true,
     name: "uq_transaction_tenant_external_id",
-  }
+  },
 );
 
 /**
@@ -1903,17 +3658,24 @@ transactionSchema.index(
     unique: true,
     sparse: true,
     name: "uq_transaction_provider_transaction",
-  }
+  },
 );
 
 /**
- * Provider reference.
+ * Provider reference identity.
  */
-transactionSchema.index({
-  tenantId: 1,
-  provider: 1,
-  providerReferenceId: 1,
-});
+transactionSchema.index(
+  {
+    tenantId: 1,
+    provider: 1,
+    providerReferenceId: 1,
+  },
+  {
+    unique: true,
+    sparse: true,
+    name: "uq_transaction_provider_reference",
+  },
+);
 
 /**
  * Main operational queue index.
@@ -1935,23 +3697,23 @@ transactionSchema.index({
 });
 
 /**
- * Accounting reconciliation.
+ * Accounting operations.
  */
 transactionSchema.index({
   tenantId: 1,
-  accountingPosted: 1,
+  accountingStatus: 1,
   status: 1,
-  createdAt: 1,
+  completedAt: 1,
 });
 
 /**
- * Reconciliation.
+ * Reconciliation operations.
  */
 transactionSchema.index({
   tenantId: 1,
-  reconciled: 1,
   reconciliationStatus: 1,
-  createdAt: 1,
+  status: 1,
+  completedAt: 1,
 });
 
 /**
@@ -1982,11 +3744,29 @@ transactionSchema.index({
 });
 
 /**
+ * Contribution transaction history.
+ */
+transactionSchema.index({
+  tenantId: 1,
+  contributionId: 1,
+  createdAt: -1,
+});
+
+/**
  * Savings transaction history.
  */
 transactionSchema.index({
   tenantId: 1,
   savingsId: 1,
+  createdAt: -1,
+});
+
+/**
+ * Account transaction history.
+ */
+transactionSchema.index({
+  tenantId: 1,
+  accountId: 1,
   createdAt: -1,
 });
 
@@ -2006,6 +3786,7 @@ transactionSchema.index({
 transactionSchema.index({
   tenantId: 1,
   correlationId: 1,
+  createdAt: -1,
 });
 
 /**
@@ -2018,6 +3799,16 @@ transactionSchema.index({
 });
 
 /**
+ * Recovery queue.
+ */
+transactionSchema.index({
+  tenantId: 1,
+  recoveryRequired: 1,
+  status: 1,
+  nextAttemptAt: 1,
+});
+
+/**
  * Global chronological reporting.
  */
 transactionSchema.index({
@@ -2026,43 +3817,26 @@ transactionSchema.index({
 
 /**
  * ============================================================================
- * MODEL EXPORT
+ * MODEL
  * ============================================================================
  */
 
-module.exports =
+const Transaction =
   mongoose.models.Transaction ||
   mongoose.model(
     "Transaction",
-    transactionSchema
+    transactionSchema,
   );
 
 /**
  * ============================================================================
- * OPTIONAL ENUM EXPORTS
- * ============================================================================
- *
- * These are useful to services/tests without duplicating string constants.
+ * NAMED EXPORTS
  * ============================================================================
  */
 
-module.exports.TRANSACTION_STATUS =
-  TRANSACTION_STATUS;
+export {
+  Transaction,
+  transactionSchema,
+};
 
-module.exports.TRANSACTION_TYPE =
-  TRANSACTION_TYPE;
-
-module.exports.FLOW_TYPES =
-  FLOW_TYPES;
-
-module.exports.PROVIDERS =
-  PROVIDERS;
-
-module.exports.SOURCE_TYPES =
-  SOURCE_TYPES;
-
-module.exports.ACCOUNTING_STATUS =
-  ACCOUNTING_STATUS;
-
-module.exports.RECONCILIATION_STATUS =
-  RECONCILIATION_STATUS;
+export default Transaction;

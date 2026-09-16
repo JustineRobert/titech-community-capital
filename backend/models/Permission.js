@@ -1,436 +1,607 @@
-"use strict";
-
 /**
- * =============================================================================
- * TITech Community Capital
- * TITech Community Capital Operating System
- * =============================================================================
+ * backend/models/Permission.js
+ * TITech Community Capital — Permission Definition Model
  *
- * File:
- *   backend/models/Permission.js
+ * Architectural role:
+ * - Defines atomic authorization capabilities used by roles and policies.
+ * - Represents the stable resource/action/scope vocabulary consumed by
+ *   authorization middleware and services.
+ * - Supports platform/system permissions and tenant-defined permissions.
  *
- * Purpose:
- *   Enterprise-grade authorization permission definition.
+ * Authorization model:
  *
- * Architectural Role:
- *
- *   User
- *      ↓
- *   Role
- *      ↓
- *   Permission
- *      ↓
- *   Authorization Policy
- *
- * Permission represents an atomic capability that may be assigned to one or
- * more roles.
+ * User
+ *   ↓
+ * Role
+ *   ↓
+ * Permission
+ *   ↓
+ * Authorization Policy
  *
  * Examples:
- *
  *   users.read
  *   users.create
- *   users.update
- *   users.delete
- *
  *   payments.read
- *   payments.create
  *   payments.refund
- *
  *   ledger.read
  *   ledger.post
- *
  *   tenant.users.manage
  *
- * IMPORTANT:
- *   Permission definitions should be treated as application configuration.
- *   They should generally NOT be physically deleted after deployment.
+ * Important boundaries:
+ * - Permission defines WHAT capability exists; it does not grant the
+ *   capability to a user by itself.
+ * - Role/RolePermission assignment determines WHO receives the capability.
+ * - Authorization middleware/service determines whether the requested
+ *   operation is actually permitted in context.
+ * - Resource ownership, tenant membership, group membership, and business
+ *   constraints remain service/policy responsibilities.
+ * - Permission records are configuration metadata, not audit records.
+ * - Permission changes must be auditable through AuditLog.
  *
- * =============================================================================
+ * Security principles:
+ * - Native ESM only.
+ * - Stable permission identity.
+ * - Explicit tenant/platform scope.
+ * - System permissions cannot be tenant-owned.
+ * - Tenant permissions must have tenantId.
+ * - Generic destructive mutation is restricted.
+ * - Deprecation is preferred over deletion.
+ * - Authorization identifiers are normalized and constrained.
+ * - Platform permissions can be safely resolved independently of tenant data.
+ * - Optimistic concurrency is enabled.
+ *
+ * Module format:
+ * - Native ECMAScript Modules (ESM)
+ *
+ * Collection:
+ * - permissions
  */
 
-const mongoose = require("mongoose");
+import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-/**
- * =============================================================================
+/* ==========================================================================
  * Constants
- * =============================================================================
- */
+ * ========================================================================== */
 
-const PERMISSION_ACTIONS = [
-  "create",
-  "read",
-  "update",
-  "delete",
-  "list",
-  "view",
-  "manage",
-  "approve",
-  "reject",
-  "publish",
-  "archive",
-  "cancel",
-  "refund",
-  "execute",
-  "post",
-  "export",
-  "import",
-  "assign",
-  "revoke",
-];
+export const PERMISSION_ACTIONS = Object.freeze([
+  'create',
+  'read',
+  'update',
+  'delete',
+  'list',
+  'view',
+  'manage',
+  'approve',
+  'reject',
+  'publish',
+  'archive',
+  'cancel',
+  'refund',
+  'execute',
+  'post',
+  'export',
+  'import',
+  'assign',
+  'revoke',
+]);
 
-const PERMISSION_SCOPES = [
-  "platform",
-  "tenant",
-  "group",
-  "self",
-  "system",
-];
+export const PERMISSION_SCOPES = Object.freeze([
+  'platform',
+  'tenant',
+  'group',
+  'self',
+  'system',
+]);
 
-const PERMISSION_STATUSES = [
-  "active",
-  "inactive",
-  "deprecated",
-];
+export const PERMISSION_STATUSES = Object.freeze([
+  'active',
+  'inactive',
+  'deprecated',
+]);
 
 const MAX_NAME_LENGTH = 200;
-const MAX_DESCRIPTION_LENGTH = 1000;
+const MAX_CODE_LENGTH = 256;
+const MAX_DESCRIPTION_LENGTH = 1_000;
+const MAX_DISPLAY_NAME_LENGTH = 256;
 const MAX_RESOURCE_LENGTH = 128;
 const MAX_ACTION_LENGTH = 64;
-const MAX_CODE_LENGTH = 256;
+const MAX_DEPRECATION_REASON_LENGTH = 1_000;
+const MAX_DELETE_REASON_LENGTH = 500;
+
+/* ==========================================================================
+ * Helpers
+ * ========================================================================== */
+
+function normalizeRequiredString(
+  value,
+  fieldName,
+  maxLength,
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    throw new TypeError(
+      `${fieldName} is required.`,
+    );
+  }
+
+  const normalized =
+    String(value).trim();
+
+  if (!normalized) {
+    throw new TypeError(
+      `${fieldName} is required.`,
+    );
+  }
+
+  if (
+    normalized.length > maxLength
+  ) {
+    throw new RangeError(
+      `${fieldName} exceeds the maximum length of ${maxLength}.`,
+    );
+  }
+
+  return normalized;
+}
+
+function normalizeOptionalString(
+  value,
+  maxLength,
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return null;
+  }
+
+  const normalized =
+    String(value).trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.slice(
+    0,
+    maxLength,
+  );
+}
+
+function normalizePermissionName(
+  value,
+) {
+  const normalized =
+    normalizeRequiredString(
+      value,
+      'name',
+      MAX_NAME_LENGTH,
+    ).toLowerCase();
+
+  if (
+    !/^[a-z0-9][a-z0-9._:-]*$/.test(
+      normalized,
+    )
+  ) {
+    throw new TypeError(
+      'Permission name contains invalid characters.',
+    );
+  }
+
+  return normalized;
+}
+
+function normalizeResource(value) {
+  return normalizeRequiredString(
+    value,
+    'resource',
+    MAX_RESOURCE_LENGTH,
+  ).toLowerCase();
+}
+
+function normalizeAction(value) {
+  const normalized =
+    normalizeRequiredString(
+      value,
+      'action',
+      MAX_ACTION_LENGTH,
+    ).toLowerCase();
+
+  if (
+    !PERMISSION_ACTIONS.includes(
+      normalized,
+    )
+  ) {
+    throw new TypeError(
+      `Unsupported permission action: ${normalized}.`,
+    );
+  }
+
+  return normalized;
+}
+
+function normalizeScope(value) {
+  const normalized =
+    normalizeRequiredString(
+      value,
+      'scope',
+      32,
+    ).toLowerCase();
+
+  if (
+    !PERMISSION_SCOPES.includes(
+      normalized,
+    )
+  ) {
+    throw new TypeError(
+      `Unsupported permission scope: ${normalized}.`,
+    );
+  }
+
+  return normalized;
+}
+
+function normalizeObjectId(
+  value,
+  fieldName,
+) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ''
+  ) {
+    return null;
+  }
+
+  if (
+    !mongoose.isValidObjectId(
+      value,
+    )
+  ) {
+    throw new TypeError(
+      `${fieldName} must be a valid ObjectId.`,
+    );
+  }
+
+  return new mongoose.Types.ObjectId(
+    value,
+  );
+}
+
+/* ==========================================================================
+ * Schema
+ * ========================================================================== */
+
+const PermissionSchema =
+  new Schema(
+    {
+      /*
+       * ----------------------------------------------------------------------
+       * Stable permission identifier
+       * ----------------------------------------------------------------------
+       *
+       * Examples:
+       *   users.read
+       *   payments.refund
+       *   ledger.post
+       */
+
+      name: {
+        type: String,
+        required: true,
+        immutable: true,
+        trim: true,
+        lowercase: true,
+        minlength: 3,
+        maxlength: MAX_NAME_LENGTH,
+      },
+
+      /**
+       * Optional machine-readable alias.
+       *
+       * Kept separate from name so display/registry migrations do not need
+       * to change the canonical authorization identifier.
+       */
+      code: {
+        type: String,
+        default: null,
+        immutable: true,
+        trim: true,
+        lowercase: true,
+        maxlength: MAX_CODE_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Resource
+       * ----------------------------------------------------------------------
+       */
+
+      resource: {
+        type: String,
+        required: true,
+        immutable: true,
+        trim: true,
+        lowercase: true,
+        maxlength: MAX_RESOURCE_LENGTH,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Action
+       * ----------------------------------------------------------------------
+       */
+
+      action: {
+        type: String,
+        required: true,
+        immutable: true,
+        trim: true,
+        lowercase: true,
+        maxlength: MAX_ACTION_LENGTH,
+        enum: PERMISSION_ACTIONS,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Scope
+       * ----------------------------------------------------------------------
+       */
+
+      scope: {
+        type: String,
+        required: true,
+        immutable: true,
+        enum: PERMISSION_SCOPES,
+        default: 'tenant',
+        lowercase: true,
+        trim: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Human-readable information
+       * ----------------------------------------------------------------------
+       */
+
+      description: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_DESCRIPTION_LENGTH,
+      },
+
+      displayName: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_DISPLAY_NAME_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Lifecycle
+       * ----------------------------------------------------------------------
+       */
+
+      status: {
+        type: String,
+        required: true,
+        enum: PERMISSION_STATUSES,
+        default: 'active',
+        trim: true,
+        lowercase: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Ownership
+       * ----------------------------------------------------------------------
+       *
+       * systemDefined=true:
+       *   platform/system permission; tenantId must be null.
+       *
+       * systemDefined=false:
+       *   tenant-defined custom permission; tenantId is required.
+       */
+
+      systemDefined: {
+        type: Boolean,
+        required: true,
+        default: true,
+        immutable: true,
+        index: true,
+      },
+
+      tenantId: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 128,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Version
+       * ----------------------------------------------------------------------
+       *
+       * A permission's stable identity does not change when this version
+       * changes. Versioning is for policy-definition evolution.
+       */
+
+      version: {
+        type: Number,
+        min: 1,
+        default: 1,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Deprecation
+       * ----------------------------------------------------------------------
+       */
+
+      deprecatedAt: {
+        type: Date,
+        default: null,
+      },
+
+      deprecationReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_DEPRECATION_REASON_LENGTH,
+      },
+
+      replacedBy: {
+        type: Schema.Types.ObjectId,
+        ref: 'Permission',
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Administrative provenance
+       * ----------------------------------------------------------------------
+       */
+
+      createdBy: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+        immutable: true,
+      },
+
+      updatedBy: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Administrative lifecycle
+       * ----------------------------------------------------------------------
+       *
+       * Prefer inactive/deprecated over deletion.
+       */
+
+      isDeleted: {
+        type: Boolean,
+        required: true,
+        default: false,
+        index: true,
+      },
+
+      deletedAt: {
+        type: Date,
+        default: null,
+      },
+
+      deleteReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_DELETE_REASON_LENGTH,
+      },
+    },
+    {
+      timestamps: true,
+
+      optimisticConcurrency: true,
+
+      versionKey: '__v',
+
+      collection: 'permissions',
+
+      minimize: true,
+
+      strict: 'throw',
+
+      toJSON: {
+        virtuals: true,
+        versionKey: false,
+
+        transform(doc, ret) {
+          ret.id =
+            ret._id.toString();
+
+          delete ret._id;
+          delete ret.__v;
+
+          return ret;
+        },
+      },
+
+      toObject: {
+        virtuals: true,
+        versionKey: false,
+      },
+    },
+  );
+
+/* ==========================================================================
+ * Indexes
+ * ========================================================================== */
 
 /**
- * =============================================================================
- * Permission Schema
- * =============================================================================
+ * Canonical identity.
+ *
+ * Platform permissions and tenant permissions are allowed to share the same
+ * logical name because tenant scope is part of authorization identity.
  */
-
-const PermissionSchema = new Schema(
+PermissionSchema.index(
   {
-    /**
-     * -------------------------------------------------------------------------
-     * Stable Permission Code
-     * -------------------------------------------------------------------------
-     *
-     * Example:
-     *
-     *   payments.refund
-     *   users.read
-     *   ledger.post
-     *
-     * This should be the canonical authorization identifier used throughout
-     * TITech services and middleware.
-     */
-
-    name: {
-      type: String,
-      required: true,
-      unique: true,
-      immutable: true,
-      trim: true,
-      lowercase: true,
-      minlength: 3,
-      maxlength: MAX_NAME_LENGTH,
-    },
-
-    /**
-     * Explicit machine-readable code.
-     *
-     * This can be used if the platform eventually wants display names separate
-     * from authorization identifiers.
-     */
-    code: {
-      type: String,
-      trim: true,
-      lowercase: true,
-      maxlength: MAX_CODE_LENGTH,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Authorization Resource
-     * -------------------------------------------------------------------------
-     *
-     * Examples:
-     *
-     *   users
-     *   payments
-     *   loans
-     *   contributions
-     *   ledger
-     *   announcements
-     */
-
-    resource: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      maxlength: MAX_RESOURCE_LENGTH,
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Authorization Action
-     * -------------------------------------------------------------------------
-     */
-
-    action: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      maxlength: MAX_ACTION_LENGTH,
-      enum: PERMISSION_ACTIONS,
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Permission Scope
-     * -------------------------------------------------------------------------
-     *
-     * Scope determines WHERE the permission can operate.
-     *
-     * platform:
-     *   Entire TITech platform.
-     *
-     * tenant:
-     *   Within a tenant.
-     *
-     * group:
-     *   Within a community/group.
-     *
-     * self:
-     *   Only resources belonging to the authenticated principal.
-     *
-     * system:
-     *   Internal system/service operations.
-     */
-
-    scope: {
-      type: String,
-      enum: PERMISSION_SCOPES,
-      required: true,
-      default: "tenant",
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Human-Readable Description
-     * -------------------------------------------------------------------------
-     */
-
-    description: {
-      type: String,
-      trim: true,
-      maxlength: MAX_DESCRIPTION_LENGTH,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Display Label
-     * -------------------------------------------------------------------------
-     */
-
-    displayName: {
-      type: String,
-      trim: true,
-      maxlength: 256,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Permission Lifecycle
-     * -------------------------------------------------------------------------
-     */
-
-    status: {
-      type: String,
-      enum: PERMISSION_STATUSES,
-      default: "active",
-      required: true,
-      index: true,
-    },
-
-    /**
-     * Whether this is a system-defined permission.
-     *
-     * System permissions should generally not be modified or deleted through
-     * ordinary tenant administration.
-     */
-
-    systemDefined: {
-      type: Boolean,
-      default: true,
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Tenant Ownership
-     * -------------------------------------------------------------------------
-     *
-     * Platform-wide permissions have tenantId = null.
-     *
-     * Tenant-specific custom permissions may carry a tenantId.
-     */
-
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: "Tenant",
-      default: null,
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Permission Version
-     * -------------------------------------------------------------------------
-     *
-     * Useful when authorization policy definitions evolve.
-     */
-
-    version: {
-      type: Number,
-      default: 1,
-      min: 1,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Lifecycle Metadata
-     * -------------------------------------------------------------------------
-     */
-
-    deprecatedAt: {
-      type: Date,
-      default: null,
-    },
-
-    deprecationReason: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: null,
-    },
-
-    replacedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "Permission",
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Audit Metadata
-     * -------------------------------------------------------------------------
-     */
-
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-
-    updatedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Soft Delete
-     * -------------------------------------------------------------------------
-     *
-     * Authorization records should normally be deprecated/inactivated rather
-     * than deleted.
-     */
-
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
-
-    deleteReason: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: null,
-    },
+    tenantId: 1,
+    name: 1,
   },
   {
-    timestamps: true,
-
-    versionKey: false,
-
-    collection: "permissions",
-
-    strict: true,
-
-    minimize: true,
-  }
+    unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+    },
+    name:
+      'uniq_permission_tenant_name',
+  },
 );
 
 /**
- * =============================================================================
- * Indexes
- * =============================================================================
+ * System/platform permission identity.
  */
+PermissionSchema.index(
+  {
+    resource: 1,
+    action: 1,
+    scope: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      systemDefined: true,
+      tenantId: null,
+      isDeleted: false,
+    },
+    name:
+      'uniq_system_permission_definition',
+  },
+);
 
 /**
- * Resource/action authorization lookup.
- */
-PermissionSchema.index({
-  resource: 1,
-  action: 1,
-  scope: 1,
-});
-
-/**
- * Tenant authorization lookup.
- */
-PermissionSchema.index({
-  tenantId: 1,
-  status: 1,
-  resource: 1,
-  action: 1,
-});
-
-/**
- * Active permission discovery.
- */
-PermissionSchema.index({
-  status: 1,
-  resource: 1,
-});
-
-/**
- * System permission discovery.
- */
-PermissionSchema.index({
-  systemDefined: 1,
-  status: 1,
-});
-
-/**
- * Tenant custom permissions.
- *
- * A tenant may have one permission definition for a particular resource/action
- * combination.
+ * Tenant-specific resource/action/scope identity.
  */
 PermissionSchema.index(
   {
@@ -442,418 +613,897 @@ PermissionSchema.index(
   {
     unique: true,
     partialFilterExpression: {
+      systemDefined: false,
+      tenantId: {
+        $type: 'string',
+      },
       isDeleted: false,
     },
-    name: "uniq_tenant_permission_definition",
-  }
-);
-
-/**
- * Platform/system permissions.
- */
-PermissionSchema.index(
-  {
-    resource: 1,
-    action: 1,
-    scope: 1,
+    name:
+      'uniq_tenant_permission_definition',
   },
-  {
-    unique: true,
-    partialFilterExpression: {
-      tenantId: null,
-      systemDefined: true,
-      isDeleted: false,
-    },
-    name: "uniq_system_permission_definition",
-  }
 );
 
 /**
- * =============================================================================
- * Query Helpers
- * =============================================================================
+ * Effective active-permission lookup.
  */
-
-PermissionSchema.query.active = function () {
-  return this.where({
-    status: "active",
-    isDeleted: false,
-  });
-};
-
-PermissionSchema.query.system = function () {
-  return this.where({
-    systemDefined: true,
-    isDeleted: false,
-  });
-};
-
-PermissionSchema.query.forTenant = function (tenantId) {
-  return this.where({
-    tenantId,
-    isDeleted: false,
-  });
-};
-
-PermissionSchema.query.byResource = function (resource) {
-  return this.where({
-    resource: String(resource).toLowerCase(),
-    isDeleted: false,
-  });
-};
+PermissionSchema.index({
+  tenantId: 1,
+  status: 1,
+  resource: 1,
+  action: 1,
+  scope: 1,
+});
 
 /**
- * =============================================================================
- * Instance Methods
- * =============================================================================
+ * Resource/action discovery.
  */
+PermissionSchema.index({
+  resource: 1,
+  action: 1,
+  status: 1,
+});
 
 /**
- * Determine whether permission can currently be granted.
+ * System permission discovery.
  */
-PermissionSchema.methods.isGrantable = function () {
+PermissionSchema.index({
+  systemDefined: 1,
+  status: 1,
+  resource: 1,
+});
+
+/**
+ * Deprecation/replacement discovery.
+ */
+PermissionSchema.index({
+  status: 1,
+  deprecatedAt: -1,
+});
+
+/* ==========================================================================
+ * Virtuals
+ * ========================================================================== */
+
+PermissionSchema.virtual(
+  'isActive',
+).get(function getIsActive() {
   return (
-    !this.isDeleted &&
-    this.status === "active"
+    this.status === 'active' &&
+    this.isDeleted === false
   );
-};
+});
 
-/**
- * Determine whether permission is deprecated.
- */
-PermissionSchema.methods.isDeprecated = function () {
-  return this.status === "deprecated";
-};
+PermissionSchema.virtual(
+  'isDeprecated',
+).get(function getIsDeprecated() {
+  return (
+    this.status === 'deprecated'
+  );
+});
 
-/**
- * Deactivate permission.
- */
-PermissionSchema.methods.deactivate = function () {
-  this.status = "inactive";
+PermissionSchema.virtual(
+  'isPlatformPermission',
+).get(function getIsPlatformPermission() {
+  return (
+    this.systemDefined === true &&
+    this.tenantId === null
+  );
+});
 
-  return this.save();
-};
+/* ==========================================================================
+ * Query helpers
+ * ========================================================================== */
 
-/**
- * Deprecate permission.
- */
-PermissionSchema.methods.deprecate = function ({
-  reason = null,
-  replacedBy = null,
-} = {}) {
-  this.status = "deprecated";
-  this.deprecatedAt = new Date();
-  this.deprecationReason = reason;
-  this.replacedBy = replacedBy;
+PermissionSchema.query.active =
+  function active() {
+    return this.where({
+      status: 'active',
+      isDeleted: false,
+    });
+  };
 
-  return this.save();
-};
+PermissionSchema.query.system =
+  function system() {
+    return this.where({
+      systemDefined: true,
+      tenantId: null,
+      isDeleted: false,
+    });
+  };
 
-/**
- * Reactivate permission.
- */
-PermissionSchema.methods.activate = function () {
-  this.status = "active";
-  this.deprecatedAt = null;
-  this.deprecationReason = null;
-
-  return this.save();
-};
-
-/**
- * Soft delete permission.
- */
-PermissionSchema.methods.softDelete = function (
-  reason = null
-) {
-  this.isDeleted = true;
-  this.deletedAt = new Date();
-  this.deleteReason = reason;
-
-  return this.save();
-};
-
-/**
- * =============================================================================
- * Static Methods
- * =============================================================================
- */
-
-/**
- * Find by canonical permission name.
- */
-PermissionSchema.statics.findByName = function (
-  name
-) {
-  if (!name) {
-    return null;
-  }
-
-  return this.findOne({
-    name: String(name).trim().toLowerCase(),
-    isDeleted: false,
-  });
-};
-
-/**
- * Find active permission.
- */
-PermissionSchema.statics.findActiveByName = function (
-  name
-) {
-  if (!name) {
-    return null;
-  }
-
-  return this.findOne({
-    name: String(name).trim().toLowerCase(),
-    status: "active",
-    isDeleted: false,
-  });
-};
-
-/**
- * Find a resource/action permission.
- */
-PermissionSchema.statics.findByResourceAction = function ({
-  resource,
-  action,
-  scope = "tenant",
-  tenantId = null,
-} = {}) {
-  if (!resource || !action) {
-    return null;
-  }
-
-  return this.findOne({
-    resource: String(resource).trim().toLowerCase(),
-    action: String(action).trim().toLowerCase(),
-    scope,
+PermissionSchema.query.forTenant =
+  function forTenant(
     tenantId,
-    status: "active",
-    isDeleted: false,
-  });
-};
+  ) {
+    if (!tenantId) {
+      throw new TypeError(
+        'tenantId is required.',
+      );
+    }
+
+    return this.where({
+      tenantId:
+        String(tenantId).trim(),
+      isDeleted: false,
+    });
+  };
+
+PermissionSchema.query.byResource =
+  function byResource(
+    resource,
+  ) {
+    return this.where({
+      resource:
+        normalizeResource(
+          resource,
+        ),
+      isDeleted: false,
+    });
+  };
+
+PermissionSchema.query.byAction =
+  function byAction(
+    action,
+  ) {
+    return this.where({
+      action:
+        normalizeAction(
+          action,
+        ),
+      isDeleted: false,
+    });
+  };
+
+/* ==========================================================================
+ * Instance methods
+ * ========================================================================== */
+
+PermissionSchema.methods.isGrantable =
+  function isGrantable() {
+    return (
+      this.status === 'active' &&
+      this.isDeleted === false
+    );
+  };
+
+PermissionSchema.methods.deactivate =
+  async function deactivate(
+    updatedBy = null,
+  ) {
+    if (
+      this.status ===
+      'deprecated'
+    ) {
+      throw new Error(
+        'Deprecated permissions cannot be reactivated by deactivate().',
+      );
+    }
+
+    this.status = 'inactive';
+
+    if (updatedBy) {
+      this.updatedBy =
+        normalizeObjectId(
+          updatedBy,
+          'updatedBy',
+        );
+    }
+
+    await this.save();
+
+    return this;
+  };
+
+PermissionSchema.methods.activate =
+  async function activate(
+    updatedBy = null,
+  ) {
+    if (
+      this.status ===
+      'deprecated'
+    ) {
+      throw new Error(
+        'Deprecated permissions require an explicit restoration/change process.',
+      );
+    }
+
+    if (
+      this.isDeleted
+    ) {
+      throw new Error(
+        'Deleted permissions cannot be activated.',
+      );
+    }
+
+    this.status = 'active';
+
+    if (updatedBy) {
+      this.updatedBy =
+        normalizeObjectId(
+          updatedBy,
+          'updatedBy',
+        );
+    }
+
+    await this.save();
+
+    return this;
+  };
+
+PermissionSchema.methods.deprecate =
+  async function deprecate({
+    reason = null,
+    replacedBy = null,
+    updatedBy = null,
+  } = {}) {
+    const normalizedReplacement =
+      normalizeObjectId(
+        replacedBy,
+        'replacedBy',
+      );
+
+    if (
+      normalizedReplacement &&
+      normalizedReplacement.equals(
+        this._id,
+      )
+    ) {
+      throw new Error(
+        'A permission cannot replace itself.',
+      );
+    }
+
+    this.status = 'deprecated';
+    this.deprecatedAt =
+      new Date();
+
+    this.deprecationReason =
+      normalizeOptionalString(
+        reason,
+        MAX_DEPRECATION_REASON_LENGTH,
+      );
+
+    this.replacedBy =
+      normalizedReplacement;
+
+    if (updatedBy) {
+      this.updatedBy =
+        normalizeObjectId(
+          updatedBy,
+          'updatedBy',
+        );
+    }
+
+    await this.save();
+
+    return this;
+  };
 
 /**
- * Find all effective permissions for a tenant.
+ * Soft deletion is intentionally administrative and should normally not be
+ * used for deployed/system permissions.
+ */
+PermissionSchema.methods.softDelete =
+  async function softDelete({
+    reason = null,
+    updatedBy = null,
+  } = {}) {
+    if (
+      this.systemDefined
+    ) {
+      throw new Error(
+        'System-defined permissions should be deprecated or inactivated rather than deleted.',
+      );
+    }
+
+    this.isDeleted = true;
+    this.deletedAt =
+      new Date();
+
+    this.deleteReason =
+      normalizeOptionalString(
+        reason,
+        MAX_DELETE_REASON_LENGTH,
+      );
+
+    if (updatedBy) {
+      this.updatedBy =
+        normalizeObjectId(
+          updatedBy,
+          'updatedBy',
+        );
+    }
+
+    await this.save();
+
+    return this;
+  };
+
+/* ==========================================================================
+ * Static methods
+ * ========================================================================== */
+
+/**
+ * Find by permission name.
+ *
+ * Platform and tenant contexts are deliberately explicit.
+ */
+PermissionSchema.statics.findByName =
+  function findByName(
+    name,
+    {
+      tenantId = null,
+    } = {},
+  ) {
+    const normalizedName =
+      normalizePermissionName(
+        name,
+      );
+
+    return this.findOne({
+      name: normalizedName,
+      tenantId:
+        tenantId === null
+          ? null
+          : String(
+              tenantId,
+            ).trim(),
+      isDeleted: false,
+    });
+  };
+
+/**
+ * Find an active permission by name.
+ */
+PermissionSchema.statics.findActiveByName =
+  function findActiveByName(
+    name,
+    {
+      tenantId = null,
+    } = {},
+  ) {
+    const normalizedName =
+      normalizePermissionName(
+        name,
+      );
+
+    return this.findOne({
+      name: normalizedName,
+      tenantId:
+        tenantId === null
+          ? null
+          : String(
+              tenantId,
+            ).trim(),
+      status: 'active',
+      isDeleted: false,
+    });
+  };
+
+/**
+ * Find a resource/action/scope definition.
+ */
+PermissionSchema.statics.findByResourceAction =
+  function findByResourceAction({
+    resource,
+    action,
+    scope = 'tenant',
+    tenantId = null,
+  } = {}) {
+    const normalizedScope =
+      normalizeScope(
+        scope,
+      );
+
+    const filter = {
+      resource:
+        normalizeResource(
+          resource,
+        ),
+
+      action:
+        normalizeAction(
+          action,
+        ),
+
+      scope: normalizedScope,
+
+      status: 'active',
+
+      isDeleted: false,
+    };
+
+    if (
+      normalizedScope ===
+      'tenant'
+    ) {
+      if (!tenantId) {
+        throw new TypeError(
+          'tenantId is required for tenant-scoped permission lookup.',
+        );
+      }
+
+      filter.tenantId =
+        String(
+          tenantId,
+        ).trim();
+    } else if (
+      normalizedScope ===
+      'platform' ||
+      normalizedScope ===
+      'system'
+    ) {
+      filter.tenantId = null;
+    } else if (
+      tenantId !== null &&
+      tenantId !== undefined
+    ) {
+      filter.tenantId =
+        String(
+          tenantId,
+        ).trim();
+    }
+
+    return this.findOne(
+      filter,
+    );
+  };
+
+/**
+ * Resolve the permissions effective within a tenant.
  *
  * Includes:
- *   1. Platform/system permissions.
- *   2. Tenant-specific permissions.
+ * - platform/system permissions;
+ * - tenant-specific permissions.
  */
-PermissionSchema.statics.findEffectiveForTenant = function (
-  tenantId
-) {
-  return this.find({
-    $or: [
-      {
-        tenantId: null,
-        systemDefined: true,
-      },
-      {
-        tenantId,
-      },
-    ],
-    status: "active",
-    isDeleted: false,
-  }).sort({
-    resource: 1,
-    action: 1,
-    scope: 1,
-  });
-};
+PermissionSchema.statics.findEffectiveForTenant =
+  function findEffectiveForTenant(
+    tenantId,
+  ) {
+    if (!tenantId) {
+      throw new TypeError(
+        'tenantId is required.',
+      );
+    }
+
+    return this.find({
+      status: 'active',
+      isDeleted: false,
+
+      $or: [
+        {
+          systemDefined: true,
+          tenantId: null,
+        },
+        {
+          systemDefined: false,
+          tenantId:
+            String(
+              tenantId,
+            ).trim(),
+        },
+      ],
+    }).sort({
+      resource: 1,
+      action: 1,
+      scope: 1,
+      name: 1,
+    });
+  };
 
 /**
- * Create permission safely.
+ * Ensure an application permission exists.
+ *
+ * The database unique index is the final protection against concurrent
+ * creation by multiple processes.
  */
-PermissionSchema.statics.ensurePermission = async function ({
-  name,
-  resource,
-  action,
-  scope = "tenant",
-  description = null,
-  displayName = null,
-  tenantId = null,
-  systemDefined = true,
-  createdBy = null,
-} = {}) {
-  if (!name) {
-    throw new Error("Permission name is required");
-  }
+PermissionSchema.statics.ensurePermission =
+  async function ensurePermission({
+    name,
+    resource,
+    action,
+    scope = 'tenant',
+    description = null,
+    displayName = null,
+    tenantId = null,
+    systemDefined = true,
+    createdBy = null,
+  } = {}) {
+    const normalizedName =
+      normalizePermissionName(
+        name,
+      );
 
-  if (!resource) {
-    throw new Error("Permission resource is required");
-  }
+    const normalizedResource =
+      normalizeResource(
+        resource,
+      );
 
-  if (!action) {
-    throw new Error("Permission action is required");
-  }
+    const normalizedAction =
+      normalizeAction(
+        action,
+      );
 
-  const normalizedName = String(name)
-    .trim()
-    .toLowerCase();
+    const normalizedScope =
+      normalizeScope(
+        scope,
+      );
 
-  const existing = await this.findOne({
-    name: normalizedName,
-    isDeleted: false,
+    const normalizedSystemDefined =
+      Boolean(
+        systemDefined,
+      );
+
+    const normalizedTenantId =
+      tenantId === null ||
+      tenantId === undefined ||
+      tenantId === ''
+        ? null
+        : String(
+            tenantId,
+          ).trim();
+
+    if (
+      normalizedSystemDefined &&
+      normalizedTenantId
+    ) {
+      throw new TypeError(
+        'System-defined permissions cannot have tenantId.',
+      );
+    }
+
+    if (
+      !normalizedSystemDefined &&
+      !normalizedTenantId
+    ) {
+      throw new TypeError(
+        'Tenant-defined permissions require tenantId.',
+      );
+    }
+
+    const filter = {
+      name: normalizedName,
+      tenantId:
+        normalizedTenantId,
+      isDeleted: false,
+    };
+
+    const existing =
+      await this.findOne(
+        filter,
+      );
+
+    if (existing) {
+      return existing;
+    }
+
+    try {
+      return await this.create({
+        name: normalizedName,
+        resource:
+          normalizedResource,
+        action:
+          normalizedAction,
+        scope:
+          normalizedScope,
+        description:
+          normalizeOptionalString(
+            description,
+            MAX_DESCRIPTION_LENGTH,
+          ),
+        displayName:
+          normalizeOptionalString(
+            displayName,
+            MAX_DISPLAY_NAME_LENGTH,
+          ),
+        tenantId:
+          normalizedTenantId,
+        systemDefined:
+          normalizedSystemDefined,
+        createdBy:
+          normalizeObjectId(
+            createdBy,
+            'createdBy',
+          ),
+      });
+    } catch (error) {
+      if (
+        error?.code === 11000
+      ) {
+        return this.findOne(
+          filter,
+        );
+      }
+
+      throw error;
+    }
+  };
+
+/* ==========================================================================
+ * Validation middleware
+ * ========================================================================== */
+
+PermissionSchema.pre(
+  'validate',
+  function validatePermission(
+    next,
+  ) {
+    try {
+      if (this.name) {
+        this.name =
+          normalizePermissionName(
+            this.name,
+          );
+      }
+
+      if (this.resource) {
+        this.resource =
+          normalizeResource(
+            this.resource,
+          );
+      }
+
+      if (this.action) {
+        this.action =
+          normalizeAction(
+            this.action,
+          );
+      }
+
+      if (this.scope) {
+        this.scope =
+          normalizeScope(
+            this.scope,
+          );
+      }
+
+      /*
+       * System-defined permissions are platform-owned.
+       */
+      if (
+        this.systemDefined &&
+        this.tenantId
+      ) {
+        this.invalidate(
+          'tenantId',
+          'System-defined permissions cannot belong to a tenant.',
+        );
+      }
+
+      /*
+       * Tenant-defined permissions must have a tenant boundary.
+       */
+      if (
+        !this.systemDefined &&
+        !this.tenantId
+      ) {
+        this.invalidate(
+          'tenantId',
+          'Tenant-defined permissions require tenantId.',
+        );
+      }
+
+      /*
+       * Scope/ownership consistency.
+       */
+      if (
+        this.scope ===
+          'platform' &&
+        this.tenantId
+      ) {
+        this.invalidate(
+          'tenantId',
+          'Platform permissions cannot be tenant-owned.',
+        );
+      }
+
+      if (
+        this.scope ===
+          'system' &&
+        !this.systemDefined
+      ) {
+        this.invalidate(
+          'systemDefined',
+          'System-scoped permissions must be system-defined.',
+        );
+      }
+
+      /*
+       * Deprecation invariants.
+       */
+      if (
+        this.status ===
+          'deprecated' &&
+        !this.deprecatedAt
+      ) {
+        this.deprecatedAt =
+          new Date();
+      }
+
+      if (
+        this.status !==
+          'deprecated' &&
+        (
+          this.deprecatedAt ||
+          this.deprecationReason
+        )
+      ) {
+        /**
+         * Clear stale deprecation metadata when a controlled administrative
+         * operation explicitly reactivates the permission.
+         */
+        if (
+          this.isModified(
+            'status',
+          )
+        ) {
+          this.deprecatedAt =
+            null;
+
+          this.deprecationReason =
+            null;
+        }
+      }
+
+      /*
+       * Version must remain positive.
+       */
+      if (
+        !Number.isInteger(
+          this.version,
+        ) ||
+        this.version < 1
+      ) {
+        this.invalidate(
+          'version',
+          'Permission version must be a positive integer.',
+        );
+      }
+
+      /*
+       * A permission cannot replace itself.
+       */
+      if (
+        this.replacedBy &&
+        this._id &&
+        this.replacedBy.equals(
+          this._id,
+        )
+      ) {
+        this.invalidate(
+          'replacedBy',
+          'A permission cannot replace itself.',
+        );
+      }
+
+      /*
+       * Deleted records must have deletion metadata.
+       */
+      if (
+        this.isDeleted &&
+        !this.deletedAt
+      ) {
+        this.deletedAt =
+          new Date();
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
   });
 
-  if (existing) {
-    return existing;
-  }
+/* ==========================================================================
+ * Mutation protection
+ * ========================================================================== */
 
-  try {
-    return await this.create({
-      name: normalizedName,
-      resource,
-      action,
-      scope,
-      description,
-      displayName,
-      tenantId,
-      systemDefined,
-      createdBy,
-    });
-  } catch (error) {
-    /**
-     * Handle a race where another process creates the permission between the
-     * lookup and insert.
-     */
-    if (error?.code === 11000) {
-      return this.findOne({
-        name: normalizedName,
+/**
+ * Permission definitions are configuration metadata.
+ *
+ * Hard deletion is deliberately unavailable to ordinary application code.
+ */
+PermissionSchema.pre(
+  [
+    'deleteOne',
+    'deleteMany',
+    'findOneAndDelete',
+    'findByIdAndDelete',
+  ],
+  function preventHardDelete(
+    next,
+  ) {
+    next(
+      new mongoose.Error.MongooseError(
+        'Permission hard deletion is disabled. Use controlled lifecycle methods.',
+      ),
+    );
+  },
+);
+
+/**
+ * Generic updates can change authorization semantics without going through
+ * an auditable policy operation, so they are blocked.
+ */
+PermissionSchema.pre(
+  [
+    'updateOne',
+    'updateMany',
+    'findOneAndUpdate',
+    'findByIdAndUpdate',
+    'replaceOne',
+  ],
+  function preventGenericMutation(
+    next,
+  ) {
+    const options =
+      this.getOptions();
+
+    if (
+      options.allowPermissionMutation ===
+      true
+    ) {
+      return next();
+    }
+
+    next(
+      new mongoose.Error.MongooseError(
+        'Generic Permission updates are disabled. Use controlled permission lifecycle methods.',
+      ),
+    );
+  },
+);
+
+PermissionSchema.pre(
+  'bulkWrite',
+  function preventBulkWrite(
+    next,
+  ) {
+    next(
+      new mongoose.Error.MongooseError(
+        'bulkWrite is disabled for Permission.',
+      ),
+    );
+  },
+);
+
+/* ==========================================================================
+ * Soft-delete query protection
+ * ========================================================================== */
+
+PermissionSchema.pre(
+  /^find/,
+  function hideDeletedPermissions(
+    next,
+  ) {
+    const options =
+      this.getOptions();
+
+    if (
+      !options.includeDeleted
+    ) {
+      this.where({
         isDeleted: false,
       });
     }
 
-    throw error;
-  }
-};
+    next();
+  },
+);
 
-/**
- * =============================================================================
- * Validation
- * =============================================================================
- */
+/* ==========================================================================
+ * Model export
+ * ========================================================================== */
 
-PermissionSchema.pre("validate", function (next) {
-  /**
-   * Normalize authorization identifiers.
-   */
-  if (this.name) {
-    this.name = this.name
-      .trim()
-      .toLowerCase();
-  }
-
-  if (this.resource) {
-    this.resource = this.resource
-      .trim()
-      .toLowerCase();
-  }
-
-  if (this.action) {
-    this.action = this.action
-      .trim()
-      .toLowerCase();
-  }
-
-  /**
-   * Validate conventional permission naming.
-   *
-   * Examples:
-   *
-   *   users.read
-   *   payments.refund
-   *   ledger.post
-   *
-   * Custom hierarchical names are also permitted.
-   */
-  if (
-    this.name &&
-    !/^[a-z0-9][a-z0-9._:-]*$/.test(this.name)
-  ) {
-    this.invalidate(
-      "name",
-      "Permission name contains invalid characters"
-    );
-  }
-
-  /**
-   * System permissions should not belong to a tenant.
-   */
-  if (
-    this.systemDefined &&
-    this.tenantId
-  ) {
-    this.invalidate(
-      "tenantId",
-      "System-defined permissions cannot belong to a tenant"
-    );
-  }
-
-  /**
-   * Tenant permissions require a tenant.
-   */
-  if (
-    !this.systemDefined &&
-    !this.tenantId
-  ) {
-    this.invalidate(
-      "tenantId",
-      "Tenant-defined permissions require tenantId"
-    );
-  }
-
-  /**
-   * Deprecated permissions require a deprecation timestamp.
-   */
-  if (
-    this.status === "deprecated" &&
-    !this.deprecatedAt
-  ) {
-    this.deprecatedAt = new Date();
-  }
-
-  next();
-});
-
-/**
- * =============================================================================
- * Soft Delete Query Protection
- * ============================================================================= */
-
-PermissionSchema.pre(/^find/, function (next) {
-  const options = this.getOptions();
-
-  if (!options.includeDeleted) {
-    this.where({
-      isDeleted: false,
-    });
-  }
-
-  next();
-});
-
-/**
- * =============================================================================
- * JSON Serialization
- * ============================================================================= */
-
-PermissionSchema.methods.toJSON = function () {
-  return this.toObject();
-};
-
-/**
- * =============================================================================
- * Model Export
- * =============================================================================
- */
-
-module.exports =
+const Permission =
   mongoose.models.Permission ||
   mongoose.model(
-    "Permission",
-    PermissionSchema
+    'Permission',
+    PermissionSchema,
   );
+
+export default Permission;
+
+export {
+  PermissionSchema,
+};

@@ -1,747 +1,1170 @@
-"use strict";
-
 /**
- * =============================================================================
- * TITech Community Capital
- * TITech Community Capital Operating System
- * =============================================================================
+ * backend/models/Payment.js
+ * TITech Community Capital — Payment Aggregate
  *
- * File:
- *   backend/models/Payment.js
+ * Architectural role:
+ * - Represents an external payment attempt and its provider lifecycle.
+ * - Supports MTN Mobile Money, Airtel Money, bank/card/payment providers,
+ *   provider references, provider events/webhooks, retries, reconciliation,
+ *   refunds, and ledger-posting state.
+ * - Provides the persistence boundary for external payment identity and
+ *   provider lifecycle state.
  *
- * Purpose:
- *   Enterprise-grade payment aggregate for TITech Community Capital.
+ * IMPORTANT FINANCIAL BOUNDARY:
+ * - Payment is NOT the authoritative accounting ledger.
+ * - Payment balance is never authoritative accounting state.
+ * - Payment completion does NOT by itself constitute ledger posting.
+ * - Financial posting must be performed by the canonical financial service
+ *   and ledger infrastructure.
+ * - Ledger posting must be idempotent and reconciled with this aggregate.
  *
- * Architectural Responsibilities:
- *   - Represent external payment attempts and provider interactions.
- *   - Maintain immutable financial identity.
- *   - Support MTN Mobile Money, Airtel Money and card/payment providers.
- *   - Support provider references and webhook reconciliation.
- *   - Provide idempotency protection.
- *   - Track retries and operational failures.
- *   - Support refunds.
- *   - Preserve payment lifecycle timestamps.
- *   - Support multi-tenant operation.
+ * Important boundaries:
+ * - This model does not mutate balances.
+ * - This model does not create double-entry journal entries directly.
+ * - This model does not calculate accounting balances.
+ * - Provider authentication/signing verification belongs to the provider
+ *   integration service.
+ * - Webhook authorization and signature verification belong to the provider
+ *   adapter/service before this model is called.
+ * - Tenant authorization belongs to the service/repository layer.
+ * - Idempotency enforcement is supported here but request-level ownership,
+ *   replay policy, and response caching remain service responsibilities.
  *
- * IMPORTANT FINANCIAL DESIGN RULE:
+ * Security principles:
+ * - Native ESM only.
+ * - Monetary values use Decimal128.
+ * - No Number arithmetic is used for authoritative money comparisons.
+ * - Sensitive payment identifiers are excluded from normal serialization.
+ * - Raw IP/User-Agent/device identifiers are not persisted.
+ * - Provider event identity supports duplicate-event protection.
+ * - Tenant-scoped idempotency is enforced at the database level.
+ * - Generic mutation operations are blocked.
+ * - Lifecycle transitions are controlled.
+ * - Soft deletion does not erase financial history.
+ * - Optimistic concurrency is enabled.
  *
- *   This model represents a PAYMENT/EXTERNAL PAYMENT ATTEMPT.
+ * Module format:
+ * - Native ECMAScript Modules (ESM)
  *
- *   It MUST NOT be treated as the authoritative accounting ledger.
+ * Canonical financial flow:
  *
- *   Completed payments should ultimately be reflected in the TITech
- *   double-entry ledger through an atomic/idempotent financial service.
- *
- * =============================================================================
+ * Provider
+ *    ↓
+ * Provider Adapter / Webhook Verification
+ *    ↓
+ * Payment Service
+ *    ↓
+ * Payment
+ *    ↓
+ * FinancialTransactionService
+ *    ↓
+ * Double-Entry Ledger
  */
 
-const mongoose = require("mongoose");
+import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-/**
- * =============================================================================
+/* ==========================================================================
  * Constants
- * =============================================================================
- */
+ * ========================================================================== */
 
-const SUPPORTED_CURRENCIES = [
-  "UGX",
-  "XAF",
-  "EUR",
-  "USD",
-  "NGN",
-  "GHS",
-  "KES",
-  "TZS",
-  "RWF",
-  "ZAR",
-];
+export const SUPPORTED_CURRENCIES = Object.freeze([
+  'UGX',
+  'XAF',
+  'EUR',
+  'USD',
+  'NGN',
+  'GHS',
+  'KES',
+  'TZS',
+  'RWF',
+  'ZAR',
+]);
 
-const PAYMENT_PROVIDERS = [
-  "MTN_MOMO",
-  "AIRTEL_MONEY",
-  "STRIPE",
-  "PAYPAL",
-];
+export const PAYMENT_PROVIDERS = Object.freeze([
+  'MTN_MOMO',
+  'AIRTEL_MONEY',
+  'STRIPE',
+  'PAYPAL',
+]);
 
-const PAYMENT_STATUSES = [
-  "PENDING",
-  "PROCESSING",
-  "COMPLETED",
-  "FAILED",
-  "CANCELLED",
-  "REFUNDED",
-];
+export const PAYMENT_STATUSES = Object.freeze([
+  'PENDING',
+  'PROCESSING',
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+  'PARTIALLY_REFUNDED',
+  'REFUNDED',
+]);
 
-const PAYMENT_METHODS = [
-  "MOBILE_MONEY",
-  "CARD",
-  "BANK_TRANSFER",
-  "WALLET",
-  "OTHER",
-];
+export const PAYMENT_METHODS = Object.freeze([
+  'MOBILE_MONEY',
+  'CARD',
+  'BANK_TRANSFER',
+  'WALLET',
+  'OTHER',
+]);
 
-const MAX_ERROR_MESSAGE_LENGTH = 1000;
-const MAX_ERROR_CODE_LENGTH = 128;
+export const RECONCILIATION_STATUSES = Object.freeze([
+  'NOT_REQUIRED',
+  'PENDING',
+  'MATCHED',
+  'MISMATCHED',
+  'RESOLVED',
+]);
+
+export const LEDGER_POSTING_STATUSES = Object.freeze([
+  'NOT_POSTED',
+  'PENDING',
+  'POSTED',
+  'FAILED',
+]);
+
+const MAX_TRANSACTION_ID_LENGTH = 128;
 const MAX_PROVIDER_REFERENCE_LENGTH = 256;
+const MAX_PROVIDER_EVENT_ID_LENGTH = 256;
 const MAX_PROVIDER_STATUS_LENGTH = 128;
 const MAX_IDEMPOTENCY_KEY_LENGTH = 256;
 const MAX_PHONE_LENGTH = 32;
-const MAX_USER_AGENT_LENGTH = 1024;
-const MAX_IP_LENGTH = 64;
+const MAX_ERROR_MESSAGE_LENGTH = 1_000;
+const MAX_ERROR_CODE_LENGTH = 128;
+const MAX_REASON_LENGTH = 1_000;
+const MAX_NOTE_LENGTH = 2_000;
+const MAX_CHANNEL_LENGTH = 64;
+const MAX_SOURCE_LENGTH = 128;
+const MAX_FINGERPRINT_LENGTH = 256;
+const MAX_APP_VERSION_LENGTH = 64;
+const MAX_METADATA_KEYS = 50;
+const MAX_METADATA_DEPTH = 4;
+const MAX_METADATA_ARRAY_LENGTH = 50;
+
+const SENSITIVE_KEY_FRAGMENTS = Object.freeze([
+  'password',
+  'passwd',
+  'passcode',
+  'pin',
+  'otp',
+  'totp',
+  'secret',
+  'access_token',
+  'accesstoken',
+  'refresh_token',
+  'refreshtoken',
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'private_key',
+  'privatekey',
+  'api_key',
+  'apikey',
+  'cvv',
+  'pan',
+]);
+
+const PAYMENT_STATUS_TRANSITIONS = Object.freeze({
+  PENDING: new Set([
+    'PROCESSING',
+    'COMPLETED',
+    'FAILED',
+    'CANCELLED',
+  ]),
+
+  PROCESSING: new Set([
+    'COMPLETED',
+    'FAILED',
+    'CANCELLED',
+  ]),
+
+  COMPLETED: new Set([
+    'PARTIALLY_REFUNDED',
+    'REFUNDED',
+  ]),
+
+  PARTIALLY_REFUNDED: new Set([
+    'PARTIALLY_REFUNDED',
+    'REFUNDED',
+  ]),
+
+  FAILED: new Set([]),
+
+  CANCELLED: new Set([]),
+
+  REFUNDED: new Set([]),
+});
+
+/* ==========================================================================
+ * Decimal helpers
+ * ========================================================================== */
 
 /**
- * =============================================================================
- * Reusable Sub-Schemas
- * =============================================================================
- */
-
-/**
- * Payment error information.
+ * Convert a Decimal128-like value into a canonical decimal string.
  *
- * Never place secrets, access tokens, passwords, CVV values, PINs or complete
- * payment credentials inside this object.
+ * No JavaScript Number conversion is used for financial values.
  */
-const PaymentErrorSchema = new Schema(
-  {
-    code: {
-      type: String,
-      trim: true,
-      maxlength: MAX_ERROR_CODE_LENGTH,
-      default: null,
-    },
-
-    message: {
-      type: String,
-      trim: true,
-      maxlength: MAX_ERROR_MESSAGE_LENGTH,
-      default: null,
-    },
-
-    details: {
-      type: Schema.Types.Mixed,
-      default: undefined,
-    },
-
-    timestamp: {
-      type: Date,
-      default: Date.now,
-    },
-  },
-  {
-    _id: false,
-    id: false,
+function decimalToString(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
   }
-);
+
+  if (
+    value instanceof mongoose.Types.Decimal128
+  ) {
+    return value.toString();
+  }
+
+  return String(value).trim();
+}
 
 /**
- * Operational metadata.
+ * Normalize a Decimal128 value using MongoDB Decimal128.
+ */
+function toDecimal128(value, fieldName) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  const stringValue = decimalToString(value);
+
+  if (!stringValue) {
+    throw new TypeError(
+      `${fieldName} cannot be empty.`,
+    );
+  }
+
+  try {
+    return mongoose.Types.Decimal128.fromString(
+      stringValue,
+    );
+  } catch {
+    throw new TypeError(
+      `${fieldName} must be a valid decimal amount.`,
+    );
+  }
+}
+
+/**
+ * Exact non-negative decimal comparison using Decimal128 values.
  *
- * Keep this intentionally non-financial and non-secret.
+ * MongoDB Decimal128 comparison is delegated to the BSON decimal
+ * representation rather than JavaScript floating-point arithmetic.
  */
-const PaymentMetadataSchema = new Schema(
-  {
-    description: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: null,
-    },
+function compareDecimals(left, right) {
+  const leftDecimal =
+    toDecimal128(left, 'left');
 
-    paymentMethod: {
-      type: String,
-      enum: PAYMENT_METHODS,
-      default: null,
-    },
+  const rightDecimal =
+    toDecimal128(right, 'right');
 
-    deviceId: {
-      type: String,
-      trim: true,
-      maxlength: 256,
-      default: null,
-    },
-
-    ipAddress: {
-      type: String,
-      trim: true,
-      maxlength: MAX_IP_LENGTH,
-      default: null,
-    },
-
-    userAgent: {
-      type: String,
-      trim: true,
-      maxlength: MAX_USER_AGENT_LENGTH,
-      default: null,
-    },
-
-    channel: {
-      type: String,
-      trim: true,
-      maxlength: 64,
-      default: null,
-    },
-
-    source: {
-      type: String,
-      trim: true,
-      maxlength: 128,
-      default: null,
-    },
-  },
-  {
-    _id: false,
-    id: false,
+  if (!leftDecimal || !rightDecimal) {
+    throw new TypeError(
+      'Both decimal values are required.',
+    );
   }
-);
 
-/**
- * =============================================================================
- * Payment Schema
- * =============================================================================
- */
+  return leftDecimal.compare(
+    rightDecimal,
+  );
+}
 
-const paymentSchema = new Schema(
-  {
-    /**
-     * -------------------------------------------------------------------------
-     * Tenant
-     * -------------------------------------------------------------------------
-     *
-     * TITech is designed as a multi-tenant platform.
-     *
-     * This field should correspond to the tenant owning the financial
-     * transaction.
-     */
+function isPositiveDecimal(value) {
+  try {
+    const decimal =
+      toDecimal128(value, 'amount');
 
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: "Tenant",
-      required: true,
-      immutable: true,
-      index: true,
-    },
+    return compareDecimals(
+      decimal,
+      mongoose.Types.Decimal128.fromString(
+        '0',
+      ),
+    ) > 0;
+  } catch {
+    return false;
+  }
+}
 
-    /**
-     * -------------------------------------------------------------------------
-     * TITech Internal Transaction Identity
-     * -------------------------------------------------------------------------
-     *
-     * This is the canonical internal payment transaction identifier.
-     *
-     * It should NOT be replaced by a provider transaction/reference.
-     */
+function isZeroOrPositiveDecimal(value) {
+  try {
+    const decimal =
+      toDecimal128(value, 'amount');
 
-    transactionId: {
-      type: String,
-      required: true,
-      unique: true,
-      immutable: true,
-      trim: true,
-      minlength: 8,
-      maxlength: 128,
-    },
+    return compareDecimals(
+      decimal,
+      mongoose.Types.Decimal128.fromString(
+        '0',
+      ),
+    ) >= 0;
+  } catch {
+    return false;
+  }
+}
 
-    /**
-     * -------------------------------------------------------------------------
-     * User / Financial Context
-     * -------------------------------------------------------------------------
-     */
+/* ==========================================================================
+ * General normalization helpers
+ * ========================================================================== */
 
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      immutable: true,
-      index: true,
-    },
+function normalizeRequiredString(
+  value,
+  fieldName,
+  maxLength,
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    throw new TypeError(
+      `${fieldName} is required.`,
+    );
+  }
 
-    groupId: {
-      type: Schema.Types.ObjectId,
-      ref: "Group",
-      default: null,
-      immutable: true,
-      index: true,
-    },
+  const normalized =
+    String(value).trim();
 
-    contributionId: {
-      type: Schema.Types.ObjectId,
-      ref: "Contribution",
-      default: null,
-      immutable: true,
-      index: true,
-    },
+  if (!normalized) {
+    throw new TypeError(
+      `${fieldName} is required.`,
+    );
+  }
 
-    loanId: {
-      type: Schema.Types.ObjectId,
-      ref: "Loan",
-      default: null,
-      immutable: true,
-      index: true,
-    },
+  if (
+    normalized.length > maxLength
+  ) {
+    throw new RangeError(
+      `${fieldName} exceeds the maximum length of ${maxLength}.`,
+    );
+  }
 
-    /**
-     * -------------------------------------------------------------------------
-     * Financial Amount
-     * -------------------------------------------------------------------------
-     *
-     * WARNING:
-     *
-     * JavaScript Number is NOT ideal for authoritative monetary accounting.
-     *
-     * The authoritative ledger should use integer minor units / Decimal128.
-     *
-     * This model uses Decimal128 to avoid binary floating-point precision
-     * errors.
-     */
+  return normalized;
+}
 
-    amount: {
-      type: Schema.Types.Decimal128,
-      required: true,
-      validate: {
-        validator(value) {
-          if (value == null) return false;
+function normalizeNullableString(
+  value,
+  maxLength,
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return null;
+  }
 
-          return value.toString() !== "NaN" && Number(value.toString()) > 0;
-        },
-        message: "Payment amount must be greater than zero",
+  const normalized =
+    String(value).trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.slice(
+    0,
+    maxLength,
+  );
+}
+
+function normalizeObjectId(
+  value,
+  fieldName,
+) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ''
+  ) {
+    return null;
+  }
+
+  if (
+    !mongoose.isValidObjectId(value)
+  ) {
+    throw new TypeError(
+      `${fieldName} must be a valid ObjectId.`,
+    );
+  }
+
+  return new mongoose.Types.ObjectId(
+    value,
+  );
+}
+
+function normalizeDate(value) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return new Date();
+  }
+
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(value);
+
+  if (
+    Number.isNaN(date.getTime())
+  ) {
+    throw new TypeError(
+      'Invalid date.',
+    );
+  }
+
+  return date;
+}
+
+/* ==========================================================================
+ * Metadata sanitization
+ * ========================================================================== */
+
+function isSensitiveKey(key) {
+  const normalized =
+    String(key)
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]/g, '');
+
+  return SENSITIVE_KEY_FRAGMENTS.some(
+    (fragment) =>
+      normalized.includes(
+        fragment.replace(/[_-]/g, ''),
+      ),
+  );
+}
+
+function sanitizeMetadata(
+  value,
+  depth = 0,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return {};
+  }
+
+  if (
+    depth > MAX_METADATA_DEPTH
+  ) {
+    return '[TRUNCATED]';
+  }
+
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value;
+  }
+
+  if (
+    value instanceof Date
+  ) {
+    return value.toISOString();
+  }
+
+  if (
+    typeof value === 'bigint'
+  ) {
+    return value.toString();
+  }
+
+  if (
+    Buffer.isBuffer(value)
+  ) {
+    return '[BUFFER]';
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .slice(
+        0,
+        MAX_METADATA_ARRAY_LENGTH,
+      )
+      .map((item) =>
+        sanitizeMetadata(
+          item,
+          depth + 1,
+        ),
+      );
+  }
+
+  if (
+    typeof value === 'object'
+  ) {
+    const output = {};
+    const entries =
+      Object.entries(value).slice(
+        0,
+        MAX_METADATA_KEYS,
+      );
+
+    for (
+      const [key, childValue]
+        of entries
+    ) {
+      if (isSensitiveKey(key)) {
+        output[key] = '[REDACTED]';
+        continue;
+      }
+
+      output[key] =
+        sanitizeMetadata(
+          childValue,
+          depth + 1,
+        );
+    }
+
+    if (
+      Object.keys(value).length >
+      MAX_METADATA_KEYS
+    ) {
+      output._truncatedKeys = true;
+    }
+
+    return output;
+  }
+
+  return `[UNSERIALIZABLE:${typeof value}]`;
+}
+
+/* ==========================================================================
+ * Payment error schema
+ * ========================================================================== */
+
+const PaymentErrorSchema =
+  new Schema(
+    {
+      code: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_ERROR_CODE_LENGTH,
+      },
+
+      message: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_ERROR_MESSAGE_LENGTH,
+      },
+
+      details: {
+        type: Schema.Types.Mixed,
+        default: undefined,
+        select: false,
+      },
+
+      timestamp: {
+        type: Date,
+        default: Date.now,
       },
     },
-
-    currency: {
-      type: String,
-      enum: SUPPORTED_CURRENCIES,
-      required: true,
-      default: "UGX",
-      uppercase: true,
-      trim: true,
-      immutable: true,
-      index: true,
+    {
+      _id: false,
+      id: false,
+      strict: 'throw',
     },
+  );
 
-    /**
-     * -------------------------------------------------------------------------
-     * Provider
-     * -------------------------------------------------------------------------
-     */
+/* ==========================================================================
+ * Operational metadata schema
+ * ========================================================================== */
 
-    provider: {
-      type: String,
-      enum: PAYMENT_PROVIDERS,
-      required: true,
-      immutable: true,
-      index: true,
-    },
+const PaymentMetadataSchema =
+  new Schema(
+    {
+      description: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 500,
+      },
 
-    providerReference: {
-      type: String,
-      trim: true,
-      maxlength: MAX_PROVIDER_REFERENCE_LENGTH,
-      default: null,
-      index: true,
-    },
+      paymentMethod: {
+        type: String,
+        enum: PAYMENT_METHODS,
+        default: null,
+      },
 
-    providerStatus: {
-      type: String,
-      trim: true,
-      maxlength: MAX_PROVIDER_STATUS_LENGTH,
-      default: null,
-    },
+      deviceIdHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
 
-    /**
-     * Provider webhook/event identity.
-     *
-     * Used to prevent processing the same provider event multiple times.
-     */
-    providerEventId: {
-      type: String,
-      trim: true,
-      maxlength: 256,
-      default: null,
-      index: true,
-    },
+      ipAddressHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
 
-    /**
-     * -------------------------------------------------------------------------
-     * Payment Channel
-     * -------------------------------------------------------------------------
-     */
+      userAgentHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
 
-    paymentMethod: {
-      type: String,
-      enum: PAYMENT_METHODS,
-      default: "MOBILE_MONEY",
-      index: true,
-    },
+      channel: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_CHANNEL_LENGTH,
+      },
 
-    phoneNumber: {
-      type: String,
-      trim: true,
-      maxlength: MAX_PHONE_LENGTH,
-      default: null,
-      select: false,
-    },
+      source: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_SOURCE_LENGTH,
+      },
 
-    /**
-     * -------------------------------------------------------------------------
-     * Payment Lifecycle
-     * -------------------------------------------------------------------------
-     */
-
-    status: {
-      type: String,
-      enum: PAYMENT_STATUSES,
-      default: "PENDING",
-      required: true,
-      index: true,
-    },
-
-    initiatedAt: {
-      type: Date,
-      default: Date.now,
-      immutable: true,
-      index: true,
-    },
-
-    processingAt: {
-      type: Date,
-      default: null,
-    },
-
-    confirmedAt: {
-      type: Date,
-      default: null,
-    },
-
-    failedAt: {
-      type: Date,
-      default: null,
-    },
-
-    cancelledAt: {
-      type: Date,
-      default: null,
-    },
-
-    refundedAt: {
-      type: Date,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Refund
-     * -------------------------------------------------------------------------
-     */
-
-    refundAmount: {
-      type: Schema.Types.Decimal128,
-      default: null,
-      validate: {
-        validator(value) {
-          if (value == null) return true;
-
-          return Number(value.toString()) >= 0;
-        },
-        message: "Refund amount cannot be negative",
+      appVersion: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_APP_VERSION_LENGTH,
       },
     },
-
-    refundReason: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: null,
+    {
+      _id: false,
+      id: false,
+      strict: 'throw',
     },
+  );
 
-    providerRefundReference: {
-      type: String,
-      trim: true,
-      maxlength: MAX_PROVIDER_REFERENCE_LENGTH,
-      default: null,
+/* ==========================================================================
+ * Payment schema
+ * ========================================================================== */
+
+const PaymentSchema =
+  new Schema(
+    {
+      /*
+       * ----------------------------------------------------------------------
+       * Tenant
+       * ----------------------------------------------------------------------
+       */
+
+      tenantId: {
+        type: String,
+        required: true,
+        immutable: true,
+        trim: true,
+        maxlength: 128,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Internal payment identity
+       * ----------------------------------------------------------------------
+       */
+
+      transactionId: {
+        type: String,
+        required: true,
+        unique: true,
+        immutable: true,
+        trim: true,
+        minlength: 8,
+        maxlength:
+          MAX_TRANSACTION_ID_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Business context
+       * ----------------------------------------------------------------------
+       */
+
+      userId: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        immutable: true,
+        index: true,
+      },
+
+      groupId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Group',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      contributionId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Contribution',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      loanId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Loan',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Financial amount
+       * ----------------------------------------------------------------------
+       */
+
+      amount: {
+        type: Schema.Types.Decimal128,
+        required: true,
+      },
+
+      currency: {
+        type: String,
+        enum: SUPPORTED_CURRENCIES,
+        required: true,
+        default: 'UGX',
+        uppercase: true,
+        trim: true,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Provider
+       * ----------------------------------------------------------------------
+       */
+
+      provider: {
+        type: String,
+        enum: PAYMENT_PROVIDERS,
+        required: true,
+        immutable: true,
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      providerReference: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_REFERENCE_LENGTH,
+        index: true,
+      },
+
+      providerStatus: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_STATUS_LENGTH,
+      },
+
+      providerEventId: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_EVENT_ID_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Payment method
+       * ----------------------------------------------------------------------
+       */
+
+      paymentMethod: {
+        type: String,
+        enum: PAYMENT_METHODS,
+        default: 'MOBILE_MONEY',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      phoneNumber: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_PHONE_LENGTH,
+        select: false,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Lifecycle
+       * ----------------------------------------------------------------------
+       */
+
+      status: {
+        type: String,
+        enum: PAYMENT_STATUSES,
+        required: true,
+        default: 'PENDING',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      initiatedAt: {
+        type: Date,
+        default: Date.now,
+        immutable: true,
+        index: true,
+      },
+
+      processingAt: {
+        type: Date,
+        default: null,
+      },
+
+      confirmedAt: {
+        type: Date,
+        default: null,
+      },
+
+      failedAt: {
+        type: Date,
+        default: null,
+      },
+
+      cancelledAt: {
+        type: Date,
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Refund state
+       * ----------------------------------------------------------------------
+       */
+
+      refundAmount: {
+        type: Schema.Types.Decimal128,
+        default: null,
+      },
+
+      refundReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_REASON_LENGTH,
+      },
+
+      providerRefundReference: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_PROVIDER_REFERENCE_LENGTH,
+      },
+
+      refundedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Idempotency
+       * ----------------------------------------------------------------------
+       */
+
+      idempotencyKey: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength:
+          MAX_IDEMPOTENCY_KEY_LENGTH,
+        select: false,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Retry state
+       * ----------------------------------------------------------------------
+       */
+
+      retryCount: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+      },
+
+      lastRetryAt: {
+        type: Date,
+        default: null,
+      },
+
+      nextRetryAt: {
+        type: Date,
+        default: null,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Verification
+       * ----------------------------------------------------------------------
+       */
+
+      verificationTokenHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 256,
+        select: false,
+      },
+
+      verificationAttempts: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+      },
+
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Reconciliation
+       * ----------------------------------------------------------------------
+       */
+
+      reconciliationStatus: {
+        type: String,
+        enum: RECONCILIATION_STATUSES,
+        default: 'PENDING',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      lastReconciledAt: {
+        type: Date,
+        default: null,
+      },
+
+      reconciliationNote: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_NOTE_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Ledger integration
+       * ----------------------------------------------------------------------
+       */
+
+      ledgerEntryId: {
+        type: Schema.Types.ObjectId,
+        ref: 'LedgerEntry',
+        default: null,
+        index: true,
+      },
+
+      ledgerPostedAt: {
+        type: Date,
+        default: null,
+      },
+
+      ledgerPostingStatus: {
+        type: String,
+        enum: LEDGER_POSTING_STATUSES,
+        default: 'NOT_POSTED',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Operational metadata
+       * ----------------------------------------------------------------------
+       */
+
+      metadata: {
+        type: PaymentMetadataSchema,
+        default: () => ({}),
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Error
+       * ----------------------------------------------------------------------
+       */
+
+      error: {
+        type: PaymentErrorSchema,
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Soft-delete state
+       * ----------------------------------------------------------------------
+       */
+
+      isDeleted: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      deletedAt: {
+        type: Date,
+        default: null,
+      },
+
+      deleteReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_NOTE_LENGTH,
+      },
     },
+    {
+      timestamps: true,
 
-    /**
-     * -------------------------------------------------------------------------
-     * Idempotency
-     * -------------------------------------------------------------------------
-     *
-     * The combination of tenantId + idempotencyKey is the safe uniqueness
-     * boundary for multi-tenant APIs.
-     */
+      optimisticConcurrency: true,
 
-    idempotencyKey: {
-      type: String,
-      trim: true,
-      maxlength: MAX_IDEMPOTENCY_KEY_LENGTH,
-      default: null,
-      index: true,
-      select: false,
+      versionKey: '__v',
+
+      collection: 'payments',
+
+      minimize: true,
+
+      strict: 'throw',
+
+      toJSON: {
+        virtuals: true,
+        versionKey: false,
+
+        transform(doc, ret) {
+          ret.id =
+            ret._id.toString();
+
+          delete ret._id;
+          delete ret.__v;
+
+          delete ret.phoneNumber;
+          delete ret.idempotencyKey;
+          delete ret.verificationTokenHash;
+
+          if (ret.metadata) {
+            delete ret.metadata.ipAddressHash;
+            delete ret.metadata.userAgentHash;
+            delete ret.metadata.deviceIdHash;
+          }
+
+          if (ret.error) {
+            delete ret.error.details;
+          }
+
+          return ret;
+        },
+      },
+
+      toObject: {
+        virtuals: true,
+        versionKey: false,
+      },
     },
+  );
 
-    /**
-     * -------------------------------------------------------------------------
-     * Retry Management
-     * -------------------------------------------------------------------------
-     */
-
-    retryCount: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100,
-    },
-
-    lastRetryAt: {
-      type: Date,
-      default: null,
-    },
-
-    nextRetryAt: {
-      type: Date,
-      default: null,
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Security / Verification
-     * -------------------------------------------------------------------------
-     *
-     * Never store a plaintext verification secret here.
-     *
-     * verificationTokenHash should be populated instead of verificationToken.
-     */
-
-    verificationTokenHash: {
-      type: String,
-      trim: true,
-      maxlength: 256,
-      default: null,
-      select: false,
-    },
-
-    verificationAttempts: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100,
-    },
-
-    verifiedAt: {
-      type: Date,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Provider Reconciliation
-     * -------------------------------------------------------------------------
-     */
-
-    reconciliationStatus: {
-      type: String,
-      enum: [
-        "NOT_REQUIRED",
-        "PENDING",
-        "MATCHED",
-        "MISMATCHED",
-        "RESOLVED",
-      ],
-      default: "PENDING",
-      index: true,
-    },
-
-    lastReconciledAt: {
-      type: Date,
-      default: null,
-    },
-
-    reconciliationNote: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Ledger Integration
-     * -------------------------------------------------------------------------
-     *
-     * A payment should only be considered financially posted after the
-     * corresponding ledger operation succeeds.
-     */
-
-    ledgerEntryId: {
-      type: Schema.Types.ObjectId,
-      ref: "LedgerEntry",
-      default: null,
-      index: true,
-    },
-
-    ledgerPostedAt: {
-      type: Date,
-      default: null,
-    },
-
-    ledgerPostingStatus: {
-      type: String,
-      enum: [
-        "NOT_POSTED",
-        "PENDING",
-        "POSTED",
-        "FAILED",
-      ],
-      default: "NOT_POSTED",
-      index: true,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Metadata
-     * -------------------------------------------------------------------------
-     */
-
-    metadata: {
-      type: PaymentMetadataSchema,
-      default: () => ({}),
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Error
-     * -------------------------------------------------------------------------
-     */
-
-    error: {
-      type: PaymentErrorSchema,
-      default: null,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Encryption Marker
-     * -------------------------------------------------------------------------
-     *
-     * Prefer field-level encryption for sensitive fields rather than using a
-     * boolean marker as the security mechanism.
-     */
-
-    encrypted: {
-      type: Boolean,
-      default: false,
-    },
-
-    /**
-     * -------------------------------------------------------------------------
-     * Soft Delete
-     * -------------------------------------------------------------------------
-     *
-     * Financial records should generally NOT be physically deleted.
-     *
-     * Soft deletion exists primarily for administrative/data-lifecycle
-     * operations and must never erase accounting history.
-     */
-
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
-
-    deleteReason: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-
-    versionKey: false,
-
-    collection: "payments",
-
-    minimize: true,
-
-    strict: true,
-  }
-);
-
-/**
- * =============================================================================
+/* ==========================================================================
  * Indexes
- * =============================================================================
- */
+ * ========================================================================== */
 
-/**
- * User payment history.
- */
-paymentSchema.index({
+PaymentSchema.index({
   tenantId: 1,
   userId: 1,
   createdAt: -1,
+  _id: -1,
 });
 
-/**
- * Group payment history.
- */
-paymentSchema.index({
+PaymentSchema.index({
   tenantId: 1,
   groupId: 1,
   createdAt: -1,
+  _id: -1,
 });
 
-/**
- * Status monitoring / operational dashboards.
- */
-paymentSchema.index({
+PaymentSchema.index({
+  tenantId: 1,
+  contributionId: 1,
+  createdAt: -1,
+  _id: -1,
+});
+
+PaymentSchema.index({
+  tenantId: 1,
+  loanId: 1,
+  createdAt: -1,
+  _id: -1,
+});
+
+PaymentSchema.index({
   tenantId: 1,
   status: 1,
   createdAt: -1,
 });
 
-/**
- * Provider reconciliation.
- */
-paymentSchema.index({
+PaymentSchema.index({
+  tenantId: 1,
   provider: 1,
   providerReference: 1,
 });
 
 /**
- * Provider event deduplication.
+ * Provider events are unique within a provider + tenant boundary.
  *
- * Sparse uniqueness permits multiple payments without a providerEventId while
- * preventing the same provider event from being attached to multiple payments.
+ * Sparse semantics allow records without provider event IDs.
  */
-paymentSchema.index(
+PaymentSchema.index(
   {
+    tenantId: 1,
     provider: 1,
     providerEventId: 1,
   },
   {
     unique: true,
     sparse: true,
-    name: "uniq_provider_event",
-  }
+    name:
+      'uniq_tenant_provider_event',
+  },
 );
 
 /**
- * Tenant-scoped idempotency.
- *
- * IMPORTANT:
- * This replaces global uniqueness of idempotencyKey.
+ * Tenant-scoped API idempotency.
  */
-paymentSchema.index(
+PaymentSchema.index(
   {
     tenantId: 1,
     idempotencyKey: 1,
@@ -749,55 +1172,48 @@ paymentSchema.index(
   {
     unique: true,
     sparse: true,
-    name: "uniq_tenant_idempotency_key",
-  }
+    name:
+      'uniq_tenant_idempotency_key',
+  },
 );
 
-/**
- * Ledger posting operations.
- */
-paymentSchema.index({
+PaymentSchema.index({
+  tenantId: 1,
+  reconciliationStatus: 1,
+  createdAt: -1,
+});
+
+PaymentSchema.index({
   tenantId: 1,
   ledgerPostingStatus: 1,
   createdAt: -1,
 });
 
-/**
- * Retry worker queue.
- */
-paymentSchema.index({
+PaymentSchema.index({
+  tenantId: 1,
   status: 1,
   nextRetryAt: 1,
 });
 
-/**
- * Reconciliation queue.
- */
-paymentSchema.index({
-  reconciliationStatus: 1,
+PaymentSchema.index({
+  tenantId: 1,
+  provider: 1,
+  providerStatus: 1,
   createdAt: -1,
 });
 
-/**
- * Initiation-time reporting.
- */
-paymentSchema.index({
+PaymentSchema.index({
   tenantId: 1,
   initiatedAt: -1,
 });
 
-/**
- * =============================================================================
+/* ==========================================================================
  * Virtuals
- * =============================================================================
- */
+ * ========================================================================== */
 
-/**
- * Display amount.
- *
- * Decimal128 is converted to string instead of using Number arithmetic.
- */
-paymentSchema.virtual("displayAmount").get(function () {
+PaymentSchema.virtual(
+  'displayAmount',
+).get(function getDisplayAmount() {
   if (this.amount == null) {
     return null;
   }
@@ -805,524 +1221,1409 @@ paymentSchema.virtual("displayAmount").get(function () {
   return `${this.currency} ${this.amount.toString()}`;
 });
 
-/**
- * Determine whether this payment is financially completed.
- */
-paymentSchema.virtual("isCompleted").get(function () {
-  return this.status === "COMPLETED";
+PaymentSchema.virtual(
+  'isTerminal',
+).get(function getIsTerminal() {
+  return [
+    'FAILED',
+    'CANCELLED',
+    'REFUNDED',
+  ].includes(this.status);
 });
 
-/**
- * Determine whether a refund exists.
- */
-paymentSchema.virtual("isRefunded").get(function () {
+PaymentSchema.virtual(
+  'isFullyRefunded',
+).get(function getIsFullyRefunded() {
+  return this.status === 'REFUNDED';
+});
+
+PaymentSchema.virtual(
+  'isLedgerPosted',
+).get(function getIsLedgerPosted() {
   return (
-    this.status === "REFUNDED" ||
-    this.refundAmount != null
+    this.ledgerPostingStatus ===
+    'POSTED'
   );
 });
 
-/**
- * Determine whether ledger posting is complete.
- */
-paymentSchema.virtual("isLedgerPosted").get(function () {
-  return this.ledgerPostingStatus === "POSTED";
-});
+/* ==========================================================================
+ * Query helpers
+ * ========================================================================== */
 
-/**
- * =============================================================================
- * Query Helpers
- * =============================================================================
- */
-
-paymentSchema.query.active = function () {
-  return this.where({
-    isDeleted: false,
-  });
-};
-
-paymentSchema.query.pending = function () {
-  return this.where({
-    status: {
-      $in: ["PENDING", "PROCESSING"],
-    },
-    isDeleted: false,
-  });
-};
-
-paymentSchema.query.completed = function () {
-  return this.where({
-    status: "COMPLETED",
-    isDeleted: false,
-  });
-};
-
-paymentSchema.query.needingReconciliation = function () {
-  return this.where({
-    reconciliationStatus: {
-      $in: ["PENDING", "MISMATCHED"],
-    },
-    isDeleted: false,
-  });
-};
-
-paymentSchema.query.needingLedgerPosting = function () {
-  return this.where({
-    status: "COMPLETED",
-    ledgerPostingStatus: {
-      $in: ["NOT_POSTED", "FAILED"],
-    },
-    isDeleted: false,
-  });
-};
-
-/**
- * =============================================================================
- * Instance Methods
- * =============================================================================
- */
-
-/**
- * Determine whether payment is terminal.
- */
-paymentSchema.methods.isTerminal = function () {
-  return [
-    "COMPLETED",
-    "FAILED",
-    "CANCELLED",
-    "REFUNDED",
-  ].includes(this.status);
-};
-
-/**
- * Determine whether payment can be retried.
- */
-paymentSchema.methods.canRetry = function () {
-  return [
-    "PENDING",
-    "PROCESSING",
-    "FAILED",
-  ].includes(this.status);
-};
-
-/**
- * Mark payment as processing.
- */
-paymentSchema.methods.markProcessing = function () {
-  this.status = "PROCESSING";
-
-  if (!this.processingAt) {
-    this.processingAt = new Date();
-  }
-
-  return this.save();
-};
-
-/**
- * Mark payment as completed.
- */
-paymentSchema.methods.markCompleted = function () {
-  this.status = "COMPLETED";
-
-  if (!this.confirmedAt) {
-    this.confirmedAt = new Date();
-  }
-
-  this.failedAt = null;
-
-  return this.save();
-};
-
-/**
- * Mark payment as failed.
- */
-paymentSchema.methods.markFailed = function (error = {}) {
-  this.status = "FAILED";
-
-  this.failedAt = new Date();
-
-  this.error = {
-    code: error.code || null,
-    message: error.message || null,
-    details: error.details,
-    timestamp: new Date(),
+PaymentSchema.query.active =
+  function active() {
+    return this.where({
+      isDeleted: false,
+    });
   };
 
-  return this.save();
-};
-
-/**
- * Mark payment as cancelled.
- */
-paymentSchema.methods.markCancelled = function (reason = null) {
-  this.status = "CANCELLED";
-
-  this.cancelledAt = new Date();
-
-  if (reason) {
-    this.error = {
-      code: "PAYMENT_CANCELLED",
-      message: reason,
-      timestamp: new Date(),
-    };
-  }
-
-  return this.save();
-};
-
-/**
- * Mark payment as refunded.
- */
-paymentSchema.methods.markRefunded = function ({
-  refundAmount,
-  reason = null,
-  providerRefundReference = null,
-} = {}) {
-  if (refundAmount == null) {
-    throw new Error("Refund amount is required");
-  }
-
-  this.status = "REFUNDED";
-  this.refundedAt = new Date();
-  this.refundAmount = mongoose.Types.Decimal128.fromString(
-    String(refundAmount)
-  );
-  this.refundReason = reason;
-  this.providerRefundReference = providerRefundReference;
-
-  return this.save();
-};
-
-/**
- * Increment retry state.
- */
-paymentSchema.methods.registerRetry = function ({
-  nextRetryAt = null,
-} = {}) {
-  this.retryCount += 1;
-  this.lastRetryAt = new Date();
-  this.nextRetryAt = nextRetryAt;
-
-  return this.save();
-};
-
-/**
- * Mark payment as ledger-posted.
- */
-paymentSchema.methods.markLedgerPosted = function (ledgerEntryId) {
-  if (!ledgerEntryId) {
-    throw new Error("ledgerEntryId is required");
-  }
-
-  this.ledgerEntryId = ledgerEntryId;
-  this.ledgerPostedAt = new Date();
-  this.ledgerPostingStatus = "POSTED";
-
-  return this.save();
-};
-
-/**
- * Mark reconciliation as successful.
- */
-paymentSchema.methods.markReconciled = function () {
-  this.reconciliationStatus = "MATCHED";
-  this.lastReconciledAt = new Date();
-
-  return this.save();
-};
-
-/**
- * Soft-delete a payment.
- *
- * Financial records should normally be retained rather than deleted.
- */
-paymentSchema.methods.softDelete = function (reason = null) {
-  this.isDeleted = true;
-  this.deletedAt = new Date();
-  this.deleteReason = reason;
-
-  return this.save();
-};
-
-/**
- * =============================================================================
- * Static Methods
- * =============================================================================
- */
-
-/**
- * Find payment by internal transaction ID.
- */
-paymentSchema.statics.findByTransactionId = function (transactionId) {
-  return this.findOne({
-    transactionId,
-    isDeleted: false,
-  });
-};
-
-/**
- * Find payment using tenant-scoped idempotency.
- */
-paymentSchema.statics.findByIdempotencyKey = function (
-  tenantId,
-  idempotencyKey
-) {
-  if (!tenantId || !idempotencyKey) {
-    return null;
-  }
-
-  return this.findOne({
-    tenantId,
-    idempotencyKey,
-    isDeleted: false,
-  }).select("+idempotencyKey");
-};
-
-/**
- * Find by provider reference.
- */
-paymentSchema.statics.findByProviderReference = function (
-  provider,
-  providerReference
-) {
-  if (!provider || !providerReference) {
-    return null;
-  }
-
-  return this.findOne({
-    provider,
-    providerReference,
-    isDeleted: false,
-  });
-};
-
-/**
- * Find by provider webhook/event ID.
- */
-paymentSchema.statics.findByProviderEventId = function (
-  provider,
-  providerEventId
-) {
-  if (!provider || !providerEventId) {
-    return null;
-  }
-
-  return this.findOne({
-    provider,
-    providerEventId,
-    isDeleted: false,
-  });
-};
-
-/**
- * Atomically transition payment to completed.
- *
- * The service layer should additionally perform the corresponding ledger
- * operation using the same transaction/outbox architecture where supported.
- */
-paymentSchema.statics.completeAtomically = function (
-  paymentId,
-  {
-    providerReference = null,
-    providerStatus = null,
-    providerEventId = null,
-  } = {},
-  options = {}
-) {
-  const now = new Date();
-
-  const update = {
-    $set: {
-      status: "COMPLETED",
-      confirmedAt: now,
-      providerReference,
-      providerStatus,
-    },
-    $unset: {
-      failedAt: 1,
-    },
+PaymentSchema.query.pending =
+  function pending() {
+    return this.where({
+      status: {
+        $in: [
+          'PENDING',
+          'PROCESSING',
+        ],
+      },
+      isDeleted: false,
+    });
   };
 
-  if (providerEventId) {
-    update.$set.providerEventId = providerEventId;
-  }
-
-  const query = {
-    _id: paymentId,
-    status: {
-      $in: ["PENDING", "PROCESSING"],
-    },
-    isDeleted: false,
+PaymentSchema.query.completed =
+  function completed() {
+    return this.where({
+      status: 'COMPLETED',
+      isDeleted: false,
+    });
   };
 
-  return this.findOneAndUpdate(
-    query,
-    update,
-    {
-      new: true,
-      session: options.session,
-    }
-  );
-};
+PaymentSchema.query.awaitingLedgerPosting =
+  function awaitingLedgerPosting() {
+    return this.where({
+      status: {
+        $in: [
+          'COMPLETED',
+          'PARTIALLY_REFUNDED',
+        ],
+      },
+      ledgerPostingStatus: {
+        $in: [
+          'NOT_POSTED',
+          'PENDING',
+          'FAILED',
+        ],
+      },
+      isDeleted: false,
+    });
+  };
 
-/**
- * Atomically register a provider event.
- */
-paymentSchema.statics.registerProviderEvent = function (
-  paymentId,
-  providerEventId,
-  options = {}
-) {
-  if (!paymentId || !providerEventId) {
-    throw new Error(
-      "paymentId and providerEventId are required"
-    );
-  }
+PaymentSchema.query.needingReconciliation =
+  function needingReconciliation() {
+    return this.where({
+      reconciliationStatus: {
+        $in: [
+          'PENDING',
+          'MISMATCHED',
+        ],
+      },
+      isDeleted: false,
+    });
+  };
 
-  return this.findOneAndUpdate(
-    {
-      _id: paymentId,
+PaymentSchema.query.retryable =
+  function retryable() {
+    return this.where({
+      status: {
+        $in: [
+          'PENDING',
+          'PROCESSING',
+          'FAILED',
+        ],
+      },
       isDeleted: false,
       $or: [
         {
-          providerEventId: null,
+          nextRetryAt: null,
         },
         {
-          providerEventId: {
-            $exists: false,
+          nextRetryAt: {
+            $lte: new Date(),
           },
         },
       ],
-    },
-    {
-      $set: {
-        providerEventId,
-      },
-    },
-    {
-      new: true,
-      session: options.session,
-    }
-  );
-};
+    });
+  };
 
-/**
- * =============================================================================
- * Lifecycle Validation
- * =============================================================================
- */
+/* ==========================================================================
+ * Instance lifecycle methods
+ * ========================================================================== */
 
-paymentSchema.pre("validate", function (next) {
-  /**
-   * Completed payments require confirmation time.
-   */
-  if (this.status === "COMPLETED" && !this.confirmedAt) {
-    this.confirmedAt = new Date();
-  }
-
-  /**
-   * Failed payments require failedAt.
-   */
-  if (this.status === "FAILED" && !this.failedAt) {
-    this.failedAt = new Date();
-  }
-
-  /**
-   * Cancelled payments require cancelledAt.
-   */
-  if (this.status === "CANCELLED" && !this.cancelledAt) {
-    this.cancelledAt = new Date();
-  }
-
-  /**
-   * Refunded payments require refundedAt.
-   */
-  if (this.status === "REFUNDED" && !this.refundedAt) {
-    this.refundedAt = new Date();
-  }
-
-  /**
-   * A completed payment should not retain a failed timestamp.
-   */
-  if (this.status === "COMPLETED") {
-    this.failedAt = null;
-  }
-
-  /**
-   * Refund cannot exceed payment amount.
-   */
-  if (
-    this.refundAmount != null &&
-    this.amount != null
+PaymentSchema.methods.canTransitionTo =
+  function canTransitionTo(
+    targetStatus,
   ) {
-    const refund = Number(this.refundAmount.toString());
-    const amount = Number(this.amount.toString());
+    const target =
+      String(targetStatus)
+        .trim()
+        .toUpperCase();
 
-    if (refund > amount) {
-      this.invalidate(
-        "refundAmount",
-        "Refund amount cannot exceed payment amount"
+    return (
+      PAYMENT_STATUS_TRANSITIONS[
+        this.status
+      ]?.has(target) ?? false
+    );
+  };
+
+PaymentSchema.methods.isTerminal =
+  function isTerminal() {
+    return [
+      'FAILED',
+      'CANCELLED',
+      'REFUNDED',
+    ].includes(this.status);
+  };
+
+PaymentSchema.methods.canRetry =
+  function canRetry() {
+    return [
+      'PENDING',
+      'PROCESSING',
+      'FAILED',
+    ].includes(this.status);
+  };
+
+PaymentSchema.methods.markProcessing =
+  async function markProcessing() {
+    if (
+      !this.canTransitionTo(
+        'PROCESSING',
+      )
+    ) {
+      throw new Error(
+        `Payment cannot transition from ${this.status} to PROCESSING.`,
       );
     }
-  }
 
-  /**
-   * Ledger-posted status requires ledger identity.
-   */
-  if (
-    this.ledgerPostingStatus === "POSTED" &&
-    !this.ledgerEntryId
+    this.status = 'PROCESSING';
+
+    this.processingAt ??=
+      new Date();
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.markCompleted =
+  async function markCompleted({
+    providerReference = null,
+    providerStatus = null,
+    providerEventId = null,
+  } = {}) {
+    if (
+      !this.canTransitionTo(
+        'COMPLETED',
+      )
+    ) {
+      if (
+        this.status ===
+          'COMPLETED' ||
+        this.status ===
+          'PARTIALLY_REFUNDED' ||
+        this.status ===
+          'REFUNDED'
+      ) {
+        return this;
+      }
+
+      throw new Error(
+        `Payment cannot transition from ${this.status} to COMPLETED.`,
+      );
+    }
+
+    const now = new Date();
+
+    this.status = 'COMPLETED';
+    this.confirmedAt ??= now;
+
+    this.providerReference =
+      normalizeNullableString(
+        providerReference,
+        MAX_PROVIDER_REFERENCE_LENGTH,
+      );
+
+    this.providerStatus =
+      normalizeNullableString(
+        providerStatus,
+        MAX_PROVIDER_STATUS_LENGTH,
+      );
+
+    this.providerEventId =
+      normalizeNullableString(
+        providerEventId,
+        MAX_PROVIDER_EVENT_ID_LENGTH,
+      );
+
+    this.failedAt = null;
+    this.cancelledAt = null;
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.markFailed =
+  async function markFailed({
+    code = null,
+    message = null,
+    details = undefined,
+  } = {}) {
+    if (
+      !this.canTransitionTo(
+        'FAILED',
+      )
+    ) {
+      throw new Error(
+        `Payment cannot transition from ${this.status} to FAILED.`,
+      );
+    }
+
+    const now = new Date();
+
+    this.status = 'FAILED';
+    this.failedAt = now;
+
+    this.error = {
+      code:
+        normalizeNullableString(
+          code,
+          MAX_ERROR_CODE_LENGTH,
+        ),
+
+      message:
+        normalizeNullableString(
+          message,
+          MAX_ERROR_MESSAGE_LENGTH,
+        ),
+
+      details:
+        details === undefined
+          ? undefined
+          : sanitizeMetadata(
+              details,
+            ),
+
+      timestamp: now,
+    };
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.markCancelled =
+  async function markCancelled(
+    reason = null,
   ) {
-    this.invalidate(
-      "ledgerEntryId",
-      "ledgerEntryId is required when ledgerPostingStatus is POSTED"
-    );
-  }
+    if (
+      !this.canTransitionTo(
+        'CANCELLED',
+      )
+    ) {
+      throw new Error(
+        `Payment cannot transition from ${this.status} to CANCELLED.`,
+      );
+    }
 
-  next();
-});
+    this.status = 'CANCELLED';
+    this.cancelledAt =
+      new Date();
+
+    if (reason) {
+      this.error = {
+        code: 'PAYMENT_CANCELLED',
+        message:
+          normalizeNullableString(
+            reason,
+            MAX_REASON_LENGTH,
+          ),
+        timestamp:
+          new Date(),
+      };
+    }
+
+    await this.save();
+
+    return this;
+  };
 
 /**
- * =============================================================================
- * Soft Delete Query Protection
- * ============================================================================= */
+ * Apply a refund.
+ *
+ * Partial refund:
+ *   COMPLETED -> PARTIALLY_REFUNDED
+ *
+ * Full refund:
+ *   COMPLETED/PARTIALLY_REFUNDED -> REFUNDED
+ *
+ * Multiple partial refunds are expected to be orchestrated by the payment
+ * service/refund aggregate. This method protects the single Payment document
+ * from exceeding the original payment amount.
+ */
+PaymentSchema.methods.applyRefund =
+  async function applyRefund({
+    refundAmount,
+    reason = null,
+    providerRefundReference = null,
+  } = {}) {
+    const refund =
+      toDecimal128(
+        refundAmount,
+        'refundAmount',
+      );
 
-paymentSchema.pre(/^find/, function (next) {
-  const options = this.getOptions();
+    if (
+      !isPositiveDecimal(refund)
+    ) {
+      throw new Error(
+        'Refund amount must be greater than zero.',
+      );
+    }
 
-  if (!options.includeDeleted) {
-    this.where({
+    if (
+      ![
+        'COMPLETED',
+        'PARTIALLY_REFUNDED',
+      ].includes(this.status)
+    ) {
+      throw new Error(
+        `Payment cannot be refunded from ${this.status}.`,
+      );
+    }
+
+    const previousRefund =
+      this.refundAmount ??
+      mongoose.Types.Decimal128.fromString(
+        '0',
+      );
+
+    const cumulativeRefund =
+      mongoose.Types.Decimal128.fromString(
+        previousRefund.toString(),
+      );
+
+    /**
+     * Decimal128 itself does not expose a portable add method in all
+     * environments, so cumulative arithmetic should be handled by the
+     * financial service/Decimal library at higher level. For a single
+     * Payment record, this method therefore accepts only the total cumulative
+     * refund amount.
+     */
+    if (
+      compareDecimals(
+        refund,
+        this.amount,
+      ) > 0
+    ) {
+      throw new Error(
+        'Refund amount cannot exceed payment amount.',
+      );
+    }
+
+    this.refundAmount = refund;
+    this.refundReason =
+      normalizeNullableString(
+        reason,
+        MAX_REASON_LENGTH,
+      );
+
+    this.providerRefundReference =
+      normalizeNullableString(
+        providerRefundReference,
+        MAX_PROVIDER_REFERENCE_LENGTH,
+      );
+
+    this.refundedAt =
+      new Date();
+
+    this.status =
+      compareDecimals(
+        refund,
+        this.amount,
+      ) === 0
+        ? 'REFUNDED'
+        : 'PARTIALLY_REFUNDED';
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.registerRetry =
+  async function registerRetry({
+    nextRetryAt = null,
+  } = {}) {
+    if (!this.canRetry()) {
+      throw new Error(
+        `Payment ${this.transactionId} cannot be retried from ${this.status}.`,
+      );
+    }
+
+    this.retryCount += 1;
+    this.lastRetryAt =
+      new Date();
+
+    this.nextRetryAt =
+      nextRetryAt
+        ? normalizeDate(
+            nextRetryAt,
+          )
+        : null;
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.markLedgerPending =
+  async function markLedgerPending() {
+    if (
+      ![
+        'COMPLETED',
+        'PARTIALLY_REFUNDED',
+        'REFUNDED',
+      ].includes(this.status)
+    ) {
+      throw new Error(
+        'Only completed/refunded payments can enter ledger posting.',
+      );
+    }
+
+    this.ledgerPostingStatus =
+      'PENDING';
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.markLedgerPosted =
+  async function markLedgerPosted(
+    ledgerEntryId,
+  ) {
+    const normalizedLedgerEntryId =
+      normalizeObjectId(
+        ledgerEntryId,
+        'ledgerEntryId',
+      );
+
+    if (
+      ![
+        'COMPLETED',
+        'PARTIALLY_REFUNDED',
+        'REFUNDED',
+      ].includes(this.status)
+    ) {
+      throw new Error(
+        'Only financially completed payments can be posted to the ledger.',
+      );
+    }
+
+    this.ledgerEntryId =
+      normalizedLedgerEntryId;
+
+    this.ledgerPostedAt =
+      new Date();
+
+    this.ledgerPostingStatus =
+      'POSTED';
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.markLedgerPostingFailed =
+  async function markLedgerPostingFailed(
+    reason = null,
+  ) {
+    this.ledgerPostingStatus =
+      'FAILED';
+
+    this.error = {
+      code: 'LEDGER_POSTING_FAILED',
+      message:
+        normalizeNullableString(
+          reason,
+          MAX_ERROR_MESSAGE_LENGTH,
+        ),
+      timestamp: new Date(),
+    };
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.markReconciled =
+  async function markReconciled({
+    status = 'MATCHED',
+    note = null,
+  } = {}) {
+    const normalizedStatus =
+      String(status)
+        .trim()
+        .toUpperCase();
+
+    if (
+      !RECONCILIATION_STATUSES.includes(
+        normalizedStatus,
+      )
+    ) {
+      throw new TypeError(
+        `Unsupported reconciliation status: ${normalizedStatus}.`,
+      );
+    }
+
+    this.reconciliationStatus =
+      normalizedStatus;
+
+    this.lastReconciledAt =
+      new Date();
+
+    this.reconciliationNote =
+      normalizeNullableString(
+        note,
+        MAX_NOTE_LENGTH,
+      );
+
+    await this.save();
+
+    return this;
+  };
+
+PaymentSchema.methods.softDelete =
+  async function softDelete(
+    reason = null,
+  ) {
+    if (
+      this.isDeleted
+    ) {
+      return this;
+    }
+
+    /**
+     * Financial payment records must not be hidden while unresolved financial
+     * lifecycle work remains.
+     */
+    if (
+      this.ledgerPostingStatus ===
+        'PENDING' ||
+      this.reconciliationStatus ===
+        'PENDING'
+    ) {
+      throw new Error(
+        'A payment with pending ledger or reconciliation work cannot be soft-deleted.',
+      );
+    }
+
+    this.isDeleted = true;
+    this.deletedAt =
+      new Date();
+
+    this.deleteReason =
+      normalizeNullableString(
+        reason,
+        MAX_NOTE_LENGTH,
+      );
+
+    await this.save();
+
+    return this;
+  };
+
+/* ==========================================================================
+ * Static lookup methods
+ * ========================================================================== */
+
+PaymentSchema.statics.findByTransactionId =
+  function findByTransactionId(
+    transactionId,
+    {
+      tenantId = undefined,
+    } = {},
+  ) {
+    const filter = {
+      transactionId:
+        normalizeRequiredString(
+          transactionId,
+          'transactionId',
+          MAX_TRANSACTION_ID_LENGTH,
+        ),
+      isDeleted: false,
+    };
+
+    if (
+      tenantId !== undefined &&
+      tenantId !== null
+    ) {
+      filter.tenantId =
+        normalizeRequiredString(
+          tenantId,
+          'tenantId',
+          128,
+        );
+    }
+
+    return this.findOne(
+      filter,
+    );
+  };
+
+PaymentSchema.statics.findByIdempotencyKey =
+  function findByIdempotencyKey(
+    tenantId,
+    idempotencyKey,
+  ) {
+    if (
+      !tenantId ||
+      !idempotencyKey
+    ) {
+      return null;
+    }
+
+    return this.findOne({
+      tenantId: String(
+        tenantId,
+      ).trim(),
+
+      idempotencyKey:
+        String(
+          idempotencyKey,
+        ).trim(),
+
+      isDeleted: false,
+    }).select(
+      '+idempotencyKey',
+    );
+  };
+
+PaymentSchema.statics.findByProviderReference =
+  function findByProviderReference(
+    tenantId,
+    provider,
+    providerReference,
+  ) {
+    if (
+      !tenantId ||
+      !provider ||
+      !providerReference
+    ) {
+      return null;
+    }
+
+    return this.findOne({
+      tenantId,
+      provider,
+      providerReference,
       isDeleted: false,
     });
-  }
+  };
 
-  next();
-});
+PaymentSchema.statics.findByProviderEventId =
+  function findByProviderEventId(
+    tenantId,
+    provider,
+    providerEventId,
+  ) {
+    if (
+      !tenantId ||
+      !provider ||
+      !providerEventId
+    ) {
+      return null;
+    }
+
+    return this.findOne({
+      tenantId,
+      provider,
+      providerEventId,
+      isDeleted: false,
+    });
+  };
+
+/* ==========================================================================
+ * Atomic payment transitions
+ * ========================================================================== */
 
 /**
- * =============================================================================
- * JSON Serialization Protection
- * =============================================================================
+ * Atomically complete a payment.
  *
- * Sensitive operational fields are deliberately removed.
+ * Existing completed/refunded states are not downgraded.
  */
+PaymentSchema.statics.completeAtomically =
+  async function completeAtomically(
+    {
+      paymentId,
+      tenantId,
+      providerReference = null,
+      providerStatus = null,
+      providerEventId = null,
+    } = {},
+    {
+      session = undefined,
+    } = {},
+  ) {
+    const normalizedPaymentId =
+      normalizeObjectId(
+        paymentId,
+        'paymentId',
+      );
 
-paymentSchema.methods.toJSON = function () {
-  const obj = this.toObject();
+    const normalizedTenantId =
+      normalizeRequiredString(
+        tenantId,
+        'tenantId',
+        128,
+      );
 
-  delete obj.idempotencyKey;
-  delete obj.verificationTokenHash;
-  delete obj.phoneNumber;
+    const now = new Date();
 
-  return obj;
-};
+    const filter = {
+      _id: normalizedPaymentId,
+      tenantId:
+        normalizedTenantId,
+      status: {
+        $in: [
+          'PENDING',
+          'PROCESSING',
+        ],
+      },
+      isDeleted: false,
+    };
+
+    const update = {
+      $set: {
+        status: 'COMPLETED',
+        confirmedAt: now,
+        failedAt: null,
+        cancelledAt: null,
+
+        providerReference:
+          normalizeNullableString(
+            providerReference,
+            MAX_PROVIDER_REFERENCE_LENGTH,
+          ),
+
+        providerStatus:
+          normalizeNullableString(
+            providerStatus,
+            MAX_PROVIDER_STATUS_LENGTH,
+          ),
+      },
+    };
+
+    if (providerEventId) {
+      update.$set.providerEventId =
+        normalizeNullableString(
+          providerEventId,
+          MAX_PROVIDER_EVENT_ID_LENGTH,
+        );
+    }
+
+    const options = {
+      new: true,
+      runValidators: true,
+      allowPaymentMutation: true,
+    };
+
+    if (session) {
+      options.session = session;
+    }
+
+    return this.findOneAndUpdate(
+      filter,
+      update,
+      options,
+    ).exec();
+  };
 
 /**
- * =============================================================================
- * Model Export
- * =============================================================================
+ * Atomically claim/register a provider event.
+ *
+ * Returns the payment document only when the event association succeeds.
  */
+PaymentSchema.statics.registerProviderEvent =
+  async function registerProviderEvent(
+    {
+      paymentId,
+      tenantId,
+      provider,
+      providerEventId,
+    } = {},
+    {
+      session = undefined,
+    } = {},
+  ) {
+    const normalizedPaymentId =
+      normalizeObjectId(
+        paymentId,
+        'paymentId',
+      );
 
-module.exports =
+    const normalizedTenantId =
+      normalizeRequiredString(
+        tenantId,
+        'tenantId',
+        128,
+      );
+
+    const normalizedProvider =
+      String(
+        provider ?? '',
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      !PAYMENT_PROVIDERS.includes(
+        normalizedProvider,
+      )
+    ) {
+      throw new TypeError(
+        `Unsupported payment provider: ${normalizedProvider}.`,
+      );
+    }
+
+    const normalizedEventId =
+      normalizeRequiredString(
+        providerEventId,
+        'providerEventId',
+        MAX_PROVIDER_EVENT_ID_LENGTH,
+      );
+
+    const options = {
+      new: true,
+      runValidators: true,
+      allowPaymentMutation: true,
+    };
+
+    if (session) {
+      options.session = session;
+    }
+
+    return this.findOneAndUpdate(
+      {
+        _id: normalizedPaymentId,
+        tenantId:
+          normalizedTenantId,
+        provider:
+          normalizedProvider,
+        isDeleted: false,
+        $or: [
+          {
+            providerEventId: null,
+          },
+          {
+            providerEventId: {
+              $exists: false,
+            },
+          },
+        ],
+      },
+      {
+        $set: {
+          providerEventId:
+            normalizedEventId,
+        },
+      },
+      options,
+    ).exec();
+  };
+
+/**
+ * Atomically mark ledger posting as pending.
+ */
+PaymentSchema.statics.markLedgerPendingAtomically =
+  function markLedgerPendingAtomically(
+    {
+      paymentId,
+      tenantId,
+    } = {},
+    {
+      session = undefined,
+    } = {},
+  ) {
+    const filter = {
+      _id: normalizeObjectId(
+        paymentId,
+        'paymentId',
+      ),
+
+      tenantId:
+        normalizeRequiredString(
+          tenantId,
+          'tenantId',
+          128,
+        ),
+
+      status: {
+        $in: [
+          'COMPLETED',
+          'PARTIALLY_REFUNDED',
+          'REFUNDED',
+        ],
+      },
+
+      ledgerPostingStatus: {
+        $in: [
+          'NOT_POSTED',
+          'FAILED',
+        ],
+      },
+
+      isDeleted: false,
+    };
+
+    const options = {
+      new: true,
+      runValidators: true,
+      allowPaymentMutation: true,
+    };
+
+    if (session) {
+      options.session = session;
+    }
+
+    return this.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          ledgerPostingStatus:
+            'PENDING',
+        },
+      },
+      options,
+    ).exec();
+  };
+
+/**
+ * Atomically mark reconciliation state.
+ */
+PaymentSchema.statics.markReconciliationStatusAtomically =
+  function markReconciliationStatusAtomically(
+    {
+      paymentId,
+      tenantId,
+      status,
+      note = null,
+    } = {},
+    {
+      session = undefined,
+    } = {},
+  ) {
+    const normalizedStatus =
+      String(
+        status ?? '',
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      !RECONCILIATION_STATUSES.includes(
+        normalizedStatus,
+      )
+    ) {
+      throw new TypeError(
+        `Unsupported reconciliation status: ${normalizedStatus}.`,
+      );
+    }
+
+    const options = {
+      new: true,
+      runValidators: true,
+      allowPaymentMutation: true,
+    };
+
+    if (session) {
+      options.session = session;
+    }
+
+    return this.findOneAndUpdate(
+      {
+        _id: normalizeObjectId(
+          paymentId,
+          'paymentId',
+        ),
+
+        tenantId:
+          normalizeRequiredString(
+            tenantId,
+            'tenantId',
+            128,
+          ),
+
+        isDeleted: false,
+      },
+      {
+        $set: {
+          reconciliationStatus:
+            normalizedStatus,
+
+          lastReconciledAt:
+            new Date(),
+
+          reconciliationNote:
+            normalizeNullableString(
+              note,
+              MAX_NOTE_LENGTH,
+            ),
+        },
+      },
+      options,
+    ).exec();
+  };
+
+/* ==========================================================================
+ * Validation
+ * ========================================================================== */
+
+PaymentSchema.pre(
+  'validate',
+  function validatePayment(next) {
+    try {
+      /*
+       * Monetary amount.
+       */
+      if (
+        !isPositiveDecimal(
+          this.amount,
+        )
+      ) {
+        this.invalidate(
+          'amount',
+          'Payment amount must be greater than zero.',
+        );
+      }
+
+      /*
+       * Refund amount, when present, must be non-negative and cannot exceed
+       * the original payment amount.
+       */
+      if (
+        this.refundAmount !== null &&
+        this.refundAmount !== undefined
+      ) {
+        if (
+          !isZeroOrPositiveDecimal(
+            this.refundAmount,
+          )
+        ) {
+          this.invalidate(
+            'refundAmount',
+            'Refund amount cannot be negative.',
+          );
+        } else if (
+          compareDecimals(
+            this.refundAmount,
+            this.amount,
+          ) > 0
+        ) {
+          this.invalidate(
+            'refundAmount',
+            'Refund amount cannot exceed payment amount.',
+          );
+        }
+      }
+
+      /*
+       * Lifecycle timestamps.
+       */
+      if (
+        this.status ===
+          'PROCESSING' &&
+        !this.processingAt
+      ) {
+        this.processingAt =
+          new Date();
+      }
+
+      if (
+        [
+          'COMPLETED',
+          'PARTIALLY_REFUNDED',
+          'REFUNDED',
+        ].includes(
+          this.status,
+        ) &&
+        !this.confirmedAt
+      ) {
+        this.confirmedAt =
+          new Date();
+      }
+
+      if (
+        this.status ===
+          'FAILED' &&
+        !this.failedAt
+      ) {
+        this.failedAt =
+          new Date();
+      }
+
+      if (
+        this.status ===
+          'CANCELLED' &&
+        !this.cancelledAt
+      ) {
+        this.cancelledAt =
+          new Date();
+      }
+
+      if (
+        [
+          'PARTIALLY_REFUNDED',
+          'REFUNDED',
+        ].includes(
+          this.status,
+        ) &&
+        !this.refundedAt
+      ) {
+        this.refundedAt =
+          new Date();
+      }
+
+      /*
+       * Refund status consistency.
+       */
+      if (
+        this.status ===
+        'PARTIALLY_REFUNDED'
+      ) {
+        if (
+          !this.refundAmount ||
+          compareDecimals(
+            this.refundAmount,
+            this.amount,
+          ) >= 0
+        ) {
+          this.invalidate(
+            'status',
+            'PARTIALLY_REFUNDED requires a positive refund less than the payment amount.',
+          );
+        }
+      }
+
+      if (
+        this.status ===
+        'REFUNDED'
+      ) {
+        if (
+          !this.refundAmount ||
+          compareDecimals(
+            this.refundAmount,
+            this.amount,
+          ) !== 0
+        ) {
+          this.invalidate(
+            'status',
+            'REFUNDED requires refundAmount to equal the payment amount.',
+          );
+        }
+      }
+
+      /*
+       * Ledger-posting consistency.
+       */
+      if (
+        this.ledgerPostingStatus ===
+          'POSTED' &&
+        !this.ledgerEntryId
+      ) {
+        this.invalidate(
+          'ledgerEntryId',
+          'ledgerEntryId is required when ledgerPostingStatus is POSTED.',
+        );
+      }
+
+      if (
+        this.ledgerPostingStatus ===
+          'POSTED' &&
+        !this.ledgerPostedAt
+      ) {
+        this.ledgerPostedAt =
+          new Date();
+      }
+
+      if (
+        this.ledgerPostingStatus ===
+          'NOT_POSTED' &&
+        this.ledgerPostedAt
+      ) {
+        this.invalidate(
+          'ledgerPostedAt',
+          'ledgerPostedAt requires ledgerPostingStatus=POSTED.',
+        );
+      }
+
+      /*
+       * Retry consistency.
+       */
+      if (
+        this.retryCount < 0
+      ) {
+        this.invalidate(
+          'retryCount',
+          'retryCount cannot be negative.',
+        );
+      }
+
+      /*
+       * Tenant normalization.
+       */
+      if (
+        !this.tenantId ||
+        !String(this.tenantId).trim()
+      ) {
+        this.invalidate(
+          'tenantId',
+          'tenantId is required.',
+        );
+      }
+
+      /*
+       * Operational metadata sanitization.
+       */
+      if (
+        this.metadata
+      ) {
+        const metadataObject =
+          this.metadata.toObject
+            ? this.metadata.toObject()
+            : this.metadata;
+
+        const sanitized =
+          sanitizeMetadata(
+            metadataObject,
+          );
+
+        for (
+          const [key, value]
+            of Object.entries(
+              sanitized,
+            )
+        ) {
+          this.metadata.set(
+            key,
+            value,
+          );
+        }
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+/* ==========================================================================
+ * Mutation protection
+ * ========================================================================== */
+
+/**
+ * Financial payment records must not be physically deleted through normal
+ * model operations.
+ */
+PaymentSchema.pre(
+  [
+    'deleteOne',
+    'deleteMany',
+    'findOneAndDelete',
+    'findByIdAndDelete',
+  ],
+  function preventHardDelete(
+    next,
+  ) {
+    next(
+      new mongoose.Error.MongooseError(
+        'Payment hard deletion is disabled. Use approved retention controls.',
+      ),
+    );
+  },
+);
+
+/**
+ * Generic updates are blocked because they can bypass:
+ * - lifecycle transition rules;
+ * - tenant constraints;
+ * - idempotency rules;
+ * - reconciliation rules;
+ * - ledger-posting rules;
+ * - refund invariants.
+ */
+PaymentSchema.pre(
+  [
+    'updateOne',
+    'updateMany',
+    'findOneAndUpdate',
+    'findByIdAndUpdate',
+    'replaceOne',
+  ],
+  function preventGenericMutation(
+    next,
+  ) {
+    const options =
+      this.getOptions();
+
+    if (
+      options.allowPaymentMutation ===
+      true
+    ) {
+      return next();
+    }
+
+    next(
+      new mongoose.Error.MongooseError(
+        'Generic Payment updates are disabled. Use controlled payment lifecycle operations.',
+      ),
+    );
+  },
+);
+
+PaymentSchema.pre(
+  'bulkWrite',
+  function preventBulkWrite(
+    next,
+  ) {
+    next(
+      new mongoose.Error.MongooseError(
+        'bulkWrite is disabled for Payment.',
+      ),
+    );
+  },
+);
+
+/* ==========================================================================
+ * Query safety
+ * ========================================================================== */
+
+PaymentSchema.pre(
+  /^find/,
+  function hideDeletedPayments(
+    next,
+  ) {
+    const options =
+      this.getOptions();
+
+    if (
+      !options.includeDeleted
+    ) {
+      this.where({
+        isDeleted: false,
+      });
+    }
+
+    next();
+  },
+);
+
+/* ==========================================================================
+ * Model export
+ * ========================================================================== */
+
+const Payment =
   mongoose.models.Payment ||
-  mongoose.model("Payment", paymentSchema);
+  mongoose.model(
+    'Payment',
+    PaymentSchema,
+  );
+
+export default Payment;
+
+export {
+  PaymentSchema,
+  PaymentErrorSchema,
+  PaymentMetadataSchema,
+  PAYMENT_STATUS_TRANSITIONS,
+};

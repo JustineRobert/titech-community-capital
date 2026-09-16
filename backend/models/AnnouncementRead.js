@@ -1,29 +1,28 @@
 /**
  * ============================================================================
- * TITech Community Capital Ltd
- * Enterprise Announcement User State Model
+ * backend/models/AnnouncementRead.js
+ * TITech Community Capital LTD
+ * Enterprise Announcement User State Aggregate
  * ============================================================================
  *
- * File:
- *   backend/models/AnnouncementRead.js
+ * Architectural role
+ * ----------------------------------------------------------------------------
+ * AnnouncementRead stores the per-user interaction state for an
+ * Announcement.
  *
- * Version:
- *   2.0.0
+ * It supports:
  *
- * Purpose:
- *   Stores the per-user interaction state for TITech announcements.
+ *   - read / unread state
+ *   - first / last viewing activity
+ *   - dismissal
+ *   - acknowledgement
+ *   - per-user announcement history
+ *   - tenant-aware querying
+ *   - high-volume notification-center workloads
+ *   - auditable interaction timestamps
  *
- * Responsibilities:
- *   - Track read/unread state
- *   - Track first/last viewing activity
- *   - Track dismissal
- *   - Track acknowledgement
- *   - Maintain per-user announcement history
- *   - Support tenant-aware querying
- *   - Support high-volume announcement workloads
- *   - Provide auditable interaction timestamps
- *
- * Architectural Role:
+ * Relationship
+ * ----------------------------------------------------------------------------
  *
  *   Announcement
  *        │
@@ -36,32 +35,70 @@
  *                 │
  *                 └── userId
  *
- * Design Principles:
+ * IMPORTANT
+ * ----------------------------------------------------------------------------
+ * AnnouncementRead is NOT:
+ *   - the source of truth for announcement content;
+ *   - an authorization replacement;
+ *   - a notification queue;
+ *   - a delivery provider record;
+ *   - an audit-log replacement;
+ *   - a substitute for Announcement lifecycle state;
+ *   - a substitute for tenant membership validation.
+ *
+ * AnnouncementRead records user interaction state, not announcement
+ * publication or delivery state.
+ *
+ * Security principles
+ * ----------------------------------------------------------------------------
+ *   - Explicit tenant context for tenant-scoped announcements.
+ *   - User-scoped interaction state.
+ *   - Announcement reference is immutable.
+ *   - User reference is immutable.
+ *   - Tenant reference is immutable.
+ *   - One user interaction-state document per announcement/user pair.
+ *   - Controlled mutation operations are preferred over unrestricted updates.
+ *   - Normal update pipelines are disabled.
+ *   - Bulk mutation is disabled.
+ *   - Hard deletion is restricted.
+ *   - Read/dismissal/acknowledgement timestamps are internally consistent.
+ *   - View counters are bounded and incremented through controlled methods.
+ *   - Optimistic concurrency is enabled for document workflows.
+ *   - Atomic static operations are available for high-volume workloads.
+ *   - Tenant authorization remains a service-layer responsibility.
+ *
+ * Design principles
+ * ----------------------------------------------------------------------------
  *   ✓ Multi-tenant aware
  *   ✓ User-scoped
  *   ✓ Auditable
  *   ✓ Idempotent-friendly
  *   ✓ High-volume query optimized
- *   ✓ MongoDB/Mongoose production ready
- *   ✓ Backward compatible with existing AnnouncementRead usage
- *   ✓ Safe for concurrent updates
+ *   ✓ MongoDB/Mongoose production oriented
+ *   ✓ Native ESM
+ *   ✓ Backward compatible with AnnouncementRead field names
+ *   ✓ Safe for controlled concurrent updates
+ *
+ * Module format
+ * ----------------------------------------------------------------------------
+ * Native ESM.
  *
  * ============================================================================
  */
 
 'use strict';
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-const {
-  Schema,
-} = mongoose;
+const { Schema } = mongoose;
 
-/* ============================================================================
+/*
+ * ============================================================================
  * CONSTANTS
- * ========================================================================== */
+ * ============================================================================
+ */
 
-const ANNOUNCEMENT_ACTIONS = Object.freeze([
+export const ANNOUNCEMENT_ACTIONS = Object.freeze([
   'viewed',
   'read',
   'dismissed',
@@ -69,200 +106,324 @@ const ANNOUNCEMENT_ACTIONS = Object.freeze([
   'unread',
 ]);
 
-const MAX_LAST_ACTION_LENGTH = 100;
+export const MAX_LAST_ACTION_LENGTH = 100;
+export const MAX_VIEW_COUNT = Number.MAX_SAFE_INTEGER;
 
-/* ============================================================================
+/*
+ * ============================================================================
+ * HELPERS
+ * ============================================================================
+ */
+
+function assertRequired(value, name) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ''
+  ) {
+    throw new TypeError(
+      `${name} is required`
+    );
+  }
+}
+
+function assertObjectId(value, name) {
+  assertRequired(value, name);
+
+  if (
+    !mongoose.isObjectIdOrHexString(value)
+  ) {
+    throw new mongoose.Error.CastError(
+      'ObjectId',
+      value,
+      name
+    );
+  }
+}
+
+function normalizeDate(value, name = 'date') {
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    throw new TypeError(
+      `${name} must be a valid date`
+    );
+  }
+
+  return date;
+}
+
+function normalizeAction(value) {
+  return String(
+    value ?? ''
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function assertValidAction(action) {
+  if (
+    !ANNOUNCEMENT_ACTIONS.includes(
+      action
+    )
+  ) {
+    throw new Error(
+      `Unsupported announcement action: ${action}`
+    );
+  }
+}
+
+/*
+ * ============================================================================
  * SCHEMA
- * ========================================================================== */
+ * ============================================================================
+ */
 
-const AnnouncementReadSchema = new Schema(
-  {
-    /**
-     * ------------------------------------------------------------------------
-     * Announcement Reference
-     * ------------------------------------------------------------------------
-     *
-     * The announcement whose interaction state is being stored.
-     */
-    announcementId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Announcement',
-      required: true,
-      immutable: true,
-      index: true,
-    },
+const AnnouncementReadSchema =
+  new Schema(
+    {
+      /**
+       * ----------------------------------------------------------------------
+       * Announcement reference
+       * ----------------------------------------------------------------------
+       */
+      announcementId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Announcement',
+        required: true,
+        immutable: true,
+        index: true,
+      },
 
-    /**
-     * ------------------------------------------------------------------------
-     * Tenant Reference
-     * ------------------------------------------------------------------------
-     *
-     * Null is permitted for platform/global announcements.
-     *
-     * IMPORTANT:
-     * Tenant-aware authorization must still be enforced by the service layer.
-     */
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Tenant',
-      default: null,
-      index: true,
-    },
+      /**
+       * ----------------------------------------------------------------------
+       * Tenant reference
+       * ----------------------------------------------------------------------
+       *
+       * Null is permitted for platform/global announcements.
+       *
+       * The service layer must verify that:
+       *
+       *   announcement.tenantId === interaction.tenantId
+       *
+       * for tenant-scoped announcements.
+       */
+      tenantId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Tenant',
+        default: null,
+        immutable: true,
+        index: true,
+      },
 
-    /**
-     * ------------------------------------------------------------------------
-     * User Reference
-     * ------------------------------------------------------------------------
-     */
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      immutable: true,
-      index: true,
-    },
+      /**
+       * ----------------------------------------------------------------------
+       * User reference
+       * ----------------------------------------------------------------------
+       */
+      userId: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        immutable: true,
+        index: true,
+      },
 
-    /**
-     * ------------------------------------------------------------------------
-     * Read State
-     * ------------------------------------------------------------------------
-     */
-    isRead: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+      /**
+       * ----------------------------------------------------------------------
+       * Read state
+       * ----------------------------------------------------------------------
+       */
+      isRead: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
 
-    /**
-     * Timestamp at which the announcement was first marked as read.
-     *
-     * This should normally be populated only once.
-     */
-    readAt: {
-      type: Date,
-      default: null,
-    },
+      /**
+       * First-read timestamp.
+       *
+       * This should normally be populated once and preserved thereafter,
+       * including when markUnread() is used.
+       */
+      readAt: {
+        type: Date,
+        default: null,
+      },
 
-    /**
-     * ------------------------------------------------------------------------
-     * Dismissal State
-     * ------------------------------------------------------------------------
-     */
-    isDismissed: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+      /**
+       * ----------------------------------------------------------------------
+       * Dismissal state
+       * ----------------------------------------------------------------------
+       */
+      isDismissed: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
 
-    dismissedAt: {
-      type: Date,
-      default: null,
-    },
+      dismissedAt: {
+        type: Date,
+        default: null,
+      },
 
-    /**
-     * ------------------------------------------------------------------------
-     * Acknowledgement State
-     * ------------------------------------------------------------------------
-     *
-     * Useful for mandatory notices, policy changes, compliance notices,
-     * regulatory communications and other announcements requiring explicit
-     * user confirmation.
-     */
-    isAcknowledged: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+      /**
+       * ----------------------------------------------------------------------
+       * Acknowledgement state
+       * ----------------------------------------------------------------------
+       *
+       * Useful for:
+       *
+       *   - mandatory notices
+       *   - compliance communications
+       *   - policy changes
+       *   - regulatory notices
+       *   - explicit user confirmations
+       */
+      isAcknowledged: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
 
-    acknowledgedAt: {
-      type: Date,
-      default: null,
-    },
+      acknowledgedAt: {
+        type: Date,
+        default: null,
+      },
 
-    /**
-     * ------------------------------------------------------------------------
-     * View Tracking
-     * ------------------------------------------------------------------------
-     */
+      /**
+       * ----------------------------------------------------------------------
+       * View tracking
+       * ----------------------------------------------------------------------
+       */
 
-    /**
-     * First time the user opened/viewed the announcement.
-     */
-    firstViewedAt: {
-      type: Date,
-      default: null,
-    },
+      firstViewedAt: {
+        type: Date,
+        default: null,
+      },
 
-    /**
-     * Most recent time the user viewed the announcement.
-     */
-    lastViewedAt: {
-      type: Date,
-      default: null,
-    },
+      lastViewedAt: {
+        type: Date,
+        default: null,
+      },
 
-    /**
-     * Number of times the announcement has been viewed.
-     */
-    viewCount: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: Number.MAX_SAFE_INTEGER,
-    },
+      viewCount: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: MAX_VIEW_COUNT,
+        validate: {
+          validator(value) {
+            return Number.isSafeInteger(
+              value
+            );
+          },
+          message:
+            'viewCount must be a non-negative safe integer.',
+        },
+      },
 
-    /**
-     * ------------------------------------------------------------------------
-     * Last Interaction
-     * ------------------------------------------------------------------------
-     *
-     * Kept intentionally lightweight so this document can be used for
-     * notification-center rendering without requiring an audit-log lookup.
-     */
-    lastAction: {
-      type: String,
-      default: null,
-      trim: true,
-      maxlength: MAX_LAST_ACTION_LENGTH,
-      enum: {
-        values: ANNOUNCEMENT_ACTIONS,
-        message:
-          'Invalid announcement interaction action.',
+      /**
+       * ----------------------------------------------------------------------
+       * Last interaction
+       * ----------------------------------------------------------------------
+       */
+      lastAction: {
+        type: String,
+        default: null,
+        trim: true,
+        lowercase: true,
+        maxlength:
+          MAX_LAST_ACTION_LENGTH,
+        enum: {
+          values:
+            ANNOUNCEMENT_ACTIONS,
+          message:
+            'Invalid announcement interaction action.',
+        },
       },
     },
-  },
-  {
-    timestamps: true,
-    versionKey: false,
-    collection: 'announcement_reads',
+    {
+      timestamps: true,
 
-    /**
-     * Prevent accidental persistence of arbitrary fields.
-     */
-    strict: true,
+      /*
+       * Keep the Mongoose version key because optimistic concurrency is
+       * enabled. This is preferable to silently removing the concurrency
+       * marker for a frequently updated state document.
+       */
+      versionKey: '__v',
 
-    /**
-     * Keep null values where explicitly defined because null has semantic
-     * meaning for optional interaction timestamps.
-     */
-    minimize: false,
-  },
-);
+      collection:
+        'announcement_reads',
 
-/* ============================================================================
+      strict: true,
+
+      /*
+       * Explicit null timestamps retain semantic meaning.
+       */
+      minimize: false,
+
+      optimisticConcurrency: true,
+
+      toJSON: {
+        virtuals: true,
+
+        transform(
+          _doc,
+          ret
+        ) {
+          if (ret._id) {
+            ret.id =
+              String(ret._id);
+          }
+
+          delete ret._id;
+          delete ret.__v;
+
+          return ret;
+        },
+      },
+
+      toObject: {
+        virtuals: true,
+
+        transform(
+          _doc,
+          ret
+        ) {
+          if (ret._id) {
+            ret.id =
+              String(ret._id);
+          }
+
+          delete ret._id;
+          delete ret.__v;
+
+          return ret;
+        },
+      },
+    }
+  );
+
+/*
+ * ============================================================================
  * INDEXES
- * ========================================================================== */
+ * ============================================================================
+ */
 
-/**
- * --------------------------------------------------------------------------
- * PRIMARY USER / ANNOUNCEMENT UNIQUENESS
- * --------------------------------------------------------------------------
+/*
+ * Exactly one interaction-state document is allowed for a user +
+ * announcement relationship.
  *
- * Exactly one interaction-state document should exist for a given user and
- * announcement.
- *
- * TenantId is intentionally NOT part of this uniqueness constraint because
- * announcementId + userId represents the canonical interaction relationship.
+ * tenantId is intentionally excluded because announcementId identifies the
+ * announcement relationship itself.
  */
 AnnouncementReadSchema.index(
   {
@@ -271,263 +432,575 @@ AnnouncementReadSchema.index(
   },
   {
     unique: true,
-    name: 'uniq_announcement_user_state',
-  },
+    name:
+      'uniq_announcement_user_state',
+  }
 );
 
-/**
- * --------------------------------------------------------------------------
- * TENANT + USER + READ STATE
- * --------------------------------------------------------------------------
- *
- * Supports:
- *
- *   "Show this user's unread announcements."
- *
- * Particularly important for announcement-bell unread counts.
+/*
+ * Tenant + user + read state.
  */
 AnnouncementReadSchema.index(
   {
     tenantId: 1,
     userId: 1,
     isRead: 1,
+    updatedAt: -1,
   },
   {
-    name: 'idx_tenant_user_read_state',
-  },
+    name:
+      'idx_tenant_user_read_state',
+  }
 );
 
-/**
- * --------------------------------------------------------------------------
- * TENANT + USER + DISMISSED STATE
- * --------------------------------------------------------------------------
+/*
+ * Tenant + user + dismissed state.
  */
 AnnouncementReadSchema.index(
   {
     tenantId: 1,
     userId: 1,
     isDismissed: 1,
+    updatedAt: -1,
   },
   {
-    name: 'idx_tenant_user_dismissed_state',
-  },
+    name:
+      'idx_tenant_user_dismissed_state',
+  }
 );
 
-/**
- * --------------------------------------------------------------------------
- * TENANT + USER + ACKNOWLEDGEMENT STATE
- * --------------------------------------------------------------------------
- *
- * Supports compliance-oriented acknowledgement checks.
+/*
+ * Tenant + user + acknowledgement state.
  */
 AnnouncementReadSchema.index(
   {
     tenantId: 1,
     userId: 1,
     isAcknowledged: 1,
+    updatedAt: -1,
   },
   {
-    name: 'idx_tenant_user_acknowledged_state',
-  },
+    name:
+      'idx_tenant_user_acknowledged_state',
+  }
 );
 
-/**
- * --------------------------------------------------------------------------
- * USER HISTORY
- * --------------------------------------------------------------------------
- *
- * Supports:
- *
- *   "Show this user's recent announcement interactions."
+/*
+ * User interaction history.
  */
 AnnouncementReadSchema.index(
   {
     tenantId: 1,
     userId: 1,
     updatedAt: -1,
+    _id: -1,
   },
   {
-    name: 'idx_tenant_user_updated',
-  },
+    name:
+      'idx_tenant_user_updated',
+  }
 );
 
-/**
- * --------------------------------------------------------------------------
- * ANNOUNCEMENT AUDIENCE / ENGAGEMENT
- * --------------------------------------------------------------------------
- *
- * Supports:
- *
- *   "How many users interacted with this announcement?"
- *
- * and future engagement analytics.
+/*
+ * Announcement engagement.
  */
 AnnouncementReadSchema.index(
   {
     tenantId: 1,
     announcementId: 1,
     updatedAt: -1,
+    _id: -1,
   },
   {
-    name: 'idx_tenant_announcement_updated',
-  },
+    name:
+      'idx_tenant_announcement_updated',
+  }
 );
 
-/**
- * --------------------------------------------------------------------------
- * ACKNOWLEDGEMENT REPORTING
- * --------------------------------------------------------------------------
+/*
+ * Announcement acknowledgement reporting.
  */
 AnnouncementReadSchema.index(
   {
     tenantId: 1,
     announcementId: 1,
     isAcknowledged: 1,
+    updatedAt: -1,
   },
   {
-    name: 'idx_tenant_announcement_acknowledged',
-  },
+    name:
+      'idx_tenant_announcement_acknowledged',
+  }
 );
 
-/**
- * --------------------------------------------------------------------------
- * READ REPORTING
- * --------------------------------------------------------------------------
+/*
+ * Announcement read reporting.
  */
 AnnouncementReadSchema.index(
   {
     tenantId: 1,
     announcementId: 1,
     isRead: 1,
+    updatedAt: -1,
   },
   {
-    name: 'idx_tenant_announcement_read',
-  },
+    name:
+      'idx_tenant_announcement_read',
+  }
 );
 
-/* ============================================================================
- * VALIDATION HELPERS
- * ========================================================================== */
-
-/**
- * Ensure boolean/timestamp state remains internally consistent.
- *
- * These checks intentionally validate only supplied document state.
- * Business workflows should continue to be handled by the service layer.
+/*
+ * ============================================================================
+ * VALIDATION / NORMALIZATION
+ * ============================================================================
  */
+
 AnnouncementReadSchema.pre(
   'validate',
-  function announcementReadValidation(next) {
+  function announcementReadValidation(
+    next
+  ) {
+    /*
+     * Ensure boolean/timestamp state remains internally coherent.
+     */
     if (
       this.isRead &&
       !this.readAt
     ) {
-      this.readAt = new Date();
+      this.readAt =
+        new Date();
     }
 
     if (
       this.isDismissed &&
       !this.dismissedAt
     ) {
-      this.dismissedAt = new Date();
+      this.dismissedAt =
+        new Date();
     }
 
     if (
       this.isAcknowledged &&
       !this.acknowledgedAt
     ) {
-      this.acknowledgedAt = new Date();
+      this.acknowledgedAt =
+        new Date();
     }
 
     if (
       this.firstViewedAt &&
       !this.lastViewedAt
     ) {
-      this.lastViewedAt = this.firstViewedAt;
+      this.lastViewedAt =
+        this.firstViewedAt;
     }
 
     if (
-      this.viewCount < 0 ||
-      !Number.isSafeInteger(this.viewCount)
+      this.lastViewedAt &&
+      !this.firstViewedAt
+    ) {
+      this.firstViewedAt =
+        this.lastViewedAt;
+    }
+
+    if (
+      !Number.isSafeInteger(
+        this.viewCount
+      ) ||
+      this.viewCount < 0
+    ) {
+      this.invalidate(
+        'viewCount',
+        'viewCount must be a non-negative safe integer.'
+      );
+    }
+
+    if (
+      this.lastAction !== null &&
+      this.lastAction !== undefined
+    ) {
+      const action =
+        normalizeAction(
+          this.lastAction
+        );
+
+      assertValidAction(
+        action
+      );
+
+      this.lastAction =
+        action;
+    }
+
+    if (
+      this.tenantId &&
+      !mongoose.isObjectIdOrHexString(
+        this.tenantId
+      )
+    ) {
+      this.invalidate(
+        'tenantId',
+        'tenantId must be a valid ObjectId.'
+      );
+    }
+
+    next();
+  }
+);
+
+/*
+ * ============================================================================
+ * QUERY MUTATION SAFETY
+ * ============================================================================
+ *
+ * AnnouncementRead is an interaction-state document. Normal document
+ * workflows should use instance methods or controlled static operations.
+ *
+ * This prevents arbitrary callers from changing multiple state fields
+ * without the timestamp/action invariants being applied.
+ * ============================================================================
+ */
+
+function rejectGenericMutation(
+  next
+) {
+  const options =
+    typeof this.getOptions ===
+    'function'
+      ? this.getOptions()
+      : this.options || {};
+
+  if (
+    options.announcementReadInternal ===
+    true
+  ) {
+    return next();
+  }
+
+  return next(
+    new Error(
+      `Direct ${this.op} mutations on AnnouncementRead are disabled; ` +
+        'use a dedicated AnnouncementRead operation/service'
+    )
+  );
+}
+
+for (const method of [
+  'updateOne',
+  'updateMany',
+  'findOneAndUpdate',
+]) {
+  AnnouncementReadSchema.pre(
+    method,
+    rejectGenericMutation
+  );
+}
+
+AnnouncementReadSchema.pre(
+  'updateOne',
+  function rejectUpdatePipeline(
+    next
+  ) {
+    if (
+      Array.isArray(
+        this.getUpdate()
+      )
     ) {
       return next(
-        new mongoose.Error.ValidationError(
-          new mongoose.Error.ValidatorError({
-            path: 'viewCount',
-            message:
-              'viewCount must be a non-negative safe integer.',
-          }),
-        ),
+        new Error(
+          'AnnouncementRead update pipelines are disabled'
+        )
       );
     }
 
     return next();
-  },
+  }
 );
 
-/* ============================================================================
+AnnouncementReadSchema.pre(
+  'updateMany',
+  function rejectUpdateManyPipeline(
+    next
+  ) {
+    if (
+      Array.isArray(
+        this.getUpdate()
+      )
+    ) {
+      return next(
+        new Error(
+          'AnnouncementRead update pipelines are disabled'
+        )
+      );
+    }
+
+    return next();
+  }
+);
+
+AnnouncementReadSchema.pre(
+  'findOneAndUpdate',
+  function rejectFindOneAndUpdatePipeline(
+    next
+  ) {
+    if (
+      Array.isArray(
+        this.getUpdate()
+      )
+    ) {
+      return next(
+        new Error(
+          'AnnouncementRead update pipelines are disabled'
+        )
+      );
+    }
+
+    return next();
+  }
+);
+
+/*
+ * Replacement operations can bypass state invariants.
+ */
+AnnouncementReadSchema.pre(
+  'replaceOne',
+  function rejectReplaceOne(
+    next
+  ) {
+    next(
+      new Error(
+        'AnnouncementRead replacement is disabled; use controlled operations'
+      )
+    );
+  }
+);
+
+AnnouncementReadSchema.pre(
+  'findOneAndReplace',
+  function rejectFindOneAndReplace(
+    next
+  ) {
+    next(
+      new Error(
+        'AnnouncementRead replacement is disabled; use controlled operations'
+      )
+    );
+  }
+);
+
+/*
+ * Bulk updates bypass interaction invariants.
+ */
+AnnouncementReadSchema.pre(
+  'bulkWrite',
+  function rejectBulkWrite(
+    next
+  ) {
+    next(
+      new Error(
+        'AnnouncementRead.bulkWrite() is disabled; use controlled operations'
+      )
+    );
+  }
+);
+
+/*
+ * ============================================================================
+ * DELETE POLICY
+ * ============================================================================
+ *
+ * Interaction state is historical user state. Hard deletion should normally
+ * be performed only by a dedicated retention/privacy workflow.
+ * ============================================================================
+ */
+
+AnnouncementReadSchema.pre(
+  'deleteOne',
+  function rejectDeleteOne(
+    next
+  ) {
+    next(
+      new Error(
+        'AnnouncementRead hard deletion is disabled; use a controlled retention workflow'
+      )
+    );
+  }
+);
+
+AnnouncementReadSchema.pre(
+  'deleteOne',
+  {
+    document: true,
+    query: false,
+  },
+  function rejectDocumentDeleteOne(
+    next
+  ) {
+    next(
+      new Error(
+        'AnnouncementRead hard deletion is disabled; use a controlled retention workflow'
+      )
+    );
+  }
+);
+
+AnnouncementReadSchema.pre(
+  'deleteMany',
+  function rejectDeleteMany(
+    next
+  ) {
+    next(
+      new Error(
+        'AnnouncementRead hard deletion is disabled; use a controlled retention workflow'
+      )
+    );
+  }
+);
+
+AnnouncementReadSchema.pre(
+  'findOneAndDelete',
+  function rejectFindOneAndDelete(
+    next
+  ) {
+    next(
+      new Error(
+        'AnnouncementRead hard deletion is disabled; use a controlled retention workflow'
+      )
+    );
+  }
+);
+
+/*
+ * ============================================================================
+ * VIRTUALS
+ * ============================================================================
+ */
+
+AnnouncementReadSchema.virtual(
+  'hasInteraction'
+).get(function hasInteraction() {
+  return Boolean(
+    this.firstViewedAt ||
+    this.lastViewedAt ||
+    this.isRead ||
+    this.isDismissed ||
+    this.isAcknowledged ||
+    this.viewCount > 0
+  );
+});
+
+AnnouncementReadSchema.virtual(
+  'isInteracted'
+).get(function isInteracted() {
+  return Boolean(
+    this.firstViewedAt ||
+    this.isRead ||
+    this.isDismissed ||
+    this.isAcknowledged ||
+    this.viewCount > 0
+  );
+});
+
+/*
+ * ============================================================================
  * INSTANCE METHODS
- * ========================================================================== */
+ * ============================================================================
+ */
 
 /**
- * Determine whether the announcement has any recorded user interaction.
+ * Determine whether this interaction document has recorded activity.
  */
-AnnouncementReadSchema.methods.hasInteraction =
-  function hasInteraction() {
+AnnouncementReadSchema.methods.hasAnyInteraction =
+  function hasAnyInteraction() {
     return Boolean(
       this.firstViewedAt ||
       this.isRead ||
       this.isDismissed ||
       this.isAcknowledged ||
-      this.viewCount > 0,
+      this.viewCount > 0
     );
   };
 
 /**
- * Record a view on the current document.
- *
- * This method is intended for application/service-layer use.
+ * Record a view.
  */
 AnnouncementReadSchema.methods.recordView =
-  function recordView(date = new Date()) {
-    if (!this.firstViewedAt) {
-      this.firstViewedAt = date;
+  function recordView(
+    date = new Date()
+  ) {
+    const viewedAt =
+      normalizeDate(
+        date,
+        'view date'
+      );
+
+    if (
+      !this.firstViewedAt
+    ) {
+      this.firstViewedAt =
+        viewedAt;
     }
 
-    this.lastViewedAt = date;
+    this.lastViewedAt =
+      viewedAt;
+
+    if (
+      this.viewCount >=
+      MAX_VIEW_COUNT
+    ) {
+      throw new RangeError(
+        'viewCount has reached the maximum safe integer'
+      );
+    }
 
     this.viewCount += 1;
-    this.lastAction = 'viewed';
+    this.lastAction =
+      'viewed';
 
     return this;
   };
 
 /**
- * Mark the announcement as read.
+ * Mark as read.
  */
 AnnouncementReadSchema.methods.markRead =
-  function markRead(date = new Date()) {
+  function markRead(
+    date = new Date()
+  ) {
+    const readAt =
+      normalizeDate(
+        date,
+        'read date'
+      );
+
     this.isRead = true;
 
-    if (!this.readAt) {
-      this.readAt = date;
+    /*
+     * Preserve first-read timestamp.
+     */
+    if (
+      !this.readAt
+    ) {
+      this.readAt =
+        readAt;
     }
 
-    this.lastAction = 'read';
+    this.lastAction =
+      'read';
 
     return this;
   };
 
 /**
- * Mark the announcement as unread.
+ * Mark unread.
  *
- * readAt is intentionally preserved because it represents the historical
- * first-read timestamp.
+ * readAt is deliberately preserved as historical first-read evidence.
  */
 AnnouncementReadSchema.methods.markUnread =
   function markUnread() {
     this.isRead = false;
-    this.lastAction = 'unread';
+    this.lastAction =
+      'unread';
 
     return this;
   };
@@ -536,14 +1009,27 @@ AnnouncementReadSchema.methods.markUnread =
  * Dismiss the announcement.
  */
 AnnouncementReadSchema.methods.dismiss =
-  function dismiss(date = new Date()) {
-    this.isDismissed = true;
+  function dismiss(
+    date = new Date()
+  ) {
+    const dismissedAt =
+      normalizeDate(
+        date,
+        'dismissal date'
+      );
 
-    if (!this.dismissedAt) {
-      this.dismissedAt = date;
+    this.isDismissed =
+      true;
+
+    if (
+      !this.dismissedAt
+    ) {
+      this.dismissedAt =
+        dismissedAt;
     }
 
-    this.lastAction = 'dismissed';
+    this.lastAction =
+      'dismissed';
 
     return this;
   };
@@ -552,100 +1038,909 @@ AnnouncementReadSchema.methods.dismiss =
  * Acknowledge the announcement.
  */
 AnnouncementReadSchema.methods.acknowledge =
-  function acknowledge(date = new Date()) {
-    this.isAcknowledged = true;
+  function acknowledge(
+    date = new Date()
+  ) {
+    const acknowledgedAt =
+      normalizeDate(
+        date,
+        'acknowledgement date'
+      );
 
-    if (!this.acknowledgedAt) {
-      this.acknowledgedAt = date;
+    this.isAcknowledged =
+      true;
+
+    if (
+      !this.acknowledgedAt
+    ) {
+      this.acknowledgedAt =
+        acknowledgedAt;
     }
 
-    this.lastAction = 'acknowledged';
+    this.lastAction =
+      'acknowledged';
 
     return this;
   };
 
-/* ============================================================================
- * STATIC HELPERS
- * ========================================================================== */
+/**
+ * Persist the current state using an optional transaction session.
+ */
+AnnouncementReadSchema.methods.persist =
+  function persist(
+    options = {}
+  ) {
+    return this.save({
+      session:
+        options.session,
+    });
+  };
+
+/*
+ * ============================================================================
+ * STATIC OPERATIONS
+ * ============================================================================
+ */
 
 /**
- * Find a user's interaction state for an announcement.
+ * Find one user's interaction state.
  */
 AnnouncementReadSchema.statics.findUserState =
   function findUserState(
     announcementId,
     userId,
+    options = {}
   ) {
-    return this.findOne({
+    assertObjectId(
       announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
       userId,
+      'userId'
+    );
+
+    const query =
+      this.findOne({
+        announcementId,
+        userId,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session
+      );
+    }
+
+    return query.exec();
+  };
+
+/**
+ * Find one tenant-scoped user interaction state.
+ */
+AnnouncementReadSchema.statics.findTenantUserState =
+  function findTenantUserState(
+    tenantId,
+    announcementId,
+    userId,
+    options = {}
+  ) {
+    assertObjectId(
+      tenantId,
+      'tenantId'
+    );
+
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    const query =
+      this.findOne({
+        tenantId,
+        announcementId,
+        userId,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session
+      );
+    }
+
+    return query.exec();
+  };
+
+/**
+ * Create the user's state document.
+ *
+ * The unique announcementId + userId index guarantees one state document.
+ */
+AnnouncementReadSchema.statics.createUserState =
+  async function createUserState(
+    {
+      announcementId,
+      tenantId = null,
+      userId,
+    },
+    options = {}
+  ) {
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    if (
+      tenantId !== null
+    ) {
+      assertObjectId(
+        tenantId,
+        'tenantId'
+      );
+    }
+
+    const state =
+      new this({
+        announcementId,
+        tenantId,
+        userId,
+      });
+
+    return state.save({
+      session:
+        options.session,
     });
   };
 
 /**
- * Find all unread announcement states for a user within a tenant.
+ * Get or create a user's announcement state.
+ *
+ * Intended for idempotent notification-center workflows.
+ */
+AnnouncementReadSchema.statics.getOrCreateUserState =
+  async function getOrCreateUserState(
+    {
+      announcementId,
+      tenantId = null,
+      userId,
+    },
+    options = {}
+  ) {
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    if (
+      tenantId !== null
+    ) {
+      assertObjectId(
+        tenantId,
+        'tenantId'
+      );
+    }
+
+    const filter = {
+      announcementId,
+      userId,
+    };
+
+    const update = {
+      $setOnInsert: {
+        announcementId,
+        tenantId,
+        userId,
+        isRead: false,
+        isDismissed: false,
+        isAcknowledged: false,
+        readAt: null,
+        dismissedAt: null,
+        acknowledgedAt:
+          null,
+        firstViewedAt: null,
+        lastViewedAt: null,
+        viewCount: 0,
+        lastAction: null,
+      },
+    };
+
+    return this.findOneAndUpdate(
+      filter,
+      update,
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert:
+          true,
+        runValidators: true,
+        announcementReadInternal:
+          true,
+        session:
+          options.session,
+      }
+    ).exec();
+  };
+
+/**
+ * Atomically record one view.
+ *
+ * This is preferable to read-modify-save in high-volume workloads because
+ * viewCount is incremented inside MongoDB.
+ */
+AnnouncementReadSchema.statics.recordViewForUser =
+  async function recordViewForUser(
+    {
+      announcementId,
+      tenantId = null,
+      userId,
+      date = new Date(),
+    },
+    options = {}
+  ) {
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    if (
+      tenantId !== null
+    ) {
+      assertObjectId(
+        tenantId,
+        'tenantId'
+      );
+    }
+
+    const viewedAt =
+      normalizeDate(
+        date,
+        'view date'
+      );
+
+    /*
+     * Create-on-first-use using $setOnInsert and then increment the view
+     * counter atomically.
+     */
+    const query =
+      this.findOneAndUpdate(
+        {
+          announcementId,
+          userId,
+        },
+        {
+          $setOnInsert: {
+            announcementId,
+            tenantId,
+            userId,
+            isRead: false,
+            isDismissed: false,
+            isAcknowledged: false,
+            readAt: null,
+            dismissedAt: null,
+            acknowledgedAt:
+              null,
+            firstViewedAt:
+              viewedAt,
+            lastViewedAt:
+              viewedAt,
+            viewCount: 0,
+          },
+
+          $set: {
+            lastViewedAt:
+              viewedAt,
+            lastAction:
+              'viewed',
+          },
+
+          $inc: {
+            viewCount: 1,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert:
+            true,
+          runValidators: true,
+          announcementReadInternal:
+            true,
+          session:
+            options.session,
+        }
+      );
+
+    return query.exec();
+  };
+
+/**
+ * Atomically mark a user's state as read.
+ *
+ * Returns the updated state document.
+ */
+AnnouncementReadSchema.statics.markReadForUser =
+  async function markReadForUser(
+    {
+      announcementId,
+      tenantId = null,
+      userId,
+      date = new Date(),
+    },
+    options = {}
+  ) {
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    if (
+      tenantId !== null
+    ) {
+      assertObjectId(
+        tenantId,
+        'tenantId'
+      );
+    }
+
+    const readAt =
+      normalizeDate(
+        date,
+        'read date'
+      );
+
+    return this.findOneAndUpdate(
+      {
+        announcementId,
+        userId,
+      },
+      {
+        $setOnInsert: {
+          announcementId,
+          tenantId,
+          userId,
+          isRead: false,
+          isDismissed: false,
+          isAcknowledged: false,
+          readAt: null,
+          dismissedAt: null,
+          acknowledgedAt:
+            null,
+          firstViewedAt: null,
+          lastViewedAt: null,
+          viewCount: 0,
+        },
+
+        $set: {
+          isRead: true,
+          lastAction: 'read',
+        },
+
+        $setOnInsert: {
+          announcementId,
+          tenantId,
+          userId,
+          isRead: true,
+          isDismissed: false,
+          isAcknowledged: false,
+          readAt,
+          dismissedAt: null,
+          acknowledgedAt:
+            null,
+          firstViewedAt: null,
+          lastViewedAt: null,
+          viewCount: 0,
+          lastAction: 'read',
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert:
+          true,
+        runValidators: true,
+        announcementReadInternal:
+          true,
+        session:
+          options.session,
+      }
+    ).exec();
+  };
+
+/**
+ * Atomically mark as unread.
+ *
+ * Existing readAt is deliberately preserved.
+ */
+AnnouncementReadSchema.statics.markUnreadForUser =
+  async function markUnreadForUser(
+    {
+      announcementId,
+      tenantId = null,
+      userId,
+    },
+    options = {}
+  ) {
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    if (
+      tenantId !== null
+    ) {
+      assertObjectId(
+        tenantId,
+        'tenantId'
+      );
+    }
+
+    return this.findOneAndUpdate(
+      {
+        announcementId,
+        userId,
+      },
+      {
+        $set: {
+          isRead: false,
+          lastAction: 'unread',
+        },
+
+        $setOnInsert: {
+          announcementId,
+          tenantId,
+          userId,
+          isDismissed: false,
+          isAcknowledged: false,
+          readAt: null,
+          dismissedAt: null,
+          acknowledgedAt:
+            null,
+          firstViewedAt: null,
+          lastViewedAt: null,
+          viewCount: 0,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert:
+          true,
+        runValidators: true,
+        announcementReadInternal:
+          true,
+        session:
+          options.session,
+      }
+    ).exec();
+  };
+
+/**
+ * Atomically dismiss an announcement for a user.
+ */
+AnnouncementReadSchema.statics.dismissForUser =
+  async function dismissForUser(
+    {
+      announcementId,
+      tenantId = null,
+      userId,
+      date = new Date(),
+    },
+    options = {}
+  ) {
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    if (
+      tenantId !== null
+    ) {
+      assertObjectId(
+        tenantId,
+        'tenantId'
+      );
+    }
+
+    const dismissedAt =
+      normalizeDate(
+        date,
+        'dismissal date'
+      );
+
+    return this.findOneAndUpdate(
+      {
+        announcementId,
+        userId,
+      },
+      {
+        $set: {
+          isDismissed: true,
+          dismissedAt,
+          lastAction:
+            'dismissed',
+        },
+
+        $setOnInsert: {
+          announcementId,
+          tenantId,
+          userId,
+          isRead: false,
+          isAcknowledged: false,
+          readAt: null,
+          firstViewedAt: null,
+          lastViewedAt: null,
+          viewCount: 0,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert:
+          true,
+        runValidators: true,
+        announcementReadInternal:
+          true,
+        session:
+          options.session,
+      }
+    ).exec();
+  };
+
+/**
+ * Atomically acknowledge an announcement for a user.
+ */
+AnnouncementReadSchema.statics.acknowledgeForUser =
+  async function acknowledgeForUser(
+    {
+      announcementId,
+      tenantId = null,
+      userId,
+      date = new Date(),
+    },
+    options = {}
+  ) {
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    if (
+      tenantId !== null
+    ) {
+      assertObjectId(
+        tenantId,
+        'tenantId'
+      );
+    }
+
+    const acknowledgedAt =
+      normalizeDate(
+        date,
+        'acknowledgement date'
+      );
+
+    return this.findOneAndUpdate(
+      {
+        announcementId,
+        userId,
+      },
+      {
+        $set: {
+          isAcknowledged: true,
+          acknowledgedAt,
+          lastAction:
+            'acknowledged',
+        },
+
+        $setOnInsert: {
+          announcementId,
+          tenantId,
+          userId,
+          isRead: false,
+          isDismissed: false,
+          readAt: null,
+          dismissedAt: null,
+          firstViewedAt: null,
+          lastViewedAt: null,
+          viewCount: 0,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert:
+          true,
+        runValidators: true,
+        announcementReadInternal:
+          true,
+        session:
+          options.session,
+      }
+    ).exec();
+  };
+
+/**
+ * Find unread announcements for one user in a tenant.
  */
 AnnouncementReadSchema.statics.findUnreadForUser =
   function findUnreadForUser(
     tenantId,
     userId,
+    options = {}
   ) {
-    return this.find({
+    assertObjectId(
       tenantId,
+      'tenantId'
+    );
+
+    assertObjectId(
       userId,
-      isRead: false,
-    }).sort({
-      updatedAt: -1,
-    });
+      'userId'
+    );
+
+    const limit =
+      Math.min(
+        Math.max(
+          Number(
+            options.limit
+          ) || 100,
+          1
+        ),
+        500
+      );
+
+    const query =
+      this.find({
+        tenantId,
+        userId,
+        isRead: false,
+      })
+        .sort({
+          updatedAt: -1,
+          _id: -1,
+        })
+        .limit(limit);
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session
+      );
+    }
+
+    return query.exec();
   };
 
 /**
- * Count unread announcements efficiently.
+ * Count unread announcements for one user.
  */
 AnnouncementReadSchema.statics.countUnreadForUser =
   function countUnreadForUser(
     tenantId,
     userId,
+    options = {}
   ) {
-    return this.countDocuments({
+    assertObjectId(
       tenantId,
+      'tenantId'
+    );
+
+    assertObjectId(
       userId,
-      isRead: false,
-    });
+      'userId'
+    );
+
+    const query =
+      this.countDocuments({
+        tenantId,
+        userId,
+        isRead: false,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session
+      );
+    }
+
+    return query.exec();
   };
 
-/* ============================================================================
- * JSON TRANSFORMATION
- * ========================================================================== */
+/**
+ * Find a user's recent announcement interaction history.
+ */
+AnnouncementReadSchema.statics.findUserHistory =
+  function findUserHistory(
+    tenantId,
+    userId,
+    options = {}
+  ) {
+    assertObjectId(
+      tenantId,
+      'tenantId'
+    );
+
+    assertObjectId(
+      userId,
+      'userId'
+    );
+
+    const limit =
+      Math.min(
+        Math.max(
+          Number(
+            options.limit
+          ) || 100,
+          1
+        ),
+        500
+      );
+
+    const query =
+      this.find({
+        tenantId,
+        userId,
+      })
+        .sort({
+          updatedAt: -1,
+          _id: -1,
+        })
+        .limit(limit);
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session
+      );
+    }
+
+    return query.exec();
+  };
 
 /**
- * Keep API responses clean and avoid exposing Mongoose implementation
- * details.
+ * Count acknowledgement state for one announcement.
  */
-AnnouncementReadSchema.set(
-  'toJSON',
-  {
-    virtuals: false,
-    transform: (_doc, ret) => {
-      delete ret.__v;
+AnnouncementReadSchema.statics.countAcknowledgedForAnnouncement =
+  function countAcknowledgedForAnnouncement(
+    tenantId,
+    announcementId,
+    options = {}
+  ) {
+    assertObjectId(
+      tenantId,
+      'tenantId'
+    );
 
-      return ret;
-    },
-  },
-);
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
 
-/* ============================================================================
- * MODEL EXPORT
- * ========================================================================== */
+    const query =
+      this.countDocuments({
+        tenantId,
+        announcementId,
+        isAcknowledged: true,
+      });
 
-module.exports =
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session
+      );
+    }
+
+    return query.exec();
+  };
+
+/**
+ * Count read state for one announcement.
+ */
+AnnouncementReadSchema.statics.countReadForAnnouncement =
+  function countReadForAnnouncement(
+    tenantId,
+    announcementId,
+    options = {}
+  ) {
+    assertObjectId(
+      tenantId,
+      'tenantId'
+    );
+
+    assertObjectId(
+      announcementId,
+      'announcementId'
+    );
+
+    const query =
+      this.countDocuments({
+        tenantId,
+        announcementId,
+        isRead: true,
+      });
+
+    if (
+      options.session
+    ) {
+      query.session(
+        options.session
+      );
+    }
+
+    return query.exec();
+  };
+
+/*
+ * ============================================================================
+ * MODEL
+ * ============================================================================
+ */
+
+const AnnouncementRead =
   mongoose.models.AnnouncementRead ||
   mongoose.model(
     'AnnouncementRead',
-    AnnouncementReadSchema,
+    AnnouncementReadSchema
   );
 
-/* ============================================================================
+export {
+  AnnouncementReadSchema,
+};
+
+export default AnnouncementRead;
+
+/*
+ * ============================================================================
  * END OF TITech COMMUNITY CAPITAL ANNOUNCEMENT USER STATE MODEL
  * ============================================================================
  */

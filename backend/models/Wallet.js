@@ -1,1116 +1,1626 @@
-'use strict';
-
 /**
- * ============================================================================
+ * =============================================================================
  * TITech Community Capital LTD
- * Enterprise Wallet Model
- * ============================================================================
+ * TITech Community Capital Operating System
+ * =============================================================================
  *
  * File:
  *   backend/models/Wallet.js
  *
+ * Architectural Role:
+ *   Canonical stored-value wallet state aggregate for the TITech Community
+ *   Capital platform.
+ *
  * Purpose:
- *   Canonical stored-value wallet for the TITech Community Capital platform.
+ *   Persist the current monetary state and operational lifecycle of a wallet
+ *   owned by a user within a tenant.
  *
- * Design Goals:
- *   - Multi-tenant financial isolation
- *   - Decimal128 monetary precision
- *   - Atomic concurrent credit/debit operations
- *   - Optimistic concurrency protection
- *   - Idempotency support
- *   - Audit-ready wallet metadata
- *   - Soft deletion / archival
- *   - Wallet lifecycle controls
- *   - Safe financial invariants
+ * Responsibilities:
+ *   - Persist tenant-scoped wallet ownership and identity.
+ *   - Persist authoritative wallet balance state.
+ *   - Persist bounded operational financial aggregates.
+ *   - Enforce wallet-level monetary invariants.
+ *   - Provide guarded atomic credit/debit primitives for the financial service.
+ *   - Provide controlled wallet lifecycle transitions.
+ *   - Provide wallet lookup/query helpers.
+ *   - Serialize Decimal128 monetary values safely.
  *
- * IMPORTANT
- * ----------------------------------------------------------------------------
- * Wallet balances are financial state.
+ * Non-Responsibilities:
+ *   - This model is NOT the double-entry ledger.
+ *   - This model does NOT create accounting journal entries.
+ *   - This model does NOT decide authorization or tenant membership.
+ *   - This model does NOT perform payment-provider orchestration.
+ *   - This model does NOT establish financial transaction idempotency.
+ *   - This model does NOT perform transfers between wallets.
+ *   - This model does NOT independently prove or reconcile external funds.
+ *   - This model does NOT replace FinancialTransactionService.
  *
- * Do NOT perform ordinary JavaScript floating-point arithmetic against
- * Decimal128 values.
+ * Financial Architecture Boundary:
+ *   Wallet.balance is current stored-value state.
  *
- * Financial mutations should preferably use the atomic static methods:
+ *   Transaction / Payment / PaymentIntent:
+ *     External or business transaction lifecycle.
  *
- *   Wallet.atomicCredit(...)
- *   Wallet.atomicDebit(...)
+ *   Ledger:
+ *     Double-entry accounting source of record.
  *
- * These methods perform the balance mutation directly in MongoDB and are
- * therefore safer under concurrent workers than:
+ *   Account / Balance:
+ *     Platform accounting and financial-control aggregates where applicable.
  *
- *   find wallet -> modify in memory -> save
+ *   FinancialTransactionService:
+ *     Canonical orchestration boundary for money movement, idempotency,
+ *     transaction boundaries, ledger posting, and balance synchronization.
  *
- * ============================================================================
+ * IMPORTANT:
+ *   Do not perform ordinary JavaScript arithmetic against Decimal128 values.
+ *
+ *   Concurrent balance changes MUST use the guarded static atomic methods:
+ *
+ *     Wallet.atomicCredit(...)
+ *     Wallet.atomicDebit(...)
+ *
+ *   The financial service should normally invoke these operations inside the
+ *   same MongoDB transaction/session that coordinates the corresponding
+ *   transaction and ledger workflow.
+ *
+ * Idempotency:
+ *   Wallet-level lastMutationReference is operational metadata only.
+ *
+ *   It is NOT an idempotency ledger and MUST NOT be treated as proof that a
+ *   mutation has or has not already occurred.
+ *
+ *   Authoritative idempotency belongs to the canonical transaction/payment
+ *   workflow using a durable unique key.
+ *
+ * Security Principles:
+ *   - Tenant isolation is mandatory.
+ *   - Monetary fields use Decimal128.
+ *   - Raw floating-point financial arithmetic is prohibited.
+ *   - Generic document mutation APIs are blocked.
+ *   - Hard deletion is blocked.
+ *   - Financial fields cannot be changed through ordinary document saves.
+ *   - Metadata is bounded and rejects MongoDB operator/path-like keys.
+ *   - Lifecycle mutations are explicit and controlled.
+ *   - Business authorization remains outside the model.
+ *
+ * Module Format:
+ *   Native ECMAScript Modules (ESM).
+ *
+ * =============================================================================
  */
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
 /**
- * ============================================================================
+ * =============================================================================
  * CONSTANTS
- * ============================================================================
+ * =============================================================================
  */
 
-const WALLET_STATUSES = Object.freeze([
-    'active',
-    'frozen',
-    'suspended',
-    'closed'
+export const WALLET_STATUSES = Object.freeze([
+  'active',
+  'frozen',
+  'suspended',
+  'closed',
 ]);
 
-const DEFAULT_CURRENCY = 'UGX';
+export const DEFAULT_CURRENCY = 'UGX';
 
-const MONEY_PATTERN = /^\d+(\.\d{1,18})?$/;
+export const MAX_METADATA_KEYS = 100;
+export const MAX_METADATA_STRING_LENGTH = 2048;
+export const MAX_METADATA_DEPTH = 4;
 
-const MAX_METADATA_KEYS = 100;
+const MONEY_PATTERN = /^\d+(?:\.\d{1,18})?$/;
+
+const INTERNAL_MUTATION = Symbol('titech.wallet.internalMutation');
+
+const INTERNAL_MUTATIONS = Object.freeze({
+  ATOMIC_FINANCIAL: 'atomic-financial',
+  LIFECYCLE: 'lifecycle',
+  SYSTEM: 'system',
+});
 
 /**
- * ============================================================================
- * HELPERS
- * ============================================================================
+ * =============================================================================
+ * ERROR TYPES
+ * =============================================================================
+ */
+
+export class WalletModelError extends Error {
+  constructor(message, code = 'WALLET_MODEL_ERROR') {
+    super(message);
+    this.name = 'WalletModelError';
+    this.code = code;
+  }
+}
+
+export class WalletFinancialMutationError extends WalletModelError {
+  constructor(message, code = 'WALLET_FINANCIAL_MUTATION_ERROR') {
+    super(message, code);
+    this.name = 'WalletFinancialMutationError';
+  }
+}
+
+export class WalletStateError extends WalletModelError {
+  constructor(message, code = 'WALLET_STATE_ERROR') {
+    super(message, code);
+    this.name = 'WalletStateError';
+  }
+}
+
+/**
+ * =============================================================================
+ * MONEY HELPERS
+ * =============================================================================
  */
 
 /**
- * Convert a monetary input into a canonical Decimal128-safe string.
+ * Normalize a monetary input into a Decimal128-safe canonical string.
  *
- * We intentionally do not use parseFloat() because JavaScript Number is not
- * safe for arbitrary financial precision.
+ * JavaScript Number is accepted only when it can be represented as a safe
+ * integer or finite ordinary application number. High-precision monetary
+ * values should be supplied as strings.
  *
  * @param {number|string|mongoose.Types.Decimal128} value
  * @returns {string}
  */
-function normalizeMoney(value) {
-    if (
-        value === null ||
-        value === undefined ||
-        value === ''
-    ) {
-        return '0';
+export function normalizeMoney(value) {
+  if (value === null || value === undefined || value === '') {
+    return '0';
+  }
+
+  if (value instanceof mongoose.Types.Decimal128) {
+    return value.toString();
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new TypeError('Monetary amount must be finite');
     }
 
     if (
-        value instanceof mongoose.Types.Decimal128
+      !Number.isSafeInteger(value) &&
+      Math.abs(value) >= Number.MAX_SAFE_INTEGER
     ) {
-        return value.toString();
+      throw new TypeError(
+        'Monetary amount exceeds JavaScript safe integer precision; use a string',
+      );
     }
 
-    if (typeof value === 'number') {
-        if (!Number.isFinite(value)) {
-            throw new TypeError(
-                'Monetary amount must be a finite number'
-            );
-        }
+    return String(value);
+  }
 
-        if (!Number.isSafeInteger(value)) {
-            /**
-             * Decimal128 can represent more precision than JavaScript
-             * Number can safely preserve.
-             *
-             * Accept numbers for normal application use, but reject values
-             * that are clearly unsafe integer representations.
-             */
-            if (
-                Math.abs(value) >=
-                Number.MAX_SAFE_INTEGER
-            ) {
-                throw new TypeError(
-                    'Monetary amount exceeds JavaScript safe integer range; use a string'
-                );
-            }
-        }
+  if (typeof value !== 'string') {
+    throw new TypeError(
+      'Monetary amount must be a string, number, or Decimal128',
+    );
+  }
 
-        return String(value);
-    }
+  const normalized = value.trim();
 
-    if (typeof value !== 'string') {
-        throw new TypeError(
-            'Monetary amount must be a string, number, or Decimal128'
-        );
-    }
+  if (!MONEY_PATTERN.test(normalized)) {
+    throw new TypeError(
+      'Invalid monetary amount; expected a non-negative decimal string with up to 18 fractional digits',
+    );
+  }
 
-    const normalized = value.trim();
-
-    if (!MONEY_PATTERN.test(normalized)) {
-        throw new TypeError(
-            'Invalid monetary amount'
-        );
-    }
-
-    return normalized;
+  return normalized;
 }
 
 /**
- * Convert money to Decimal128.
+ * Convert a monetary input into Decimal128.
  *
- * @param {number|string|Decimal128} value
+ * @param {number|string|mongoose.Types.Decimal128} value
  * @returns {mongoose.Types.Decimal128}
  */
-function toDecimal128(value) {
-    return mongoose.Types.Decimal128.fromString(
-        normalizeMoney(value)
-    );
+export function toDecimal128(value) {
+  return mongoose.Types.Decimal128.fromString(normalizeMoney(value));
 }
 
 /**
- * Validate a positive monetary amount.
+ * Assert a strictly positive monetary amount.
  *
- * @param {*} amount
+ * @param {number|string|mongoose.Types.Decimal128} amount
+ * @returns {mongoose.Types.Decimal128}
  */
-function assertPositiveAmount(amount) {
-    const decimal = toDecimal128(amount);
+export function assertPositiveAmount(amount) {
+  const normalized = normalizeMoney(amount);
 
-    if (
-        decimal.toString() === '0' ||
-        decimal.toString().startsWith('-')
-    ) {
-        throw new RangeError(
-            'Amount must be greater than zero'
-        );
-    }
+  if (normalized === '0') {
+    throw new RangeError('Amount must be greater than zero');
+  }
 
-    return decimal;
+  return mongoose.Types.Decimal128.fromString(normalized);
 }
 
 /**
- * Safely convert Decimal128 to a string.
+ * Convert Decimal128 to an API-safe string.
  *
- * Financial APIs should generally return monetary values as strings rather
- * than JavaScript floating-point numbers.
- *
- * @param {mongoose.Types.Decimal128} value
+ * @param {mongoose.Types.Decimal128|null|undefined} value
  * @returns {string}
  */
-function decimalToString(value) {
-    if (value === null || value === undefined) {
-        return '0';
-    }
+export function decimalToString(value) {
+  if (value === null || value === undefined) {
+    return '0';
+  }
 
-    return value.toString();
+  return value.toString();
 }
 
 /**
- * ============================================================================
+ * Return whether Decimal128 represents zero without converting to Number.
+ *
+ * @param {mongoose.Types.Decimal128|null|undefined} value
+ * @returns {boolean}
+ */
+function isZeroDecimal(value) {
+  if (value === null || value === undefined) {
+    return true;
+  }
+
+  const normalized = value.toString();
+
+  return /^0(?:\.0*)?$/.test(normalized);
+}
+
+/**
+ * Return whether a Decimal128 string is negative.
+ *
+ * @param {mongoose.Types.Decimal128|string} value
+ * @returns {boolean}
+ */
+function isNegativeDecimal(value) {
+  return String(value).startsWith('-');
+}
+
+/**
+ * =============================================================================
+ * METADATA VALIDATION
+ * =============================================================================
+ */
+
+/**
+ * Validate bounded operational metadata.
+ *
+ * Metadata is intentionally constrained because Schema.Types.Mixed otherwise
+ * allows effectively unbounded arbitrary structures.
+ *
+ * @param {*} value
+ * @param {number} depth
+ */
+function validateMetadataValue(value, depth = 0) {
+  if (depth > MAX_METADATA_DEPTH) {
+    throw new TypeError(
+      `Wallet metadata cannot exceed depth ${MAX_METADATA_DEPTH}`,
+    );
+  }
+
+  if (
+    value === null ||
+    typeof value === 'boolean' ||
+    typeof value === 'number'
+  ) {
+    return;
+  }
+
+  if (typeof value === 'string') {
+    if (value.length > MAX_METADATA_STRING_LENGTH) {
+      throw new TypeError(
+        `Wallet metadata strings cannot exceed ${MAX_METADATA_STRING_LENGTH} characters`,
+      );
+    }
+
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length > MAX_METADATA_KEYS) {
+      throw new TypeError(
+        `Wallet metadata arrays cannot contain more than ${MAX_METADATA_KEYS} items`,
+      );
+    }
+
+    for (const item of value) {
+      validateMetadataValue(item, depth + 1);
+    }
+
+    return;
+  }
+
+  if (typeof value === 'object') {
+    const keys = Object.keys(value);
+
+    if (keys.length > MAX_METADATA_KEYS) {
+      throw new TypeError(
+        `Wallet metadata cannot contain more than ${MAX_METADATA_KEYS} keys`,
+      );
+    }
+
+    for (const key of keys) {
+      if (key.startsWith('$') || key.includes('.')) {
+        throw new TypeError(
+          `Wallet metadata contains unsafe key "${key}"`,
+        );
+      }
+
+      validateMetadataValue(value[key], depth + 1);
+    }
+
+    return;
+  }
+
+  throw new TypeError(
+    'Wallet metadata contains an unsupported value type',
+  );
+}
+
+/**
+ * =============================================================================
+ * COMMON OPTIONS
+ * =============================================================================
+ */
+
+function applySession(options, session) {
+  if (session) {
+    options.session = session;
+  }
+
+  return options;
+}
+
+function markInternalMutation(document, type) {
+  document[INTERNAL_MUTATION] = type;
+}
+
+function isInternalMutation(document, type) {
+  return document?.[INTERNAL_MUTATION] === type;
+}
+
+/**
+ * =============================================================================
  * WALLET SCHEMA
- * ============================================================================
+ * =============================================================================
  */
 
 const WalletSchema = new Schema(
-    {
-        /**
-         * ====================================================================
-         * OWNERSHIP / MULTI-TENANCY
-         * ====================================================================
-         */
+  {
+    /**
+     * ===========================================================================
+     * OWNERSHIP / MULTI-TENANCY
+     * ===========================================================================
+     */
 
-        userId: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            required: true,
-            immutable: true,
-            index: true
-        },
-
-        tenantId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Tenant',
-            required: true,
-            immutable: true,
-            index: true
-        },
-
-        /**
-         * ====================================================================
-         * WALLET IDENTIFICATION
-         * ====================================================================
-         */
-
-        walletNumber: {
-            type: String,
-            trim: true,
-            uppercase: true,
-            immutable: true,
-            sparse: true,
-            index: true
-        },
-
-        /**
-         * ====================================================================
-         * FINANCIAL BALANCE
-         * ====================================================================
-         *
-         * Decimal128 is mandatory for stored monetary state.
-         */
-
-        balance: {
-            type: Schema.Types.Decimal128,
-            required: true,
-            default: () =>
-                mongoose.Types.Decimal128.fromString('0'),
-
-            validate: {
-                validator(value) {
-                    if (!value) {
-                        return true;
-                    }
-
-                    return !value
-                        .toString()
-                        .startsWith('-');
-                },
-
-                message:
-                    'Wallet balance cannot be negative'
-            }
-        },
-
-        currency: {
-            type: String,
-            required: true,
-            default: DEFAULT_CURRENCY,
-            uppercase: true,
-            trim: true,
-            minlength: 3,
-            maxlength: 3,
-
-            validate: {
-                validator(value) {
-                    return /^[A-Z]{3}$/.test(value);
-                },
-
-                message:
-                    'Currency must be a valid ISO 4217 code'
-            }
-        },
-
-        /**
-         * ====================================================================
-         * LIFECYCLE
-         * ====================================================================
-         */
-
-        status: {
-            type: String,
-            enum: WALLET_STATUSES,
-            default: 'active',
-            required: true,
-            index: true
-        },
-
-        /**
-         * ====================================================================
-         * FINANCIAL ACTIVITY
-         * ====================================================================
-         */
-
-        lastTransactionAt: {
-            type: Date,
-            default: null,
-            index: true
-        },
-
-        lastCreditAt: {
-            type: Date,
-            default: null
-        },
-
-        lastDebitAt: {
-            type: Date,
-            default: null
-        },
-
-        totalCredits: {
-            type: Schema.Types.Decimal128,
-            default: () =>
-                mongoose.Types.Decimal128.fromString('0')
-        },
-
-        totalDebits: {
-            type: Schema.Types.Decimal128,
-            default: () =>
-                mongoose.Types.Decimal128.fromString('0')
-        },
-
-        transactionCount: {
-            type: Number,
-            default: 0,
-            min: 0
-        },
-
-        /**
-         * ====================================================================
-         * IDEMPOTENCY / PROCESSING
-         * ====================================================================
-         *
-         * These fields are optional wallet-level coordination metadata.
-         *
-         * The authoritative transaction idempotency key should still normally
-         * live on the transaction/payment record.
-         */
-
-        lastMutationReference: {
-            type: String,
-            trim: true,
-            maxlength: 200,
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * OPERATIONAL METADATA
-         * ====================================================================
-         */
-
-        metadata: {
-            type: Schema.Types.Mixed,
-            default: {}
-        },
-
-        /**
-         * ====================================================================
-         * AUDIT
-         * ====================================================================
-         */
-
-        createdBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null
-        },
-
-        updatedBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null
-        },
-
-        /**
-         * ====================================================================
-         * SOFT DELETE / ARCHIVAL
-         * ====================================================================
-         */
-
-        isDeleted: {
-            type: Boolean,
-            default: false,
-            index: true
-        },
-
-        deletedAt: {
-            type: Date,
-            default: null,
-            index: true
-        },
-
-        deletedBy: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            default: null
-        }
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      immutable: true,
+      index: true,
     },
 
-    {
-        timestamps: true,
+    /**
+     * Current TITech Community Capital tenancy convention uses a stable
+     * application-level tenant identifier rather than coupling the financial
+     * aggregate to a Tenant MongoDB ObjectId.
+     */
+    tenantId: {
+      type: String,
+      required: true,
+      immutable: true,
+      trim: true,
+      minlength: 1,
+      maxlength: 128,
+      index: true,
+    },
 
-        /**
-         * Optimistic concurrency.
-         *
-         * This helps detect conflicting document saves. Atomic monetary
-         * mutations below additionally use MongoDB conditional updates.
-         */
-        optimisticConcurrency: true,
+    /**
+     * ===========================================================================
+     * WALLET IDENTIFICATION
+     * ===========================================================================
+     */
 
-        versionKey: '__v',
+    walletNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      immutable: true,
+      minlength: 3,
+      maxlength: 64,
+      default: null,
+    },
 
-        toJSON: {
-            virtuals: true,
+    /**
+     * ===========================================================================
+     * FINANCIAL BALANCE
+     * ===========================================================================
+     */
 
-            /**
-             * Financial values are exposed as strings to prevent accidental
-             * JavaScript floating-point conversion.
-             */
-            transform(doc, ret) {
-                ret.id = ret._id.toString();
+    balance: {
+      type: Schema.Types.Decimal128,
+      required: true,
+      default: () => mongoose.Types.Decimal128.fromString('0'),
+      validate: {
+        validator(value) {
+          if (value === null || value === undefined) {
+            return false;
+          }
 
-                if (ret.balance !== undefined) {
-                    ret.balance =
-                        decimalToString(ret.balance);
-                }
-
-                if (ret.totalCredits !== undefined) {
-                    ret.totalCredits =
-                        decimalToString(
-                            ret.totalCredits
-                        );
-                }
-
-                if (ret.totalDebits !== undefined) {
-                    ret.totalDebits =
-                        decimalToString(
-                            ret.totalDebits
-                        );
-                }
-
-                delete ret._id;
-
-                return ret;
-            }
+          return !isNegativeDecimal(value);
         },
+        message: 'Wallet balance cannot be negative',
+      },
+    },
 
-        toObject: {
-            virtuals: true,
+    currency: {
+      type: String,
+      required: true,
+      immutable: true,
+      default: DEFAULT_CURRENCY,
+      uppercase: true,
+      trim: true,
+      minlength: 3,
+      maxlength: 3,
+      validate: {
+        validator(value) {
+          return /^[A-Z]{3}$/.test(value);
+        },
+        message: 'Currency must be a valid ISO 4217 three-letter code',
+      },
+    },
 
-            transform(doc, ret) {
-                ret.id = ret._id.toString();
+    /**
+     * ===========================================================================
+     * LIFECYCLE
+     * ===========================================================================
+     */
 
-                if (ret.balance !== undefined) {
-                    ret.balance =
-                        decimalToString(ret.balance);
-                }
+    status: {
+      type: String,
+      enum: WALLET_STATUSES,
+      default: 'active',
+      required: true,
+      index: true,
+    },
 
-                if (ret.totalCredits !== undefined) {
-                    ret.totalCredits =
-                        decimalToString(
-                            ret.totalCredits
-                        );
-                }
+    /**
+     * ===========================================================================
+     * FINANCIAL ACTIVITY AGGREGATES
+     * ===========================================================================
+     *
+     * These are denormalized operational counters.
+     *
+     * They are not substitutes for the transaction history or accounting
+     * ledger.
+     */
 
-                if (ret.totalDebits !== undefined) {
-                    ret.totalDebits =
-                        decimalToString(
-                            ret.totalDebits
-                        );
-                }
+    lastTransactionAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
 
-                delete ret._id;
+    lastCreditAt: {
+      type: Date,
+      default: null,
+    },
 
-                return ret;
-            }
+    lastDebitAt: {
+      type: Date,
+      default: null,
+    },
+
+    totalCredits: {
+      type: Schema.Types.Decimal128,
+      required: true,
+      default: () => mongoose.Types.Decimal128.fromString('0'),
+      validate: {
+        validator(value) {
+          return value !== null && !isNegativeDecimal(value);
+        },
+        message: 'Wallet total credits cannot be negative',
+      },
+    },
+
+    totalDebits: {
+      type: Schema.Types.Decimal128,
+      required: true,
+      default: () => mongoose.Types.Decimal128.fromString('0'),
+      validate: {
+        validator(value) {
+          return value !== null && !isNegativeDecimal(value);
+        },
+        message: 'Wallet total debits cannot be negative',
+      },
+    },
+
+    transactionCount: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      validate: {
+        validator(value) {
+          return Number.isSafeInteger(value) && value >= 0;
+        },
+        message: 'Wallet transaction count must be a non-negative safe integer',
+      },
+    },
+
+    /**
+     * ===========================================================================
+     * OPERATIONAL MUTATION METADATA
+     * ===========================================================================
+     *
+     * This field is descriptive metadata only.
+     *
+     * It must NEVER be used as the authoritative idempotency mechanism.
+     */
+
+    lastMutationReference: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: null,
+    },
+
+    /**
+     * ===========================================================================
+     * OPERATIONAL METADATA
+     * ===========================================================================
+     *
+     * Metadata must not contain secrets, credentials, access tokens, raw payment
+     * payloads, or unrestricted request data.
+     */
+
+    metadata: {
+      type: Schema.Types.Mixed,
+      default: () => ({}),
+    },
+
+    /**
+     * ===========================================================================
+     * AUDIT ATTRIBUTION
+     * ===========================================================================
+     */
+
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      immutable: true,
+    },
+
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    /**
+     * ===========================================================================
+     * SOFT DELETE / ARCHIVAL
+     * ===========================================================================
+     */
+
+    isDeleted: {
+      type: Boolean,
+      required: true,
+      default: false,
+      index: true,
+    },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    deletedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+
+    optimisticConcurrency: true,
+
+    versionKey: '__v',
+
+    minimize: false,
+
+    strict: true,
+
+    toJSON: {
+      virtuals: true,
+      transform(_doc, ret) {
+        if (ret._id) {
+          ret.id = ret._id.toString();
         }
-    }
+
+        if (ret.balance !== undefined) {
+          ret.balance = decimalToString(ret.balance);
+        }
+
+        if (ret.totalCredits !== undefined) {
+          ret.totalCredits = decimalToString(ret.totalCredits);
+        }
+
+        if (ret.totalDebits !== undefined) {
+          ret.totalDebits = decimalToString(ret.totalDebits);
+        }
+
+        delete ret._id;
+
+        return ret;
+      },
+    },
+
+    toObject: {
+      virtuals: true,
+      transform(_doc, ret) {
+        if (ret._id) {
+          ret.id = ret._id.toString();
+        }
+
+        if (ret.balance !== undefined) {
+          ret.balance = decimalToString(ret.balance);
+        }
+
+        if (ret.totalCredits !== undefined) {
+          ret.totalCredits = decimalToString(ret.totalCredits);
+        }
+
+        if (ret.totalDebits !== undefined) {
+          ret.totalDebits = decimalToString(ret.totalDebits);
+        }
+
+        delete ret._id;
+
+        return ret;
+      },
+    },
+  },
 );
 
 /**
- * ============================================================================
+ * =============================================================================
  * INDEXES
- * ============================================================================
+ * =============================================================================
  */
 
 /**
- * One wallet per user per tenant.
- *
- * This is a critical financial invariant.
+ * Financial invariant:
+ * one wallet per user per tenant.
  */
 WalletSchema.index(
-    {
-        tenantId: 1,
-        userId: 1
-    },
-    {
-        unique: true,
-        name: 'uniq_wallet_tenant_user'
-    }
+  {
+    tenantId: 1,
+    userId: 1,
+  },
+  {
+    unique: true,
+    name: 'uniq_wallet_tenant_user',
+  },
 );
 
 /**
- * Wallet lookup by tenant and status.
+ * Wallet number is unique within a tenant when present.
  */
-WalletSchema.index({
+WalletSchema.index(
+  {
+    tenantId: 1,
+    walletNumber: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      walletNumber: {
+        $type: 'string',
+      },
+    },
+    name: 'uniq_wallet_tenant_wallet_number',
+  },
+);
+
+/**
+ * Operational lookup.
+ */
+WalletSchema.index(
+  {
     tenantId: 1,
     status: 1,
-    isDeleted: 1
-});
+    isDeleted: 1,
+  },
+  {
+    name: 'idx_wallet_tenant_status_deleted',
+  },
+);
 
 /**
- * Operational transaction activity.
+ * Activity history / operational dashboards.
+ *
+ * _id provides a deterministic tie-breaker when timestamps collide.
  */
-WalletSchema.index({
+WalletSchema.index(
+  {
     tenantId: 1,
-    lastTransactionAt: -1
-});
+    lastTransactionAt: -1,
+    _id: -1,
+  },
+  {
+    name: 'idx_wallet_tenant_last_transaction',
+  },
+);
 
 /**
- * Wallet number lookup.
+ * Currency-specific operational queries.
  */
-WalletSchema.index({
+WalletSchema.index(
+  {
     tenantId: 1,
-    walletNumber: 1
-});
+    currency: 1,
+    isDeleted: 1,
+  },
+  {
+    name: 'idx_wallet_tenant_currency_deleted',
+  },
+);
 
 /**
- * Currency-specific wallet queries.
+ * Soft-deleted wallet maintenance.
  */
-WalletSchema.index({
+WalletSchema.index(
+  {
     tenantId: 1,
-    currency: 1
-});
+    isDeleted: 1,
+    deletedAt: -1,
+  },
+  {
+    name: 'idx_wallet_tenant_deleted_at',
+  },
+);
 
 /**
- * ============================================================================
+ * =============================================================================
  * VIRTUALS
- * ============================================================================
+ * =============================================================================
  */
 
-WalletSchema.virtual('isActive').get(function () {
-    return (
-        this.status === 'active' &&
-        !this.isDeleted
+WalletSchema.virtual('isActive').get(function isActive() {
+  return this.status === 'active' && !this.isDeleted;
+});
+
+WalletSchema.virtual('isFrozen').get(function isFrozen() {
+  return this.status === 'frozen' && !this.isDeleted;
+});
+
+WalletSchema.virtual('isSuspended').get(function isSuspended() {
+  return this.status === 'suspended' && !this.isDeleted;
+});
+
+WalletSchema.virtual('isClosed').get(function isClosed() {
+  return this.status === 'closed' || this.isDeleted;
+});
+
+/**
+ * =============================================================================
+ * INSTANCE METHODS — STATE ASSERTIONS
+ * =============================================================================
+ */
+
+/**
+ * Assert that the wallet can participate in a financial operation.
+ *
+ * @returns {true}
+ */
+WalletSchema.methods.assertOperational = function assertOperational() {
+  if (this.isDeleted) {
+    throw new WalletStateError(
+      'Wallet is deleted',
+      'WALLET_DELETED',
     );
-});
+  }
 
-WalletSchema.virtual('isFrozen').get(function () {
-    return this.status === 'frozen';
-});
+  if (this.status !== 'active') {
+    throw new WalletStateError(
+      `Wallet is not active: ${this.status}`,
+      'WALLET_NOT_ACTIVE',
+    );
+  }
 
-WalletSchema.virtual('isSuspended').get(function () {
-    return this.status === 'suspended';
-});
-
-WalletSchema.virtual('isClosed').get(function () {
-    return this.status === 'closed';
-});
+  return true;
+};
 
 /**
- * ============================================================================
- * INSTANCE METHODS
- * ============================================================================
+ * Assert that wallet balance is zero.
+ *
+ * @returns {true}
  */
+WalletSchema.methods.assertZeroBalance = function assertZeroBalance() {
+  if (!isZeroDecimal(this.balance)) {
+    throw new WalletStateError(
+      'Wallet balance must be zero',
+      'WALLET_NON_ZERO_BALANCE',
+    );
+  }
+
+  return true;
+};
 
 /**
- * Check whether wallet is operational.
+ * =============================================================================
+ * INSTANCE METHODS — LIFECYCLE
+ * =============================================================================
  */
-WalletSchema.methods.assertOperational =
-    function () {
-        if (this.isDeleted) {
-            throw new Error(
-                'Wallet is deleted'
-            );
-        }
-
-        if (this.status !== 'active') {
-            throw new Error(
-                `Wallet is not active: ${this.status}`
-            );
-        }
-
-        return true;
-    };
 
 /**
  * Freeze wallet.
+ *
+ * Business authorization and reason capture remain in the service/audit layer.
+ *
+ * @param {mongoose.Types.ObjectId|null} updatedBy
+ * @returns {Promise<Wallet>}
  */
-WalletSchema.methods.freeze =
-    async function (updatedBy = null) {
-        this.status = 'frozen';
+WalletSchema.methods.freeze = async function freeze(updatedBy = null) {
+  if (this.isDeleted) {
+    throw new WalletStateError(
+      'Deleted wallet cannot be frozen',
+      'WALLET_DELETED',
+    );
+  }
 
-        if (updatedBy) {
-            this.updatedBy = updatedBy;
-        }
+  if (this.status === 'closed') {
+    throw new WalletStateError(
+      'Closed wallet cannot be frozen',
+      'WALLET_CLOSED',
+    );
+  }
 
-        return this.save();
-    };
+  if (this.status === 'frozen') {
+    return this;
+  }
 
-/**
- * Activate wallet.
- */
-WalletSchema.methods.activate =
-    async function (updatedBy = null) {
-        if (this.isDeleted) {
-            throw new Error(
-                'Deleted wallet cannot be activated'
-            );
-        }
+  this.status = 'frozen';
 
-        this.status = 'active';
+  if (updatedBy) {
+    this.updatedBy = updatedBy;
+  }
 
-        if (updatedBy) {
-            this.updatedBy = updatedBy;
-        }
+  markInternalMutation(this, INTERNAL_MUTATIONS.LIFECYCLE);
 
-        return this.save();
-    };
+  return this.save();
+};
 
 /**
  * Suspend wallet.
+ *
+ * @param {mongoose.Types.ObjectId|null} updatedBy
+ * @returns {Promise<Wallet>}
  */
-WalletSchema.methods.suspend =
-    async function (updatedBy = null) {
-        this.status = 'suspended';
+WalletSchema.methods.suspend = async function suspend(updatedBy = null) {
+  if (this.isDeleted) {
+    throw new WalletStateError(
+      'Deleted wallet cannot be suspended',
+      'WALLET_DELETED',
+    );
+  }
 
-        if (updatedBy) {
-            this.updatedBy = updatedBy;
-        }
+  if (this.status === 'closed') {
+    throw new WalletStateError(
+      'Closed wallet cannot be suspended',
+      'WALLET_CLOSED',
+    );
+  }
 
-        return this.save();
-    };
+  if (this.status === 'suspended') {
+    return this;
+  }
+
+  this.status = 'suspended';
+
+  if (updatedBy) {
+    this.updatedBy = updatedBy;
+  }
+
+  markInternalMutation(this, INTERNAL_MUTATIONS.LIFECYCLE);
+
+  return this.save();
+};
+
+/**
+ * Activate wallet.
+ *
+ * @param {mongoose.Types.ObjectId|null} updatedBy
+ * @returns {Promise<Wallet>}
+ */
+WalletSchema.methods.activate = async function activate(updatedBy = null) {
+  if (this.isDeleted) {
+    throw new WalletStateError(
+      'Deleted wallet cannot be activated',
+      'WALLET_DELETED',
+    );
+  }
+
+  if (this.status === 'closed') {
+    throw new WalletStateError(
+      'Closed wallet cannot be activated',
+      'WALLET_CLOSED',
+    );
+  }
+
+  if (this.status === 'active') {
+    return this;
+  }
+
+  this.status = 'active';
+
+  if (updatedBy) {
+    this.updatedBy = updatedBy;
+  }
+
+  markInternalMutation(this, INTERNAL_MUTATIONS.LIFECYCLE);
+
+  return this.save();
+};
 
 /**
  * Close wallet.
  *
- * A wallet should normally only be closed when its balance is zero.
+ * A wallet with remaining stored value cannot normally be closed.
+ *
+ * @param {mongoose.Types.ObjectId|null} updatedBy
+ * @returns {Promise<Wallet>}
  */
-WalletSchema.methods.close =
-    async function (updatedBy = null) {
-        const balance = toDecimal128(
-            this.balance
-        );
+WalletSchema.methods.close = async function close(updatedBy = null) {
+  if (this.isDeleted) {
+    throw new WalletStateError(
+      'Deleted wallet is already closed',
+      'WALLET_DELETED',
+    );
+  }
 
-        if (balance.toString() !== '0') {
-            throw new Error(
-                'Wallet balance must be zero before closure'
-            );
-        }
+  this.assertZeroBalance();
 
-        this.status = 'closed';
+  if (this.status === 'closed') {
+    return this;
+  }
 
-        if (updatedBy) {
-            this.updatedBy = updatedBy;
-        }
+  this.status = 'closed';
 
-        return this.save();
-    };
+  if (updatedBy) {
+    this.updatedBy = updatedBy;
+  }
+
+  markInternalMutation(this, INTERNAL_MUTATIONS.LIFECYCLE);
+
+  return this.save();
+};
 
 /**
- * Soft delete wallet.
+ * Soft-delete / archive wallet.
+ *
+ * Financially funded wallets cannot be deleted merely as an administrative
+ * convenience.
+ *
+ * @param {mongoose.Types.ObjectId|null} deletedBy
+ * @returns {Promise<Wallet>}
  */
-WalletSchema.methods.softDelete =
-    async function (deletedBy = null) {
-        this.isDeleted = true;
-        this.deletedAt = new Date();
-        this.status = 'closed';
+WalletSchema.methods.softDelete = async function softDelete(
+  deletedBy = null,
+) {
+  if (this.isDeleted) {
+    return this;
+  }
 
-        if (deletedBy) {
-            this.deletedBy = deletedBy;
-            this.updatedBy = deletedBy;
-        }
+  this.assertZeroBalance();
 
-        return this.save();
-    };
+  this.isDeleted = true;
+  this.deletedAt = new Date();
+  this.status = 'closed';
+
+  if (deletedBy) {
+    this.deletedBy = deletedBy;
+    this.updatedBy = deletedBy;
+  }
+
+  markInternalMutation(this, INTERNAL_MUTATIONS.LIFECYCLE);
+
+  return this.save();
+};
 
 /**
- * ============================================================================
- * ATOMIC FINANCIAL METHODS
- * ============================================================================
- *
- * These methods are intentionally static.
- *
- * NEVER use:
- *
- *   wallet.balance += amount
- *   wallet.save()
- *
- * for concurrent financial workers.
- *
- * Instead use atomicCredit / atomicDebit.
+ * =============================================================================
+ * STATIC FINANCIAL MUTATIONS
+ * =============================================================================
  */
 
 /**
  * Atomic credit.
  *
- * MongoDB performs:
+ * This is a low-level wallet state primitive.
  *
- *   balance = balance + amount
- *
- * atomically.
+ * It is intentionally NOT an idempotency mechanism and should normally be
+ * invoked by FinancialTransactionService inside an appropriate MongoDB session.
  *
  * @param {Object} options
- * @param {ObjectId|string} options.walletId
- * @param {ObjectId|string} options.tenantId
- * @param {number|string} options.amount
- * @param {string} [options.reference]
- * @param {ObjectId|string} [options.updatedBy]
- * @param {Object} [options.session]
+ * @param {mongoose.Types.ObjectId|string} options.walletId
+ * @param {string} options.tenantId
+ * @param {number|string|mongoose.Types.Decimal128} options.amount
+ * @param {string|null} [options.reference]
+ * @param {mongoose.Types.ObjectId|null} [options.updatedBy]
+ * @param {mongoose.ClientSession|null} [options.session]
+ * @param {number|null} [options.expectedVersion]
+ * @returns {Promise<Wallet>}
  */
-WalletSchema.statics.atomicCredit =
-    async function ({
-        walletId,
-        tenantId,
-        amount,
-        reference = null,
-        updatedBy = null,
-        session = null
-    }) {
-        const creditAmount =
-            assertPositiveAmount(amount);
+WalletSchema.statics.atomicCredit = async function atomicCredit({
+  walletId,
+  tenantId,
+  amount,
+  reference = null,
+  updatedBy = null,
+  session = null,
+  expectedVersion = null,
+} = {}) {
+  if (!walletId) {
+    throw new WalletFinancialMutationError(
+      'walletId is required',
+      'WALLET_ID_REQUIRED',
+    );
+  }
 
-        const now = new Date();
+  if (!tenantId) {
+    throw new WalletFinancialMutationError(
+      'tenantId is required',
+      'TENANT_ID_REQUIRED',
+    );
+  }
 
-        const filter = {
-            _id: walletId,
-            tenantId,
-            status: 'active',
-            isDeleted: false
-        };
+  const creditAmount = assertPositiveAmount(amount);
+  const now = new Date();
 
-        const update = {
-            $inc: {
-                balance: creditAmount,
-                totalCredits: creditAmount,
-                transactionCount: 1
-            },
+  const filter = {
+    _id: walletId,
+    tenantId: String(tenantId),
+    status: 'active',
+    isDeleted: false,
+  };
 
-            $set: {
-                lastTransactionAt: now,
-                lastCreditAt: now,
-                ...(reference !== null
-                    ? {
-                          lastMutationReference:
-                              reference
-                      }
-                    : {}),
-                ...(updatedBy
-                    ? { updatedBy }
-                    : {})
-            }
-        };
+  if (expectedVersion !== null && expectedVersion !== undefined) {
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+      throw new WalletFinancialMutationError(
+        'expectedVersion must be a non-negative safe integer',
+        'INVALID_EXPECTED_VERSION',
+      );
+    }
 
-        const options = {
-            new: true,
-            runValidators: true
-        };
+    filter.__v = expectedVersion;
+  }
 
-        if (session) {
-            options.session = session;
-        }
+  const update = {
+    $inc: {
+      balance: creditAmount,
+      totalCredits: creditAmount,
+      transactionCount: 1,
+      __v: 1,
+    },
+    $set: {
+      lastTransactionAt: now,
+      lastCreditAt: now,
+      ...(reference !== null
+        ? {
+            lastMutationReference: reference,
+          }
+        : {}),
+      ...(updatedBy
+        ? {
+            updatedBy,
+          }
+        : {}),
+    },
+  };
 
-        const wallet =
-            await this.findOneAndUpdate(
-                filter,
-                update,
-                options
-            );
+  const options = applySession(
+    {
+      new: true,
+      runValidators: true,
+      context: 'query',
+      _allowWalletMutation: INTERNAL_MUTATIONS.ATOMIC_FINANCIAL,
+    },
+    session,
+  );
 
-        if (!wallet) {
-            throw new Error(
-                'Active wallet not found for atomic credit'
-            );
-        }
+  const wallet = await this.findOneAndUpdate(
+    filter,
+    update,
+    options,
+  );
 
-        return wallet;
-    };
+  if (!wallet) {
+    throw new WalletFinancialMutationError(
+      'Active wallet not found or optimistic-concurrency check failed during atomic credit',
+      'WALLET_CREDIT_FAILED',
+    );
+  }
+
+  return wallet;
+};
 
 /**
  * Atomic debit.
  *
- * Critically, the query includes:
+ * The MongoDB predicate balance >= amount ensures competing debit operations
+ * cannot both consume the same insufficient funds.
  *
- *   balance >= amount
+ * @param {Object} options
+ * @param {mongoose.Types.ObjectId|string} options.walletId
+ * @param {string} options.tenantId
+ * @param {number|string|mongoose.Types.Decimal128} options.amount
+ * @param {string|null} [options.reference]
+ * @param {mongoose.Types.ObjectId|null} [options.updatedBy]
+ * @param {mongoose.ClientSession|null} [options.session]
+ * @param {number|null} [options.expectedVersion]
+ * @returns {Promise<Wallet>}
+ */
+WalletSchema.statics.atomicDebit = async function atomicDebit({
+  walletId,
+  tenantId,
+  amount,
+  reference = null,
+  updatedBy = null,
+  session = null,
+  expectedVersion = null,
+} = {}) {
+  if (!walletId) {
+    throw new WalletFinancialMutationError(
+      'walletId is required',
+      'WALLET_ID_REQUIRED',
+    );
+  }
+
+  if (!tenantId) {
+    throw new WalletFinancialMutationError(
+      'tenantId is required',
+      'TENANT_ID_REQUIRED',
+    );
+  }
+
+  const debitAmount = assertPositiveAmount(amount);
+  const negativeDebit = mongoose.Types.Decimal128.fromString(
+    `-${debitAmount.toString()}`,
+  );
+
+  const now = new Date();
+
+  const filter = {
+    _id: walletId,
+    tenantId: String(tenantId),
+    status: 'active',
+    isDeleted: false,
+    balance: {
+      $gte: debitAmount,
+    },
+  };
+
+  if (expectedVersion !== null && expectedVersion !== undefined) {
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+      throw new WalletFinancialMutationError(
+        'expectedVersion must be a non-negative safe integer',
+        'INVALID_EXPECTED_VERSION',
+      );
+    }
+
+    filter.__v = expectedVersion;
+  }
+
+  const update = {
+    $inc: {
+      balance: negativeDebit,
+      totalDebits: debitAmount,
+      transactionCount: 1,
+      __v: 1,
+    },
+    $set: {
+      lastTransactionAt: now,
+      lastDebitAt: now,
+      ...(reference !== null
+        ? {
+            lastMutationReference: reference,
+          }
+        : {}),
+      ...(updatedBy
+        ? {
+            updatedBy,
+          }
+        : {}),
+    },
+  };
+
+  const options = applySession(
+    {
+      new: true,
+      runValidators: true,
+      context: 'query',
+      _allowWalletMutation: INTERNAL_MUTATIONS.ATOMIC_FINANCIAL,
+    },
+    session,
+  );
+
+  const wallet = await this.findOneAndUpdate(
+    filter,
+    update,
+    options,
+  );
+
+  if (!wallet) {
+    throw new WalletFinancialMutationError(
+      'Insufficient funds, inactive wallet, deleted wallet, missing wallet, or optimistic-concurrency conflict',
+      'WALLET_DEBIT_FAILED',
+    );
+  }
+
+  return wallet;
+};
+
+/**
+ * =============================================================================
+ * STATIC LOOKUPS
+ * =============================================================================
+ */
+
+/**
+ * Find the current wallet for a user in a tenant.
  *
- * Therefore two concurrent workers cannot both successfully debit the same
- * funds when only one sufficient balance exists.
+ * @param {string} tenantId
+ * @param {mongoose.Types.ObjectId|string} userId
+ * @returns {mongoose.Query}
  */
-WalletSchema.statics.atomicDebit =
-    async function ({
-        walletId,
-        tenantId,
-        amount,
-        reference = null,
-        updatedBy = null,
-        session = null
-    }) {
-        const debitAmount =
-            assertPositiveAmount(amount);
-
-        const now = new Date();
-
-        const filter = {
-            _id: walletId,
-            tenantId,
-            status: 'active',
-            isDeleted: false,
-
-            /**
-             * MongoDB Decimal128 comparison.
-             */
-            balance: {
-                $gte: debitAmount
-            }
-        };
-
-        const update = {
-            $inc: {
-                balance:
-                    mongoose.Types.Decimal128.fromString(
-                        `-${debitAmount.toString()}`
-                    ),
-
-                totalDebits: debitAmount,
-
-                transactionCount: 1
-            },
-
-            $set: {
-                lastTransactionAt: now,
-                lastDebitAt: now,
-
-                ...(reference !== null
-                    ? {
-                          lastMutationReference:
-                              reference
-                      }
-                    : {}),
-
-                ...(updatedBy
-                    ? { updatedBy }
-                    : {})
-            }
-        };
-
-        const options = {
-            new: true,
-            runValidators: true
-        };
-
-        if (session) {
-            options.session = session;
-        }
-
-        const wallet =
-            await this.findOneAndUpdate(
-                filter,
-                update,
-                options
-            );
-
-        if (!wallet) {
-            throw new Error(
-                'Insufficient funds, inactive wallet, deleted wallet, or wallet not found'
-            );
-        }
-
-        return wallet;
-    };
+WalletSchema.statics.findByUser = function findByUser(
+  tenantId,
+  userId,
+) {
+  return this.findOne({
+    tenantId: String(tenantId),
+    userId,
+    isDeleted: false,
+  });
+};
 
 /**
- * ============================================================================
- * STATIC HELPERS
- * ============================================================================
- */
-
-/**
- * Find wallet by tenant and user.
- */
-WalletSchema.statics.findByUser =
-    function (tenantId, userId) {
-        return this.findOne({
-            tenantId,
-            userId,
-            isDeleted: false
-        });
-    };
-
-/**
- * Find wallet by wallet number.
+ * Find wallet by tenant-scoped wallet number.
+ *
+ * @param {string} tenantId
+ * @param {string} walletNumber
+ * @returns {mongoose.Query}
  */
 WalletSchema.statics.findByWalletNumber =
-    function (
-        tenantId,
-        walletNumber
-    ) {
-        return this.findOne({
-            tenantId,
-            walletNumber:
-                String(walletNumber)
-                    .trim()
-                    .toUpperCase(),
-            isDeleted: false
-        });
-    };
+  function findByWalletNumber(tenantId, walletNumber) {
+    const normalizedWalletNumber = String(walletNumber)
+      .trim()
+      .toUpperCase();
+
+    return this.findOne({
+      tenantId: String(tenantId),
+      walletNumber: normalizedWalletNumber,
+      isDeleted: false,
+    });
+  };
 
 /**
- * Find active wallet.
+ * Find active wallet by user.
+ *
+ * @param {string} tenantId
+ * @param {mongoose.Types.ObjectId|string} userId
+ * @returns {mongoose.Query}
  */
-WalletSchema.statics.findActive =
-    function (
-        tenantId,
-        userId
-    ) {
-        return this.findOne({
-            tenantId,
-            userId,
-            status: 'active',
-            isDeleted: false
-        });
-    };
+WalletSchema.statics.findActive = function findActive(
+  tenantId,
+  userId,
+) {
+  return this.findOne({
+    tenantId: String(tenantId),
+    userId,
+    status: 'active',
+    isDeleted: false,
+  });
+};
 
 /**
- * ============================================================================
- * MIDDLEWARE
- * ============================================================================
+ * =============================================================================
+ * PRE-SAVE FINANCIAL PROTECTION
+ * =============================================================================
+ *
+ * Ordinary document saves cannot modify authoritative financial fields.
+ *
+ * Financial changes are permitted only through the guarded atomic methods.
  */
 
-/**
- * Normalize currency and enforce balance invariants before save.
- */
-WalletSchema.pre(
-    'save',
-    function (next) {
-        try {
-            if (this.currency) {
-                this.currency =
-                    this.currency
-                        .trim()
-                        .toUpperCase();
-            }
+WalletSchema.pre('save', function walletPreSave(next) {
+  try {
+    const isNew = this.isNew;
+    const internalMutation = this[INTERNAL_MUTATION];
 
-            /**
-             * Normalize Decimal128 fields.
-             */
-            if (this.balance !== undefined) {
-                this.balance =
-                    toDecimal128(
-                        this.balance
-                    );
-            }
-
-            if (
-                this.totalCredits !==
-                undefined
-            ) {
-                this.totalCredits =
-                    toDecimal128(
-                        this.totalCredits
-                    );
-            }
-
-            if (
-                this.totalDebits !==
-                undefined
-            ) {
-                this.totalDebits =
-                    toDecimal128(
-                        this.totalDebits
-                    );
-            }
-
-            /**
-             * Enforce financial invariants.
-             */
-            const balance =
-                toDecimal128(
-                    this.balance
-                );
-
-            if (
-                balance.toString()
-                    .startsWith('-')
-            ) {
-                return next(
-                    new Error(
-                        'Wallet balance cannot be negative'
-                    )
-                );
-            }
-
-            const credits =
-                toDecimal128(
-                    this.totalCredits
-                );
-
-            const debits =
-                toDecimal128(
-                    this.totalDebits
-                );
-
-            if (
-                credits
-                    .toString()
-                    .startsWith('-') ||
-                debits
-                    .toString()
-                    .startsWith('-')
-            ) {
-                return next(
-                    new Error(
-                        'Wallet aggregate totals cannot be negative'
-                    )
-                );
-            }
-
-            /**
-             * Metadata guard.
-             */
-            if (
-                this.metadata &&
-                typeof this.metadata ===
-                    'object' &&
-                !Array.isArray(
-                    this.metadata
-                )
-            ) {
-                const keys =
-                    Object.keys(
-                        this.metadata
-                    );
-
-                if (
-                    keys.length >
-                    MAX_METADATA_KEYS
-                ) {
-                    return next(
-                        new Error(
-                            `Wallet metadata cannot contain more than ${MAX_METADATA_KEYS} keys`
-                        )
-                    );
-                }
-            }
-
-            next();
-        } catch (error) {
-            next(error);
-        }
+    /**
+     * Normalize immutable textual values.
+     */
+    if (this.currency) {
+      this.currency = this.currency.trim().toUpperCase();
     }
+
+    if (this.tenantId) {
+      this.tenantId = String(this.tenantId).trim();
+    }
+
+    if (this.walletNumber) {
+      this.walletNumber = this.walletNumber.trim().toUpperCase();
+    }
+
+    /**
+     * Normalize Decimal128-backed fields.
+     */
+    if (this.balance !== undefined) {
+      this.balance = toDecimal128(this.balance);
+    }
+
+    if (this.totalCredits !== undefined) {
+      this.totalCredits = toDecimal128(this.totalCredits);
+    }
+
+    if (this.totalDebits !== undefined) {
+      this.totalDebits = toDecimal128(this.totalDebits);
+    }
+
+    /**
+     * Financial invariants.
+     */
+    if (this.balance === null || this.balance === undefined) {
+      throw new WalletFinancialMutationError(
+        'Wallet balance is required',
+        'BALANCE_REQUIRED',
+      );
+    }
+
+    if (isNegativeDecimal(this.balance)) {
+      throw new WalletFinancialMutationError(
+        'Wallet balance cannot be negative',
+        'NEGATIVE_BALANCE',
+      );
+    }
+
+    if (isNegativeDecimal(this.totalCredits)) {
+      throw new WalletFinancialMutationError(
+        'Wallet total credits cannot be negative',
+        'NEGATIVE_TOTAL_CREDITS',
+      );
+    }
+
+    if (isNegativeDecimal(this.totalDebits)) {
+      throw new WalletFinancialMutationError(
+        'Wallet total debits cannot be negative',
+        'NEGATIVE_TOTAL_DEBITS',
+      );
+    }
+
+    if (
+      !Number.isSafeInteger(this.transactionCount) ||
+      this.transactionCount < 0
+    ) {
+      throw new WalletFinancialMutationError(
+        'Wallet transaction count must be a non-negative safe integer',
+        'INVALID_TRANSACTION_COUNT',
+      );
+    }
+
+    /**
+     * New wallet creation is permitted.
+     *
+     * Existing wallet financial fields may not be altered through ordinary
+     * save()/document mutation.
+     */
+    if (!isNew && internalMutation !== INTERNAL_MUTATIONS.ATOMIC_FINANCIAL) {
+      const protectedFinancialFields = [
+        'balance',
+        'totalCredits',
+        'totalDebits',
+        'transactionCount',
+        'lastTransactionAt',
+        'lastCreditAt',
+        'lastDebitAt',
+        'lastMutationReference',
+      ];
+
+      const illegallyModified = protectedFinancialFields.filter((field) =>
+        this.isModified(field),
+      );
+
+      if (illegallyModified.length > 0) {
+        throw new WalletFinancialMutationError(
+          `Direct wallet financial mutation is prohibited: ${illegallyModified.join(', ')}`,
+          'DIRECT_FINANCIAL_MUTATION_BLOCKED',
+        );
+      }
+    }
+
+    /**
+     * Metadata protection.
+     */
+    if (this.metadata !== null && this.metadata !== undefined) {
+      validateMetadataValue(this.metadata);
+    }
+
+    /**
+     * Lifecycle protections.
+     */
+    if (this.isDeleted) {
+      if (!this.deletedAt) {
+        this.deletedAt = new Date();
+      }
+
+      if (this.status !== 'closed') {
+        throw new WalletStateError(
+          'Deleted wallets must have closed status',
+          'INVALID_DELETED_WALLET_STATE',
+        );
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * =============================================================================
+ * QUERY MUTATION PROTECTION
+ * =============================================================================
+ *
+ * Generic update/delete operations bypass document-level lifecycle semantics
+ * and are therefore disabled.
+ *
+ * Controlled internals can opt in explicitly.
+ */
+
+function assertAllowedWalletQueryMutation(query) {
+  const options = query.getOptions?.() ?? {};
+
+  if (
+    options._allowWalletMutation === INTERNAL_MUTATIONS.ATOMIC_FINANCIAL
+  ) {
+    return;
+  }
+
+  if (
+    options._allowWalletMutation === INTERNAL_MUTATIONS.LIFECYCLE
+  ) {
+    return;
+  }
+
+  if (
+    options._allowWalletMutation === INTERNAL_MUTATIONS.SYSTEM
+  ) {
+    return;
+  }
+
+  throw new WalletModelError(
+    'Generic wallet query mutation is prohibited; use a controlled wallet method or financial service',
+    'GENERIC_WALLET_MUTATION_BLOCKED',
+  );
+}
+
+for (const middlewareName of [
+  'updateOne',
+  'updateMany',
+  'findOneAndUpdate',
+  'replaceOne',
+  'findOneAndReplace',
+]) {
+  WalletSchema.pre(
+    middlewareName,
+    function walletMutationGuard(next) {
+      try {
+        assertAllowedWalletQueryMutation(this);
+        next();
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+}
+
+/**
+ * =============================================================================
+ * DELETE PROTECTION
+ * =============================================================================
+ */
+
+for (const middlewareName of [
+  'deleteOne',
+  'deleteMany',
+  'findOneAndDelete',
+  'findOneAndRemove',
+  'findByIdAndDelete',
+  'findByIdAndRemove',
+]) {
+  WalletSchema.pre(
+    middlewareName,
+    function walletDeleteGuard(next) {
+      next(
+        new WalletModelError(
+          'Hard deletion of wallets is prohibited',
+          'WALLET_HARD_DELETE_BLOCKED',
+        ),
+      );
+    },
+  );
+}
+
+WalletSchema.pre(
+  'bulkWrite',
+  function walletBulkWriteGuard(next) {
+    next(
+      new WalletModelError(
+        'bulkWrite on Wallet is prohibited; use controlled domain operations',
+        'WALLET_BULK_WRITE_BLOCKED',
+      ),
+    );
+  },
 );
 
 /**
- * ============================================================================
+ * =============================================================================
  * QUERY HELPERS
- * ============================================================================
+ * =============================================================================
  */
 
-WalletSchema.query.active =
-    function () {
-        return this.where({
-            status: 'active',
-            isDeleted: false
-        });
-    };
+WalletSchema.query.active = function active() {
+  return this.where({
+    status: 'active',
+    isDeleted: false,
+  });
+};
 
-WalletSchema.query.forTenant =
-    function (tenantId) {
-        return this.where({
-            tenantId
-        });
-    };
+WalletSchema.query.notDeleted = function notDeleted() {
+  return this.where({
+    isDeleted: false,
+  });
+};
+
+WalletSchema.query.forTenant = function forTenant(tenantId) {
+  if (!tenantId) {
+    throw new WalletModelError(
+      'tenantId is required for tenant-scoped wallet queries',
+      'TENANT_ID_REQUIRED',
+    );
+  }
+
+  return this.where({
+    tenantId: String(tenantId),
+  });
+};
+
+WalletSchema.query.forUser = function forUser(userId) {
+  return this.where({
+    userId,
+  });
+};
 
 /**
- * ============================================================================
- * EXPORTS
- * ============================================================================
+ * =============================================================================
+ * MODEL REGISTRATION
+ * =============================================================================
  */
 
 const Wallet =
-    mongoose.models.Wallet ||
-    mongoose.model(
-        'Wallet',
-        WalletSchema
-    );
-
-module.exports = Wallet;
+  mongoose.models.Wallet ||
+  mongoose.model('Wallet', WalletSchema);
 
 /**
- * Export constants for service/test reuse without changing the default model
- * export contract.
+ * Named exports preserve test/service reuse while keeping the model itself as
+ * the default export contract.
  */
-module.exports.WALLET_STATUSES =
-    WALLET_STATUSES;
 
-module.exports.DEFAULT_CURRENCY =
-    DEFAULT_CURRENCY;
-
-module.exports.normalizeMoney =
-    normalizeMoney;
-
-module.exports.toDecimal128 =
-    toDecimal128;
+export default Wallet;

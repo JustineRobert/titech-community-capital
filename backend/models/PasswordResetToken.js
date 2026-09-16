@@ -1,133 +1,121 @@
-"use strict";
-
 /**
- * =============================================================================
- * TITech Community Capital
- * TITech Community Capital Operating System
- * =============================================================================
+ * backend/models/PasswordResetToken.js
+ * TITech Community Capital — Password Reset Token Model
  *
- * File:
- *   backend/models/PasswordResetToken.js
+ * Architectural role:
+ * - Persists short-lived, single-use password-reset token state.
+ * - Stores only a cryptographic digest of the plaintext reset token.
+ * - Provides controlled lookup, atomic consumption, revocation, and
+ *   retention-oriented lifecycle operations.
  *
- * Purpose:
- *   Enterprise-grade password-reset token persistence model.
+ * Important boundaries:
+ * - The plaintext reset token MUST NEVER be persisted.
+ * - Cryptographically secure token generation belongs to the service layer.
+ * - Token hashing belongs to the service layer.
+ * - Password changes themselves belong to the authentication/account service.
+ * - Email/SMS delivery belongs to the notification/messaging service.
+ * - Rate limiting, brute-force protection, account lockout, and identity
+ *   verification belong to the authentication/security service.
+ * - Tenant authorization remains a service/repository responsibility.
+ * - This model is not a session, refresh-token, API-key, or generic credential
+ *   store.
  *
- * Security Model:
- *   - NEVER stores plaintext password-reset tokens.
- *   - Stores only a SHA-256/HMAC-derived token hash.
- *   - Token hashes are unique.
- *   - Token hashes are never returned by default.
- *   - MongoDB TTL removes expired records asynchronously.
- *   - Application-level expiry validation remains mandatory.
- *   - Tokens are single-use.
- *   - Atomic consumption is supported for concurrent requests.
- *   - Token lifecycle supports used/revoked/soft-deleted states.
- *   - Multi-tenant isolation is supported.
- *   - Request and consumption audit metadata is supported.
- *   - Metadata is constrained and protected against obvious secret leakage.
+ * Security principles:
+ * - Native ESM only.
+ * - Only SHA-256/HMAC-derived 64-character hexadecimal digests are persisted.
+ * - tokenHash is select:false and excluded from serialization.
+ * - Expiration is checked at application level in addition to MongoDB TTL.
+ * - Consumption is atomic and single-use.
+ * - Revocation is monotonic.
+ * - Generic destructive/mutation queries are blocked.
+ * - Network/device context is stored only as application-generated hashes.
+ * - Metadata is bounded and credential-like keys are redacted.
+ * - Optimistic concurrency is enabled.
  *
- * IMPORTANT:
- *   The plaintext token MUST NEVER be persisted anywhere in this model.
+ * Module format:
+ * - Native ECMAScript Modules (ESM)
  *
- * =============================================================================
+ * Persistence:
+ * - MongoDB collection: password_reset_tokens
+ *
+ * Compatibility note:
+ * - tenantId is represented as String to match the newer TITech tenancy
+ *   boundary. Existing installations using Tenant ObjectIds require an
+ *   explicit data migration before adopting this schema.
  */
 
-const mongoose = require("mongoose");
+import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-/**
- * =============================================================================
+/* ==========================================================================
  * Constants
- * =============================================================================
- */
+ * ========================================================================== */
 
-/**
- * TITech currently standardizes tokenHash persistence as a 64-character
- * lowercase hexadecimal cryptographic digest.
- *
- * Examples:
- *   SHA-256(rawToken)
- *   HMAC-SHA256(rawToken)
- *
- * The actual cryptographic operation belongs to the service layer.
- */
-const TOKEN_HASH_LENGTH = 64;
+export const PASSWORD_RESET_PURPOSE =
+  'password_reset';
 
-const IP_MAX_LENGTH = 64;
-const USER_AGENT_MAX_LENGTH = 1024;
-const REQUEST_ID_MAX_LENGTH = 128;
-const REASON_MAX_LENGTH = 256;
+export const TOKEN_HASH_LENGTH = 64;
 
-const METADATA_MAX_KEYS = 50;
-const METADATA_MAX_DEPTH = 3;
-const METADATA_MAX_SERIALIZED_BYTES = 8192;
+export const TOKEN_HASH_PATTERN =
+  /^[a-f0-9]{64}$/;
 
-/**
- * Metadata keys that must never be persisted.
- *
- * This is intentionally defensive rather than exhaustive.
- */
+export const METADATA_MAX_KEYS = 50;
+export const METADATA_MAX_DEPTH = 4;
+export const METADATA_MAX_ARRAY_LENGTH = 50;
+export const METADATA_MAX_SERIALIZED_BYTES = 8 * 1024;
+
+const MAX_TENANT_ID_LENGTH = 128;
+const MAX_FINGERPRINT_LENGTH = 256;
+const MAX_REQUEST_ID_LENGTH = 256;
+const MAX_REASON_LENGTH = 256;
+
 const FORBIDDEN_METADATA_KEY_PATTERN =
-  /^(password|passwd|passcode|token|accesstoken|refreshtoken|authorization|cookie|secret|secretkey|clientsecret|privatekey|otp|pin|apikey|api_key|credential|credentials)$/i;
+  /^(password|passwd|passcode|token|accesstoken|access_token|refreshtoken|refresh_token|idtoken|id_token|authorization|cookie|set-cookie|secret|secretkey|clientsecret|privatekey|otp|totp|pin|apikey|api_key|credential|credentials)$/i;
 
-/**
- * =============================================================================
- * Validation Utilities
- * =============================================================================
- */
+/* ==========================================================================
+ * Validation helpers
+ * ========================================================================== */
 
-/**
- * Safely determine whether a value is a plain object.
- */
 function isPlainObject(value) {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-
-  if (Array.isArray(value)) {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value)
+  ) {
     return false;
   }
 
   const prototype = Object.getPrototypeOf(value);
 
-  return prototype === Object.prototype || prototype === null;
+  return (
+    prototype === Object.prototype ||
+    prototype === null
+  );
 }
 
-/**
- * Recursively inspect metadata for suspicious credential-like keys.
- */
-function containsForbiddenMetadataKey(value, depth = 0) {
+function containsForbiddenMetadataKey(
+  value,
+  depth = 0,
+) {
   if (depth > METADATA_MAX_DEPTH) {
     return true;
   }
 
   if (Array.isArray(value)) {
-    return value.some((item) =>
-      containsForbiddenMetadataKey(item, depth + 1)
-    );
-  }
-
-  if (!isPlainObject(value)) {
-    return false;
-  }
-
-  return Object.entries(value).some(([key, childValue]) => {
-    if (FORBIDDEN_METADATA_KEY_PATTERN.test(key)) {
+    if (
+      value.length >
+      METADATA_MAX_ARRAY_LENGTH
+    ) {
       return true;
     }
 
-    return containsForbiddenMetadataKey(childValue, depth + 1);
-  });
-}
-
-/**
- * Validate metadata without attempting to guarantee that arbitrary
- * application metadata can never contain sensitive information.
- */
-function validateMetadata(value) {
-  if (value == null) {
-    return true;
+    return value.some((item) =>
+      containsForbiddenMetadataKey(
+        item,
+        depth + 1,
+      ),
+    );
   }
 
   if (!isPlainObject(value)) {
@@ -137,328 +125,587 @@ function validateMetadata(value) {
   const keys = Object.keys(value);
 
   if (keys.length > METADATA_MAX_KEYS) {
+    return true;
+  }
+
+  return Object.entries(value).some(
+    ([key, childValue]) => {
+      if (
+        FORBIDDEN_METADATA_KEY_PATTERN.test(
+          key,
+        )
+      ) {
+        return true;
+      }
+
+      return containsForbiddenMetadataKey(
+        childValue,
+        depth + 1,
+      );
+    },
+  );
+}
+
+function sanitizeMetadata(
+  value,
+  depth = 0,
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return {};
+  }
+
+  if (depth > METADATA_MAX_DEPTH) {
+    return '[TRUNCATED]';
+  }
+
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .slice(0, METADATA_MAX_ARRAY_LENGTH)
+      .map((item) =>
+        sanitizeMetadata(
+          item,
+          depth + 1,
+        ),
+      );
+  }
+
+  if (isPlainObject(value)) {
+    const output = {};
+    const entries = Object.entries(value)
+      .slice(0, METADATA_MAX_KEYS);
+
+    for (const [key, childValue] of entries) {
+      if (
+        FORBIDDEN_METADATA_KEY_PATTERN.test(
+          key,
+        )
+      ) {
+        output[key] = '[REDACTED]';
+      } else {
+        output[key] = sanitizeMetadata(
+          childValue,
+          depth + 1,
+        );
+      }
+    }
+
+    if (
+      Object.keys(value).length >
+      METADATA_MAX_KEYS
+    ) {
+      output._truncatedKeys = true;
+    }
+
+    return output;
+  }
+
+  return `[UNSERIALIZABLE:${typeof value}]`;
+}
+
+function validateMetadata(value) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return true;
+  }
+
+  if (!isPlainObject(value)) {
     return false;
   }
 
-  if (containsForbiddenMetadataKey(value)) {
+  if (
+    Object.keys(value).length >
+    METADATA_MAX_KEYS
+  ) {
+    return false;
+  }
+
+  if (
+    containsForbiddenMetadataKey(value)
+  ) {
     return false;
   }
 
   try {
-    const serialized = JSON.stringify(value);
+    const serialized =
+      JSON.stringify(value);
 
     if (!serialized) {
       return true;
     }
 
     return (
-      Buffer.byteLength(serialized, "utf8") <=
-      METADATA_MAX_SERIALIZED_BYTES
+      Buffer.byteLength(
+        serialized,
+        'utf8',
+      ) <= METADATA_MAX_SERIALIZED_BYTES
     );
-  } catch (_error) {
+  } catch {
     return false;
   }
 }
 
-/**
- * Normalize an optional ObjectId filter.
- *
- * The actual service layer remains responsible for authorization.
- */
-function isValidObjectId(value) {
-  return (
-    value == null ||
-    value instanceof mongoose.Types.ObjectId ||
-    mongoose.isValidObjectId(value)
+function normalizeTenantId(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ''
+  ) {
+    return null;
+  }
+
+  const normalized =
+    String(value).trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.slice(
+    0,
+    MAX_TENANT_ID_LENGTH,
   );
 }
 
-/**
- * =============================================================================
- * PasswordResetToken Schema
- * =============================================================================
- */
+function normalizeHash(value) {
+  if (
+    typeof value !== 'string'
+  ) {
+    throw new TypeError(
+      'tokenHash must be a string.',
+    );
+  }
 
-const PasswordResetTokenSchema = new Schema(
-  {
-    /**
-     * -------------------------------------------------------------------------
-     * User
-     * -------------------------------------------------------------------------
-     */
+  const normalized =
+    value.trim().toLowerCase();
 
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      immutable: true,
-      index: true,
-    },
+  if (
+    !TOKEN_HASH_PATTERN.test(
+      normalized,
+    )
+  ) {
+    throw new TypeError(
+      'tokenHash must be a 64-character lowercase hexadecimal digest.',
+    );
+  }
 
-    /**
-     * -------------------------------------------------------------------------
-     * Tenant Context
-     * -------------------------------------------------------------------------
-     *
-     * TITech is multi-tenant.
-     *
-     * tenantId is intentionally retained on the token itself so token
-     * operations can be scoped independently of User document resolution.
-     */
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: "Tenant",
-      default: null,
-      immutable: true,
-      index: true,
-    },
+  return normalized;
+}
 
-    /**
-     * -------------------------------------------------------------------------
-     * Token Purpose
-     * -------------------------------------------------------------------------
-     *
-     * Explicit purpose prevents this collection from becoming a generic
-     * credential-token store.
-     */
+function normalizeNullableString(
+  value,
+  maxLength,
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return null;
+  }
 
-    purpose: {
-      type: String,
-      enum: ["password_reset"],
-      required: true,
-      default: "password_reset",
-      immutable: true,
-      index: true,
-    },
+  const normalized =
+    String(value).trim();
 
-    /**
-     * -------------------------------------------------------------------------
-     * Token Hash
-     * -------------------------------------------------------------------------
-     *
-     * NEVER store the plaintext reset token.
-     *
-     * Recommended service-layer implementation:
-     *
-     *   crypto
-     *     .createHash("sha256")
-     *     .update(rawToken)
-     *     .digest("hex");
-     *
-     * Or HMAC-SHA256 where the architecture specifically requires it.
-     *
-     * The persisted representation MUST be:
-     *
-     *   - 64 characters
-     *   - lowercase hexadecimal
-     */
+  if (!normalized) {
+    return null;
+  }
 
-    tokenHash: {
-      type: String,
-      required: true,
-      immutable: true,
-      trim: true,
-      lowercase: true,
-      minlength: TOKEN_HASH_LENGTH,
-      maxlength: TOKEN_HASH_LENGTH,
-      match: /^[a-f0-9]{64}$/,
-      unique: true,
-      index: true,
-      select: false,
-    },
+  return normalized.slice(
+    0,
+    maxLength,
+  );
+}
 
-    /**
-     * -------------------------------------------------------------------------
-     * Expiration
-     * -------------------------------------------------------------------------
-     *
-     * TTL deletion is performed asynchronously by MongoDB.
-     *
-     * Therefore application-level validation MUST always check:
-     *
-     *   expiresAt > now
-     */
+function normalizeDate(value) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return new Date();
+  }
 
-    expiresAt: {
-      type: Date,
-      required: true,
-      immutable: true,
-      index: true,
-      expires: 0,
-      validate: {
-        validator(value) {
-          return value instanceof Date && !Number.isNaN(value.getTime());
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    throw new TypeError(
+      'Invalid date.',
+    );
+  }
+
+  return date;
+}
+
+function normalizeAuditFingerprint(
+  value,
+) {
+  return normalizeNullableString(
+    value,
+    MAX_FINGERPRINT_LENGTH,
+  );
+}
+
+function isExpiredDate(
+  expiresAt,
+) {
+  return (
+    !(expiresAt instanceof Date) ||
+    expiresAt.getTime() <= Date.now()
+  );
+}
+
+/* ==========================================================================
+ * Schema
+ * ========================================================================== */
+
+const PasswordResetTokenSchema =
+  new Schema(
+    {
+      /*
+       * ----------------------------------------------------------------------
+       * User
+       * ----------------------------------------------------------------------
+       */
+
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Tenant
+       * ----------------------------------------------------------------------
+       */
+
+      tenantId: {
+        type: String,
+        default: null,
+        immutable: true,
+        trim: true,
+        maxlength: MAX_TENANT_ID_LENGTH,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Purpose
+       * ----------------------------------------------------------------------
+       */
+
+      purpose: {
+        type: String,
+        enum: [PASSWORD_RESET_PURPOSE],
+        required: true,
+        immutable: true,
+        default: PASSWORD_RESET_PURPOSE,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Cryptographic token digest
+       * ----------------------------------------------------------------------
+       *
+       * NEVER persist the plaintext reset token.
+       */
+
+      tokenHash: {
+        type: String,
+        required: true,
+        immutable: true,
+        trim: true,
+        lowercase: true,
+        minlength: TOKEN_HASH_LENGTH,
+        maxlength: TOKEN_HASH_LENGTH,
+        match: [
+          TOKEN_HASH_PATTERN,
+          'tokenHash must be a 64-character hexadecimal digest.',
+        ],
+        unique: true,
+        index: true,
+        select: false,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Expiration / TTL
+       * ----------------------------------------------------------------------
+       *
+       * MongoDB TTL is cleanup only. Application-level expiration checks
+       * remain mandatory.
+       */
+
+      expiresAt: {
+        type: Date,
+        required: true,
+        immutable: true,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Consumption state
+       * ----------------------------------------------------------------------
+       */
+
+      used: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      usedAt: {
+        type: Date,
+        default: null,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Consumption context
+       * ----------------------------------------------------------------------
+       *
+       * These fields are privacy-preserving hashes/fingerprints generated by
+       * the authentication/security service.
+       */
+
+      consumedIpHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
+
+      consumedUserAgentHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
+
+      consumedDeviceIdHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
+
+      consumedRequestId: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_REQUEST_ID_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Revocation
+       * ----------------------------------------------------------------------
+       */
+
+      revoked: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      revokedAt: {
+        type: Date,
+        default: null,
+      },
+
+      revocationReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_REASON_LENGTH,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Request context
+       * ----------------------------------------------------------------------
+       */
+
+      requestIpHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
+
+      requestUserAgentHash: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_FINGERPRINT_LENGTH,
+        select: false,
+      },
+
+      requestId: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_REQUEST_ID_LENGTH,
+        index: true,
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Metadata
+       * ----------------------------------------------------------------------
+       */
+
+      metadata: {
+        type: Schema.Types.Mixed,
+        default: undefined,
+        select: false,
+        validate: {
+          validator: validateMetadata,
+          message:
+            'metadata contains an invalid structure, forbidden secret-like keys, or exceeds security limits.',
         },
-        message: "expiresAt must be a valid Date",
+      },
+
+      /*
+       * ----------------------------------------------------------------------
+       * Administrative soft-delete state
+       * ----------------------------------------------------------------------
+       *
+       * This is separate from TTL expiration. TTL is physical retention
+       * cleanup; isDeleted is an application lifecycle state.
+       */
+
+      isDeleted: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      deletedAt: {
+        type: Date,
+        default: null,
+      },
+
+      deleteReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: MAX_REASON_LENGTH,
       },
     },
+    {
+      timestamps: true,
 
-    /**
-     * -------------------------------------------------------------------------
-     * Consumption State
-     * -------------------------------------------------------------------------
-     */
+      optimisticConcurrency: true,
 
-    used: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+      versionKey: '__v',
 
-    usedAt: {
-      type: Date,
-      default: null,
-    },
+      minimize: true,
 
-    /**
-     * -------------------------------------------------------------------------
-     * Consumption Audit
-     * -------------------------------------------------------------------------
-     *
-     * These fields are optional but useful during security investigations.
-     */
+      strict: 'throw',
 
-    consumedIp: {
-      type: String,
-      trim: true,
-      maxlength: IP_MAX_LENGTH,
-      default: null,
-    },
+      collection:
+        'password_reset_tokens',
 
-    consumedUserAgent: {
-      type: String,
-      trim: true,
-      maxlength: USER_AGENT_MAX_LENGTH,
-      default: null,
-    },
+      toJSON: {
+        virtuals: true,
+        versionKey: false,
 
-    consumedRequestId: {
-      type: String,
-      trim: true,
-      maxlength: REQUEST_ID_MAX_LENGTH,
-      default: null,
-    },
+        transform(doc, ret) {
+          ret.id =
+            ret._id.toString();
 
-    /**
-     * -------------------------------------------------------------------------
-     * Revocation
-     * -------------------------------------------------------------------------
-     */
+          delete ret._id;
+          delete ret.__v;
 
-    revoked: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+          delete ret.tokenHash;
 
-    revokedAt: {
-      type: Date,
-      default: null,
-    },
+          delete ret.requestIpHash;
+          delete ret.requestUserAgentHash;
 
-    revocationReason: {
-      type: String,
-      trim: true,
-      maxlength: REASON_MAX_LENGTH,
-      default: null,
-    },
+          delete ret.consumedIpHash;
+          delete ret.consumedUserAgentHash;
+          delete ret.consumedDeviceIdHash;
 
-    /**
-     * -------------------------------------------------------------------------
-     * Request Audit Information
-     * -------------------------------------------------------------------------
-     */
+          delete ret.metadata;
 
-    requestIp: {
-      type: String,
-      trim: true,
-      maxlength: IP_MAX_LENGTH,
-      default: null,
-    },
+          return ret;
+        },
+      },
 
-    userAgent: {
-      type: String,
-      trim: true,
-      maxlength: USER_AGENT_MAX_LENGTH,
-      default: null,
-    },
+      toObject: {
+        virtuals: true,
+        versionKey: false,
 
-    requestId: {
-      type: String,
-      trim: true,
-      maxlength: REQUEST_ID_MAX_LENGTH,
-      default: null,
-    },
+        transform(doc, ret) {
+          ret.id =
+            ret._id.toString();
 
-    /**
-     * -------------------------------------------------------------------------
-     * Metadata
-     * -------------------------------------------------------------------------
-     *
-     * NEVER use metadata as a secret container.
-     *
-     * The validator rejects common credential-like field names and also limits
-     * size/depth.
-     */
+          delete ret._id;
+          delete ret.__v;
 
-    metadata: {
-      type: Schema.Types.Mixed,
-      default: undefined,
-      validate: {
-        validator: validateMetadata,
-        message:
-          "metadata contains invalid structure, forbidden secret-like keys, or exceeds security limits",
+          return ret;
+        },
       },
     },
+  );
 
-    /**
-     * -------------------------------------------------------------------------
-     * Soft Delete
-     * -------------------------------------------------------------------------
-     *
-     * NOTE:
-     * MongoDB TTL deletion remains the final physical cleanup mechanism.
-     * Therefore soft deletion is mainly useful before TTL expiration and for
-     * application-level lifecycle semantics.
-     */
+/* ==========================================================================
+ * Indexes
+ * ========================================================================== */
 
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
-
-    deleteReason: {
-      type: String,
-      trim: true,
-      maxlength: REASON_MAX_LENGTH,
-      default: null,
-    },
+/**
+ * The unique tokenHash index prevents duplicate persisted digests.
+ */
+PasswordResetTokenSchema.index(
+  {
+    tokenHash: 1,
   },
   {
-    timestamps: true,
-    versionKey: false,
-    minimize: true,
-    strict: true,
-    collection: "password_reset_tokens",
-  }
+    unique: true,
+    name: 'password_reset_token_hash_unique',
+  },
 );
 
 /**
- * =============================================================================
- * Indexes
- * =============================================================================
- */
-
-/**
- * Active-token lookup by user.
+ * Active-token lookup by tenant/user.
  */
 PasswordResetTokenSchema.index({
+  tenantId: 1,
   user: 1,
   used: 1,
   revoked: 1,
@@ -467,7 +714,7 @@ PasswordResetTokenSchema.index({
 });
 
 /**
- * Tenant-aware operational/security queries.
+ * User security/revocation investigation.
  */
 PasswordResetTokenSchema.index({
   tenantId: 1,
@@ -476,577 +723,851 @@ PasswordResetTokenSchema.index({
 });
 
 /**
- * Security investigations by request origin.
+ * Request tracing.
  */
 PasswordResetTokenSchema.index({
-  requestIp: 1,
-  createdAt: -1,
-});
-
-/**
- * Security investigations by request ID.
- */
-PasswordResetTokenSchema.index({
+  tenantId: 1,
   requestId: 1,
   createdAt: -1,
 });
 
 /**
- * Operational queries for recent revocations.
+ * Revocation history.
  */
 PasswordResetTokenSchema.index({
+  tenantId: 1,
   revoked: 1,
   revokedAt: -1,
 });
 
 /**
- * Operational queries for recent use.
+ * Consumption history.
  */
 PasswordResetTokenSchema.index({
+  tenantId: 1,
   used: 1,
   usedAt: -1,
 });
 
 /**
- * IMPORTANT:
- *
- * tokenHash is already unique via:
- *
- *   unique: true
- *
- * This is appropriate because the persisted value is a cryptographic digest.
- *
- * The service layer remains responsible for generating cryptographically
- * random plaintext reset tokens before hashing them.
+ * Expiration operations.
  */
-
-/**
- * =============================================================================
- * Query Helpers
- * =============================================================================
- */
-
-/**
- * Return only active, usable reset tokens.
- */
-PasswordResetTokenSchema.query.active = function () {
-  return this.where({
-    used: false,
-    revoked: false,
-    isDeleted: false,
-    expiresAt: { $gt: new Date() },
-  });
-};
-
-/**
- * Return tokens belonging to a specific user.
- */
-PasswordResetTokenSchema.query.forUser = function (userId) {
-  return this.where({
-    user: userId,
-  });
-};
-
-/**
- * Return tokens belonging to a specific tenant.
- */
-PasswordResetTokenSchema.query.forTenant = function (tenantId) {
-  return this.where({
-    tenantId,
-  });
-};
-
-/**
- * Return tokens belonging to a specific tenant + user pair.
- */
-PasswordResetTokenSchema.query.forTenantUser = function (
-  tenantId,
-  userId
-) {
-  return this.where({
-    tenantId,
-    user: userId,
-  });
-};
-
-/**
- * =============================================================================
- * Instance Methods
- * =============================================================================
- */
-
-/**
- * Determine whether this token is expired.
- */
-PasswordResetTokenSchema.methods.isExpired = function () {
-  return (
-    !(this.expiresAt instanceof Date) ||
-    this.expiresAt.getTime() <= Date.now()
-  );
-};
-
-/**
- * Determine whether the token is currently usable.
- *
- * MongoDB TTL deletion is asynchronous, so this is mandatory at the
- * application layer.
- */
-PasswordResetTokenSchema.methods.isUsable = function () {
-  return (
-    !this.used &&
-    !this.revoked &&
-    !this.isDeleted &&
-    !this.isExpired()
-  );
-};
-
-/**
- * Mark a token as consumed.
- *
- * IMPORTANT:
- * For the actual production password-reset endpoint, prefer the static
- * consumeAtomically() method to prevent concurrent consumption.
- */
-PasswordResetTokenSchema.methods.markUsed = function (audit = {}) {
-  if (this.used) {
-    return Promise.reject(
-      new Error("Password reset token has already been used")
-    );
-  }
-
-  if (this.revoked || this.isDeleted) {
-    return Promise.reject(
-      new Error("Password reset token is no longer usable")
-    );
-  }
-
-  if (this.isExpired()) {
-    return Promise.reject(
-      new Error("Password reset token has expired")
-    );
-  }
-
-  this.used = true;
-  this.usedAt = new Date();
-
-  if (audit.ip != null) {
-    this.consumedIp = audit.ip;
-  }
-
-  if (audit.userAgent != null) {
-    this.consumedUserAgent = audit.userAgent;
-  }
-
-  if (audit.requestId != null) {
-    this.consumedRequestId = audit.requestId;
-  }
-
-  return this.save();
-};
-
-/**
- * Revoke a token.
- */
-PasswordResetTokenSchema.methods.revoke = function (
-  reason = "revoked"
-) {
-  this.revoked = true;
-  this.revokedAt = new Date();
-  this.revocationReason = reason || "revoked";
-
-  return this.save();
-};
-
-/**
- * Soft-delete a token.
- */
-PasswordResetTokenSchema.methods.softDelete = function (
-  reason = "deleted"
-) {
-  this.isDeleted = true;
-  this.deletedAt = new Date();
-  this.deleteReason = reason || "deleted";
-
-  return this.save();
-};
-
-/**
- * =============================================================================
- * Static Methods
- * =============================================================================
- */
-
-/**
- * Find an active reset token by hash.
- *
- * Optional scoping:
- *
- *   {
- *     tenantId,
- *     userId,
- *     session
- *   }
- *
- * tokenHash is explicitly selected because it is select:false by default.
- */
-PasswordResetTokenSchema.statics.findActiveByHash = function (
-  tokenHash,
-  options = {}
-) {
-  if (
-    typeof tokenHash !== "string" ||
-    !/^[a-f0-9]{64}$/i.test(tokenHash)
-  ) {
-    return null;
-  }
-
-  const filter = {
-    purpose: "password_reset",
-    tokenHash: tokenHash.toLowerCase(),
-    used: false,
-    revoked: false,
-    isDeleted: false,
-    expiresAt: { $gt: new Date() },
-  };
-
-  if (options.tenantId != null) {
-    filter.tenantId = options.tenantId;
-  }
-
-  if (options.userId != null) {
-    filter.user = options.userId;
-  }
-
-  if (options.session) {
-    return this.findOne(filter)
-      .session(options.session)
-      .select("+tokenHash");
-  }
-
-  return this.findOne(filter).select("+tokenHash");
-};
-
-/**
- * Atomically consume a reset token.
- *
- * This is the preferred production mechanism.
- *
- * The filter itself enforces:
- *
- *   unused
- *   not revoked
- *   not deleted
- *   not expired
- *   correct purpose
- *
- * Therefore concurrent requests cannot successfully consume the same token.
- */
-PasswordResetTokenSchema.statics.consumeAtomically = function (
-  tokenHash,
-  options = {}
-) {
-  if (
-    typeof tokenHash !== "string" ||
-    !/^[a-f0-9]{64}$/i.test(tokenHash)
-  ) {
-    return Promise.resolve(null);
-  }
-
-  const now = new Date();
-
-  const filter = {
-    purpose: "password_reset",
-    tokenHash: tokenHash.toLowerCase(),
-    used: false,
-    revoked: false,
-    isDeleted: false,
-    expiresAt: { $gt: now },
-  };
-
-  if (options.tenantId != null) {
-    filter.tenantId = options.tenantId;
-  }
-
-  if (options.userId != null) {
-    filter.user = options.userId;
-  }
-
-  const set = {
-    used: true,
-    usedAt: now,
-  };
-
-  /**
-   * Persist only safe audit fields supplied by the caller.
-   */
-  if (options.ip != null) {
-    set.consumedIp = options.ip;
-  }
-
-  if (options.userAgent != null) {
-    set.consumedUserAgent = options.userAgent;
-  }
-
-  if (options.requestId != null) {
-    set.consumedRequestId = options.requestId;
-  }
-
-  const query = this.findOneAndUpdate(
-    filter,
-    {
-      $set: set,
-    },
-    {
-      new: true,
-      runValidators: true,
-      returnDocument: "after",
-    }
-  );
-
-  if (options.session) {
-    query.session(options.session);
-  }
-
-  return query.select("+tokenHash");
-};
-
-/**
- * Revoke all active password-reset tokens for a user.
- *
- * Used when:
- *
- *   - A new reset request is created.
- *   - A password has already been changed.
- *   - An account is locked.
- *   - Suspicious activity is detected.
- *   - Administrative security action occurs.
- */
-PasswordResetTokenSchema.statics.revokeActiveForUser = function (
-  userId,
-  reason = "superseded",
-  options = {}
-) {
-  const filter = {
-    user: userId,
-    purpose: "password_reset",
-    used: false,
-    revoked: false,
-    isDeleted: false,
-    expiresAt: { $gt: new Date() },
-  };
-
-  if (options.tenantId != null) {
-    filter.tenantId = options.tenantId;
-  }
-
-  const update = {
-    $set: {
-      revoked: true,
-      revokedAt: new Date(),
-      revocationReason: reason || "superseded",
-    },
-  };
-
-  const query = this.updateMany(filter, update);
-
-  if (options.session) {
-    query.session(options.session);
-  }
-
-  return query;
-};
-
-/**
- * Revoke ALL active tokens for a tenant.
- *
- * Useful during tenant-wide security incidents or controlled maintenance.
- */
-PasswordResetTokenSchema.statics.revokeActiveForTenant = function (
-  tenantId,
-  reason = "tenant_security_event",
-  options = {}
-) {
-  const filter = {
-    tenantId,
-    purpose: "password_reset",
-    used: false,
-    revoked: false,
-    isDeleted: false,
-    expiresAt: { $gt: new Date() },
-  };
-
-  const update = {
-    $set: {
-      revoked: true,
-      revokedAt: new Date(),
-      revocationReason:
-        reason || "tenant_security_event",
-    },
-  };
-
-  const query = this.updateMany(filter, update);
-
-  if (options.session) {
-    query.session(options.session);
-  }
-
-  return query;
-};
-
-/**
- * =============================================================================
- * Validation Hooks
- * =============================================================================
- */
-
-/**
- * Validate ObjectId fields before persistence.
- */
-PasswordResetTokenSchema.pre("validate", function (next) {
-  if (!isValidObjectId(this.user)) {
-    this.invalidate("user", "user must be a valid ObjectId");
-  }
-
-  if (!isValidObjectId(this.tenantId)) {
-    this.invalidate(
-      "tenantId",
-      "tenantId must be a valid ObjectId"
-    );
-  }
-
-  /**
-   * Lifecycle consistency.
-   */
-
-  if (this.used && !this.usedAt) {
-    this.usedAt = new Date();
-  }
-
-  if (!this.used && this.usedAt) {
-    this.invalidate(
-      "usedAt",
-      "usedAt must be empty while token is unused"
-    );
-  }
-
-  if (this.used) {
-    /**
-     * Once a token is consumed, it should never silently become usable again.
-     */
-    if (this.expiresAt && this.expiresAt.getTime() <= Date.now()) {
-      /**
-       * An already-used expired token is fine.
-       * No invalidation is required.
-       */
-    }
-  }
-
-  if (this.revoked && !this.revokedAt) {
-    this.revokedAt = new Date();
-  }
-
-  if (!this.revoked && this.revokedAt) {
-    this.invalidate(
-      "revokedAt",
-      "revokedAt must be empty while token is not revoked"
-    );
-  }
-
-  if (!this.revoked && this.revocationReason) {
-    this.invalidate(
-      "revocationReason",
-      "revocationReason must be empty while token is not revoked"
-    );
-  }
-
-  if (this.isDeleted && !this.deletedAt) {
-    this.deletedAt = new Date();
-  }
-
-  if (!this.isDeleted && this.deletedAt) {
-    this.invalidate(
-      "deletedAt",
-      "deletedAt must be empty while token is not deleted"
-    );
-  }
-
-  if (!this.isDeleted && this.deleteReason) {
-    this.invalidate(
-      "deleteReason",
-      "deleteReason must be empty while token is not deleted"
-    );
-  }
-
-  /**
-   * A token belongs to exactly one explicit purpose.
-   */
-  if (this.purpose !== "password_reset") {
-    this.invalidate(
-      "purpose",
-      'purpose must be "password_reset"'
-    );
-  }
-
-  next();
+PasswordResetTokenSchema.index({
+  tenantId: 1,
+  expiresAt: 1,
 });
 
 /**
- * =============================================================================
- * Query Middleware
- * =============================================================================
+ * IMPORTANT:
  *
- * Normal application queries must not accidentally surface soft-deleted
- * records.
+ * Do not attach expires: 0 to expiresAt in the field definition unless
+ * automatic physical deletion has been explicitly approved for the
+ * organization's authentication-token retention policy.
  *
- * Administrative/security repositories can opt in with:
- *
- *   .setOptions({ includeDeleted: true })
- *
- * The explicit option keeps privileged access deliberate.
+ * TTL deletion is asynchronous and must never be treated as application
+ * authorization.
  */
 
-PasswordResetTokenSchema.pre(/^find/, function (next) {
-  const options = this.getOptions();
+/* ==========================================================================
+ * Virtuals
+ * ========================================================================== */
 
-  if (!options.includeDeleted) {
-    this.where({
+PasswordResetTokenSchema.virtual(
+  'id',
+).get(function getId() {
+  return this._id.toString();
+});
+
+/* ==========================================================================
+ * Instance lifecycle methods
+ * ========================================================================== */
+
+PasswordResetTokenSchema.methods.isExpired =
+  function isExpired() {
+    return isExpiredDate(
+      this.expiresAt,
+    );
+  };
+
+PasswordResetTokenSchema.methods.isUsable =
+  function isUsable() {
+    return (
+      this.used === false &&
+      this.revoked === false &&
+      this.isDeleted === false &&
+      !this.isExpired()
+    );
+  };
+
+/**
+ * Non-atomic convenience method.
+ *
+ * Production password-reset consumption should use consumeAtomically().
+ */
+PasswordResetTokenSchema.methods.markUsed =
+  async function markUsed({
+    ipHash = null,
+    userAgentHash = null,
+    deviceIdHash = null,
+    requestId = null,
+  } = {}) {
+    if (this.used) {
+      throw new Error(
+        'Password reset token has already been used.',
+      );
+    }
+
+    if (this.revoked) {
+      throw new Error(
+        'Password reset token has been revoked.',
+      );
+    }
+
+    if (this.isDeleted) {
+      throw new Error(
+        'Password reset token is no longer active.',
+      );
+    }
+
+    if (this.isExpired()) {
+      throw new Error(
+        'Password reset token has expired.',
+      );
+    }
+
+    const now = new Date();
+
+    this.used = true;
+    this.usedAt = now;
+
+    this.consumedIpHash =
+      normalizeAuditFingerprint(
+        ipHash,
+      );
+
+    this.consumedUserAgentHash =
+      normalizeAuditFingerprint(
+        userAgentHash,
+      );
+
+    this.consumedDeviceIdHash =
+      normalizeAuditFingerprint(
+        deviceIdHash,
+      );
+
+    this.consumedRequestId =
+      normalizeNullableString(
+        requestId,
+        MAX_REQUEST_ID_LENGTH,
+      );
+
+    await this.save();
+
+    return this;
+  };
+
+PasswordResetTokenSchema.methods.revoke =
+  async function revoke(
+    reason = 'revoked',
+  ) {
+    if (this.used) {
+      throw new Error(
+        'A used password reset token cannot be revoked as an active token.',
+      );
+    }
+
+    if (!this.revoked) {
+      this.revoked = true;
+      this.revokedAt = new Date();
+      this.revocationReason =
+        normalizeNullableString(
+          reason,
+          MAX_REASON_LENGTH,
+        ) ?? 'revoked';
+
+      await this.save();
+    }
+
+    return this;
+  };
+
+PasswordResetTokenSchema.methods.softDelete =
+  async function softDelete(
+    reason = 'deleted',
+  ) {
+    if (!this.isDeleted) {
+      this.isDeleted = true;
+      this.deletedAt = new Date();
+      this.deleteReason =
+        normalizeNullableString(
+          reason,
+          MAX_REASON_LENGTH,
+        ) ?? 'deleted';
+
+      await this.save();
+    }
+
+    return this;
+  };
+
+/* ==========================================================================
+ * Static lookup methods
+ * ========================================================================== */
+
+/**
+ * Find a currently usable token by cryptographic digest.
+ *
+ * The tokenHash remains excluded from the returned projection.
+ */
+PasswordResetTokenSchema.statics.findActiveByHash =
+  function findActiveByHash(
+    tokenHash,
+    {
+      tenantId = undefined,
+      userId = undefined,
+      session = undefined,
+    } = {},
+  ) {
+    let normalizedHash;
+
+    try {
+      normalizedHash =
+        normalizeHash(tokenHash);
+    } catch {
+      return null;
+    }
+
+    const filter = {
+      purpose:
+        PASSWORD_RESET_PURPOSE,
+
+      tokenHash:
+        normalizedHash,
+
+      used: false,
+      revoked: false,
       isDeleted: false,
-    });
-  }
 
-  next();
-});
+      expiresAt: {
+        $gt: new Date(),
+      },
+    };
+
+    if (
+      tenantId !== undefined &&
+      tenantId !== null
+    ) {
+      filter.tenantId =
+        normalizeTenantId(
+          tenantId,
+        );
+    }
+
+    if (userId !== undefined) {
+      filter.user =
+        userId;
+    }
+
+    let query =
+      this.findOne(filter);
+
+    if (session) {
+      query = query.session(
+        session,
+      );
+    }
+
+    return query;
+  };
 
 /**
- * =============================================================================
- * Serialization Protection
- * =============================================================================
- *
- * Defense in depth:
- *
- *   1. tokenHash is select:false
- *   2. tokenHash is explicitly removed from JSON serialization
- *
- * This protects against accidental response serialization when an internal
- * operation explicitly selected +tokenHash.
+ * Find active reset tokens for a user.
  */
-PasswordResetTokenSchema.methods.toJSON = function () {
-  const obj = this.toObject();
+PasswordResetTokenSchema.statics.findActiveForUser =
+  function findActiveForUser(
+    userId,
+    {
+      tenantId = undefined,
+      session = undefined,
+    } = {},
+  ) {
+    const filter = {
+      user: userId,
 
-  delete obj.tokenHash;
+      purpose:
+        PASSWORD_RESET_PURPOSE,
 
-  return obj;
-};
+      used: false,
+      revoked: false,
+      isDeleted: false,
+
+      expiresAt: {
+        $gt: new Date(),
+      },
+    };
+
+    if (
+      tenantId !== undefined &&
+      tenantId !== null
+    ) {
+      filter.tenantId =
+        normalizeTenantId(
+          tenantId,
+        );
+    }
+
+    let query =
+      this.find(filter)
+        .sort({
+          createdAt: -1,
+          _id: -1,
+        });
+
+    if (session) {
+      query = query.session(
+        session,
+      );
+    }
+
+    return query;
+  };
 
 /**
- * =============================================================================
- * Model Export
- * =============================================================================
+ * Atomically consume exactly one reset token.
+ *
+ * This is the preferred production operation.
+ *
+ * The filter requires:
+ * - correct token purpose
+ * - unused
+ * - not revoked
+ * - not deleted
+ * - not expired
+ *
+ * Therefore concurrent requests cannot both consume the same token.
  */
+PasswordResetTokenSchema.statics.consumeAtomically =
+  async function consumeAtomically(
+    tokenHash,
+    {
+      tenantId = undefined,
+      userId = undefined,
+      ipHash = null,
+      userAgentHash = null,
+      deviceIdHash = null,
+      requestId = null,
+      session = undefined,
+    } = {},
+  ) {
+    let normalizedHash;
 
-module.exports =
+    try {
+      normalizedHash =
+        normalizeHash(tokenHash);
+    } catch {
+      return null;
+    }
+
+    const now = new Date();
+
+    const filter = {
+      purpose:
+        PASSWORD_RESET_PURPOSE,
+
+      tokenHash:
+        normalizedHash,
+
+      used: false,
+      revoked: false,
+      isDeleted: false,
+
+      expiresAt: {
+        $gt: now,
+      },
+    };
+
+    if (
+      tenantId !== undefined &&
+      tenantId !== null
+    ) {
+      filter.tenantId =
+        normalizeTenantId(
+          tenantId,
+        );
+    }
+
+    if (userId !== undefined) {
+      filter.user =
+        userId;
+    }
+
+    const update = {
+      $set: {
+        used: true,
+        usedAt: now,
+
+        consumedIpHash:
+          normalizeAuditFingerprint(
+            ipHash,
+          ),
+
+        consumedUserAgentHash:
+          normalizeAuditFingerprint(
+            userAgentHash,
+          ),
+
+        consumedDeviceIdHash:
+          normalizeAuditFingerprint(
+            deviceIdHash,
+          ),
+
+        consumedRequestId:
+          normalizeNullableString(
+            requestId,
+            MAX_REQUEST_ID_LENGTH,
+          ),
+      },
+    };
+
+    let query =
+      this.findOneAndUpdate(
+        filter,
+        update,
+        {
+          new: true,
+          runValidators: true,
+          returnDocument: 'after',
+
+          /**
+           * Internal controlled mutation.
+           */
+          allowPasswordResetTokenMutation:
+            true,
+
+          ...(session
+            ? { session }
+            : {}),
+        },
+      );
+
+    /**
+     * Explicitly exclude tokenHash even though the filter necessarily uses it.
+     */
+    query = query.select(
+      '-tokenHash',
+    );
+
+    return query.exec();
+  };
+
+/**
+ * Revoke all active reset tokens for a user.
+ *
+ * Typical callers:
+ * - a new password reset is issued;
+ * - the password changes;
+ * - suspicious authentication activity is detected;
+ * - account security state changes.
+ */
+PasswordResetTokenSchema.statics.revokeActiveForUser =
+  async function revokeActiveForUser(
+    userId,
+    {
+      tenantId = undefined,
+      reason = 'superseded',
+      session = undefined,
+    } = {},
+  ) {
+    const filter = {
+      user: userId,
+
+      purpose:
+        PASSWORD_RESET_PURPOSE,
+
+      used: false,
+      revoked: false,
+      isDeleted: false,
+
+      expiresAt: {
+        $gt: new Date(),
+      },
+    };
+
+    if (
+      tenantId !== undefined &&
+      tenantId !== null
+    ) {
+      filter.tenantId =
+        normalizeTenantId(
+          tenantId,
+        );
+    }
+
+    const update = {
+      $set: {
+        revoked: true,
+        revokedAt: new Date(),
+
+        revocationReason:
+          normalizeNullableString(
+            reason,
+            MAX_REASON_LENGTH,
+          ) ?? 'superseded',
+      },
+    };
+
+    const query =
+      this.updateMany(
+        filter,
+        update,
+        {
+          runValidators: true,
+
+          /**
+           * Internal controlled mutation.
+           */
+          allowPasswordResetTokenMutation:
+            true,
+
+          ...(session
+            ? { session }
+            : {}),
+        },
+      );
+
+    return query.exec();
+  };
+
+/**
+ * Revoke all active reset tokens for a tenant.
+ */
+PasswordResetTokenSchema.statics.revokeActiveForTenant =
+  async function revokeActiveForTenant(
+    tenantId,
+    {
+      reason = 'tenant_security_event',
+      session = undefined,
+    } = {},
+  ) {
+    const normalizedTenantId =
+      normalizeTenantId(
+        tenantId,
+      );
+
+    if (!normalizedTenantId) {
+      throw new TypeError(
+        'tenantId is required.',
+      );
+    }
+
+    const update = {
+      $set: {
+        revoked: true,
+        revokedAt: new Date(),
+
+        revocationReason:
+          normalizeNullableString(
+            reason,
+            MAX_REASON_LENGTH,
+          ) ??
+          'tenant_security_event',
+      },
+    };
+
+    const query =
+      this.updateMany(
+        {
+          tenantId:
+            normalizedTenantId,
+
+          purpose:
+            PASSWORD_RESET_PURPOSE,
+
+          used: false,
+          revoked: false,
+          isDeleted: false,
+
+          expiresAt: {
+            $gt: new Date(),
+          },
+        },
+        update,
+        {
+          runValidators: true,
+
+          allowPasswordResetTokenMutation:
+            true,
+
+          ...(session
+            ? { session }
+            : {}),
+        },
+      );
+
+    return query.exec();
+  };
+
+/* ==========================================================================
+ * Controlled maintenance
+ * ========================================================================== */
+
+/**
+ * Administrative cleanup helper for already-expired records when TTL has
+ * not yet physically removed them.
+ *
+ * This is intentionally separate from normal authentication operations.
+ */
+PasswordResetTokenSchema.statics.findExpired =
+  function findExpired({
+    tenantId = undefined,
+    session = undefined,
+  } = {}) {
+    const filter = {
+      purpose:
+        PASSWORD_RESET_PURPOSE,
+
+      expiresAt: {
+        $lte: new Date(),
+      },
+    };
+
+    if (
+      tenantId !== undefined &&
+      tenantId !== null
+    ) {
+      filter.tenantId =
+        normalizeTenantId(
+          tenantId,
+        );
+    }
+
+    let query =
+      this.find(filter).sort({
+        expiresAt: 1,
+        _id: 1,
+      });
+
+    if (session) {
+      query = query.session(
+        session,
+      );
+    }
+
+    return query;
+  };
+
+/* ==========================================================================
+ * Validation middleware
+ * ========================================================================== */
+
+PasswordResetTokenSchema.pre(
+  'validate',
+  function validatePasswordResetToken(
+    next,
+  ) {
+    try {
+      if (
+        !mongoose.isValidObjectId(
+          this.user,
+        )
+      ) {
+        this.invalidate(
+          'user',
+          'user must be a valid ObjectId.',
+        );
+      }
+
+      if (this.tenantId !== null) {
+        const normalizedTenantId =
+          normalizeTenantId(
+            this.tenantId,
+          );
+
+        if (!normalizedTenantId) {
+          this.invalidate(
+            'tenantId',
+            'tenantId must be a valid non-empty identifier.',
+          );
+        } else {
+          this.tenantId =
+            normalizedTenantId;
+        }
+      }
+
+      if (
+        this.purpose !==
+        PASSWORD_RESET_PURPOSE
+      ) {
+        this.invalidate(
+          'purpose',
+          'Invalid password-reset token purpose.',
+        );
+      }
+
+      if (
+        this.used &&
+        !this.usedAt
+      ) {
+        this.usedAt =
+          new Date();
+      }
+
+      if (
+        !this.used &&
+        this.usedAt
+      ) {
+        this.invalidate(
+          'usedAt',
+          'usedAt must be null while the token is unused.',
+        );
+      }
+
+      if (
+        this.revoked &&
+        !this.revokedAt
+      ) {
+        this.revokedAt =
+          new Date();
+      }
+
+      if (
+        !this.revoked &&
+        this.revokedAt
+      ) {
+        this.invalidate(
+          'revokedAt',
+          'revokedAt must be null while the token is not revoked.',
+        );
+      }
+
+      if (
+        this.isDeleted &&
+        !this.deletedAt
+      ) {
+        this.deletedAt =
+          new Date();
+      }
+
+      if (
+        !this.isDeleted &&
+        this.deletedAt
+      ) {
+        this.invalidate(
+          'deletedAt',
+          'deletedAt must be null while the token is not deleted.',
+        );
+      }
+
+      if (
+        this.used &&
+        this.revoked
+      ) {
+        /**
+         * A previously used token may later be administratively revoked.
+         * Do not reject this state because it is useful for security history.
+         */
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/* ==========================================================================
+ * Mutation protection
+ * ========================================================================== */
+
+/**
+ * Hard deletion is not exposed through normal application operations.
+ *
+ * MongoDB TTL/approved retention infrastructure remains responsible for
+ * physical lifecycle cleanup.
+ */
+PasswordResetTokenSchema.pre(
+  [
+    'deleteOne',
+    'deleteMany',
+    'findOneAndDelete',
+    'findByIdAndDelete',
+  ],
+  function preventHardDelete(
+    next,
+  ) {
+    next(
+      new mongoose.Error.MongooseError(
+        'PasswordResetToken hard deletion is disabled.',
+      ),
+    );
+  },
+);
+
+/**
+ * Prevent generic updates from bypassing:
+ * - single-use guarantees;
+ * - revocation state;
+ * - expiry checks;
+ * - tenant boundaries;
+ * - immutable token identity.
+ */
+PasswordResetTokenSchema.pre(
+  [
+    'updateOne',
+    'updateMany',
+    'findOneAndUpdate',
+    'findByIdAndUpdate',
+    'replaceOne',
+  ],
+  function preventGenericMutation(
+    next,
+  ) {
+    const options =
+      this.getOptions();
+
+    if (
+      options.allowPasswordResetTokenMutation ===
+      true
+    ) {
+      return next();
+    }
+
+    next(
+      new mongoose.Error.MongooseError(
+        'Generic PasswordResetToken mutations are disabled. Use controlled lifecycle methods.',
+      ),
+    );
+  },
+);
+
+PasswordResetTokenSchema.pre(
+  'bulkWrite',
+  function preventBulkWrite(
+    next,
+  ) {
+    next(
+      new mongoose.Error.MongooseError(
+        'bulkWrite is disabled for PasswordResetToken.',
+      ),
+    );
+  },
+);
+
+/* ==========================================================================
+ * Model export
+ * ========================================================================== */
+
+const PasswordResetToken =
   mongoose.models.PasswordResetToken ||
   mongoose.model(
-    "PasswordResetToken",
-    PasswordResetTokenSchema
+    'PasswordResetToken',
+    PasswordResetTokenSchema,
   );
+
+export default PasswordResetToken;
+
+export {
+  PasswordResetTokenSchema,
+  sanitizeMetadata,
+  validateMetadata,
+};

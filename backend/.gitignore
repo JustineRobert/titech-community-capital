@@ -1,3 +1,10 @@
+# =============================================================================
+# TITech Community Capital - Backend
+# =============================================================================
+
+# Dependencies
+node_modules/
+
 # Environment
 .env
 .env.*
@@ -7,10 +14,16 @@
 logs/
 *.log
 
-# Uploads
+# Runtime files
 uploads/
+tmp/
 
-# Runtime
-coverage/
+# Build/output
 dist/
-node_modules/
+
+# Test/coverage
+coverage/
+.nyc_output/
+
+# Generated audit artifacts
+*-audit.json

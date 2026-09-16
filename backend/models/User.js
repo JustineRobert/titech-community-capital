@@ -1,5 +1,3 @@
-"use strict";
-
 /**
  * ============================================================================
  * TITech Community Capital LTD
@@ -18,42 +16,69 @@
  *   Tenant
  *      │
  *      └── User
- *            ├── Authentication
- *            ├── Authorization
- *            ├── Security
- *            ├── KYC / AML
- *            ├── MFA
- *            ├── Mobile Money
- *            ├── Referral
- *            └── Audit Metadata
+ *           ├── Authentication
+ *           ├── Authorization
+ *           ├── Security
+ *           ├── KYC / AML
+ *           ├── MFA
+ *           ├── Mobile Money
+ *           ├── Referral
+ *           └── Audit Metadata
  *
  * SECURITY PRINCIPLES
  * ----------------------------------------------------------------------------
+ * - Native ESM; compatible with package.json "type": "module".
  * - Passwords are never returned by default.
  * - Passwords are hashed using bcrypt.
- * - Password reset tokens are stored only as SHA-256 hashes.
- * - Email verification tokens are stored only as SHA-256 hashes.
+ * - Password reset and verification tokens are stored only as SHA-256 hashes.
  * - MFA secrets and backup codes are protected with select:false.
  * - Tenant isolation is represented directly on the user.
  * - Referral counters are server-controlled.
  * - Sensitive authentication fields are excluded from JSON serialization.
  * - Authentication state transitions are explicit.
- * - Password changes update security metadata.
+ * - Password changes update security/session metadata.
  * - Duplicate email/referral identifiers are prevented by indexes.
  * - No financial balance is stored directly on User.
+ * - User.bonus is retained only for legacy compatibility and is NOT a ledger.
  *
  * IMPORTANT
  * ----------------------------------------------------------------------------
  * Financial balances MUST NOT be implemented on this model.
- * Use Savings / Account / Ledger / Transaction models for financial state.
+ *
+ * Use:
+ *   Savings / Account / Ledger / Transaction
+ *
+ * for authoritative financial state.
+ *
+ * Password reset architecture:
+ * ----------------------------------------------------------------------------
+ * TITech may use the dedicated PasswordResetToken model/service for modern
+ * reset-token lifecycle management.
+ *
+ * The legacy User reset-token fields/methods are intentionally retained for
+ * backward compatibility with existing consumers and migration paths.
+ *
+ * Email verification:
+ * ----------------------------------------------------------------------------
+ * `isVerified` is the canonical user field.
+ *
+ * `security.emailVerifiedAt` stores the verification timestamp.
+ *
+ * Do not introduce a second `isEmailVerified` field.
+ *
+ * Tenant identity:
+ * ----------------------------------------------------------------------------
+ * `tenantId` remains Schema.Types.ObjectId(ref: "Tenant").
+ *
+ * Services/controllers must preserve ObjectId semantics when querying MongoDB.
  *
  * ============================================================================
  */
 
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
-const crypto = require("crypto");
-const validator = require("validator");
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+import crypto from "node:crypto";
+import validator from "validator";
 
 const { Schema } = mongoose;
 
@@ -64,30 +89,30 @@ const { Schema } = mongoose;
  */
 
 const DEFAULT_BCRYPT_ROUNDS = 12;
-
 const MIN_BCRYPT_ROUNDS = 10;
-
 const MAX_BCRYPT_ROUNDS = 15;
 
+const PASSWORD_MIN_LENGTH = 12;
+const PASSWORD_MAX_LENGTH = 128;
 const PASSWORD_HISTORY_LIMIT = 5;
 
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
-
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_LOGIN_THRESHOLD = 5;
-
 const DEFAULT_LOCK_MINUTES = 15;
 
 const MAX_NAME_LENGTH = 100;
-
 const MAX_EMAIL_LENGTH = 254;
 
+const MAX_IP_LENGTH = 128;
+const MAX_USER_AGENT_LENGTH = 1024;
+
 /**
- * Never allow an accidentally invalid environment value to weaken hashing.
+ * Never allow an invalid environment value to weaken password hashing.
  */
 const configuredBcryptRounds = Number.parseInt(
-  process.env.BCRYPT_ROUNDS || DEFAULT_BCRYPT_ROUNDS,
+  process.env.BCRYPT_ROUNDS || String(DEFAULT_BCRYPT_ROUNDS),
   10
 );
 
@@ -107,13 +132,13 @@ const SALT_ROUNDS = Math.min(
  * ============================================================================
  */
 
-const USER_ROLES = Object.freeze([
+export const USER_ROLES = Object.freeze([
   "user",
   "admin",
   "group_admin",
 ]);
 
-const USER_STATUSES = Object.freeze([
+export const USER_STATUSES = Object.freeze([
   "pending",
   "active",
   "disabled",
@@ -121,28 +146,28 @@ const USER_STATUSES = Object.freeze([
   "locked",
 ]);
 
-const KYC_LEVELS = Object.freeze([
+export const KYC_LEVELS = Object.freeze([
   "none",
   "basic",
   "enhanced",
   "full",
 ]);
 
-const KYC_STATUSES = Object.freeze([
+export const KYC_STATUSES = Object.freeze([
   "pending",
   "approved",
   "rejected",
   "expired",
 ]);
 
-const AML_RISK_RATINGS = Object.freeze([
+export const AML_RISK_RATINGS = Object.freeze([
   "low",
   "medium",
   "high",
   "critical",
 ]);
 
-const MOBILE_MONEY_PROVIDERS = Object.freeze([
+export const MOBILE_MONEY_PROVIDERS = Object.freeze([
   "mtn",
   "airtel",
   "other",
@@ -150,7 +175,7 @@ const MOBILE_MONEY_PROVIDERS = Object.freeze([
 
 /**
  * ============================================================================
- * NORMALIZATION HELPERS
+ * NORMALIZATION / SECURITY HELPERS
  * ============================================================================
  */
 
@@ -191,12 +216,181 @@ function normalizeReferralCode(value) {
 function hashToken(token) {
   return crypto
     .createHash("sha256")
-    .update(String(token))
+    .update(String(token), "utf8")
     .digest("hex");
 }
 
 function isValidObjectId(value) {
   return mongoose.Types.ObjectId.isValid(value);
+}
+
+/**
+ * bcrypt hashes currently supported by this model.
+ *
+ * $2a$...
+ * $2b$...
+ * $2y$...
+ */
+function isBcryptHash(value) {
+  return (
+    typeof value === "string" &&
+    /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(value)
+  );
+}
+
+/**
+ * Strong application-level password validation.
+ *
+ * Existing authentication endpoints should continue to apply their own
+ * request-level password policy. This schema validation prevents obviously
+ * weak passwords from being persisted through direct model usage.
+ *
+ * Bcrypt hashes are explicitly accepted because save/query middleware may
+ * encounter an already-hashed internal value.
+ */
+function isStrongPassword(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  if (isBcryptHash(value)) {
+    return true;
+  }
+
+  if (
+    value.length < PASSWORD_MIN_LENGTH ||
+    value.length > PASSWORD_MAX_LENGTH
+  ) {
+    return false;
+  }
+
+  return (
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value) &&
+    /[^A-Za-z0-9]/.test(value)
+  );
+}
+
+/**
+ * Constant-time comparison for SHA-256 token hashes.
+ */
+function safeTokenCompare(storedHash, suppliedTokenHash) {
+  if (
+    typeof storedHash !== "string" ||
+    typeof suppliedTokenHash !== "string"
+  ) {
+    return false;
+  }
+
+  if (
+    !/^[a-f0-9]{64}$/i.test(storedHash) ||
+    !/^[a-f0-9]{64}$/i.test(suppliedTokenHash)
+  ) {
+    return false;
+  }
+
+  const stored = Buffer.from(storedHash, "hex");
+  const supplied = Buffer.from(suppliedTokenHash, "hex");
+
+  if (stored.length !== supplied.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(stored, supplied);
+}
+
+function hasOwn(object, property) {
+  return Object.prototype.hasOwnProperty.call(object, property);
+}
+
+function maskMobileMoneyAccount(value) {
+  if (typeof value !== "string" || value.length === 0) {
+    return value;
+  }
+
+  if (value.length <= 4) {
+    return "****";
+  }
+
+  return `****${value.slice(-4)}`;
+}
+
+/**
+ * Query updates must never be able to bypass password hashing through an
+ * aggregation/update pipeline.
+ */
+function pipelineContainsPasswordUpdate(updatePipeline) {
+  if (!Array.isArray(updatePipeline)) {
+    return false;
+  }
+
+  for (const stage of updatePipeline) {
+    if (!stage || typeof stage !== "object") {
+      continue;
+    }
+
+    const setOperation = stage.$set || stage.$addFields;
+
+    if (
+      setOperation &&
+      typeof setOperation === "object" &&
+      hasOwn(setOperation, "password")
+    ) {
+      return true;
+    }
+
+    if (
+      stage.$replaceWith &&
+      typeof stage.$replaceWith === "object" &&
+      hasOwn(stage.$replaceWith, "password")
+    ) {
+      return true;
+    }
+
+    if (
+      stage.$replaceRoot &&
+      typeof stage.$replaceRoot === "object"
+    ) {
+      const replacement = stage.$replaceRoot.newRoot;
+
+      if (
+        replacement &&
+        typeof replacement === "object" &&
+        hasOwn(replacement, "password")
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Normalize query-update password location.
+ */
+function extractPasswordFromUpdate(update) {
+  if (!update || typeof update !== "object" || Array.isArray(update)) {
+    return undefined;
+  }
+
+  if (
+    hasOwn(update, "password") &&
+    typeof update.password === "string"
+  ) {
+    return update.password;
+  }
+
+  if (
+    update.$set &&
+    typeof update.$set === "object" &&
+    typeof update.$set.password === "string"
+  ) {
+    return update.$set.password;
+  }
+
+  return undefined;
 }
 
 /**
@@ -235,7 +429,6 @@ const profileSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 2048,
-
       validate: {
         validator(value) {
           return (
@@ -246,7 +439,6 @@ const profileSchema = new Schema(
             })
           );
         },
-
         message: "Avatar must be a valid HTTP/HTTPS URL",
       },
     },
@@ -372,9 +564,8 @@ const amlSchema = new Schema(
  *
  * Sensitive values intentionally use select:false.
  *
- * NOTE:
- * Encryption at rest for MFA secrets should additionally be handled at the
- * application/security infrastructure layer where supported.
+ * Encryption-at-rest for MFA secrets should additionally be handled by the
+ * security/application infrastructure where supported.
  */
 
 const mfaSchema = new Schema(
@@ -470,14 +661,14 @@ const securitySchema = new Schema(
     lastLoginIp: {
       type: String,
       trim: true,
-      maxlength: 128,
+      maxlength: MAX_IP_LENGTH,
       default: null,
     },
 
     lastLoginUserAgent: {
       type: String,
       trim: true,
-      maxlength: 1024,
+      maxlength: MAX_USER_AGENT_LENGTH,
       default: null,
     },
 
@@ -639,18 +830,14 @@ const userSchema = new Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: true,
-      index: true,
       trim: true,
       lowercase: true,
       maxlength: MAX_EMAIL_LENGTH,
       set: normalizeEmail,
-
       validate: {
         validator(value) {
           return validator.isEmail(value);
         },
-
         message: "Please provide a valid email address",
       },
     },
@@ -658,8 +845,17 @@ const userSchema = new Schema(
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: 8,
       select: false,
+      validate: {
+        validator(value) {
+          return (
+            typeof value === "string" &&
+            isStrongPassword(value)
+          );
+        },
+        message:
+          "Password must be 12-128 characters and contain uppercase, lowercase, number and special character",
+      },
     },
 
     phone: {
@@ -667,15 +863,13 @@ const userSchema = new Schema(
       trim: true,
       sparse: true,
       set: normalizePhone,
-
       validate: {
         validator(value) {
           return (
             !value ||
-            /^\+?[1-9]\d{1,14}$/.test(value)
+            /^\+[1-9]\d{1,14}$/.test(value)
           );
         },
-
         message: "Phone must be in valid E.164 format",
       },
     },
@@ -706,6 +900,11 @@ const userSchema = new Schema(
       index: true,
     },
 
+    /**
+     * Canonical email verification state.
+     *
+     * Do not add a second `isEmailVerified` field.
+     */
     isVerified: {
       type: Boolean,
       default: false,
@@ -777,8 +976,12 @@ const userSchema = new Schema(
 
     /**
      * ========================================================================
-     * EMAIL VERIFICATION
+     * EMAIL VERIFICATION TOKENS
      * ========================================================================
+     *
+     * Legacy-compatible User-level token mechanism.
+     *
+     * Modern verification flows may use a dedicated token service/model.
      */
 
     verificationToken: {
@@ -797,8 +1000,13 @@ const userSchema = new Schema(
 
     /**
      * ========================================================================
-     * PASSWORD RESET
+     * PASSWORD RESET TOKENS
      * ========================================================================
+     *
+     * Legacy-compatible User-level reset mechanism.
+     *
+     * The dedicated PasswordResetToken model remains preferred for modern
+     * lifecycle management where already integrated.
      */
 
     resetPasswordToken: {
@@ -859,24 +1067,23 @@ const userSchema = new Schema(
      * REFERRALS
      * ========================================================================
      *
-     * User is the owner of the referral identity only.
+     * User owns referral identity/statistics only.
      *
-     * Referral reward issuance MUST be handled by:
+     * Referral financial rewards MUST be issued through:
      *
      *   Referral
-     *       ↓
+     *      ↓
      *   ReferralReward
-     *       ↓
+     *      ↓
      *   ReferralRewardService
-     *       ↓
+     *      ↓
      *   Transaction / Ledger
      *
-     * Do not use `bonus` as the authoritative financial ledger.
+     * Do not use `bonus` as an authoritative financial balance.
      */
 
     referralCode: {
       type: String,
-      unique: true,
       sparse: true,
       trim: true,
       uppercase: true,
@@ -893,7 +1100,7 @@ const userSchema = new Schema(
       /**
        * Legacy compatibility field.
        *
-       * Financial applications should NOT use this field as the authoritative
+       * Financial applications must NOT use this as the authoritative
        * reward balance.
        */
       immutable: false,
@@ -946,14 +1153,10 @@ const userSchema = new Schema(
       min: 1,
     },
   },
-
   {
     timestamps: true,
-
     versionKey: "__v",
-
     optimisticConcurrency: true,
-
     strict: true,
 
     toJSON: {
@@ -968,7 +1171,7 @@ const userSchema = new Schema(
         delete ret.__v;
 
         /**
-         * Never expose authentication/security secrets.
+         * Authentication/security secrets.
          */
         delete ret.password;
         delete ret.resetPasswordToken;
@@ -979,9 +1182,33 @@ const userSchema = new Schema(
         delete ret.lockUntil;
         delete ret.passwordHistory;
 
+        /**
+         * Security telemetry should not be exposed by generic user JSON.
+         *
+         * Administrative/security endpoints should explicitly project it.
+         */
+        delete ret.security;
+        delete ret.sessionMetrics;
+
+        /**
+         * MFA secrets.
+         */
         if (ret.mfa) {
           delete ret.mfa.secret;
           delete ret.mfa.backupCodes;
+        }
+
+        /**
+         * Mobile-money account numbers are masked in public JSON.
+         */
+        if (
+          ret.mobileMoney &&
+          typeof ret.mobileMoney.accountNumber === "string"
+        ) {
+          ret.mobileMoney.accountNumber =
+            maskMobileMoneyAccount(
+              ret.mobileMoney.accountNumber
+            );
         }
 
         return ret;
@@ -1008,9 +1235,22 @@ const userSchema = new Schema(
         delete ret.lockUntil;
         delete ret.passwordHistory;
 
+        delete ret.security;
+        delete ret.sessionMetrics;
+
         if (ret.mfa) {
           delete ret.mfa.secret;
           delete ret.mfa.backupCodes;
+        }
+
+        if (
+          ret.mobileMoney &&
+          typeof ret.mobileMoney.accountNumber === "string"
+        ) {
+          ret.mobileMoney.accountNumber =
+            maskMobileMoneyAccount(
+              ret.mobileMoney.accountNumber
+            );
         }
 
         return ret;
@@ -1025,212 +1265,135 @@ const userSchema = new Schema(
  * ============================================================================
  */
 
-userSchema.virtual("isLocked").get(function () {
+userSchema.virtual("isLocked").get(function isLocked() {
   return Boolean(
     this.lockUntil &&
-    this.lockUntil.getTime() > Date.now()
+      this.lockUntil instanceof Date &&
+      this.lockUntil.getTime() > Date.now()
   );
 });
 
-userSchema.virtual("isSoftDeleted").get(function () {
+userSchema.virtual("isSoftDeleted").get(function isSoftDeleted() {
   return Boolean(this.deletedAt);
 });
 
-userSchema.virtual("requiresKyc").get(function () {
-  return (
+userSchema.virtual("requiresKyc").get(function requiresKyc() {
+  return Boolean(
     this.kyc &&
-    this.kyc.level !== "none" &&
-    this.kyc.status !== "approved"
+      this.kyc.level !== "none" &&
+      this.kyc.status !== "approved"
   );
 });
+
+userSchema.virtual("isAuthenticationAllowed").get(
+  function isAuthenticationAllowed() {
+    return Boolean(
+      this.isActive === true &&
+        this.status === "active" &&
+        this.deletedAt === null &&
+        !this.isCurrentlyLocked()
+    );
+  }
+);
 
 /**
  * ============================================================================
  * PASSWORD HASHING
  * ============================================================================
  *
- * Save-based password changes are hashed here.
- */
-
-userSchema.pre("save", async function passwordHashMiddleware(next) {
-  if (!this.isModified("password")) {
-    return next();
-  }
-
-  try {
-    if (!this.password) {
-      return next(
-        new Error("Password cannot be empty.")
-      );
-    }
-
-    /**
-     * Prevent accidentally hashing an already hashed password.
-     *
-     * bcrypt hashes normally begin with:
-     *
-     * $2a$
-     * $2b$
-     * $2y$
-     */
-    const alreadyHashed =
-      /^\$2[aby]\$\d{2}\$/.test(
-        this.password
-      );
-
-    if (alreadyHashed) {
-      return next();
-    }
-
-    const previousPasswordHash =
-      this.isNew
-        ? null
-        : this.get("password", null);
-
-    const hashedPassword =
-      await bcrypt.hash(
-        this.password,
-        SALT_ROUNDS
-      );
-
-    if (
-      previousPasswordHash &&
-      previousPasswordHash !== hashedPassword
-    ) {
-      this.passwordHistory.push({
-        hash: previousPasswordHash,
-        changedAt: new Date(),
-      });
-    }
-
-    if (
-      this.passwordHistory.length >
-      PASSWORD_HISTORY_LIMIT
-    ) {
-      this.passwordHistory =
-        this.passwordHistory.slice(
-          -PASSWORD_HISTORY_LIMIT
-        );
-    }
-
-    this.password =
-      hashedPassword;
-
-    if (!this.security) {
-      this.security = {};
-    }
-
-    this.security.lastPasswordChange =
-      new Date();
-
-    this.security.securityVersion =
-      Number(
-        this.security.securityVersion || 1
-      ) + 1;
-
-    /**
-     * Password changes invalidate active sessions.
-     */
-    if (!this.sessionMetrics) {
-      this.sessionMetrics = {};
-    }
-
-    this.sessionMetrics.sessionVersion =
-      Number(
-        this.sessionMetrics.sessionVersion || 1
-      ) + 1;
-
-    return next();
-  } catch (error) {
-    return next(error);
-  }
-});
-
-/**
- * ============================================================================
- * QUERY UPDATE PASSWORD HASHING
- * ============================================================================
- *
- * Supports:
- *
- *   User.findOneAndUpdate(...)
- *
- * without allowing plaintext passwords to reach MongoDB.
- *
- * IMPORTANT:
- * Password history is intentionally not modified here because query
- * middleware cannot safely reconstruct the complete previous document without
- * an additional database read.
- *
- * Password-history-sensitive changes should use:
+ * Handles direct document password changes:
  *
  *   user.password = newPassword;
  *   await user.save();
+ *
+ * Password-history-sensitive operations should use the document workflow.
  */
 
 userSchema.pre(
-  "findOneAndUpdate",
-  async function passwordUpdateMiddleware(next) {
-    const update = this.getUpdate();
-
-    if (!update) {
-      return next();
-    }
-
-    const password =
-      update.password ||
-      update.$set?.password;
-
-    if (
-      typeof password !== "string" ||
-      password.length === 0
-    ) {
+  "save",
+  async function passwordHashMiddleware(next) {
+    if (!this.isModified("password")) {
       return next();
     }
 
     try {
-      const alreadyHashed =
-        /^\$2[aby]\$\d{2}\$/.test(
-          password
+      if (
+        typeof this.password !== "string" ||
+        this.password.length === 0
+      ) {
+        return next(
+          new Error("Password cannot be empty.")
         );
+      }
 
-      if (!alreadyHashed) {
-        const hashed =
-          await bcrypt.hash(
-            password,
-            SALT_ROUNDS
-          );
+      const previousPasswordHash = this.isNew
+        ? null
+        : this.get("password", null);
 
-        if (update.password) {
-          update.password = hashed;
-        }
+      const alreadyHashed = isBcryptHash(this.password);
 
-        if (update.$set?.password) {
-          update.$set.password = hashed;
+      /**
+       * Password history records the previous hash.
+       *
+       * `password` is select:false, therefore callers that require robust
+       * password-history tracking on existing documents should load:
+       *
+       *   .select("+password +passwordHistory")
+       */
+      if (
+        previousPasswordHash &&
+        previousPasswordHash !== this.password
+      ) {
+        this.passwordHistory =
+          this.passwordHistory || [];
+
+        this.passwordHistory.push({
+          hash: previousPasswordHash,
+          changedAt: new Date(),
+        });
+
+        if (
+          this.passwordHistory.length >
+          PASSWORD_HISTORY_LIMIT
+        ) {
+          this.passwordHistory =
+            this.passwordHistory.slice(
+              -PASSWORD_HISTORY_LIMIT
+            );
         }
       }
 
-      const now = new Date();
+      if (!alreadyHashed) {
+        this.password =
+          await bcrypt.hash(
+            this.password,
+            SALT_ROUNDS
+          );
+      }
 
-      update.$set =
-        update.$set || {};
+      if (!this.security) {
+        this.security = {};
+      }
 
-      update.$set[
-        "security.lastPasswordChange"
-      ] = now;
+      this.security.lastPasswordChange =
+        new Date();
 
-      update.$inc =
-        update.$inc || {};
+      this.security.securityVersion =
+        Number(
+          this.security.securityVersion || 1
+        ) + 1;
 
-      update.$inc[
-        "security.securityVersion"
-      ] = 1;
+      /**
+       * Password changes invalidate active sessions.
+       */
+      if (!this.sessionMetrics) {
+        this.sessionMetrics = {};
+      }
 
-      update.$inc[
-        "sessionMetrics.sessionVersion"
-      ] = 1;
-
-      this.setUpdate(update);
+      this.sessionMetrics.sessionVersion =
+        Number(
+          this.sessionMetrics.sessionVersion || 1
+        ) + 1;
 
       return next();
     } catch (error) {
@@ -1241,35 +1404,154 @@ userSchema.pre(
 
 /**
  * ============================================================================
- * EMAIL NORMALIZATION
+ * QUERY PASSWORD HASHING
+ * ============================================================================
+ *
+ * Supports:
+ *
+ *   User.findOneAndUpdate(...)
+ *   User.updateOne(...)
+ *
+ * without allowing plaintext passwords to reach MongoDB.
+ *
+ * IMPORTANT:
+ * ---------------------------------------------------------------------------
+ * Password history is not modified here because query middleware cannot safely
+ * reconstruct the complete previous document without an additional read.
+ *
+ * Password-history-sensitive changes should use the document workflow.
+ */
+
+async function passwordQueryUpdateMiddleware(next) {
+  try {
+    const update = this.getUpdate();
+
+    if (!update) {
+      return next();
+    }
+
+    /**
+     * Password updates through aggregation/update pipelines are intentionally
+     * rejected because they cannot be safely transformed here without risking
+     * plaintext persistence.
+     */
+    if (Array.isArray(update)) {
+      if (pipelineContainsPasswordUpdate(update)) {
+        return next(
+          new Error(
+            "Pipeline password updates are not permitted. Use document password assignment or a supported update method."
+          )
+        );
+      }
+
+      return next();
+    }
+
+    const password = extractPasswordFromUpdate(update);
+
+    if (
+      typeof password !== "string" ||
+      password.length === 0
+    ) {
+      return next();
+    }
+
+    if (!isBcryptHash(password)) {
+      const hashed = await bcrypt.hash(
+        password,
+        SALT_ROUNDS
+      );
+
+      if (hasOwn(update, "password")) {
+        update.password = hashed;
+      }
+
+      if (
+        update.$set &&
+        typeof update.$set === "object" &&
+        hasOwn(update.$set, "password")
+      ) {
+        update.$set.password = hashed;
+      }
+    }
+
+    const now = new Date();
+
+    update.$set =
+      update.$set &&
+      typeof update.$set === "object" &&
+      !Array.isArray(update.$set)
+        ? update.$set
+        : {};
+
+    update.$set["security.lastPasswordChange"] = now;
+
+    update.$inc =
+      update.$inc &&
+      typeof update.$inc === "object" &&
+      !Array.isArray(update.$inc)
+        ? update.$inc
+        : {};
+
+    update.$inc["security.securityVersion"] =
+      Number(
+        update.$inc["security.securityVersion"] || 0
+      ) + 1;
+
+    update.$inc["sessionMetrics.sessionVersion"] =
+      Number(
+        update.$inc["sessionMetrics.sessionVersion"] || 0
+      ) + 1;
+
+    this.setUpdate(update);
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+userSchema.pre(
+  "findOneAndUpdate",
+  passwordQueryUpdateMiddleware
+);
+
+userSchema.pre(
+  "updateOne",
+  passwordQueryUpdateMiddleware
+);
+
+/**
+ * ============================================================================
+ * FIELD NORMALIZATION
  * ============================================================================
  */
 
-userSchema.pre("validate", function normalizeUserFields(next) {
-  if (this.email) {
-    this.email =
-      normalizeEmail(this.email);
-  }
+userSchema.pre(
+  "validate",
+  function normalizeUserFields(next) {
+    if (this.email) {
+      this.email = normalizeEmail(this.email);
+    }
 
-  if (this.name) {
-    this.name =
-      normalizeName(this.name);
-  }
+    if (this.name) {
+      this.name = normalizeName(this.name);
+    }
 
-  if (this.phone) {
-    this.phone =
-      normalizePhone(this.phone);
-  }
+    if (this.phone) {
+      this.phone = normalizePhone(this.phone);
+    }
 
-  if (this.referralCode) {
-    this.referralCode =
-      normalizeReferralCode(
-        this.referralCode
-      );
-  }
+    if (this.referralCode) {
+      this.referralCode =
+        normalizeReferralCode(
+          this.referralCode
+        );
+    }
 
-  next();
-});
+    return next();
+  }
+);
 
 /**
  * ============================================================================
@@ -1280,46 +1562,46 @@ userSchema.pre("validate", function normalizeUserFields(next) {
 /**
  * Compare a supplied password against the stored bcrypt hash.
  *
- * Because password has select:false, callers must explicitly load it:
+ * Because password is select:false, callers must explicitly load it:
  *
  *   User.findOne(...).select("+password")
  */
 userSchema.methods.matchPassword =
-  async function matchPassword(
-    enteredPassword
-  ) {
+  async function matchPassword(enteredPassword) {
     if (
-      typeof enteredPassword !==
-        "string" ||
+      typeof enteredPassword !== "string" ||
       !enteredPassword ||
       !this.password
     ) {
       return false;
     }
 
-    return bcrypt.compare(
-      enteredPassword,
-      this.password
-    );
+    try {
+      return await bcrypt.compare(
+        enteredPassword,
+        this.password
+      );
+    } catch {
+      return false;
+    }
   };
 
 /**
- * Check whether a password hash has already been used.
+ * Check whether a supplied plaintext password appears in recent password
+ * history.
  */
 userSchema.methods.isPasswordPreviouslyUsed =
   async function isPasswordPreviouslyUsed(
     plainPassword
   ) {
     if (
-      typeof plainPassword !==
-        "string" ||
+      typeof plainPassword !== "string" ||
       !plainPassword
     ) {
       return false;
     }
 
-    const history =
-      this.passwordHistory || [];
+    const history = this.passwordHistory || [];
 
     for (const record of history) {
       if (
@@ -1346,9 +1628,7 @@ userSchema.methods.isPasswordPreviouslyUsed =
 userSchema.methods.generateResetToken =
   function generateResetToken() {
     const rawToken =
-      crypto
-        .randomBytes(32)
-        .toString("hex");
+      crypto.randomBytes(32).toString("hex");
 
     this.resetPasswordToken =
       hashToken(rawToken);
@@ -1371,9 +1651,7 @@ userSchema.methods.generateResetToken =
 userSchema.methods.generateVerificationToken =
   function generateVerificationToken() {
     const rawToken =
-      crypto
-        .randomBytes(32)
-        .toString("hex");
+      crypto.randomBytes(32).toString("hex");
 
     this.verificationToken =
       hashToken(rawToken);
@@ -1403,19 +1681,17 @@ userSchema.methods.isResetTokenValid =
       return false;
     }
 
-    return (
-      this.resetPasswordExpires.getTime() >
-        Date.now() &&
-      crypto.timingSafeEqual(
-        Buffer.from(
-          this.resetPasswordToken,
-          "hex"
-        ),
-        Buffer.from(
-          hashToken(token),
-          "hex"
-        )
-      )
+    if (
+      !(this.resetPasswordExpires instanceof Date) ||
+      this.resetPasswordExpires.getTime() <=
+        Date.now()
+    ) {
+      return false;
+    }
+
+    return safeTokenCompare(
+      this.resetPasswordToken,
+      hashToken(token)
     );
   };
 
@@ -1429,19 +1705,17 @@ userSchema.methods.isVerificationTokenValid =
       return false;
     }
 
-    return (
-      this.verificationTokenExpires.getTime() >
-        Date.now() &&
-      crypto.timingSafeEqual(
-        Buffer.from(
-          this.verificationToken,
-          "hex"
-        ),
-        Buffer.from(
-          hashToken(token),
-          "hex"
-        )
-      )
+    if (
+      !(this.verificationTokenExpires instanceof Date) ||
+      this.verificationTokenExpires.getTime() <=
+        Date.now()
+    ) {
+      return false;
+    }
+
+    return safeTokenCompare(
+      this.verificationToken,
+      hashToken(token)
     );
   };
 
@@ -1487,8 +1761,8 @@ userSchema.methods.isCurrentlyLocked =
   function isCurrentlyLocked() {
     return Boolean(
       this.lockUntil &&
-      this.lockUntil.getTime() >
-        Date.now()
+        this.lockUntil instanceof Date &&
+        this.lockUntil.getTime() > Date.now()
     );
   };
 
@@ -1515,9 +1789,7 @@ userSchema.methods.bumpFailedLogin =
         ) || DEFAULT_LOCK_MINUTES
       );
 
-    if (
-      this.isCurrentlyLocked()
-    ) {
+    if (this.isCurrentlyLocked()) {
       return this;
     }
 
@@ -1548,12 +1820,11 @@ userSchema.methods.bumpFailedLogin =
       this.status = "locked";
 
       /**
-       * Security-version increment invalidates authentication sessions.
+       * Locking invalidates existing authentication sessions.
        */
       this.security.securityVersion =
         Number(
-          this.security.securityVersion ||
-            1
+          this.security.securityVersion || 1
         ) + 1;
 
       if (!this.sessionMetrics) {
@@ -1562,8 +1833,7 @@ userSchema.methods.bumpFailedLogin =
 
       this.sessionMetrics.sessionVersion =
         Number(
-          this.sessionMetrics.sessionVersion ||
-            1
+          this.sessionMetrics.sessionVersion || 1
         ) + 1;
     }
 
@@ -1579,10 +1849,9 @@ userSchema.methods.resetFailedLogin =
     this.failedLoginAttempts = 0;
     this.lockUntil = null;
 
-    if (
-      this.status === "locked"
-    ) {
+    if (this.status === "locked") {
       this.status = "active";
+      this.isActive = true;
     }
 
     if (!this.security) {
@@ -1617,14 +1886,13 @@ userSchema.methods.recordSuccessfulLogin =
       this.security = {};
     }
 
-    this.security.lastLoginAt =
-      now;
+    this.security.lastLoginAt = now;
 
     if (metadata.ip) {
       this.security.lastLoginIp =
         String(metadata.ip).slice(
           0,
-          128
+          MAX_IP_LENGTH
         );
     }
 
@@ -1634,17 +1902,16 @@ userSchema.methods.recordSuccessfulLogin =
           metadata.userAgent
         ).slice(
           0,
-          1024
+          MAX_USER_AGENT_LENGTH
         );
     }
 
     this.failedLoginAttempts = 0;
     this.lockUntil = null;
 
-    if (
-      this.status === "locked"
-    ) {
+    if (this.status === "locked") {
       this.status = "active";
+      this.isActive = true;
     }
 
     await this.save({
@@ -1668,8 +1935,7 @@ userSchema.methods.invalidateSessions =
 
     this.sessionMetrics.sessionVersion =
       Number(
-        this.sessionMetrics.sessionVersion ||
-          1
+        this.sessionMetrics.sessionVersion || 1
       ) + 1;
 
     this.sessionMetrics.activeSessions = 0;
@@ -1732,6 +1998,9 @@ userSchema.methods.enableAccount =
     this.status = "active";
     this.isActive = true;
 
+    this.lockUntil = null;
+    this.failedLoginAttempts = 0;
+
     return this.save({
       validateBeforeSave: false,
     });
@@ -1771,12 +2040,11 @@ userSchema.methods.softDelete =
  */
 
 userSchema.methods.belongsToTenant =
-  function belongsToTenant(
-    tenantId
-  ) {
+  function belongsToTenant(tenantId) {
     if (
       !this.tenantId ||
-      !tenantId
+      !tenantId ||
+      !isValidObjectId(tenantId)
     ) {
       return false;
     }
@@ -1831,16 +2099,14 @@ userSchema.methods.recordSuccessfulReferral =
 
     this.referrals.successfulReferrals =
       Number(
-        this.referrals.successfulReferrals ||
-          0
+        this.referrals.successfulReferrals || 0
       ) + 1;
 
     this.referrals.pendingReferrals =
       Math.max(
         0,
         Number(
-          this.referrals.pendingReferrals ||
-            0
+          this.referrals.pendingReferrals || 0
         ) - 1
       );
 
@@ -1857,13 +2123,25 @@ userSchema.methods.recordSuccessfulReferral =
  * ============================================================================
  */
 
+/**
+ * Find by normalized email while excluding soft-deleted accounts by default.
+ *
+ * options:
+ *   includeDeleted: true
+ *   includePassword: true
+ *   includeMfaSecrets: true
+ *   includePasswordHistory: true
+ */
 userSchema.statics.findByEmail =
   function findByEmail(
     email,
     options = {}
   ) {
+    const normalizedEmail =
+      normalizeEmail(email);
+
     const query = {
-      email: normalizeEmail(email),
+      email: normalizedEmail,
     };
 
     if (options.includeDeleted !== true) {
@@ -1884,9 +2162,20 @@ userSchema.statics.findByEmail =
       );
     }
 
+    if (
+      options.includePasswordHistory === true
+    ) {
+      operation = operation.select(
+        "+passwordHistory"
+      );
+    }
+
     return operation;
   };
 
+/**
+ * Find active referral owner.
+ */
 userSchema.statics.findByReferralCode =
   function findByReferralCode(
     referralCode
@@ -1898,21 +2187,24 @@ userSchema.statics.findByReferralCode =
         ),
       deletedAt: null,
       isActive: true,
+      status: "active",
     });
   };
 
+/**
+ * Tenant-scoped user lookup.
+ *
+ * tenantId remains an ObjectId value and is deliberately not stringified
+ * before being passed to MongoDB.
+ */
 userSchema.statics.findTenantUser =
   function findTenantUser(
     tenantId,
     userId
   ) {
     if (
-      !isValidObjectId(
-        tenantId
-      ) ||
-      !isValidObjectId(
-        userId
-      )
+      !isValidObjectId(tenantId) ||
+      !isValidObjectId(userId)
     ) {
       return this.findOne({
         _id: null,
@@ -1926,6 +2218,9 @@ userSchema.statics.findTenantUser =
     });
   };
 
+/**
+ * Find active users.
+ */
 userSchema.statics.findActiveUsers =
   function findActiveUsers(
     tenantId = null
@@ -1937,6 +2232,12 @@ userSchema.statics.findActiveUsers =
     };
 
     if (tenantId) {
+      if (!isValidObjectId(tenantId)) {
+        return this.findOne({
+          _id: null,
+        });
+      }
+
       query.tenantId = tenantId;
     }
 
@@ -1947,14 +2248,111 @@ userSchema.statics.findActiveUsers =
  * ============================================================================
  * SAFE AUTHENTICATION PROJECTION
  * ============================================================================
+ *
+ * IMPORTANT:
+ * ---------------------------------------------------------------------------
+ * The old implementation performed `findOne()` with no filter, which could
+ * accidentally return an arbitrary user.
+ *
+ * The new implementation requires a caller-supplied authentication criteria.
+ *
+ * Examples:
+ *
+ *   User.authenticationProjection({
+ *     email,
+ *     tenantId
+ *   });
+ *
+ *   User.authenticationProjection({
+ *     _id: userId,
+ *     tenantId
+ *   });
+ *
+ * The no-filter behavior deliberately resolves to no document rather than
+ * silently returning the first User in the database.
  */
-
 userSchema.statics.authenticationProjection =
-  function authenticationProjection() {
-    return this.findOne()
-      .select(
-        "+password +mfa.secret +mfa.backupCodes"
+  function authenticationProjection(
+    filter = {},
+    options = {}
+  ) {
+    const safeFilter =
+      filter &&
+      typeof filter === "object" &&
+      !Array.isArray(filter) &&
+      Object.keys(filter).length > 0
+        ? { ...filter }
+        : { _id: null };
+
+    let operation =
+      this.findOne(safeFilter)
+        .select(
+          "+password +mfa.secret +mfa.backupCodes"
+        );
+
+    if (options.includePasswordHistory === true) {
+      operation = operation.select(
+        "+passwordHistory"
       );
+    }
+
+    if (options.includeDeleted !== true) {
+      operation = operation.where({
+        deletedAt: null,
+      });
+    }
+
+    return operation;
+  };
+
+/**
+ * Explicit convenience helper for login/authentication flows.
+ *
+ * This keeps authentication reads expressive and tenant-safe without allowing
+ * an accidental unscoped query.
+ */
+userSchema.statics.findForAuthentication =
+  function findForAuthentication({
+    email,
+    tenantId = null,
+    userId = null,
+  } = {}) {
+    const filter = {};
+
+    if (userId && isValidObjectId(userId)) {
+      filter._id = userId;
+    }
+
+    if (email) {
+      filter.email =
+        normalizeEmail(email);
+    }
+
+    if (tenantId) {
+      if (!isValidObjectId(tenantId)) {
+        return this.findOne({
+          _id: null,
+        });
+      }
+
+      filter.tenantId = tenantId;
+    }
+
+    if (
+      !filter._id &&
+      !filter.email
+    ) {
+      return this.findOne({
+        _id: null,
+      });
+    }
+
+    return this.authenticationProjection(
+      filter,
+      {
+        includePasswordHistory: true,
+      }
+    );
   };
 
 /**
@@ -1962,22 +2360,26 @@ userSchema.statics.authenticationProjection =
  * INDEXES
  * ============================================================================
  *
- * IMPORTANT:
+ * Email uniqueness:
+ * ---------------------------------------------------------------------------
+ * The authoritative email index is GLOBAL:
  *
- * `email: unique:true` creates a global email uniqueness constraint.
+ *   email -> unique
  *
- * This is intentional unless TITech explicitly permits the same email address
- * in multiple tenants.
+ * This is intentional and preserves the existing identity model.
  *
- * If tenant-scoped email identity is required, remove the global unique email
- * index and use:
+ * If TITech later decides that one email may exist independently in multiple
+ * tenants, the migration MUST:
  *
- *   { tenantId: 1, email: 1 } unique
- *
- * instead.
- * ============================================================================
+ *   1. remove the global unique index;
+ *   2. create `{ tenantId: 1, email: 1 }` unique;
+ *   3. update authentication semantics;
+ *   4. update all identity/recovery workflows.
  */
 
+/**
+ * Global email identity.
+ */
 userSchema.index(
   {
     email: 1,
@@ -1988,6 +2390,9 @@ userSchema.index(
   }
 );
 
+/**
+ * Global referral identity.
+ */
 userSchema.index(
   {
     referralCode: 1,
@@ -1999,6 +2404,9 @@ userSchema.index(
   }
 );
 
+/**
+ * Tenant dashboards / member administration.
+ */
 userSchema.index({
   tenantId: 1,
   status: 1,
@@ -2006,58 +2414,90 @@ userSchema.index({
   name: 1,
 });
 
+/**
+ * Tenant + email lookup support.
+ *
+ * This is non-unique because global email uniqueness is authoritative.
+ */
 userSchema.index({
   tenantId: 1,
   email: 1,
 });
 
+/**
+ * Tenant authorization queries.
+ */
 userSchema.index({
   tenantId: 1,
   role: 1,
   status: 1,
 });
 
+/**
+ * Tenant soft-delete filtering.
+ */
 userSchema.index({
   tenantId: 1,
   deletedAt: 1,
 });
 
+/**
+ * Tenant verified-user reporting.
+ */
 userSchema.index({
   tenantId: 1,
   isVerified: 1,
   createdAt: -1,
 });
 
+/**
+ * KYC work queues.
+ */
 userSchema.index({
   "kyc.status": 1,
   "kyc.level": 1,
 });
 
+/**
+ * AML review queues.
+ */
 userSchema.index({
   "aml.riskRating": 1,
   "aml.reviewRequired": 1,
 });
 
+/**
+ * Authentication lock checks.
+ */
 userSchema.index({
   status: 1,
   lockUntil: 1,
 });
 
+/**
+ * Last-login analytics.
+ */
 userSchema.index({
   lastLogin: -1,
 });
 
+/**
+ * User creation reporting.
+ */
 userSchema.index({
   createdAt: -1,
 });
 
 /**
- * Token expiry lookup indexes.
+ * Legacy User-level reset-token expiry lookup.
  */
 userSchema.index({
   resetPasswordExpires: 1,
 });
 
+/**
+ * Legacy User-level verification-token expiry lookup.
+ */
 userSchema.index({
   verificationTokenExpires: 1,
 });
@@ -2066,38 +2506,69 @@ userSchema.index({
  * ============================================================================
  * MODEL EXPORT
  * ============================================================================
+ *
+ * Native ESM export contract.
+ *
+ * This is the canonical User model.
+ *
+ * Do NOT add createRequire()/require() compatibility logic here.
+ *
+ * Legacy CommonJS consumers should be migrated to:
+ *
+ *   import User from "../models/User.js";
+ *
+ * or:
+ *
+ *   import {
+ *     User,
+ *     USER_ROLES
+ *   } from "../models/User.js";
  */
 
-module.exports =
+export const User =
   mongoose.models.User ||
   mongoose.model(
     "User",
     userSchema
   );
 
+export default User;
+
 /**
  * ============================================================================
- * EXPORTED CONSTANTS
- * ============================================================================
- *
- * Expose immutable constants without exposing secrets.
+ * EXPORTED MODEL METADATA
  * ============================================================================
  */
 
-module.exports.USER_ROLES =
-  USER_ROLES;
+export const USER_MODEL_METADATA =
+  Object.freeze({
+    modelName: "User",
+    schemaVersion: 2,
+    tenantField: "tenantId",
+    tenantFieldType: "ObjectId",
+    canonicalVerificationField: "isVerified",
+    passwordHashAlgorithm: "bcrypt",
+    bcryptRounds: SALT_ROUNDS,
+    passwordHistoryLimit: PASSWORD_HISTORY_LIMIT,
+    resetTokenTtlMs: RESET_TOKEN_TTL_MS,
+    verificationTokenTtlMs:
+      VERIFICATION_TOKEN_TTL_MS,
+    globalEmailUniqueness: true,
+    financialStateAuthority: false,
+  });
 
-module.exports.USER_STATUSES =
-  USER_STATUSES;
-
-module.exports.KYC_LEVELS =
-  KYC_LEVELS;
-
-module.exports.KYC_STATUSES =
-  KYC_STATUSES;
-
-module.exports.AML_RISK_RATINGS =
-  AML_RISK_RATINGS;
-
-module.exports.MOBILE_MONEY_PROVIDERS =
-  MOBILE_MONEY_PROVIDERS;
+export {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_HISTORY_LIMIT,
+  RESET_TOKEN_TTL_MS,
+  VERIFICATION_TOKEN_TTL_MS,
+  SALT_ROUNDS,
+  normalizeEmail,
+  normalizeName,
+  normalizePhone,
+  normalizeReferralCode,
+  hashToken,
+  isValidObjectId,
+  isBcryptHash,
+};

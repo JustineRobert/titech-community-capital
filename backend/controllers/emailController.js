@@ -1,824 +1,1745 @@
-//backend/controllers/emailController.js
-
 /**
- * Email Controller
+ * =============================================================================
+ * TITech Community Capital LTD
+ * TITech Community Capital Operating System
+ * =============================================================================
  *
- * Handles email-related HTTP requests including:
- * - Email verification
- * - Password reset
- * - Email sending for notifications
+ * File:
+ *   backend/controllers/emailController.js
+ *
+ * Purpose:
+ *   HTTP controllers for authentication/email lifecycle operations.
+ *
+ * Responsibilities:
+ *   - Send email-verification messages
+ *   - Verify email addresses
+ *   - Request password-reset messages
+ *   - Complete password resets
+ *   - Change authenticated-user passwords
+ *   - Check verification status
+ *   - Administrative email configuration testing
+ *   - Administrative test-email delivery
+ *   - Security/audit logging around email/password operations
+ *
+ * Architecture:
+ *   Route
+ *      ↓
+ *   Validation / Rate Limiting / Authentication
+ *      ↓
+ *   Controller
+ *      ↓
+ *   Service
+ *      ↓
+ *   Repository / Model / External Provider
+ *
+ * IMPORTANT:
+ *   This controller does not own:
+ *   - authorization policy
+ *   - tenant policy
+ *   - financial logic
+ *   - ledger mutation
+ *   - payment state transitions
+ *   - token cryptographic policy
+ *
+ * Those remain in their respective middleware/services/domain boundaries.
+ *
+ * Security principles:
+ *   - Never expose whether an account exists during public reset flows
+ *   - Never return credentials/tokens/passwords in API responses
+ *   - Never log passwords or reset/verification tokens
+ *   - Use canonical password validation
+ *   - Preserve trace/request identifiers
+ *   - Delegate persistence/security-sensitive state changes to services
+ *   - Avoid returning raw internal exception details for unexpected 5xx errors
+ *
+ * =============================================================================
  */
 
-const asyncHandler = require('../utils/asyncHandler');
-const emailService = require('../services/emailService');
-const User = require('../models/User');
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
-const crypto = require('crypto');
-const EmailAudit = require('../models/EmailAudit');
-const PasswordResetService = require('../services/passwordResetService');
-const { hashResetToken } = require('../services/passwordResetService');
+import crypto from 'node:crypto';
 
-const passwordResetService = new PasswordResetService({
-  emailService: {
-    async sendPasswordReset(email, options = {}) {
-      return emailService.sendEmail({
-        to: email,
-        subject: 'Password Reset',
-        template: 'password_reset',
-        data: {
-          userName: options.name || email.split('@')[0],
-          resetUrl: options.frontendResetUrl,
-          expiresIn: `${options.expiresInHours || 1} hour(s)`,
-        },
-      });
-    },
-  },
-  sessionService: {
-    async invalidateUserSessions(userId) {
-      const RefreshToken = require('../models/RefreshToken');
+import asyncHandler from '../utils/asyncHandler.js';
+import logger from '../utils/logger.js';
 
-      await RefreshToken.updateMany(
-        { userId, revokedAt: null },
-        {
-          $set: {
-            revokedAt: new Date(),
-            revokedReason: 'password_changed',
-          },
-        }
-      );
-    },
-  },
-});
+import User from '../models/User.js';
+import RefreshToken from '../models/RefreshToken.js';
+import EmailAudit from '../models/EmailAudit.js';
+import PasswordResetToken from '../models/PasswordResetToken.js';
 
-const {
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-} = require('../services/emailService');
+import PasswordResetService, {
+  hashResetToken,
+} from '../services/passwordResetService.js';
 
-// ✅ ADD THIS
-const {
+import * as emailServiceModule from '../services/emailService.js';
+
+import {
+  successResponse,
+  errorResponse,
+} from '../utils/response.js';
+
+import {
+  isStrongPassword,
+  isValidEmail,
+} from '../utils/validators.js';
+
+import {
   requestVerificationLimiter,
   requestResetLimiter,
   resetPasswordLimiter,
   verifyEmailLimiter,
-} = require('../middleware/rateLimiters');
+} from '../middleware/rateLimiters.js';
 
 /**
- * Send email verification
- * POST /api/email/send-verification
+ * =============================================================================
+ * Service compatibility
+ * =============================================================================
+ *
+ * Supports either:
+ *
+ *   export default emailService
+ *
+ * or a CommonJS-to-ESM-transitional namespace containing the service methods.
+ *
+ * This avoids forcing an unnecessary rewrite of emailService.js in the same
+ * change while the backend is being migrated to canonical ESM.
+ * =============================================================================
  */
-async function sendEmailVerification(req, res) {
-  try {
-    const result = await emailService.sendEmailVerification(req.user._id);
 
-    res.json({
-      success: true,
-      message: result.message,
-    });
-  } catch (error) {
-    logger.error('Send email verification error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Failed to send verification email',
-    });
-  }
-}
+const emailService =
+  emailServiceModule.default ?? emailServiceModule;
+
+const sendVerificationEmail =
+  emailServiceModule.sendVerificationEmail ??
+  emailService.sendVerificationEmail;
+
+const sendPasswordResetEmail =
+  emailServiceModule.sendPasswordResetEmail ??
+  emailService.sendPasswordResetEmail;
 
 /**
- * Verify email with token
- * POST /api/email/verify
+ * =============================================================================
+ * Constants
+ * =============================================================================
  */
-async function legacyVerifyEmail(req, res) {
-  const { token } = req.body;
 
-  if (!token) {
-    return res.status(400).json({
-      success: false,
-      error: 'Verification token is required',
-    });
-  }
+const PUBLIC_RESET_MESSAGE =
+  'If an account exists for this email, a password reset link has been sent.';
 
-  try {
-    const result = await emailService.verifyEmail(token);
-
-    res.json({
-      success: true,
-      message: 'Email verified successfully',
-      data: result.user,
-    });
-  } catch (error) {
-    logger.error('Email verification error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Email verification failed',
-    });
-  }
-}
+const PUBLIC_VERIFICATION_MESSAGE =
+  'If the email exists and is not verified, a verification link has been sent.';
 
 /**
- * Send password reset email
- * POST /api/email/send-password-reset
+ * =============================================================================
+ * Internal helpers
+ * =============================================================================
  */
-async function sendPasswordReset(req, res) {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({
-      success: false,
-      error: 'Email address is required',
-    });
-  }
-
-  // Basic email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid email format',
-    });
-  }
-
-  try {
-    const result = await emailService.sendPasswordReset(email);
-
-    // Always return success for security (don't reveal if email exists)
-    res.json({
-      success: true,
-      message: result.message,
-    });
-  } catch (error) {
-    logger.error('Send password reset error:', error);
-    // Still return success for security
-    res.json({
-      success: true,
-      message: 'If an account with that email exists, a reset link has been sent',
-    });
-  }
-}
 
 /**
- * Reset password with token
- * POST /api/email/reset-password
+ * Resolve the authenticated user's identifier across current/legacy auth shapes.
  */
-async function legacyResetPassword(req, res) {
-  const { token, newPassword } = req.body;
-
-  if (!token || !newPassword) {
-    return res.status(400).json({
-      success: false,
-      error: 'Token and new password are required',
-    });
-  }
-
-  // Validate password strength
-  if (newPassword.length < 8) {
-    return res.status(400).json({
-      success: false,
-      error: 'Password must be at least 8 characters long',
-    });
-  }
-
-  try {
-    const result = await emailService.resetPassword(token, newPassword);
-
-    res.json({
-      success: true,
-      message: result.message,
-    });
-  } catch (error) {
-    logger.error('Password reset error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Password reset failed',
-    });
-  }
-}
+const getAuthenticatedUserId = (req) =>
+  req.user?.id ??
+  req.user?._id ??
+  null;
 
 /**
- * Resend email verification (if needed)
- * POST /api/email/resend-verification
+ * Resolve request/trace identifier through the canonical response helper.
  */
-exports.resendEmailVerification = asyncHandler(async (req, res) => {
-  try {
-    // Check if user is already verified
-    const user = await User.findById(req.user._id);
-    if (user.isEmailVerified) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email is already verified',
-      });
-    }
-
-    const result = await emailService.sendEmailVerification(req.user._id);
-
-    res.json({
-      success: true,
-      message: result.message,
-    });
-  } catch (error) {
-    logger.error('Resend email verification error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Failed to resend verification email',
-    });
-  }
-});
+const resolveTraceId = (req) =>
+  req.traceId ??
+  req.requestId ??
+  req.id ??
+  req.headers?.['x-trace-id'] ??
+  req.headers?.['x-request-id'] ??
+  null;
 
 /**
- * Check email verification status
- * GET /api/email/verification-status
+ * Safely normalize an email address.
  */
-exports.getEmailVerificationStatus = asyncHandler(async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('isEmailVerified emailVerifiedAt email');
+const normalizeEmail = (email) =>
+  typeof email === 'string'
+    ? email.trim().toLowerCase()
+    : '';
 
-    res.json({
-      success: true,
-      data: {
-        email: user.email,
-        isVerified: user.isEmailVerified,
-        verifiedAt: user.emailVerifiedAt,
+/**
+ * Normalize a public error without exposing internal details.
+ */
+const sendControllerError = (
+  res,
+  err,
+  req,
+  fallbackCode = 'INTERNAL_ERROR',
+  fallbackMessage = 'An unexpected error occurred',
+  fallbackStatus = 500,
+) => {
+  if (err) {
+    logger.error(
+      {
+        err,
+        traceId: resolveTraceId(req),
+        path: req.originalUrl,
+        method: req.method,
       },
-    });
-  } catch (error) {
-    logger.error('Get email verification status error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get verification status',
-    });
+      'Email controller request failed',
+    );
   }
-});
+
+  return errorResponse(
+    res,
+    {
+      ...err,
+      errorCode:
+        err?.errorCode ??
+        err?.code ??
+        fallbackCode,
+      statusCode:
+        err?.statusCode ??
+        err?.status ??
+        fallbackStatus,
+      message:
+        err?.statusCode && err.statusCode < 500
+          ? err.message
+          : fallbackMessage,
+      expose:
+        err?.expose ??
+        (err?.statusCode && err.statusCode < 500),
+      details: err?.details,
+    },
+    req,
+  );
+};
 
 /**
- * Test email configuration (admin only)
- * POST /api/email/test
+ * Record an email/security audit event.
+ *
+ * Audit failure must not turn an otherwise successful user-facing operation
+ * into a failure. Audit failure is logged separately.
  */
-exports.testEmailConfiguration = asyncHandler(async (req, res) => {
-  // Only allow admins to test email configuration
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      error: 'Admin access required',
-    });
-  }
-
+const auditEmailEvent = async (
+  event,
+  userId,
+  email,
+  metadata = {},
+  successful = true,
+) => {
   try {
-    const result = await emailService.testEmailConfiguration();
+    const safeEmail =
+      typeof email === 'string'
+        ? email.trim().toLowerCase()
+        : null;
 
-    if (result.success) {
-      res.json({
-        success: true,
-        message: result.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: result.error,
-      });
-    }
-  } catch (error) {
-    logger.error('Test email configuration error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Email configuration test failed',
-    });
-  }
-});
-
-/**
- * Send test email (admin only)
- * POST /api/email/test-send
- */
-exports.sendTestEmail = asyncHandler(async (req, res) => {
-  // Only allow admins to send test emails
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      error: 'Admin access required',
-    });
-  }
-
-  const { to, subject, message } = req.body;
-
-  if (!to || !subject || !message) {
-    return res.status(400).json({
-      success: false,
-      error: 'Recipient email, subject, and message are required',
-    });
-  }
-
-  try {
-    const emailData = {
-      to,
-      subject,
-      template: 'test_email',
-      data: {
-        message,
-        sentBy: req.user.name,
-        timestamp: new Date().toISOString(),
-      },
+    const safeMetadata = {
+      ipAddress:
+        metadata.ipAddress ??
+        null,
+      userAgent:
+        metadata.userAgent ??
+        null,
+      requestId:
+        metadata.requestId ??
+        null,
+      traceId:
+        metadata.traceId ??
+        null,
+      reason:
+        metadata.reason ??
+        null,
+      ...metadata,
     };
 
-    await emailService.sendEmail(emailData);
+    /**
+     * Never permit secrets to enter the audit document by accident.
+     */
+    delete safeMetadata.token;
+    delete safeMetadata.verificationToken;
+    delete safeMetadata.resetToken;
+    delete safeMetadata.password;
+    delete safeMetadata.newPassword;
+    delete safeMetadata.currentPassword;
+    delete safeMetadata.refreshToken;
+    delete safeMetadata.accessToken;
 
-    return res.json({
-      success: true,
-      message: 'Test email sent successfully',
-    });
-  } catch (error) {
-    logger.error('Send test email error:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to send test email',
-    });
-  }
-});
-
-// ============================================================================
-// Audit Logging
-// ============================================================================
-
-/**
- * Log email operations for security and debugging
- */
-async function auditEmailEvent(event, userId, email, metadata = {}, success = true) {
-  try {
     await EmailAudit.create({
       event,
       userId: userId || null,
-      email: email?.toLowerCase() || null,
-      ipAddress: metadata.ipAddress || null,
-      userAgent: metadata.userAgent || null,
-      status: success ? 'success' : 'failed',
-      reason: metadata.reason || null,
-      metadata,
+      email: safeEmail,
+      ipAddress: safeMetadata.ipAddress,
+      userAgent: safeMetadata.userAgent,
+      status: successful ? 'success' : 'failed',
+      reason: safeMetadata.reason,
+      metadata: safeMetadata,
       timestamp: new Date(),
     });
-  } catch (err) {
-    logger.error('[EmailAudit] Failed to log event', {
-      event,
-      error: err.message,
-    });
+  } catch (auditError) {
+    logger.error(
+      {
+        err: auditError,
+        event,
+        userId: userId || null,
+      },
+      '[EmailAudit] Failed to persist audit event',
+    );
   }
-}
+};
 
-// ============================================================================
-// Public Endpoints
-// ============================================================================
+/**
+ * Build common request metadata for audit/service calls.
+ */
+const requestMetadata = (req) => ({
+  ipAddress: req.ip ?? null,
+  userAgent: req.get('User-Agent') ?? null,
+  requestId: req.requestId ?? req.id ?? null,
+  traceId: resolveTraceId(req),
+});
+
+/**
+ * =============================================================================
+ * Email verification
+ * =============================================================================
+ */
+
+/**
+ * POST /api/email/send-verification
+ *
+ * Authenticated endpoint.
+ */
+export const sendEmailVerification = asyncHandler(
+  async (req, res) => {
+    const userId = getAuthenticatedUserId(req);
+
+    if (!userId) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 401,
+          errorCode: 'AUTHENTICATION_REQUIRED',
+          message: 'Authentication is required.',
+          expose: true,
+        },
+        req,
+      );
+    }
+
+    try {
+      const result =
+        await emailService.sendEmailVerification(
+          userId,
+        );
+
+      await auditEmailEvent(
+        'send_verification_email',
+        userId,
+        req.user?.email ?? null,
+        requestMetadata(req),
+        true,
+      );
+
+      return successResponse(
+        res,
+        null,
+        result?.message ??
+          'Verification email sent successfully.',
+        req,
+        200,
+      );
+    } catch (err) {
+      await auditEmailEvent(
+        'send_verification_email',
+        userId,
+        req.user?.email ?? null,
+        {
+          ...requestMetadata(req),
+          reason: err?.message ?? 'Email delivery failed',
+        },
+        false,
+      );
+
+      return sendControllerError(
+        res,
+        err,
+        req,
+        'EMAIL_VERIFICATION_SEND_FAILED',
+        'Failed to send verification email.',
+        400,
+      );
+    }
+  },
+);
 
 /**
  * POST /api/auth/send-verification-email
- * Sends verification email to user (or authenticated user's email).
- * Rate limited to prevent abuse.
+ *
+ * Public endpoint.
+ *
+ * Account enumeration resistance is preserved.
  */
-async function sendVerificationEmailRequest(req, res, next) {
-  try {
-    const { email } = req.body;
+export const sendVerificationEmailRequest = asyncHandler(
+  async (req, res) => {
+    const normalizedEmail = normalizeEmail(
+      req.body?.email,
+    );
 
-    if (!email) {
-      return res.status(400).json({
-        message: 'Email is required',
-      });
+    /**
+     * Route validation should normally catch this. This controller guard
+     * protects callers that invoke the controller without the route validator.
+     */
+    if (
+      !normalizedEmail ||
+      !isValidEmail(normalizedEmail)
+    ) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'INVALID_EMAIL',
+          message: 'Please provide a valid email address.',
+          expose: true,
+        },
+        req,
+      );
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
 
+    /**
+     * Do not reveal whether the account exists.
+     */
     if (!user) {
-      // Don't reveal user existence (security best practice)
-      return res.status(200).json({
-        message: 'If the email exists and is not verified, a verification link has been sent.',
-      });
+      return successResponse(
+        res,
+        null,
+        PUBLIC_VERIFICATION_MESSAGE,
+        req,
+        200,
+      );
     }
 
-    if (user.isVerified) {
-      return res.status(200).json({
-        message: 'Email is already verified.',
-      });
+    const isVerified =
+      Boolean(user.isEmailVerified) ||
+      Boolean(user.isVerified);
+
+    if (isVerified) {
+      return successResponse(
+        res,
+        null,
+        'Email is already verified.',
+        req,
+        200,
+      );
     }
-
-    // Generate verification token
-    const verificationToken = user.generateVerificationToken();
-    await user.save({ validateBeforeSave: false });
-
-    // Send email
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
     try {
-      await sendVerificationEmail(user.email, user.name, verificationUrl);
+      /**
+       * Existing User model is responsible for generating/storing the hashed
+       * verification token and its expiry.
+       */
+      const verificationToken =
+        user.generateVerificationToken();
+
+      await user.save({
+        validateBeforeSave: false,
+      });
+
+      const frontendUrl =
+        process.env.FRONTEND_URL;
+
+      if (!frontendUrl) {
+        throw Object.assign(
+          new Error(
+            'Frontend URL is not configured.',
+          ),
+          {
+            statusCode: 500,
+            errorCode: 'FRONTEND_URL_NOT_CONFIGURED',
+          },
+        );
+      }
+
+      const verificationUrl =
+        `${frontendUrl.replace(/\/+$/, '')}` +
+        `/verify-email?token=${encodeURIComponent(
+          verificationToken,
+        )}`;
+
+      if (typeof sendVerificationEmail !== 'function') {
+        throw Object.assign(
+          new Error(
+            'Verification email service is unavailable.',
+          ),
+          {
+            statusCode: 503,
+            errorCode: 'EMAIL_SERVICE_UNAVAILABLE',
+          },
+        );
+      }
+
+      await sendVerificationEmail(
+        user.email,
+        user.name,
+        verificationUrl,
+      );
+
+      await auditEmailEvent(
+        'send_verification_email',
+        user._id,
+        user.email,
+        requestMetadata(req),
+        true,
+      );
+
+      logger.info(
+        {
+          userId: user._id,
+          traceId: resolveTraceId(req),
+        },
+        '[EmailController] Verification email sent',
+      );
+
+      return successResponse(
+        res,
+        null,
+        'Verification email sent successfully.',
+        req,
+        200,
+      );
+    } catch (err) {
+      /**
+       * Revoke the just-created verification credential if delivery failed.
+       */
+      try {
+        user.verificationToken = null;
+        user.verificationTokenExpires = null;
+
+        await user.save({
+          validateBeforeSave: false,
+        });
+      } catch (rollbackError) {
+        logger.error(
+          {
+            err: rollbackError,
+            userId: user._id,
+            traceId: resolveTraceId(req),
+          },
+          '[EmailController] Failed to rollback verification token',
+        );
+      }
+
       await auditEmailEvent(
         'send_verification_email',
         user._id,
         user.email,
         {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
+          ...requestMetadata(req),
+          reason:
+            err?.message ??
+            'Verification email delivery failed',
         },
-        true
+        false,
       );
 
-      logger.info('[EmailController] Verification email sent', {
-        userId: user._id,
-        email: user.email,
-      });
-
-      return res.status(200).json({
-        message: 'Verification email sent successfully.',
-      });
-    } catch (emailError) {
-      // Rollback token if email fails
-      user.verificationToken = null;
-      user.verificationTokenExpires = null;
-      await user.save({ validateBeforeSave: false });
-
-      await auditEmailEvent(
-        'send_verification_email',
-        user._id,
-        user.email,
+      logger.error(
         {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-          reason: emailError.message,
+          err,
+          userId: user._id,
+          traceId: resolveTraceId(req),
         },
-        false
+        '[EmailController] Verification email delivery failed',
       );
 
-      logger.error('[EmailController] Failed to send verification email', {
-        userId: user._id,
-        error: emailError.message,
-      });
-
-      return res.status(500).json({
-        message: 'Failed to send verification email. Please try again later.',
-      });
+      return sendControllerError(
+        res,
+        err,
+        req,
+        'EMAIL_VERIFICATION_SEND_FAILED',
+        'Failed to send verification email. Please try again later.',
+        500,
+      );
     }
-  } catch (err) {
-    logger.error('[EmailController] sendVerificationEmailRequest error', err);
-    return res.status(500).json({
-      message: 'Server error. Please try again later.',
-    });
-  }
-}
+  },
+);
 
 /**
  * POST /api/auth/verify-email
- * Verifies email using the token sent to user's email.
+ *
+ * Verifies the email address from a stored hashed token.
  */
-async function verifyEmail(req, res, next) {
-  try {
-    const { token } = req.body;
+export const verifyEmail = asyncHandler(
+  async (req, res) => {
+    const token = req.body?.token;
 
-    if (!token) {
-      return res.status(400).json({
-        message: 'Verification token is required.',
-      });
-    }
-
-    // Hash token to match against stored hashed token
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-    const user = await User.findOne({
-      verificationToken: hashedToken,
-      verificationTokenExpires: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      await auditEmailEvent(
-        'verify_email',
-        null,
-        null,
+    if (
+      typeof token !== 'string' ||
+      token.trim().length === 0
+    ) {
+      return errorResponse(
+        res,
         {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-          reason: 'Invalid or expired token',
+          statusCode: 400,
+          errorCode: 'VERIFICATION_TOKEN_REQUIRED',
+          message: 'Verification token is required.',
+          expose: true,
         },
-        false
+        req,
       );
-
-      return res.status(400).json({
-        message: 'Invalid or expired verification token.',
-      });
-    }
-
-    // Mark email as verified
-    user.isVerified = true;
-    user.verificationToken = null;
-    user.verificationTokenExpires = null;
-    await user.save({ validateBeforeSave: false });
-
-    await auditEmailEvent(
-      'verify_email',
-      user._id,
-      user.email,
-      {
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-      true
-    );
-
-    logger.info('[EmailController] Email verified successfully', {
-      userId: user._id,
-      email: user.email,
-    });
-
-    return res.status(200).json({
-      message: 'Email verified successfully. You can now log in.',
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        isVerified: user.isVerified,
-      },
-    });
-  } catch (err) {
-    logger.error('[EmailController] verifyEmail error', err);
-    return res.status(500).json({
-      message: 'Server error. Please try again later.',
-    });
-  }
-}
-
-/**
- * POST /api/auth/request-password-reset
- * Initiates password reset flow by sending reset link to email.
- */
-async function requestPasswordReset(req, res, next) {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        message: 'Email is required.',
-      });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() });
-
-    if (!user) {
-      // Don't reveal user existence (security best practice)
-      return res.status(200).json({
-        message: 'If an account exists for this email, a password reset link has been sent.',
-      });
     }
 
     try {
-      await passwordResetService.createResetToken(user, {
-        requestIp: req.ip,
-        userAgent: req.get('User-Agent'),
-        requestId: req.requestId,
+      /**
+       * The raw token is never persisted.
+       */
+      const hashedToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+      const user = await User.findOne({
+        verificationToken: hashedToken,
+        verificationTokenExpires: {
+          $gt: new Date(),
+        },
+      });
+
+      if (!user) {
+        await auditEmailEvent(
+          'verify_email',
+          null,
+          null,
+          {
+            ...requestMetadata(req),
+            reason: 'Invalid or expired token',
+          },
+          false,
+        );
+
+        return errorResponse(
+          res,
+          {
+            statusCode: 400,
+            errorCode: 'INVALID_OR_EXPIRED_VERIFICATION_TOKEN',
+            message:
+              'Invalid or expired verification token.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      user.isEmailVerified = true;
+
+      /**
+       * Keep legacy field synchronized where it exists in the current schema.
+       */
+      if (
+        Object.prototype.hasOwnProperty.call(
+          user.toObject(),
+          'isVerified',
+        ) ||
+        typeof user.isVerified !== 'undefined'
+      ) {
+        user.isVerified = true;
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(
+          user.toObject(),
+          'emailVerifiedAt',
+        ) ||
+        typeof user.emailVerifiedAt !== 'undefined'
+      ) {
+        user.emailVerifiedAt = new Date();
+      }
+
+      user.verificationToken = null;
+      user.verificationTokenExpires = null;
+
+      await user.save({
+        validateBeforeSave: false,
       });
 
       await auditEmailEvent(
-        'request_password_reset',
+        'verify_email',
         user._id,
         user.email,
-        {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-        },
-        true
+        requestMetadata(req),
+        true,
       );
 
-      logger.info('[EmailController] Password reset email sent', {
-        userId: user._id,
-        email: user.email,
-      });
-
-      return res.status(200).json({
-        message: 'Password reset link has been sent to your email.',
-      });
-    } catch (emailError) {
-      await auditEmailEvent(
-        'request_password_reset',
-        user._id,
-        user.email,
+      logger.info(
         {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-          reason: emailError.message,
+          userId: user._id,
+          traceId: resolveTraceId(req),
         },
-        false
+        '[EmailController] Email verified successfully',
       );
 
-      logger.error('[EmailController] Failed to send password reset email', {
-        userId: user._id,
-        error: emailError.message,
+      return successResponse(
+        res,
+        {
+          user: {
+            id: String(user._id),
+            email: user.email,
+            name: user.name,
+            isVerified:
+              Boolean(user.isEmailVerified) ||
+              Boolean(user.isVerified),
+            verifiedAt:
+              user.emailVerifiedAt ?? null,
+          },
+        },
+        'Email verified successfully. You can now log in.',
+        req,
+        200,
+      );
+    } catch (err) {
+      return sendControllerError(
+        res,
+        err,
+        req,
+        'EMAIL_VERIFICATION_FAILED',
+        'Email verification failed.',
+        500,
+      );
+    }
+  },
+);
+
+/**
+ * Legacy verification endpoint retained for compatibility.
+ *
+ * Existing routes can continue importing legacyVerifyEmail semantics through
+ * verifyEmail without maintaining duplicate business logic.
+ */
+export const legacyVerifyEmail = verifyEmail;
+
+/**
+ * =============================================================================
+ * Password reset request
+ * =============================================================================
+ */
+
+/**
+ * POST /api/auth/request-password-reset
+ */
+export const requestPasswordReset = asyncHandler(
+  async (req, res) => {
+    const normalizedEmail = normalizeEmail(
+      req.body?.email,
+    );
+
+    if (
+      !normalizedEmail ||
+      !isValidEmail(normalizedEmail)
+    ) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'INVALID_EMAIL',
+          message: 'Please provide a valid email address.',
+          expose: true,
+        },
+        req,
+      );
+    }
+
+    const publicSuccess = () =>
+      successResponse(
+        res,
+        null,
+        PUBLIC_RESET_MESSAGE,
+        req,
+        200,
+      );
+
+    try {
+      const user = await User.findOne({
+        email: normalizedEmail,
       });
 
       /**
-       * Preserve account-enumeration resistance even when delivery fails.
-       * Operational details are retained in logs/audit records only.
+       * Account-enumeration resistance.
        */
-      return res.status(200).json({
-        success: true,
-        message: 'If an account exists for this email, a password reset link has been sent.',
-      });
+      if (!user) {
+        return publicSuccess();
+      }
+
+      await passwordResetService.createResetToken(
+        user,
+        {
+          requestIp: req.ip,
+          userAgent: req.get('User-Agent'),
+          requestId:
+            req.requestId ??
+            req.id ??
+            null,
+          traceId:
+            resolveTraceId(req),
+        },
+      );
+
+      await auditEmailEvent(
+        'request_password_reset',
+        user._id,
+        user.email,
+        requestMetadata(req),
+        true,
+      );
+
+      logger.info(
+        {
+          userId: user._id,
+          traceId: resolveTraceId(req),
+        },
+        '[EmailController] Password reset requested',
+      );
+
+      return publicSuccess();
+    } catch (err) {
+      await auditEmailEvent(
+        'request_password_reset',
+        null,
+        normalizedEmail,
+        {
+          ...requestMetadata(req),
+          reason:
+            err?.message ??
+            'Password reset request failed',
+        },
+        false,
+      );
+
+      /**
+       * Never turn delivery/provider/database details into account-enumeration
+       * signals. Return the same public response.
+       */
+      logger.error(
+        {
+          err,
+          traceId: resolveTraceId(req),
+        },
+        '[EmailController] Password reset request failed',
+      );
+
+      return publicSuccess();
     }
-  } catch (err) {
-    logger.error('[EmailController] requestPasswordReset error', err);
-    return res.status(500).json({
-      message: 'Server error. Please try again later.',
-    });
-  }
-}
+  },
+);
+
+/**
+ * Legacy endpoint retained for compatibility.
+ */
+export const sendPasswordReset = requestPasswordReset;
+
+/**
+ * =============================================================================
+ * Password reset completion
+ * =============================================================================
+ */
 
 /**
  * POST /api/auth/reset-password
- * Completes password reset using the token and new password.
  */
-async function resetPassword(req, res, next) {
-  try {
-    const {
-      token,
-      password,
-      newPassword,
-      confirmPassword,
-    } = req.body;
-
-    const resolvedPassword =
-      typeof password === "string" && password.length > 0
-        ? password
-        : newPassword;
-
-    const resolvedConfirmPassword =
-      typeof confirmPassword === "string" && confirmPassword.length > 0
-        ? confirmPassword
-        : resolvedPassword;
-
-    if (!token || !resolvedPassword || !resolvedConfirmPassword) {
-      return res.status(400).json({
-        message: 'Token, password, and password confirmation are required.',
-      });
-    }
-
-    if (resolvedPassword !== resolvedConfirmPassword) {
-      return res.status(400).json({
-        message: 'Passwords do not match.',
-      });
-    }
+export const resetPassword = asyncHandler(
+  async (req, res) => {
+    const token = req.body?.token;
 
     /**
-     * The reset token is the credential that identifies the reset operation.
-     * Never require the browser to submit a trusted userId alongside it: doing
-     * so creates an unnecessary client-controlled identity parameter.
-     *
-     * The token record remains scoped by purpose, lifecycle state and tenant
-     * context, while passwordResetService.resetPassword performs the atomic
-     * one-time consumption check.
+     * Support both canonical "password" and legacy "newPassword".
      */
-    const tokenHash =
-      hashResetToken(token);
+    const password =
+      typeof req.body?.password === 'string' &&
+      req.body.password.length > 0
+        ? req.body.password
+        : req.body?.newPassword;
 
-    const tokenRecord =
-      await PasswordResetToken.findActiveByHash(
-        tokenHash
+    const confirmPassword =
+      typeof req.body?.confirmPassword === 'string' &&
+      req.body.confirmPassword.length > 0
+        ? req.body.confirmPassword
+        : password;
+
+    if (
+      typeof token !== 'string' ||
+      token.trim().length === 0
+    ) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'RESET_TOKEN_REQUIRED',
+          message:
+            'Password reset token is required.',
+          expose: true,
+        },
+        req,
       );
-
-    if (!tokenRecord?.user) {
-      return res.status(400).json({
-        message: 'Invalid or expired password reset token.',
-      });
     }
 
-    const result = await passwordResetService.resetPassword(
-      tokenRecord.user,
-      token,
-      resolvedPassword,
-      {
-        tenantId: tokenRecord.tenantId || null,
-        requestIp: req.ip,
-        userAgent: req.get('User-Agent'),
-        requestId: req.requestId,
-      }
-    );
+    if (
+      typeof password !== 'string' ||
+      !password
+    ) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'PASSWORD_REQUIRED',
+          message: 'New password is required.',
+          expose: true,
+        },
+        req,
+      );
+    }
 
-    return res.status(200).json(result);
-  } catch (err) {
-    logger.error('[EmailController] resetPassword error', err);
-    return res.status(400).json({
-      message: err.message || 'Unable to reset password.',
-    });
-  }
-}
+    if (password !== confirmPassword) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'PASSWORD_MISMATCH',
+          message: 'Passwords do not match.',
+          expose: true,
+        },
+        req,
+      );
+    }
+
+    if (!isStrongPassword(password)) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'WEAK_PASSWORD',
+          message:
+            'Password must be at least 12 characters and contain at least one uppercase letter, one lowercase letter, and one number, with no spaces.',
+          expose: true,
+        },
+        req,
+      );
+    }
+
+    try {
+      /**
+       * Hash the supplied reset token before database lookup.
+       *
+       * The raw credential must never be persisted or logged.
+       */
+      const tokenHash =
+        hashResetToken(token);
+
+      const tokenRecord =
+        await PasswordResetToken.findActiveByHash(
+          tokenHash,
+        );
+
+      if (!tokenRecord?.user) {
+        await auditEmailEvent(
+          'reset_password',
+          null,
+          null,
+          {
+            ...requestMetadata(req),
+            reason:
+              'Invalid or expired password reset token',
+          },
+          false,
+        );
+
+        return errorResponse(
+          res,
+          {
+            statusCode: 400,
+            errorCode:
+              'INVALID_OR_EXPIRED_RESET_TOKEN',
+            message:
+              'Invalid or expired password reset token.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      const result =
+        await passwordResetService.resetPassword(
+          tokenRecord.user,
+          token,
+          password,
+          {
+            tenantId:
+              tokenRecord.tenantId ??
+              null,
+            requestIp:
+              req.ip ??
+              null,
+            userAgent:
+              req.get('User-Agent') ??
+              null,
+            requestId:
+              req.requestId ??
+              req.id ??
+              null,
+            traceId:
+              resolveTraceId(req),
+          },
+        );
+
+      await auditEmailEvent(
+        'reset_password',
+        tokenRecord.user._id,
+        tokenRecord.user.email,
+        requestMetadata(req),
+        true,
+      );
+
+      logger.info(
+        {
+          userId: tokenRecord.user._id,
+          traceId: resolveTraceId(req),
+        },
+        '[EmailController] Password reset completed',
+      );
+
+      /**
+       * Normalize service return values while allowing the service to retain
+       * additional non-sensitive data.
+       */
+      const responseData =
+        result &&
+        typeof result === 'object' &&
+        !Array.isArray(result)
+          ? result
+          : null;
+
+      return successResponse(
+        res,
+        responseData,
+        result?.message ??
+          'Password has been reset successfully.',
+        req,
+        200,
+      );
+    } catch (err) {
+      await auditEmailEvent(
+        'reset_password',
+        null,
+        null,
+        {
+          ...requestMetadata(req),
+          reason:
+            err?.message ??
+            'Password reset failed',
+        },
+        false,
+      );
+
+      return sendControllerError(
+        res,
+        err,
+        req,
+        'PASSWORD_RESET_FAILED',
+        'Unable to reset password.',
+        400,
+      );
+    }
+  },
+);
+
+/**
+ * =============================================================================
+ * Authenticated password change
+ * =============================================================================
+ */
 
 /**
  * POST /api/auth/change-password
- * Changes password for authenticated user (requires old password).
  */
-async function changePassword(req, res, next) {
-  try {
-    const { currentPassword, newPassword, confirmPassword } = req.body;
-    const userId = req.user?.id || req.user?._id;
+export const changePassword = asyncHandler(
+  async (req, res) => {
+    const userId =
+      getAuthenticatedUserId(req);
 
     if (!userId) {
-      return res.status(401).json({
-        message: 'Not authenticated.',
-      });
+      return errorResponse(
+        res,
+        {
+          statusCode: 401,
+          errorCode: 'AUTHENTICATION_REQUIRED',
+          message: 'Not authenticated.',
+          expose: true,
+        },
+        req,
+      );
     }
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      return res.status(400).json({
-        message: 'Current password, new password, and confirmation are required.',
-      });
+    const currentPassword =
+      req.body?.currentPassword;
+
+    const newPassword =
+      req.body?.newPassword;
+
+    const confirmPassword =
+      req.body?.confirmPassword;
+
+    if (
+      typeof currentPassword !== 'string' ||
+      typeof newPassword !== 'string' ||
+      typeof confirmPassword !== 'string' ||
+      !currentPassword ||
+      !newPassword ||
+      !confirmPassword
+    ) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'PASSWORD_FIELDS_REQUIRED',
+          message:
+            'Current password, new password, and confirmation are required.',
+          expose: true,
+        },
+        req,
+      );
     }
 
     if (newPassword !== confirmPassword) {
-      return res.status(400).json({
-        message: 'New passwords do not match.',
-      });
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'PASSWORD_MISMATCH',
+          message:
+            'New passwords do not match.',
+          expose: true,
+        },
+        req,
+      );
     }
 
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        message: 'New password must be at least 8 characters.',
-      });
+    if (!isStrongPassword(newPassword)) {
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'WEAK_PASSWORD',
+          message:
+            'New password must be at least 12 characters and contain at least one uppercase letter, one lowercase letter, and one number, with no spaces.',
+          expose: true,
+        },
+        req,
+      );
     }
 
     if (currentPassword === newPassword) {
-      return res.status(400).json({
-        message: 'New password must be different from current password.',
-      });
+      return errorResponse(
+        res,
+        {
+          statusCode: 400,
+          errorCode: 'PASSWORD_UNCHANGED',
+          message:
+            'New password must be different from current password.',
+          expose: true,
+        },
+        req,
+      );
     }
 
-    const user = await User.findById(userId).select('+password');
+    try {
+      const user = await User.findById(
+        userId,
+      ).select('+password');
 
-    if (!user) {
-      return res.status(404).json({
-        message: 'User not found.',
-      });
-    }
+      if (!user) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 404,
+            errorCode: 'USER_NOT_FOUND',
+            message: 'User not found.',
+            expose: true,
+          },
+          req,
+        );
+      }
 
-    const isMatch = await user.matchPassword(currentPassword);
-    if (!isMatch) {
+      const passwordMatches =
+        await user.matchPassword(
+          currentPassword,
+        );
+
+      if (!passwordMatches) {
+        await auditEmailEvent(
+          'change_password',
+          user._id,
+          user.email,
+          {
+            ...requestMetadata(req),
+            reason:
+              'Invalid current password',
+          },
+          false,
+        );
+
+        /**
+         * Deliberately do not reveal additional authentication details.
+         */
+        return errorResponse(
+          res,
+          {
+            statusCode: 401,
+            errorCode: 'INVALID_CURRENT_PASSWORD',
+            message:
+              'Current password is incorrect.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      /**
+       * User model owns password hashing through its save middleware.
+       */
+      user.password = newPassword;
+
+      await user.save();
+
+      /**
+       * Revoke active refresh sessions following a password change.
+       *
+       * This keeps the session lifecycle aligned with the password security
+       * boundary.
+       */
+      await RefreshToken.updateMany(
+        {
+          userId: user._id,
+          revokedAt: null,
+        },
+        {
+          $set: {
+            revokedAt: new Date(),
+            revokedReason:
+              'password_changed',
+          },
+        },
+      );
+
       await auditEmailEvent(
         'change_password',
         user._id,
         user.email,
-        {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-          reason: 'Invalid current password',
-        },
-        false
+        requestMetadata(req),
+        true,
       );
 
-      return res.status(401).json({
-        message: 'Current password is incorrect.',
-      });
+      logger.info(
+        {
+          userId: user._id,
+          traceId: resolveTraceId(req),
+        },
+        '[EmailController] Password changed successfully',
+      );
+
+      return successResponse(
+        res,
+        null,
+        'Password changed successfully.',
+        req,
+        200,
+      );
+    } catch (err) {
+      await auditEmailEvent(
+        'change_password',
+        userId,
+        req.user?.email ?? null,
+        {
+          ...requestMetadata(req),
+          reason:
+            err?.message ??
+            'Password change failed',
+        },
+        false,
+      );
+
+      return sendControllerError(
+        res,
+        err,
+        req,
+        'PASSWORD_CHANGE_FAILED',
+        'Unable to change password.',
+        500,
+      );
     }
+  },
+);
 
-    user.password = newPassword;
-    await user.save();
+/**
+ * =============================================================================
+ * Verification status
+ * =============================================================================
+ */
 
-    await auditEmailEvent(
-      'change_password',
-      user._id,
-      user.email,
-      {
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-      true
-    );
+/**
+ * GET /api/email/verification-status
+ */
+export const getEmailVerificationStatus =
+  asyncHandler(
+    async (req, res) => {
+      const userId =
+        getAuthenticatedUserId(req);
 
-    logger.info('[EmailController] Password changed successfully', {
-      userId: user._id,
-      email: user.email,
-    });
+      if (!userId) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 401,
+            errorCode:
+              'AUTHENTICATION_REQUIRED',
+            message: 'Not authenticated.',
+            expose: true,
+          },
+          req,
+        );
+      }
 
-    return res.status(200).json({
-      message: 'Password changed successfully.',
-    });
-  } catch (err) {
-    logger.error('[EmailController] changePassword error', err);
-    return res.status(500).json({
-      message: 'Server error. Please try again later.',
-    });
-  }
-}
+      try {
+        const user =
+          await User.findById(userId)
+            .select(
+              'email isEmailVerified isVerified emailVerifiedAt',
+            )
+            .lean();
 
-module.exports = {
-  // Rate limiters for use in routes
+        if (!user) {
+          return errorResponse(
+            res,
+            {
+              statusCode: 404,
+              errorCode: 'USER_NOT_FOUND',
+              message: 'User not found.',
+              expose: true,
+            },
+            req,
+          );
+        }
+
+        const isVerified =
+          Boolean(user.isEmailVerified) ||
+          Boolean(user.isVerified);
+
+        return successResponse(
+          res,
+          {
+            email: user.email,
+            isVerified,
+            verifiedAt:
+              user.emailVerifiedAt ??
+              null,
+          },
+          'Email verification status retrieved successfully.',
+          req,
+          200,
+        );
+      } catch (err) {
+        return sendControllerError(
+          res,
+          err,
+          req,
+          'EMAIL_VERIFICATION_STATUS_FAILED',
+          'Failed to get verification status.',
+          500,
+        );
+      }
+    },
+  );
+
+/**
+ * =============================================================================
+ * Resend verification
+ * =============================================================================
+ */
+
+/**
+ * POST /api/email/resend-verification
+ *
+ * Authenticated endpoint.
+ */
+export const resendEmailVerification =
+  asyncHandler(
+    async (req, res) => {
+      const userId =
+        getAuthenticatedUserId(req);
+
+      if (!userId) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 401,
+            errorCode:
+              'AUTHENTICATION_REQUIRED',
+            message: 'Authentication is required.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      try {
+        const user =
+          await User.findById(userId);
+
+        if (!user) {
+          return errorResponse(
+            res,
+            {
+              statusCode: 404,
+              errorCode: 'USER_NOT_FOUND',
+              message: 'User not found.',
+              expose: true,
+            },
+            req,
+          );
+        }
+
+        const isVerified =
+          Boolean(user.isEmailVerified) ||
+          Boolean(user.isVerified);
+
+        if (isVerified) {
+          return successResponse(
+            res,
+            null,
+            'Email is already verified.',
+            req,
+            200,
+          );
+        }
+
+        const result =
+          await emailService.sendEmailVerification(
+            user._id,
+          );
+
+        await auditEmailEvent(
+          'resend_verification_email',
+          user._id,
+          user.email,
+          requestMetadata(req),
+          true,
+        );
+
+        return successResponse(
+          res,
+          null,
+          result?.message ??
+            'Verification email sent successfully.',
+          req,
+          200,
+        );
+      } catch (err) {
+        await auditEmailEvent(
+          'resend_verification_email',
+          userId,
+          req.user?.email ?? null,
+          {
+            ...requestMetadata(req),
+            reason:
+              err?.message ??
+              'Failed to resend verification email',
+          },
+          false,
+        );
+
+        return sendControllerError(
+          res,
+          err,
+          req,
+          'EMAIL_VERIFICATION_RESEND_FAILED',
+          'Failed to resend verification email.',
+          400,
+        );
+      }
+    },
+  );
+
+/**
+ * =============================================================================
+ * Administrative email configuration test
+ * =============================================================================
+ */
+
+/**
+ * POST /api/email/test
+ *
+ * Authorization should also normally be enforced by route middleware.
+ * The controller retains the check as defense in depth.
+ */
+export const testEmailConfiguration =
+  asyncHandler(
+    async (req, res) => {
+      if (
+        req.user?.role !== 'admin'
+      ) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 403,
+            errorCode: 'ADMIN_ACCESS_REQUIRED',
+            message: 'Admin access required.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      try {
+        const result =
+          await emailService.testEmailConfiguration();
+
+        if (result?.success) {
+          return successResponse(
+            res,
+            null,
+            result.message ??
+              'Email configuration is valid.',
+            req,
+            200,
+          );
+        }
+
+        return errorResponse(
+          res,
+          {
+            statusCode: 503,
+            errorCode:
+              'EMAIL_CONFIGURATION_INVALID',
+            message:
+              'Email configuration test failed.',
+            details: {
+              reason:
+                result?.error ??
+                undefined,
+            },
+            expose: true,
+          },
+          req,
+        );
+      } catch (err) {
+        return sendControllerError(
+          res,
+          err,
+          req,
+          'EMAIL_CONFIGURATION_TEST_FAILED',
+          'Email configuration test failed.',
+          503,
+        );
+      }
+    },
+  );
+
+/**
+ * =============================================================================
+ * Administrative test email
+ * =============================================================================
+ */
+
+/**
+ * POST /api/email/test-send
+ */
+export const sendTestEmail =
+  asyncHandler(
+    async (req, res) => {
+      if (
+        req.user?.role !== 'admin'
+      ) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 403,
+            errorCode: 'ADMIN_ACCESS_REQUIRED',
+            message: 'Admin access required.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      const to = normalizeEmail(
+        req.body?.to,
+      );
+
+      const subject =
+        typeof req.body?.subject === 'string'
+          ? req.body.subject.trim()
+          : '';
+
+      const message =
+        typeof req.body?.message === 'string'
+          ? req.body.message.trim()
+          : '';
+
+      if (
+        !to ||
+        !subject ||
+        !message
+      ) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 400,
+            errorCode:
+              'TEST_EMAIL_FIELDS_REQUIRED',
+            message:
+              'Recipient email, subject, and message are required.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      if (!isValidEmail(to)) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 400,
+            errorCode: 'INVALID_RECIPIENT_EMAIL',
+            message:
+              'Please provide a valid recipient email address.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      if (subject.length > 200) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 400,
+            errorCode: 'INVALID_EMAIL_SUBJECT',
+            message:
+              'Subject must not exceed 200 characters.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      if (message.length > 10_000) {
+        return errorResponse(
+          res,
+          {
+            statusCode: 400,
+            errorCode: 'INVALID_EMAIL_MESSAGE',
+            message:
+              'Message must not exceed 10000 characters.',
+            expose: true,
+          },
+          req,
+        );
+      }
+
+      try {
+        await emailService.sendEmail({
+          to,
+          subject,
+          template: 'test_email',
+          data: {
+            message,
+            sentBy:
+              req.user?.name ??
+              req.user?.email ??
+              'TITech Community Capital Administrator',
+            timestamp:
+              new Date().toISOString(),
+          },
+        });
+
+        await auditEmailEvent(
+          'send_test_email',
+          getAuthenticatedUserId(req),
+          to,
+          {
+            ...requestMetadata(req),
+            /**
+             * Do not store the actual message body in the audit record.
+             */
+            subject,
+          },
+          true,
+        );
+
+        logger.info(
+          {
+            userId:
+              getAuthenticatedUserId(req),
+            traceId: resolveTraceId(req),
+          },
+          '[EmailController] Test email sent',
+        );
+
+        return successResponse(
+          res,
+          null,
+          'Test email sent successfully.',
+          req,
+          200,
+        );
+      } catch (err) {
+        await auditEmailEvent(
+          'send_test_email',
+          getAuthenticatedUserId(req),
+          to,
+          {
+            ...requestMetadata(req),
+            subject,
+            reason:
+              err?.message ??
+              'Test email delivery failed',
+          },
+          false,
+        );
+
+        return sendControllerError(
+          res,
+          err,
+          req,
+          'TEST_EMAIL_SEND_FAILED',
+          'Failed to send test email.',
+          500,
+        );
+      }
+    },
+  );
+
+/**
+ * =============================================================================
+ * Public export surface
+ * =============================================================================
+ *
+ * Keep all current controller/rate-limiter names available to existing routes.
+ * =============================================================================
+ */
+
+const emailController = {
   requestVerificationLimiter,
   requestResetLimiter,
   resetPasswordLimiter,
   verifyEmailLimiter,
 
-  // Controllers
   sendEmailVerification,
   sendVerificationEmailRequest,
   sendPasswordReset,
+  legacyVerifyEmail,
   verifyEmail,
   requestPasswordReset,
   resetPassword,
   changePassword,
 
-  // Also export handlers attached via exports.* earlier
-  resendEmailVerification: exports.resendEmailVerification,
-  getEmailVerificationStatus: exports.getEmailVerificationStatus,
-  testEmailConfiguration: exports.testEmailConfiguration,
-  sendTestEmail: exports.sendTestEmail,
+  resendEmailVerification,
+  getEmailVerificationStatus,
+
+  testEmailConfiguration,
+  sendTestEmail,
 };
+
+export default emailController;
