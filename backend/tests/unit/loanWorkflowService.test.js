@@ -165,3 +165,6 @@ describe(
                                     loan._id,
                                     actor
                                 );
+                    });
+            });
+        });

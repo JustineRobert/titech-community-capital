@@ -1869,6 +1869,7 @@ class OfflineDatabase {
                         'TITECH_OFFLINE_DATABASE_ENCRYPTION_REQUIRED',
             },
         );
+        }
 
         if (
             encrypted &&

@@ -28,6 +28,7 @@
  */
 
 import axios from 'axios';
+import { getToken } from './api';
 
 /*
 |--------------------------------------------------------------------------
@@ -48,8 +49,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token =
-      localStorage.getItem('token');
+    const token = getToken();
 
     if (token) {
       config.headers.Authorization =

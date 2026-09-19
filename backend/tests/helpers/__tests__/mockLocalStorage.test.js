@@ -620,5 +620,3 @@ afterAll(() => {
     uninstallStorageMocks();
 
 });
-
-}); // end describe("Mock Local Storage Helper")

@@ -5,7 +5,7 @@
     "description": "TITech Community Capital frontend - enterprise React application for Africa's community finance infrastructure, including savings groups, wallets, contributions, payments, lending, dashboards, risk, compliance, reconciliation, analytics, and financial services.",
     "type": "module",
     "engines": {
-        "node": ">=24.0.0",
+        "node": ">=24.15.0",
         "npm": ">=11.0.0"
     },
     "scripts": {

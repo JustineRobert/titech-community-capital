@@ -1,5 +1,5 @@
 # ============================================================================
-# Community Savings App - Makefile
+# TITech Community Capital - Makefile
 # Unified commands for development, testing, and deployment
 # ============================================================================
 
@@ -7,7 +7,7 @@
 
 help:
 	@echo "======================================================================"
-	@echo "Community Savings App - Development Commands"
+	@echo "TITech Community Capital - Development Commands"
 	@echo "======================================================================"
 	@echo ""
 	@echo "SETUP & INSTALLATION"
@@ -57,17 +57,17 @@ help:
 
 install:
 	@echo "Installing all dependencies..."
-	npm run install-all
+	npm run install:all
 	@echo "✅ Installation complete"
 
 install-backend:
 	@echo "Installing backend dependencies..."
-	cd community-savings-app-backend && npm install
+	cd backend && npm install
 	@echo "✅ Backend installation complete"
 
 install-frontend:
 	@echo "Installing frontend dependencies..."
-	cd community-savings-app-frontend && npm install
+	cd frontend && npm install
 	@echo "✅ Frontend installation complete"
 
 # ============================================================================
@@ -96,24 +96,24 @@ test:
 
 test-backend:
 	@echo "Running backend tests..."
-	cd community-savings-app-backend && npm run test
+	cd backend && npm run test
 
 test-frontend:
 	@echo "Running frontend tests..."
-	cd community-savings-app-frontend && npm run test
+	cd frontend && npm run test
 
 test-unit:
 	@echo "Running unit tests..."
-	cd community-savings-app-backend && npm run test:unit
+	cd backend && npm run test:unit
 
 test-integration:
 	@echo "Running integration tests..."
-	cd community-savings-app-backend && npm run test:integration
+	cd backend && npm run test:integration
 
 test-coverage:
 	@echo "Generating coverage reports..."
-	cd community-savings-app-backend && npm run test:coverage
-	cd community-savings-app-frontend && npm run test:coverage
+	cd backend && npm run test:coverage
+	cd frontend && npm run test:coverage
 
 # ============================================================================
 # CODE QUALITY
@@ -125,11 +125,11 @@ lint:
 
 lint-backend:
 	@echo "Linting backend code..."
-	cd community-savings-app-backend && npm run lint
+	cd backend && npm run lint
 
 lint-frontend:
 	@echo "Linting frontend code..."
-	cd community-savings-app-frontend && npm run lint
+	cd frontend && npm run lint
 
 lint-fix:
 	@echo "Fixing linting issues..."
@@ -181,8 +181,8 @@ clean:
 	rm -rf dist/
 	rm -rf build/
 	rm -f logs/*.log
-	rm -f community-savings-app-backend/coverage/*.json
-	rm -f community-savings-app-frontend/coverage/*.json
+	rm -f backend/coverage/*.json
+	rm -f frontend/coverage/*.json
 	@echo "✅ Cleanup complete"
 
 seed-admin:
@@ -191,7 +191,7 @@ seed-admin:
 
 migrate:
 	@echo "Running database migrations..."
-	cd community-savings-app-backend && npm run migrate
+	cd backend && npm run migrate
 
 # ============================================================================
 # CONVENIENCE SHORTCUTS

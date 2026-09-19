@@ -1,0 +1,13 @@
+replicaCount: 2
+image:
+  pullPolicy: IfNotPresent
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+hpa:
+  enabled: false
+existingSecret: titech-community-capital-backend-staging

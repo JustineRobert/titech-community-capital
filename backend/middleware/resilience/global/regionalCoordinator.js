@@ -399,23 +399,7 @@ class RegionalCoordinator extends EventEmitter {
 
     }
 
-}
 
-module.exports = {
-
-    RegionalCoordinator,
-
-    REGION_STATE,
-
-    ROUTING_STATE,
-
-    FAILOVER_STATE,
-
-    COORDINATOR_STATE,
-
-    COORDINATOR_VERSION,
-
-    SNAPSHOT_SCHEMA_VERSION
 
 
 
@@ -11106,4 +11090,14 @@ sovereignFabricSnapshot() {
 
 }
 
+};
+
+module.exports = {
+  RegionalCoordinator,
+  REGION_STATE,
+  ROUTING_STATE,
+  FAILOVER_STATE,
+  COORDINATOR_STATE,
+  COORDINATOR_VERSION,
+  SNAPSHOT_SCHEMA_VERSION
 };

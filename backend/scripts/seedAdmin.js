@@ -1,296 +1,144 @@
-'use strict';
+#!/usr/bin/env node
 
 /**
- * ============================================================================
- * SEED ADMIN SCRIPT
  * ============================================================================
  * TITech Community Capital LTD
- * SACCO Core Banking Platform
+ * Enterprise Administrator Bootstrap
+ * ============================================================================
  *
- * PURPOSE
- * ----------------------------------------------------------------------------
- * Creates first Super Administrator
+ * Purpose
+ * -------
+ * Creates the first privileged administrator using environment-controlled
+ * credentials. This script is intentionally deterministic, idempotent and
+ * safe to import from the root CLI.
  *
- * FEATURES
- * ----------------------------------------------------------------------------
- * ✅ Idempotent
- * ✅ Password Hashing
- * ✅ Multi-Tenant Ready
- * ✅ Environment Driven
- * ✅ Enterprise Logging
- * ✅ Production Safe
- *
- * RUN:
- *
- * npm run seed:admin
+ * Security boundaries
+ * -------------------
+ * - Never contains a default password or credential.
+ * - Never prints the administrator password.
+ * - Requires an explicitly configured MongoDB URI.
+ * - Uses the canonical User model.
+ * - Does not create financial balances, ledger entries or tenant data beyond
+ *   the explicitly supplied system tenant identifier.
  *
  * ============================================================================
  */
 
-require('dotenv').config();
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+import { pathToFileURL } from "node:url";
+import User from "../models/User.js";
 
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const MIN_PASSWORD_LENGTH = 12;
 
-const User = require('../models/User');
-
-/**
- * ============================================================================
- * CONNECT DATABASE
- * ============================================================================
- */
-
-async function connectDB() {
-
-    const mongoUri =
-        process.env.MONGODB_URI ||
-        process.env.MONGO_URI;
-
-    if (!mongoUri) {
-
-        throw new Error(
-            'MONGODB_URI is not configured'
-        );
-    }
-
-    await mongoose.connect(mongoUri);
-
-    console.log(
-        '✅ MongoDB Connected'
-    );
+function validatePassword(password) {
+  return Boolean(
+    password &&
+      password.length >= MIN_PASSWORD_LENGTH &&
+      /[a-z]/.test(password) &&
+      /[A-Z]/.test(password) &&
+      /[0-9]/.test(password),
+  );
 }
 
-/**
- * ============================================================================
- * DEFAULT CONFIG
- * ============================================================================
- */
+function resolveConfig() {
+  const password = process.env.SEED_ADMIN_PASSWORD || "";
 
-const ADMIN_CONFIG = {
+  return Object.freeze({
+    mongoUri: process.env.MONGODB_URI || process.env.MONGO_URI || "",
+    tenantId: process.env.SEED_ADMIN_TENANT_ID || "SYSTEM",
+    firstName: process.env.SEED_ADMIN_FIRSTNAME || "System",
+    lastName: process.env.SEED_ADMIN_LASTNAME || "Administrator",
+    email: (process.env.SEED_ADMIN_EMAIL || "admin@titechcapital.com").trim().toLowerCase(),
+    phone: process.env.SEED_ADMIN_PHONE || "+256700000000",
+    password,
+    role: process.env.SEED_ADMIN_ROLE || "super_admin",
+  });
+}
 
-    tenantId:
-        process.env.SEED_ADMIN_TENANT_ID ||
-        'SYSTEM',
+async function connect(mongoUri) {
+  if (!mongoUri) {
+    throw new Error("MONGODB_URI or MONGO_URI is required.");
+  }
 
-    firstName:
-        process.env.SEED_ADMIN_FIRSTNAME ||
-        'System',
+  await mongoose.connect(mongoUri, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 15_000,
+    socketTimeoutMS: 45_000,
+  });
+}
 
-    lastName:
-        process.env.SEED_ADMIN_LASTNAME ||
-        'Administrator',
+export async function run() {
+  const config = resolveConfig();
 
-    email:
-        process.env.SEED_ADMIN_EMAIL ||
-        'admin@titechcapital.com',
+  if (!config.password) {
+    throw new Error("SEED_ADMIN_PASSWORD is required; refusing to create a default or generated administrator credential.");
+  }
 
-    phone:
-        process.env.SEED_ADMIN_PHONE ||
-        '+256700000000',
-
-    password:
-        process.env.SEED_ADMIN_PASSWORD ||
-        'ChangeMeImmediately123!',
-
-    role:
-        process.env.SEED_ADMIN_ROLE ||
-        'super_admin'
-};
-
-/**
- * ============================================================================
- * CREATE ADMIN
- * ============================================================================
- */
-
-async function createAdmin() {
-
-    console.log(
-        '🔍 Checking existing administrator...'
+  if (!validatePassword(config.password)) {
+    throw new Error(
+      `Administrator password must be at least ${MIN_PASSWORD_LENGTH} characters and contain uppercase, lowercase and numeric characters.`,
     );
+  }
 
-    const existingAdmin =
-        await User.findOne({
-            email:
-                ADMIN_CONFIG.email
-        });
+  await connect(config.mongoUri);
+
+  try {
+    const existingAdmin = await User.findOne({ email: config.email });
 
     if (existingAdmin) {
+      let changed = false;
 
-        console.log(
-            `✅ Admin already exists: ${existingAdmin.email}`
-        );
+      if (existingAdmin.role !== config.role) {
+        existingAdmin.role = config.role;
+        changed = true;
+      }
 
-        return existingAdmin;
+      if (!existingAdmin.isActive) {
+        existingAdmin.isActive = true;
+        changed = true;
+      }
+
+      if (changed) {
+        await existingAdmin.save();
+      }
+
+      console.log(`Administrator already exists: ${existingAdmin.email}`);
+      return existingAdmin;
     }
 
-    console.log(
-        '🔐 Hashing password...'
-    );
+    const passwordHash = await bcrypt.hash(config.password, 12);
 
-    const passwordHash =
-        await bcrypt.hash(
-            ADMIN_CONFIG.password,
-            12
-        );
+    const admin = await User.create({
+      tenantId: config.tenantId,
+      firstName: config.firstName,
+      lastName: config.lastName,
+      name: `${config.firstName} ${config.lastName}`.trim(),
+      email: config.email,
+      phone: config.phone,
+      password: passwordHash,
+      role: config.role,
+      roles: [config.role, "admin"],
+      isActive: true,
+      isVerified: true,
+      emailVerified: true,
+      phoneVerified: true,
+      kycStatus: "VERIFIED",
+      memberStatus: "ACTIVE",
+      createdBy: "SYSTEM",
+    });
 
-    console.log(
-        '👤 Creating administrator...'
-    );
-
-    const admin =
-        await User.create({
-
-            tenantId:
-                ADMIN_CONFIG.tenantId,
-
-            firstName:
-                ADMIN_CONFIG.firstName,
-
-            lastName:
-                ADMIN_CONFIG.lastName,
-
-            email:
-                ADMIN_CONFIG.email
-                    .toLowerCase(),
-
-            phone:
-                ADMIN_CONFIG.phone,
-
-            password:
-                passwordHash,
-
-            role:
-                ADMIN_CONFIG.role,
-
-            roles: [
-                'super_admin',
-                'admin'
-            ],
-
-            isActive: true,
-
-            emailVerified: true,
-
-            phoneVerified: true,
-
-            kycStatus:
-                'VERIFIED',
-
-            memberStatus:
-                'ACTIVE',
-
-            createdBy:
-                'SYSTEM',
-
-            lastLoginAt:
-                null
-        });
-
-    console.log(
-        '✅ Administrator created successfully'
-    );
+    console.log(`Administrator created: ${admin.email}`);
 
     return admin;
+  } finally {
+    await mongoose.disconnect();
+  }
 }
 
-/**
- * ============================================================================
- * VERIFY ADMIN
- * ============================================================================
- */
-
-async function verifyAdmin(admin) {
-
-    console.log('');
-    console.log(
-        '=========================================='
-    );
-    console.log(
-        '✅ ADMIN ACCOUNT READY'
-    );
-    console.log(
-        '=========================================='
-    );
-
-    console.log(
-        `ID       : ${admin._id}`
-    );
-
-    console.log(
-        `Email    : ${admin.email}`
-    );
-
-    console.log(
-        `Role     : ${admin.role}`
-    );
-
-    console.log(
-        `Tenant   : ${admin.tenantId}`
-    );
-
-    console.log(
-        `Status   : ACTIVE`
-    );
-
-    console.log(
-        '=========================================='
-    );
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  run().catch((error) => {
+    console.error("Admin bootstrap failed:", error?.message || String(error));
+    process.exitCode = 1;
+  });
 }
-
-/**
- * ============================================================================
- * MAIN
- * ============================================================================
- */
-
-async function run() {
-
-    try {
-
-        console.log('');
-        console.log(
-            '🚀 TITech Admin Seeder'
-        );
-        console.log('');
-
-        await connectDB();
-
-        const admin =
-            await createAdmin();
-
-        await verifyAdmin(
-            admin
-        );
-
-        console.log('');
-        console.log(
-            '✅ Seeder completed successfully'
-        );
-
-        await mongoose.disconnect();
-
-        process.exit(0);
-
-    } catch (error) {
-
-        console.error('');
-        console.error(
-            '❌ Admin Seeder Failed'
-        );
-
-        console.error(
-            error.message
-        );
-
-        console.error(
-            error
-        );
-
-        await mongoose.disconnect();
-
-        process.exit(1);
-    }
-}
-
-run();

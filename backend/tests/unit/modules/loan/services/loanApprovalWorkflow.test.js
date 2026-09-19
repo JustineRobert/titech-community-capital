@@ -306,6 +306,5 @@ test(
 
     }
 );
-});
 
 }); // end describe("Loan Approval Workflow")

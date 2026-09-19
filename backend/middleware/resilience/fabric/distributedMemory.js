@@ -2428,4 +2428,6 @@ async stop() {
 
 
     }
+}
 
+module.exports = { DistributedMemory, MEMORY_STATE, MEMORY_TYPE, SNAPSHOT_VERSION };

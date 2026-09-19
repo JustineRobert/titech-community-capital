@@ -5,7 +5,7 @@
 //   node scripts/seed-groups-cli.js --admin admin@example.com --name "Staff SACCO" --description "Investment group" --mongo mongodb+srv://...
 
 const path = require('path');
-const backendRoot = path.join(__dirname, '..', 'community-savings-app-backend');
+const backendRoot = path.join(__dirname, '..', 'backend');
 const mongoose = require(require.resolve('mongoose', { paths: [backendRoot] }));
 
 function parseArgs(argv) {
@@ -123,7 +123,7 @@ async function main() {
   const seedPath = path.join(
     __dirname,
     '..',
-    'community-savings-app-backend',
+    'backend',
     'scripts',
     'seed-group.js'
   );

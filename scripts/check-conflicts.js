@@ -1,49 +1,64 @@
 #!/usr/bin/env node
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 
-const repoRoot = process.cwd();
-const markerPatterns = [/^<<<<<<<(?:\s|$)/, /^=======(?:\s|$)/, /^>>>>>>>(?:\s|$)/];
-const filesWithMarkers = [];
+const root = process.cwd();
+const excluded = new Set(['.git', 'node_modules', 'coverage', 'dist', 'build', '.vite', '.vitest', '.nyc_output']);
+const hits = [];
 
-let trackedFiles;
-try {
-  trackedFiles = execSync('git ls-files', { cwd: repoRoot, encoding: 'utf8' })
-    .split(/\r?\n/)
-    .filter(Boolean);
-} catch (error) {
-  console.error('Unable to enumerate tracked files with git ls-files.');
-  process.exit(1);
+function walk(dir, out = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (excluded.has(entry.name)) continue;
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(file, out);
+    else out.push(file);
+  }
+  return out;
 }
 
-for (const file of trackedFiles) {
-  if (!file || file.startsWith('node_modules/') || file.startsWith('coverage/') || file.startsWith('dist/') || file.startsWith('build/')) {
-    continue;
-  }
+let files = [];
+try {
+  const output = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  files = output.split(/\r?\n/).filter(Boolean).map((f) => path.join(root, f));
+} catch {
+  files = walk(root);
+}
 
-  let content;
+for (const file of files) {
+  let text;
   try {
-    content = fs.readFileSync(file, 'utf8');
+    text = fs.readFileSync(file, 'utf8');
   } catch {
     continue;
   }
 
-  const lines = content.split(/\r?\n/);
+  let inConflict = false;
+  const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-    if (markerPatterns.some((pattern) => pattern.test(line))) {
-      filesWithMarkers.push({ file, line: i + 1, text: line.trim() });
+    const trimmed = line.trimStart();
+    if (/^<<<<<<<(?:\s|$)/.test(trimmed)) {
+      hits.push({ file, line: i + 1, text: line.trim() });
+      inConflict = true;
+      continue;
+    }
+    if (inConflict && /^=======(?:\s|$)/.test(trimmed)) {
+      hits.push({ file, line: i + 1, text: line.trim() });
+      continue;
+    }
+    if (/^>>>>>>>(?:\s|$)/.test(trimmed)) {
+      hits.push({ file, line: i + 1, text: line.trim() });
+      inConflict = false;
     }
   }
 }
 
-if (filesWithMarkers.length > 0) {
+if (hits.length) {
   console.error('Merge conflict markers detected:');
-  for (const hit of filesWithMarkers) {
-    console.error(`- ${hit.file}:${hit.line}: ${hit.text}`);
-  }
+  for (const hit of hits) console.error(`- ${path.relative(root, hit.file).replaceAll(path.sep, '/')}:${hit.line}: ${hit.text}`);
   process.exit(1);
 }
 
-console.log('No merge conflict markers found in tracked source files.');
+console.log(`No merge conflict markers found (${files.length} files scanned).`);

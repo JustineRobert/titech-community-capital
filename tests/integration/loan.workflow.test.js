@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
-const Loan = require('../../community-savings-app-backend/models/Loan');
-const LoanRepaymentSchedule = require('../../community-savings-app-backend/models/LoanRepaymentSchedule');
-const LoanAudit = require('../../community-savings-app-backend/models/LoanAudit');
-const LoanWorkflowService = require('../../community-savings-app-backend/services/loanWorkflowService');
-const User = require('../../community-savings-app-backend/models/User');
-const Group = require('../../community-savings-app-backend/models/Group');
+const Loan = require('../../backend/models/Loan');
+const LoanRepaymentSchedule = require('../../backend/models/LoanRepaymentSchedule');
+const LoanAudit = require('../../backend/models/LoanAudit');
+const LoanWorkflowService = require('../../backend/services/loanWorkflowService');
+const User = require('../../backend/models/User');
+const Group = require('../../backend/models/Group');
 
 describe('Loan Workflow Integration Tests', () => {
   let user, admin, group, loan;

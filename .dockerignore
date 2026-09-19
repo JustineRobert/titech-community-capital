@@ -1,0 +1,27 @@
+# Dependencies
+**/node_modules
+
+# Build/test output
+**/dist
+**/build
+**/coverage
+**/.vite
+
+# Local secrets/runtime
+**/.env
+**/.env.*
+!**/.env.example
+**/logs
+**/tmp
+
+# VCS/editor
+.git
+.github
+.vscode
+.idea
+
+# Reports and local archives
+reports
+*.zip
+*.tar
+*.gz

@@ -1,53 +1,36 @@
 @echo off
-echo ========================================
-echo Community Savings App - Quick Setup
-echo ========================================
-echo.
-
+setlocal
 cd /d "%~dp0"
 
-echo Checking if we're in the right directory...
-if not exist "community-savings-app-backend" (
-    echo ERROR: Please run this script from the project root directory
-    pause
-    exit /b 1
+echo ========================================
+echo TITech Community Capital - Setup
+echo ========================================
+echo.
+
+if not exist ".nvmrc" (
+  echo ERROR: .nvmrc not found.
+  exit /b 1
+)
+
+where node >nul 2>&1 || (echo ERROR: Node.js is not installed.& exit /b 1)
+where npm >nul 2>&1 || (echo ERROR: npm is not installed.& exit /b 1)
+
+if not exist "backend\package-lock.json" (echo ERROR: backend package-lock.json missing.& exit /b 1)
+if not exist "frontend\package-lock.json" (echo ERROR: frontend package-lock.json missing.& exit /b 1)
+
+call npm ci
+if errorlevel 1 exit /b 1
+call npm --prefix backend ci
+if errorlevel 1 exit /b 1
+call npm --prefix frontend ci
+if errorlevel 1 exit /b 1
+
+if not exist "backend\.env" if exist "backend\.env.example" (
+  copy /Y "backend\.env.example" "backend\.env" >nul
+  echo Created backend\.env from the example template.
+  echo Populate local secrets manually; no production credentials are generated.
 )
 
 echo.
-echo Step 1: Installing backend dependencies...
-cd community-savings-app-backend
-call npm install
-if %errorlevel% neq 0 (
-    echo ERROR: npm install failed
-    pause
-    exit /b 1
-)
-
-echo.
-echo Step 2: Checking for .env file...
-if not exist ".env" (
-    echo Creating .env file from template...
-    if exist ".env.example" (
-        copy .env.example .env
-        echo.
-        echo IMPORTANT: Please edit .env file with your MongoDB connection details!
-        echo Opening .env file...
-        notepad .env
-    ) else (
-        echo ERROR: .env.example not found
-        pause
-        exit /b 1
-    )
-) else (
-    echo .env file already exists
-)
-
-echo.
-echo Step 3: Starting the development server...
-echo.
-echo Note: Make sure MongoDB is running before continuing
-echo (Install from: https://mongodb.com/try/download/community)
-echo.
-pause
-
-call npm run dev
+echo Setup complete. Run: npm run dev
+endlocal

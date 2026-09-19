@@ -1,3 +1,4 @@
+> **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
 Feature Implementation Plan — Community Savings App
 Date: 2026-03-02
 Author: Development Team

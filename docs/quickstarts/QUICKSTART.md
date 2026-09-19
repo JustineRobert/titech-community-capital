@@ -253,7 +253,7 @@ curl -X GET http://localhost:5000/api/auth/me \
 # from repo root
 cd community-savings-app-backend
 # set env variables OR ensure .env has MONGO_URI
-$env:ADMIN_EMAIL='admin@example.com'; $env:ADMIN_PASS='AdminPass123'; node scripts/seed-admin.js
+$env:ADMIN_EMAIL='admin@example.com'; $env:ADMIN_PASS='AdminPass123'; node scripts/seed-admin.cjs
 ```
 
 - Run the Postman collection via Newman (installed as a dev dependency at root):

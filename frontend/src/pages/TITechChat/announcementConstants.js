@@ -1339,7 +1339,7 @@ export function normalizeAnnouncementSort(
     ANNOUNCEMENT_SORT,
     ANNOUNCEMENT_SORT.NEWEST,
   );
-});
+}
 
 /* ============================================================================
  * ARRAY / OBJECT HELPERS
@@ -1509,7 +1509,7 @@ export function isAnnouncementPublished(
     announcement,
     now,
   );
-});
+}
 
 /**
  * Determines whether an announcement is scheduled.
@@ -1542,7 +1542,7 @@ export function isAnnouncementScheduled(
     publishedAt !== null &&
     publishedAt > now
   );
-});
+}
 
 /* ============================================================================
  * ANNOUNCEMENT NORMALIZATION
@@ -1900,7 +1900,7 @@ export function isAnnouncementUnread(
     announcement &&
       !announcement.isRead,
   );
-});
+}
 
 /**
  * Determines whether an announcement is dismissible.
@@ -2028,7 +2028,7 @@ export function isAnnouncementVisible(
     announcement,
     now,
   );
-});
+}
 
 /* ============================================================================
  * QUERY HELPERS

@@ -1,177 +1,116 @@
 {
-"name": "titech-community-capital",
-"version": "1.0.0",
-"description": "TITech Community Capital - The operating infrastructure for Africa's community finance. A production-grade MERN platform for community savings, groups, wallets, ledgers, payments, reconciliation, lending, risk, fraud prevention, KYC/AML, compliance, offline/USSD services, analytics, and financial partner connectivity.",
-"private": true,
-"keywords": [
-"TITech",
-"TITech Community Capital",
-"community finance",
-"community savings",
-"group management",
-"contributions",
-"wallet",
-"ledger",
-"double-entry accounting",
-"payments",
-"reconciliation",
-"lending",
-"risk",
-"fraud",
-"KYC",
-"AML",
-"compliance",
-"USSD",
-"offline finance",
-"APIs",
-"analytics",
-"financial infrastructure",
-"financial partner connectivity",
-"SACCO",
-"VSLA",
-"cooperative",
-"microfinance",
-"Africa fintech",
-"fintech"
-],
-"homepage": "https://github.com/JustineRobert/society-community-savings-app#readme",
-"bugs": {
-"url": "https://github.com/JustineRobert/society-community-savings-app/issues"
-},
-"repository": {
-"type": "git",
-"url": "git+https://github.com/JustineRobert/society-community-savings-app.git"
-},
-"license": "ISC",
-"author": "Igune Justine Robert, TITech Community Capital LTD",
-"type": "module",
-"main": "backend/server.js",
-"directories": {
-"doc": "docs",
-"test": "tests"
-},
-
-"engines": {
-"node": ">=24.0.0",
-"npm": ">=11.0.0"
-},
-
-"scripts": {
-"start": "npm run dev",
-
-
-"dev": "concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",
-
-"dev:backend": "npm --prefix backend run dev",
-"dev:frontend": "npm --prefix frontend run dev",
-
-"backend": "npm run dev:backend",
-"frontend": "npm run dev:frontend",
-
-"start:backend": "npm --prefix backend run start",
-"start:frontend": "npm --prefix frontend run start",
-
-"build": "npm run build:frontend",
-"build:frontend": "npm --prefix frontend run build",
-"build:backend": "npm --prefix backend run build",
-
-"preview": "npm --prefix frontend run preview",
-
-"install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
-"setup": "npm run install:all",
-
-"clean": "node scripts/clean.js",
-"prepare": "husky",
-
-"lint": "npm run lint:backend && npm run lint:frontend",
-"lint:backend": "npm --prefix backend run lint",
-"lint:frontend": "npm --prefix frontend run lint",
-"lint:root": "eslint .",
-"lint:fix": "npm run lint:backend -- --fix && npm run lint:frontend -- --fix && npm run lint:root -- --fix",
-
-"format": "prettier --write \"backend/**/*.{js,mjs,cjs,json,md,yml,yaml}\" \"frontend/**/*.{js,jsx,mjs,cjs,json,css,scss,md,yml,yaml}\" \"scripts/**/*.{js,mjs,cjs,json,md}\" \"*.{json,md,yml,yaml}\"",
-"format:check": "prettier --check \"backend/**/*.{js,mjs,cjs,json,md,yml,yaml}\" \"frontend/**/*.{js,jsx,mjs,cjs,json,css,scss,md,yml,yaml}\" \"scripts/**/*.{js,mjs,cjs,json,md}\" \"*.{json,md,yml,yaml}\"",
-
-"check": "npm run lint && npm run format:check",
-"check:conflicts": "node scripts/check-conflicts.js",
-"check:all": "npm run check && npm run test",
-
-"test": "npm run test:backend && npm run test:frontend",
-"test:backend": "npm --prefix backend test",
-"test:frontend": "npm --prefix frontend test",
-
-"test:watch": "npm run test:backend:watch",
-"test:backend:watch": "npm --prefix backend test -- --watch",
-"test:frontend:watch": "npm --prefix frontend test -- --watch",
-
-"test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
-"test:backend:coverage": "npm --prefix backend run test:coverage",
-"test:frontend:coverage": "npm --prefix frontend run test:coverage",
-
-"test:ci": "npm run test:backend:ci && npm run test:frontend:ci",
-"test:backend:ci": "npm --prefix backend run test:ci",
-"test:frontend:ci": "npm --prefix frontend run test:ci",
-
-"test:providers": "npm --prefix backend run test:providers",
-"test:integration": "npm --prefix backend run test:integration",
-"test:e2e": "npm --prefix frontend run test:e2e",
-
-"postman:test": "newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli,json --reporter-json-export postman/reports/newman-report.json",
-
-"seed-admin": "npm --prefix backend run seed-admin",
-"seed-admin-cli": "node scripts/seed-admin-cli.js",
-
-"health": "npm --prefix backend run health",
-"health:backend": "npm --prefix backend run health",
-
-"security:audit": "npm audit --audit-level=high",
-"security:audit:fix": "npm audit fix",
-
-"outdated": "npm outdated",
-
-"ci": "npm run check && npm run test:ci && npm run build",
-
-"quality": "npm run check:all",
-
-"install:script": "bash scripts/setup.sh"
-
-
-},
-
-"dependencies": {},
-
-"devDependencies": {
-"@eslint/js": "^10.0.1",
-"@testing-library/jest-dom": "^6.9.1",
-"@typescript-eslint/eslint-plugin": "^8.60.0",
-"@typescript-eslint/parser": "^8.60.0",
-"concurrently": "^10.0.0",
-"eslint": "^9.39.4",
-"husky": "^9.1.7",
-"jest": "^30.4.2",
-"lint-staged": "^17.0.6",
-"newman": "^6.2.2",
-"prettier": "^3.8.3",
-"supertest": "^7.2.2",
-"vite": "^8.0.13"
-},
-
-"lint-staged": {
-"backend/**/*.{js,mjs,cjs}": [
-"eslint --fix",
-"prettier --write"
-],
-"frontend/**/*.{js,jsx,mjs,cjs}": [
-"eslint --fix",
-"prettier --write"
-],
-"*.{json,md,yml,yaml,css,scss}": [
-"prettier --write"
-]
-},
-
-"newman": {
-"collection": "postman/Community-auth-tests.postman_collection.json",
-"environment": "postman/Group-env.postman_environment.json"
-}
+  "name": "titech-community-capital",
+  "version": "1.0.0",
+  "description": "TITech Community Capital - The operating infrastructure for Africa's community finance. A production-grade MERN platform for community savings, groups, wallets, ledgers, payments, reconciliation, lending, risk, fraud prevention, KYC/AML, compliance, offline/USSD services, analytics, and financial partner connectivity.",
+  "private": true,
+  "keywords": [
+    "TITech",
+    "TITech Community Capital",
+    "community finance",
+    "community savings",
+    "group management",
+    "contributions",
+    "wallet",
+    "ledger",
+    "double-entry accounting",
+    "payments",
+    "reconciliation",
+    "lending",
+    "risk",
+    "fraud",
+    "KYC",
+    "AML",
+    "compliance",
+    "USSD",
+    "offline finance",
+    "APIs",
+    "analytics",
+    "financial infrastructure",
+    "financial partner connectivity",
+    "SACCO",
+    "VSLA",
+    "cooperative",
+    "microfinance",
+    "Africa fintech",
+    "fintech"
+  ],
+  "homepage": "https://github.com/JustineRobert/titech-community-capital#readme",
+  "bugs": {
+    "url": "https://github.com/JustineRobert/titech-community-capital/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JustineRobert/titech-community-capital.git"
+  },
+  "license": "ISC",
+  "author": "Igune Justine Robert, TITech Community Capital LTD",
+  "type": "module",
+  "main": "backend/server.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "engines": {
+    "node": ">=24.15.0",
+    "npm": ">=11.0.0"
+  },
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "backend": "npm run dev:backend",
+    "frontend": "npm run dev:frontend",
+    "start:backend": "npm --prefix backend run start",
+    "start:frontend": "npm --prefix frontend run start",
+    "build": "npm run build:frontend",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build",
+    "preview": "npm --prefix frontend run preview",
+    "install:all": "npm ci && npm --prefix backend ci && npm --prefix frontend ci",
+    "setup": "npm run install:all",
+    "clean": "node scripts/clean.js",
+    "prepare": "node -e \"console.log('Root orchestration package prepared.')\"",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "npm --prefix backend run lint",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint:root": "node scripts/enterprise-gate.mjs --syntax",
+    "lint:fix": "npm --prefix backend run lint:fix && npm --prefix frontend run lint:fix",
+    "format": "npm --prefix backend run format && npm --prefix frontend run format",
+    "format:check": "npm --prefix backend run format:check && npm --prefix frontend run format:check",
+    "check": "npm run check:conflicts && npm run validate:syntax && npm run lint && npm run format:check",
+    "check:conflicts": "node scripts/check-conflicts.js",
+    "check:all": "npm run check && npm run test",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "npm --prefix backend test",
+    "test:frontend": "npm --prefix frontend test",
+    "test:watch": "npm run test:backend:watch",
+    "test:backend:watch": "npm --prefix backend test -- --watch",
+    "test:frontend:watch": "npm --prefix frontend test -- --watch",
+    "test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
+    "test:backend:coverage": "npm --prefix backend run test:coverage",
+    "test:frontend:coverage": "npm --prefix frontend run test:coverage",
+    "test:ci": "npm run test:backend:ci && npm run test:frontend:ci",
+    "test:backend:ci": "npm --prefix backend run test:ci",
+    "test:frontend:ci": "npm --prefix frontend run test:ci",
+    "test:providers": "npm --prefix backend run test:providers",
+    "test:integration": "npm --prefix backend run test:integration",
+    "test:e2e": "npm --prefix frontend run test:e2e",
+    "postman:test": "node scripts/postman-validate.mjs",
+    "seed-admin": "npm --prefix backend run seed-admin",
+    "seed-admin-cli": "node scripts/seed-admin-cli.js",
+    "health": "npm --prefix backend run health",
+    "health:backend": "npm --prefix backend run health",
+    "security:audit": "npm audit --prefix backend --audit-level=high && npm audit --prefix frontend --audit-level=high",
+    "security:audit:fix": "npm audit fix --prefix backend && npm audit fix --prefix frontend",
+    "outdated": "npm outdated --prefix backend && npm outdated --prefix frontend",
+    "ci": "npm run check && npm run test:ci && npm run build",
+    "quality": "npm run check:all",
+    "install:script": "bash scripts/setup.sh",
+    "validate:syntax": "node scripts/enterprise-gate.mjs --syntax",
+    "enterprise:gate": "node scripts/enterprise-gate.mjs --all",
+    "check:structure": "node scripts/enterprise-gate.mjs --structure",
+    "postman:test:newman": "npx --yes newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli"
+  },
+  "dependencies": {}
 }

@@ -1570,6 +1570,7 @@ class RequiredVariables {
                         this.toSafeDiagnostic(
                             item,
                             source,
+                        ),
                 ),
 
             ignored:

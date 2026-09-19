@@ -66,7 +66,7 @@
  *   backend/bootstrap/ApplicationBootstrap.js
  *
  * Runtime:
- *   Node.js 20+
+ *   Node.js 24.15.x+
  *
  * Module System:
  *   ES Modules (ESM)
@@ -98,7 +98,9 @@ const DEFAULT_SERVICE_NAME =
 const DEFAULT_NODE_ENV =
   "development";
 
-const MIN_NODE_MAJOR = 20;
+const MIN_NODE_MAJOR = 24;
+
+const MIN_NODE_MINOR = 15;
 
 const FATAL_EXIT_CODE = 1;
 
@@ -521,12 +523,18 @@ function validateRuntime() {
     String(nodeVersion).split(".")[0],
   );
 
+  const nodeMinor = Number(
+    String(nodeVersion).split(".")[1],
+  );
+
   if (
     !Number.isInteger(nodeMajor) ||
-    nodeMajor < MIN_NODE_MAJOR
+    !Number.isInteger(nodeMinor) ||
+    nodeMajor < MIN_NODE_MAJOR ||
+    (nodeMajor === MIN_NODE_MAJOR && nodeMinor < MIN_NODE_MINOR)
   ) {
     const error = new Error(
-      `${EFFECTIVE_APPLICATION_NAME} requires Node.js ${MIN_NODE_MAJOR}+. ` +
+      `${EFFECTIVE_APPLICATION_NAME} requires Node.js ${MIN_NODE_MAJOR}.${MIN_NODE_MINOR}+. ` +
         `Current runtime: ${process.version}`,
     );
 

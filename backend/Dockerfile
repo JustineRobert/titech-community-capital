@@ -1,41 +1,31 @@
-# =====================================================================
-# Backend Dockerfile (Production-Ready)
-# Multi-stage build for lean, secure images
-# =====================================================================
+# =============================================================================
+# TITech Community Capital — Backend Production Container
+# Canonical Dockerfile: backend/Dockerfile
+# Runtime baseline: Node.js 24.15.0
+# =============================================================================
 
-# Stage 1: Builder
-FROM node:18-alpine AS builder
+FROM node:24.15.0-bookworm-slim AS runtime
 
-WORKDIR /app
-
-# Copy package manifests first for better caching
-COPY package.json package-lock.json ./
-
-# Install dependencies (production only)
-RUN npm ci --only=production
-
-# Copy application source
-COPY . .
-
-# Optional build step (transpilation, bundling, etc.)
-# Uncomment if you use TypeScript or build scripts
-# RUN npm run build
-
-# Stage 2: Runtime
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Copy production node_modules and source from builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app .
-
-# Environment variables
 ENV NODE_ENV=production \
-    PORT=5000
+    PORT=5000 \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_FUND=false
 
-# Expose backend port
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev \
+    && npm cache clean --force
+
+COPY . .
+RUN mkdir -p /app/logs /app/tmp \
+    && chown -R node:node /app
+
+USER node
+
 EXPOSE 5000
 
-# Use npm start for consistency with package.json scripts
-CMD ["npm", "start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:5000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "--enable-source-maps", "--max-old-space-size=4096", "server.js"]

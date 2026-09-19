@@ -1205,8 +1205,7 @@ function AnnouncementCenter({
               now,
             ) &&
             !announcement.dismissed,
-        ),
-      );
+        );
 
       return {
         total:

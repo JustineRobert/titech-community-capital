@@ -403,23 +403,7 @@ class UniversalResilienceMesh extends EventEmitter {
 
     }
 
-}
 
-module.exports = {
-
-    UniversalResilienceMesh,
-
-    SNAPSHOT_VERSION,
-
-    MESH_STATE,
-
-    NODE_STATE,
-
-    COMPONENT_STATE,
-
-    createId
-
-};
 
     /**
      * ========================================================================
@@ -3730,3 +3714,13 @@ module.exports = {
         });
 
     }
+}
+
+module.exports = {
+  UniversalResilienceMesh,
+  SNAPSHOT_VERSION,
+  MESH_STATE,
+  NODE_STATE,
+  COMPONENT_STATE,
+  createId
+};

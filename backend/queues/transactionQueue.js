@@ -684,7 +684,7 @@ const normalized =
 
 * Never allow arbitrary prototype properties to enter the job payload.
   */
-  delete normalized.**proto**;
+  delete normalized.__proto__;
   delete normalized.constructor;
   delete normalized.prototype;
 

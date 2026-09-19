@@ -1,4 +1,5 @@
 # Debug Guide: Node.js + Vite + MongoDB Project Errors
+> **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
 
 ## Error 1: MODULE_NOT_FOUND - migrate-group-schema.js
 
@@ -364,7 +365,7 @@ NODE_ENV=development
 ```powershell
 ✅ mongosh                 # Should connect to MongoDB
 ✅ redis-cli              # Should connect to Redis (if using)
-✅ node scripts/seed-admin.js  # Should create admin user
+✅ node scripts/seed-admin.cjs  # Should create admin user
 ```
 
 ---

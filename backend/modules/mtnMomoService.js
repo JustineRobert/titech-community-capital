@@ -266,232 +266,6 @@ class MTNMomoError extends Error {
       MTNMomoError
     );
   }
-
-  /**
- * ==========================================================================
- * CALLBACK PIPELINE
- * ==========================================================================
- *
- * mtnMomoService remains the provider-facing edge.
- *
- * Durable callback processing is delegated to independently testable
- * callback components.
- * ==========================================================================
- */
-
-this.callbackNormalizer =
-  config.callbackNormalizer ||
-  new MTNCallbackNormalizer({
-    provider: PROVIDER,
-  });
-
-this.callbackValidator =
-  config.callbackValidator ||
-  new MTNCallbackValidator({
-    provider: PROVIDER,
-
-    /**
-     * Some MTN callbacks may omit amount depending on the callback path.
-     * Transaction persistence remains authoritative for amount resolution.
-     */
-    requireAmount:
-      false,
-  });
-
-this.callbackIdempotency =
-  config.callbackIdempotency ||
-  new MTNCallbackIdempotency({
-    model:
-      config.callbackIdempotencyModel ||
-      null,
-
-    cache:
-      this.idempotencyCache,
-
-    ttlMs:
-      this.idempotencyTtlSeconds *
-      1000,
-  });
-
-this.callbackDeadLetter =
-  config.callbackDeadLetter ||
-  new MTNCallbackDeadLetter({
-    queueService,
-
-    queueName:
-      config.callbackDlqName ||
-      process.env.MTN_MOMO_CALLBACK_DLQ_NAME ||
-      'mtn-momo-callback-dlq',
-  });
-
-this.callbackProcessor =
-  config.callbackProcessor ||
-  new MTNCallbackProcessor({
-    logger,
-
-    idempotency:
-      this.callbackIdempotency,
-
-    deadLetter:
-      this.callbackDeadLetter,
-
-    transactionResolver:
-      async (
-        callback
-      ) =>
-        this.findTransaction(
-          callback.reference ||
-          callback.providerReference
-        ),
-
-    stateHandler:
-      async (
-        callback
-      ) => {
-        const reference =
-          callback.reference ||
-          callback.providerReference;
-
-        await this.transitionTransaction(
-          reference,
-          callback.status,
-          {
-            providerReference:
-              callback.providerReference,
-
-            providerStatus:
-              callback.providerStatus,
-
-            callbackId:
-              callback.callbackId,
-
-            webhookPayload:
-              callback.rawPayload,
-          }
-        );
-      },
-
-    successHandler:
-      async (
-        callback,
-        transaction
-      ) =>
-        this.handleSuccessfulTransaction(
-          {
-            reference:
-              callback.reference ||
-              callback.providerReference,
-
-            providerReference:
-              callback.providerReference,
-
-            payload: {
-              ...callback.rawPayload,
-
-              amount:
-                callback.amount,
-
-              currency:
-                callback.currency,
-
-              tenantId:
-                callback.tenantId,
-
-              customerId:
-                callback.customerId,
-
-              loanId:
-                callback.loanId,
-
-              transactionType:
-                callback.transactionType,
-
-              callbackId:
-                callback.callbackId,
-            },
-
-            transaction,
-          }
-        ),
-
-    failureHandler:
-      async (
-        callback
-      ) =>
-        this.handleFailedTransaction(
-          {
-            reference:
-              callback.reference ||
-              callback.providerReference,
-
-            providerReference:
-              callback.providerReference,
-
-            payload:
-              callback.rawPayload,
-          }
-        ),
-
-    audit:
-      (
-        action,
-        payload
-      ) =>
-        this.recordAudit(
-          action,
-          payload
-        ),
-  });
-
-this.callbackRegistry =
-  config.callbackRegistry ||
-  new MTNCallbackRegistry({
-    logger,
-    defaultProvider:
-      PROVIDER,
-  });
-
-this.callbackRegistry.register(
-  PROVIDER,
-  {
-    normalizer:
-      (
-        payload,
-        context
-      ) =>
-        this.callbackNormalizer.normalize(
-          payload,
-          context
-        ),
-
-    validator:
-      (
-        callback,
-        context
-      ) =>
-        this.callbackValidator.validate(
-          callback,
-          context
-        ),
-
-    processor:
-      (
-        callback,
-        context
-      ) =>
-        this.callbackProcessor.process(
-          callback,
-          context
-        ),
-
-    idempotency:
-      this.callbackIdempotency,
-
-    deadLetter:
-      this.callbackDeadLetter,
-  }
-);
-
 }
 
 /**
@@ -729,6 +503,232 @@ class MTNMomoService extends PaymentProviderInterface {
      * Metrics
      * ------------------------------------------------------------------------
      */
+
+  /**
+ * ==========================================================================
+ * CALLBACK PIPELINE
+ * ==========================================================================
+ *
+ * mtnMomoService remains the provider-facing edge.
+ *
+ * Durable callback processing is delegated to independently testable
+ * callback components.
+ * ==========================================================================
+ */
+
+this.callbackNormalizer =
+  config.callbackNormalizer ||
+  new MTNCallbackNormalizer({
+    provider: PROVIDER,
+  });
+
+this.callbackValidator =
+  config.callbackValidator ||
+  new MTNCallbackValidator({
+    provider: PROVIDER,
+
+    /**
+     * Some MTN callbacks may omit amount depending on the callback path.
+     * Transaction persistence remains authoritative for amount resolution.
+     */
+    requireAmount:
+      false,
+  });
+
+this.callbackIdempotency =
+  config.callbackIdempotency ||
+  new MTNCallbackIdempotency({
+    model:
+      config.callbackIdempotencyModel ||
+      null,
+
+    cache:
+      this.idempotencyCache,
+
+    ttlMs:
+      this.idempotencyTtlSeconds *
+      1000,
+  });
+
+this.callbackDeadLetter =
+  config.callbackDeadLetter ||
+  new MTNCallbackDeadLetter({
+    queueService,
+
+    queueName:
+      config.callbackDlqName ||
+      process.env.MTN_MOMO_CALLBACK_DLQ_NAME ||
+      'mtn-momo-callback-dlq',
+  });
+
+this.callbackProcessor =
+  config.callbackProcessor ||
+  new MTNCallbackProcessor({
+    logger,
+
+    idempotency:
+      this.callbackIdempotency,
+
+    deadLetter:
+      this.callbackDeadLetter,
+
+    transactionResolver:
+      async (
+        callback
+      ) =>
+        this.findTransaction(
+          callback.reference ||
+          callback.providerReference
+        ),
+
+    stateHandler:
+      async (
+        callback
+      ) => {
+        const reference =
+          callback.reference ||
+          callback.providerReference;
+
+        await this.transitionTransaction(
+          reference,
+          callback.status,
+          {
+            providerReference:
+              callback.providerReference,
+
+            providerStatus:
+              callback.providerStatus,
+
+            callbackId:
+              callback.callbackId,
+
+            webhookPayload:
+              callback.rawPayload,
+          }
+        );
+      },
+
+    successHandler:
+      async (
+        callback,
+        transaction
+      ) =>
+        this.handleSuccessfulTransaction(
+          {
+            reference:
+              callback.reference ||
+              callback.providerReference,
+
+            providerReference:
+              callback.providerReference,
+
+            payload: {
+              ...callback.rawPayload,
+
+              amount:
+                callback.amount,
+
+              currency:
+                callback.currency,
+
+              tenantId:
+                callback.tenantId,
+
+              customerId:
+                callback.customerId,
+
+              loanId:
+                callback.loanId,
+
+              transactionType:
+                callback.transactionType,
+
+              callbackId:
+                callback.callbackId,
+            },
+
+            transaction,
+          }
+        ),
+
+    failureHandler:
+      async (
+        callback
+      ) =>
+        this.handleFailedTransaction(
+          {
+            reference:
+              callback.reference ||
+              callback.providerReference,
+
+            providerReference:
+              callback.providerReference,
+
+            payload:
+              callback.rawPayload,
+          }
+        ),
+
+    audit:
+      (
+        action,
+        payload
+      ) =>
+        this.recordAudit(
+          action,
+          payload
+        ),
+  });
+
+this.callbackRegistry =
+  config.callbackRegistry ||
+  new MTNCallbackRegistry({
+    logger,
+    defaultProvider:
+      PROVIDER,
+  });
+
+this.callbackRegistry.register(
+  PROVIDER,
+  {
+    normalizer:
+      (
+        payload,
+        context
+      ) =>
+        this.callbackNormalizer.normalize(
+          payload,
+          context
+        ),
+
+    validator:
+      (
+        callback,
+        context
+      ) =>
+        this.callbackValidator.validate(
+          callback,
+          context
+        ),
+
+    processor:
+      (
+        callback,
+        context
+      ) =>
+        this.callbackProcessor.process(
+          callback,
+          context
+        ),
+
+    idempotency:
+      this.callbackIdempotency,
+
+    deadLetter:
+      this.callbackDeadLetter,
+  }
+);
+
 
     this.metrics = this.createInitialMetrics();
   }

@@ -2483,7 +2483,7 @@ class AdminLoanRepository {
                     1,
 
                     0,
-                  },
+                  ],
                 },
               },
           },

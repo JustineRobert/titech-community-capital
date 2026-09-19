@@ -466,9 +466,6 @@ class IntelligenceFederation extends EventEmitter {
 
     }
 
-}
-
-
 
     /* =====================================================================
      * Register Federation Domain
@@ -2180,6 +2177,7 @@ class IntelligenceFederation extends EventEmitter {
 
     }
 
+}
 
 module.exports = {
 

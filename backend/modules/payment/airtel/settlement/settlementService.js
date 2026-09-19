@@ -3401,33 +3401,6 @@ class SettlementService {
      */
 
 
-    //const crypto = require('crypto');
-
-//const {
-    //normalizeError
-} = require('../../shared/errors');
-
-
-const SECURITY_STATUS = Object.freeze({
-
-    ALLOWED: 'ALLOWED',
-
-    BLOCKED: 'BLOCKED',
-
-    REVIEW: 'REVIEW',
-
-    FAILED: 'FAILED'
-
-});
-
-
-module.exports = {
-
-    crypto,
-
-    normalizeError,
-
-    SECURITY_STATUS
 
 };
 

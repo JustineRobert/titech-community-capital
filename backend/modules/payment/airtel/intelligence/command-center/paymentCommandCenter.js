@@ -98,6 +98,10 @@ class PaymentCommandCenter {
 
         };
     }
+}
 
-
-    
+module.exports = {
+  PaymentCommandCenter,
+  COMMAND_CENTER_STATUS,
+  PROVIDER
+};

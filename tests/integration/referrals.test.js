@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const ReferralService = require('../../community-savings-app-backend/services/referralService');
-const Referral = require('../../community-savings-app-backend/models/Referral');
-const User = require('../../community-savings-app-backend/models/User');
+const ReferralService = require('../../backend/services/referralService');
+const Referral = require('../../backend/models/Referral');
+const User = require('../../backend/models/User');
 
 describe('Referral System Tests', () => {
   let user1, user2, user3;

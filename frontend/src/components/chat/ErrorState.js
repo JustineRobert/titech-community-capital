@@ -1065,7 +1065,7 @@ const ErrorState =
                   {
                     safeText(
                       technicalDetails,
-                    ),
+                    )
                   }
                 </pre>
               </details>

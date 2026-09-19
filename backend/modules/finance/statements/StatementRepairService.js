@@ -1238,30 +1238,6 @@ async executeRepair(
     }
 
 
-    validateTenant(
-
-    repair,
-
-    context
-
-){
-
-
-    if(
-        repair.tenantId !== context.tenantId
-    ){
-
-        throw new StatementProcessingError(
-
-            'Tenant isolation violation'
-
-        );
-
-    }
-
-
-}
-
 
 
 

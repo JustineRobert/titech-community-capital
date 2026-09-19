@@ -503,7 +503,7 @@ function cloneValue(
             child
         ] of Object.entries(
             value
-        ) {
+        )) {
             result[key] =
                 cloneValue(
                     child,

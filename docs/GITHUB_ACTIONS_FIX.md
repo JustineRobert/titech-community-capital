@@ -1,4 +1,5 @@
 # 🔧 GitHub Actions Deprecation Fixes - Production Ready
+> **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
 
 **Date:** June 1, 2026  
 **Status:** ✅ FIXED  

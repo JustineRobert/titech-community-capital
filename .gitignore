@@ -85,3 +85,6 @@ yarn-error.log*
 # -----------------------------------------------------------------------------
 community-savings-app-frontend/public/images/*.png
 Community Savings App Book/*.png
+# Enterprise validation and deployment reports
+reports/
+postman/reports/

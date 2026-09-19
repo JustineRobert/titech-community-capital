@@ -1,82 +1,31 @@
-Trust Proxy
+"use strict";
 
-Request ID
+/**
+ * Static metadata for canonical middleware stages and a small diagnostics
+ * collector. It deliberately contains no middleware business logic.
+ */
+const DEFAULT_STAGES = Object.freeze([
+  "trustProxy", "requestId", "correlationId", "requestContext",
+  "structuredLogger", "requestLogger", "responseLogger", "performanceLogger",
+  "helmet", "csp", "hsts", "frameguard", "referrerPolicy", "xssProtection", "noSniff",
+  "compression", "bodyParser", "cookieParser", "cors", "redisAvailability", "rateLimiter", "metrics", "healthContext",
+  "tenantResolver", "tenantValidator", "tenantFeatureFlags", "jwt", "session", "apiKey", "refreshToken",
+  "roleCheck", "permissionCheck", "featureAuthorization",
+  "auditLogger", "piiProtection", "requestRecording", "securityEvents",
+]);
 
-Correlation ID
+function collectStageDiagnostics(stages = DEFAULT_STAGES, runtime = {}) {
+  const list = Array.isArray(stages) ? stages : DEFAULT_STAGES;
+  return {
+    generatedAt: new Date().toISOString(),
+    stageCount: list.length,
+    stages: list.map((name, order) => ({ name, order: order + 1, enabled: runtime[name] !== false })),
+  };
+}
 
-Request Context
-
-
-
-Structured Logger
-
-Request Logger
-
-Response Logger
-
-Performance Logger
-
-
-Helmet
-
-CSP
-
-HSTS
-
-Frameguard
-
-Referrer Policy
-
-XSS Protection
-
-NoSniff
-
-
-Compression
-
-Body Parser
-
-Cookie Parser
-
-CORS
-
-Redis Availability
-
-Rate Limiter
-
-Metrics
-
-Health Context
-
-
-
-Tenant Resolver
-
-Tenant Validator
-
-Tenant Feature Flags
-
-JWT
-
-Session
-
-API Key
-
-Refresh Token
-
-
-Role Check
-
-Permission Check
-
-Feature Authorization
-
-
-Audit Logger
-
-PII Protection
-
-Request Recording
-
-Security Events
-
+module.exports = Object.freeze({
+  DEFAULT_STAGES,
+  collectStageDiagnostics,
+  build: collectStageDiagnostics,
+});
+module.exports.default = module.exports;

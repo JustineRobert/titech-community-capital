@@ -597,14 +597,10 @@ const ActivitySkeleton = ({
     </div>
 
     <div className="titech-dashboard-skeleton__activity-list">
-      {Array.from({
-        length: Math.max(
-          1,
-          safeNumber(
-            rows,
-            DEFAULT_ACTIVITY_ROWS,
-          ),
-        ),
+      {Array.from(
+        {
+          length: Math.max(1, safeNumber(rows, DEFAULT_ACTIVITY_ROWS)),
+        },
       ).map(
         (
           _,
@@ -1189,7 +1185,8 @@ const DashboardSkeleton =
                         radius={8}
                         animated={
                           animated
-                        />
+                        }
+                      />
 
                       <SkeletonBlock
                         width={104}

@@ -1,10 +1,10 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
-const User = require('../../community-savings-app-backend/models/User');
-const EmailVerificationToken = require('../../community-savings-app-backend/models/EmailVerificationToken');
-const PasswordResetToken = require('../../community-savings-app-backend/models/PasswordResetToken');
-const EmailVerificationService = require('../../community-savings-app-backend/services/emailVerificationService');
-const PasswordResetService = require('../../community-savings-app-backend/services/passwordResetService');
+const User = require('../../backend/models/User');
+const EmailVerificationToken = require('../../backend/models/EmailVerificationToken');
+const PasswordResetToken = require('../../backend/models/PasswordResetToken');
+const EmailVerificationService = require('../../backend/services/emailVerificationService');
+const PasswordResetService = require('../../backend/services/passwordResetService');
 
 describe('Auth Integration Tests - Email Verification & Password Reset', () => {
   let app, userId, user;

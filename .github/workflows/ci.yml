@@ -41,6 +41,10 @@ jobs:
         run: node --version && npm --version
       - name: Check for merge conflict markers
         run: npm run check:conflicts
+      - name: Repository structure gate
+        run: npm run check:structure
+      - name: Zero syntax errors gate
+        run: npm run validate:syntax
       - name: Lint and format
         run: npm run check
 

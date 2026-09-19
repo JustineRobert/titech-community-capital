@@ -1,4 +1,4 @@
-const PaymentService = require('../../community-savings-app-backend/services/payment/PaymentService');
+const PaymentService = require('../../backend/services/payment/PaymentService');
 
 describe('PaymentService (unit)', () => {
   test('createPaymentIntent requires params', async () => {

@@ -177,7 +177,9 @@ const GoLiveReview = ({
         this SACCO.
       </p>
 
-      {error &&     style={{
+      {error && (
+        <div
+          style={{
             background:
               "#fee2e2",
             color:

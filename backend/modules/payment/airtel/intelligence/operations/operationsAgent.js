@@ -458,4 +458,6 @@ class OperationsAgent {
 
     }
 
+}
+
 module.exports = OperationsAgent;

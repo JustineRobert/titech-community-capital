@@ -194,29 +194,6 @@ class ReconciliationReport {
 
             },
 
-            {
-
-                totalReports:
-                    0,
-
-                matched:
-                    0,
-
-                mismatches:
-                             item.summary?.mismatches || 0;
-
-                summary.duplicates +=
-                    item.summary?.duplicates || 0;
-
-                summary.missingInternal +=
-                    item.summary?.missingInternal || 0;
-
-                summary.missingProvider +=
-                    item.summary?.missingProvider || 0;
-
-                return summary;
-
-            },
 
             {
 

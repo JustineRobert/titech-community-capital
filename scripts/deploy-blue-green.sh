@@ -151,7 +151,7 @@ fi
 
 # Step 8: Smoke tests on new environment
 log_step "Running smoke tests on new $inactive_env"
-cd "$PROJECT_ROOT/community-savings-app-backend"
+cd "$PROJECT_ROOT/backend"
 npm run test:smoke -- --target "http://localhost:$inactive_port" 2>&1 | tee -a "$LOG_FILE" || {
   log_error "Smoke tests failed on new environment"
   log_info "Rolling back..."

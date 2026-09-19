@@ -2270,6 +2270,7 @@ class DashboardAggregator {
                 getPath(
                     dashboard,
                     'fraud.metrics.riskScore'
+                )
             );
 
         const reconciliationExceptions =

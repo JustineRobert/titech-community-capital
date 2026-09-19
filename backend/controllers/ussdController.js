@@ -705,113 +705,52 @@ class USSDController {
   /* MAIN MENU                                                             */
   /* ===================================================================== */
 
-  async renderMainMenu(
-    context,
-    session,
-    member
-  ) {
+  async renderMainMenu(context, session, member) {
+    const tenantId = context?.tenant?.id;
+    const [savingsEnabled, loansEnabled, mobileMoneyEnabled] = await Promise.all([
+      featureFlagService.isEnabled("savings", tenantId),
+      featureFlagService.isEnabled("loans", tenantId),
+      featureFlagService.isEnabled("mobile_money", tenantId),
+    ]);
 
-    const savingsEnabled =
-      await featureFlagService.isEnabled(
-        "savings",
-        context.tenant.id
-      );
-
-    const loansEnabled =
-      await featureFlagService.isEnabled(
-        "loans",
-        context.tenant.id
-      );
-
-    const mobileMoneyEnabled =
-      await featureFlagService.isEnabled(
-        "mobile_money",
-        context.
-    /* ===================================================================== */
-    /* SAVINGS WORKFLOWS                                                     */
-    /* ===================================================================== */
-
-    async handleDeposit(
-          context,
-          args
-        ) {
-
-        if(args.length < 3) {
-
-          return this.continue(
-            "Enter deposit amount:"
-          );
+    session.currentMenu = "MAIN";
+    const lines = ["TITech Community Capital", "1. My Account"];
+    if (savingsEnabled) lines.push("2. Savings");
+    if (loansEnabled) lines.push("3. Loans");
+    lines.push("4. Profile");
+    if (mobileMoneyEnabled) lines.push("5. Mobile Money");
+    lines.push("6. Help");
+    return this.continue(lines.join("\n"));
   }
 
-  const amount =
-    Number(args[2]);
+  /* ===================================================================== */
+  /* SAVINGS WORKFLOWS                                                     */
+  /* ===================================================================== */
 
-  if(
-            !Number.isFinite(amount) ||
-  amount <= 0
-        ) {
+  async handleDeposit(context, args = []) {
+    if (args.length < 3) return this.continue("Enter deposit amount:");
+    const amount = Number(args[2]);
+    if (!Number.isFinite(amount) || amount <= 0) return this.end("Invalid amount entered.");
 
-  return this.end(
-    "Invalid amount entered."
-  );
-}
-
-const auditContext =
-  await this.createAuditContext(
-    context,
-    "USSD_SAVINGS_DEPOSIT"
-  );
-
-try {
-
-  const transaction =
-
-    await mobileMoneyService
-      .initiateCollection({
-
-        tenantId:
-          context.tenant.id,
-
-        phoneNumber:
-          context.phoneNumber,
-
+    const auditContext = await this.createAuditContext(context, "USSD_SAVINGS_DEPOSIT");
+    try {
+      const transaction = await mobileMoneyService.initiateCollection({
+        tenantId: context.tenant.id,
+        phoneNumber: context.phoneNumber,
         amount,
-
-        channel:
-          "USSD",
-
-        purpose:
-          "SAVINGS_DEPOSIT"
+        channel: "USSD",
+        purpose: "SAVINGS_DEPOSIT",
       });
+      await auditService.log({ ...auditContext, amount, reference: transaction?.reference });
+      metricsService.increment("titech.ussd.savings.deposit.requested");
+      return this.end(`A Mobile Money prompt has been sent for UGX ${amount}.`);
+    } catch (error) {
+      logger.error("Savings Deposit Failed", { error: error.message, tenantId: context?.tenant?.id });
+      metricsService.increment("titech.ussd.savings.deposit.failure");
+      return this.end("Unable to initiate savings deposit.");
+    }
+  }
 
-  await auditService.log({
-
-    ...auditContext,
-
-    amount,
-
-    reference:
-      transaction?.reference
-  });
-
-  metricsService.increment(
-    "titech.ussd.savings.deposit.requested"
-  );
-
-  return this.end(
-    `A Mobile Money prompt has been sent for UGX ${amount}.`
-  );
-
-} catch (error) {
-
-  logger.error(
-    "Savings Deposit Failed",
-    {
-      error:
-        error.message,
-
-      tenantId:
-        context.tenant.id
     /* ===================================================================== */
     /* LOAN WORKFLOWS                                                        */
     /* ===================================================================== */
@@ -3127,6 +3066,8 @@ KYC: ${member.kycStatus || "PENDING"}
                 this.getComplianceCapabilities()
         };
     }
+}
+
 /* ============================================================================
  * SINGLETON INSTANCE
  * ========================================================================== */

@@ -1797,7 +1797,7 @@ class AirtelConfiguration {
                     endpoint
                 ] of Object.entries(
                     this.endpoints
-                ) {
+                ) ) {
                 if (
                     !endpoint
                 ) {

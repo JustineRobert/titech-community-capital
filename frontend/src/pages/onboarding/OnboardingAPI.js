@@ -6,6 +6,7 @@
  */
 
 import axios from "axios";
+import { getToken } from "../../services/api";
 
 /**
  * ============================================================
@@ -32,10 +33,7 @@ const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
-    const token =
-      localStorage.getItem(
-        "accessToken"
-      );
+    const token = getToken();
 
     const tenantId =
       localStorage.getItem(
@@ -82,10 +80,6 @@ api.interceptors.response.use(
       error.response?.status ===
       401
     ) {
-      localStorage.removeItem(
-        "accessToken"
-      );
-
       window.location.href =
         "/login";
     }

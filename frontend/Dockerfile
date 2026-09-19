@@ -1,35 +1,28 @@
-# Frontend Dockerfile
-# =====================================================================
-# GitHub Copilot assisted Dockerfile
-# Multi-stage build: build static site with Node, serve via Nginx
-# =====================================================================
+# =============================================================================
+# TITech Community Capital — Frontend Production Container
+# Canonical Dockerfile: frontend/Dockerfile
+# Runtime baseline: Node.js 24.15.0 / Nginx stable Alpine
+# =============================================================================
 
-# Stage 1: Build
-FROM node:18-alpine AS builder
+FROM node:24.15.0-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Copy package manifests first for better caching
-COPY package*.json ./
-RUN npm ci --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci --include=dev \
+    && npm cache clean --force
 
-# Copy source code
 COPY . .
-
-# Build production-ready frontend
 RUN npm run build
 
-# Stage 2: Serve
-FROM nginx:alpine
+FROM nginx:1.27-alpine AS runtime
 
-# Copy built assets to Nginx HTML directory
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Optional: custom Nginx config (can be mounted via docker-compose)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose HTTP port
 EXPOSE 80
 
-# Start Nginx in foreground
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=5 \
+  CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]

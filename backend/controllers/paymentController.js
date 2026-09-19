@@ -2426,4 +2426,10 @@ async handlePaymentFailure({
     );
 
 }
+}
 
+module.exports = PaymentController;
+module.exports.PaymentController = PaymentController;
+module.exports.PAYMENT_PROVIDER = PAYMENT_PROVIDER;
+module.exports.PAYMENT_STATUS = PAYMENT_STATUS;
+module.exports.PAYMENT_TYPE = PAYMENT_TYPE;

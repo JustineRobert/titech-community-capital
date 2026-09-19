@@ -142,7 +142,7 @@ done
 
 # Step 10: Run smoke tests
 log "Step 10: Running smoke tests..."
-cd "$PROJECT_ROOT/community-savings-app-backend"
+cd "$PROJECT_ROOT/backend"
 npm run test:smoke -- --target http://localhost:5000 2>&1 | tee -a "$LOG_FILE" || {
   log_error "Smoke tests failed"
   exit 1

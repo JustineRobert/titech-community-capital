@@ -81,92 +81,6 @@ catch {
  * Internal symbols.
  */
 
-const INTERNAL =
-    Symbol('TransactionEventPublisher');
-
-const DEFAULT_NAMESPACE =
-    'transactions.events';
-
-const MODULE_NAME =
-    'TransactionEventPublisher';
-
-const MODULE_VERSION =
-    '1.0.0';
-
-/**
- * Publisher lifecycle states.
- */
-
-const PublisherState =
-    Object.freeze({
-
-        CREATED:
-            'CREATED',
-
-        STARTING:
-            'STARTING',
-
-        RUNNING:
-            'RUNNING',
-
-        STOPPING:
-            'STOPPING',
-
-        STOPPED:
-            'STOPPED',
-
-        FAILED:
-            'FAILED'
-
-    });
-
-/**
- * Event persistence states.
- */
-
-const EventStatus =
-    Object.freeze({
-
-        PENDING:
-            'PENDING',
-
-        PROCESSING:
-            'PROCESSING',
-
-        PUBLISHED:
-            'PUBLISHED',
-
-        FAILED:
-            'FAILED',
-
-        DEAD_LETTER:
-            'DEAD_LETTER'
-
-    });
-
-module.exports = {
-    PublisherState,
-    EventStatus,
-    MODULE_NAME,
-    MODULE_VERSION,
-    DEFAULT_NAMESPACE,
-    INTERNAL
-};
-
-/**
- * ============================================================================
- * Publisher States
- * ============================================================================
- */
-const PublisherState = Object.freeze({
-    CREATED: 'CREATED',
-    STARTING: 'STARTING',
-    RUNNING: 'RUNNING',
-    STOPPING: 'STOPPING',
-    STOPPED: 'STOPPED',
-    FAILED: 'FAILED'
-});
-
 /**
  * ============================================================================
  * Event Status
@@ -265,7 +179,7 @@ const DEFAULT_CONFIG = Object.freeze({
  */
 
 
-const crypto = require('crypto');
+
 
 
 
@@ -571,7 +485,7 @@ function extractEventTimestamp(eventId) {
 
 
 
-const crypto = require('crypto');
+
 
 
 
@@ -965,9 +879,9 @@ function buildCorrelationMetadata(context = {}) {
  */
 
 
-const crypto = require('crypto');
 
-const os = require('os');
+
+
 
 
 
@@ -1405,7 +1319,6 @@ function sanitize(value) {
  */
 
 
-const EventEmitter = require('events');
 
 
 
@@ -1415,10 +1328,6 @@ const {
 } = require('./utils/TransactionConfigurationUtils');
 
 
-
-const {
-    createPublisherIdentity
-} = require('./utils/TransactionPublisherIdentityUtils');
 
 
 

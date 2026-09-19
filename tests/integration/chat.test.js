@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const ChatService = require('../../community-savings-app-backend/services/chatService');
-const Conversation = require('../../community-savings-app-backend/models/Conversation');
-const ChatMessage = require('../../community-savings-app-backend/models/ChatMessage');
-const User = require('../../community-savings-app-backend/models/User');
+const ChatService = require('../../backend/services/chatService');
+const Conversation = require('../../backend/models/Conversation');
+const ChatMessage = require('../../backend/models/ChatMessage');
+const User = require('../../backend/models/User');
 
 describe('Chat Integration Tests', () => {
   let user1, user2, conversation;

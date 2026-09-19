@@ -1477,237 +1477,88 @@ function isInfrastructureReady() {
  * =============================================================================
  */
 
-async function initializeInfrastructure(
-  context,
-) {
+async function initializeInfrastructure(context) {
   if (initialized) {
-    /**
-     * Same-context idempotency.
-     */
-    if (
-      activeContext === context
-    ) {
-      return (
-        context.infrastructure ||
-        getInfrastructure()
-      );
+    if (activeContext === context) {
+      return context.infrastructure || getInfrastructure();
     }
-
-    /**
-     * A second context must not silently reuse the first application's
-     * infrastructure graph.
-     */
     throw createInfrastructureError(
       "TITech infrastructure has already been initialized for another BootstrapContext.",
-      {
-        operation:
-          "initialize-infrastructure",
-
-        code:
-          "STARTUP_INFRASTRUCTURE_ALREADY_BOUND",
-      },
+      { operation: "initialize-infrastructure", code: "STARTUP_INFRASTRUCTURE_ALREADY_BOUND" },
     );
   }
+  if (initializingPromise) return initializingPromise;
 
-  if (
-    initializingPromise
-  ) {
-    return initializingPromise;
-  }
+  initializingPromise = (async () => {
+    assertContext(context);
+    const configuration = getConfiguration(context);
+    activeContext = context;
+    infrastructureRegistry.clear();
+    infrastructureStatus.clear();
+    const startedAt = process.hrtime.bigint();
 
-  initializingPromise =
-    (async () => {
-      assertContext(
-        context,
-      );
+    try {
+      ensureContainer(context);
+      registerStaticInfrastructure(context);
 
-      const configuration =
-        getConfiguration(context);
+      const configuredInfrastructure = configuration?.infrastructure;
+      if (configuredInfrastructure && typeof configuredInfrastructure === "object") {
+        for (const [key, adapter] of Object.entries(configuredInfrastructure)) {
+          if (adapter !== undefined && adapter !== null) {
+            registerAdapter(key, adapter, { source: "configuration" });
+          }
+        }
+      }
 
-      activeContext =
-        context;
+      for (const definition of ADAPTER_DEFINITIONS) {
+        await initializeAdapter(context, definition);
+      }
 
-      infrastructureRegistry.clear();
-      infrastructureStatus.clear();
-
-      const startedAt =
-        process.hrtime.bigint();
+      const infrastructure = publishInfrastructureContext(context);
+      initialized = true;
 
       logInfo(
         context,
-        createMetadata(
-          context,
-          {
-            event:
-              "bootstrap.started",
-          },
-        ),
-        "TITech infrastructure bootstrap started.",
+        createMetadata(context, {
+          event: "bootstrap.completed",
+          durationMs: Number(process.hrtime.bigint() - startedAt) / 1_000_000,
+          adapterCount: infrastructureRegistry.size,
+          adapters: Object.keys(infrastructure),
+        }),
+        "TITech infrastructure bootstrap completed successfully.",
       );
-
-      try {
-        /**
-         * Ensure the infrastructure namespace exists before discovering
-         * providers.
-         */
-        ensureContainer(context);
-
-        registerStaticInfrastructure(
-          context,
-        );
-
-        /**
-         * Configuration-level infrastructure objects can be injected directly.
-         *
-         * Example:
-         *
-         * configuration.infrastructure.database
-         */
-        const configuredInfrastructure =
-          configuration?.infrastructure;
-
-        if (
-          configuredInfrastructure &&
-          typeof configuredInfrastructure ===
-            "object"
-        ) {
-          for (
-            const [
-              key,
-              adapter,
-            ] of Object.entries(
-              configuredInfrastructure,
-            )
-          ) {
-            if (
-              adapter !== undefined &&
-              adapter !== null
-            ) {
-              registerAdapter(
-                key,
-                adapter,
-                {
-                  source:
-                    "configuration",
-              },
-            );
-          }
-        }
-
-        /**
-         * Initialize conventional adapters.
-         *
-         * The list is deliberately deterministic.
-         */
-        for (
-          const definition of
-            ADAPTER_DEFINITIONS
-        ) {
-          await initializeAdapter(
-            context,
-            definition,
-          );
-        }
-
-        const infrastructure =
-          publishInfrastructureContext(
-            context,
-          );
-
-        const durationMs =
-          Number(
-            process.hrtime.bigint() -
-              startedAt,
-          ) / 1_000_000;
-
-        initialized =
-          true;
-
-        logInfo(
-          context,
-          createMetadata(
-            context,
-            {
-              event:
-                "bootstrap.completed",
-
-              durationMs,
-
-              adapterCount:
-                infrastructureRegistry.size,
-
-              adapters:
-                Object.keys(
-                  infrastructure,
-                ),
-            },
-          ),
-          "TITech infrastructure bootstrap completed successfully.",
-        );
-
-        return infrastructure;
-      } catch (error) {
-        initialized =
-          false;
-
-        infrastructureStatus.forEach(
-          (status, key) => {
-            infrastructureStatus.set(
-              key,
-              {
-                ...status,
-                state:
-                  "failed",
-              },
-            );
-          },
-        );
-
-        const normalized =
-          error?.phase ===
-            "infrastructure"
-            ? error
-            : createInfrastructureError(
-                "TITech infrastructure bootstrap failed.",
-                {
-                  cause:
-                    error,
-                },
-              );
-
-        logError(
-          context,
-          createMetadata(
-            context,
-            {
-              event:
-                "bootstrap.failed",
-
-              code:
-                normalized.code,
-
-              message:
-                normalized.message,
-
-              cause:
-                normalized.cause?.message,
-            },
-          ),
-          "TITech infrastructure bootstrap failed.",
-        );
-
-        throw normalized;
+      return infrastructure;
+    } catch (error) {
+      initialized = false;
+      for (const [key, status] of infrastructureStatus.entries()) {
+        infrastructureStatus.set(key, { ...status, state: "failed" });
       }
-    })();
+      const normalized = error?.phase === "infrastructure"
+        ? error
+        : createInfrastructureError(
+            "TITech infrastructure bootstrap failed.",
+            { cause: error },
+          );
+      logError(
+        context,
+        createMetadata(context, {
+          event: "bootstrap.failed",
+          code: normalized.code,
+          message: normalized.message,
+          cause: normalized.cause?.message,
+        }),
+        "TITech infrastructure bootstrap failed.",
+      );
+      throw normalized;
+    }
+  })();
 
   try {
     return await initializingPromise;
   } finally {
-    initializingPromise =
-      null;
+    initializingPromise = null;
   }
 }
-
 
 /* =============================================================================
  * SHUTDOWN

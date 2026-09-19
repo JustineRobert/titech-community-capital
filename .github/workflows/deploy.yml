@@ -15,7 +15,7 @@
 #
 # Kubernetes:
 #
-#   deployment/
+#   infrastructure/kubernetes/
 #     charts/
 #       backend/
 #       frontend/
@@ -218,13 +218,13 @@ env:
 
   FRONTEND_DIR: frontend
 
-  DEPLOYMENT_DIR: deployment
+  DEPLOYMENT_DIR: infrastructure/kubernetes
 
-  CHARTS_DIR: deployment/charts
+  CHARTS_DIR: infrastructure/kubernetes/charts
 
-  BACKEND_CHART: deployment/charts/backend
+  BACKEND_CHART: infrastructure/kubernetes/charts/backend
 
-  FRONTEND_CHART: deployment/charts/frontend
+  FRONTEND_CHART: infrastructure/kubernetes/charts/frontend
 
   DOCS_DIR: docs
 
@@ -1462,6 +1462,11 @@ jobs:
       # Backend deployment
       ##########################################################################
 
+      - name: Helm lint staging charts
+        run: |
+          helm lint "${BACKEND_CHART}" -f "${BACKEND_CHART}/values-staging.yaml"
+          helm lint "${FRONTEND_CHART}" -f "${FRONTEND_CHART}/values-staging.yaml"
+
       - name: Deploy Backend
 
         run: |
@@ -1470,6 +1475,7 @@ jobs:
             --install \
             "${BACKEND_RELEASE}" \
             "${BACKEND_CHART}" \
+            -f "${BACKEND_CHART}/values-staging.yaml" \
             --namespace "${KUBE_NAMESPACE}" \
             --create-namespace \
             --set image.repository="${REGISTRY}/${IMAGE_NAMESPACE}/${BACKEND_IMAGE}" \
@@ -1491,6 +1497,7 @@ jobs:
             --install \
             "${FRONTEND_RELEASE}" \
             "${FRONTEND_CHART}" \
+            -f "${FRONTEND_CHART}/values-staging.yaml" \
             --namespace "${KUBE_NAMESPACE}" \
             --create-namespace \
             --set image.repository="${REGISTRY}/${IMAGE_NAMESPACE}/${FRONTEND_IMAGE}" \
@@ -1919,6 +1926,11 @@ jobs:
       # Backend deployment
       ##########################################################################
 
+      - name: Helm lint production charts
+        run: |
+          helm lint "${BACKEND_CHART}" -f "${BACKEND_CHART}/values-production.yaml"
+          helm lint "${FRONTEND_CHART}" -f "${FRONTEND_CHART}/values-production.yaml"
+
       - name: Deploy Production Backend
 
         run: |
@@ -1927,6 +1939,7 @@ jobs:
             --install \
             "${BACKEND_RELEASE}" \
             "${BACKEND_CHART}" \
+            -f "${BACKEND_CHART}/values-production.yaml" \
             --namespace "${KUBE_NAMESPACE}" \
             --create-namespace \
             --set image.repository="${REGISTRY}/${IMAGE_NAMESPACE}/${BACKEND_IMAGE}" \
@@ -1951,6 +1964,7 @@ jobs:
             --install \
             "${FRONTEND_RELEASE}" \
             "${FRONTEND_CHART}" \
+            -f "${FRONTEND_CHART}/values-production.yaml" \
             --namespace "${KUBE_NAMESPACE}" \
             --create-namespace \
             --set image.repository="${REGISTRY}/${IMAGE_NAMESPACE}/${FRONTEND_IMAGE}" \

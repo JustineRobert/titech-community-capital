@@ -65,7 +65,7 @@ const mongoose = require(
             paths: [
                 path.resolve(
                     __dirname,
-                    '../../community-savings-app-backend'
+                    '../../backend'
                 ),
             ],
         }
@@ -95,7 +95,7 @@ const mongoose = require(
 
 const backendRoot = path.resolve(
     __dirname,
-    '../../community-savings-app-backend'
+    '../../backend'
 );
 
 const migrationFile = path.resolve(

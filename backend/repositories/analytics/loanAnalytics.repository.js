@@ -4641,7 +4641,8 @@ class LoanAnalyticsRepository
                                                 )
                                             ]
                                     )
-                                );
+                                )
+                            );
                         } catch (
                             error
                         ) {
