@@ -1,8 +1,5 @@
 "use strict";
 
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
 
 /**
  * =============================================================================
@@ -68,14 +65,12 @@ const require = createRequire(import.meta.url);
  * =============================================================================
  */
 
-const {
+import {
     beginOperation,
     completeOperation,
     failOperation,
     IdempotencyError
-} = require(
-    "../services/idempotency/idempotency.service"
-);
+} from "../services/idempotency/idempotency.service.js";
 
 // =============================================================================
 // Constants

@@ -61,6 +61,7 @@
 "test:integration": "jest --testPathPatterns=tests/integration",
 "test:commercial": "jest tests/commercial --runInBand",
 "test:providers": "jest tests/providers --runInBand",
+"test:financial:money": "node --test tests/unit/financial/money.test.js",
 "test:ci": "jest --ci --runInBand --coverage --detectOpenHandles --forceExit",
 "test:changed": "jest --changedSince=HEAD",
 "test:debug": "node --inspect-brk ./node_modules/jest/bin/jest.js --runInBand",

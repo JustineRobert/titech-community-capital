@@ -78,7 +78,7 @@
     "lint:fix": "npm --prefix backend run lint:fix && npm --prefix frontend run lint:fix",
     "format": "npm --prefix backend run format && npm --prefix frontend run format",
     "format:check": "npm --prefix backend run format:check && npm --prefix frontend run format:check",
-    "check": "npm run check:conflicts && npm run validate:syntax && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:runtime-imports && npm run lint && npm run format:check",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:all": "npm run check && npm run test",
     "test": "npm run test:backend && npm run test:frontend",
@@ -108,6 +108,8 @@
     "quality": "npm run check:all",
     "install:script": "bash scripts/setup.sh",
     "validate:syntax": "node scripts/enterprise-gate.mjs --syntax",
+    "check:financial": "node scripts/financial-static-gate.mjs",
+    "check:runtime-imports": "node scripts/runtime-import-audit.mjs",
     "enterprise:gate": "node scripts/enterprise-gate.mjs --all",
     "check:structure": "node scripts/enterprise-gate.mjs --structure",
     "postman:test:newman": "npx --yes newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli"

@@ -59,18 +59,14 @@
  * =============================================================================
  */
 
-const {
-    processFinancialOperation,
-    FinancialTransactionError
-} = require(
-    "../../services/financial/financialTransaction.service"
-);
+import {
+    FinancialTransactionError,
+    processFinancialOperation
+} from "../../services/financial/financialTransaction.service.js";
 
-const {
+import {
     executeFinancialOperation
-} = require(
-    "../../services/financial/financialOperation.service"
-);
+} from "../../services/financial/financialOperation.service.js";
 
 // =============================================================================
 // Constants
@@ -1175,28 +1171,32 @@ function normalizeFinancialError(
 // Exports
 // =============================================================================
 
-module.exports = {
-
+const financialControllerModule = Object.freeze({
     FinancialControllerError,
-
     createTransaction,
-
     createContribution,
-
     createDeposit,
-
     createWithdrawal,
-
     createTransfer,
-
     disburseLoan,
-
     repayLoan,
-
     getWallet,
-
     getTransaction,
+    getTransactionLedger,
+});
 
-    getTransactionLedger
-
+export {
+    FinancialControllerError,
+    createTransaction,
+    createContribution,
+    createDeposit,
+    createWithdrawal,
+    createTransfer,
+    disburseLoan,
+    repayLoan,
+    getWallet,
+    getTransaction,
+    getTransactionLedger,
 };
+
+export default financialControllerModule;

@@ -53,9 +53,7 @@
  * =============================================================================
  */
 
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
+import idempotencyStoreModule from "./idempotency.store.js";
 
 const {
     createRequestFingerprint,
@@ -63,9 +61,7 @@ const {
     recoverStaleRecord,
     completeRecord,
     failRecord
-} = require(
-    "./idempotency.store"
-);
+} = idempotencyStoreModule;
 
 // =============================================================================
 // Constants
@@ -1199,34 +1195,36 @@ async function failOperation({
 // Exports
 // =============================================================================
 
-const idempotencyServiceModule = {
-
+const idempotencyServiceModule = Object.freeze({
     IdempotencyError,
-
     IDEMPOTENCY_STATUS,
-
     IDEMPOTENCY_RESULT_TYPE,
-
     beginOperation,
-
     completeOperation,
-
     failOperation,
-
     normalizeIdentifier,
-
     normalizeIdempotencyKey,
-
     normalizeOperation,
-
     normalizeResource,
-
     normalizeHttpStatus,
-
     normalizeResultType,
+    buildRequestFingerprint,
+});
 
-    buildRequestFingerprint
-
+export {
+    IdempotencyError,
+    IDEMPOTENCY_STATUS,
+    IDEMPOTENCY_RESULT_TYPE,
+    beginOperation,
+    completeOperation,
+    failOperation,
+    normalizeIdentifier,
+    normalizeIdempotencyKey,
+    normalizeOperation,
+    normalizeResource,
+    normalizeHttpStatus,
+    normalizeResultType,
+    buildRequestFingerprint,
 };
 
 export default idempotencyServiceModule;

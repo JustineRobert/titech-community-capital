@@ -64,3 +64,33 @@ PRODUCTION_APPROVED NO
 ## Production decision
 
 The package must **not** be represented as production-approved from this archive alone. The master implementation sequence requires reliability → pilot → operational/compliance review → production approval.
+
+## 2026-09-20 incremental enterprise hardening evidence
+
+This section records the changes applied to the uploaded RC-1 archive on 2026-09-20. It does not override
+or promote the existing production decision above.
+
+### Verified in this environment
+
+- Exact fixed-point monetary utility added under `backend/services/financial/money.js`.
+- Exact-money regression suite passes: 3/3 using Node's built-in test runner.
+- Canonical financial ESM boundary repaired for the central transaction service, operation service,
+idempotency service/store, financial controller, contribution controller and idempotency middleware.
+- Canonical financial static gate passes.
+- Canonical financial runtime-import audit passes with zero missing local imports on the critical financial surface.
+- Repository-wide syntax gate passes with 2,111 executable JS/TS-family files parsed.
+- Merge-conflict scan passes.
+
+### Newly identified broader blocker
+
+The runtime-import audit reports missing local imports in legacy/non-critical portions of the backend. These
+remain explicitly classified as consolidation/runtime-hardening work and are not represented as production-
+ready evidence. See `docs/RUNTIME_IMPORT_AUDIT.json`.
+
+### Production status
+
+**PRODUCTION_APPROVED: NO**
+
+The previously recorded requirements for Node 24.15.x dependency installation, runtime integration tests,
+financial invariant tests against MongoDB, provider sandbox validation, security scanning, backup/restore
+drills, cluster validation and regulatory review remain outstanding.

@@ -1,0 +1,6 @@
+TITech Community Capital baseline archive SHA-256
+9c14d196a042997c669500f83140f3d461052df6d0636cb969326683ce7676fd
+Baseline commit
+273f78768c994362fca646fd0fa820593e6c8a17
+Implementation commit
+5021021f49d0586b7a22a21e319b2dd1d7963def

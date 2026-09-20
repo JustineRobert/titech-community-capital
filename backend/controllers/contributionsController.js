@@ -1,8 +1,5 @@
 'use strict';
 
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
 
 /**
  * =============================================================================
@@ -72,12 +69,10 @@ const require = createRequire(import.meta.url);
  * =============================================================================
  */
 
-const {
+import {
     FINANCIAL_OPERATION,
     executeFinancialOperation
-} = require(
-    '../services/financial/financialOperation.service'
-);
+} from '../services/financial/financialOperation.service.js';
 
 // =============================================================================
 // Constants

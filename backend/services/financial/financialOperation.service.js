@@ -1,13 +1,11 @@
 "use strict";
 
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
+import { FinancialTransactionError } from './financialTransaction.service.js';
+import { assertDecimal, isPositive } from './money.js';
 
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
  * =============================================================================
  *
  * File:
@@ -70,12 +68,6 @@ const require = createRequire(import.meta.url);
  *
  * =============================================================================
  */
-
-const {
-    FinancialTransactionError
-} = require(
-    "./financialTransaction.service"
-);
 
 // =============================================================================
 // Constants
@@ -412,71 +404,36 @@ function requirePositiveAmount(
     amount
 ) {
 
-    if (
-        amount === null ||
-        amount === undefined
-    ) {
+    let normalizedAmount;
 
+    try {
+        normalizedAmount =
+            assertDecimal(
+                amount,
+                "amount"
+            );
+    } catch (error) {
         throw new FinancialTransactionError(
-            "Financial amount is required.",
-            "FINANCIAL_AMOUNT_REQUIRED",
-            400
+            "Financial amount must be supplied as a non-negative fixed-point decimal string.",
+            "FINANCIAL_INVALID_AMOUNT",
+            400,
+            undefined,
+            error
         );
     }
 
-    const stringAmount =
-        String(
-            amount
-        ).trim();
+    const fractionDigits =
+        (normalizedAmount.split(".")[1] || "").length;
 
-    if (!stringAmount) {
-
+    if (fractionDigits > 2) {
         throw new FinancialTransactionError(
-            "Financial amount is required.",
-            "FINANCIAL_AMOUNT_REQUIRED",
-            400
-        );
-    }
-
-    /*
-     * Accept:
-     *
-     *   10
-     *   10.50
-     *   0.01
-     *
-     * Reject:
-     *
-     *   -10
-     *   0
-     *   1e10
-     *   NaN
-     *   Infinity
-     *   10.123
-     *
-     * The default scale is two decimal places. If ACFOS later supports
-     * currencies with different minor-unit scales, this should be replaced
-     * by currency metadata.
-     */
-    if (
-        !/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(
-            stringAmount
-        )
-    ) {
-
-        throw new FinancialTransactionError(
-            "Financial amount must be a positive fixed-point monetary value.",
+            "Financial amount supports at most two decimal places.",
             "FINANCIAL_INVALID_AMOUNT",
             400
         );
     }
 
-    if (
-        /^0(?:\.0{1,2})?$/.test(
-            stringAmount
-        )
-    ) {
-
+    if (!isPositive(normalizedAmount)) {
         throw new FinancialTransactionError(
             "Financial amount must be greater than zero.",
             "FINANCIAL_INVALID_AMOUNT",
@@ -484,7 +441,7 @@ function requirePositiveAmount(
         );
     }
 
-    return stringAmount;
+    return normalizedAmount;
 }
 
 // =============================================================================
@@ -2813,34 +2770,36 @@ function validateRepositoryContract(
 // Exports
 // =============================================================================
 
-module.exports = {
-
+export {
     FINANCIAL_OPERATION,
-
     RESULT_TYPE,
-
     FINANCIAL_TRANSACTION_STATUS,
-
     LEDGER_DIRECTION,
-
     LEDGER_ENTRY_TYPE,
-
     FINANCIAL_OPERATION_REPOSITORY_CONTRACT,
-
     executeFinancialOperation,
-
     validateRepositoryContract,
-
     createContribution,
-
     createDeposit,
-
     createWithdrawal,
-
     createTransfer,
-
     disburseLoan,
-
     repayLoan
-
 };
+
+export default Object.freeze({
+    FINANCIAL_OPERATION,
+    RESULT_TYPE,
+    FINANCIAL_TRANSACTION_STATUS,
+    LEDGER_DIRECTION,
+    LEDGER_ENTRY_TYPE,
+    FINANCIAL_OPERATION_REPOSITORY_CONTRACT,
+    executeFinancialOperation,
+    validateRepositoryContract,
+    createContribution,
+    createDeposit,
+    createWithdrawal,
+    createTransfer,
+    disburseLoan,
+    repayLoan
+});

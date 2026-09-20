@@ -72,17 +72,13 @@
 
 'use strict';
 
-import { createRequire } from 'node:module';
+import crypto from 'node:crypto';
+import mongoose from 'mongoose';
 
-const require = createRequire(import.meta.url);
-
-const crypto = require('crypto');
-const mongoose = require('mongoose');
-
-const {
+import {
   completeOperation,
   failOperation,
-} = require('../idempotency/idempotency.service');
+} from '../idempotency/idempotency.service.js';
 
 // =============================================================================
 // CONSTANTS
@@ -652,12 +648,6 @@ async function executeFinancialTransaction({
     'execute',
   );
 
-  assertSessionNotExternallyManaged(
-    await Promise.resolve(
-      mongoose.startSession,
-    ),
-  );
-
   if (
     !idempotencyRecord ||
     !idempotencyRecord._id
@@ -701,6 +691,10 @@ async function executeFinancialTransaction({
 
   const session =
     await createSession();
+
+  assertSessionNotExternallyManaged(
+    session,
+  );
 
   let transactionAttempt = 0;
 
@@ -1257,16 +1251,20 @@ const FINANCIAL_TRANSACTION_REPOSITORY_CONTRACT =
 // EXPORTS
 // =============================================================================
 
-module.exports = {
+export {
   FinancialTransactionError,
-
   FINANCIAL_TRANSACTION_REPOSITORY_CONTRACT,
-
   FINANCIAL_EXECUTION_RULES,
-
   executeFinancialTransaction,
-
   processFinancialOperation,
-
   createTransactionId,
 };
+
+export default Object.freeze({
+  FinancialTransactionError,
+  FINANCIAL_TRANSACTION_REPOSITORY_CONTRACT,
+  FINANCIAL_EXECUTION_RULES,
+  executeFinancialTransaction,
+  processFinancialOperation,
+  createTransactionId,
+});

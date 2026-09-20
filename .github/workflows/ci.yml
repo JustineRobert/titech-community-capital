@@ -45,6 +45,12 @@ jobs:
         run: npm run check:structure
       - name: Zero syntax errors gate
         run: npm run validate:syntax
+      - name: Financial invariant/static gate
+        run: npm run check:financial
+      - name: Canonical runtime import audit
+        run: npm run check:runtime-imports
+      - name: Exact-money unit tests
+        run: node --test backend/tests/unit/financial/money.test.js
       - name: Lint and format
         run: npm run check
 

@@ -76,18 +76,8 @@
  * =============================================================================
  */
 
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-
-const crypto =
-    require("crypto");
-
-const {
-    IdempotencyRecord
-} = require(
-    "../../models/idempotencyRecord.model"
-);
+import crypto from "node:crypto";
+import IdempotencyRecord from "../../models/idempotencyRecord.model.js";
 
 // =============================================================================
 // Constants

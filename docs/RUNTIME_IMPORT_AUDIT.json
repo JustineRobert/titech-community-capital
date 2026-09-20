@@ -1,0 +1,1768 @@
+{
+  "generatedAt": "2026-09-20T09:02:14.398Z",
+  "backendFilesScanned": 1778,
+  "missingLocalImports": [
+    {
+      "file": "backend/bootstrap/context/index.js",
+      "specifier": "./context",
+      "critical": false
+    },
+    {
+      "file": "backend/bootstrap/context/index.js",
+      "specifier": "./context",
+      "critical": false
+    },
+    {
+      "file": "backend/bootstrap/infrastructure/index.js",
+      "specifier": "./infrastructure",
+      "critical": false
+    },
+    {
+      "file": "backend/bootstrap/infrastructure/index.js",
+      "specifier": "./infrastructure",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/admin.controller.js",
+      "specifier": "../middlewares/errorMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/airtelController.js",
+      "specifier": "../middlewares/errorMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/memberController.js",
+      "specifier": "../middlewares/errorMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/momoCallback.controller.js",
+      "specifier": "../transaction/transaction.service",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/mtnController.js",
+      "specifier": "../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/paymentController.js",
+      "specifier": "../services/sanctionsService",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/paymentController.js",
+      "specifier": "../services/settlementService",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/paymentController.js",
+      "specifier": "../services/reconciliationService",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/paymentController.js",
+      "specifier": "../services/eventBus",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/ussdController.js",
+      "specifier": "../services/tenantService",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/ussdController.js",
+      "specifier": "../services/memberService",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/ussdController.js",
+      "specifier": "../services/loanService",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/ussdController.js",
+      "specifier": "../services/featureFlagService",
+      "critical": false
+    },
+    {
+      "file": "backend/controllers/verificationController.js",
+      "specifier": "../services/otpService",
+      "critical": false
+    },
+    {
+      "file": "backend/errors/ApiError.js",
+      "specifier": "../constants/httpStatus",
+      "critical": false
+    },
+    {
+      "file": "backend/jobs/queueSetup.js",
+      "specifier": "./emailService",
+      "critical": false
+    },
+    {
+      "file": "backend/jobs/queueSetup.js",
+      "specifier": "./loanWorkflowService",
+      "critical": false
+    },
+    {
+      "file": "backend/legal/routes/legalRoutes.js",
+      "specifier": "../../middleware/authorizeMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/authenticateTenant.js",
+      "specifier": "../services/tenantService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/authenticateTenant.js",
+      "specifier": "../services/featureFlagService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/authenticateTenant.js",
+      "specifier": "../services/cacheService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/authorization/authorization.js",
+      "specifier": "../../shared/events/EventBus",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/authorization/authorization.js",
+      "specifier": "../../shared/audit/AuditService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/authorization/complianceSecurity.js",
+      "specifier": "../../shared/audit/AuditService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/authorization/complianceSecurity.js",
+      "specifier": "../../shared/events/EventBus",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/featureGuard.js",
+      "specifier": "../services/featureFlagService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/featureGuard.js",
+      "specifier": "../services/cacheService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/fraudMiddleware.js",
+      "specifier": "../services/deviceFingerprintService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/fraudMiddleware.js",
+      "specifier": "../services/otpService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/resilience/persistence/resiliencePersistenceBootstrap.js",
+      "specifier": "./resilienceStateManager",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/resilience/persistence/resiliencePersistenceBootstrap.js",
+      "specifier": "./resilienceCircuitStateStore",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/resilience/retryClassificationEngine.js",
+      "specifier": "./retryErrors",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/resilience/retryContextFactory.js",
+      "specifier": "./retryErrors",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/resilience/retryDecisionEngine.js",
+      "specifier": "./retryErrors",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/resilience/retryExecutionEngine.js",
+      "specifier": "./retryErrors",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/resilience/retryPolicyRegistry.js",
+      "specifier": "./retryErrors",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/tenancy/tenantContext.js",
+      "specifier": "../../shared/events/EventBus",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/tenancy/tenantContext.js",
+      "specifier": "../../shared/audit/AuditService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/tenancy/tenantRepository.js",
+      "specifier": "../../config/ConfigurationProvider",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/tenancy/tenantRepository.js",
+      "specifier": "../../shared/events/EventBus",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/tenancy/tenantRepository.js",
+      "specifier": "../../shared/audit/AuditService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/tenancy/tenantRepository.js",
+      "specifier": "../../models/Tenant",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/tenantMiddleware.js",
+      "specifier": "../services/tenantService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/ussdTenantMiddleware.js",
+      "specifier": "../services/tenantService",
+      "critical": false
+    },
+    {
+      "file": "backend/middleware/ussdTenantMiddleware.js",
+      "specifier": "../services/featureFlagService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/airtelMoneyService.js",
+      "specifier": "./models/Transaction",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/airtelMoneyService.js",
+      "specifier": "./logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/airtelMoneyService.js",
+      "specifier": "./auditService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/audit/audit.service.js",
+      "specifier": "../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/audit/audit.verify.js",
+      "specifier": "../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/auth/routes/auth.routes.js",
+      "specifier": "../../../../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/auth/routes/auth.routes.js",
+      "specifier": "../../../../config",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/__tests__/repayment.int.test.js",
+      "specifier": "../../models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/__tests__/repayment.int.test.js",
+      "specifier": "../../models/Wallet",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/__tests__/repayment.int.test.js",
+      "specifier": "../../models/Journal",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/__tests__/repayment.int.test.js",
+      "specifier": "../../../../models/User",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/__tests__/repayment.int.test.js",
+      "specifier": "../../../../app",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/controllers/LoanController.js",
+      "specifier": "../services/LoanService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/controllers/repaymentController.js",
+      "specifier": "../../../../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/controllers/repaymentController.js",
+      "specifier": "../../../../errors/ApiError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/controllers/repaymentController.js",
+      "specifier": "../../../../errors/NotFoundError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/controllers/repaymentController.js",
+      "specifier": "../../../../errors/ConflictError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/controllers/repaymentController.js",
+      "specifier": "../../../../errors/PaymentRequiredError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/controllers/repaymentController.js",
+      "specifier": "../../../../errors/BadRequestError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/airtelSettlementJob.js",
+      "specifier": "../../payments/airtel/airtelService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/dividendDistributionJob.js",
+      "specifier": "../../members/models/Member",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/interestAccrualJob.js",
+      "specifier": "../../../modules/tenant/models/Tenant",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/momoSettlementJob.js",
+      "specifier": "../../payments/momo/momoService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/portfolioAnalyticsJob.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/reconciliationJob.js",
+      "specifier": "../../../modules/tenant/models/Tenant",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/regulatoryReportingJob.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/regulatoryReportingJob.js",
+      "specifier": "../../members/models/Member",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/jobs/statementGenerationJob.js",
+      "specifier": "../../../modules/tenant/models/Tenant",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/middleware/loanWorkflowGuard.js",
+      "specifier": "../../../shared/utils/AppError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/routes/financeRoutes.js",
+      "specifier": "./modules/finance/routes/financeRoutes",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/routes.js",
+      "specifier": "../../../utils/asyncHandler",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/routes.js",
+      "specifier": "../../../middleware/auth",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/routes.js",
+      "specifier": "../../../middleware/tenant",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/executiveInsightsService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/fraudAnalyticsService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/liquidityForecastService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/memberBehaviorAnalyticsService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/portfolioAnalyticsService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/portfolioStressTestingService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/predictiveRiskAnalyticsService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/regulatoryAnalyticsService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/repaymentService.js",
+      "specifier": "../models/Wallet",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/repaymentService.js",
+      "specifier": "../../../../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/repaymentService.js",
+      "specifier": "../../../../errors/ApiError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/repaymentService.js",
+      "specifier": "../../../../errors/NotFoundError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/repaymentService.js",
+      "specifier": "../../../../errors/ConflictError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/repaymentService.js",
+      "specifier": "../../../../errors/PaymentRequiredError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/repaymentService.js",
+      "specifier": "../../../../errors/BadRequestError",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/services/writeOffService.js",
+      "specifier": "../../loans/models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/statements/index.js",
+      "specifier": "./finance/statements",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/statements/index.js",
+      "specifier": "./finance/statements",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/statements/index.js",
+      "specifier": "./finance/statements",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/finance/utils/idempotency.js",
+      "specifier": "./redis",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/fraud/fraud.service.js",
+      "specifier": "../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/integrations/momo.service.js",
+      "specifier": "../utils/idempotency",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/integrations/momo.service.js",
+      "specifier": "../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/integrations/momo.webhook.js",
+      "specifier": "../utils/idempotency",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/integrations/momo.webhook.js",
+      "specifier": "../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/integrations/momo.webhook.js",
+      "specifier": "../providers/mtn/mtnCallback",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/integrations/momo.webhook.js",
+      "specifier": "../providers/airtel/airtelCallback",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/ledger/ledger.service.js",
+      "specifier": "../models/Ledger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/loan/repositories/loanAuditRepository.js",
+      "specifier": "../../../shared/utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/loan/repositories/loanAuditRepository.js",
+      "specifier": "../../../shared/utils/requestContext",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/loan/repositories/loanAuditRepository.js",
+      "specifier": "../../../shared/observability/metrics",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/loan/services/creditScoringService.js",
+      "specifier": "../../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/loan/services/creditScoringService.js",
+      "specifier": "./LoanCreditScoringService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/loan/services/loanWorkflowService.js",
+      "specifier": "../repositories/loanScheduleRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/loan/services/loanWorkflowService.js",
+      "specifier": "../../compliance/services/complianceService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/member/services/memberService.js",
+      "specifier": "../../../repositories/memberRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/member/services/memberService.js",
+      "specifier": "../../../repositories/accountRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/member/services/memberService.js",
+      "specifier": "../../../repositories/savingsRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/member/services/memberService.js",
+      "specifier": "../../../repositories/loanRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/member/services/memberService.js",
+      "specifier": "../../../repositories/auditRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/member/services/memberService.js",
+      "specifier": "../../../repositories/documentRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/member/services/memberService.js",
+      "specifier": "../../../repositories/walletRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/member/services/memberService.js",
+      "specifier": "../../credit/services/creditScoreService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/mobileMoneySettlementService.js",
+      "specifier": "./logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/models/BillingOperation.js",
+      "specifier": "./models/BillingOperation",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/models/BillingOperation.js",
+      "specifier": "./models/BillingOperation",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/mtnMomoService.js",
+      "specifier": "./payments/mtn/callbacks",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/mtnMomoService.js",
+      "specifier": "./logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/mtnMomoService.js",
+      "specifier": "./auditService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/mtnMomoService.js",
+      "specifier": "./reconciliationService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/mtnMomoService.js",
+      "specifier": "./queueService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/__tests__/onboarding.integration.test.js",
+      "specifier": "../../services/tenantProvisioningService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/__tests__/onboarding.integration.test.js",
+      "specifier": "../../services/auditService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/__tests__/onboarding.integration.test.js",
+      "specifier": "../../events/onboardingPublisher",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/__tests__/onboarding.integration.test.js",
+      "specifier": "../../modules/finance/services/ledgerService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/__tests__/onboarding.integration.test.js",
+      "specifier": "../../services/identityBootstrapService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.controller.js",
+      "specifier": "../../shared/utils/apiResponse",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.controller.js",
+      "specifier": "../../shared/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.model.js",
+      "specifier": "./sacco.model",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.routes.js",
+      "specifier": "../../middleware/auth.middleware",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.routes.js",
+      "specifier": "../../middleware/rbac.middleware",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.routes.js",
+      "specifier": "../../middleware/upload.middleware",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.routes.js",
+      "specifier": "../../security/rateLimiting",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.routes.js",
+      "specifier": "../../middleware/validateObjectId",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.routes.js",
+      "specifier": "../../middleware/idempotency.middleware",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.routes.js",
+      "specifier": "../../middleware/auditLogMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/onboarding/onboarding.service.js",
+      "specifier": "../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/auth/credentialManager.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/auth/healthMonitor.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/auth/oauthClient.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/auth/refreshManager.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/auth.js",
+      "specifier": "./refreshManager",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/callbacks/callbackCorrelation.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/callbacks/callbackProcessor.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/callbacks/callbackValidator.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/callbacks/signatureVerifier.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/collections/callbackCorrelation.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/airtel/collections/collectionService.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/index.js",
+      "specifier": "./modules/payment",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/collections/collectionsService.js",
+      "specifier": "../../../shared/errors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/ledgerReconciler.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/ledgerReconciler.js",
+      "specifier": "../../../../common/database",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/providerStatementImporter.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/providerStatementImporter.js",
+      "specifier": "../../../../common/database",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/reconciliationAudit.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/reconciliationAudit.js",
+      "specifier": "../../../../common/database",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/reconciliationMetrics.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/reconciliationPolicy.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/recoveryManager.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/recoveryManager.js",
+      "specifier": "../../../../common/database",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/settlementMatcher.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/settlementMatcher.js",
+      "specifier": "../../../../common/database",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/settlementReport.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/settlementRepository.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/settlementScheduler.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/payment/mtn/settlement/varianceDetector.js",
+      "specifier": "../../../../common/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/regulatory/adapters/uganda/UgandaRegulatoryAdapter.js",
+      "specifier": "../../compliance/regulatory/RegulatoryAdapterInterface",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/risk.service.js",
+      "specifier": "../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/amlScreeningService.js",
+      "specifier": "./AMLScreeningService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/behavioralAnalysisService.js",
+      "specifier": "../../models/RiskAlert",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/behavioralAnalysisService.js",
+      "specifier": "../../models/BehavioralProfile",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/behavioralAnalysisService.js",
+      "specifier": "./BehavioralAnalysisService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/caseManagementService.js",
+      "specifier": "../../models/Case",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/caseManagementService.js",
+      "specifier": "../../models/RiskAlert",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/caseManagementService.js",
+      "specifier": "./CaseManagementService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/creditScoringService.js",
+      "specifier": "../../models/RiskProfile",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/creditScoringService.js",
+      "specifier": "./CreditScoringService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/deviceFingerprintService.js",
+      "specifier": "../../models/DeviceFingerprint",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/deviceFingerprintService.js",
+      "specifier": "../../models/RiskAlert",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/deviceFingerprintService.js",
+      "specifier": "./DeviceFingerprintService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/fraudDetectionService.js",
+      "specifier": "./FraudDetectionService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/riskAnalyticsService.js",
+      "specifier": "../../models/TransactionLog",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/riskAnalyticsService.js",
+      "specifier": "../../models/RiskAlert",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/riskAnalyticsService.js",
+      "specifier": "../../models/Case",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/riskAnalyticsService.js",
+      "specifier": "../../models/RiskProfile",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/riskAnalyticsService.js",
+      "specifier": "./RiskAnalyticsService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/transactionMonitoringService.js",
+      "specifier": "../../models/RiskAlert",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/transactionMonitoringService.js",
+      "specifier": "../../models/TransactionLog",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/risk/services/transactionMonitoringService.js",
+      "specifier": "./TransactionMonitoringService",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/savingsAccountingService.js",
+      "specifier": "./logger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transaction/transaction.service.js",
+      "specifier": "../models/Transaction",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/TransactionEventPublisher.js",
+      "specifier": "./transactions/TransactionErrors",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/TransactionEventPublisher.js",
+      "specifier": "./transactions/TransactionEvents",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/TransactionEventPublisher.js",
+      "specifier": "./transactions/TransactionConstants",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/TransactionEventPublisher.js",
+      "specifier": "../shared/logging/StructuredLogger",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/TransactionEventPublisher.js",
+      "specifier": "../shared/logging/LoggerFactory",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/orchestration/AuditCorrelationManager.js",
+      "specifier": "../../models/AuditLog",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/orchestration/index.js",
+      "specifier": "./orchestration",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/orchestration/index.js",
+      "specifier": "./orchestration",
+      "critical": false
+    },
+    {
+      "file": "backend/modules/transactions/orchestration/index.js",
+      "specifier": "./orchestration",
+      "critical": false
+    },
+    {
+      "file": "backend/queues/transaction.worker.js",
+      "specifier": "../constants/transactionConstants",
+      "critical": false
+    },
+    {
+      "file": "backend/queues/transaction.worker.js",
+      "specifier": "../services/transactionService",
+      "critical": false
+    },
+    {
+      "file": "backend/repositories/complianceRepository.js",
+      "specifier": "../models/Compliance",
+      "critical": false
+    },
+    {
+      "file": "backend/repositories/complianceRepository.js",
+      "specifier": "../infrastructure/logging/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/repositories/financial/financialTransaction.repository.js",
+      "specifier": "../../models/financialTransaction.model",
+      "critical": false
+    },
+    {
+      "file": "backend/repositories/financial/ledger.repository.js",
+      "specifier": "../../models/ledgerEntry.model",
+      "critical": false
+    },
+    {
+      "file": "backend/repositories/financial/loan.repository.js",
+      "specifier": "../../models/loan.model",
+      "critical": false
+    },
+    {
+      "file": "backend/repositories/reconciliationRepository.js",
+      "specifier": "../infrastructure/logging/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/admin.routes.js",
+      "specifier": "./routes/admin.routes",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/airtelRoutes.js",
+      "specifier": "../middleware/authorize",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/airtelRoutes.js",
+      "specifier": "../middleware/rateLimiter",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/airtelRoutes.js",
+      "specifier": "../middleware/rateLimit",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/airtelRoutes.js",
+      "specifier": "../middleware/airtelWebhook",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/airtelRoutes.js",
+      "specifier": "../middleware/webhookVerification",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/analytics.js",
+      "specifier": "../middleware/authorize",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/auditRoutes.js",
+      "specifier": "../middleware/authorize",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/chat.js",
+      "specifier": "../middlewares/auth",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/index.js",
+      "specifier": "./routes",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/index.js",
+      "specifier": "./routes",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/transaction.routes.js",
+      "specifier": "../middlewares/auth",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/ussd.js",
+      "specifier": "../middleware/authenticate",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/ussd.js",
+      "specifier": "../services/tenantService",
+      "critical": false
+    },
+    {
+      "file": "backend/routes/ussd.js",
+      "specifier": "../constants/features",
+      "critical": false
+    },
+    {
+      "file": "backend/runtime/httpServer.js",
+      "specifier": "./runtime/httpServer",
+      "critical": false
+    },
+    {
+      "file": "backend/runtime/metrics.js",
+      "specifier": "./backend/runtime/metrics",
+      "critical": false
+    },
+    {
+      "file": "backend/runtime/requestDrain.js",
+      "specifier": "./backend/runtime/requestDrain",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/User",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/Member",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/Group",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/Savings",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/Contribution",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/Transaction",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/Audit",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/FraudLog",
+      "critical": false
+    },
+    {
+      "file": "backend/services/admin/adminAnalytics.service.js",
+      "specifier": "../models/ComplianceLog",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/auth.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/collections.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/collections.js",
+      "specifier": "../../modules/auditService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/collections.js",
+      "specifier": "../../modules/queueService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/disbursements.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/disbursements.js",
+      "specifier": "../../modules/auditService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/disbursements.js",
+      "specifier": "../../modules/queueService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/reconciliation.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/reconciliation.js",
+      "specifier": "../../models/ReconciliationRun",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/reconciliation.js",
+      "specifier": "../../models/ReconciliationException",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/webhooks.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/airtel/webhooks.js",
+      "specifier": "../../models/WebhookEvent",
+      "critical": false
+    },
+    {
+      "file": "backend/services/authService.js",
+      "specifier": "../models/Tenant",
+      "critical": false
+    },
+    {
+      "file": "backend/services/bizchatService.js",
+      "specifier": "../services/loanService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/bizchatService.js",
+      "specifier": "../services/transactionService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/crbService.js",
+      "specifier": "./services/crbService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/crbService.js",
+      "specifier": "../utils/redisClient",
+      "critical": false
+    },
+    {
+      "file": "backend/services/dashboardService.js",
+      "specifier": "../../../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/dashboardService.js",
+      "specifier": "../../../repositories/memberRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/services/dashboardService.js",
+      "specifier": "../../../repositories/loanRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/services/dashboardService.js",
+      "specifier": "../../../repositories/savingsRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/services/dashboardService.js",
+      "specifier": "../../../repositories/transactionRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/services/dashboardService.js",
+      "specifier": "../../../repositories/auditRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/auth.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/collections.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/collections.js",
+      "specifier": "../../modules/auditService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/collections.js",
+      "specifier": "../../modules/queueService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/disbursements.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/disbursements.js",
+      "specifier": "../../modules/auditService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/disbursements.js",
+      "specifier": "../../modules/queueService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/reconciliation.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/reconciliation.js",
+      "specifier": "../../modules/queueService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/reconciliation.js",
+      "specifier": "../../modules/reportExportService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/webhooks.js",
+      "specifier": "../../modules/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/webhooks.js",
+      "specifier": "../../models/WebhookEvent",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/webhooks.js",
+      "specifier": "../../modules/auditService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/mtn/webhooks.js",
+      "specifier": "../../modules/queueService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/notificationService.js",
+      "specifier": "./pushService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/redis.js",
+      "specifier": "./services/redis",
+      "critical": false
+    },
+    {
+      "file": "backend/services/savingsService.js",
+      "specifier": "../repositories/savingsRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/services/savingsService.js",
+      "specifier": "./fraudService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/systemSettingService.js",
+      "specifier": "../models/systemSetting.model",
+      "critical": false
+    },
+    {
+      "file": "backend/services/ussdService.js",
+      "specifier": "./memberService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/ussdService.js",
+      "specifier": "./loanService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/ussdService.js",
+      "specifier": "./mobileMoneySettlementService",
+      "critical": false
+    },
+    {
+      "file": "backend/services/walletService.js",
+      "specifier": "../models/SavingsAccount",
+      "critical": false
+    },
+    {
+      "file": "backend/services/walletService.js",
+      "specifier": "./mobileMoneySettlementService",
+      "critical": false
+    },
+    {
+      "file": "backend/shared/middleware/auditLogMiddleware.js",
+      "specifier": "../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/shared/tracing/events/EventBus.js",
+      "specifier": "../tracing/TraceContext",
+      "critical": false
+    },
+    {
+      "file": "backend/src/infrastructure/monitoring/health.controller.js",
+      "specifier": "../../config/redis",
+      "critical": false
+    },
+    {
+      "file": "backend/src/infrastructure/monitoring/metrics.controller.js",
+      "specifier": "../../utils/logger",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/compliance/services/compliance.service.js",
+      "specifier": "../../models/Compliance",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.routes.js",
+      "specifier": "../../../../middleware/tenantMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.routes.js",
+      "specifier": "../../../../middleware/authenticationMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.routes.js",
+      "specifier": "../../../../middleware/authorizationMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.routes.js",
+      "specifier": "../../../../middleware/requestContextMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.service.js",
+      "specifier": "../../../ledger/services/ledger.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.service.js",
+      "specifier": "../../../notifications/services/notification.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.service.js",
+      "specifier": "../../../compliance/services/aml.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.service.js",
+      "specifier": "../../../fraud/services/fraud.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.service.js",
+      "specifier": "../../../billing/services/billingEngine",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.webhook.js",
+      "specifier": "../../../ledger/services/ledger.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.webhook.js",
+      "specifier": "../../../savings/services/savings.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.webhook.js",
+      "specifier": "../../../loans/services/loan.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.webhook.js",
+      "specifier": "../../../billing/services/billingEngine",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.webhook.js",
+      "specifier": "../../../notifications/services/notification.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.webhook.js",
+      "specifier": "../../../compliance/services/aml.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/airtel/airtel.webhook.js",
+      "specifier": "../../../fraud/services/fraud.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.routes.js",
+      "specifier": "../../../../middleware/tenantMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.routes.js",
+      "specifier": "../../../../middleware/authenticationMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.routes.js",
+      "specifier": "../../../../middleware/authorizationMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.routes.js",
+      "specifier": "../../../../middleware/requestContextMiddleware",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.service.js",
+      "specifier": "../../../ledger/services/ledger.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.service.js",
+      "specifier": "../../../notifications/services/notification.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.service.js",
+      "specifier": "../../../compliance/services/aml.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.service.js",
+      "specifier": "../../../fraud/services/fraud.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.service.js",
+      "specifier": "../../../billing/services/billingEngine",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.webhook.js",
+      "specifier": "../../../ledger/services/ledger.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.webhook.js",
+      "specifier": "../../../notifications/services/notification.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.webhook.js",
+      "specifier": "../../../savings/services/savings.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.webhook.js",
+      "specifier": "../../../loans/services/loan.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.webhook.js",
+      "specifier": "../../../billing/services/billingEngine",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.webhook.js",
+      "specifier": "../../../fraud/services/fraud.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/providers/momo/momo.webhook.js",
+      "specifier": "../../../compliance/services/aml.service",
+      "critical": false
+    },
+    {
+      "file": "backend/src/modules/payments/reconciliation/reconciliation.job.js",
+      "specifier": "../../../../repositories/tenantRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/integration/legal.test.js",
+      "specifier": "../../models/LegalAcceptance",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/contribution.controller.test.js",
+      "specifier": "../models/Contribution",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/contribution.controller.test.js",
+      "specifier": "../models/Group",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/contribution.controller.test.js",
+      "specifier": "../controllers/contributionController",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/group.controller.test.js",
+      "specifier": "../models/Group",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/group.controller.test.js",
+      "specifier": "../models/User",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/group.controller.test.js",
+      "specifier": "../controllers/groupController",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/loan.controller.test.js",
+      "specifier": "../models/Loan",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/loan.controller.test.js",
+      "specifier": "../models/User",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/loan.controller.test.js",
+      "specifier": "../models/Group",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/loan.controller.test.js",
+      "specifier": "../controllers/loanController",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/loanWorkflowService.test.js",
+      "specifier": "../../../backend/modules/loan/repositories/loanScheduleRepository",
+      "critical": false
+    },
+    {
+      "file": "backend/tests/unit/loanWorkflowService.test.js",
+      "specifier": "../../../backend/modules/compliance/services/complianceService",
+      "critical": false
+    },
+    {
+      "file": "backend/utils/asyncHandler.js",
+      "specifier": "../../utils/asyncHandler",
+      "critical": false
+    },
+    {
+      "file": "backend/utils/tracing.js",
+      "specifier": "./utils/tracing",
+      "critical": false
+    },
+    {
+      "file": "backend/utils/validateInput.js",
+      "specifier": "../constants/httpStatus",
+      "critical": false
+    },
+    {
+      "file": "backend/utils/validators.js",
+      "specifier": "./utils/validators.js",
+      "critical": false
+    },
+    {
+      "file": "backend/workers/referralRewardWorker.js",
+      "specifier": "./workers/referralRewardWorker",
+      "critical": false
+    }
+  ],
+  "criticalMissing": [],
+  "mixedCanonicalFinancialModules": []
+}
