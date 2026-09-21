@@ -4,7 +4,7 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * TITech Community Capital financial infrastructure
  * =============================================================================
  *
  * File:
@@ -73,6 +73,12 @@ import {
     FINANCIAL_OPERATION,
     executeFinancialOperation
 } from '../services/financial/financialOperation.service.js';
+
+import {
+    processFinancialOperation
+} from '../services/financial/financialTransaction.service.js';
+
+import financialRepositoryRegistry from '../services/financial/financialRepositoryRegistry.js';
 
 // =============================================================================
 // Constants
@@ -860,6 +866,12 @@ function normalizeContributionRequest(
         memberId,
         saccoId,
         accountId,
+        sourceAccountId:
+            normalizeString(
+                body.sourceAccountId ||
+                body.counterpartyAccountId,
+                'sourceAccountId'
+            ),
         amount,
         currency,
         paymentReference,
@@ -1047,66 +1059,26 @@ async function createContribution(
     res,
     next
 ) {
-    const logger =
-        resolveLogger(
-            req
-        );
-
-    const startedAt =
-        Date.now();
-
+    const logger = resolveLogger(req);
+    const startedAt = Date.now();
     let input = null;
 
     try {
-        // ---------------------------------------------------------------------
-        // Normalize and validate request.
-        // ---------------------------------------------------------------------
+        input = normalizeContributionRequest(req);
 
-        input =
-            normalizeContributionRequest(
-                req
-            );
-
-        // ---------------------------------------------------------------------
-        // Resolve canonical financial transaction context.
-        //
-        // The transaction context owns session/repositories/idempotency.
-        // ---------------------------------------------------------------------
-
-        const transactionContext =
-            resolveFinancialTransactionContext(
-                req
-            );
-
-        const session =
-            transactionContext.session;
-
-        const repositories =
-            assertRepositories(
-                transactionContext.repositories
-            );
-
-        assertActiveSession(
-            session
-        );
-
-        // ---------------------------------------------------------------------
-        // Verify the context agrees with the authenticated/request identity.
-        // ---------------------------------------------------------------------
-
-        const contextTenantId =
+        const tenantId =
             normalizeString(
-                transactionContext.tenantId,
-                'transactionContext.tenantId',
-                {
-                    required: true
-                }
+                req?.tenantId ||
+                req?.tenant?.id ||
+                req?.tenant?._id ||
+                req?.auth?.tenantId ||
+                req?.user?.tenantId ||
+                req?.user?.tenant?.id,
+                'tenantId',
+                { required: true }
             );
 
-        if (
-            contextTenantId !==
-            input.tenantId
-        ) {
+        if (tenantId !== input.tenantId) {
             throw createControllerError(
                 'Tenant context mismatch.',
                 'FINANCIAL_TENANT_CONTEXT_MISMATCH',
@@ -1114,275 +1086,121 @@ async function createContribution(
             );
         }
 
+        const principalId =
+            resolvePrincipalId(req, input.memberId);
+
+        const idempotency = req?.idempotency;
+        if (!idempotency || idempotency.state !== 'NEW' || !idempotency.recordId) {
+            throw createControllerError(
+                'Financial idempotency context is required.',
+                'FINANCIAL_IDEMPOTENCY_REQUIRED',
+                503
+            );
+        }
+
         const transactionId =
             normalizeString(
-                transactionContext.transactionId,
-                'transactionContext.transactionId',
-                {
-                    required: true
-                }
+                req?.transactionId ||
+                req?.headers?.['x-transaction-id'],
+                'transactionId',
+                { required: false }
             );
-
-        const contextIdempotencyKey =
-            normalizeString(
-                transactionContext.idempotencyKey,
-                'transactionContext.idempotencyKey',
-                {
-                    required: true,
-                    maxLength:
-                        MAX_IDEMPOTENCY_KEY_LENGTH
-                }
-            );
-
-        if (
-            contextIdempotencyKey !==
-            input.idempotencyKey
-        ) {
-            throw createControllerError(
-                'Idempotency key does not match the canonical transaction context.',
-                'FINANCIAL_IDEMPOTENCY_CONTEXT_MISMATCH',
-                409
-            );
-        }
-
-        // ---------------------------------------------------------------------
-        // Build the exact financial context required by the canonical service.
-        // ---------------------------------------------------------------------
-
-        const financialContext = {
-            tenantId:
-                input.tenantId,
-
-            principalId:
-                transactionContext.principalId ||
-                input.principalId,
-
-            transactionId,
-
-            correlationId:
-                input.correlationId,
-
-            idempotencyKey:
-                input.idempotencyKey
-        };
 
         const result =
-            await executeFinancialOperation({
-                operation:
-                    FINANCIAL_OPERATION.CONTRIBUTION_CREATE,
-
-                session,
-
-                context:
-                    financialContext,
-
-                repositories,
-
-                payload: {
-                    amount:
-                        input.amount,
-
-                    currency:
-                        input.currency,
-
-                    accountId:
-                        input.accountId,
-
-                    memberId:
-                        input.memberId,
-
-                    savingsPlanId:
-                        input.savingsPlanId,
-
-                    metadata: {
-                        source:
-                            COMPONENT,
-
-                        saccoId:
-                            input.saccoId,
-
-                        memberId:
-                            input.memberId,
-
-                        paymentReference:
-                            input.paymentReference,
-
-                        provider:
-                            input.provider,
-
-                        correlationId:
-                            input.correlationId,
-
-                        idempotencyKey:
-                            input.idempotencyKey,
-
-                        ...input.metadata
-                    }
-                }
+            await processFinancialOperation({
+                tenantId,
+                principalId,
+                operation: FINANCIAL_OPERATION.CONTRIBUTION_CREATE,
+                resource: 'contributions',
+                transactionId,
+                idempotency,
+                execute: async ({ session, transactionId: effectiveTransactionId, idempotencyRecord }) =>
+                    executeFinancialOperation({
+                        operation: FINANCIAL_OPERATION.CONTRIBUTION_CREATE,
+                        session,
+                        context: {
+                            tenantId,
+                            principalId,
+                            transactionId: effectiveTransactionId,
+                            correlationId: input.correlationId,
+                            idempotencyKey: input.idempotencyKey,
+                        },
+                        repositories: financialRepositoryRegistry,
+                        payload: {
+                            amount: input.amount,
+                            currency: input.currency,
+                            accountId: input.accountId,
+                            sourceAccountId: input.sourceAccountId,
+                            memberId: input.memberId,
+                            savingsPlanId: input.savingsPlanId,
+                            metadata: {
+                                source: COMPONENT,
+                                saccoId: input.saccoId,
+                                memberId: input.memberId,
+                                paymentReference: input.paymentReference,
+                                provider: input.provider,
+                                correlationId: input.correlationId,
+                                idempotencyKey: input.idempotencyKey,
+                                idempotencyRecordId: String(idempotencyRecord?._id || idempotency.recordId),
+                                ...input.metadata,
+                            },
+                        },
+                    }),
             });
 
-        // ---------------------------------------------------------------------
-        // IMPORTANT:
-        //
-        // financialOperation.service.js does NOT commit the transaction.
-        //
-        // The surrounding financial transaction boundary owns commit/rollback.
-        //
-        // Therefore this controller deliberately does NOT call:
-        //
-        //   session.commitTransaction()
-        //   session.abortTransaction()
-        //
-        // ---------------------------------------------------------------------
-
-        const durationMs =
-            Date.now() -
-            startedAt;
-
         logger.info?.({
-            component:
-                COMPONENT,
-
-            operation:
-                FINANCIAL_OPERATION.CONTRIBUTION_CREATE,
-
-            event:
-                'contribution.completed',
-
-            tenantId:
-                input.tenantId,
-
-            saccoId:
-                input.saccoId,
-
-            memberId:
-                input.memberId,
-
-            transactionId,
-
-            idempotencyKey:
-                input.idempotencyKey,
-
-            correlationId:
-                input.correlationId,
-
-            durationMs
+            component: COMPONENT,
+            operation: FINANCIAL_OPERATION.CONTRIBUTION_CREATE,
+            event: 'contribution.completed',
+            tenantId,
+            saccoId: input.saccoId,
+            memberId: input.memberId,
+            transactionId: result.transactionId,
+            idempotencyRecordId: result.idempotencyRecordId,
+            correlationId: input.correlationId,
+            durationMs: Date.now() - startedAt,
         });
 
-        return res.status(
-            201
-        ).json(
-            buildResponse(
-                result,
-                {
-                    ...input,
-                    transactionId
-                }
-            )
-        );
-    } catch (
-        error
-    ) {
-        const status =
-            resolveErrorStatus(
-                error
-            );
+        if (result.transactionId) {
+            res.setHeader('X-Transaction-Id', result.transactionId);
+        }
+        if (result.idempotencyRecordId) {
+            res.setHeader('X-Idempotency-Record-Id', String(result.idempotencyRecordId));
+        }
+        res.setHeader('X-Financial-Operation', 'committed');
 
-        const safeMessage =
-            getSafeErrorMessage(
-                error,
-                status
-            );
+        return res
+            .status(result.httpStatus || 201)
+            .json(result.responseBody || buildResponse(result, input));
+    } catch (error) {
+        const status = resolveErrorStatus(error);
+        const safeMessage = getSafeErrorMessage(error, status);
 
         logger.error?.({
-            component:
-                COMPONENT,
-
-            operation:
-                FINANCIAL_OPERATION.CONTRIBUTION_CREATE,
-
-            event:
-                'contribution.failed',
-
-            tenantId:
-                input?.tenantId ||
-                null,
-
-            saccoId:
-                input?.saccoId ||
-                null,
-
-            memberId:
-                input?.memberId ||
-                null,
-
-            amount:
-                input?.amount ||
-                null,
-
-            currency:
-                input?.currency ||
-                null,
-
-            paymentReference:
-                input?.paymentReference ||
-                null,
-
-            correlationId:
-                input?.correlationId ||
-                null,
-
-            idempotencyKey:
-                input?.idempotencyKey ||
-                null,
-
-            code:
-                error?.code ||
-                'CONTRIBUTION_PROCESSING_ERROR',
-
+            component: COMPONENT,
+            operation: FINANCIAL_OPERATION.CONTRIBUTION_CREATE,
+            event: 'contribution.failed',
+            tenantId: input?.tenantId || null,
+            saccoId: input?.saccoId || null,
+            memberId: input?.memberId || null,
+            currency: input?.currency || null,
+            paymentReference: input?.paymentReference || null,
+            correlationId: input?.correlationId || resolveCorrelationId(req),
+            idempotencyKey: input?.idempotencyKey || null,
+            code: error?.code || 'CONTRIBUTION_PROCESSING_ERROR',
             status,
-
-            error:
-                error?.message ||
-                String(error),
-
-            durationMs:
-                Date.now() -
-                startedAt
+            durationMs: Date.now() - startedAt,
         });
 
-        /**
-         * Preserve the centralized TITech error-handler contract where the
-         * application has installed one.
-         */
-        if (
-            typeof next ===
-            'function' &&
-            error?.delegateToErrorHandler === true
-        ) {
-            return next(
-                error
-            );
+        if (typeof next === 'function' && error?.delegateToErrorHandler === true) {
+            return next(error);
         }
 
-        return res.status(
-            status
-        ).json({
-            success:
-                false,
-
-            code:
-                error?.code ||
-                'CONTRIBUTION_PROCESSING_ERROR',
-
-            message:
-                safeMessage,
-
-            correlationId:
-                input?.correlationId ||
-                resolveCorrelationId(
-                    req
-                )
+        return res.status(status).json({
+            success: false,
+            code: error?.code || 'CONTRIBUTION_PROCESSING_ERROR',
+            message: safeMessage,
+            correlationId: input?.correlationId || resolveCorrelationId(req),
         });
     }
 }

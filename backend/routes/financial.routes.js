@@ -70,14 +70,12 @@
  * ============================================================================
  */
 
-const express =
-    require('express');
-
-const crypto =
-    require('node:crypto');
-
-const rateLimit =
-    require('express-rate-limit');
+import express from 'express';
+import crypto from 'node:crypto';
+import rateLimit from 'express-rate-limit';
+import idempotencyModule from '../middleware/idempotency.js';
+import authModule from '../middleware/auth.js';
+import financialControllerModule from '../controllers/financial/financial.controller.js';
 
 const router =
     express.Router({
@@ -248,20 +246,13 @@ router.use(
  *
  * The project may export:
  *
- *   module.exports.idempotency
+ *   default.idempotency
  *
- * or:
- *
- *   module.exports = idempotency
+ * or a compatible named export.
  *
  * The route supports both contracts but fails closed if neither is available.
  * ============================================================================
  */
-
-const idempotencyModule =
-    require(
-        '../middleware/idempotency'
-    );
 
 const idempotencyFactory =
     resolveRequiredMiddlewareExport(
@@ -279,14 +270,16 @@ const idempotencyFactory =
  */
 
 const authenticate =
-    resolveMiddleware(
-        [
-            '../middleware/authentication',
-            '../middleware/auth',
-            '../middleware/authenticate'
-        ],
+    resolveRequiredCandidateExport(
+        authModule,
         'authenticate'
     );
+
+if (typeof authenticate !== 'function') {
+    throw new TypeError(
+        `[${ROUTER_NAME}] Canonical authentication middleware is unavailable.`
+    );
+}
 
 /**
  * ============================================================================
@@ -295,14 +288,16 @@ const authenticate =
  */
 
 const tenantAuthorization =
-    resolveMiddleware(
-        [
-            '../middleware/tenantAuthorization',
-            '../middleware/tenant.authorization',
-            '../middleware/tenant'
-        ],
-        'tenantAuthorization'
+    resolveRequiredCandidateExport(
+        authModule,
+        'requireAuthenticatedTenant'
     );
+
+if (typeof tenantAuthorization !== 'function') {
+    throw new TypeError(
+        `[${ROUTER_NAME}] Canonical tenant authorization middleware is unavailable.`
+    );
+}
 
 /**
  * ============================================================================
@@ -311,9 +306,7 @@ const tenantAuthorization =
  */
 
 const financialController =
-    require(
-        '../controllers/financial/financial.controller'
-    );
+    financialControllerModule;
 
 /**
  * ============================================================================
@@ -818,6 +811,20 @@ function requireTenantContext(
  * ============================================================================
  */
 
+function requireLedgerPostingPermission(req, res, next) {
+    const checker = authModule?.requirePermission;
+    if (typeof checker !== 'function') {
+        return res.status(503).json({
+            success: false,
+            code: 'FINANCIAL_AUTHORIZATION_UNAVAILABLE',
+            message: 'Financial authorization is unavailable.',
+            requestId: req.requestId,
+            correlationId: req.correlationId,
+        });
+    }
+    return checker('ledger:post')(req, res, next);
+}
+
 router.use(
     authenticate
 );
@@ -843,6 +850,7 @@ router.post(
     '/transactions',
 
     financialWriteLimiter,
+    requireLedgerPostingPermission,
 
     requireObjectBody,
 
@@ -1282,134 +1290,6 @@ function createIdempotencyMiddleware({
     return middleware;
 }
 
-/**
- * ============================================================================
- * SECURITY MIDDLEWARE RESOLVER
- * ============================================================================
- *
- * Supported module shapes:
- *
- *   module.exports = function middleware() {}
- *
- *   module.exports = {
- *       authenticate
- *   }
- *
- *   module.exports = {
- *       tenantAuthorization
- *   }
- *
- * Security middleware is always fail-closed.
- * ============================================================================
- */
-
-function resolveRequiredMiddlewareExport(
-    moduleValue,
-    exportNames,
-    logicalName
-) {
-    if (
-        typeof moduleValue ===
-        'function'
-    ) {
-        return moduleValue;
-    }
-
-    for (
-        const exportName
-        of exportNames
-    ) {
-        if (
-            moduleValue &&
-            typeof moduleValue[
-                exportName
-            ] ===
-            'function'
-        ) {
-            return moduleValue[
-                exportName
-            ];
-        }
-    }
-
-    throw new Error(
-        `[${ROUTER_NAME}] Required middleware "${logicalName}" is not configured.`
-    );
-}
-
-function resolveMiddleware(
-    candidates,
-    exportName
-) {
-    for (
-        const candidate
-        of candidates
-    ) {
-        try {
-            const moduleValue =
-                require(
-                    candidate
-                );
-
-            const resolved =
-                resolveRequiredCandidateExport(
-                    moduleValue,
-                    exportName
-                );
-
-            if (
-                typeof resolved ===
-                'function'
-            ) {
-                return resolved;
-            }
-        } catch (
-            error
-        ) {
-            /**
-             * Only ignore candidate lookup failures.
-             *
-             * A runtime exception from an existing middleware module must
-             * surface rather than being hidden.
-             */
-            if (
-                error &&
-                error.code !==
-                    'MODULE_NOT_FOUND'
-            ) {
-                throw error;
-            }
-        }
-    }
-
-    /**
-     * Fail closed.
-     *
-     * Financial routes must never silently continue without security
-     * middleware.
-     */
-    return function missingRequiredMiddleware(
-        req,
-        res,
-        next
-    ) {
-        const error =
-            new Error(
-                `Required security middleware "${exportName}" is not configured.`
-            );
-
-        error.code =
-            'FINANCIAL_SECURITY_MIDDLEWARE_NOT_CONFIGURED';
-
-        error.statusCode =
-            500;
-
-        next(
-            error
-        );
-    };
-}
-
 function resolveRequiredCandidateExport(
     moduleValue,
     exportName
@@ -1457,5 +1337,4 @@ router.serviceName =
  * ============================================================================
  */
 
-module.exports =
-    router;
+export default router;

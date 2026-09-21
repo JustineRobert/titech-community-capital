@@ -383,17 +383,16 @@ function validateCallback(callback) {
     }
 
 
-    const amount =
-        Number(callback.amount);
-
+    const amount = String(callback.amount).trim();
+    const decimalAmountPattern = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
 
     if (
-        !Number.isFinite(amount) ||
-        amount <= 0
+        !decimalAmountPattern.test(amount) ||
+        /^0(?:\.0+)?$/.test(amount)
     ) {
 
         errors.push(
-            'Transaction amount must be greater than zero'
+            'Transaction amount must be a positive decimal string'
         );
 
     }
@@ -1090,7 +1089,7 @@ async function handleMomoCallback(req, res) {
                     'deposit',
 
                 amount:
-                    Number(callback.amount),
+                    String(callback.amount).trim(),
 
                 currency:
                     callback.currency || 'UGX',

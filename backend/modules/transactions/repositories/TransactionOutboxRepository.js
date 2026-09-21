@@ -298,7 +298,8 @@ class TransactionOutboxRepository {
 
             const created =
                 await this.model.create(
-                    document
+                    document,
+                    options
                 );
 
 

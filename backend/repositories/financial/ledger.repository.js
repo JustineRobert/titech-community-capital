@@ -97,25 +97,13 @@
  * ============================================================================
  */
 
-const mongoose =
-    require("mongoose");
+import mongoose from 'mongoose';
 
-const {
-    LedgerEntry
-} = require(
-    "../../models/ledgerEntry.model"
-);
+import FinancialLedgerEntry from '../../models/FinancialLedgerEntry.js';
 
-const {
-    FinancialTransactionError
-} = require(
-    "../../services/financial/financialTransaction.service"
-);
+import { FinancialTransactionError } from '../../services/financial/financialTransaction.service.js';
 
-const tenantConstants =
-    require(
-        "../../tenancy/tenant.constants"
-    );
+import tenantConstants from '../../tenancy/tenant.constants.js';
 
 /**
  * ============================================================================
@@ -782,14 +770,60 @@ function normalizeEntry(
         currency,
         entryType,
         direction,
-        metadata = {}
+        metadata = {},
+        journalId = transactionId,
+        lineNumber = 1,
+        source = metadata?.source || "SYSTEM",
+        sourceId = metadata?.sourceId || transactionId,
+        providerReference = metadata?.providerReference || null,
+        externalId = metadata?.externalId || null,
+        userId = metadata?.userId || null,
+        groupId = metadata?.groupId || null,
+        loanId = metadata?.loanId || null,
+        savingsAccountId = metadata?.savingsAccountId || null,
+        walletId = metadata?.walletId || null,
+        correlationId = metadata?.correlationId || null,
+        description = metadata?.description || null,
+        notes = metadata?.notes || null,
+        accountCode = metadata?.accountCode || null,
+        accountName = metadata?.accountName || null,
+        accountType = metadata?.accountType || null
     } = entry;
 
+    const normalizedTransactionId =
+        requireTransactionId(
+            transactionId
+        );
+
+    if (!Number.isSafeInteger(Number(lineNumber)) || Number(lineNumber) < 1) {
+        throw createLedgerError(
+            "Ledger lineNumber must be a positive safe integer.",
+            "LEDGER_INVALID_LINE_NUMBER",
+            400
+        );
+    }
+
+    const normalizedEntryType =
+        requireEntryType(
+            entryType
+        );
+
+    const normalizedDirection =
+        requireDirection(
+            direction
+        );
+
     return {
-        transactionId:
+        financialTransactionId:
+            normalizedTransactionId,
+
+        journalId:
             requireTransactionId(
-                transactionId
+                journalId
             ),
+
+        lineNumber:
+            Number(lineNumber),
 
         tenantId:
             requireTenantId(
@@ -812,226 +846,67 @@ function normalizeEntry(
             ),
 
         entryType:
-            requireEntryType(
-                entryType
-            ),
+            normalizedEntryType,
 
         direction:
-            requireDirection(
-                direction
-            ),
+            normalizedDirection,
+
+        source:
+            String(source || "SYSTEM")
+                .trim()
+                .toUpperCase(),
+
+        sourceId:
+            sourceId == null ? null : String(sourceId).trim(),
+
+        providerReference:
+            providerReference == null ? null : String(providerReference).trim(),
+
+        externalId:
+            externalId == null ? null : String(externalId).trim(),
+
+        userId:
+            userId == null ? null : String(userId).trim(),
+
+        groupId:
+            groupId == null ? null : String(groupId).trim(),
+
+        loanId:
+            loanId == null ? null : String(loanId).trim(),
+
+        savingsAccountId:
+            savingsAccountId == null ? null : String(savingsAccountId).trim(),
+
+        walletId:
+            walletId == null ? null : String(walletId).trim(),
+
+        correlationId:
+            correlationId == null ? null : String(correlationId).trim(),
+
+        description:
+            description == null ? null : String(description).trim(),
+
+        notes:
+            notes == null ? null : String(notes).trim(),
+
+        accountCode:
+            accountCode == null ? null : String(accountCode).trim().toUpperCase(),
+
+        accountName:
+            accountName == null ? null : String(accountName).trim(),
+
+        accountType:
+            accountType == null ? null : String(accountType).trim().toUpperCase(),
+
+        posted: true,
+
+        reversed: false,
 
         metadata:
             normalizeMetadata(
                 metadata
             )
     };
-}
-
-/**
- * ============================================================================
- * Tenant Consistency
- * ============================================================================
- */
-
-function requireSameTenant(
-    entries
-) {
-    const firstTenantId =
-        entries[0]?.tenantId;
-
-    for (
-        const entry of
-        entries
-    ) {
-        if (
-            entry.tenantId !==
-            firstTenantId
-        ) {
-            throw createLedgerError(
-                "All ledger entries in a batch must belong to the same tenant.",
-                "LEDGER_TENANT_MISMATCH",
-                400
-            );
-        }
-    }
-
-    return firstTenantId;
-}
-
-/**
- * ============================================================================
- * Transaction Consistency
- * ============================================================================
- */
-
-function requireSameTransaction(
-    entries
-) {
-    const firstTransactionId =
-        entries[0]?.transactionId;
-
-    for (
-        const entry of
-        entries
-    ) {
-        if (
-            entry.transactionId !==
-            firstTransactionId
-        ) {
-            throw createLedgerError(
-                "All ledger entries in a batch must belong to the same financial transaction.",
-                "LEDGER_TRANSACTION_MISMATCH",
-                400
-            );
-        }
-    }
-
-    return firstTransactionId;
-}
-
-/**
- * ============================================================================
- * Currency Consistency
- * ============================================================================
- *
- * A single double-entry transaction should normally use a single currency.
- * FX transactions should be represented as separate linked transactions or
- * through an explicitly designed multi-currency mechanism.
- * ============================================================================
- */
-
-function requireSameCurrency(
-    entries
-) {
-    const firstCurrency =
-        entries[0]?.currency;
-
-    for (
-        const entry of
-        entries
-    ) {
-        if (
-            entry.currency !==
-            firstCurrency
-        ) {
-            throw createLedgerError(
-                "All ledger entries in a standard ledger transaction must use the same currency.",
-                "LEDGER_CURRENCY_MISMATCH",
-                400,
-                {
-                    expected:
-                        firstCurrency,
-
-                    received:
-                        entry.currency
-                }
-            );
-        }
-    }
-
-    return firstCurrency;
-}
-
-/**
- * ============================================================================
- * Double-Entry Validation
- * ============================================================================
- */
-
-function validateBalancedEntries(
-    entries
-) {
-    if (
-        !Array.isArray(
-            entries
-        ) ||
-        entries.length <
-        2
-    ) {
-        throw createLedgerError(
-            "A double-entry transaction requires at least two ledger entries.",
-            "LEDGER_DOUBLE_ENTRY_REQUIRED",
-            400
-        );
-    }
-
-    let debitValues =
-        [];
-
-    let creditValues =
-        [];
-
-    for (
-        const entry of
-        entries
-    ) {
-        const amount =
-            normalizeDecimalString(
-                entry.amount
-            );
-
-        if (
-            !amount
-        ) {
-            throw createLedgerError(
-                "Ledger amount must use canonical decimal notation.",
-                "LEDGER_NON_CANONICAL_AMOUNT",
-                400
-            );
-        }
-
-        if (
-            entry.direction ===
-            "DEBIT"
-        ) {
-            debitValues.push(
-                amount
-            );
-        } else {
-            creditValues.push(
-                amount
-            );
-        }
-    }
-
-    if (
-        debitValues.length ===
-            0 ||
-        creditValues.length ===
-            0
-    ) {
-        throw createLedgerError(
-            "A double-entry transaction requires at least one debit and one credit.",
-            "LEDGER_UNBALANCED_TRANSACTION",
-            400
-        );
-    }
-
-    const debitTotal =
-        sumExactDecimals(
-            debitValues
-        );
-
-    const creditTotal =
-        sumExactDecimals(
-            creditValues
-        );
-
-    if (
-        debitTotal !==
-        creditTotal
-    ) {
-        throw createLedgerError(
-            "Ledger transaction is not balanced.",
-            "LEDGER_UNBALANCED_TRANSACTION",
-            400,
-            {
-                debitTotal,
-                creditTotal
-            }
-        );
-    }
 }
 
 /**
@@ -1059,38 +934,26 @@ async function createEntry({
         session
     );
 
-    const normalizedEntry =
-        normalizeEntry({
-            transactionId,
-            tenantId,
-            accountId,
-            amount,
-            currency,
-            entryType,
-            direction,
-            metadata
+    const created =
+        await createEntries({
+            session,
+            entries: [
+                {
+                    transactionId,
+                    tenantId,
+                    accountId,
+                    amount,
+                    currency,
+                    entryType,
+                    direction,
+                    metadata,
+                    lineNumber: 1
+                }
+            ],
+            validateBalance: false
         });
 
-    try {
-        const created =
-            await LedgerEntry.create(
-                [
-                    normalizedEntry
-                ],
-                {
-                    session
-                }
-            );
-
-        return created[0];
-    } catch (
-        error
-    ) {
-        throw translatePersistenceError(
-            error,
-            normalizedEntry
-        );
-    }
+    return created[0];
 }
 
 /**
@@ -1140,7 +1003,16 @@ async function createEntries({
 
     const normalizedEntries =
         entries.map(
-            normalizeEntry
+            (entry, index) =>
+                normalizeEntry({
+                    ...entry,
+                    journalId:
+                        entry.journalId ||
+                        entry.transactionId,
+                    lineNumber:
+                        entry.lineNumber ??
+                        index + 1
+                })
         );
 
     requireSameTenant(
@@ -1165,7 +1037,7 @@ async function createEntries({
 
     try {
         const createdEntries =
-            await LedgerEntry.insertMany(
+            await FinancialLedgerEntry.insertMany(
                 normalizedEntries,
                 {
                     session,
@@ -1221,9 +1093,9 @@ async function findByTransactionId({
             };
 
     const query =
-        LedgerEntry.find(
+        FinancialLedgerEntry.find(
             {
-                transactionId:
+                financialTransactionId:
                     normalizedTransactionId,
 
                 tenantId:
@@ -1325,7 +1197,7 @@ async function findByAccountId({
     }
 
     const query =
-        LedgerEntry.find(
+        FinancialLedgerEntry.find(
             filter
         )
             .sort({
@@ -1374,9 +1246,9 @@ async function countByTransactionId({
         );
 
     const query =
-        LedgerEntry.countDocuments(
+        FinancialLedgerEntry.countDocuments(
             {
-                transactionId:
+                financialTransactionId:
                     normalizedTransactionId,
 
                 tenantId:
@@ -1443,7 +1315,7 @@ async function verifyTransactionBalance({
             entry =>
                 normalizeEntry({
                     transactionId:
-                        entry.transactionId,
+                        entry.financialTransactionId,
 
                     tenantId:
                         entry.tenantId,
@@ -1490,7 +1362,7 @@ async function verifyTransactionBalance({
 
         transactionId:
             normalized[0]
-                .transactionId,
+                .financialTransactionId,
 
         tenantId:
             normalized[0]
@@ -1565,7 +1437,7 @@ async function getAccountTotals({
         );
 
     const query =
-        LedgerEntry.find(
+        FinancialLedgerEntry.find(
             {
                 tenantId:
                     normalizedTenantId,
@@ -2391,7 +2263,7 @@ function deepClone(
  * ============================================================================
  */
 
-module.exports =
+const repositoryModule =
     Object.freeze({
         LEDGER_DIRECTIONS,
 
@@ -2429,3 +2301,4 @@ module.exports =
 
         requireAmount
     });
+export default repositoryModule;

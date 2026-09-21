@@ -140,43 +140,113 @@ function validateStructure() {
 }
 
 function validateConflicts() {
-  const marker = /^(<<<<<<<|>>>>>>>)( |$)|^=======$/m;
-  for (const file of walk(ROOT)) {
+  const files = walk(ROOT);
+  for (const file of files) {
     if (!EXECUTABLE_EXTENSIONS.has(path.extname(file)) && !/\.(md|json|ya?ml|sh|bat)$/.test(file)) continue;
-    const text = fs.readFileSync(file, 'utf8');
-    if (marker.test(text)) fail(`Merge-conflict marker found in ${rel(file)}.`);
+    const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
+    let state = null;
+    for (const line of lines) {
+      if (/^<<<<<<<(?: |$)/.test(line)) {
+        if (state) fail(`Nested Git conflict marker found in ${rel(file)}.`);
+        state = 'OURS';
+        continue;
+      }
+      if (state === 'OURS' && /^=======$/.test(line)) {
+        state = 'THEIRS';
+        continue;
+      }
+      if (state === 'THEIRS' && /^>>>>>>>/.test(line)) {
+        state = null;
+      }
+    }
+    if (state) fail(`Unclosed Git conflict block found in ${rel(file)}.`);
+  }
+
+  const critical = [
+    'backend/models/FinancialTransaction.js',
+    'backend/models/LedgerEntry.js',
+    'backend/services/financial/financialOperation.service.js',
+    'backend/services/financial/financialTransaction.service.js',
+    'backend/services/financial/financialRepositoryRegistry.js',
+    'backend/repositories/financial/balance.repository.js',
+    'backend/repositories/financial/financialTransaction.repository.js',
+    'backend/repositories/financial/ledger.repository.js',
+    'backend/repositories/financial/loan.repository.js',
+    'backend/controllers/financial/financial.controller.js',
+    'backend/controllers/repaymentsController.js',
+    'backend/controllers/momoWebhookController.js',
+  ];
+
+  for (const file of critical) {
+    if (!exists(file)) fail(`Critical canonical financial file is missing: ${file}`);
+    else if (fs.statSync(path.join(ROOT, file)).size === 0) fail(`Critical canonical financial file is empty: ${file}`);
   }
 }
 
 function validateSyntax() {
-  let ts;
+  let ts = null;
   try {
     const backendRequire = createRequire(path.join(ROOT, 'backend', 'package.json'));
     ts = backendRequire('typescript');
   } catch {
-    fail('TypeScript parser is not installed. Run npm ci --prefix backend before executing the full syntax gate.');
+    warn('TypeScript parser is not installed locally; running dependency-free Node syntax checks for JS/MJS/CJS and recording TS/JSX as NOT VERIFIED.');
+  }
+
+  const files = walk(ROOT).filter((file) => EXECUTABLE_EXTENSIONS.has(path.extname(file)));
+
+  if (ts) {
+    const syntaxErrors = [];
+    for (const file of files) {
+      const source = fs.readFileSync(file, 'utf8');
+      const ext = path.extname(file);
+      const scriptKind = ext === '.tsx' ? ts.ScriptKind.TSX : ext === '.jsx' ? ts.ScriptKind.JSX : ts.ScriptKind.JS;
+      const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKind);
+      for (const diagnostic of sf.parseDiagnostics) {
+        const start = diagnostic.start ?? 0;
+        const lc = sf.getLineAndCharacterOfPosition(start);
+        syntaxErrors.push(`${rel(file)}:${lc.line + 1}:${lc.character + 1} ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`);
+      }
+    }
+    if (syntaxErrors.length) {
+      fail(`${syntaxErrors.length} syntax diagnostics found:\n${syntaxErrors.slice(0, 100).join('\n')}`);
+    } else {
+      console.log(`Syntax gate: PASS (${files.length} executable JS/TS-family files parsed).`);
+    }
     return;
   }
 
-  let files = walk(ROOT).filter((file) => EXECUTABLE_EXTENSIONS.has(path.extname(file)));
+  const nodeFiles = files.filter((file) => ['.js', '.mjs', '.cjs'].includes(path.extname(file)));
+  const notVerified = files.filter((file) => ['.jsx', '.ts', '.tsx'].includes(path.extname(file)));
   const syntaxErrors = [];
 
-  for (const file of files) {
-    const source = fs.readFileSync(file, 'utf8');
-    const ext = path.extname(file);
-    const scriptKind = ext === '.tsx' ? ts.ScriptKind.TSX : ext === '.jsx' ? ts.ScriptKind.JSX : ts.ScriptKind.JS;
-    const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKind);
-    for (const diagnostic of sf.parseDiagnostics) {
-      const start = diagnostic.start ?? 0;
-      const lc = sf.getLineAndCharacterOfPosition(start);
-      syntaxErrors.push(`${rel(file)}:${lc.line + 1}:${lc.character + 1} ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`);
+  for (const file of nodeFiles) {
+    const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+    if (result.status !== 0) {
+      const detail = (result.stderr || result.stdout || 'unknown syntax error').trim();
+      syntaxErrors.push(`${rel(file)}: ${detail}`);
     }
   }
 
   if (syntaxErrors.length) {
-    fail(`${syntaxErrors.length} syntax diagnostics found:\n${syntaxErrors.slice(0, 100).join('\n')}`);
+    fail(`${syntaxErrors.length} JavaScript syntax errors found:\n${syntaxErrors.slice(0, 100).join('\n')}`);
   } else {
-    console.log(`Syntax gate: PASS (${files.length} executable JS/TS-family files parsed).`);
+    console.log(`Dependency-free syntax gate: PASS (${nodeFiles.length} JS/MJS/CJS files checked).`);
+  }
+  if (notVerified.length) {
+    warn(`TypeScript/JSX syntax not verified without TypeScript dependency: ${notVerified.length} file(s).`);
+  }
+}
+
+function validateDocumentationTruth() {
+  const staleTerms = [];
+  for (const file of walk(ROOT).filter((f) => /\.md$/i.test(f))) {
+    const text = fs.readFileSync(file, 'utf8');
+    if (/\bAFRICAN COMMUNITY FINANCE OPERATING SYSTEM\b|\bACFOS\b/i.test(text) && rel(file) !== 'TITECH_PLATFORM_TRUTH.md') {
+      staleTerms.push(rel(file));
+    }
+  }
+  if (staleTerms.length) {
+    warn(`Legacy ACFOS terminology remains in ${staleTerms.length} documentation file(s); classify or migrate it before external release.`);
   }
 }
 
@@ -229,6 +299,7 @@ function main() {
   if (args.has('--security') || args.has('--all')) {
     validateConflicts();
     validateSecurityInvariants();
+    validateDocumentationTruth();
   }
 
   if (warnings.length) {

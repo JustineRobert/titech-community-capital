@@ -1,0 +1,2 @@
+SHA256  titech-community-capital-main(7).zip
+259ba00d53fc0a06f20c683a877ea6e308d99d3ba245060f6ccd67738d20d155

@@ -112,7 +112,8 @@
     "check:runtime-imports": "node scripts/runtime-import-audit.mjs",
     "enterprise:gate": "node scripts/enterprise-gate.mjs --all",
     "check:structure": "node scripts/enterprise-gate.mjs --structure",
-    "postman:test:newman": "npx --yes newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli"
+    "postman:test:newman": "npx --yes newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli",
+    "truth:inventory": "node scripts/repository-truth-inventory.mjs"
   },
   "dependencies": {}
 }

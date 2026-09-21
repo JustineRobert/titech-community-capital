@@ -110,25 +110,13 @@
  * ============================================================================
  */
 
-const mongoose =
-    require("mongoose");
+import mongoose from 'mongoose';
 
-const {
-    FinancialTransaction
-} = require(
-    "../../models/financialTransaction.model"
-);
+import FinancialTransaction from '../../models/FinancialTransaction.js';
 
-const {
-    FinancialTransactionError
-} = require(
-    "../../services/financial/financialTransaction.service"
-);
+import { FinancialTransactionError } from '../../services/financial/financialTransaction.service.js';
 
-const tenantConstants =
-    require(
-        "../../tenancy/tenant.constants"
-    );
+import tenantConstants from '../../tenancy/tenant.constants.js';
 
 /**
  * ============================================================================
@@ -969,6 +957,114 @@ async function create({
 
 /**
  * ============================================================================
+ * Complete / State Transition
+ * ============================================================================
+ *
+ * Only the canonical financial coordinator may move a transaction to a
+ * completed state. Identity and monetary fields remain immutable.
+ * ============================================================================
+ */
+
+async function complete({
+    session,
+    transactionId,
+    tenantId,
+    metadata = {}
+}) {
+    requireActiveTransaction(session);
+
+    const normalizedTransactionId =
+        requireTransactionId(transactionId);
+
+    const normalizedTenantId =
+        requireTenantId(tenantId);
+
+    const normalizedMetadata =
+        normalizeMetadata(metadata);
+
+    try {
+        const result =
+            await FinancialTransaction.findOneAndUpdate(
+                {
+                    transactionId: normalizedTransactionId,
+                    tenantId: normalizedTenantId,
+                    status: {
+                        $in: ['PENDING', 'PROCESSING']
+                    }
+                },
+                {
+                    $set: {
+                        status: 'COMPLETED',
+                        completedAt: new Date(),
+                        ...(Object.keys(normalizedMetadata).length > 0
+                            ? { completionMetadata: normalizedMetadata }
+                            : {})
+                    }
+                },
+                {
+                    new: true,
+                    session,
+                    runValidators: true,
+                    context: 'query'
+                }
+            )
+                .lean()
+                .exec();
+
+        if (!result) {
+            const existing =
+                await FinancialTransaction.findOne({
+                    transactionId: normalizedTransactionId,
+                    tenantId: normalizedTenantId
+                })
+                    .session(session)
+                    .lean()
+                    .exec();
+
+            if (!existing) {
+                throw createRepositoryError(
+                    'Financial transaction was not found.',
+                    'FINANCIAL_TRANSACTION_NOT_FOUND',
+                    404,
+                    {
+                        transactionId: normalizedTransactionId,
+                        tenantId: normalizedTenantId
+                    }
+                );
+            }
+
+            throw createRepositoryError(
+                'Financial transaction cannot transition to COMPLETED from its current state.',
+                'FINANCIAL_TRANSACTION_INVALID_COMPLETION_STATE',
+                409,
+                {
+                    transactionId: normalizedTransactionId,
+                    tenantId: normalizedTenantId,
+                    status: existing.status
+                }
+            );
+        }
+
+        return result;
+    } catch (error) {
+        if (error instanceof FinancialTransactionError) {
+            throw error;
+        }
+
+        throw translatePersistenceError(
+            error,
+            {
+                transactionId: normalizedTransactionId,
+                tenantId: normalizedTenantId
+            }
+        );
+    }
+}
+
+const updateState = complete;
+
+/**
+ * ============================================================================
  * Find By Transaction ID
  * ============================================================================
  *
@@ -1526,7 +1622,7 @@ function deepClone(
  * ============================================================================
  */
 
-module.exports =
+const repositoryModule =
     Object.freeze({
         TRANSACTION_STATUSES,
 
@@ -1550,6 +1646,10 @@ module.exports =
 
         create,
 
+        complete,
+
+        updateState,
+
         findById,
 
         requireById,
@@ -1564,3 +1664,27 @@ module.exports =
 
         getSnapshot
     });
+export {
+    TRANSACTION_STATUSES,
+    requireSession,
+    requireActiveTransaction,
+    requireTransactionId,
+    requireTenantId,
+    requirePrincipalId,
+    requireOperation,
+    requireResource,
+    requireCurrency,
+    requireAmount,
+    create,
+    complete,
+    updateState,
+    findById,
+    requireById,
+    findByOperation,
+    findByPrincipal,
+    countByTenant,
+    exists,
+    getSnapshot
+};
+
+export default repositoryModule;

@@ -116,25 +116,13 @@
  * ============================================================================
  */
 
-const mongoose =
-    require("mongoose");
+import mongoose from 'mongoose';
 
-const {
-    Loan
-} = require(
-    "../../models/loan.model"
-);
+import Loan from '../../models/Loan.js';
 
-const {
-    FinancialTransactionError
-} = require(
-    "../../services/financial/financialTransaction.service"
-);
+import { FinancialTransactionError } from '../../services/financial/financialTransaction.service.js';
 
-const tenantConstants =
-    require(
-        "../../tenancy/tenant.constants"
-    );
+import tenantConstants from '../../tenancy/tenant.constants.js';
 
 /**
  * ============================================================================
@@ -1688,7 +1676,7 @@ function decimalToScaledBigInt(
  * ============================================================================
  */
 
-module.exports =
+const repositoryModule =
     Object.freeze({
         DISBURSEMENT_STATUS,
 
@@ -1732,3 +1720,4 @@ module.exports =
 
         verifyIntegrity
     });
+export default repositoryModule;

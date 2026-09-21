@@ -1110,67 +1110,57 @@ ledgerEntrySchema.statics.validateJournalBalance =
       };
     }
 
-    let debitTotal =
-      mongoose.Types.Decimal128.fromString('0');
-    let creditTotal =
-      mongoose.Types.Decimal128.fromString('0');
-
-    for (const entry of entries) {
-      const amount = Number(
-        entry.amount?.toString()
-      );
-
-      if (!Number.isFinite(amount)) {
-        return {
-          balanced: false,
-          reason:
-            `Invalid ledger amount on line ${entry.lineNumber}.`,
-        };
+    const toScaledInteger = (value) => {
+      const text = String(value?.toString?.() ?? value ?? '').trim();
+      if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(text)) {
+        throw new Error('Invalid ledger amount.');
       }
+      const [whole, fraction = ''] = text.split('.');
+      const padded = fraction.padEnd(2, '0').slice(0, 2);
+      return BigInt(whole || '0') * 100n + BigInt(padded || '0');
+    };
 
-      if (entry.entryType === 'DEBIT') {
-        debitTotal =
-          mongoose.Types.Decimal128.fromString(
-            (
-              Number(debitTotal.toString()) +
-              amount
-            ).toFixed(2)
-          );
-      } else if (entry.entryType === 'CREDIT') {
-        creditTotal =
-          mongoose.Types.Decimal128.fromString(
-            (
-              Number(creditTotal.toString()) +
-              amount
-            ).toFixed(2)
-          );
-      } else {
-        return {
-          balanced: false,
-          reason:
-            `Invalid entry type on line ${entry.lineNumber}.`,
-        };
+    let debitMinor = 0n;
+    let creditMinor = 0n;
+
+    try {
+      for (const entry of entries) {
+        const amountMinor = toScaledInteger(entry.amount);
+
+        if (entry.entryType === 'DEBIT') {
+          debitMinor += amountMinor;
+        } else if (entry.entryType === 'CREDIT') {
+          creditMinor += amountMinor;
+        } else {
+          return {
+            balanced: false,
+            reason:
+              `Invalid entry type on line ${entry.lineNumber}.`,
+          };
+        }
       }
+    } catch {
+      return {
+        balanced: false,
+        reason: 'Invalid decimal amount in ledger entries.',
+      };
     }
 
-    const debit =
-      Number(debitTotal.toString());
+    const differenceMinor = debitMinor >= creditMinor
+      ? debitMinor - creditMinor
+      : creditMinor - debitMinor;
 
-    const credit =
-      Number(creditTotal.toString());
+    const formatMinor = (minor) => {
+      const whole = minor / 100n;
+      const fraction = String(minor % 100n).padStart(2, '0');
+      return `${whole}.${fraction}`;
+    };
 
     return {
-      balanced:
-        Math.abs(debit - credit) < 0.000001,
-
-      debitTotal:
-        debitTotal.toString(),
-
-      creditTotal:
-        creditTotal.toString(),
-
-      difference:
-        Math.abs(debit - credit).toFixed(2),
+      balanced: debitMinor === creditMinor,
+      debitTotal: formatMinor(debitMinor),
+      creditTotal: formatMinor(creditMinor),
+      difference: formatMinor(differenceMinor),
     };
   };
 

@@ -4,7 +4,7 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * ACFOS Financial Idempotency Middleware
+ * TITech Community Capital Financial Idempotency Middleware
  * =============================================================================
  *
  * File:

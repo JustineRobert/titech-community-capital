@@ -2,8 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * TITech Community Capital Ltd
  * Financial Controller
  * =============================================================================
  *
@@ -11,7 +10,7 @@
  *   backend/controllers/financial/financial.controller.js
  *
  * Purpose:
- *   Thin HTTP controller boundary for ACFOS financial operations.
+ *   Thin HTTP controller boundary for TITech Community Capital financial operations.
  *
  * Responsibilities:
  *
@@ -67,6 +66,8 @@ import {
 import {
     executeFinancialOperation
 } from "../../services/financial/financialOperation.service.js";
+
+import financialRepositoryRegistry from "../../services/financial/financialRepositoryRegistry.js";
 
 // =============================================================================
 // Constants
@@ -359,12 +360,21 @@ async function executeControllerOperation({
 
     operationType,
 
+    payload = null,
+
     validate = null
 
 }) {
 
     const body =
         getRequestBody(req);
+
+    const operationPayload =
+        payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload)
+            ? { ...body, ...payload }
+            : { ...body };
 
     const context =
         buildFinancialContext({
@@ -431,7 +441,8 @@ async function executeControllerOperation({
                      */
                     return executeFinancialOperation({
 
-                        operationType,
+                        operation:
+                            operationType,
 
                         tenantId:
                             context.tenantId,
@@ -446,12 +457,17 @@ async function executeControllerOperation({
 
                         idempotencyRecord,
 
-                        body,
+                        body: operationPayload,
+
+                        payload: operationPayload,
 
                         request:
                             req,
 
-                        session
+                        session,
+
+                        repositories:
+                            financialRepositoryRegistry
 
                     });
                 }
@@ -551,7 +567,17 @@ async function createTransaction(
                     "financial-transactions",
 
                 operationType:
-                    "TRANSACTION_CREATE"
+                    "TRANSACTION_CREATE",
+
+                validate: ({ body }) => {
+                    if (!Array.isArray(body.entries) || body.entries.length < 2) {
+                        throw new FinancialControllerError(
+                            'entries must contain at least two posting lines.',
+                            'FINANCIAL_TRANSACTION_ENTRIES_REQUIRED',
+                            422
+                        );
+                    }
+                }
 
             });
 
@@ -774,6 +800,11 @@ async function disburseLoan(
                 operationType:
                     "LOAN_DISBURSEMENT",
 
+                payload: {
+                    ...getRequestBody(req),
+                    loanId
+                },
+
                 validate:
                     async ({
                         body
@@ -839,6 +870,13 @@ async function repayLoan(
 
                 operationType:
                     "LOAN_REPAYMENT",
+
+                payload: {
+                    ...getRequestBody(req),
+                    loanId,
+                    loanAccountId:
+                        loanId
+                },
 
                 validate:
                     async ({

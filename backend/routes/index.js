@@ -7,6 +7,7 @@ const require = createRequire(import.meta.url);
 import authModule from '../middleware/auth.js';
 import idempotencyModule from '../middleware/idempotency.js';
 import contributionsControllerModule from '../controllers/contributionsController.js';
+import repaymentsControllerModule from '../controllers/repaymentsController.js';
 
 /**
  * =============================================================================
@@ -683,10 +684,7 @@ const loansController =
     );
 
 const repaymentsController =
-    requireRouteDependency(
-        '../controllers/repaymentsController',
-        'repayments controller',
-    );
+    repaymentsControllerModule;
 
 const walletsController =
     requireRouteDependency(

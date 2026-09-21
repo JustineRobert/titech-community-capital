@@ -14,11 +14,15 @@ const root = process.cwd();
 const canonicalFiles = [
   'backend/services/financial/financialTransaction.service.js',
   'backend/services/financial/financialOperation.service.js',
+  'backend/repositories/financial/ledger.repository.js',
+  'backend/models/FinancialLedgerEntry.js',
+  'backend/services/financial/financialOperation.service.js',
   'backend/services/financial/money.js',
   'backend/services/idempotency/idempotency.service.js',
   'backend/services/idempotency/idempotency.store.js',
   'backend/controllers/financial/financial.controller.js',
   'backend/controllers/contributionsController.js',
+  'backend/routes/financial.routes.js',
   'backend/middleware/idempotency.js',
 ];
 
@@ -78,6 +82,27 @@ if (!/BigInt\s*\(/.test(moneySource)) {
 const testFile = path.join(root, 'backend/tests/unit/financial/money.test.js');
 if (!fs.existsSync(testFile)) {
   errors.push('Missing executable exact-money unit test.');
+}
+
+const financialOperationSource = fs.readFileSync(
+  path.join(root, 'backend/services/financial/financialOperation.service.js'),
+  'utf8',
+);
+if (!/ledgerRepository\.createEntries/.test(financialOperationSource)) {
+  errors.push('financialOperation.service.js must use the batch ledger repository for canonical financial posting.');
+}
+if (/createLedgerEntry\(/.test(financialOperationSource)) {
+  errors.push('financialOperation.service.js still contains a single-entry ledger helper in the canonical path.');
+}
+
+const canonicalLedgerModelPath = path.join(root, 'backend/models/FinancialLedgerEntry.js');
+if (fs.existsSync(canonicalLedgerModelPath)) {
+  const canonicalLedgerModel = fs.readFileSync(canonicalLedgerModelPath, 'utf8');
+  for (const field of ['financialTransactionId', 'tenantId', 'accountId', 'amount', 'currency', 'direction']) {
+    if (!new RegExp(`\\b${field}\\s*:`).test(canonicalLedgerModel)) {
+      errors.push(`FinancialLedgerEntry.js is missing required field: ${field}`);
+    }
+  }
 }
 
 const financialTruth = path.join(root, 'TITECH_PLATFORM_TRUTH.md');

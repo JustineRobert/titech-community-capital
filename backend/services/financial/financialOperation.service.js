@@ -1,7 +1,8 @@
 "use strict";
 
+import { createHash } from 'node:crypto';
 import { FinancialTransactionError } from './financialTransaction.service.js';
-import { assertDecimal, isPositive } from './money.js';
+import { add, assertDecimal, isPositive } from './money.js';
 
 /**
  * =============================================================================
@@ -92,7 +93,10 @@ const FINANCIAL_OPERATION =
             "LOAN_DISBURSEMENT",
 
         LOAN_REPAYMENT:
-            "LOAN_REPAYMENT"
+            "LOAN_REPAYMENT",
+
+        TRANSACTION_CREATE:
+            "TRANSACTION_CREATE"
 
     });
 
@@ -234,7 +238,8 @@ function assertRepositories(
         transactionRepository,
         ledgerRepository,
         balanceRepository,
-        loanRepository
+        loanRepository,
+        outboxRepository
     } = repositories;
 
     if (!transactionRepository) {
@@ -273,7 +278,10 @@ function assertRepositories(
         balanceRepository,
 
         loanRepository:
-            loanRepository || null
+            loanRepository || null,
+
+        outboxRepository:
+            outboxRepository || null
 
     };
 }
@@ -326,6 +334,20 @@ function requireIdentifier(
     }
 
     return normalized;
+}
+
+// =============================================================================
+// Counterparty Account
+// =============================================================================
+
+function requireCounterpartyAccountId(
+    value,
+    metadata = {}
+) {
+    return requireIdentifier(
+        value || metadata?.counterpartyAccountId,
+        "counterpartyAccountId"
+    );
 }
 
 // =============================================================================
@@ -400,6 +422,13 @@ function requireCurrency(
 //
 // =============================================================================
 
+function sumExactDecimals(values = []) {
+    return values.reduce(
+        (total, value) => add(total, value),
+        '0'
+    );
+}
+
 function requirePositiveAmount(
     amount
 ) {
@@ -470,7 +499,23 @@ function normalizeContext(
             requireIdentifier(
                 context.transactionId,
                 "transactionId"
-            )
+            ),
+
+        correlationId:
+            context.correlationId
+                ? requireIdentifier(
+                    context.correlationId,
+                    "correlationId"
+                )
+                : null,
+
+        idempotencyKey:
+            context.idempotencyKey
+                ? requireIdentifier(
+                    context.idempotencyKey,
+                    "idempotencyKey"
+                )
+                : null
 
     };
 }
@@ -590,7 +635,21 @@ async function completeFinancialTransaction({
 
     transactionRepository,
 
+    outboxRepository = null,
+
     transactionId,
+
+    tenantId,
+
+    principalId,
+
+    operation,
+
+    resource,
+
+    correlationId = null,
+
+    idempotencyKey = null,
 
     metadata = {}
 
@@ -605,11 +664,61 @@ async function completeFinancialTransaction({
         "transactionRepository.complete"
     );
 
+    if (outboxRepository) {
+        assertFunction(
+            outboxRepository.create,
+            "outboxRepository.create"
+        );
+
+        const eventId =
+            `financial-transaction:${transactionId}:completed:v1`;
+
+        await outboxRepository.create(
+            {
+                tenantId,
+                eventId,
+                eventKey: eventId,
+                eventType: 'financial.transaction.completed',
+                eventVersion: '1',
+                schemaVersion: '1',
+                category: 'financial',
+                fingerprint:
+                    createHash('sha256')
+                        .update(
+                            `${tenantId}:${transactionId}:${operation}:completed:v1`
+                        )
+                        .digest('hex'),
+                transactionId,
+                correlationId,
+                idempotencyKey,
+                userId: principalId,
+                operation,
+                source: 'financial-operation-service',
+                aggregate: {
+                    type: 'FinancialTransaction',
+                    id: transactionId,
+                    version: 1,
+                },
+                payload: {
+                    transactionId,
+                    tenantId,
+                    operation,
+                    resource,
+                    status: FINANCIAL_TRANSACTION_STATUS.COMPLETED,
+                },
+                metadata,
+            },
+            { session },
+        );
+    }
+
     return transactionRepository.complete({
 
         session,
 
         transactionId,
+
+        tenantId,
 
         status:
             FINANCIAL_TRANSACTION_STATUS.COMPLETED,
@@ -623,7 +732,7 @@ async function completeFinancialTransaction({
 // Ledger
 // =============================================================================
 
-async function createLedgerEntry({
+async function createLedgerEntries({
 
     session,
 
@@ -633,17 +742,9 @@ async function createLedgerEntry({
 
     tenantId,
 
-    accountId,
-
-    amount,
-
     currency,
 
-    entryType,
-
-    direction,
-
-    metadata = {}
+    entries
 
 }) {
 
@@ -652,32 +753,31 @@ async function createLedgerEntry({
     );
 
     assertFunction(
-        ledgerRepository.createEntry,
-        "ledgerRepository.createEntry"
+        ledgerRepository.createEntries,
+        "ledgerRepository.createEntries"
     );
 
-    return ledgerRepository.createEntry({
+    if (!Array.isArray(entries) || entries.length < 2) {
+        throw new FinancialTransactionError(
+            "Canonical financial posting requires a balanced ledger batch of at least two entries.",
+            "FINANCIAL_LEDGER_DOUBLE_ENTRY_REQUIRED",
+            500
+        );
+    }
 
+    return ledgerRepository.createEntries({
         session,
-
-        transactionId,
-
-        tenantId,
-
-        accountId,
-
-        amount,
-
-        currency,
-
-        entryType,
-
-        direction,
-
-        metadata
-
+        entries: entries.map((entry, index) => ({
+            ...entry,
+            transactionId,
+            tenantId,
+            currency,
+            lineNumber: index + 1,
+        })),
+        validateBalance: true,
     });
 }
+
 
 // =============================================================================
 // Balance Increment
@@ -834,67 +934,192 @@ async function decrementBalance({
 // Ledger Balance Validation
 // =============================================================================
 
-function assertBalancedLedger(
-    entries
-) {
+// =============================================================================
+// TRANSACTION_CREATE
+// =============================================================================
 
-    if (
-        !Array.isArray(entries) ||
-        entries.length === 0
-    ) {
+async function createGenericTransaction({
 
+    session,
+
+    context,
+
+    repositories,
+
+    amount,
+
+    currency,
+
+    entries,
+
+    metadata = {},
+
+}) {
+    assertSession(session);
+
+    const {
+        transactionRepository,
+        ledgerRepository,
+        balanceRepository,
+    } = assertRepositories(repositories);
+
+    const normalized = normalizeContext(context);
+    const normalizedAmount = requirePositiveAmount(amount);
+    const normalizedCurrency = requireCurrency(currency);
+    const normalizedMetadata = normalizeMetadata(metadata);
+
+    if (!Array.isArray(entries) || entries.length < 2) {
         throw new FinancialTransactionError(
-            "A financial transaction must contain ledger entries.",
-            "FINANCIAL_LEDGER_ENTRIES_REQUIRED",
-            500
+            'A generic financial transaction requires at least two posting lines.',
+            'FINANCIAL_TRANSACTION_ENTRIES_REQUIRED',
+            400
         );
     }
 
-    let debitCount =
-        0;
-
-    let creditCount =
-        0;
-
-    for (
-        const entry of entries
-    ) {
-
-        if (
-            entry.direction ===
-            LEDGER_DIRECTION.DEBIT
-        ) {
-
-            debitCount += 1;
-
-        } else if (
-            entry.direction ===
-            LEDGER_DIRECTION.CREDIT
-        ) {
-
-            creditCount += 1;
-
-        } else {
-
+    const normalizedEntries = entries.map((entry, index) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
             throw new FinancialTransactionError(
-                "Invalid ledger direction.",
-                "FINANCIAL_INVALID_LEDGER_DIRECTION",
-                500
+                `Financial posting entry ${index + 1} is invalid.`,
+                'FINANCIAL_TRANSACTION_ENTRY_INVALID',
+                400
             );
+        }
+
+        const accountId = requireIdentifier(entry.accountId, `entries[${index}].accountId`);
+        const lineAmount = requirePositiveAmount(entry.amount);
+        const direction = String(entry.direction || '').trim().toUpperCase();
+        const balanceEffect = String(entry.balanceEffect || '').trim().toUpperCase();
+
+        if (!Object.values(LEDGER_DIRECTION).includes(direction)) {
+            throw new FinancialTransactionError(
+                `entries[${index}].direction must be DEBIT or CREDIT.`,
+                'FINANCIAL_TRANSACTION_DIRECTION_INVALID',
+                400
+            );
+        }
+
+        if (!['INCREASE', 'DECREASE'].includes(balanceEffect)) {
+            throw new FinancialTransactionError(
+                `entries[${index}].balanceEffect must be INCREASE or DECREASE.`,
+                'FINANCIAL_TRANSACTION_BALANCE_EFFECT_INVALID',
+                400
+            );
+        }
+
+        if (entry.currency && requireCurrency(entry.currency) !== normalizedCurrency) {
+            throw new FinancialTransactionError(
+                'All financial posting entries must use the transaction currency.',
+                'FINANCIAL_CURRENCY_MISMATCH',
+                400
+            );
+        }
+
+        return {
+            ...entry,
+            accountId,
+            amount: lineAmount,
+            direction,
+            balanceEffect,
+            currency: normalizedCurrency,
+            entryType: String(entry.entryType || 'GENERAL').trim().toUpperCase(),
+            metadata: {
+                ...normalizedMetadata,
+                ...normalizeMetadata(entry.metadata),
+            },
+        };
+    });
+
+    const totalDebits = sumExactDecimals(
+        normalizedEntries.filter((entry) => entry.direction === LEDGER_DIRECTION.DEBIT).map((entry) => entry.amount)
+    );
+    const totalCredits = sumExactDecimals(
+        normalizedEntries.filter((entry) => entry.direction === LEDGER_DIRECTION.CREDIT).map((entry) => entry.amount)
+    );
+
+    if (totalDebits !== totalCredits || totalDebits !== normalizedAmount) {
+        throw new FinancialTransactionError(
+            'Financial transaction postings must balance exactly to the declared transaction amount.',
+            'FINANCIAL_LEDGER_UNBALANCED',
+            400,
+            { totalDebits, totalCredits, declaredAmount: normalizedAmount }
+        );
+    }
+
+    const transaction = await createFinancialTransaction({
+        session,
+        transactionRepository,
+        transactionId: normalized.transactionId,
+        tenantId: normalized.tenantId,
+        principalId: normalized.principalId,
+        operation: FINANCIAL_OPERATION.TRANSACTION_CREATE,
+        resource: 'financial-transaction',
+        amount: normalizedAmount,
+        currency: normalizedCurrency,
+        metadata: normalizedMetadata,
+    });
+
+    for (const entry of normalizedEntries) {
+        if (entry.balanceEffect === 'INCREASE') {
+            await incrementBalance({
+                session,
+                balanceRepository,
+                tenantId: normalized.tenantId,
+                accountId: entry.accountId,
+                amount: entry.amount,
+                currency: normalizedCurrency,
+                transactionId: normalized.transactionId,
+                metadata: entry.metadata,
+            });
+        } else {
+            await decrementBalance({
+                session,
+                balanceRepository,
+                tenantId: normalized.tenantId,
+                accountId: entry.accountId,
+                amount: entry.amount,
+                currency: normalizedCurrency,
+                transactionId: normalized.transactionId,
+                metadata: entry.metadata,
+            });
         }
     }
 
-    if (
-        debitCount === 0 ||
-        creditCount === 0
-    ) {
+    const ledgerEntries = await createLedgerEntries({
+        session,
+        ledgerRepository,
+        transactionId: normalized.transactionId,
+        tenantId: normalized.tenantId,
+        currency: normalizedCurrency,
+        entries: normalizedEntries,
+    });
 
-        throw new FinancialTransactionError(
-            "Financial ledger must contain both debit and credit entries.",
-            "FINANCIAL_UNBALANCED_LEDGER",
-            500
-        );
-    }
+    await completeFinancialTransaction({
+        session,
+        transactionRepository,
+        outboxRepository: repositories.outboxRepository,
+        transactionId: normalized.transactionId,
+        tenantId: normalized.tenantId,
+        principalId: normalized.principalId,
+        operation: FINANCIAL_OPERATION.TRANSACTION_CREATE,
+        resource: 'financial-transaction',
+        correlationId: normalized.correlationId,
+        idempotencyKey: normalized.idempotencyKey,
+        metadata: normalizedMetadata,
+    });
+
+    return {
+        transaction,
+        ledgerEntries,
+        responseBody: {
+            success: true,
+            transactionId: normalized.transactionId,
+            operation: FINANCIAL_OPERATION.TRANSACTION_CREATE,
+            amount: normalizedAmount,
+            currency: normalizedCurrency,
+            ledgerEntries,
+        },
+        resultType: RESULT_TYPE.SUCCESS,
+    };
 }
 
 // =============================================================================
@@ -914,6 +1139,8 @@ async function createContribution({
     currency,
 
     accountId,
+
+    sourceAccountId = null,
 
     savingsPlanId = null,
 
@@ -960,6 +1187,12 @@ async function createContribution({
     const normalizedMetadata =
         normalizeMetadata(
             metadata
+        );
+
+    const normalizedSourceAccountId =
+        requireCounterpartyAccountId(
+            sourceAccountId,
+            normalizedMetadata
         );
 
     const transaction =
@@ -1028,73 +1261,73 @@ async function createContribution({
 
     });
 
-    const ledgerEntry =
-        await createLedgerEntry({
+    const ledgerEntries =
+        await createLedgerEntries({
 
             session,
-
             ledgerRepository,
-
             transactionId:
                 normalized.transactionId,
-
             tenantId:
                 normalized.tenantId,
-
-            accountId:
-                normalizedAccountId,
-
-            amount:
-                normalizedAmount,
-
             currency:
                 normalizedCurrency,
-
-            entryType:
-                LEDGER_ENTRY_TYPE.CONTRIBUTION,
-
-            direction:
-                LEDGER_DIRECTION.CREDIT,
-
-            metadata: {
-
-                savingsPlanId,
-
-                memberId,
-
-                ...normalizedMetadata
-
-            }
-
+            entries: [
+                {
+                    accountId:
+                        normalizedSourceAccountId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.CONTRIBUTION,
+                    direction:
+                        LEDGER_DIRECTION.DEBIT,
+                    metadata: {
+                        source: "COMMUNITY_CONTRIBUTION",
+                        savingsPlanId,
+                        memberId,
+                        ...normalizedMetadata,
+                    },
+                },
+                {
+                    accountId:
+                        normalizedAccountId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.CONTRIBUTION,
+                    direction:
+                        LEDGER_DIRECTION.CREDIT,
+                    metadata: {
+                        source: "COMMUNITY_CONTRIBUTION",
+                        savingsPlanId,
+                        memberId,
+                        ...normalizedMetadata,
+                    },
+                },
+            ],
         });
-
-    assertBalancedLedger([
-
-        {
-            direction:
-                LEDGER_DIRECTION.CREDIT
-        },
-
-        /*
-         * The corresponding source-side debit must normally be represented by
-         * the treasury/cash/mobile-money account. It is intentionally not
-         * silently fabricated here.
-         */
-        {
-            direction:
-                LEDGER_DIRECTION.DEBIT
-        }
-
-    ]);
 
     await completeFinancialTransaction({
 
         session,
 
         transactionRepository,
-
+        outboxRepository:
+            repositories.outboxRepository,
         transactionId:
-            normalized.transactionId
+            normalized.transactionId,
+        tenantId:
+            normalized.tenantId,
+        principalId:
+            normalized.principalId,
+        operation:
+            FINANCIAL_OPERATION.CONTRIBUTION_CREATE,
+        resource: "financial",
+        correlationId:
+            normalized.correlationId,
+        idempotencyKey:
+            normalized.idempotencyKey
 
     });
 
@@ -1102,7 +1335,7 @@ async function createContribution({
 
         transaction,
 
-        ledgerEntry,
+        ledgerEntries,
 
         responseBody: {
 
@@ -1122,7 +1355,10 @@ async function createContribution({
                 normalizedCurrency,
 
             accountId:
-                normalizedAccountId
+                normalizedAccountId,
+
+            sourceAccountId:
+                normalizedSourceAccountId
 
         },
 
@@ -1149,6 +1385,8 @@ async function createDeposit({
     currency,
 
     accountId,
+
+    sourceAccountId = null,
 
     provider = null,
 
@@ -1195,6 +1433,12 @@ async function createDeposit({
     const normalizedMetadata =
         normalizeMetadata(
             metadata
+        );
+
+    const normalizedSourceAccountId =
+        requireCounterpartyAccountId(
+            sourceAccountId,
+            normalizedMetadata
         );
 
     const transaction =
@@ -1263,44 +1507,51 @@ async function createDeposit({
 
     });
 
-    const ledgerEntry =
-        await createLedgerEntry({
+    const ledgerEntries =
+        await createLedgerEntries({
 
             session,
-
             ledgerRepository,
-
             transactionId:
                 normalized.transactionId,
-
             tenantId:
                 normalized.tenantId,
-
-            accountId:
-                normalizedAccountId,
-
-            amount:
-                normalizedAmount,
-
             currency:
                 normalizedCurrency,
-
-            entryType:
-                LEDGER_ENTRY_TYPE.DEPOSIT,
-
-            direction:
-                LEDGER_DIRECTION.CREDIT,
-
-            metadata: {
-
-                provider,
-
-                providerReference,
-
-                ...normalizedMetadata
-
-            }
-
+            entries: [
+                {
+                    accountId:
+                        normalizedSourceAccountId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.DEPOSIT,
+                    direction:
+                        LEDGER_DIRECTION.DEBIT,
+                    metadata: {
+                        source: "DEPOSIT",
+                        provider,
+                        providerReference,
+                        ...normalizedMetadata,
+                    },
+                },
+                {
+                    accountId:
+                        normalizedAccountId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.DEPOSIT,
+                    direction:
+                        LEDGER_DIRECTION.CREDIT,
+                    metadata: {
+                        source: "DEPOSIT",
+                        provider,
+                        providerReference,
+                        ...normalizedMetadata,
+                    },
+                },
+            ],
         });
 
     await completeFinancialTransaction({
@@ -1308,9 +1559,21 @@ async function createDeposit({
         session,
 
         transactionRepository,
-
+        outboxRepository:
+            repositories.outboxRepository,
         transactionId:
-            normalized.transactionId
+            normalized.transactionId,
+        tenantId:
+            normalized.tenantId,
+        principalId:
+            normalized.principalId,
+        operation:
+            FINANCIAL_OPERATION.DEPOSIT_CREATE,
+        resource: "financial",
+        correlationId:
+            normalized.correlationId,
+        idempotencyKey:
+            normalized.idempotencyKey
 
     });
 
@@ -1318,7 +1581,7 @@ async function createDeposit({
 
         transaction,
 
-        ledgerEntry,
+        ledgerEntries,
 
         responseBody: {
 
@@ -1338,7 +1601,10 @@ async function createDeposit({
                 normalizedCurrency,
 
             accountId:
-                normalizedAccountId
+                normalizedAccountId,
+
+            sourceAccountId:
+                normalizedSourceAccountId
 
         },
 
@@ -1365,6 +1631,8 @@ async function createWithdrawal({
     currency,
 
     accountId,
+
+    destinationAccountId = null,
 
     provider = null,
 
@@ -1411,6 +1679,12 @@ async function createWithdrawal({
     const normalizedMetadata =
         normalizeMetadata(
             metadata
+        );
+
+    const normalizedDestinationAccountId =
+        requireCounterpartyAccountId(
+            destinationAccountId,
+            normalizedMetadata
         );
 
     const transaction =
@@ -1486,44 +1760,50 @@ async function createWithdrawal({
 
     });
 
-    const ledgerEntry =
-        await createLedgerEntry({
-
+    const ledgerEntries =
+        await createLedgerEntries({
             session,
-
             ledgerRepository,
-
             transactionId:
                 normalized.transactionId,
-
             tenantId:
                 normalized.tenantId,
-
-            accountId:
-                normalizedAccountId,
-
-            amount:
-                normalizedAmount,
-
             currency:
                 normalizedCurrency,
-
-            entryType:
-                LEDGER_ENTRY_TYPE.WITHDRAWAL,
-
-            direction:
-                LEDGER_DIRECTION.DEBIT,
-
-            metadata: {
-
-                provider,
-
-                providerReference,
-
-                ...normalizedMetadata
-
-            }
-
+            entries: [
+                {
+                    accountId:
+                        normalizedAccountId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.WITHDRAWAL,
+                    direction:
+                        LEDGER_DIRECTION.DEBIT,
+                    metadata: {
+                        source: "WITHDRAWAL",
+                        provider,
+                        providerReference,
+                        ...normalizedMetadata,
+                    },
+                },
+                {
+                    accountId:
+                        normalizedDestinationAccountId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.WITHDRAWAL,
+                    direction:
+                        LEDGER_DIRECTION.CREDIT,
+                    metadata: {
+                        source: "WITHDRAWAL",
+                        provider,
+                        providerReference,
+                        ...normalizedMetadata,
+                    },
+                },
+            ],
         });
 
     await completeFinancialTransaction({
@@ -1531,9 +1811,21 @@ async function createWithdrawal({
         session,
 
         transactionRepository,
-
+        outboxRepository:
+            repositories.outboxRepository,
         transactionId:
-            normalized.transactionId
+            normalized.transactionId,
+        tenantId:
+            normalized.tenantId,
+        principalId:
+            normalized.principalId,
+        operation:
+            FINANCIAL_OPERATION.WITHDRAWAL_CREATE,
+        resource: "financial",
+        correlationId:
+            normalized.correlationId,
+        idempotencyKey:
+            normalized.idempotencyKey
 
     });
 
@@ -1541,7 +1833,7 @@ async function createWithdrawal({
 
         transaction,
 
-        ledgerEntry,
+        ledgerEntries,
 
         responseBody: {
 
@@ -1771,105 +2063,72 @@ async function createTransfer({
 
     });
 
-    const debitEntry =
-        await createLedgerEntry({
-
+    const ledgerEntries =
+        await createLedgerEntries({
             session,
-
             ledgerRepository,
-
             transactionId:
                 normalized.transactionId,
-
             tenantId:
                 normalized.tenantId,
-
-            accountId:
-                sourceId,
-
-            amount:
-                normalizedAmount,
-
             currency:
                 normalizedCurrency,
-
-            entryType:
-                LEDGER_ENTRY_TYPE.TRANSFER,
-
-            direction:
-                LEDGER_DIRECTION.DEBIT,
-
-            metadata: {
-
-                transferRole:
-                    "SOURCE",
-
-                destinationAccountId:
-                    destinationId,
-
-                ...normalizedMetadata
-
-            }
-
+            entries: [
+                {
+                    accountId:
+                        sourceId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.TRANSFER,
+                    direction:
+                        LEDGER_DIRECTION.DEBIT,
+                    metadata: {
+                        source: "TRANSFER",
+                        transferRole: "SOURCE",
+                        destinationAccountId: destinationId,
+                        ...normalizedMetadata,
+                    },
+                },
+                {
+                    accountId:
+                        destinationId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.TRANSFER,
+                    direction:
+                        LEDGER_DIRECTION.CREDIT,
+                    metadata: {
+                        source: "TRANSFER",
+                        transferRole: "DESTINATION",
+                        sourceAccountId: sourceId,
+                        ...normalizedMetadata,
+                    },
+                },
+            ],
         });
-
-    const creditEntry =
-        await createLedgerEntry({
-
-            session,
-
-            ledgerRepository,
-
-            transactionId:
-                normalized.transactionId,
-
-            tenantId:
-                normalized.tenantId,
-
-            accountId:
-                destinationId,
-
-            amount:
-                normalizedAmount,
-
-            currency:
-                normalizedCurrency,
-
-            entryType:
-                LEDGER_ENTRY_TYPE.TRANSFER,
-
-            direction:
-                LEDGER_DIRECTION.CREDIT,
-
-            metadata: {
-
-                transferRole:
-                    "DESTINATION",
-
-                sourceAccountId:
-                    sourceId,
-
-                ...normalizedMetadata
-
-            }
-
-        });
-
-    assertBalancedLedger([
-
-        debitEntry,
-        creditEntry
-
-    ]);
 
     await completeFinancialTransaction({
 
         session,
 
         transactionRepository,
-
+        outboxRepository:
+            repositories.outboxRepository,
         transactionId:
-            normalized.transactionId
+            normalized.transactionId,
+        tenantId:
+            normalized.tenantId,
+        principalId:
+            normalized.principalId,
+        operation:
+            FINANCIAL_OPERATION.TRANSFER_CREATE,
+        resource: "financial",
+        correlationId:
+            normalized.correlationId,
+        idempotencyKey:
+            normalized.idempotencyKey
 
     });
 
@@ -1877,13 +2136,7 @@ async function createTransfer({
 
         transaction,
 
-        ledgerEntries: [
-
-            debitEntry,
-
-            creditEntry
-
-        ],
+        ledgerEntries,
 
         responseBody: {
 
@@ -1962,6 +2215,8 @@ async function disburseLoan({
 
     destinationAccountId,
 
+    fundingAccountId = null,
+
     metadata = {}
 
 }) {
@@ -2015,6 +2270,12 @@ async function disburseLoan({
     const normalizedMetadata =
         normalizeMetadata(
             metadata
+        );
+
+    const normalizedFundingAccountId =
+        requireCounterpartyAccountId(
+            fundingAccountId,
+            normalizedMetadata
         );
 
     const transaction =
@@ -2126,43 +2387,48 @@ async function disburseLoan({
 
     });
 
-    const ledgerEntry =
-        await createLedgerEntry({
-
+    const ledgerEntries =
+        await createLedgerEntries({
             session,
-
             ledgerRepository,
-
             transactionId:
                 normalized.transactionId,
-
             tenantId:
                 normalized.tenantId,
-
-            accountId:
-                destinationId,
-
-            amount:
-                normalizedAmount,
-
             currency:
                 normalizedCurrency,
-
-            entryType:
-                LEDGER_ENTRY_TYPE.LOAN_DISBURSEMENT,
-
-            direction:
-                LEDGER_DIRECTION.CREDIT,
-
-            metadata: {
-
-                loanAccountId:
-                    loanId,
-
-                ...normalizedMetadata
-
-            }
-
+            entries: [
+                {
+                    accountId:
+                        normalizedFundingAccountId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.LOAN_DISBURSEMENT,
+                    direction:
+                        LEDGER_DIRECTION.DEBIT,
+                    metadata: {
+                        source: "LOAN_DISBURSEMENT",
+                        loanId,
+                        ...normalizedMetadata,
+                    },
+                },
+                {
+                    accountId:
+                        destinationId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.LOAN_DISBURSEMENT,
+                    direction:
+                        LEDGER_DIRECTION.CREDIT,
+                    metadata: {
+                        source: "LOAN_DISBURSEMENT",
+                        loanId,
+                        ...normalizedMetadata,
+                    },
+                },
+            ],
         });
 
     await completeFinancialTransaction({
@@ -2170,9 +2436,21 @@ async function disburseLoan({
         session,
 
         transactionRepository,
-
+        outboxRepository:
+            repositories.outboxRepository,
         transactionId:
-            normalized.transactionId
+            normalized.transactionId,
+        tenantId:
+            normalized.tenantId,
+        principalId:
+            normalized.principalId,
+        operation:
+            FINANCIAL_OPERATION.LOAN_DISBURSEMENT,
+        resource: "financial",
+        correlationId:
+            normalized.correlationId,
+        idempotencyKey:
+            normalized.idempotencyKey
 
     });
 
@@ -2182,7 +2460,7 @@ async function disburseLoan({
 
         loanResult,
 
-        ledgerEntry,
+        ledgerEntries,
 
         responseBody: {
 
@@ -2407,43 +2685,49 @@ async function repayLoan({
 
         });
 
-    const ledgerEntry =
-        await createLedgerEntry({
-
+    const ledgerEntries =
+        await createLedgerEntries({
             session,
-
             ledgerRepository,
-
             transactionId:
                 normalized.transactionId,
-
             tenantId:
                 normalized.tenantId,
-
-            accountId:
-                sourceId,
-
-            amount:
-                normalizedAmount,
-
             currency:
                 normalizedCurrency,
-
-            entryType:
-                LEDGER_ENTRY_TYPE.LOAN_REPAYMENT,
-
-            direction:
-                LEDGER_DIRECTION.DEBIT,
-
-            metadata: {
-
-                loanAccountId:
-                    loanId,
-
-                ...normalizedMetadata
-
-            }
-
+            entries: [
+                {
+                    accountId:
+                        loanId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.LOAN_REPAYMENT,
+                    direction:
+                        LEDGER_DIRECTION.DEBIT,
+                    metadata: {
+                        source: "LOAN_REPAYMENT",
+                        loanId,
+                        sourceAccountId: sourceId,
+                        ...normalizedMetadata,
+                    },
+                },
+                {
+                    accountId:
+                        sourceId,
+                    amount:
+                        normalizedAmount,
+                    entryType:
+                        LEDGER_ENTRY_TYPE.LOAN_REPAYMENT,
+                    direction:
+                        LEDGER_DIRECTION.CREDIT,
+                    metadata: {
+                        source: "LOAN_REPAYMENT",
+                        loanId,
+                        ...normalizedMetadata,
+                    },
+                },
+            ],
         });
 
     await completeFinancialTransaction({
@@ -2451,9 +2735,21 @@ async function repayLoan({
         session,
 
         transactionRepository,
-
+        outboxRepository:
+            repositories.outboxRepository,
         transactionId:
-            normalized.transactionId
+            normalized.transactionId,
+        tenantId:
+            normalized.tenantId,
+        principalId:
+            normalized.principalId,
+        operation:
+            FINANCIAL_OPERATION.LOAN_REPAYMENT,
+        resource: "financial",
+        correlationId:
+            normalized.correlationId,
+        idempotencyKey:
+            normalized.idempotencyKey
 
     });
 
@@ -2463,7 +2759,7 @@ async function repayLoan({
 
         loanResult,
 
-        ledgerEntry,
+        ledgerEntries,
 
         responseBody: {
 
@@ -2528,6 +2824,17 @@ async function executeFinancialOperation({
     switch (
         normalizedOperation
     ) {
+
+        case FINANCIAL_OPERATION.TRANSACTION_CREATE:
+
+            return createGenericTransaction({
+
+                session,
+                context,
+                repositories,
+                ...payload,
+
+            });
 
         case FINANCIAL_OPERATION.CONTRIBUTION_CREATE:
 
@@ -2688,6 +2995,13 @@ const FINANCIAL_OPERATION_REPOSITORY_CONTRACT =
 
                 "repay"
 
+            ]),
+
+        outbox:
+            Object.freeze([
+
+                "create"
+
             ])
 
     });
@@ -2722,8 +3036,8 @@ function validateRepositoryContract(
     );
 
     assertFunction(
-        ledgerRepository.createEntry,
-        "ledgerRepository.createEntry"
+        ledgerRepository.createEntries,
+        "ledgerRepository.createEntries"
     );
 
     assertFunction(

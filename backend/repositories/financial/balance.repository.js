@@ -101,25 +101,13 @@
  * ============================================================================
  */
 
-const mongoose =
-    require("mongoose");
+import mongoose from 'mongoose';
 
-const {
-    Account
-} = require(
-    "../../models/account.model"
-);
+import Account from '../../models/Account.js';
 
-const {
-    FinancialTransactionError
-} = require(
-    "../../services/financial/financialTransaction.service"
-);
+import { FinancialTransactionError } from '../../services/financial/financialTransaction.service.js';
 
-const tenantConstants =
-    require(
-        "../../tenancy/tenant.constants"
-    );
+import tenantConstants from '../../tenancy/tenant.constants.js';
 
 /**
  * ============================================================================
@@ -1362,7 +1350,7 @@ function isZeroDecimal(
  * ============================================================================
  */
 
-module.exports =
+const repositoryModule =
     Object.freeze({
         ACTIVE_ACCOUNT_STATUS,
 
@@ -1392,3 +1380,4 @@ module.exports =
 
         getAccountState
     });
+export default repositoryModule;
