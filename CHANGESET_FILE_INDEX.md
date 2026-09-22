@@ -218,3 +218,8 @@ A=39, M=157, D=9
 - `infrastructure/kubernetes/mongo-deployment.yaml`
 - `infrastructure/kubernetes/redis-deployment.yaml`
 - `infrastructure/kubernetes/web-deployment.yaml`
+
+
+## Current archive hardening — 2026-09-22
+
+See `CHANGESET_FILE_INDEX_2026-09-22.md` and `CHANGESET_FILE_INDEX_2026-09-22.csv` for the exact current archive delta.

@@ -1,25 +1,30 @@
-# 🏦 TITech Community Capital
-> **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+# TITech Community Capital
 
-> **The financial operating system for Africa's community economy.**
+> **Community Financial Infrastructure Layer for Africa's community economy.**
 
-TITech Community Capital is an **enterprise-grade community finance platform** designed to connect **SACCOs, VSLAs, savings groups, cooperatives, community enterprises, and emerging financial institutions** to modern financial infrastructure.
+> STATUS NOTICE (2026-09-22): This repository is an enterprise production-hardening artifact. Implementation, test, security, operational, partner and regulatory evidence may have different maturity. `TITECH_PLATFORM_TRUTH.md` is the authoritative status source.
 
-Africa's community finance sector manages significant economic activity, yet much of that activity remains fragmented, poorly digitized, difficult to measure, and difficult for formal capital providers to underwrite.
+TITech Community Capital connects savings groups, VSLAs/ROSCAs, SACCOs, cooperatives and community enterprises with trusted records, payment rails, reconciliation, risk intelligence, credit infrastructure and—subject to authorization and partner agreements—formal financial capital.
 
-TITech is building the infrastructure layer that makes community financial activity:
+TITech is intentionally **not** positioned as a consumer wallet, generic SACCO ERP, payment provider, or balance-sheet lender. Account and wallet representations may exist as internal financial primitives; the architectural center is the provider-neutral financial infrastructure layer.
 
-* **Digital**
-* **Measurable**
-* **Auditable**
-* **Interoperable**
-* **Risk-aware**
-* **Payment-enabled**
-* **Institutionally financeable**
+The core engineering path is:
 
-Subject to authorization, privacy requirements, applicable law, and regulatory controls, institutions operating on TITech can participate in a **permissioned financial data and intelligence network** that transforms previously difficult-to-observe community cash flows into structured financial information.
-
----
+```text
+Community activity
+      ↓
+Tenant + identity + consent
+      ↓
+Financial operation
+      ↓
+Transaction + double-entry ledger
+      ↓
+Reconciliation + settlement
+      ↓
+Risk / intelligence
+      ↓
+Partner capital infrastructure
+```
 
 ## 🚀 Project Status
 
@@ -30,7 +35,7 @@ Subject to authorization, privacy requirements, applicable law, and regulatory c
 
 TITech has evolved beyond a basic community savings application toward a broader financial infrastructure platform incorporating:
 
-**Community Finance + Wallets + Transactions + Ledger + Loans + Reconciliation + Payments + KYC/AML + Risk + Fraud + Observability + Enterprise Infrastructure**
+**Community Finance + Financial Events + Ledger + Reconciliation + Payments + Consent + KYC/AML + Risk + Observability + Capital Connectivity**
 
 Individual capabilities can have different implementation, testing, operational, security, and regulatory maturity. Repository implementation and verification artifacts remain the source of truth for actual production readiness.
 
@@ -79,7 +84,7 @@ Institutional Capital
 * Group and institution management
 * Member management
 * Savings and contribution management
-* Member wallets and balances
+* Member financial accounts and governed balances
 * Financial transactions
 * Recurring contributions
 * Loan origination and repayment workflows
@@ -1419,3 +1424,19 @@ CONNECTED TO CAPITAL
 **Status:** Active Development / Production Hardening
 **Last Updated:** September 2026
 **Organization:** TITech Community Capital LTD
+
+## 2026-09-22 Enterprise Control Plane Additions
+
+The repository now includes a bounded control-plane foundation for the parts of the master architecture that can be implemented and statically verified without external provider/cluster evidence:
+
+- **Canonical financial workflow states:** payment settlement and offline synchronization are distinct, deterministic states.
+- **Consent:** tenant-scoped, purpose-bound data sharing consent with recipient, category, validity and withdrawal controls.
+- **Data provenance:** source, event, transformation, validation, confidence and consent references for important data.
+- **Capital connectivity:** permissioned sharing requests with active-consent validation and four-eyes approval.
+- **Operations:** tenant-scoped support/incident cases linked to payment, ledger, provider and reconciliation references with SLA targets.
+- **Action-based RBAC:** control-plane API actions are independently authorized rather than relying only on screen visibility.
+- **Tamper-evident audit:** append-only hash-chained audit records with verification support.
+
+### Evidence boundary
+
+This repository is **not labelled production-approved from source presence alone**. Live database/Redis behavior, provider certification, security penetration testing, disaster recovery, load/chaos testing, Kubernetes rollout, contractual and regulatory approval remain external evidence gates. See `TITECH_PLATFORM_TRUTH.md`.

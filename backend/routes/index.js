@@ -8,6 +8,9 @@ import authModule from '../middleware/auth.js';
 import idempotencyModule from '../middleware/idempotency.js';
 import contributionsControllerModule from '../controllers/contributionsController.js';
 import repaymentsControllerModule from '../controllers/repaymentsController.js';
+import consentRoutes from '../modules/consent/consent.routes.js';
+import capitalRoutes from '../modules/capital/capital.routes.js';
+import operationsRoutes from '../modules/operations/operations.routes.js';
 
 /**
  * =============================================================================
@@ -1266,6 +1269,39 @@ router.use(
     '/api',
     offlineSyncRoutes,
 );
+
+/**
+ * =============================================================================
+ * CONTROL-PLANE DOMAINS
+ * =============================================================================
+ *
+ * These routes are deliberately mounted only after authentication and trusted
+ * tenant authorization. Domain services remain responsible for their own
+ * invariants; this boundary adds action-based RBAC at the HTTP edge.
+ * =============================================================================
+ */
+
+router.use(
+    `${API_PREFIX}/consents`,
+    authenticate,
+    tenantAuthorization,
+    consentRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/capital`,
+    authenticate,
+    tenantAuthorization,
+    capitalRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/operations`,
+    authenticate,
+    tenantAuthorization,
+    operationsRoutes,
+);
+
 
 /**
  * =============================================================================

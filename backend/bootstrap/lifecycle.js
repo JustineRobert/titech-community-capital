@@ -3,7 +3,7 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * TITech Community Capital
  * =============================================================================
  *
  * File:

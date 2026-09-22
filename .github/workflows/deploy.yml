@@ -602,6 +602,30 @@ jobs:
 
         run: npm ci
 
+      - name: Enterprise release readiness audit
+
+        run: npm run release:gate
+
+      - name: Enterprise release readiness strict gate
+
+        if: ${{ needs.deployment-policy.outputs.production_deployment == 'true' }}
+
+        run: npm run release:gate:strict
+
+      - name: Upload release readiness evidence
+
+        if: ${{ always() }}
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: release-readiness-${{ github.run_id }}
+
+          path: reports/release-readiness.json
+
+          retention-days: 14
+
       ##########################################################################
       # Build metadata
       ##########################################################################
@@ -1832,6 +1856,18 @@ jobs:
       - name: Checkout Repository
 
         uses: actions/checkout@v4
+
+      - name: Production approval evidence gate
+
+        run: node scripts/production-approval-gate.mjs
+
+        env:
+
+          TITECH_PRODUCTION_APPROVAL: ${{ secrets.TITECH_PRODUCTION_APPROVAL }}
+
+          TITECH_APPROVAL_REFERENCE: ${{ secrets.TITECH_APPROVAL_REFERENCE }}
+
+          TITECH_APPROVAL_EXPIRES_AT: ${{ secrets.TITECH_APPROVAL_EXPIRES_AT }}
 
       ##########################################################################
       # Kubernetes tooling

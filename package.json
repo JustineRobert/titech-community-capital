@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital",
   "version": "1.0.0",
-  "description": "TITech Community Capital - The operating infrastructure for Africa's community finance. A production-grade MERN platform for community savings, groups, wallets, ledgers, payments, reconciliation, lending, risk, fraud prevention, KYC/AML, compliance, offline/USSD services, analytics, and financial partner connectivity.",
+  "description": "TITech Community Capital \u2014 Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
   "private": true,
   "keywords": [
     "TITech",
@@ -10,7 +10,6 @@
     "community savings",
     "group management",
     "contributions",
-    "wallet",
     "ledger",
     "double-entry accounting",
     "payments",
@@ -78,7 +77,7 @@
     "lint:fix": "npm --prefix backend run lint:fix && npm --prefix frontend run lint:fix",
     "format": "npm --prefix backend run format && npm --prefix frontend run format",
     "format:check": "npm --prefix backend run format:check && npm --prefix frontend run format:check",
-    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:runtime-imports && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run lint && npm run format:check",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:all": "npm run check && npm run test",
     "test": "npm run test:backend && npm run test:frontend",
@@ -113,7 +112,12 @@
     "enterprise:gate": "node scripts/enterprise-gate.mjs --all",
     "check:structure": "node scripts/enterprise-gate.mjs --structure",
     "postman:test:newman": "npx --yes newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli",
-    "truth:inventory": "node scripts/repository-truth-inventory.mjs"
+    "truth:inventory": "node scripts/repository-truth-inventory.mjs",
+    "release:gate": "node scripts/release-readiness-gate.mjs --audit",
+    "release:gate:strict": "node scripts/release-readiness-gate.mjs --strict",
+    "production:approval-gate": "node scripts/production-approval-gate.mjs",
+    "test:control-plane": "npm --prefix backend run test:control-plane",
+    "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs"
   },
   "dependencies": {}
 }

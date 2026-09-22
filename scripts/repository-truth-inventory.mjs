@@ -14,7 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DATE = '2026-09-21';
+const DATE = new Date().toISOString().slice(0, 10);
 const EXCLUDED = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', '.vite', '.vitest', '.nyc_output']);
 const SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx']);
 
@@ -137,7 +137,7 @@ for (const file of files.sort()) {
 const inventory = {
   generatedAt: `${DATE}T00:00:00Z`,
   repository: 'https://github.com/JustineRobert/titech-community-capital',
-  sourceOfTruth: 'uploaded archive titech-community-capital-main(7).zip',
+  sourceOfTruth: 'uploaded archive titech-community-capital-main(9).zip',
   liveRepositoryVerification: 'NOT VERIFIED — GitHub network access was unavailable in this execution environment',
   gitMetadataPresent: fs.existsSync(path.join(ROOT, '.git')),
   runtime: {

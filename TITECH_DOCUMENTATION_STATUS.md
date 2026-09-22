@@ -1,6 +1,6 @@
 # TITech Documentation Status
 
-The authoritative current status is `TITECH_PLATFORM_TRUTH.md`. The following legacy documents contain historical production/completion language and are explicitly retained as reference material; they must be reconciled before any of their claims are reused:
+The authoritative current status is `TITECH_PLATFORM_TRUTH.md`. The current enterprise completeness companion is `docs/ENTERPRISE_PRODUCTION_COMPLETENESS_2026-09-22.md`. The following legacy documents contain historical production/completion language and are explicitly retained as reference material; they must be reconciled before any of their claims are reused:
 
 - `README.md`
 - `backend/middleware/core/README.md`

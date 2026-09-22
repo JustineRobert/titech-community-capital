@@ -1,21 +1,106 @@
-# Architecture
+# TITech Community Capital — Enterprise Architecture
 
-TITech Community Capital is organized as a modular community-finance infrastructure platform. The RC-1 architecture favors deterministic financial paths, explicit domain boundaries and controlled adapters over additional abstraction.
+TITech Community Capital is a multi-tenant community-finance control plane. The architecture separates authoritative financial truth from provider execution, operational intelligence and permissioned data sharing.
 
-## Canonical layers
+## Control-plane north star
 
-`route → controller → authorization/validation → service/domain orchestration → repository → model`
+```text
+COMMUNITY ECONOMY
+      │
+      ▼
+IDENTITY + TENANCY + CONSENT
+      │
+      ▼
+FINANCIAL EVENTS + TRANSACTIONS
+      │
+      ▼
+DOUBLE-ENTRY LEDGER + BALANCE PROJECTIONS
+      │
+      ├───────────────┐
+      ▼               ▼
+PAYMENT CONTROL   RECONCILIATION
+      │               │
+      ▼               ▼
+PROVIDER ADAPTERS   SETTLEMENT EVIDENCE
+      │               │
+      └───────┬───────┘
+              ▼
+      AUDIT + OUTBOX + OBSERVABILITY
+              │
+      ┌───────┴─────────┐
+      ▼                 ▼
+RISK/INTELLIGENCE   CAPITAL CONNECTIVITY
+```
 
-Financial mutations must flow through the authoritative financial transaction and ledger boundaries. Controllers do not directly mutate balances or post journals.
+## Bounded contexts
 
-## Core domains
+### Identity
+Users, authentication, sessions, institutional relationships, roles and action permissions.
 
-Tenant, Member, Group, Account, FinancialTransaction, Payment, Ledger/LedgerEntry, Balance, Reconciliation, Loan and AuditEvent.
+### Tenancy
+Platform → institution → branch/region → group → member. Tenant authority comes from trusted server-side context, never only from client-supplied IDs.
 
-## Integration boundaries
+### Community
+Institutions, groups, memberships, meetings, contribution cycles and community activity.
 
-Payment providers translate provider-specific protocols; generic payment orchestration owns state transitions and idempotency. Redis is coordination/cache infrastructure, not financial truth.
+### Financial Core
+Canonical transaction, double-entry ledger, exact monetary representation, idempotency, reversal/correction and balance projection.
 
-## Known migration boundary
+### Payments
+Provider-neutral payment intent/execution/state. External providers are replaceable adapters; provider response structures never become financial truth.
 
-The backend retains a large ESM/CommonJS compatibility surface. Existing `createRequire()` bridges are preferred over blind conversion until runtime imports and tests establish safe ownership.
+### Reconciliation
+Matches internal intent, provider events, settlement and ledger state. Unknown or mismatched outcomes become explicit exceptions requiring query, repair or human review.
+
+### Consent / Provenance
+Granular purpose-bound consent plus lineage for important financial/risk data. Withdrawal and expiry are enforceable access conditions.
+
+### Risk / Intelligence
+Derived signals and recommendations with source, confidence, method, time window and policy. AI assists; it does not silently mutate financial truth or approve material credit decisions without governance.
+
+### Operations
+Support cases, incidents, SLA/SLO handling, provider health, exception queues and evidence-linked resolution.
+
+### Capital Connectivity
+Permissioned partner requests and governed data envelopes. TITech connects community financial activity to external capital; it does not become the funding source by default.
+
+## Dependency rule
+
+```text
+route → controller → authorization/validation → service/domain → repository → model
+```
+
+Financial controllers and routes must not directly mutate balances or ledger state.
+
+## Adapter rule
+
+```text
+Canonical Payment Domain
+        ↓
+Provider Adapter Contract
+  ├── MTN
+  ├── Airtel
+  ├── M-Pesa
+  ├── Bank
+  └── Aggregator / Future Rail
+```
+
+## Reliability rule
+
+Unknown provider state is not a failure assertion. Prefer:
+
+```text
+TIMEOUT / UNKNOWN
+      ↓
+STATUS QUERY
+      ↓
+CONFIRMATION
+      ↓
+SETTLEMENT
+      ↓
+RECONCILIATION
+```
+
+## Migration boundary
+
+The repository still contains legacy CommonJS/ESM and duplicate modules. Existing working functionality is preserved while canonical financial/control-plane surfaces are consolidated incrementally. Legacy runtime-import debt remains a tracked release blocker rather than being concealed.

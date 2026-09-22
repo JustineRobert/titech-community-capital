@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * AUDIT SERVICE (ACFOS ENTERPRISE GRADE)
+ * TITech Community Capital Audit Service — Enterprise Grade
  * ============================================================================
  * TITech Community Capital LTD
  *
@@ -211,7 +211,7 @@ async function getUnifiedTimeline(tenantId, requestId) {
 
 /*
 |--------------------------------------------------------------------------
-| CHAT / SYSTEM EVENT AUDIT HELPERS (ACFOS CHAT INTEGRATION)
+| CHAT / SYSTEM EVENT AUDIT HELPERS (TITech Community Capital chat integration)
 |--------------------------------------------------------------------------
 */
 

@@ -95,6 +95,28 @@ The previously recorded requirements for Node 24.15.x dependency installation, r
 financial invariant tests against MongoDB, provider sandbox validation, security scanning, backup/restore
 drills, cluster validation and regulatory review remain outstanding.
 
+## 2026-09-22 enterprise completeness hardening
+
+This update applies repository-level controls that can be verified without external infrastructure. It does not promote the platform to production approval.
+
+### Newly applied
+
+- `PRODUCT_POSITIONING.md` establishes TITech as a **Community Financial Infrastructure Layer** and explicitly bounds the platform as not being a consumer wallet, generic SACCO ERP, payment provider or balance-sheet lender.
+- `scripts/release-readiness-gate.mjs` provides an audit/strict release gate covering required artifacts, runtime pin, conflict markers, canonical financial integrity, runtime-import debt, credential-file hygiene and public-facing product positioning.
+- `scripts/production-approval-gate.mjs` makes production deployment dependent on protected, non-expired approval evidence rather than source-code claims alone.
+- CI emits `reports/release-readiness.json`; production deployment uses the strict release gate and protected approval variables.
+
+### Current release evidence
+
+- Canonical financial static gate: PASS.
+- Canonical financial runtime-import audit: PASS.
+- Repository-wide runtime-import debt: 349 missing local imports outside the canonical financial surface.
+- Production approval: **NO**.
+
+### Important environment limitation
+
+The execution environment is Node 22.16.0/npm 10.9.2 while the repository baseline is Node 24.15.0/npm 11.x. Root dependency installation is available from cache, but child dependency installation is not fully executable offline. Full runtime, provider, cluster, restore, load and regulatory evidence therefore remains outstanding.
+
 ## 2026-09-21 master-prompt implementation pass
 
 The 2026-09-21 package applies a second consolidation/hardening pass against the uploaded `titech-community-capital-main(7).zip` archive. It is still an engineering artifact, not a production certification.
@@ -134,3 +156,46 @@ The 2026-09-21 package applies a second consolidation/hardening pass against the
 **PRODUCTION_APPROVED: NO**
 
 The authoritative status remains `NO` until the mandatory release evidence is produced and reviewed.
+## 2026-09-22 master-prompt enterprise implementation pass
+
+This section records the control-plane implementation applied from the 2026-09-22 master prompt. It improves the repository's domain architecture but does not promote production approval.
+
+### Implemented in this pass
+
+- `PRODUCT_POSITIONING.md` and `ARCHITECTURE.md` now explicitly model TITech as a Community Financial Infrastructure Layer and preserve non-wallet/non-ERP/non-lender boundaries.
+- `backend/modules/platform/domain/financialStates.js` adds canonical payment/offline state contracts and deterministic transition rules, including the invariant that provider acceptance is not settlement.
+- `backend/modules/consent/` adds tenant-scoped granular consent records, validity windows, purpose/recipient enforcement and withdrawal lifecycle.
+- `backend/modules/capital/` adds permissioned capital-data share requests with active-consent enforcement and four-eyes approval (maker cannot approve own request).
+- `backend/modules/provenance/` adds data lineage records for important financial/risk information.
+- `backend/modules/operations/` adds tenant-scoped support/incident cases, linked financial evidence and SLA policy defaults.
+- `backend/middleware/platformPermissions.js` adds action-based RBAC for the new control-plane routes.
+- `backend/modules/audit/audit.model.js` was replaced with a functional append-only, hash-chained audit model; its service and verification boundary were converted to the repository's ESM runtime model.
+- `backend/routes/index.js` mounts the new control-plane API under the existing `/api/v1` versioning without creating a competing API version.
+- Enterprise contract tests were added for financial state, action permissions and SLA derivation.
+- A dependency-light `enterprise-contract-contracts.mjs` gate is now part of the standard repository `check` pipeline.
+
+### Status classification
+
+| Capability | Status |
+|---|---|
+| Product positioning / architecture boundary | IMPLEMENTED / STATIC-VERIFIED |
+| Canonical payment/offline state contract | IMPLEMENTED / UNIT-VERIFIED |
+| Consent domain | IMPLEMENTED / STATIC-VERIFIED |
+| Capital connectivity request/approval | IMPLEMENTED / STATIC-VERIFIED |
+| Data provenance | IMPLEMENTED / STATIC-VERIFIED |
+| Support / incident + SLA foundation | IMPLEMENTED / UNIT-VERIFIED |
+| Action-based control-plane RBAC | IMPLEMENTED / UNIT-VERIFIED |
+| Tamper-evident audit model | IMPLEMENTED / STATIC-VERIFIED |
+| Full integration/E2E execution | NOT VERIFIED |
+| Provider certification | NOT VERIFIED |
+| Security scan / penetration testing | NOT VERIFIED |
+| Backup/restore drill | NOT VERIFIED |
+| Production cluster rollout | NOT VERIFIED |
+| Regulatory approval | NOT VERIFIED |
+| Production approval | NO |
+
+### Remaining engineering blockers
+
+- Repository-wide missing local imports remain outside the canonical financial surface and must be consolidated before strict release certification.
+- Full dependency-backed tests/builds still require Node 24.15.x/npm 11.x with package registry access.
+- Live provider, MongoDB, Redis, Kubernetes, DR and external compliance evidence remains external to a source-only archive.
