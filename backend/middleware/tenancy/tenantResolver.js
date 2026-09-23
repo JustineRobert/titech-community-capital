@@ -327,57 +327,6 @@ const METADATA = Object.freeze({
 
 });
 
-/* ============================================================================
- * Enterprise Configuration Defaults
- * (Configuration engine implemented in Phase 1.3)
- * ========================================================================== */
-
-const DEFAULT_CONFIGURATION = Object.freeze({
-
-    enabled: true,
-
-    cacheTTL: DEFAULT_CACHE_TTL,
-
-    resolutionTimeout:
-
-        DEFAULT_RESOLUTION_TIMEOUT_MS,
-
-    trustedHeaders:
-
-        DEFAULT_ALLOWED_HEADERS,
-
-    enforceMembershipValidation: true,
-
-    enforceTenantStatus: true,
-
-    enableCaching: true,
-
-    enableTracing: true,
-
-    enableMetrics: true,
-
-    enableAuditEvents: true,
-
-    enableDiagnostics: true,
-
-    preferredResolutionOrder: Object.freeze([
-
-        RESOLUTION_STRATEGY.JWT,
-
-        RESOLUTION_STRATEGY.API_KEY,
-
-        RESOLUTION_STRATEGY.MTLS,
-
-        RESOLUTION_STRATEGY.CUSTOM_DOMAIN,
-
-        RESOLUTION_STRATEGY.SUBDOMAIN,
-
-        RESOLUTION_STRATEGY.HEADER
-
-    ])
-
-});
-
 /*
  * Remaining implementation phases:
  *
@@ -3299,7 +3248,7 @@ class HostnameTenantResolver extends TenantResolutionStrategy {
  * Trusted Tenant Candidate
  */
 
-class HeaderTenantResolver
+class EnterpriseHeaderTenantResolver
     extends TenantResolutionStrategy {
 
 

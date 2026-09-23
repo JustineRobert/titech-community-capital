@@ -57,19 +57,35 @@
 
 import crypto from 'node:crypto';
 
-import asyncHandler from '../utils/asyncHandler.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+const asyncHandler =
+  require('../utils/asyncHandler.js');
+
 import logger from '../utils/logger.js';
 
 import User from '../models/User.js';
-import RefreshToken from '../models/RefreshToken.js';
+
+const RefreshToken =
+  require('../models/RefreshToken.js');
+
 import EmailAudit from '../models/EmailAudit.js';
 import PasswordResetToken from '../models/PasswordResetToken.js';
 
-import PasswordResetService, {
-  hashResetToken,
-} from '../services/passwordResetService.js';
+const PasswordResetServiceModule =
+  require('../services/passwordResetService.js');
 
-import * as emailServiceModule from '../services/emailService.js';
+const PasswordResetService =
+  PasswordResetServiceModule?.default ??
+  PasswordResetServiceModule;
+
+const hashResetToken =
+  PasswordResetServiceModule?.hashResetToken;
+
+const emailServiceModule =
+  require('../services/emailService.js');
 
 import {
   successResponse,
@@ -81,12 +97,12 @@ import {
   isValidEmail,
 } from '../utils/validators.js';
 
-import {
+const {
   requestVerificationLimiter,
   requestResetLimiter,
   resetPasswordLimiter,
   verifyEmailLimiter,
-} from '../middleware/rateLimiters.js';
+} = require('../middleware/rateLimiters.js');
 
 /**
  * =============================================================================

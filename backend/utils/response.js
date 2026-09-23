@@ -33,7 +33,11 @@
  * =============================================================================
  */
 
-import errorCodes from './errorCodes.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+const errorCodes = require('./errorCodes.js');
 
 /**
  * =============================================================================

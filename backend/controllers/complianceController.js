@@ -1,45 +1,25 @@
-"use strict";
-
 /**
- * ============================================================================
- * TITech Community Capital LTD
- * File: backend/controllers/complianceController.js
- * Enterprise Compliance Controller
- * ============================================================================
+ * TITech Community Capital compliance controller.
+ *
+ * Runtime format is native ESM. Legacy service implementations remain behind
+ * an explicit createRequire dependency boundary. Test mocking belongs in tests.
  */
-jest.mock(
-    "../../backend/services/complianceService"
-);
 
-jest.mock(
-    "../../backend/services/auditService"
-);
+import { createRequire } from 'node:module';
 
-jest.mock(
-    "../../backend/services/metricsService"
-);
+const require = createRequire(import.meta.url);
 
 const logger =
-    require("../utils/logger");
+    require('../utils/logger.js');
 
 const complianceService =
-    require("../services/complianceService");
+    require('../services/complianceService.js');
 
 const auditService =
-    require("../services/auditService");
+    require('../services/auditService.js');
 
 const metricsService =
-    require("../services/metricsService");
-
-const complianceController =
-    require(
-        "../../backend/controllers/complianceController"
-    );
-
-const complianceService =
-    require(
-        "../../backend/services/complianceService"
-    );
+    require('../services/metricsService.js');
 
 class ComplianceController {
 
@@ -512,11 +492,10 @@ class ComplianceController {
     }
 }
 
+
 const complianceController =
     new ComplianceController();
 
-module.exports =
-    complianceController;
+export { ComplianceController };
 
-module.exports.ComplianceController =
-    ComplianceController;
+export default complianceController;

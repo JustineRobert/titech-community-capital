@@ -16,9 +16,10 @@
  *   This module orchestrates the canonical implementation in
  *   backend/observability.js. It does not implement telemetry primitives.
  *
- * ESM rule:
- *   backend/package.json declares "type": "module". This file therefore uses
- *   native ESM only: no require(), no module.exports, and no CommonJS shims.
+ * Module-format boundary:
+ *   backend/package.json declares "type": "module". This adapter remains ESM.
+ *   The canonical backend/observability.js implementation is a legacy CommonJS
+ *   module, so it is intentionally loaded through createRequire at this boundary.
  *
  * Responsibilities:
  *   - Adapt backend/observability.js into the canonical TITech lifecycle.
@@ -51,9 +52,14 @@
 
 import * as hooksModule from './hooks.js';
 import * as loggerModule from './logger.js';
-import * as startupErrorsModule from './startupErrors.js';
+const startupErrorsModule =
+    require('./startupErrors.js');
 
-import * as canonicalObservabilityModule from '../observability.js';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+const canonicalObservabilityModule = require('../observability.js');
 
 /**
  * =============================================================================

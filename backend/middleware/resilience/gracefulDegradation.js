@@ -63,15 +63,10 @@ const MODULE_CREATED =
  * Symbols
  * ========================================================================== */
 
-const kInternalState = Symbol('internalState');
 
-const kMetrics = Symbol('metrics');
 
-const kPolicies = Symbol('policies');
 
-const kFallbacks = Symbol('fallbacks');
 
-const kDiagnostics = Symbol('diagnostics');
 
 /* ============================================================================
  * Runtime Metadata
@@ -165,18 +160,7 @@ const FALLBACK_STRATEGIES = Object.freeze({
  * Dependency Health
  * ========================================================================== */
 
-const HEALTH_STATUS = Object.freeze({
 
-    HEALTHY: 'HEALTHY',
-
-    DEGRADED: 'DEGRADED',
-
-    UNAVAILABLE: 'UNAVAILABLE',
-
-    MAINTENANCE: 'MAINTENANCE',
-
-    UNKNOWN: 'UNKNOWN'
-});
 
 /* ============================================================================
  * Events
@@ -335,51 +319,6 @@ const DEFAULT_CONFIGURATION = Object.freeze({
 const EMPTY_OBJECT = Object.freeze({});
 
 const EMPTY_ARRAY = Object.freeze([]);
-
-/* ============================================================================
- * Validation Helpers
- * ========================================================================== */
-
-function isFunction(value) {
-
-    return typeof value === 'function';
-}
-
-function isObject(value) {
-
-    return value !== null &&
-        typeof value === 'object';
-}
-
-function isString(value) {
-
-    return typeof value === 'string';
-}
-
-function isBoolean(value) {
-
-    return typeof value === 'boolean';
-}
-
-function assertFunction(fn, name) {
-
-    if (!isFunction(fn)) {
-
-        throw new TypeError(
-            `${name} must be a function.`
-        );
-    }
-}
-
-function assertObject(obj, name) {
-
-    if (!isObject(obj)) {
-
-        throw new TypeError(
-            `${name} must be an object.`
-        );
-    }
-}
 
 /* ============================================================================
  * Utility Helpers

@@ -569,8 +569,31 @@ function isMissingModuleError(
 function isCjsFallbackEligible(
   error,
 ) {
-  return CJS_FALLBACK_ERROR_CODES.has(
-    error?.code,
+  if (
+    CJS_FALLBACK_ERROR_CODES.has(
+      error?.code,
+    )
+  ) {
+    return true;
+  }
+
+  // Node treats legacy .js CommonJS files as ESM when the package declares
+  // "type": "module". Dynamic import() may therefore throw a narrowly
+  // identifiable ReferenceError before the existing require() compatibility
+  // path can run. Only recognize those CJS-in-ESM diagnostics here.
+  const message =
+    String(
+      error?.message ??
+        '',
+    ).toLowerCase();
+
+  return (
+    error?.name === 'ReferenceError' &&
+    (
+      message.includes('module is not defined in es module scope') ||
+      message.includes('exports is not defined in es module scope') ||
+      message.includes('require is not defined in es module scope')
+    )
   );
 }
 

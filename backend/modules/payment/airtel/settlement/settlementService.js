@@ -159,7 +159,7 @@ const DEFAULT_CONFIGURATION =
  */
 
 
-class SettlementService {
+class SettlementServiceCore {
 
 
 
@@ -3433,7 +3433,7 @@ const SECURITY_ACTIONS = Object.freeze({
 
 
 
-class SettlementService {
+class SettlementService extends SettlementServiceCore {
 
 
 
@@ -3443,34 +3443,38 @@ class SettlementService {
      * These dependencies should be injected
      * from the application container.
      */
-    constructor({
+    constructor(options = {}) {
 
-        fraudEngine,
+        const {
 
-        amlService,
+            fraudEngine,
 
-        policyEngine,
+            amlService,
 
-        approvalWorkflow,
+            policyEngine,
 
-        limitManager,
+            approvalWorkflow,
 
-        signatureService,
+            limitManager,
 
-        accessControl,
+            signatureService,
 
-        auditService,
+            accessControl,
 
-        metrics,
+            auditService,
 
-        logger,
+            metrics,
 
-        tracer,
+            logger,
 
-        ...dependencies
+            tracer,
 
-    } = {}) {
+            ...dependencies
 
+        } = options;
+
+
+        super(options);
 
         Object.assign(
 

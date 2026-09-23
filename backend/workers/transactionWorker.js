@@ -1,10 +1,13 @@
 import { Worker } from 'bullmq';
+import { createRequire } from 'node:module';
 import IORedis from 'ioredis';
-import {
+const require = createRequire(import.meta.url);
+
+const {
   createTransaction,
   postEntries,
   finalize,
-} from '../services/ledgerService.js';
+} = require('../services/ledgerService.js');
 
 const connection = new IORedis();
 

@@ -496,7 +496,7 @@ const STEP_STATES = Object.freeze({
 });
 
 
-const DEFAULT_RETRY_POLICY = Object.freeze({
+const STEP_RETRY_POLICY = Object.freeze({
 
     maxAttempts: 3,
 
@@ -580,7 +580,7 @@ class SagaStepConfigurationError extends Error {
  * })
  *
  */
-class SagaStep {
+class SagaStepBase extends EventEmitter {
 
 
 
@@ -753,7 +753,7 @@ class SagaStep {
 
                 {
 
-                    ...DEFAULT_RETRY_POLICY,
+                    ...STEP_RETRY_POLICY,
 
                     ...(configuration.retryPolicy || {})
 
@@ -1133,14 +1133,14 @@ class SagaExecutionError extends Error {
 
 
 
-class SagaTimeoutError extends Error {
+class SagaTimeoutExtensionError extends Error {
 
 
     constructor(message) {
 
         super(message);
 
-        this.name = 'SagaTimeoutError';
+        this.name = 'SagaTimeoutExtensionError';
 
     }
 
@@ -1156,7 +1156,7 @@ class SagaTimeoutError extends Error {
  */
 
 
-class SagaStep extends EventEmitter {
+class SagaStepEventEmitter extends SagaStepBase {
 
 
 
@@ -1527,7 +1527,7 @@ async executeWithTimeout(operation) {
 
                         reject(
 
-                            new SagaTimeoutError(
+                            new SagaTimeoutExtensionError(
 
                                 `Saga step ${this.name} timed out`
 
@@ -1993,7 +1993,6 @@ module.exports = {
 'use strict';
 
 
-const EventEmitter = require('events');
 
 
 
@@ -2066,7 +2065,7 @@ class SagaPermanentError extends Error {
  */
 
 
-class SagaStep extends EventEmitter {
+class SagaStepReliability extends SagaStepEventEmitter {
 
 
 
@@ -2942,8 +2941,6 @@ module.exports={
 'use strict';
 
 
-const EventEmitter = require('events');
-const crypto = require('crypto');
 
 
 
@@ -3012,7 +3009,7 @@ class SagaDeadLetterError extends Error {
  */
 
 
-class SagaStep extends EventEmitter {
+class SagaStepPlatform extends SagaStepReliability {
 
 
 
@@ -3768,9 +3765,7 @@ module.exports = {
 'use strict';
 
 
-const crypto = require('crypto');
 
-const EventEmitter = require('events');
 
 
 
@@ -3839,7 +3834,7 @@ class ComplianceRejectedError extends Error {
  */
 
 
-class SagaStep extends EventEmitter {
+class SagaStepFinancial extends SagaStepPlatform {
 
 
 
@@ -4622,9 +4617,7 @@ module.exports={
 'use strict';
 
 
-const EventEmitter = require('events');
 
-const crypto = require('crypto');
 
 
 
@@ -4676,7 +4669,7 @@ class SagaReplayError extends Error {
  */
 
 
-class SagaStep extends EventEmitter {
+class SagaStepDistributed extends SagaStepFinancial {
 
 
 
@@ -5537,9 +5530,7 @@ module.exports = {
 'use strict';
 
 
-const crypto = require('crypto');
 
-const EventEmitter = require('events');
 
 
 
@@ -5609,7 +5600,7 @@ class EmergencyStopError extends Error {
  */
 
 
-class SagaStep extends EventEmitter {
+class SagaStep extends SagaStepDistributed {
 
 
 

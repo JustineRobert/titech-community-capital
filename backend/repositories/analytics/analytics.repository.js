@@ -4593,28 +4593,3 @@ function csvEscape(
 
     return stringValue;
 }
-
-/**
- * ============================================================================
- * Factory / Exports
- * ============================================================================
- */
-
-function createAnalyticsRepository(
-    dependencies = {}
-) {
-    return new AnalyticsRepository(
-        dependencies
-    );
-}
-
-module.exports =
-    Object.freeze({
-        AnalyticsRepository,
-
-        AnalyticsRepositoryError,
-
-        createAnalyticsRepository,
-
-        DEFAULTS,
-    });

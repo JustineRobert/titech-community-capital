@@ -273,50 +273,6 @@ function resolveConfiguration(overrides = {}) {
 }
 
 /* ============================================================================
- * Repository Contract
- * ========================================================================== */
-
-class TenantRepository {
-
-    async findById(/* tenantId */) {
-
-        throw new Error('findById() not implemented.');
-
-    }
-
-    async findByCode(/* tenantCode */) {
-
-        throw new Error('findByCode() not implemented.');
-
-    }
-
-    async findByHostname(/* hostname */) {
-
-        throw new Error('findByHostname() not implemented.');
-
-    }
-
-    async findByApiClient(/* clientId */) {
-
-        throw new Error('findByApiClient() not implemented.');
-
-    }
-
-    async exists(/* tenantId */) {
-
-        throw new Error('exists() not implemented.');
-
-    }
-
-    async warmCache() {
-
-        throw new Error('warmCache() not implemented.');
-
-    }
-
-}
-
-/* ============================================================================
  * Shared Repository Utilities
  * ========================================================================== */
 
