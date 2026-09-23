@@ -52,13 +52,12 @@
 
 import * as hooksModule from './hooks.js';
 import * as loggerModule from './logger.js';
-const startupErrorsModule =
-    require('./startupErrors.js');
-
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
+const startupErrorsModule =
+  require('./startupErrors.js');
 const canonicalObservabilityModule = require('../observability.js');
 
 /**

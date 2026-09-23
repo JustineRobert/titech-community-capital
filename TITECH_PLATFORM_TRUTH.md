@@ -244,3 +244,25 @@ The proof harness does not contact MTN, Airtel, banks, MongoDB or Redis. It ther
 **PRODUCTION_APPROVED: NO**
 
 The package is stronger and more demonstrable, but external verification is still required before production approval.
+
+## 2026-09-23 bootstrap import-seam patch
+
+A narrow follow-up patch was applied to the latest enterprise production archive after re-inspection exposed a remaining initialization-order defect in `backend/bootstrap/observability.js`.
+
+### Verified correction
+
+- `createRequire()` is now initialized before any compatibility `require()` call in the observability bootstrap adapter.
+- The resilience fallback boundary was rechecked and remains correctly ordered.
+- Route bootstrap continues to preserve nested import/load causes rather than masking them.
+
+### Regression evidence
+
+- Bootstrap seam regression suite: **3/3 PASS**.
+- Repository-wide `require`-before-`createRequire` audit for source files: **0 findings**.
+- Enterprise syntax gate: **PASS — 2,153 executable JS/TS-family files parsed**.
+
+### Current production decision
+
+**PRODUCTION_APPROVED: NO**
+
+This patch repairs a verified startup/import defect but does not remove the existing runtime-environment, dependency-installation, repository-wide legacy import debt, infrastructure, provider, security, restore, cluster, load, or regulatory evidence requirements already recorded in this document.

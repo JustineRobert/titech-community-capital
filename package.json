@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital",
   "version": "1.0.0",
-  "description": "TITech Community Capital \u2014 Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
+  "description": "TITech Community Capital — Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
   "private": true,
   "keywords": [
     "TITech",
@@ -77,7 +77,7 @@
     "lint:fix": "npm --prefix backend run lint:fix && npm --prefix frontend run lint:fix",
     "format": "npm --prefix backend run format && npm --prefix frontend run format",
     "format:check": "npm --prefix backend run format:check && npm --prefix frontend run format:check",
-    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run check:architecture-debt && npm run test:golden:proof && npm run check:product && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run check:architecture-debt && npm run test:bootstrap:seams && npm run test:golden:proof && npm run check:product && npm run lint && npm run format:check",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:all": "npm run check && npm run test",
     "test": "npm run test:backend && npm run test:frontend",
@@ -121,7 +121,8 @@
     "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs",
     "check:architecture-debt": "node scripts/architecture-debt-audit.mjs",
     "test:golden:proof": "node scripts/golden-money-path-proof.mjs",
-    "evidence:generate": "npm run test:golden:proof && npm run check:architecture-debt && npm run truth:inventory && npm run release:gate"
+    "evidence:generate": "npm run test:golden:proof && npm run check:architecture-debt && npm run truth:inventory && npm run release:gate",
+    "test:bootstrap:seams": "npm --prefix backend run test:bootstrap:seams"
   },
   "dependencies": {}
 }
