@@ -7,39 +7,28 @@
 // ============================================================================
 
 import { io } from "socket.io-client";
-import {
-  getDeviceId as getApiDeviceId,
-  getTenant as getApiTenant,
-  getToken as getApiToken,
-} from './api.js';
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
 const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL ||
-  import.meta.env.VITE_API_URL ||
-  (
-    import.meta.env.PROD &&
-    typeof window !== 'undefined' &&
-    window.location?.origin
-      ? window.location.origin
-      : "http://localhost:5000"
-  );
+  process.env.REACT_APP_SOCKET_URL ||
+  process.env.REACT_APP_API_URL ||
+  "http://localhost:5000";
 
-const EFFECTIVE_SOCKET_URL =
-  SOCKET_URL ||
-  (
-    typeof window !== 'undefined' &&
-    window.location?.origin
-      ? window.location.origin
-      : '/'
-  );
+const TOKEN_KEY =
+  process.env.REACT_APP_TOKEN_KEY ||
+  "token";
+
+const TENANT_KEY =
+  process.env.REACT_APP_TENANT_KEY ||
+  "activeTenant";
 
 const MAX_RECONNECT_ATTEMPTS =
   Number(
-    import.meta.env.VITE_SOCKET_RETRIES
+    process.env
+      .REACT_APP_SOCKET_RETRIES
   ) || 10;
 
 // ============================================================================
@@ -47,15 +36,59 @@ const MAX_RECONNECT_ATTEMPTS =
 // ============================================================================
 
 function getToken() {
-  return getApiToken();
+  return (
+    localStorage.getItem(
+      TOKEN_KEY
+    ) ||
+    sessionStorage.getItem(
+      TOKEN_KEY
+    )
+  );
 }
 
 function getTenantId() {
-  return getApiTenant();
+  try {
+    const tenant =
+      localStorage.getItem(
+        TENANT_KEY
+      );
+
+    if (!tenant) {
+      return null;
+    }
+
+    const parsed =
+      JSON.parse(tenant);
+
+    return (
+      parsed?.id ||
+      parsed?._id ||
+      tenant
+    );
+  } catch {
+    return (
+      localStorage.getItem(
+        TENANT_KEY
+      ) || null
+    );
+  }
 }
 
-function getDeviceIdFromApiState() {
-  return getApiDeviceId();
+function getDeviceId() {
+  let deviceId =
+    localStorage.getItem(
+      "deviceId"
+    );
+
+  if (!deviceId) {
+    deviceId = crypto.randomUUID();
+    localStorage.setItem(
+      "deviceId",
+      deviceId
+    );
+  }
+
+  return deviceId;
 }
 
 function getCorrelationId() {
@@ -67,7 +100,7 @@ function getCorrelationId() {
 // ============================================================================
 
 const socket = io(
-  EFFECTIVE_SOCKET_URL,
+  SOCKET_URL,
   {
     autoConnect: false,
     withCredentials: true,
@@ -94,7 +127,7 @@ const socket = io(
       tenantId:
         getTenantId(),
       deviceId:
-        getDeviceIdFromApiState(),
+        getDeviceId(),
       correlationId:
         getCorrelationId(),
     },
@@ -122,7 +155,7 @@ function updateAuth() {
     tenantId:
       getTenantId(),
     deviceId:
-      getDeviceIdFromApiState(),
+      getDeviceId(),
     correlationId:
       getCorrelationId(),
   };

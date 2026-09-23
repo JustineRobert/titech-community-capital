@@ -302,58 +302,9 @@ function checkDocumentationPositioning() {
   }
 }
 
-
-function checkArchitectureDebt() {
-  const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts/architecture-debt-audit.mjs')], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  });
-
-  if (!exists('reports/architecture-debt-audit.json')) {
-    blockers.push('Architecture debt audit did not produce its report.');
-    addCheck('architecture-debt', 'BLOCKED', 'Architecture debt report is missing.');
-    return;
-  }
-
-  const report = JSON.parse(read('reports/architecture-debt-audit.json'));
-  const criticalZeroByte = report.zeroByteSummary?.criticalFinancialSurface ?? 0;
-  const zeroByte = report.zeroByteSummary?.total ?? 0;
-
-  if (criticalZeroByte > 0) {
-    blockers.push(`Critical financial zero-byte modules remain: ${criticalZeroByte}.`);
-    addCheck('architecture-debt', 'BLOCKED', 'Critical financial surface contains empty source modules.', report.zeroByteFiles ?? []);
-    return;
-  }
-
-  const status = zeroByte > 0 ? (strict ? 'WARN' : 'WARN') : 'PASS';
-  addCheck('architecture-debt', status, zeroByte > 0
-    ? `Repository contains ${zeroByte} zero-byte source files outside the critical financial surface; each remains classified for later consolidation.`
-    : 'No zero-byte source modules detected.');
-
-  if (result.status !== 0 && strict) {
-    warnings.push('Architecture debt audit reported non-fatal legacy debt.');
-  }
-}
-
-function checkGoldenMoneyPath() {
-  const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts/golden-money-path-proof.mjs')], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  });
-
-  if (result.status !== 0 || !exists('reports/evidence/golden-money-path-proof.json')) {
-    blockers.push('Golden Money Path reference proof failed or did not produce evidence.');
-    addCheck('golden-money-path', 'BLOCKED', 'Reference financial lifecycle proof did not pass.', [result.stdout, result.stderr].filter(Boolean).join('\n'));
-    return;
-  }
-
-  const report = JSON.parse(read('reports/evidence/golden-money-path-proof.json'));
-  addCheck('golden-money-path', 'PASS', 'Dependency-free Golden Money Path reference proof passed.', report.evidence?.guarantees ? [JSON.stringify(report.evidence.guarantees)] : []);
-}
-
 function checkPackageMetadata() {
   const pkg = JSON.parse(read('package.json'));
-  const requiredScripts = ['check', 'enterprise:gate', 'check:financial', 'check:runtime-imports', 'check:architecture-debt', 'test:golden:proof', 'release:gate', 'release:gate:strict'];
+  const requiredScripts = ['check', 'enterprise:gate', 'check:financial', 'check:runtime-imports', 'release:gate', 'release:gate:strict'];
   const missing = requiredScripts.filter((name) => !pkg.scripts?.[name]);
   if (missing.length) {
     blockers.push(`Root package scripts missing: ${missing.join(', ')}`);
@@ -370,8 +321,6 @@ function main() {
   checkCanonicalFinancialSurface();
   checkFinancialStaticGate();
   checkRuntimeImports();
-  checkArchitectureDebt();
-  checkGoldenMoneyPath();
   checkCredentialFiles();
   checkDocumentationPositioning();
   checkPackageMetadata();

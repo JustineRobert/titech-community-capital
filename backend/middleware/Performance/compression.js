@@ -28,6 +28,67 @@ const compression = require('compression');
 
 
 
+/**
+ * ============================================================================
+ * Component Identity
+ * ============================================================================
+ */
+
+const COMPONENT_NAME =
+    'enterprise-compression';
+
+
+const COMPONENT_VERSION =
+    '1.0.0';
+
+
+const COMPONENT_OWNER =
+    'TITech Community Capital LTD';
+
+
+
+/**
+ * ============================================================================
+ * Runtime Metadata
+ * ============================================================================
+ */
+
+const RUNTIME_METADATA = Object.freeze({
+
+    service:
+        COMPONENT_NAME,
+
+    version:
+        COMPONENT_VERSION,
+
+    hostname:
+        os.hostname(),
+
+    processId:
+        process.pid
+
+});
+
+
+
+/**
+ * ============================================================================
+ * Enterprise Dependency Loader
+ * ============================================================================
+ *
+ * Optional dependencies are loaded safely.
+ *
+ * Middleware remains bootable during:
+ *
+ * - unit tests
+ * - isolated development
+ * - partial service startup
+ *
+ * Production diagnostics expose missing dependencies.
+ *
+ * ============================================================================
+ */
+
 function loadOptionalDependency(path) {
 
     try {
@@ -132,6 +193,207 @@ const TraceContext =
 
 
 
+
+/**
+ * ============================================================================
+ * Compression Constants
+ * ============================================================================
+ */
+
+
+/**
+ * Supported compression algorithms.
+ */
+const COMPRESSION_ALGORITHMS = Object.freeze({
+
+    BROTLI:
+
+        'br',
+
+
+    GZIP:
+
+        'gzip',
+
+
+    DEFLATE:
+
+        'deflate'
+
+});
+
+
+
+/**
+ * Default compression configuration.
+ */
+const DEFAULT_CONFIGURATION = Object.freeze({
+
+    enabled:
+        true,
+
+
+    algorithm:
+        COMPRESSION_ALGORITHMS.BROTLI,
+
+
+    threshold:
+        1024,
+
+
+    gzipLevel:
+        zlib.constants.Z_DEFAULT_COMPRESSION,
+
+
+    brotliQuality:
+
+        zlib.constants.BROTLI_PARAM_QUALITY,
+
+
+    enableBrotli:
+        true,
+
+
+    enableGzip:
+        true,
+
+
+    minimumSize:
+        1024,
+
+
+    honorNoTransform:
+        true,
+
+
+    excludedRoutes:
+
+        Object.freeze([
+
+            '/health',
+
+            '/healthz',
+
+            '/metrics',
+
+            '/socket.io'
+
+        ]),
+
+
+    compressibleMimeTypes:
+
+        Object.freeze([
+
+            'text/html',
+
+            'text/plain',
+
+            'text/css',
+
+            'application/json',
+
+            'application/javascript',
+
+            'application/xml',
+
+            'application/problem+json'
+
+        ])
+
+});
+
+
+
+/**
+ * ============================================================================
+ * Middleware Constants
+ * ============================================================================
+ */
+
+const COMPONENT_METADATA = Object.freeze({
+
+    name:
+        COMPONENT_NAME,
+
+    version:
+        COMPONENT_VERSION,
+
+    owner:
+        COMPONENT_OWNER,
+
+    category:
+        'performance',
+
+    phase:
+        'middleware',
+
+    priority:
+        300,
+
+    critical:
+        false,
+
+    description:
+
+        'Enterprise HTTP response compression middleware.',
+
+
+    supportedAlgorithms:
+
+        Object.values(
+
+            COMPRESSION_ALGORITHMS
+
+        )
+
+});
+
+
+
+/**
+ * ============================================================================
+ * Dependency Diagnostics
+ * ============================================================================
+ */
+
+const DEPENDENCY_STATUS = Object.freeze({
+
+    ConfigurationProvider:
+
+        !ConfigurationProvider.unavailable,
+
+
+    LoggerFactory:
+
+        !LoggerFactory.unavailable,
+
+
+    StructuredLogger:
+
+        !StructuredLogger.unavailable,
+
+
+    MetricsRegistry:
+
+        !MetricsRegistry.unavailable,
+
+
+    RequestMetrics:
+
+        !RequestMetrics.unavailable,
+
+
+    EventBus:
+
+        !EventBus.unavailable,
+
+
+    TraceContext:
+
+        !TraceContext.unavailable
+
+});
 
 /**
  * ============================================================================

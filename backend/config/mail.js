@@ -1382,11 +1382,9 @@ function createMailConfig(
                             ),
 
                         password:
-                            (
-                                source.password ??
-                                env(
-                                    'SMTP_PASSWORD',
-                                )
+                            source.password ??
+                            env(
+                                'SMTP_PASSWORD',
                             ) ||
                             null,
 

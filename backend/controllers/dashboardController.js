@@ -55,7 +55,6 @@
  */
 
 import DashboardService from '../modules/dashboard/services/dashboardService.js';
-import { createRequire } from 'node:module';
 
 import {
   successResponse,
@@ -63,10 +62,7 @@ import {
   buildPagination,
 } from '../utils/response.js';
 
-const require = createRequire(import.meta.url);
-
-const asyncHandler =
-  require('../utils/asyncHandler.js');
+import asyncHandler from '../utils/asyncHandler.js';
 
 import logger from '../utils/logger.js';
 

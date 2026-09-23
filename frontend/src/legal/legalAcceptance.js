@@ -1117,13 +1117,7 @@ function getApiBaseUrl() {
 
   const baseUrl =
     env.VITE_API_URL ||
-    (
-      (env.PROD === true || env.PROD === 'true') &&
-      typeof window !== 'undefined' &&
-      window.location?.origin
-        ? `${window.location.origin}/api`
-        : 'http://localhost:5000/api'
-    );
+    'http://localhost:5000/api';
 
   return baseUrl.replace(/\/+$/, '');
 }

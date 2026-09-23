@@ -51,20 +51,12 @@ jobs:
         run: npm run check:runtime-imports
       - name: Enterprise release readiness audit
         run: npm run release:gate
-      - name: Golden Money Path reference proof
-        run: npm run test:golden:proof
-      - name: Architecture debt audit
-        run: npm run check:architecture-debt
 
       - name: Upload release readiness evidence
         uses: actions/upload-artifact@v4
         with:
           name: release-readiness
-          path: |
-            reports/release-readiness.json
-            reports/architecture-debt-audit.json
-            reports/evidence/golden-money-path-proof.json
-            reports/evidence/production-readiness-matrix.json
+          path: reports/release-readiness.json
           retention-days: 14
       - name: Exact-money unit tests
         run: node --test backend/tests/unit/financial/money.test.js

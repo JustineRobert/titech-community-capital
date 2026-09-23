@@ -120,12 +120,7 @@
 'use strict';
 
 import mongoose from 'mongoose';
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-
-const tenantConstantsModule =
-  require('../tenancy/tenant.constants.js');
+import * as tenantConstantsModule from '../tenancy/tenant.constants.js';
 
 const { Schema } = mongoose;
 

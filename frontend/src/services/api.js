@@ -33,30 +33,9 @@ import { v4 as uuidv4 } from 'uuid';
 // Configuration
 // ============================================================================
 
-const DEFAULT_DEVELOPMENT_API_ORIGIN =
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
   'http://localhost:5000';
-
-function resolveApiBase() {
-  const configured =
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_APP_API_URL;
-
-  if (configured) {
-    return String(configured).replace(/\/+$/, '');
-  }
-
-  if (
-    import.meta.env.PROD &&
-    typeof window !== 'undefined' &&
-    window.location?.origin
-  ) {
-    return window.location.origin;
-  }
-
-  return DEFAULT_DEVELOPMENT_API_ORIGIN;
-}
-
-const API_BASE = resolveApiBase();
 
 const REQUEST_TIMEOUT =
   Number(import.meta.env.VITE_REQUEST_TIMEOUT) || 30000;

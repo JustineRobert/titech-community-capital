@@ -119,22 +119,6 @@ export const RECONCILIATION_STATUSES = Object.freeze([
   'RESOLVED',
 ]);
 
-export const SETTLEMENT_STATUSES = Object.freeze([
-  'NOT_STARTED',
-  'PENDING',
-  'SETTLED',
-  'FAILED',
-  'UNKNOWN',
-  'REQUIRES_REVIEW',
-]);
-
-export const DECISION_STATUSES = Object.freeze([
-  'NOT_EVALUATED',
-  'APPROVED',
-  'REVIEW',
-  'REJECTED',
-]);
-
 const MAX_INTENT_ID_LENGTH = 128;
 const MAX_IDEMPOTENCY_KEY_LENGTH = 256;
 const MAX_REQUEST_ID_LENGTH = 256;
@@ -804,24 +788,6 @@ const PaymentIntentSchema =
           MAX_INTENT_ID_LENGTH,
       },
 
-      correlationId: {
-        type: String,
-        default: null,
-        immutable: true,
-        trim: true,
-        maxlength: MAX_REQUEST_ID_LENGTH,
-        index: true,
-      },
-
-      clientReference: {
-        type: String,
-        default: null,
-        immutable: true,
-        trim: true,
-        maxlength: MAX_REQUEST_ID_LENGTH,
-        index: true,
-      },
-
       /*
        * ----------------------------------------------------------------------
        * User / business context
@@ -836,35 +802,11 @@ const PaymentIntentSchema =
         index: true,
       },
 
-      memberId: {
-        type: Schema.Types.ObjectId,
-        ref: 'Member',
-        default: null,
-        immutable: true,
-        index: true,
-      },
-
-      institutionId: {
-        type: Schema.Types.ObjectId,
-        default: null,
-        immutable: true,
-        index: true,
-      },
-
       groupId: {
         type: Schema.Types.ObjectId,
         ref: 'Group',
         default: null,
         immutable: true,
-        index: true,
-      },
-
-      purpose: {
-        type: String,
-        default: 'COMMUNITY_FINANCE',
-        immutable: true,
-        trim: true,
-        maxlength: 128,
         index: true,
       },
 
@@ -1143,50 +1085,12 @@ const PaymentIntentSchema =
        * ----------------------------------------------------------------------
        */
 
-      settlementStatus: {
-        type: String,
-        enum: SETTLEMENT_STATUSES,
-        default: 'NOT_STARTED',
-        uppercase: true,
-        trim: true,
-        index: true,
-      },
-
-      settledAt: {
-        type: Date,
-        default: null,
-      },
-
       reconciliationStatus: {
         type: String,
         enum: RECONCILIATION_STATUSES,
         default: 'PENDING',
         uppercase: true,
         trim: true,
-        index: true,
-      },
-
-      riskDecision: {
-        type: String,
-        enum: DECISION_STATUSES,
-        default: 'NOT_EVALUATED',
-        uppercase: true,
-        trim: true,
-        index: true,
-      },
-
-      complianceDecision: {
-        type: String,
-        enum: DECISION_STATUSES,
-        default: 'NOT_EVALUATED',
-        uppercase: true,
-        trim: true,
-        index: true,
-      },
-
-      requiresReview: {
-        type: Boolean,
-        default: false,
         index: true,
       },
 
@@ -1341,30 +1245,6 @@ PaymentIntentSchema.index({
   loanId: 1,
   createdAt: -1,
   _id: -1,
-});
-
-/**
- * Correlation and client-reference traceability.
- */
-PaymentIntentSchema.index({
-  tenantId: 1,
-  correlationId: 1,
-  createdAt: -1,
-});
-
-PaymentIntentSchema.index({
-  tenantId: 1,
-  clientReference: 1,
-  createdAt: -1,
-});
-
-/**
- * Settlement operational queue.
- */
-PaymentIntentSchema.index({
-  tenantId: 1,
-  settlementStatus: 1,
-  createdAt: -1,
 });
 
 /**

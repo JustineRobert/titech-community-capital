@@ -1,10 +1,5 @@
 import { Worker } from 'bullmq';
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-
-const { evaluateTransaction } =
-  require('../services/fraudEngine.js');
+import { evaluateTransaction } from '../services/fraudEngine.js';
 
 new Worker('transactions', async (job) => {
   const txn = job.data;

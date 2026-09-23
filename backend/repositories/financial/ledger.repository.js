@@ -101,9 +101,9 @@ import mongoose from 'mongoose';
 
 import FinancialLedgerEntry from '../../models/FinancialLedgerEntry.js';
 
-import tenantConstants from '../../tenancy/tenant.constants.js';
-
 import { FinancialTransactionError } from '../../services/financial/financialTransaction.service.js';
+
+import tenantConstants from '../../tenancy/tenant.constants.js';
 
 /**
  * ============================================================================

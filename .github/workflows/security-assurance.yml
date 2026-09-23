@@ -1,0 +1,66 @@
+name: TITech Security Assurance
+
+on:
+  workflow_dispatch:
+    inputs:
+      staging_url:
+        description: 'Disposable/staging base URL for DAST (for example https://staging.example.com)'
+        required: true
+        type: string
+      run_dast:
+        description: 'Run OWASP ZAP baseline scan against the supplied staging URL'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  container-scan:
+    name: Container vulnerability and secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        run: docker build -f backend/Dockerfile -t titech/backend:security-${{ github.sha }} .
+      - name: Build frontend image
+        run: docker build -f frontend/Dockerfile -t titech/frontend:security-${{ github.sha }} .
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: titech/backend:security-${{ github.sha }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+      - name: Scan frontend image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: titech/frontend:security-${{ github.sha }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+
+  dast:
+    name: DAST against disposable/staging environment
+    if: ${{ inputs.run_dast }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate target URL
+        env:
+          TARGET: ${{ inputs.staging_url }}
+        run: |
+          case "$TARGET" in
+            https://*|http://*) echo "DAST target accepted: $TARGET" ;;
+            *) echo "DAST target must begin with http:// or https://"; exit 1 ;;
+          esac
+      - name: OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: ${{ inputs.staging_url }}
+          fail_action: true
+          allow_issue_writing: false

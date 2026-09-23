@@ -1,13 +1,9 @@
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-
-const {
+import {
   createTransaction,
   postEntries,
   finalize,
   reverse,
-} = require('../services/ledgerService.js');
+} from '../services/ledgerService.js';
 
 export const deposit = async (req, res) => {
   try {
