@@ -477,22 +477,16 @@ function addError(
 
 function persistSession(
     {
-        token,
-        refreshToken,
         user,
         tenantId,
     },
 ) {
-    safeStorageSet(
-        AUTH_STORAGE_KEYS.TOKEN,
-        token,
-    );
-
-    safeStorageSet(
-        AUTH_STORAGE_KEYS.REFRESH_TOKEN,
-        refreshToken,
-    );
-
+    /**
+     * SECURITY:
+     * Access and refresh tokens are never persisted by this slice. The
+     * canonical API client owns the in-memory access token while the backend
+     * owns the refresh token in an HttpOnly cookie.
+     */
     safeStorageSet(
         AUTH_STORAGE_KEYS.USER,
         user,
@@ -541,16 +535,6 @@ function clearPersistedSession() {
 }
 
 function readStoredSession() {
-    const token =
-        safeStorageGet(
-            AUTH_STORAGE_KEYS.TOKEN,
-        );
-
-    const refreshToken =
-        safeStorageGet(
-            AUTH_STORAGE_KEYS.REFRESH_TOKEN,
-        );
-
     const user =
         parseStoredJson(
             AUTH_STORAGE_KEYS.USER,
@@ -563,10 +547,10 @@ function readStoredSession() {
 
     return {
         token:
-            token || null,
+            null,
 
         refreshToken:
-            refreshToken || null,
+            null,
 
         user,
 
@@ -620,10 +604,7 @@ function createInitialState() {
             stored.user,
         );
 
-    const authenticated =
-        Boolean(
-            stored.token,
-        );
+    const authenticated = false;
 
     return {
         user:
@@ -1507,6 +1488,13 @@ const authSlice =
                     action.payload ||
                     readStoredSession();
 
+                const hasExplicitToken =
+                    action.payload &&
+                    Object.prototype.hasOwnProperty.call(
+                        action.payload,
+                        "token",
+                    );
+
                 const authorization =
                     deriveAuthorizationState(
                         session.user,
@@ -1515,11 +1503,21 @@ const authSlice =
                 state.user =
                     session.user;
 
-                state.token =
-                    session.token;
+                if (hasExplicitToken) {
+                    state.token =
+                        session.token ||
+                        null;
 
-                state.refreshToken =
-                    session.refreshToken;
+                    state.refreshToken =
+                        session.refreshToken ||
+                        null;
+                } else if (
+                    !session.user &&
+                    !session.tenantId
+                ) {
+                    state.token = null;
+                    state.refreshToken = null;
+                }
 
                 state.tenantId =
                     session.tenantId ||
@@ -1527,9 +1525,7 @@ const authSlice =
                     null;
 
                 state.authenticated =
-                    Boolean(
-                        session.token,
-                    );
+                    Boolean(state.token);
 
                 state.status =
                     state.authenticated

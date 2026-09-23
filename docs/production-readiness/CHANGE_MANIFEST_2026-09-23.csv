@@ -1,0 +1,62 @@
+status,path,folder,description
+MODIFIED,.github/workflows/ci.yml,.github/workflows,"CI quality job now executes enterprise release, Golden Money Path proof and architecture-debt checks and uploads their evidence."
+MODIFIED,TITECH_PLATFORM_TRUTH.md,(root),"Updated dated platform truth with Golden Money Path proof, canonical financial-surface status, debt counts and explicit production-approval limitations."
+MODIFIED,backend/audit/audit.service.js,backend/audit,Restored audit service compatibility using the existing audit infrastructure instead of introducing a second audit implementation.
+REMOVED,backend/backend/package-lock.json,backend/backend,Removed duplicate nested backend lockfile so the root backend package has one dependency-lock authority.
+MODIFIED,backend/commercial/services/billing/billingPayment.service.js,backend/commercial,Repointed the CommonJS billing service to the explicit .cjs exact-money helper.
+ADDED,backend/commercial/services/billing/decimalMoney.cjs,backend/commercial,Added exact decimal-money compatibility implementation for the existing CommonJS billing boundary.
+REMOVED,backend/commercial/services/billing/decimalMoney.js,backend/commercial,Removed the empty/incorrect module after replacing it with explicit .cjs compatibility boundary.
+MODIFIED,backend/middleware/pipeline/PipelineBuilder.js,backend/middleware,Repaired middleware pipeline compatibility without replacing the pipeline design.
+MODIFIED,backend/middleware/pipeline/StageValidator.js,backend/middleware,Repaired stage validation compatibility without introducing a second pipeline.
+MODIFIED,backend/middleware/pipeline/index.js,backend/middleware,Restored pipeline exports/compatibility for existing consumers.
+MODIFIED,backend/models/Payment.js,backend/models,"Extended the canonical operational payment aggregate with correlation/client references, member/purpose context, settlement status and risk/compliance/review fields."
+MODIFIED,backend/models/PaymentIntent.js,backend/models,Added intent traceability/context and settlement/risk/compliance fields while preserving its existing state transitions.
+MODIFIED,backend/modules/finance/services/interestAccrualService.js,backend/modules,Implemented a fail-closed/injectable financial boundary so interest cannot silently mutate balances outside the canonical accounting engine.
+MODIFIED,backend/modules/payment/paymentProcessingService.js,backend/modules,"Persisted canonical payment traceability fields and kept idempotency identity limited to business request data, excluding correlation IDs."
+MODIFIED,backend/package.json,backend/package.json,Added enterprise health/test/evidence scripts and quality-gate integration.
+MODIFIED,backend/repositories/financial/ledger.repository.js,backend/repositories,Removed CommonJS require/createRequire boundary from canonical ESM financial repository.
+ADDED,backend/scripts/healthcheck.js,backend/scripts,Added lightweight health/readiness probe for CI and deployment orchestration.
+ADDED,backend/testing/goldenMoneyPath/goldenMoneyPathHarness.cjs,backend/testing,Added dependency-free reference financial lifecycle harness for timeout/restart/callback/ledger/reconciliation/reversal/idempotency/security invariants.
+ADDED,backend/testing/goldenMoneyPath/referenceProviderSimulator.cjs,backend/testing,"Added deterministic test-only provider simulator supporting success, timeout, duplicate, delayed/out-of-order and failure scenarios."
+ADDED,backend/tests/unit/commercial/decimalMoney.test.js,backend/tests,Added exact-money regression tests for commercial billing.
+ADDED,docs/END_TO_END_ENTERPRISE_UPDATE_2026-09-23.md,docs/END_TO_END_ENTERPRISE_UPDATE_2026-09-23.md,Added enterprise update documentation carried forward from the earlier hardening pass.
+ADDED,docs/architecture/ADR-2026-09-23-CANONICAL-PAYMENT-AUTHORITY.md,docs/architecture,Documents why the existing Payment aggregate remains the operational payment authority and PaymentIntent is not promoted into a parallel state machine.
+ADDED,docs/payments/GOLDEN_MONEY_PATH.md,docs/payments,"Documents the canonical money path, state separation, failure semantics and authority boundaries."
+ADDED,docs/production-readiness/ARCHITECTURAL_DEBT_REGISTER_2026-09-23.md,docs/production-readiness,Records dated architectural debt results and prioritizes later consolidation without hiding unresolved repository debt.
+ADDED,docs/production-readiness/GOLDEN_MONEY_PATH_EVIDENCE_2026-09-23.md,docs/production-readiness,Provides human-readable evidence for the dependency-free Golden Money Path proof and its limitations.
+ADDED,docs/production-readiness/LIVE_REPOSITORY_SNAPSHOT_2026-09-23.md,docs/production-readiness,Records the public GitHub architectural reference and explicitly states that the live repository was not pushed/modified by this task.
+ADDED,docs/production-readiness/MASTER_PROMPT_EXECUTION_MAP_2026-09-23.md,docs/production-readiness,Maps major sections of the supplied master prompt to concrete repository evidence and distinguishes tested/reference proof from external verification.
+ADDED,docs/production-readiness/PRODUCTION_READINESS_MATRIX_2026-09-23.md,docs/production-readiness,Provides capability-level readiness status and evidence/limitation mapping.
+ADDED,docs/runbooks/duplicate-callback.md,docs/runbooks,Runbook for duplicate provider callbacks.
+ADDED,docs/runbooks/ledger-mismatch.md,docs/runbooks,Runbook for ledger/balance integrity mismatch handling.
+ADDED,docs/runbooks/provider-outage.md,docs/runbooks,Runbook for provider outage and timeout scenarios.
+ADDED,docs/runbooks/reconciliation-mismatch.md,docs/runbooks,Runbook for reconciliation exceptions.
+ADDED,docs/runbooks/stuck-transaction.md,docs/runbooks,Runbook for transactions that remain pending/unknown.
+ADDED,docs/runbooks/unknown-transaction.md,docs/runbooks,Runbook for provider-ambiguous/UNKNOWN transactions.
+ADDED,docs/testing/GOLDEN_MONEY_PATH_TEST_MATRIX_2026-09-23.md,docs/testing,"Lists the normal, negative, failure-injection and invariant scenarios covered by the reference proof."
+MODIFIED,frontend/src/app/store.js,frontend/src,Protects Redux persistence from retaining access/refresh tokens while retaining safe session metadata.
+MODIFIED,frontend/src/features/auth/authSlice.js,frontend/src,Keeps access/refresh credentials in the intended in-memory auth path rather than browser storage.
+MODIFIED,frontend/src/index.js,frontend/src,Aligned frontend bootstrap/runtime behavior with the current Vite architecture.
+MODIFIED,frontend/src/legal/legalAcceptance.js,frontend/src,Removed stale API-origin assumptions and uses the shared production-safe API configuration.
+MODIFIED,frontend/src/legal/legalApi.js,frontend/src,Uses production-safe/same-origin API resolution instead of hard-coded localhost.
+MODIFIED,frontend/src/mocks/handlers/index.js,frontend/src,Reconnects mock exports to canonical handlers implementation.
+MODIFIED,frontend/src/pages/SupportChat.js,frontend/src,"Migrated stale CRA environment lookup to Vite-compatible, production-safe configuration."
+MODIFIED,frontend/src/pages/onboarding/OnboardingAPI.js,frontend/src,Uses Vite-compatible environment and production-safe API resolution.
+MODIFIED,frontend/src/services/api.js,frontend/src,Production-safe API origin and auth transport handling; no access-token persistence shortcut.
+MODIFIED,frontend/src/services/socket.js,frontend/src,Removed browser-storage token access and uses canonical in-memory auth context.
+MODIFIED,frontend/src/sockets/chatSocket.js,frontend/src,Removed stale auth/config coupling and aligned socket transport with canonical runtime configuration.
+MODIFIED,frontend/vite.config.js,frontend/vite.config.js,Keeps local development behavior while avoiding forced localhost API defaults in production.
+MODIFIED,package.json,(root),Fixed/extended root cleanup and evidence/release quality pipeline to include enterprise debt and Golden Money Path proof.
+ADDED,reports/architecture-debt-audit.json,reports/architecture-debt-audit.json,"Machine-readable counts for zero-byte files, CommonJS candidates and runtime-import debt."
+ADDED,reports/evidence/golden-money-path-proof.json,reports/evidence,Machine-readable reference-proof results and scenario assertions.
+ADDED,reports/evidence/production-readiness-matrix.json,reports/evidence,Machine-readable capability readiness evidence and explicit limitations.
+ADDED,reports/release-readiness.json,reports/release-readiness.json,Latest audit-mode release readiness result; strict mode remains blocked by repository-wide missing imports.
+ADDED,reports/runtime-import-audit.json,reports/runtime-import-audit.json,Latest runtime import scan with canonical financial surface clean and repository-wide debt visible.
+ADDED,scripts/architecture-debt-audit.mjs,scripts,"Non-destructive audit of zero-byte source files, CommonJS candidates and runtime-import debt with critical financial-surface classification."
+ADDED,scripts/clean.mjs,scripts,Safe repository cleanup script used by the root quality workflow.
+ADDED,scripts/enterprise-product-gate.mjs,scripts,Dependency-light enterprise static product gate for architecture/runtime security invariants.
+ADDED,scripts/golden-money-path-proof.mjs,scripts,CI/evidence entrypoint for the deterministic Golden Money Path reference harness.
+MODIFIED,scripts/release-readiness-gate.mjs,scripts,Release gate now consumes architecture-debt and Golden Money Path evidence and exposes strict blockers.
+GENERATED-META,docs/production-readiness/CHANGE_MANIFEST_2026-09-23.csv,docs/production-readiness,Generated manifest/guide artifact; excluded from hash comparison.
+GENERATED-META,docs/production-readiness/CHANGE_MANIFEST_2026-09-23.md,docs/production-readiness,Generated manifest/guide artifact; excluded from hash comparison.
+GENERATED-META,docs/production-readiness/THIS_PASS_FILE_CHANGE_GUIDE_2026-09-23.md,docs/production-readiness,Generated manifest/guide artifact; excluded from hash comparison.

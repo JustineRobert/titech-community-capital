@@ -97,18 +97,13 @@
  * ============================================================================
  */
 
-import { createRequire } from 'node:module';
-
 import mongoose from 'mongoose';
 
 import FinancialLedgerEntry from '../../models/FinancialLedgerEntry.js';
 
+import tenantConstants from '../../tenancy/tenant.constants.js';
+
 import { FinancialTransactionError } from '../../services/financial/financialTransaction.service.js';
-
-const require = createRequire(import.meta.url);
-
-const tenantConstants =
-  require('../../tenancy/tenant.constants.js');
 
 /**
  * ============================================================================

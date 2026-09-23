@@ -863,10 +863,8 @@ export default function SupportChat({
       () => {
         const configured =
           websocketUrl ||
-          process.env
-            ?.REACT_APP_WS_URL ||
-          process.env
-            ?.REACT_APP_API_WS;
+          import.meta.env.VITE_SOCKET_URL ||
+          import.meta.env.VITE_API_URL;
 
         if (
           configured

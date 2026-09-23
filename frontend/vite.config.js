@@ -396,9 +396,13 @@ export default defineConfig(
      */
     const browserApiUrl =
       env.VITE_API_URL ||
-      `${stripTrailingSlash(
-        DEFAULT_API_ORIGIN,
-      )}${DEFAULT_API_PATH}`;
+      (
+        isProduction
+          ? ''
+          : `${stripTrailingSlash(
+              DEFAULT_API_ORIGIN,
+            )}${DEFAULT_API_PATH}`
+      );
 
     const appVersion =
       resolveAppVersion(env);

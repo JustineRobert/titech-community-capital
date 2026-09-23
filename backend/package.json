@@ -92,7 +92,10 @@
     "prepare": "node -e \"console.log('TITech Community Capital backend dependencies prepared.')\"",
     "test:control-plane": "node --test tests/unit/platform/*.test.js",
     "test:financial:contracts": "npm run test:control-plane",
-    "check:enterprise-contracts": "node ../scripts/enterprise-contract-contracts.mjs"
+    "check:enterprise-contracts": "node ../scripts/enterprise-contract-contracts.mjs",
+    "health": "node scripts/healthcheck.js",
+    "health:readiness": "node scripts/healthcheck.js /readyz",
+    "test:commercial:money": "node --test tests/unit/commercial/decimalMoney.test.js"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

@@ -115,6 +115,22 @@ export const RECONCILIATION_STATUSES = Object.freeze([
   'RESOLVED',
 ]);
 
+export const SETTLEMENT_STATUSES = Object.freeze([
+  'NOT_STARTED',
+  'PENDING',
+  'SETTLED',
+  'FAILED',
+  'UNKNOWN',
+  'REQUIRES_REVIEW',
+]);
+
+export const DECISION_STATUSES = Object.freeze([
+  'NOT_EVALUATED',
+  'APPROVED',
+  'REVIEW',
+  'REJECTED',
+]);
+
 export const LEDGER_POSTING_STATUSES = Object.freeze([
   'NOT_POSTED',
   'PENDING',
@@ -669,6 +685,24 @@ const PaymentSchema =
         index: true,
       },
 
+      correlationId: {
+        type: String,
+        default: null,
+        immutable: true,
+        trim: true,
+        maxlength: 256,
+        index: true,
+      },
+
+      clientReference: {
+        type: String,
+        default: null,
+        immutable: true,
+        trim: true,
+        maxlength: 256,
+        index: true,
+      },
+
       /*
        * ----------------------------------------------------------------------
        * Internal payment identity
@@ -705,6 +739,23 @@ const PaymentSchema =
         ref: 'Group',
         default: null,
         immutable: true,
+        index: true,
+      },
+
+      memberId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Member',
+        default: null,
+        immutable: true,
+        index: true,
+      },
+
+      purpose: {
+        type: String,
+        default: 'COMMUNITY_FINANCE',
+        immutable: true,
+        trim: true,
+        maxlength: 128,
         index: true,
       },
 
@@ -1003,6 +1054,44 @@ const PaymentSchema =
         index: true,
       },
 
+      settlementStatus: {
+        type: String,
+        enum: SETTLEMENT_STATUSES,
+        default: 'NOT_STARTED',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      settledAt: {
+        type: Date,
+        default: null,
+      },
+
+      riskDecision: {
+        type: String,
+        enum: DECISION_STATUSES,
+        default: 'NOT_EVALUATED',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      complianceDecision: {
+        type: String,
+        enum: DECISION_STATUSES,
+        default: 'NOT_EVALUATED',
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
+
+      requiresReview: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
       /*
        * ----------------------------------------------------------------------
        * Operational metadata
@@ -1114,6 +1203,24 @@ PaymentSchema.index({
   groupId: 1,
   createdAt: -1,
   _id: -1,
+});
+
+PaymentSchema.index({
+  tenantId: 1,
+  correlationId: 1,
+  createdAt: -1,
+});
+
+PaymentSchema.index({
+  tenantId: 1,
+  clientReference: 1,
+  createdAt: -1,
+});
+
+PaymentSchema.index({
+  tenantId: 1,
+  settlementStatus: 1,
+  createdAt: -1,
 });
 
 PaymentSchema.index({

@@ -4072,6 +4072,9 @@ class PaymentProcessingService {
         userId:
           request.userId,
 
+        memberId:
+          request.memberId,
+
         groupId:
           request.groupId,
 
@@ -4184,11 +4187,19 @@ class PaymentProcessingService {
       userId:
         request.userId,
 
+      memberId:
+        request.memberId,
+
       groupId:
         request.groupId,
 
       loanId:
         request.loanId,
+
+      purpose:
+        request.purpose
+        || request.type
+        || 'COMMUNITY_FINANCE',
 
       type:
         request.type,
@@ -4216,6 +4227,16 @@ class PaymentProcessingService {
 
       providerTransactionId:
         request.providerTransactionId,
+
+      clientReference:
+        request.clientReference
+        || request.customerReference
+        || null,
+
+      correlationId:
+        request.correlationId
+        || context.correlationId
+        || null,
 
       accountReference:
         request.accountReference,

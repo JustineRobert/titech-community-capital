@@ -64,7 +64,7 @@ import {
  * API CONFIGURATION
  * ========================================================================== */
 
-const DEFAULT_API_BASE_URL = 'http://localhost:5000/api';
+const DEFAULT_DEVELOPMENT_API_ORIGIN = 'http://localhost:5000';
 
 const DEFAULT_LEGAL_API_PREFIX = '/legal';
 
@@ -91,8 +91,25 @@ const ENV =
     ? import.meta.env
     : {};
 
+const ENVIRONMENT_PRODUCTION =
+  ENV.MODE === 'production' ||
+  ENV.PROD === true ||
+  ENV.PROD === 'true';
+
+function getDefaultApiBaseUrl() {
+  if (
+    ENVIRONMENT_PRODUCTION &&
+    typeof window !== 'undefined' &&
+    window.location?.origin
+  ) {
+    return `${window.location.origin}/api`;
+  }
+
+  return `${DEFAULT_DEVELOPMENT_API_ORIGIN}/api`;
+}
+
 const API_BASE_URL = normalizeBaseUrl(
-  ENV.VITE_API_URL || DEFAULT_API_BASE_URL,
+  ENV.VITE_API_URL || getDefaultApiBaseUrl(),
 );
 
 const LEGAL_API_PREFIX = normalizeApiPath(

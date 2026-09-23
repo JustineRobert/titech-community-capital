@@ -14,6 +14,7 @@ import {
   persistStore,
   persistReducer,
   createMigrate,
+  createTransform,
   FLUSH,
   REHYDRATE,
   PAUSE,
@@ -113,6 +114,24 @@ const migrations = {
   }),
 };
 
+/**
+ * Never persist authentication secrets into the Redux persistence payload.
+ * User/tenant metadata may be cached, but access and refresh credentials are
+ * restored only through the canonical authentication bootstrap flow.
+ */
+const authSecurityTransform = createTransform(
+  (inboundState) => ({
+    ...inboundState,
+    token: null,
+    refreshToken: null,
+    authenticated: false,
+    status: "unauthenticated",
+    refreshInProgress: false,
+  }),
+  (outboundState) => outboundState,
+  { whitelist: ["auth"] },
+);
+
 // ============================================================================
 // Static Reducers
 // ============================================================================
@@ -203,6 +222,10 @@ const persistConfig = {
         debug: IS_DEV,
       }
     ),
+
+  transforms: [
+    authSecurityTransform,
+  ],
 
   timeout: 10000,
 };

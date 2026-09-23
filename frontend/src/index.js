@@ -65,7 +65,13 @@ const BUILD_TIME =
 const API_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_APP_API_URL ||
-  'http://localhost:5000';
+  (
+    import.meta.env.PROD &&
+    typeof window !== 'undefined' &&
+    window.location?.origin
+      ? window.location.origin
+      : 'http://localhost:5000'
+  );
 
 const IS_DEVELOPMENT =
   Boolean(import.meta.env.DEV);

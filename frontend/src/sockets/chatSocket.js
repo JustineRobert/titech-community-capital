@@ -27,7 +27,11 @@
  */
 
 import { io } from 'socket.io-client';
-import { getJwt } from '../auth';
+import {
+  getDeviceId,
+  getTenant,
+  getToken,
+} from '../services/api.js';
 
 /*
 |--------------------------------------------------------------------------
@@ -48,9 +52,22 @@ export function initSocket() {
     return socket;
   }
 
-  socket = io('/', {
+  const socketOrigin =
+    import.meta.env.VITE_SOCKET_URL ||
+    import.meta.env.VITE_API_URL ||
+    (
+      import.meta.env.PROD &&
+      typeof window !== 'undefined' &&
+      window.location?.origin
+        ? window.location.origin
+        : '/'
+    );
+
+  socket = io(socketOrigin, {
     auth: {
-      token: getJwt(),
+      token: getToken(),
+      tenantId: getTenant(),
+      deviceId: getDeviceId(),
     },
     autoConnect: true,
     reconnection: true,

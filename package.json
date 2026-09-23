@@ -68,7 +68,7 @@
     "preview": "npm --prefix frontend run preview",
     "install:all": "npm ci && npm --prefix backend ci && npm --prefix frontend ci",
     "setup": "npm run install:all",
-    "clean": "node scripts/clean.js",
+    "clean": "node scripts/clean.mjs",
     "prepare": "node -e \"console.log('Root orchestration package prepared.')\"",
     "lint": "npm run lint:backend && npm run lint:frontend",
     "lint:backend": "npm --prefix backend run lint",
@@ -77,7 +77,7 @@
     "lint:fix": "npm --prefix backend run lint:fix && npm --prefix frontend run lint:fix",
     "format": "npm --prefix backend run format && npm --prefix frontend run format",
     "format:check": "npm --prefix backend run format:check && npm --prefix frontend run format:check",
-    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run check:architecture-debt && npm run test:golden:proof && npm run check:product && npm run lint && npm run format:check",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:all": "npm run check && npm run test",
     "test": "npm run test:backend && npm run test:frontend",
@@ -109,6 +109,7 @@
     "validate:syntax": "node scripts/enterprise-gate.mjs --syntax",
     "check:financial": "node scripts/financial-static-gate.mjs",
     "check:runtime-imports": "node scripts/runtime-import-audit.mjs",
+    "check:product": "node scripts/enterprise-product-gate.mjs",
     "enterprise:gate": "node scripts/enterprise-gate.mjs --all",
     "check:structure": "node scripts/enterprise-gate.mjs --structure",
     "postman:test:newman": "npx --yes newman run postman/Community-auth-tests.postman_collection.json -e postman/Group-env.postman_environment.json --reporters cli",
@@ -117,7 +118,10 @@
     "release:gate:strict": "node scripts/release-readiness-gate.mjs --strict",
     "production:approval-gate": "node scripts/production-approval-gate.mjs",
     "test:control-plane": "npm --prefix backend run test:control-plane",
-    "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs"
+    "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs",
+    "check:architecture-debt": "node scripts/architecture-debt-audit.mjs",
+    "test:golden:proof": "node scripts/golden-money-path-proof.mjs",
+    "evidence:generate": "npm run test:golden:proof && npm run check:architecture-debt && npm run truth:inventory && npm run release:gate"
   },
   "dependencies": {}
 }

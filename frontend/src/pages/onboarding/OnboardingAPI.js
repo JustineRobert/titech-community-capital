@@ -15,8 +15,13 @@ import { getToken } from "../../services/api";
  */
 const api = axios.create({
   baseURL:
-    process.env.REACT_APP_API_URL ||
-    "/api/v1",
+    import.meta.env.VITE_API_URL ||
+    (
+      import.meta.env.PROD &&
+      typeof window !== "undefined"
+        ? `${window.location.origin}/api/v1`
+        : "/api/v1"
+    ),
 
   timeout: 30000,
 
