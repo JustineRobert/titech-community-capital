@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "product": "TITech Community Capital",
+  "environment": "sandbox",
+  "generatedAt": "REPLACE_WITH_UTC_ISO_TIMESTAMP",
+  "commitSha": "REPLACE_WITH_COMMIT_SHA",
+  "providers": {
+    "MTN_MOMO": {
+      "status": "NOT_VERIFIED",
+      "country": "UG",
+      "baseUrl": "REDACTED_IN_EVIDENCE",
+      "scenarios": {
+        "authentication": {"status": "NOT_VERIFIED"},
+        "initiation": {"status": "NOT_VERIFIED"},
+        "timeout": {"status": "NOT_VERIFIED"},
+        "statusQuery": {"status": "NOT_VERIFIED"},
+        "callback": {"status": "NOT_VERIFIED"},
+        "duplicateCallback": {"status": "NOT_VERIFIED"},
+        "reversal": {"status": "NOT_VERIFIED"},
+        "reconciliation": {"status": "NOT_VERIFIED"},
+        "failure": {"status": "NOT_VERIFIED"}
+      }
+    },
+    "AIRTEL_MONEY": {
+      "status": "NOT_VERIFIED",
+      "country": "UG",
+      "baseUrl": "REDACTED_IN_EVIDENCE",
+      "scenarios": {
+        "authentication": {"status": "NOT_VERIFIED"},
+        "initiation": {"status": "NOT_VERIFIED"},
+        "timeout": {"status": "NOT_VERIFIED"},
+        "statusQuery": {"status": "NOT_VERIFIED"},
+        "callback": {"status": "NOT_VERIFIED"},
+        "duplicateCallback": {"status": "NOT_VERIFIED"},
+        "reversal": {"status": "NOT_VERIFIED"},
+        "reconciliation": {"status": "NOT_VERIFIED"},
+        "failure": {"status": "NOT_VERIFIED"}
+      }
+    }
+  },
+  "review": {
+    "reviewedBy": "",
+    "reviewedAt": "",
+    "reference": ""
+  }
+}

@@ -1,0 +1,47 @@
+name: titech-validation
+
+services:
+  mongodb:
+    image: mongo:7-jammy
+    container_name: titech-validation-mongodb
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - titech-validation-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ping:1})"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: titech-validation-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - titech-validation-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
+  mongo-init:
+    image: mongo:7-jammy
+    depends_on:
+      mongodb:
+        condition: service_started
+    restart: "no"
+    entrypoint: ["/bin/bash", "-lc"]
+    command: >-
+      until mongosh --host mongodb:27017 --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; do sleep 1; done;
+      mongosh --host mongodb:27017 --eval 'try { rs.status() } catch (e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongodb:27017"}]}) }';
+      until mongosh --host mongodb:27017 --quiet --eval 'rs.status().myState' | grep -q '^1$'; do sleep 1; done;
+
+volumes:
+  titech-validation-mongo:
+  titech-validation-redis:

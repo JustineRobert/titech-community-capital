@@ -1,0 +1,19 @@
+status,file,reason
+ADDED,CHANGESET_TRACEABILITY_2026-09-24.md,New evidence/validation or documentation artifact
+ADDED,RELEASE_MANIFEST_2026-09-24.md,New evidence/validation or documentation artifact
+ADDED,backend/scripts/validation/backupRestoreDrill.mjs,New evidence/validation or documentation artifact
+ADDED,backend/scripts/validation/kubernetesRolloutGate.mjs,New evidence/validation or documentation artifact
+ADDED,backend/scripts/validation/providerSandboxEvidence.mjs,New evidence/validation or documentation artifact
+ADDED,backend/scripts/validation/realInfrastructureSmoke.mjs,New evidence/validation or documentation artifact
+ADDED,docker-compose.validation.yml,New evidence/validation or documentation artifact
+ADDED,docs/investor/INVESTOR_METRICS_EVIDENCE.md,New evidence/validation or documentation artifact
+ADDED,docs/operations/UGANDA_PILOT_RUNBOOK.md,New evidence/validation or documentation artifact
+ADDED,docs/production/EXTERNAL_PROOF_MASTER_PLAN_2026-09-24.md,New evidence/validation or documentation artifact
+ADDED,docs/production/evidence/provider-sandbox-evidence.template.json,New evidence/validation or documentation artifact
+ADDED,docs/production/evidence/release-evidence.template.json,New evidence/validation or documentation artifact
+ADDED,docs/production/evidence/reviewer-signoff.template.md,New evidence/validation or documentation artifact
+ADDED,reports/.gitkeep,New evidence/validation or documentation artifact
+ADDED,scripts/external-proof-gate.mjs,New evidence/validation or documentation artifact
+MODIFIED,.github/workflows/ci.yml,Existing architecture/control updated for external-proof validation
+MODIFIED,TITECH_PLATFORM_TRUTH.md,Existing architecture/control updated for external-proof validation
+MODIFIED,package.json,Existing architecture/control updated for external-proof validation

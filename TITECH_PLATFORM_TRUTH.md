@@ -199,3 +199,56 @@ This section records the control-plane implementation applied from the 2026-09-2
 - Repository-wide missing local imports remain outside the canonical financial surface and must be consolidated before strict release certification.
 - Full dependency-backed tests/builds still require Node 24.15.x/npm 11.x with package registry access.
 - Live provider, MongoDB, Redis, Kubernetes, DR and external compliance evidence remains external to a source-only archive.
+
+## 2026-09-25 archive-validation addendum
+
+This addendum records validation executed against the supplied `titech-community-capital-main.zip` archive on 2026-09-25. It does not supersede or promote the existing production decision.
+
+### Re-validated
+
+- Repository conflict-marker scan: **PASS** — 0 actual Git conflict markers across 2,587 files.
+- Repository syntax gate: **PASS** — 2,156 executable JS/TS-family files parsed.
+- Canonical financial static gate: **PASS** — 12 canonical files/contracts.
+- Enterprise control-plane contract gate: **PASS** — 11 contracts.
+- Runtime import audit: **PASS for canonical financial surface** — 0 missing local imports on the canonical financial surface; 341 missing local imports remain outside that surface.
+- Release readiness audit: **PASS WITH WARNING** — repository-wide runtime-import debt remains.
+
+### Current archive observations
+
+- Archive file count: **2,587**.
+- Zero-byte files: **303**; each requires classification before deletion.
+- Dependency trees are not shipped in the archive workspace.
+- Local validation runtime: **Node 22.16.0 / npm 10.9.2**.
+- Repository target runtime: **Node 24.15.0 / npm 11.x**.
+
+### Gates still blocked
+
+- `phase:p0 --strict`: **BLOCKED** pending provider certification, security assessment, operational drill and pilot acceptance evidence.
+- `production:approval-gate`: **BLOCKED** pending protected production approval evidence.
+
+### Evidence not claimed
+
+The following are still externally/runtime dependent and must not be represented as passed from this archive-only validation: full dependency-backed test suite, real MongoDB/Redis concurrency tests, Golden Money Path runtime evidence, provider sandbox certification, SAST/DAST/secret/container/IaC security scans, penetration testing, backup/restore drill, Kubernetes cluster rollout/rollback, pilot acceptance and jurisdiction-specific regulatory/legal approval.
+
+### Production decision
+
+**PRODUCTION_APPROVED: NO**
+
+
+
+## 2026-09-25 market/commercial evidence addendum
+
+The current strategic baseline treats market scale and TITech proof as separate evidence classes. External sources indicate substantial digital-finance scale in Sub-Saharan Africa and globally, while competitor public materials show that community finance, SACCO and MFI software are already active categories.
+
+Accordingly, the next implementation cycle must prioritize:
+
+1. 3-5 institutional design partners;
+2. two deeply verified payment rails selected from actual demand;
+3. real reconciliation evidence;
+4. operational/support evidence from real incidents;
+5. paid or contractually committed pilot evidence where feasible;
+6. retention and usage measurement;
+7. partner connectivity for payments, distribution, capital and programme finance;
+8. governed consent/provenance for community financial data.
+
+These are validation targets and architectural requirements for the next phase, not claims of current traction.

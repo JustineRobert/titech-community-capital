@@ -114,3 +114,16 @@ The repository's production status is authoritative in `TITECH_PLATFORM_TRUTH.md
 ## Cross-cutting architecture commitments
 
 TITech is **NOT a wallet** and **NOT a lender** by default. The platform is **provider-neutral**, **offline-first** and **multi-tenant**. These are engineering constraints as well as product-positioning boundaries.
+
+
+## 2026-09-25 market-validation extension
+
+The product thesis is supported by a large and growing digital-finance ecosystem, but macro-market size is not product-market fit. TITech must prove institutional usage, transaction reliability, reconciliation value, paid adoption and partner trust.
+
+The current strategic documents are:
+- `MARKET_VALIDATION_STRATEGY_2026-09-25.md`
+- `COMPETITIVE_LANDSCAPE_2026-09-25.md`
+- `COMMERCIAL_VALIDATION_AND_DISTRIBUTION_PLAN_2026-09-25.md`
+- `MARKET_EVIDENCE_SOURCES_2026-09-25.md`
+
+The operating principle is: **distribution and external proof now outrank additional feature volume.**

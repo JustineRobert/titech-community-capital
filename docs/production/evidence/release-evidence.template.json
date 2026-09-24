@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "release": "REPLACE_WITH_RELEASE_ID",
+  "commitSha": "REPLACE_WITH_COMMIT_SHA",
+  "runtime": {
+    "node": "24.15.x",
+    "npm": "11.x"
+  },
+  "gates": {
+    "deterministicInstall": "NOT_VERIFIED",
+    "fullTestSuite": "NOT_VERIFIED",
+    "realMongoTransactions": "NOT_VERIFIED",
+    "realMongoConcurrency": "NOT_VERIFIED",
+    "realRedisConcurrency": "NOT_VERIFIED",
+    "goldenMoneyPath": "NOT_VERIFIED",
+    "securityScanning": "NOT_VERIFIED",
+    "backupRestore": "NOT_VERIFIED",
+    "kubernetesRolloutRollback": "NOT_VERIFIED",
+    "providerCertification": "NOT_VERIFIED",
+    "ugandaPilot": "NOT_VERIFIED",
+    "regulatoryPartnerPath": "NOT_VERIFIED"
+  },
+  "productionApproved": false,
+  "notes": []
+}
