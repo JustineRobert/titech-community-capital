@@ -1031,6 +1031,30 @@ function createLogger(
  * =============================================================================
  */
 
+function writeStructuredLog(method, args) {
+  const context = createContextBindings();
+  const normalized = Array.isArray(args) ? [...args] : [];
+
+  if (normalized.length === 0) {
+    return method(context);
+  }
+
+  const [first, second, ...rest] = normalized;
+
+  if (typeof first === 'string') {
+    if (second && typeof second === 'object' && !Array.isArray(second)) {
+      return method({ ...context, ...second }, first, ...rest);
+    }
+    return method(context, first, ...([second, ...rest].filter(v => v !== undefined)));
+  }
+
+  if (first && typeof first === 'object' && !Array.isArray(first)) {
+    return method({ ...context, ...first }, second, ...rest);
+  }
+
+  return method(context, String(first), ...([second, ...rest].filter(v => v !== undefined)));
+}
+
 function createContextAwareLogger(
   logger,
 ) {
@@ -1149,54 +1173,54 @@ function createContextAwareLogger(
     fatal(
       ...args
     ) {
-      return logger.fatal(
-        createContextBindings(),
-        ...args,
+      return writeStructuredLog(
+        logger.fatal.bind(logger),
+        args,
       );
     },
 
     error(
       ...args
     ) {
-      return logger.error(
-        createContextBindings(),
-        ...args,
+      return writeStructuredLog(
+        logger.error.bind(logger),
+        args,
       );
     },
 
     warn(
       ...args
     ) {
-      return logger.warn(
-        createContextBindings(),
-        ...args,
+      return writeStructuredLog(
+        logger.warn.bind(logger),
+        args,
       );
     },
 
     info(
       ...args
     ) {
-      return logger.info(
-        createContextBindings(),
-        ...args,
+      return writeStructuredLog(
+        logger.info.bind(logger),
+        args,
       );
     },
 
     debug(
       ...args
     ) {
-      return logger.debug(
-        createContextBindings(),
-        ...args,
+      return writeStructuredLog(
+        logger.debug.bind(logger),
+        args,
       );
     },
 
     trace(
       ...args
     ) {
-      return logger.trace(
-        createContextBindings(),
-        ...args,
+      return writeStructuredLog(
+        logger.trace.bind(logger),
+        args,
       );
     },
 

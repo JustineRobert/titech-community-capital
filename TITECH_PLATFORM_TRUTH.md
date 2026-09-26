@@ -252,3 +252,32 @@ Accordingly, the next implementation cycle must prioritize:
 8. governed consent/provenance for community financial data.
 
 These are validation targets and architectural requirements for the next phase, not claims of current traction.
+## 2026-09-26 enterprise runtime-stabilization addendum
+
+This addendum records the current archive hardening pass and does not supersede the production-approval decision.
+
+### Repaired without architectural rewrite
+
+- `backend/bootstrap/logger.js`: normalized structured logger argument shapes while retaining the existing logger facade.
+- `backend/bootstrap/routes.js`: expanded safe route-import diagnostics and retained the existing `createRequire()` compatibility boundary.
+- `backend/bootstrap/ApplicationBootstrap.js`: expanded nested bootstrap error evidence.
+- `package.json` / `backend/package.json`: added deterministic startup/module/route/completeness diagnostics and corrected the root clean-script target.
+- Docker wrapper artifacts were completed from the canonical root Dockerfiles/Compose topology.
+- Root and production Compose health checks were corrected to the canonical backend `/healthz` and MongoDB `mongosh` health contracts.
+- Five empty Kubernetes YAML placeholders were removed because repository documentation identifies the Helm charts as authoritative deployment definitions.
+
+### Current static evidence
+
+- Startup contract: **PASS** — required bootstrap order remains environment → configuration → logger → observability → readiness → resilience → infrastructure → services → middleware → routes → server.
+- Module forensics: **PASS WITH FINDINGS** — mixed CommonJS/ESM is still present outside the compatibility boundary and requires dependency-backed runtime verification.
+- Route forensics: **41/47 route files static-pass; 6 remain blocked by unresolved legacy local dependencies**.
+- Repository completeness audit: **PASS WITH FINDINGS** — 294 zero-byte files remain classified rather than fabricated or deleted; 382 simple local-import edges are unresolved by the lightweight audit, versus 341 findings reported by the existing canonical runtime-import audit because the two tools intentionally use different matching rules.
+
+### Runtime boundary
+
+The local environment for this execution is Node 22.16.0/npm 10.9.2, while the repository targets Node 24.15.x/npm 11.x. Root `npm ci --ignore-scripts` completed with an engine warning; full child dependency installation was not completed in this offline environment. Therefore runtime imports, MongoDB/Redis transactions, provider callbacks, security scans, backup/restore, Kubernetes rollout/rollback, pilot and regulatory evidence remain **NOT VERIFIED**.
+
+### Production decision
+
+**PRODUCTION_APPROVED: NO**
+
