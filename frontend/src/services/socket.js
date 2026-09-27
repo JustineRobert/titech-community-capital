@@ -7,40 +7,71 @@
 // ============================================================================
 
 import { io } from "socket.io-client";
-import {
-  getToken,
-  setToken,
-  clearToken,
-  getTenant,
-  setTenant,
-  clearTenant,
-} from "./api";
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
 const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL ||
-  import.meta.env.VITE_API_URL ||
+  process.env.REACT_APP_SOCKET_URL ||
+  process.env.REACT_APP_API_URL ||
   "http://localhost:5000";
+
+const TOKEN_KEY =
+  process.env.REACT_APP_TOKEN_KEY ||
+  "token";
+
+const TENANT_KEY =
+  process.env.REACT_APP_TENANT_KEY ||
+  "activeTenant";
 
 const MAX_RECONNECT_ATTEMPTS =
   Number(
-    import.meta.env.VITE_SOCKET_RETRIES
+    process.env
+      .REACT_APP_SOCKET_RETRIES
   ) || 10;
 
 // ============================================================================
 // Token Helpers
 // ============================================================================
 
-function getSocketAccessToken() {
-  // Canonical auth boundary: access token is held in memory by api.js.
-  return getToken();
+function getToken() {
+  return (
+    localStorage.getItem(
+      TOKEN_KEY
+    ) ||
+    sessionStorage.getItem(
+      TOKEN_KEY
+    )
+  );
 }
 
 function getTenantId() {
-  return getTenant();
+  try {
+    const tenant =
+      localStorage.getItem(
+        TENANT_KEY
+      );
+
+    if (!tenant) {
+      return null;
+    }
+
+    const parsed =
+      JSON.parse(tenant);
+
+    return (
+      parsed?.id ||
+      parsed?._id ||
+      tenant
+    );
+  } catch {
+    return (
+      localStorage.getItem(
+        TENANT_KEY
+      ) || null
+    );
+  }
 }
 
 function getDeviceId() {
@@ -92,7 +123,7 @@ const socket = io(
 
     auth: {
       token:
-        getSocketAccessToken(),
+        getToken(),
       tenantId:
         getTenantId(),
       deviceId:
@@ -120,7 +151,7 @@ let manuallyDisconnected =
 function updateAuth() {
   socket.auth = {
     token:
-      getSocketAccessToken(),
+      getToken(),
     tenantId:
       getTenantId(),
     deviceId:
@@ -182,11 +213,12 @@ export function reconnectSocket() {
 export function switchTenant(
   tenantId
 ) {
-  if (tenantId) {
-    setTenant(tenantId);
-  } else {
-    clearTenant();
-  }
+  localStorage.setItem(
+    TENANT_KEY,
+    JSON.stringify({
+      id: tenantId,
+    })
+  );
 
   reconnectSocket();
 }
@@ -199,9 +231,14 @@ export function updateSocketToken(
   token
 ) {
   if (token) {
-    setToken(token);
+    localStorage.setItem(
+      TOKEN_KEY,
+      token
+    );
   } else {
-    clearToken();
+    localStorage.removeItem(
+      TOKEN_KEY
+    );
   }
 
   updateAuth();
@@ -504,7 +541,7 @@ export function getSocketStatus() {
     tenantId:
       getTenantId(),
     authenticated:
-      !!getSocketAccessToken(),
+      !!getToken(),
   };
 }
 

@@ -814,7 +814,7 @@ function normalizeReference(
    * Provider/application references should not contain control characters.
    */
   if (
-    /[\u0000-\u001F\u007F]/.test(
+    new RegExp("[\\u0000-\\u001F\\u007F]").test(
       normalized,
     )
   ) {

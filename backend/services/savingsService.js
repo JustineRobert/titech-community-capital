@@ -33,17 +33,23 @@ let notificationService;
 try {
     fraudService =
         require("./fraudService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     amlService =
         require("./amlService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     notificationService =
         require("./notificationService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 /* ============================================================================
  * Savings Service

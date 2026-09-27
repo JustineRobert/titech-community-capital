@@ -23,26 +23,36 @@ let WalletService;
 
 try {
   User = require("../models/User");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   Tenant = require("../models/Tenant");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   AuditLog =
     require("../models/AuditLog");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   NotificationService =
     require("./notificationService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   WalletService =
     require("./walletService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 const ACCESS_TOKEN_SECRET =
   process.env.JWT_SECRET ||

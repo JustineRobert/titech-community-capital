@@ -53,6 +53,10 @@
  * ============================================================================
  */
 
+function isSafeConfigKey(value) {
+    return /^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(String(value ?? ''));
+}
+
 /* eslint-disable no-console */
 
 /**

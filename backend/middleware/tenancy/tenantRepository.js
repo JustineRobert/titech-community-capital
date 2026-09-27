@@ -51,43 +51,63 @@ let mongoose;
 
 try {
     ConfigurationProvider = require('../../config/ConfigurationProvider');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     LoggerFactory = require('../../shared/logging/LoggerFactory');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     StructuredLogger = require('../../shared/logging/StructuredLogger');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     MetricsRegistry = require('../../shared/metrics/MetricsRegistry');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     RequestMetrics = require('../../shared/metrics/RequestMetrics');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     TraceContext = require('../../shared/tracing/TraceContext');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     EventBus = require('../../shared/events/EventBus');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     AuditService = require('../../shared/audit/AuditService');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     TenantModel = require('../../models/Tenant');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     mongoose = require('mongoose');
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 /* ============================================================================
  * Repository Constants
@@ -275,46 +295,6 @@ function resolveConfiguration(overrides = {}) {
 /* ============================================================================
  * Repository Contract
  * ========================================================================== */
-
-class TenantRepository {
-
-    async findById(/* tenantId */) {
-
-        throw new Error('findById() not implemented.');
-
-    }
-
-    async findByCode(/* tenantCode */) {
-
-        throw new Error('findByCode() not implemented.');
-
-    }
-
-    async findByHostname(/* hostname */) {
-
-        throw new Error('findByHostname() not implemented.');
-
-    }
-
-    async findByApiClient(/* clientId */) {
-
-        throw new Error('findByApiClient() not implemented.');
-
-    }
-
-    async exists(/* tenantId */) {
-
-        throw new Error('exists() not implemented.');
-
-    }
-
-    async warmCache() {
-
-        throw new Error('warmCache() not implemented.');
-
-    }
-
-}
 
 /* ============================================================================
  * Shared Repository Utilities

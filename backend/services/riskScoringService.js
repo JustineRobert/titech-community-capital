@@ -23,15 +23,21 @@ let FraudDetectionService;
 
 try {
   KYCService = require("./kycService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   AMLService = require("./amlService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   FraudDetectionService = require("./fraudDetectionService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 // ============================================================================
 // Constants

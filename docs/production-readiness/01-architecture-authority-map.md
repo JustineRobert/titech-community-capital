@@ -1,6 +1,6 @@
 # TITech Community Capital — Architecture Authority Map
 
-Generated: 2026-09-27T14:12:08.474Z
+Generated: 2026-09-27T18:35:09.039Z
 
 Status: **PASS_WITH_LEGACY_BOUNDARIES**
 

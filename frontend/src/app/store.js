@@ -14,7 +14,6 @@ import {
   persistStore,
   persistReducer,
   createMigrate,
-  createTransform,
   FLUSH,
   REHYDRATE,
   PAUSE,
@@ -90,37 +89,6 @@ const IS_DEV =
   import.meta.env.DEV;
 
 const APP_VERSION = "1.0.0";
-
-// Authentication credentials are memory-only. redux-persist must never serialize
-// access or refresh tokens into localStorage. Session recovery is performed
-// against the backend HttpOnly refresh-cookie boundary.
-const authPersistenceTransform =
-  createTransform(
-    (state) => {
-      if (!state || typeof state !== "object") return state;
-
-      const {
-        token: _token,
-        accessToken: _accessToken,
-        refreshToken: _refreshToken,
-        ...safeState
-      } = state;
-
-      return safeState;
-    },
-    (state) => {
-      if (!state || typeof state !== "object") return state;
-
-      return {
-        ...state,
-        token: null,
-        accessToken: null,
-        refreshToken: null,
-        authenticated: false,
-      };
-    },
-    { whitelist: ["auth"] },
-  );
 
 // ============================================================================
 // Root Reset Action
@@ -216,10 +184,6 @@ const persistConfig = {
     "tenant",
     "settings",
     "featureFlags",
-  ],
-
-  transforms: [
-    authPersistenceTransform,
   ],
 
   blacklist: [

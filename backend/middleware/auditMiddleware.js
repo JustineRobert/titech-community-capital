@@ -20,19 +20,25 @@ try {
   auditService = require(
     "../services/auditService"
   );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   requestContext = require(
     "./requestContext"
   );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   correlationMiddleware = require(
     "./correlationMiddleware"
   );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 const DEFAULT_EXCLUDED_PATHS =
   [

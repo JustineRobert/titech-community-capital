@@ -1,79 +1,105 @@
-import js from "@eslint/js";
-import importPlugin from "eslint-plugin-import";
+import js from '@eslint/js';
+import importPlugin from 'eslint-plugin-import';
+
+const nodeGlobals = Object.freeze({
+  AbortController: 'readonly',
+  Buffer: 'readonly',
+  URL: 'readonly',
+  URLSearchParams: 'readonly',
+  WebAssembly: 'readonly',
+  clearImmediate: 'readonly',
+  clearInterval: 'readonly',
+  clearTimeout: 'readonly',
+  console: 'readonly',
+  crypto: 'readonly',
+  fetch: 'readonly',
+  global: 'readonly',
+  Intl: 'readonly',
+  module: 'readonly',
+  performance: 'readonly',
+  process: 'readonly',
+  require: 'readonly',
+  setImmediate: 'readonly',
+  setInterval: 'readonly',
+  setTimeout: 'readonly',
+  structuredClone: 'readonly',
+  TextDecoder: 'readonly',
+  TextEncoder: 'readonly',
+  URLPattern: 'readonly',
+  __dirname: 'readonly',
+  __filename: 'readonly',
+  exports: 'readonly',
+});
+
+const testGlobals = Object.freeze({
+  afterAll: 'readonly',
+  afterEach: 'readonly',
+  beforeAll: 'readonly',
+  beforeEach: 'readonly',
+  describe: 'readonly',
+  expect: 'readonly',
+  it: 'readonly',
+  jest: 'readonly',
+  test: 'readonly',
+  File: 'readonly',
+  localStorage: 'readonly',
+  sessionStorage: 'readonly',
+});
 
 export default [
-  // ✅ Base JS rules
-  js.configs.recommended,
-
-  // ✅ MAIN BACKEND RULES
-  {
-    files: ["**/*.js"],
-
-    languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
-
-      globals: {
-        require: "readonly",
-        module: "readonly",
-        __dirname: "readonly",
-        process: "readonly",
-        console: "readonly",
-        Buffer: "readonly",
-        setTimeout: "readonly",
-        clearTimeout: "readonly",
-        setInterval: "readonly",
-        clearInterval: "readonly",
-        URL: "readonly",
-        URLSearchParams: "readonly",
-        AbortController: "readonly",
-        fetch: "readonly"
-      }
-    },
-
-    plugins: {
-      import: importPlugin
-    },
-
-    rules: {
-      // ✅ Existing rules
-      "no-unused-vars": ["warn"],
-      "no-console": "off",
-
-      // ✅ Import rules (NEW)
-      "import/no-unresolved": "error",
-      "import/named": "error"
-    }
-  },
-
-  // ✅ TEST FILES (Jest)
-  {
-    files: ["**/*.test.js", "**/*.spec.js", "**/tests/**/*.js"],
-
-    languageOptions: {
-      globals: {
-        describe: "readonly",
-        it: "readonly",
-        test: "readonly",
-        expect: "readonly",
-        jest: "readonly",
-        beforeAll: "readonly",
-        beforeEach: "readonly",
-        afterAll: "readonly",
-        afterEach: "readonly"
-      }
-    }
-  },
-
-  // ✅ IGNORE FOLDERS
   {
     ignores: [
-      "node_modules/**",
-      "coverage/**",
-      "logs/**",
-      "dist/**",
-      "build/**",
-      "backup/**"
-    ]
-  }
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/.cache/**',
+      '**/.vite/**',
+      '**/.nyc_output/**',
+      '**/logs/**',
+      '**/tmp/**',
+      '**/backup/**',
+    ],
+  },
+  js.configs.recommended,
+  {
+    files: ['**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      parserOptions: { ecmaFeatures: { jsx: true } },
+      globals: nodeGlobals,
+    },
+    plugins: { import: importPlugin },
+    rules: {
+      'no-undef': 'error',
+      'no-control-regex': 'error',
+      'no-empty': ['error', { allowEmptyCatch: false }],
+      'no-dupe-keys': 'error',
+      'no-constant-condition': ['error', { checkLoops: true }],
+      'no-useless-catch': 'error',
+      'no-unused-vars': ['warn', {
+        args: 'after-used',
+        argsIgnorePattern: '^_',
+        caughtErrors: 'none',
+        varsIgnorePattern: '^_',
+      }],
+      'no-console': 'off',
+      'import/no-unresolved': 'error',
+      'import/named': 'error',
+    },
+  },
+  {
+    files: ['**/*.cjs'],
+    languageOptions: { sourceType: 'commonjs', globals: nodeGlobals },
+  },
+  {
+    files: [
+      '**/tests/**/*.{js,mjs,cjs}',
+      '**/*.test.{js,mjs,cjs}',
+      '**/*.spec.{js,mjs,cjs}',
+      '**/setup.{js,mjs,cjs}',
+    ],
+    languageOptions: { globals: { ...nodeGlobals, ...testGlobals } },
+  },
 ];

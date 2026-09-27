@@ -2,7 +2,7 @@
 
 ## Source
 
-Uploaded baseline: `titech-community-capital-main.zip`. The implementation retains the prior enterprise-hardening state from that archive and applies the supplied master architecture as an incremental, non-destructive change set.
+Uploaded baseline: `titech-community-capital-main(9).zip`. The implementation retains the prior enterprise-hardening state from that archive and applies the supplied master architecture as an incremental, non-destructive change set.
 
 ## Discovery / implementation sequence
 

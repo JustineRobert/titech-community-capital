@@ -280,7 +280,9 @@ class ErrorLogger {
                     "unknown"
                 );
 
-        } catch (_) {}
+        } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
         if (
             event.severity ===
@@ -316,7 +318,9 @@ class ErrorLogger {
                     }
                 });
 
-            } catch (_) {}
+            } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
         }
 
         return event;

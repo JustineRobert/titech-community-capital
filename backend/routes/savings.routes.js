@@ -136,6 +136,20 @@ const metricsService =
  * ============================================================================
  */
 
+function handleValidation(req, res, next) {
+  const { validationResult } = require('express-validator');
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, code: 'VALIDATION_ERROR', errors: errors.array() });
+  }
+  return next();
+}
+
+function validationChain(rules) {
+  return [...rules, handleValidation];
+}
+
+
 const router =
     express.Router({
         strict:
@@ -1104,7 +1118,7 @@ function requireIdempotencyKey(
     }
 
     if (
-        /[\u0000-\u001F\u007F]/.test(
+        new RegExp("[\\u0000-\\u001F\\u007F]").test(
             key
         )
     ) {

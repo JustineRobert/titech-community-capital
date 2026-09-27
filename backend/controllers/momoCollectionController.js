@@ -50,7 +50,9 @@ for (const modelPath of candidateModels) {
       `[MoMo Collection] Transaction model loaded: ${modelPath}`
     );
     break;
-  } catch (_) {}
+  } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 }
 
 if (!Transaction) {

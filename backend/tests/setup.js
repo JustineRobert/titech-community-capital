@@ -204,7 +204,9 @@ afterEach(async () => {
                     key
                 ].deleteMany({});
 
-            } catch (_) {}
+            } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
         }
     }
 });

@@ -17,15 +17,21 @@ let pushService;
 
 try {
   emailService = require("./emailService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   smsService = require("./smsService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   pushService = require("./pushService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 // ============================================================================
 // Notification Model

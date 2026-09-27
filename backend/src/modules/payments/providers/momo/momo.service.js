@@ -44,7 +44,9 @@ try {
             "../../../ledger/services/ledger.service"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
 
@@ -53,7 +55,9 @@ try {
             "../../../notifications/services/notification.service"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
 
@@ -62,7 +66,9 @@ try {
             "../../../compliance/services/aml.service"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
 
@@ -71,7 +77,9 @@ try {
             "../../../fraud/services/fraud.service"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
 
@@ -80,7 +88,9 @@ try {
             "../../../billing/services/billingEngine"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 /* ============================================================================
  * Helpers

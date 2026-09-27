@@ -458,7 +458,9 @@ function emitEvent(type, payload) {
 
     }
 
-    catch (_) {}
+    catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 
@@ -479,7 +481,9 @@ function recordMetric(name, value = 1) {
 
     }
 
-    catch (_) {}
+    catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 

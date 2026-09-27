@@ -84,6 +84,16 @@ const {
 } =
   require('express-validator');
 
+function asyncHandler(handler) {
+  if (typeof handler !== 'function') {
+    throw new TypeError('asyncHandler requires a function handler');
+  }
+  return function asyncRouteHandler(req, res, next) {
+    return Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
+
+
 const router =
   express.Router({
     strict: false,

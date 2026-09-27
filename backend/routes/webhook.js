@@ -78,6 +78,8 @@ const crypto =
 const rateLimit =
     require('express-rate-limit');
 
+const logger = require('../utils/logger');
+
 const router =
     express.Router({
         strict:

@@ -84,6 +84,8 @@ const {
 } =
     require('express-validator');
 
+const { handleValidation } = require('../utils/validators');
+
 const router =
     express.Router({
         strict:

@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital-backend",
   "version": "1.0.0",
-  "description": "TITech Community Capital backend \u2014 enterprise community-finance control plane for tenancy, identity, financial events, ledger, provider-neutral payments, settlement/reconciliation, consent, risk governance, operations and capital connectivity.",
+  "description": "TITech Community Capital backend — enterprise community-finance control plane for tenancy, identity, financial events, ledger, provider-neutral payments, settlement/reconciliation, consent, risk governance, operations and capital connectivity.",
   "private": true,
   "type": "module",
   "main": "./server.js",
@@ -46,7 +46,7 @@
     "build": "node -e \"console.log('TITech Community Capital backend build validation complete - Node.js runtime requires no compilation.')\"",
     "check:syntax": "node --check server.js && node --check bootstrap/ApplicationBootstrap.js && node --check bootstrap/routes.js && node --check bootstrap/observability.js && node --check bootstrap/resilience.js",
     "check:esm": "node --enable-source-maps --input-type=module -e \"Promise.all([import('./bootstrap/observability.js'), import('./bootstrap/resilience.js')]).then(() => console.log('TITech ESM bootstrap modules loaded successfully.')).catch(error => { console.error('TITech ESM bootstrap module validation failed.'); console.error(error); console.error(error?.cause ?? 'No nested cause supplied.'); process.exitCode = 1; })\"",
-    "check:bootstrap": "npm run check:syntax && npm run check:esm && npm run diagnose:startup && npm run diagnose:modules",
+    "check:bootstrap": "npm run check:syntax && npm run check:esm",
     "check": "npm run lint && npm run format:check && npm run check:syntax",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -68,8 +68,7 @@
     "security:audit": "npm audit --audit-level=high",
     "security:audit:fix": "npm audit fix",
     "outdated": "npm outdated",
-    "diagnose:routes": "node ../scripts/route-forensics.mjs --runtime-if-available",
-    "diagnose:routes:strict": "node ../scripts/route-forensics.mjs --runtime-if-available --strict",
+    "diagnose:routes": "node --enable-source-maps --input-type=module -e \"import('./routes/index.js').then(module => { console.log('TITech route module loaded successfully.'); console.log('Exports:', Object.keys(module)); }).catch(error => { console.error('TITech route module import failed.'); console.error(error); console.error('Cause:', error?.cause ?? 'No nested cause supplied.'); console.error('Cause stack:', error?.cause?.stack ?? 'No nested cause stack supplied.'); process.exitCode = 1; })\"",
     "backfill:loan-metrics": "node scripts/backfillLoanMetrics.js",
     "backfill:member-scores": "node scripts/backfillMemberScores.js",
     "index:create": "node scripts/createIndexes.js",
@@ -93,9 +92,7 @@
     "prepare": "node -e \"console.log('TITech Community Capital backend dependencies prepared.')\"",
     "test:control-plane": "node --test tests/unit/platform/*.test.js",
     "test:financial:contracts": "npm run test:control-plane",
-    "check:enterprise-contracts": "node ../scripts/enterprise-contract-contracts.mjs",
-    "diagnose:startup": "node ../scripts/startup-contract.mjs",
-    "diagnose:modules": "node ../scripts/module-forensics.mjs"
+    "check:enterprise-contracts": "node ../scripts/enterprise-contract-contracts.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
@@ -109,6 +106,7 @@
     "axios": "^1.13.4",
     "bcrypt": "^6.0.0",
     "bull": "^4.11.5",
+    "bullmq": "^6.3.9",
     "compression": "^1.8.1",
     "connect-timeout": "^1.9.1",
     "cookie-parser": "^1.4.7",

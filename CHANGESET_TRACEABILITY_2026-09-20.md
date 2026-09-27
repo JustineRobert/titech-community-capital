@@ -1,6 +1,6 @@
 # TITech Community Capital — Enterprise Hardening Traceability
 
-**Baseline:** uploaded `titech-community-capital-main.zip`
+**Baseline:** uploaded `titech-community-capital-main(5).zip`
 **Baseline commit:** `273f78768c994362fca646fd0fa820593e6c8a17` (local traceability commit created from the uploaded archive)
 **Implementation commit:** `5021021f49d0586b7a22a21e319b2dd1d7963def`
 **Target:** 2026-09-20 enterprise hardening implementation

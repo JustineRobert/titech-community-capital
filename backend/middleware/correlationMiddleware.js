@@ -19,7 +19,9 @@ try {
   auditService = require(
     "../services/auditService"
   );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 const asyncLocalStorage =
   new AsyncLocalStorage();

@@ -18,19 +18,25 @@ try {
   featureFlagService = require(
     "../services/featureFlagService"
   );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   auditService = require(
     "../services/auditService"
   );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   cacheService = require(
     "../services/cacheService"
   );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 const CACHE_TTL =
   Number(
@@ -100,7 +106,9 @@ async function cacheFeature(
       value,
       CACHE_TTL
     );
-  } catch (_) {}
+  } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 }
 
 async function isFeatureEnabled(

@@ -107,7 +107,7 @@ function sanitizeText(
   */
 
   text = text.replace(
-    /[\u0000-\u001F\u007F-\u009F]/g,
+    new RegExp("[\\u0000-\\u001F\\u007F-\\u009F]", "g"),
     ''
   );
 

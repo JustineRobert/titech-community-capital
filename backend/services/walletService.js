@@ -23,31 +23,43 @@ let MobileMoneySettlementService;
 
 try {
   Wallet = require("../models/Wallet");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   Transaction =
     require("../models/Transaction");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   User = require("../models/User");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   SavingsAccount =
     require("../models/SavingsAccount");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   NotificationService =
     require("./notificationService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   MobileMoneySettlementService =
     require("./mobileMoneySettlementService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 class WalletService extends EventEmitter {
   constructor() {

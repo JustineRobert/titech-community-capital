@@ -3022,6 +3022,8 @@ class AdminAnalyticsService {
         tenantId,
         range
     ) {
+  const fraudTenant = fraudTenantMatch(tenantId);
+
         const loanTenant =
             loanTenantMatch(
                 tenantId

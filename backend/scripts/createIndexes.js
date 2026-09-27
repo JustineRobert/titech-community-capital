@@ -384,17 +384,23 @@ async function loadOptionalModels() {
     try {
         Account =
             require('../models/Account');
-    } catch (_) {}
+    } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
     try {
         Savings =
             require('../models/Savings');
-    } catch (_) {}
+    } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
     try {
         Transaction =
             require('../models/Transaction');
-    } catch (_) {}
+    } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 }
 
 async function createAccountIndexes() {

@@ -65,7 +65,9 @@ class LedgerService {
       await client.query(insertQuery);
 
       await client.query('COMMIT');
-      try { await auditService.logAction({ action: 'ledger:create_transaction', tenantId, entityType: 'LedgerTransaction', entityId: transactionId, metadata: { reference, description, entries } }); } catch(e){}
+      try { await auditService.logAction({ action: 'ledger:create_transaction', tenantId, entityType: 'LedgerTransaction', entityId: transactionId, metadata: { reference, description, entries } }); } catch(e){
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
       return { transactionId };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -101,7 +103,9 @@ class LedgerService {
       // Insert into a posting queue table or update cache here if desired.
 
       await client.query('COMMIT');
-      try { await auditService.logAction({ action: 'ledger:post_transaction', tenantId: tx.rows[0].tenant_id, entityType: 'LedgerTransaction', entityId: transactionId, metadata: {} }); } catch(e){}
+      try { await auditService.logAction({ action: 'ledger:post_transaction', tenantId: tx.rows[0].tenant_id, entityType: 'LedgerTransaction', entityId: transactionId, metadata: {} }); } catch(e){
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
       return { ok: true };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -168,7 +172,9 @@ class LedgerService {
       );
 
       await client.query('COMMIT');
-      try { await auditService.logAction({ action: 'ledger:reverse_transaction', tenantId: tx.tenant_id, entityType: 'LedgerTransaction', entityId: reversalId, metadata: { reversedOf: transactionId, reason } }); } catch(e){}
+      try { await auditService.logAction({ action: 'ledger:reverse_transaction', tenantId: tx.tenant_id, entityType: 'LedgerTransaction', entityId: reversalId, metadata: { reversedOf: transactionId, reason } }); } catch(e){
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
       return { reversalId };
     } catch (err) {
       await client.query('ROLLBACK');

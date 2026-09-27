@@ -50,7 +50,9 @@ try {
             "../../../../middleware/tenantMiddleware"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
 
@@ -59,7 +61,9 @@ try {
             "../../../../middleware/authenticationMiddleware"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
 
@@ -68,7 +72,9 @@ try {
             "../../../../middleware/authorizationMiddleware"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
 
@@ -77,7 +83,9 @@ try {
             "../../../../middleware/requestContextMiddleware"
         );
 
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 /*
 |--------------------------------------------------------------------------

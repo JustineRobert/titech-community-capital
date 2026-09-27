@@ -69,7 +69,9 @@ try {
 
 }
 
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 try {
@@ -79,7 +81,9 @@ try {
 
 }
 
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 try {
@@ -89,7 +93,9 @@ try {
 
 }
 
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 try {
@@ -99,7 +105,9 @@ try {
 
 }
 
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 try {
@@ -109,7 +117,9 @@ try {
 
 }
 
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 try {
@@ -119,7 +129,9 @@ try {
 
 }
 
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 try {
@@ -129,7 +141,9 @@ try {
 
 }
 
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 
@@ -325,7 +339,9 @@ function enrichTrace(context, req) {
 
     }
 
-    catch (_) {}
+    catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 
@@ -364,7 +380,9 @@ function tagMetrics(context) {
 
     }
 
-    catch (_) {}
+    catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 
@@ -406,7 +424,9 @@ function enrichAudit(context, req) {
 
     }
 
-    catch (_) {}
+    catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 
@@ -451,7 +471,9 @@ async function publishTenantContext(context) {
 
     }
 
-    catch (_) {}
+    catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 

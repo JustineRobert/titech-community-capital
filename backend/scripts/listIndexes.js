@@ -1,45 +1,6 @@
 // scripts/listIndexes.js
-'use strict';
-
-const mongoose = require('mongoose');
-
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/yourDatabase';
-const CONNECT_OPTS = { useNewUrlParser: true, useUnifiedTopology: true };
-
-async function listIndexes() {
-  await mongoose.connect(MONGO_URI, CONNECT_OPTS);
-  const db = mongoose.connection.db;
-
-  try {
-    const collections = await db.listCollections().toArray();
-    for (const c of collections) {
-      const name = c.name;
-      const indexes = await db.collection(name).indexes();
-      console.log('Collection:', name);
-      indexes.forEach(idx => {
-        console.log('  name:', idx.name);
-        console.log('  key :', JSON.stringify(idx.key));
-        if (idx.unique) console.log('  unique: true');
-        if (idx.sparse) console.log('  sparse: true');
-        if (idx.expireAfterSeconds !== undefined) console.log('  expireAfterSeconds:', idx.expireAfterSeconds);
-        console.log('  ---');
-      });
-      console.log('');
-    }
-  } catch (err) {
-    console.error('Error listing indexes:', err);
-  } finally {
-    await mongoose.disconnect();
-  }
-}
-
-listIndexes().catch(err => {
-  console.error(err);
-  process.exit(1);
-});// scripts/listIndexes.js
-'use strict';
-
-const mongoose = require('mongoose');
+// ESM-compatible database index inspection utility.
+import mongoose from 'mongoose';
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/yourDatabase';
 
@@ -49,29 +10,26 @@ async function listIndexes() {
 
   try {
     const collections = await db.listCollections().toArray();
-    for (const c of collections) {
-      const name = c.name;
-      const indexes = await db.collection(name).indexes();
-      console.log('Collection:', name);
-      indexes.forEach(idx => {
-        console.log('  name :', idx.name);
-        console.log('  key  :', JSON.stringify(idx.key));
-        if (idx.unique) console.log('  unique: true');
-        if (idx.sparse) console.log('  sparse: true');
-        if (idx.expireAfterSeconds !== undefined) console.log('  expireAfterSeconds:', idx.expireAfterSeconds);
+    for (const collectionInfo of collections) {
+      const collectionName = collectionInfo.name;
+      const indexes = await db.collection(collectionName).indexes();
+      console.log('Collection:', collectionName);
+      for (const index of indexes) {
+        console.log('  name:', index.name);
+        console.log('  key :', JSON.stringify(index.key));
+        if (index.unique) console.log('  unique: true');
+        if (index.sparse) console.log('  sparse: true');
+        if (index.expireAfterSeconds !== undefined) console.log('  expireAfterSeconds:', index.expireAfterSeconds);
         console.log('  ---');
-      });
+      }
       console.log('');
     }
-  } catch (err) {
-    console.error('Error listing indexes:', err);
-    process.exitCode = 2;
   } finally {
     await mongoose.disconnect();
   }
 }
 
-listIndexes().catch(err => {
-  console.error('Fatal error:', err);
-  process.exit(1);
+listIndexes().catch((error) => {
+  console.error('Fatal error listing indexes:', error);
+  process.exitCode = 1;
 });

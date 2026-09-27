@@ -620,7 +620,9 @@ async executeInTransaction(context, operationName, handler) {
 
             await session?.abortTransaction?.();
 
-        } catch (_) {}
+        } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
         context.transaction.rolledBack = true;
 

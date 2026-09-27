@@ -588,21 +588,44 @@ function freezeCopy(
 function safeError(
   error,
 ) {
-  if (!error) {
+  if (
+    !error
+  ) {
     return null;
   }
 
   return {
-    name: error.name || "Error",
-    code: error.code || null,
-    message: error.message || String(error),
-    phase: error.phase || null,
-    component: error.component || null,
-    modulePath: error.modulePath || error.path || null,
-    dependency: error.dependency || null,
-    details: error.details || null,
-    stack: typeof error.stack === "string" ? error.stack.split("\n").slice(0, 30).join("\n") : null,
-    cause: error.cause && error.cause !== error ? safeError(error.cause) : null,
+    name:
+      error.name ||
+      "Error",
+
+    code:
+      error.code ||
+      null,
+
+    message:
+      error.message ||
+      String(error),
+
+    phase:
+      error.phase ||
+      null,
+
+    component:
+      error.component ||
+      null,
+
+    details:
+      error.details ||
+      null,
+
+    cause:
+      error.cause &&
+      error.cause !== error
+        ? safeError(
+            error.cause,
+          )
+        : null,
   };
 }
 

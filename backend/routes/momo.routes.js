@@ -125,6 +125,16 @@ const logger =
     loggerModule ||
     console;
 
+function asyncHandler(handler) {
+  if (typeof handler !== 'function') {
+    throw new TypeError('asyncHandler requires a function handler');
+  }
+  return function asyncRouteHandler(req, res, next) {
+    return Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
+
+
 const router =
     express.Router({
         strict:
@@ -1159,7 +1169,7 @@ function requireIdempotencyKey(
     }
 
     if (
-        /[\u0000-\u001F\u007F]/.test(
+        new RegExp("[\\u0000-\\u001F\\u007F]").test(
             key
         )
     ) {

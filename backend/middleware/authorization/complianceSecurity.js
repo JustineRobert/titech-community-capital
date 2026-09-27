@@ -57,7 +57,9 @@ try {
         require('../../shared/logging/StructuredLogger');
 
 }
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 
@@ -67,7 +69,9 @@ try {
         require('../../shared/audit/AuditService');
 
 }
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 
@@ -77,7 +81,9 @@ try {
         require('../../shared/events/EventBus');
 
 }
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 
@@ -87,7 +93,9 @@ try {
         require('../../shared/tracing/TraceContext');
 
 }
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 
@@ -97,7 +105,9 @@ try {
         require('../../shared/metrics/RequestMetrics');
 
 }
-catch (_) {}
+catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
 

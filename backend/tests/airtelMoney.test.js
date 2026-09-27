@@ -478,7 +478,9 @@ describe("AirtelMoneyService", () => {
             amount: 1000,
             phoneNumber: "256700111160",
           });
-        } catch (_) {}
+        } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
       }
 
       expect(true).toBe(true);

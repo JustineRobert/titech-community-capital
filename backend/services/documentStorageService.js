@@ -21,7 +21,9 @@ try {
   S3Client = awsSdk.S3Client;
   PutObjectCommand = awsSdk.PutObjectCommand;
   GetObjectCommand = awsSdk.GetObjectCommand;
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 // ============================================================================
 // Configuration

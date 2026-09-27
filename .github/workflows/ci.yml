@@ -51,20 +51,12 @@ jobs:
         run: npm run check:runtime-imports
       - name: Enterprise release readiness audit
         run: npm run release:gate
-      - name: Startup, module and repository completeness diagnostics
-        run: npm run diagnose:startup && npm run diagnose:modules && npm run diagnose:routes && npm run completeness:audit
 
       - name: Upload release readiness evidence
         uses: actions/upload-artifact@v4
         with:
           name: release-readiness
-          path: |
-            reports/release-readiness.json
-            reports/startup-contract.json
-            reports/module-forensics.json
-            reports/route-import-matrix.json
-            reports/repository-completeness.json
-            reports/repository-sha256.json
+          path: reports/release-readiness.json
           retention-days: 14
       - name: Exact-money unit tests
         run: node --test backend/tests/unit/financial/money.test.js

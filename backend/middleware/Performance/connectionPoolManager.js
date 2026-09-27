@@ -310,7 +310,9 @@ function recordMetric(
 
     }
 
-    catch(_) {}
+    catch(_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 
@@ -347,7 +349,9 @@ function publishEvent(
 
     }
 
-    catch(_) {}
+    catch(_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 

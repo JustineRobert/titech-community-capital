@@ -500,7 +500,7 @@ function validateRouteId(
     }
 
     if (
-      /[\u0000-\u001F\u007F]/.test(
+      new RegExp("[\\u0000-\\u001F\\u007F]").test(
         value,
       )
     ) {

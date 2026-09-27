@@ -352,7 +352,9 @@ function incrementMetric(name) {
 
     }
 
-    catch (_) {}
+    catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 
@@ -383,7 +385,9 @@ function publishEvent(type, payload) {
 
     }
 
-    catch (_) {}
+    catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 

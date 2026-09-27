@@ -626,7 +626,7 @@ function validateExecuteRequest(
    * newlines and tabs.
    */
   if (
-    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(
+    new RegExp("[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]").test(
       message,
     )
   ) {

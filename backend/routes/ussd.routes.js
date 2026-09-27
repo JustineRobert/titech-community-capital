@@ -65,6 +65,15 @@ const crypto =
 const rateLimit =
     require('express-rate-limit');
 
+function safeLogError(message, metadata = {}) {
+  try {
+    logger?.error?.(message, metadata);
+  } catch {
+    // Logging failures must never mask the original request failure.
+  }
+}
+
+
 const router =
     express.Router({
         strict:

@@ -700,7 +700,9 @@ class TransactionTimeoutManager extends EventEmitter {
                 );
 
             }
-            catch (_) {}
+            catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
         }
 
@@ -1573,7 +1575,9 @@ class TransactionTimeoutManager extends EventEmitter {
 
         }
 
-        catch (_) {}
+        catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
         this.safeMetric(
@@ -1812,7 +1816,9 @@ class TransactionTimeoutManager extends EventEmitter {
 
                                 }
 
-                                catch (_) {}
+                                catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
                                 reject(
@@ -2519,7 +2525,9 @@ class TransactionTimeoutManager extends EventEmitter {
 
         }
 
-        catch (_) {}
+        catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 
         this.clearOperationTimer(
@@ -2910,7 +2918,9 @@ class TransactionTimeoutManager extends EventEmitter {
 
                 }
 
-                catch (_) {}
+                catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
             }
 
@@ -3882,7 +3892,9 @@ class TransactionTimeoutManager extends EventEmitter {
 
             }
 
-            catch (_) {}
+            catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
         }
 

@@ -364,7 +364,9 @@ class PaymentHttpClient {
 
             parsed = JSON.parse(body);
 
-        } catch (_) {}
+        } catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
         return {
 

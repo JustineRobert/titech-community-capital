@@ -56,6 +56,13 @@
  * ============================================================================
  */
 
+function normalizeArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null) return [];
+  return [value];
+}
+
+
 const crypto = require('node:crypto');
 const {
   AsyncLocalStorage,

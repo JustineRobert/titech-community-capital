@@ -496,7 +496,7 @@ const faqIdValidator =
         value,
       ) => {
         if (
-          /[\u0000-\u001F\u007F]/.test(
+          new RegExp("[\\u0000-\\u001F\\u007F]").test(
             value,
           )
         ) {
@@ -550,7 +550,7 @@ const searchValidators =
           value,
         ) => {
           if (
-            /[\u0000-\u001F\u007F]/.test(
+            new RegExp("[\\u0000-\\u001F\\u007F]").test(
               value,
             )
           ) {

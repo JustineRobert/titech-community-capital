@@ -42,35 +42,45 @@ try {
         require(
             "../../../ledger/services/ledger.service"
         );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     notificationService =
         require(
             "../../../notifications/services/notification.service"
         );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     amlService =
         require(
             "../../../compliance/services/aml.service"
         );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     fraudService =
         require(
             "../../../fraud/services/fraud.service"
         );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
     billingEngine =
         require(
             "../../../billing/services/billingEngine"
         );
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 /* ============================================================================
  * Helpers

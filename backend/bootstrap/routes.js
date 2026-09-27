@@ -306,12 +306,12 @@ function setLifecycleState(state) {
   lastTransitionAt = nowIso();
 }
 
-function serializeSafeError(error, depth = 0) {
-  if (!error || depth > 4) {
+function serializeSafeError(error) {
+  if (!error) {
     return null;
   }
 
-  const serialized = {
+  return {
     name:
       error.name ||
       'Error',
@@ -327,37 +327,7 @@ function serializeSafeError(error, depth = 0) {
     phase:
       error.phase ||
       null,
-
-    component:
-      error.component ||
-      null,
-
-    modulePath:
-      error.modulePath ||
-      error.path ||
-      null,
-
-    dependency:
-      error.dependency ||
-      null,
-
-    details:
-      error.details &&
-      typeof error.details === 'object'
-        ? error.details
-        : null,
-
-    cause:
-      error.cause && error.cause !== error
-        ? serializeSafeError(error.cause, depth + 1)
-        : null,
   };
-
-  if (typeof error.stack === 'string') {
-    serialized.stack = error.stack.split('\n').slice(0, 30).join('\n');
-  }
-
-  return serialized;
 }
 
 function getContextConfiguration(context = {}) {
@@ -896,14 +866,6 @@ async function resolveRouteModule() {
             phase: 'routes',
             details: {
               candidate,
-              resolvedPath: candidate,
-              importMechanism: 'native-esm-import',
-              exportKeys:
-                importError?.module &&
-                typeof importError.module === 'object'
-                  ? Object.keys(importError.module)
-                  : null,
-              nestedError: serializeSafeError(error),
             },
           },
         );
@@ -1029,13 +991,10 @@ async function resolveRouteModule() {
             cause: requireError,
             details: {
               candidate,
-              resolvedPath: candidate,
-              importMechanism: 'createRequire-legacy-commonjs',
               importError:
                 serializeSafeError(
                   importError,
                 ),
-              nestedError: serializeSafeError(requireError),
             },
           },
         );

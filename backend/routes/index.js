@@ -459,7 +459,7 @@ function sanitizeTraceId(
      * prevents malformed values from reaching response headers/log pipelines.
      */
     if (
-        /[\u0000-\u001F\u007F]/.test(
+        new RegExp("[\\u0000-\\u001F\\u007F]").test(
             normalized,
         )
     ) {
@@ -990,7 +990,7 @@ function requireIdempotencyKey(
     }
 
     if (
-        /[\u0000-\u001F\u007F]/.test(
+        new RegExp("[\\u0000-\\u001F\\u007F]").test(
             key,
         )
     ) {

@@ -1,5 +1,23 @@
 "use strict";
 
+function safeStringify(value) {
+  try { return JSON.stringify(value); } catch { return String(value); }
+}
+
+function setSessionValue(key, value) {
+  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, safeStringify(value));
+}
+
+function getSessionValue(key) {
+  if (typeof sessionStorage === 'undefined') return null;
+  const value = sessionStorage.getItem(key);
+  try { return value === null ? null : JSON.parse(value); } catch { return value; }
+}
+
+function removeSessionValue(key) {
+  if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(key);
+}
+
 /**
  * ============================================================================
  * TITech Community Capital LTD

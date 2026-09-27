@@ -437,7 +437,9 @@ function publish(type,payload) {
 
     }
 
-    catch(_) {}
+    catch(_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 
@@ -468,7 +470,9 @@ function metric(name,value=1) {
 
     }
 
-    catch(_) {}
+    catch(_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 }
 

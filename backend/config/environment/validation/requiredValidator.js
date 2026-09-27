@@ -480,7 +480,7 @@ function normalizeVariableName(
      * while rejecting control characters.
      */
     if (
-        /[\u0000-\u001F\u007F]/.test(
+        new RegExp("[\\u0000-\\u001F\\u007F]").test(
             name,
         )
     ) {

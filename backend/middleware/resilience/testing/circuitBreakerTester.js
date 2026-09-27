@@ -46,7 +46,9 @@ class CircuitBreakerTester {
 
 
             }
-            catch(error){}
+            catch(error){
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
         }
 

@@ -88,7 +88,7 @@ const router =
 
 const mtnWebhookMiddleware =
     require(
-        '../middleware/mtnWebhookMiddleware.cjs'
+        '../middleware/mtnWebhookMiddleware'
     );
 
 /**

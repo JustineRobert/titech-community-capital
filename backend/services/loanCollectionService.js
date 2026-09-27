@@ -14,15 +14,21 @@ let kycService;
 
 try {
   loanAccountingService = require("../modules/loanAccountingService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   amlService = require("./amlService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 try {
   kycService = require("./kycService");
-} catch (_) {}
+} catch (_) {
+        // Intentional empty catch: best-effort fallback or cleanup path.
+    }
 
 // ============================================================================
 // Constants

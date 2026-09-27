@@ -57,6 +57,12 @@
  * ============================================================================
  */
 
+function normalizeString(value, maxLength = 512) {
+  if (value === undefined || value === null) return '';
+  return String(value).trim().slice(0, maxLength);
+}
+
+
 const {
     AsyncLocalStorage,
 } = require('node:async_hooks');

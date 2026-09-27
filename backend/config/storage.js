@@ -1413,7 +1413,7 @@ function sanitizeFilename(
 
     return basename
         .replace(
-            /[\u0000-\u001F\u007F]/g,
+            new RegExp("[\\u0000-\\u001F\\u007F]", "g"),
             '',
         )
         .replace(
@@ -2680,8 +2680,7 @@ function getEnvironmentOverrides() {
  * =============================================================================
  */
 
-const defaultConfig =
-    createStorageConfig();
+
 
 /**
  * =============================================================================
