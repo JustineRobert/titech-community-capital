@@ -2,16 +2,15 @@
 /**
  * TITech Community Capital — Production Approval Gate
  *
- * This gate is intentionally external-evidence driven. Source code alone never
- * becomes production-approved.
- *
- * Required environment variables in the protected production environment:
- *   TITECH_PRODUCTION_APPROVAL=YES
- *   TITECH_APPROVAL_REFERENCE=<change-control / CAB / accountable approval id>
- *   TITECH_APPROVAL_EXPIRES_AT=<ISO-8601 UTC timestamp>
- *
- * The deploy workflow remains protected by GitHub's production environment rules.
+ * Source code never grants production approval. The protected environment must
+ * provide external evidence plus accountable approval metadata.
  */
+
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const required = [
   'TITECH_PRODUCTION_APPROVAL',
@@ -35,9 +34,18 @@ if (!Number.isFinite(expiry)) {
   console.error('Production approval gate: BLOCKED. TITECH_APPROVAL_EXPIRES_AT must be a valid ISO-8601 timestamp.');
   process.exit(1);
 }
-
 if (expiry <= Date.now()) {
   console.error('Production approval gate: BLOCKED. Production approval evidence has expired.');
+  process.exit(1);
+}
+
+try {
+  execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'external-proof-gate.mjs')], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
+} catch {
+  console.error('Production approval gate: BLOCKED. Required external evidence has not passed.');
   process.exit(1);
 }
 

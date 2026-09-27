@@ -2,7 +2,7 @@
 
 ## Source
 
-- Baseline archive: `titech-community-capital-main(10).zip`
+- Baseline archive: `titech-community-capital-main.zip`
 - Target repository: `https://github.com/JustineRobert/titech-community-capital`
 
 ## Scope

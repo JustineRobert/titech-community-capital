@@ -52,13 +52,13 @@ import {
  * The frontend must treat all locally stored authentication state as
  * untrusted/cacheable client state and revalidate it with the backend.
  *
- * NOTE
+ * SECURITY MODEL
  * -----------------------------------------------------------------------------
  *
- * Tokens are retained in browser storage here for compatibility with the
- * existing application architecture. For the strongest web security model,
- * prefer Secure + HttpOnly + SameSite cookies for refresh/session credentials
- * and keep access-token exposure as narrow as possible.
+ * Access and refresh tokens are memory-only. The backend owns the refresh
+ * credential in a Secure + HttpOnly + SameSite cookie. This slice may retain
+ * non-secret session metadata (for example user/tenant read-model values), but
+ * it must never persist reusable authentication credentials.
  * =============================================================================
  */
 
@@ -155,6 +155,19 @@ const MAX_FEATURES =
  * =============================================================================
  */
 
+const NON_PERSISTABLE_AUTH_KEYS = new Set([
+    AUTH_STORAGE_KEYS.TOKEN,
+    AUTH_STORAGE_KEYS.REFRESH_TOKEN,
+]);
+
+function isNonPersistableAuthKey(
+    key,
+) {
+    return NON_PERSISTABLE_AUTH_KEYS.has(
+        key,
+    );
+}
+
 function getStorage() {
     try {
         if (
@@ -174,6 +187,12 @@ function getStorage() {
 function safeStorageGet(
     key,
 ) {
+    // Authentication credentials are intentionally never read from browser
+    // storage. This also invalidates legacy persisted tokens on reload.
+    if (isNonPersistableAuthKey(key)) {
+        return null;
+    }
+
     try {
         const storage =
             getStorage();
@@ -190,13 +209,16 @@ function safeStorageSet(
     key,
     value,
 ) {
+    // Never write reusable authentication credentials to browser storage.
+    if (isNonPersistableAuthKey(key)) {
+        return false;
+    }
+
     try {
         const storage =
             getStorage();
 
-        if (
-            !storage
-        ) {
+        if (!storage) {
             return false;
         }
 
@@ -483,16 +505,6 @@ function persistSession(
         tenantId,
     },
 ) {
-    safeStorageSet(
-        AUTH_STORAGE_KEYS.TOKEN,
-        token,
-    );
-
-    safeStorageSet(
-        AUTH_STORAGE_KEYS.REFRESH_TOKEN,
-        refreshToken,
-    );
-
     safeStorageSet(
         AUTH_STORAGE_KEYS.USER,
         user,
@@ -1161,16 +1173,6 @@ const authSlice =
                     null;
 
                 safeStorageSet(
-                    AUTH_STORAGE_KEYS.TOKEN,
-                    state.token,
-                );
-
-                safeStorageSet(
-                    AUTH_STORAGE_KEYS.REFRESH_TOKEN,
-                    state.refreshToken,
-                );
-
-                safeStorageSet(
                     AUTH_STORAGE_KEYS.USER,
                     state.user,
                 );
@@ -1495,7 +1497,7 @@ const authSlice =
             },
 
             /* -----------------------------------------------------------------
-             * Storage/session synchronization
+             * Non-secret storage/session synchronization
              * -----------------------------------------------------------------
              */
 

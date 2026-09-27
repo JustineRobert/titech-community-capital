@@ -129,6 +129,19 @@ function validateStructure() {
     }
   }
 
+  const containerContract = path.join(ROOT, 'scripts', 'container-context-contract.mjs');
+  if (!fs.existsSync(containerContract)) {
+    fail('Missing container context contract gate: scripts/container-context-contract.mjs');
+  } else {
+    const result = spawnSync(process.execPath, [containerContract], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    });
+    if (result.status !== 0) {
+      fail(`Container context contract failed: ${(result.stderr || result.stdout || 'unknown error').trim()}`);
+    }
+  }
+
   const staleDeployRefs = walk(path.join(ROOT, '.github', 'workflows'))
     .filter((f) => /\.(yml|yaml)$/.test(f))
     .map((f) => ({ file: rel(f), text: fs.readFileSync(f, 'utf8') }))
@@ -263,6 +276,51 @@ function validateSecurityInvariants() {
   }
 
   const productionDirs = ['backend/controllers', 'backend/routes', 'backend/middleware', 'backend/services'];
+
+  if (exists('frontend/src/app/store.js')) {
+    const storeText = read('frontend/src/app/store.js');
+    if (!storeText.includes('authPersistenceTransform')) {
+      fail('Redux auth persistence transform is missing; credentials must not be serialized by redux-persist.');
+    }
+  }
+
+  if (exists('frontend/src/services/socket.js')) {
+    const socketText = read('frontend/src/services/socket.js');
+    if (!socketText.includes('getToken')) {
+      fail('Socket authentication must consume the canonical in-memory token accessor.');
+    }
+    if (/localStorage\.(?:setItem|getItem|removeItem)\s*\([^\n]*(?:TOKEN_KEY|accessToken|refreshToken)/i.test(socketText)) {
+      fail('Socket service must not persist or retrieve reusable authentication credentials from browser storage.');
+    }
+  }
+
+  const webhookSecurityFiles = [
+    'backend/utils/webhookSecurity.js',
+    'backend/utils/webhookSecurity.cjs',
+  ];
+  const webhookSecurityText = webhookSecurityFiles
+    .filter((file) => exists(file))
+    .map((file) => read(file))
+    .join('\n');
+  if (webhookSecurityText && (
+    !webhookSecurityText.includes('timingSafeEqual') ||
+    !webhookSecurityText.includes('rawBody') ||
+    !webhookSecurityText.includes('preventReplayAttack')
+  )) {
+    fail('Webhook signature security contract is incomplete.');
+  }
+
+  const mtnWebhookFiles = [
+    'backend/middleware/mtnWebhookMiddleware.js',
+    'backend/middleware/mtnWebhookMiddleware.cjs',
+  ];
+  const mtnWebhookText = mtnWebhookFiles
+    .filter((file) => exists(file))
+    .map((file) => read(file))
+    .join('\n');
+  if (mtnWebhookText && !mtnWebhookText.includes('WEBHOOK_SECURITY_NOT_CONFIGURED')) {
+    fail('MTN webhook middleware must fail closed when webhook security is not configured.');
+  }
   for (const dir of productionDirs) {
     if (!exists(dir)) continue;
     for (const file of walk(path.join(ROOT, dir)).filter((f) => /\.(js|mjs|cjs)$/.test(f))) {

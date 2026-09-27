@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-09-27T14:12:08.675Z",
+  "repository": "https://github.com/JustineRobert/titech-community-capital",
+  "observedRuntime": {
+    "node": "v22.16.0",
+    "npm": "10.9.2"
+  },
+  "targetRuntime": "Node 24.15.x / npm 11.x",
+  "files": [
+    "reports/production-readiness.json",
+    "reports/test-results.json",
+    "reports/security-results.json",
+    "reports/provider-certification.json",
+    "reports/reconciliation-results.json",
+    "reports/dr-restore-results.json"
+  ],
+  "approval": "BLOCKED_UNTIL_EXTERNAL_EVIDENCE"
+}

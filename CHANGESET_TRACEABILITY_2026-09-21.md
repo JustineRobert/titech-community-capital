@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-Baseline: `titech-community-capital-main(7).zip`  
+Baseline: `titech-community-capital-main.zip`  
 Baseline SHA-256: `259ba00d53fc0a06f20c683a877ea6e308d99d3ba245060f6ccd67738d20d155`
 
 The uploaded archive is the implementation source of truth for this release. Live GitHub verification was not available in this execution environment and the archive did not contain `.git` metadata.

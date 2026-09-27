@@ -1,6 +1,6 @@
 # TITech Community Capital — 2026-09-24 Change Index
 
-Baseline: `titech-community-capital-main(10).zip`
+Baseline: `titech-community-capital-main.zip`
 
 Added: **15**
 Modified: **3**

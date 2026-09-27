@@ -24,10 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Container context contract
+        run: npm run check:containers
       - name: Build backend image
-        run: docker build -f backend/Dockerfile -t titech/backend:security-${{ github.sha }} .
+        run: docker build -f docker/backend.Dockerfile -t titech/backend:security-${{ github.sha }} .
       - name: Build frontend image
-        run: docker build -f frontend/Dockerfile -t titech/frontend:security-${{ github.sha }} .
+        run: docker build -f docker/frontend.Dockerfile -t titech/frontend:security-${{ github.sha }} .
       - name: Scan backend image
         uses: aquasecurity/trivy-action@0.28.0
         with:

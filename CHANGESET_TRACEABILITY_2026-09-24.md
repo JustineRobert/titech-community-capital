@@ -1,6 +1,6 @@
 # TITech Community Capital — 2026-09-24 External Proof Hardening Traceability
 
-**Baseline archive:** `titech-community-capital-main(10).zip`  
+**Baseline archive:** `titech-community-capital-main.zip`  
 **Repository:** `https://github.com/JustineRobert/titech-community-capital`  
 **Purpose:** convert the September 23 external-proof gap into repeatable repository-level evidence controls.
 

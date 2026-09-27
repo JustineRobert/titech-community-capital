@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital",
   "version": "1.0.0",
-  "description": "TITech Community Capital — Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
+  "description": "TITech Community Capital \u2014 Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
   "private": true,
   "keywords": [
     "TITech",
@@ -77,7 +77,7 @@
     "lint:fix": "npm --prefix backend run lint:fix && npm --prefix frontend run lint:fix",
     "format": "npm --prefix backend run format && npm --prefix frontend run format",
     "format:check": "npm --prefix backend run format:check && npm --prefix frontend run format:check",
-    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run diagnose:startup && npm run diagnose:modules && npm run completeness:audit && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:security-static && npm run check:authority-map && npm run check:containers && npm run check:source-contracts && npm run check:runtime-imports && npm run diagnose:startup && npm run diagnose:modules && npm run completeness:audit && npm run lint && npm run format:check",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:all": "npm run check && npm run test",
     "test": "npm run test:backend && npm run test:frontend",
@@ -131,7 +131,14 @@
     "completeness:audit": "node scripts/repository-completeness-audit.mjs",
     "completeness:strict": "node scripts/repository-completeness-audit.mjs --strict",
     "check:startup-contract": "npm run diagnose:startup",
-    "check:module-forensics": "npm run diagnose:modules"
+    "check:module-forensics": "npm run diagnose:modules",
+    "check:containers": "node scripts/container-context-contract.mjs",
+    "check:security-static": "node scripts/security-static-gate.mjs",
+    "check:authority-map": "node scripts/authority-map-audit.mjs",
+    "evidence:package": "node scripts/production-evidence-package.mjs",
+    "check:external-proof": "node scripts/external-proof-gate.mjs",
+    "check:production-contracts": "npm run check:source-contracts && npm run check:security-static && npm run check:authority-map && npm run check:containers",
+    "check:source-contracts": "node scripts/source-contract-smoke.mjs"
   },
   "dependencies": {}
 }
