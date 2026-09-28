@@ -25,10 +25,10 @@ Production-grade styling for:
    ========================================================================== */
 
 .create-group-wrapper {
-  --titech-primary: #2563eb;
-  --titech-primary-hover: #1d4ed8;
-  --titech-primary-active: #1e40af;
-  --titech-primary-soft: #eff6ff;
+  --titech-primary: #0058d8;
+  --titech-primary-hover: #0030a0;
+  --titech-primary-active: #002780;
+  --titech-primary-soft: #edf7ff;
 
   --titech-success: #16a34a;
   --titech-success-soft: #f0fdf4;
@@ -353,7 +353,7 @@ select.input-field {
 }
 
 .file-input::file-selector-button:hover {
-  background: #dbeafe;
+  background: #d8eeff;
   color: var(--titech-primary-hover);
 }
 
@@ -580,7 +580,7 @@ select.input-field {
 
 .btn-add-member:hover:not(:disabled) {
   border-color: var(--titech-primary-hover);
-  background: #dbeafe;
+  background: #d8eeff;
   color: var(--titech-primary-hover);
 }
 
@@ -864,7 +864,7 @@ select.input-field {
   background: linear-gradient(
     90deg,
     var(--titech-primary),
-    #3b82f6
+    #0066e8
   );
 
   transition: width 250ms ease;
@@ -1264,12 +1264,12 @@ select.input-field {
 
   .file-input::file-selector-button {
     background: rgba(37, 99, 235, 0.16);
-    color: #93c5fd;
+    color: #81c4ff;
   }
 
   .file-input::file-selector-button:hover {
     background: rgba(37, 99, 235, 0.24);
-    color: #bfdbfe;
+    color: #b7ddff;
   }
 
   .success-box {
@@ -1310,12 +1310,12 @@ select.input-field {
 
   .btn-add-member {
     background: var(--titech-primary-soft);
-    color: #93c5fd;
+    color: #81c4ff;
   }
 
   .btn-add-member:hover:not(:disabled) {
     background: rgba(37, 99, 235, 0.24);
-    color: #bfdbfe;
+    color: #b7ddff;
   }
 
   .valid-count {
@@ -1337,7 +1337,7 @@ select.input-field {
 
   .badge {
     background: var(--titech-primary-soft);
-    color: #93c5fd;
+    color: #81c4ff;
   }
 
   .member-role-badge,

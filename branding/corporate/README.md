@@ -21,3 +21,9 @@ Use this directory contract for investor decks, data-room documents, corporate p
 ## Integrity
 
 The canonical-source SHA-256 is recorded in `../BRAND_MANIFEST.json`. The asset pipeline preserves the supplied visual identity and does not introduce an alternate logo redesign.
+
+## Vision-board source of product meaning
+
+The supplied vision board is retained under `../vision/TITech_Vision_Board_Igune_Justine_Robert.png` and its machine-readable contract is `../vision/VISION_BOARD_CONTRACT.json`. It defines the product tagline, mission, 2035 vision, positioning, strategic pillars, values, impact themes and the vision-board color direction.
+
+The vision-board colors are implemented through the shared frontend/backend brand contracts. They do not replace semantic financial state colors or change payment, ledger, tenancy, authentication or compliance logic.

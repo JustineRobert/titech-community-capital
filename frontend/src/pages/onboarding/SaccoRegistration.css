@@ -6,8 +6,8 @@
    ========================================================================== */
 
 :root {
-  --sacco-primary: #2563eb;
-  --sacco-primary-dark: #1d4ed8;
+  --sacco-primary: #0058d8;
+  --sacco-primary-dark: #0030a0;
   --sacco-success: #16a34a;
   --sacco-danger: #dc2626;
   --sacco-warning: #f59e0b;
@@ -124,7 +124,7 @@
   background: linear-gradient(
     90deg,
     var(--sacco-primary),
-    #60a5fa
+    #4baaf5
   );
   border-radius: inherit;
   transition: width 0.4s ease;
@@ -265,7 +265,7 @@
 .upload-zone:hover {
   border-color:
     var(--sacco-primary);
-  background: #eff6ff;
+  background: #edf7ff;
 }
 
 .upload-label {
@@ -308,7 +308,7 @@
 .payment-card.selected {
   border-color:
     var(--sacco-primary);
-  background: #eff6ff;
+  background: #edf7ff;
 }
 
 /* ==========================================================================

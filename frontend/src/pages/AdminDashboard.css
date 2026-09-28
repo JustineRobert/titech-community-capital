@@ -15,9 +15,9 @@
  * ============================================================================ */
 
 :root {
-  --titech-primary: #2563eb;
-  --titech-primary-hover: #1d4ed8;
-  --titech-primary-soft: #eff6ff;
+  --titech-primary: #0058d8;
+  --titech-primary-hover: #0030a0;
+  --titech-primary-soft: #edf7ff;
 
   --titech-success: #16a34a;
   --titech-success-hover: #15803d;
@@ -104,7 +104,7 @@
     --titech-surface: #111827;
     --titech-surface-muted: #1f2937;
 
-    --titech-primary-soft: #172554;
+    --titech-primary-soft: #00153f;
     --titech-success-soft: #052e16;
     --titech-warning-soft: #451a03;
     --titech-danger-soft: #450a0a;

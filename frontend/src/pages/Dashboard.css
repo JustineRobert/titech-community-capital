@@ -10,9 +10,9 @@
    ============================================================================ */
 
 :root {
-  --titech-primary: #2563eb;
-  --titech-primary-dark: #1d4ed8;
-  --titech-primary-soft: #eff6ff;
+  --titech-primary: #0058d8;
+  --titech-primary-dark: #0030a0;
+  --titech-primary-soft: #edf7ff;
 
   --titech-success: #059669;
   --titech-success-soft: #ecfdf5;
@@ -172,7 +172,7 @@
 .dashboard-actions button:hover {
   color: var(--titech-primary);
   background: var(--titech-primary-soft);
-  border-color: #bfdbfe;
+  border-color: #b7ddff;
 }
 
 .dashboard-actions button:active {
@@ -273,7 +273,7 @@
 
 .stat-card:hover {
   transform: translateY(-2px);
-  border-color: #bfdbfe;
+  border-color: #b7ddff;
   box-shadow: var(--shadow-md);
 }
 
@@ -577,7 +577,7 @@ line {
     linear-gradient(
       90deg,
       var(--titech-primary),
-      #60a5fa
+      #4baaf5
     );
 
   transform:
@@ -594,7 +594,7 @@ line {
 
   background: #ffffff;
 
-  border-color: #bfdbfe;
+  border-color: #b7ddff;
 
   box-shadow: var(--shadow-md);
 }
@@ -1159,8 +1159,8 @@ line {
   }
 
   .dashboard-actions button:hover {
-    background: #172554;
-    border-color: #1d4ed8;
+    background: #00153f;
+    border-color: #0030a0;
   }
 
   .dashboard-actions button span {
@@ -1170,7 +1170,7 @@ line {
   .stat-card:hover,
   .group-card:hover {
     background: #111c31;
-    border-color: #1d4ed8;
+    border-color: #0030a0;
   }
 
   .error-box {

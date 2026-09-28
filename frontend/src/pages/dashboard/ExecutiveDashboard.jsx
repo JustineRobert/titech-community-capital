@@ -66,7 +66,7 @@ import "./ExecutiveDashboard.css";
 // ============================================================================
 
 const COLORS = [
-  "#2563eb",
+  "#0058d8",
   "#16a34a",
   "#f59e0b",
   "#ef4444",
@@ -662,13 +662,13 @@ function ExecutiveDashboard({
                   >
                     <stop
                       offset="0%"
-                      stopColor="#2563eb"
+                      stopColor="#0058d8"
                       stopOpacity={0.35}
                     />
 
                     <stop
                       offset="100%"
-                      stopColor="#2563eb"
+                      stopColor="#0058d8"
                       stopOpacity={0.03}
                     />
                   </linearGradient>
@@ -695,7 +695,7 @@ function ExecutiveDashboard({
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="#2563eb"
+                  stroke="#0058d8"
                   strokeWidth={2}
                   fill="url(#executivePortfolioGradient)"
                   activeDot={{
@@ -875,7 +875,7 @@ function ExecutiveDashboard({
 
                 <Bar
                   dataKey="value"
-                  fill="#2563eb"
+                  fill="#0058d8"
                   radius={[
                     6,
                     6,

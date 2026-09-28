@@ -58,13 +58,15 @@
 :root {
   /* Shared product design-system aliases. Official brand artwork is
      supplied in /branding/official and referenced through BrandLogo. */
-  --titech-color-brand-electric-blue: #159fe8;
-  --titech-color-brand-deep-blue: #0b4fd8;
-  --titech-color-brand-lime: #8be617;
-  --titech-color-brand-gold: #f8c51b;
-  --titech-color-brand-cyan: #2bd8e9;
-  --titech-color-brand-navy: #0b1f3a;
+  --titech-color-brand-electric-blue: #0058d8;
+  --titech-color-brand-deep-blue: #0030a0;
+  --titech-color-brand-lime: #a8f000;
+  --titech-color-brand-gold: #f8d800;
+  --titech-color-brand-cyan: #00b8f8;
+  --titech-color-brand-navy: #082b67;
   --titech-color-brand-white: #ffffff;
+  --titech-color-brand-bright-blue: #0066e8;
+  --titech-color-brand-green: #008000;
 
   /* --------------------------------------------------------------------------
      Typography
@@ -103,17 +105,17 @@
      TITech brand foundation
      -------------------------------------------------------------------------- */
 
-  --titech-color-brand-50: #eff6ff;
-  --titech-color-brand-100: #dbeafe;
-  --titech-color-brand-200: #bfdbfe;
-  --titech-color-brand-300: #93c5fd;
-  --titech-color-brand-400: #60a5fa;
-  --titech-color-brand-500: #3b82f6;
-  --titech-color-brand-600: #2563eb;
-  --titech-color-brand-700: #1d4ed8;
-  --titech-color-brand-800: #1e40af;
-  --titech-color-brand-900: #1e3a8a;
-  --titech-color-brand-950: #172554;
+  --titech-color-brand-50: #edf7ff;
+  --titech-color-brand-100: #d8eeff;
+  --titech-color-brand-200: #b7ddff;
+  --titech-color-brand-300: #81c4ff;
+  --titech-color-brand-400: #4baaf5;
+  --titech-color-brand-500: #0066e8;
+  --titech-color-brand-600: #0058d8;
+  --titech-color-brand-700: #0030a0;
+  --titech-color-brand-800: #002780;
+  --titech-color-brand-900: #001f66;
+  --titech-color-brand-950: #00153f;
 
   /* --------------------------------------------------------------------------
      Neutral palette
@@ -156,10 +158,10 @@
   --titech-color-danger-600: #dc2626;
   --titech-color-danger-700: #b91c1c;
 
-  --titech-color-info-50: #eff6ff;
-  --titech-color-info-100: #dbeafe;
-  --titech-color-info-500: #3b82f6;
-  --titech-color-info-600: #2563eb;
+  --titech-color-info-50: #edf7ff;
+  --titech-color-info-100: #d8eeff;
+  --titech-color-info-500: #0066e8;
+  --titech-color-info-600: #0058d8;
 
   /* --------------------------------------------------------------------------
      Application surfaces

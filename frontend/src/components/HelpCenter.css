@@ -86,7 +86,7 @@
   --titech-help-primary:
     var(
       --color-primary,
-      #0f766e
+      #008000
     );
 
   --titech-help-primary-hover:
@@ -268,7 +268,7 @@
     ),
     linear-gradient(
       135deg,
-      #0f766e 0%,
+      #008000 0%,
       #115e59 55%,
       #134e4a 100%
     );

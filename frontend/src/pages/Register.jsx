@@ -632,13 +632,12 @@ export default function Register() {
               id={`${componentId}-brand`}
               className="features-title"
             >
-              TITech Community Capital
+              Community Finance. Stronger Together.
             </h1>
 
             <p className="features-subtitle">
-              Build financial resilience together
-              through trusted community savings,
-              contributions, and lending.
+              Building trusted community financial infrastructure that connects
+              people, communities, capital and opportunity across Africa.
             </p>
 
             <div
@@ -652,7 +651,7 @@ export default function Register() {
                 />
 
                 <span>
-                  Secure savings accounts
+                  Financial inclusion for all
                 </span>
               </div>
 
@@ -663,7 +662,7 @@ export default function Register() {
                 />
 
                 <span>
-                  Community group contributions
+                  Technology innovation for real-world challenges
                 </span>
               </div>
 
@@ -674,7 +673,7 @@ export default function Register() {
                 />
 
                 <span>
-                  Mobile money integration
+                  Stronger communities and shared prosperity
                 </span>
               </div>
 
@@ -685,7 +684,7 @@ export default function Register() {
                 />
 
                 <span>
-                  Responsible community lending
+                  Sustainable finance and trusted capital pathways
                 </span>
               </div>
             </div>

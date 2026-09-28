@@ -58,11 +58,11 @@
     "Liberation Mono",
     monospace;
 
-  --titech-forum-color-primary: #2563eb;
-  --titech-forum-color-primary-hover: #1d4ed8;
-  --titech-forum-color-primary-active: #1e40af;
-  --titech-forum-color-primary-soft: #eff6ff;
-  --titech-forum-color-primary-border: #bfdbfe;
+  --titech-forum-color-primary: #0058d8;
+  --titech-forum-color-primary-hover: #0030a0;
+  --titech-forum-color-primary-active: #002780;
+  --titech-forum-color-primary-soft: #edf7ff;
+  --titech-forum-color-primary-border: #b7ddff;
 
   --titech-forum-color-success: #15803d;
   --titech-forum-color-success-soft: #f0fdf4;
@@ -1576,8 +1576,8 @@
     --titech-forum-border: #273449;
     --titech-forum-border-strong: #334155;
 
-    --titech-forum-color-primary-soft: #172554;
-    --titech-forum-color-primary-border: #1e40af;
+    --titech-forum-color-primary-soft: #00153f;
+    --titech-forum-color-primary-border: #002780;
 
     --titech-forum-color-success-soft: #052e16;
     --titech-forum-color-success-border: #166534;
@@ -1665,8 +1665,8 @@
   --titech-forum-border: #273449;
   --titech-forum-border-strong: #334155;
 
-  --titech-forum-color-primary-soft: #172554;
-  --titech-forum-color-primary-border: #1e40af;
+  --titech-forum-color-primary-soft: #00153f;
+  --titech-forum-color-primary-border: #002780;
 }
 
 /* ============================================================================

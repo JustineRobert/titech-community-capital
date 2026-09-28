@@ -23,8 +23,8 @@
   --notification-text-secondary: #64748b;
   --notification-text-muted: #94a3b8;
 
-  --notification-primary: #2563eb;
-  --notification-primary-hover: #1d4ed8;
+  --notification-primary: #0058d8;
+  --notification-primary-hover: #0030a0;
   --notification-primary-soft: rgba(37, 99, 235, 0.1);
   --notification-primary-softer: rgba(37, 99, 235, 0.05);
 
@@ -593,8 +593,8 @@
   --notification-text-secondary: #94a3b8;
   --notification-text-muted: #64748b;
 
-  --notification-primary: #60a5fa;
-  --notification-primary-hover: #93c5fd;
+  --notification-primary: #4baaf5;
+  --notification-primary-hover: #81c4ff;
 
   --notification-primary-soft: rgba(96, 165, 250, 0.14);
   --notification-primary-softer: rgba(96, 165, 250, 0.08);

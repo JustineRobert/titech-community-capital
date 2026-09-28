@@ -26,8 +26,8 @@
   --admin-text-secondary: #64748b;
   --admin-text-muted: #94a3b8;
 
-  --admin-primary: #2563eb;
-  --admin-primary-hover: #1d4ed8;
+  --admin-primary: #0058d8;
+  --admin-primary-hover: #0030a0;
   --admin-primary-soft: rgba(37, 99, 235, 0.1);
 
   --admin-success: #16a34a;
@@ -651,8 +651,8 @@
   --admin-text-secondary: #cbd5e1;
   --admin-text-muted: #94a3b8;
 
-  --admin-primary: #60a5fa;
-  --admin-primary-hover: #93c5fd;
+  --admin-primary: #4baaf5;
+  --admin-primary-hover: #81c4ff;
   --admin-primary-soft: rgba(
     96,
     165,

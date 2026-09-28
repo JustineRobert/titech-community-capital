@@ -1,0 +1,80 @@
+path,change_type,reason
+README.md,MODIFIED,Documented the vision-board product and brand contract.
+backend/shared/branding/brandConfig.cjs,MODIFIED,Aligned server-rendered email/report branding and product intent metadata.
+branding/BRAND_MANIFEST.json,MODIFIED,"Recorded vision-board source, hash and normalized palette."
+branding/corporate/README.md,MODIFIED,Applied vision-board color or product-brand alignment.
+branding/vision/TITech_Vision_Board_Igune_Justine_Robert.png,ADDED,Canonical supplied vision-board reference asset.
+branding/vision/VISION_BOARD_CONTRACT.json,ADDED,"Machine-readable mission, vision, values, pillars, impact and color contract."
+docs/brand/OFFICIAL_BRAND_STANDARD_2026-09-28.md,MODIFIED,Added vision-board alignment to the official brand standard.
+docs/brand/TITECH_VISION_BOARD_CHANGE_DISCOVERY_2026-09-28.md,ADDED,Folder-level change discovery and ordered implementation sequence.
+docs/brand/TITECH_VISION_BOARD_FILE_CHANGE_INDEX_2026-09-28.csv,ADDED,File-level change index generated against the supplied repository archive.
+docs/brand/TITECH_VISION_BOARD_IMPLEMENTATION_2026-09-28.md,ADDED,Repository-wide vision-board implementation and acceptance guide.
+frontend/index.html,MODIFIED,Updated browser/PWA brand metadata and theme colors.
+frontend/public/brand/titech-vision-board.png,ADDED,Frontend deployment copy of supplied vision-board reference.
+frontend/public/manifest.webmanifest,MODIFIED,Updated browser/PWA brand metadata and theme colors.
+frontend/src/App.jsx,MODIFIED,Applied vision-board color or product-brand alignment.
+frontend/src/__tests__/branding/brandContract.test.js,ADDED,Regression tests for the vision-board brand contract and palette.
+frontend/src/branding/brand.css,MODIFIED,Replaced legacy visual palette with vision-board aligned tokens and brand primitives.
+frontend/src/branding/brand.js,MODIFIED,Centralized mission/vision/purpose/value/pillar/impact and new vision-board palette contract.
+frontend/src/charts/AreaChartCard.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/charts/BarChartCard.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/charts/LineChartCard.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/charts/PieChartCard.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/ChartCard.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/DashboardSkeleton.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/EmptyState.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/ErrorState.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/FAQ.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/Footer.jsx,MODIFIED,Applied community-financial-infrastructure product positioning.
+frontend/src/components/Forum.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/GroupCard.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/HelpCenter.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/KPIWidget.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/LegalDocuments.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/MobileMoneyPayment.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/components/chat/composer.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/index.css,MODIFIED,Updated global brand tokens and accessible brand scale to the vision-board palette.
+frontend/src/index.js,MODIFIED,Ensured the active and legacy frontend entrypoints load the global design-system and brand styles.
+frontend/src/layouts/AdminLayout.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/main.jsx,MODIFIED,Ensured the active and legacy frontend entrypoints load the global design-system and brand styles.
+frontend/src/pages/AdminDashboard.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/AdminRiskDashboard.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/AdminRiskDashboard.jsx,MODIFIED,Applied vision-board color or product-brand alignment.
+frontend/src/pages/CreateGroup.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/CreateGroupV2.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Dashboard.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/ForgotPassword.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/FraudMonitor.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Legal.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/LegalPages.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Login.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Login.jsx,MODIFIED,Applied mission/tagline/strategic product framing to public authentication experience.
+frontend/src/pages/Logout.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Register.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Register.jsx,MODIFIED,Applied mission/tagline/strategic product framing to public authentication experience.
+frontend/src/pages/Reports.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Reports.jsx,MODIFIED,Applied vision-board color or product-brand alignment.
+frontend/src/pages/ResetPassword.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Savings.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Settings.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/TITechChat.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/TITechChat/ChatHome.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/TITechChat/SavingsThreads.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/TITechChat/SupportThreads.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/Transactions.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/AdminDashboard.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/AdminDashboard.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/DashboardStats.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/DashboardWidgets.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/ExecutiveDashboard.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/ExecutiveDashboard.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/GroupList.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/NotificationsPanel.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/SystemHealth.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/dashboard/SystemHealth.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/onboarding/GoLiveReview.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/onboarding/KYCVerification.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/onboarding/OnboardingDashboard.jsx,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/pages/onboarding/SaccoRegistration.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+frontend/src/styles/adminDashboard.css,MODIFIED,Normalized legacy primary blue UI presentation to the new vision-board brand scale.
+mobile/branding/README.md,MODIFIED,Aligned corporate/mobile brand guidance with the vision-board contract.

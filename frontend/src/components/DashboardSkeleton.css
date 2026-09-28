@@ -87,7 +87,7 @@
   --titech-skeleton-primary:
     var(
       --titech-primary,
-      #2563eb
+      #0058d8
     );
 
   --titech-skeleton-radius:
@@ -1419,7 +1419,7 @@
         in srgb,
         var(
           --titech-primary,
-          #2563eb
+          #0058d8
         )
         20%,
         var(
@@ -1437,7 +1437,7 @@
         in srgb,
         var(
           --titech-primary,
-          #2563eb
+          #0058d8
         )
         22%,
         var(
@@ -1464,7 +1464,7 @@
         in srgb,
         var(
           --titech-primary,
-          #2563eb
+          #0058d8
         )
         16%,
         var(
@@ -1895,7 +1895,7 @@
     2px solid
       var(
         --titech-primary,
-        #2563eb
+        #0058d8
       );
 
   outline-offset: 2px;

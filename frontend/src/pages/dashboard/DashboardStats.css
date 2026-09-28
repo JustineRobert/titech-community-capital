@@ -23,8 +23,8 @@
   --dashboard-text-secondary: #64748b;
   --dashboard-text-muted: #94a3b8;
 
-  --dashboard-primary: #2563eb;
-  --dashboard-primary-hover: #1d4ed8;
+  --dashboard-primary: #0058d8;
+  --dashboard-primary-hover: #0030a0;
   --dashboard-primary-soft: rgba(37, 99, 235, 0.1);
 
   --dashboard-success: #15803d;
@@ -36,7 +36,7 @@
   --dashboard-warning: #b45309;
   --dashboard-warning-soft: rgba(245, 158, 11, 0.14);
 
-  --dashboard-focus: #2563eb;
+  --dashboard-focus: #0058d8;
 
   --dashboard-shadow-sm:
     0 2px 8px rgba(15, 23, 42, 0.05);
@@ -656,8 +656,8 @@
   --dashboard-text-secondary: #94a3b8;
   --dashboard-text-muted: #64748b;
 
-  --dashboard-primary: #60a5fa;
-  --dashboard-primary-hover: #93c5fd;
+  --dashboard-primary: #4baaf5;
+  --dashboard-primary-hover: #81c4ff;
   --dashboard-primary-soft:
     rgba(96, 165, 250, 0.12);
 
@@ -673,7 +673,7 @@
   --dashboard-warning-soft:
     rgba(251, 191, 36, 0.13);
 
-  --dashboard-focus: #60a5fa;
+  --dashboard-focus: #4baaf5;
 
   --dashboard-shadow:
     0 8px 30px

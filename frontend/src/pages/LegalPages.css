@@ -71,14 +71,14 @@
    * Brand
    * ------------------------------------------------------------------------ */
 
-  --legal-primary: #0f766e;
+  --legal-primary: #008000;
   --legal-primary-hover: #115e59;
   --legal-primary-active: #134e4a;
   --legal-primary-light: #ccfbf1;
   --legal-primary-soft: #f0fdfa;
 
-  --legal-secondary: #1d4ed8;
-  --legal-secondary-hover: #1e40af;
+  --legal-secondary: #0030a0;
+  --legal-secondary-hover: #002780;
 
   --legal-success: #15803d;
   --legal-warning: #b45309;
@@ -312,7 +312,7 @@
       135deg,
       #0f172a 0%,
       #134e4a 55%,
-      #0f766e 100%
+      #008000 100%
     );
 }
 
@@ -2818,13 +2818,13 @@
 
 .legal-status--info {
   color:
-    #1e40af;
+    #002780;
 
   border-color:
-    #bfdbfe;
+    #b7ddff;
 
   background:
-    #eff6ff;
+    #edf7ff;
 }
 
 
@@ -2864,7 +2864,7 @@
   }
 
   .legal-status--info {
-    color: #93c5fd;
+    color: #81c4ff;
 
     border-color:
       rgba(59, 130, 246, 0.25);
@@ -2925,7 +2925,7 @@
 .legal-pages.dark-mode .legal-status--info,
 .dark .legal-status--info,
 .dark-mode .legal-status--info {
-  color: #93c5fd;
+  color: #81c4ff;
 
   border-color:
     rgba(59, 130, 246, 0.25);

@@ -236,7 +236,7 @@ function RouteFallback() {
             height: 32,
             margin: '0 auto 12px',
             border: '3px solid rgba(37, 99, 235, 0.2)',
-            borderTopColor: '#2563eb',
+            borderTopColor: '#0058d8',
             borderRadius: '50%',
             animation: 'titech-app-spin 0.8s linear infinite',
           }}
@@ -400,7 +400,7 @@ function ErrorFallback({ onReset }) {
             padding: '10px 16px',
             borderRadius: 8,
             border: 'none',
-            background: '#2563eb',
+            background: '#0058d8',
             color: '#fff',
             cursor: 'pointer',
             fontWeight: 600,

@@ -26,13 +26,13 @@
  * ========================================================================== */
 
 .savings-page {
-  --savings-primary: #0f766e;
+  --savings-primary: #008000;
   --savings-primary-hover: #115e59;
   --savings-primary-active: #134e4a;
   --savings-primary-soft: #ecfdf5;
 
-  --savings-blue: #2563eb;
-  --savings-blue-soft: #eff6ff;
+  --savings-blue: #0058d8;
+  --savings-blue-soft: #edf7ff;
 
   --savings-success: #15803d;
   --savings-success-soft: #f0fdf4;

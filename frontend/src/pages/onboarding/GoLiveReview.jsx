@@ -447,7 +447,7 @@ const GoLiveReview = ({
         style={{
           background:
             reviewReady
-              ? "#2563eb"
+              ? "#0058d8"
               : "#9ca3af",
 
           color:

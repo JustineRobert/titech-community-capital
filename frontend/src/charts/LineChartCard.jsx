@@ -32,8 +32,8 @@ import ChartCard from "./ChartCard";
 const DEFAULT_HEIGHT = 320;
 
 const DEFAULT_COLORS = [
-  "#2563eb",
-  "#14b8a6",
+  "#0058d8",
+  "#00b8f8",
   "#f59e0b",
   "#ef4444",
   "#8b5cf6",

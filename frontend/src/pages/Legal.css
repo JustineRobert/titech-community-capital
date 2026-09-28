@@ -87,7 +87,7 @@
   --legal-primary-soft: #eaf3fb;
   --legal-primary-border: #c9dced;
 
-  --legal-secondary: #0f766e;
+  --legal-secondary: #008000;
   --legal-secondary-hover: #0b5f59;
   --legal-secondary-soft: #e8f7f5;
 
@@ -2383,9 +2383,9 @@ select:focus-visible {
 
 @media (prefers-color-scheme: dark) {
   .legal-page {
-    --legal-primary: #60a5fa;
-    --legal-primary-hover: #93c5fd;
-    --legal-primary-active: #bfdbfe;
+    --legal-primary: #4baaf5;
+    --legal-primary-hover: #81c4ff;
+    --legal-primary-active: #b7ddff;
     --legal-primary-soft: #172b43;
     --legal-primary-border: #315a82;
 
@@ -2429,7 +2429,7 @@ select:focus-visible {
     --legal-highlight-text: #fcd34d;
     --legal-highlight-heading: #fde68a;
 
-    --legal-selection-background: #60a5fa;
+    --legal-selection-background: #4baaf5;
     --legal-selection-text: #0b1220;
 
     --legal-shadow-sm:
@@ -2508,9 +2508,9 @@ Supported host patterns:
 
 .legal-page.dark,
 .dark .legal-page {
-  --legal-primary: #60a5fa;
-  --legal-primary-hover: #93c5fd;
-  --legal-primary-active: #bfdbfe;
+  --legal-primary: #4baaf5;
+  --legal-primary-hover: #81c4ff;
+  --legal-primary-active: #b7ddff;
   --legal-primary-soft: #172b43;
   --legal-primary-border: #315a82;
 
@@ -2554,7 +2554,7 @@ Supported host patterns:
   --legal-highlight-text: #fcd34d;
   --legal-highlight-heading: #fde68a;
 
-  --legal-selection-background: #60a5fa;
+  --legal-selection-background: #4baaf5;
   --legal-selection-text: #0b1220;
 
   color-scheme: dark;
@@ -2613,7 +2613,7 @@ Supported host patterns:
   --legal-primary-soft: #eaf3fb;
   --legal-primary-border: #c9dced;
 
-  --legal-secondary: #0f766e;
+  --legal-secondary: #008000;
   --legal-secondary-hover: #0b5f59;
   --legal-secondary-soft: #e8f7f5;
 

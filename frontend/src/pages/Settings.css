@@ -97,13 +97,13 @@
   --titech-settings-primary:
     var(
       --titech-primary,
-      #2563eb
+      #0058d8
     );
 
   --titech-settings-primary-hover:
     var(
       --titech-primary-hover,
-      #1d4ed8
+      #0030a0
     );
 
   --titech-settings-primary-soft:

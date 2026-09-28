@@ -547,7 +547,7 @@ function normalizeHealth(payload) {
 const ProgressBar = memo(
   ({
     value = 0,
-    color = "#2563eb",
+    color = "#0058d8",
     label = "System utilization",
   }) => {
     const percentage =
@@ -1090,7 +1090,7 @@ function SystemHealth() {
             value={
               health.cpu?.usage
             }
-            color="#2563eb"
+            color="#0058d8"
             label="CPU usage"
           />
         </HealthMetricCard>

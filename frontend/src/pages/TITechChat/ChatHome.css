@@ -56,7 +56,7 @@ TITech brand
 --titech-chat-primary-soft: #eaf3fb;
 --titech-chat-primary-border: #c7dced;
 
---titech-chat-secondary: #0f766e;
+--titech-chat-secondary: #008000;
 --titech-chat-secondary-hover: #0b5f59;
 --titech-chat-secondary-soft: #e8f7f5;
 
@@ -77,8 +77,8 @@ Semantic colors
 --titech-chat-danger-border: #fecaca;
 
 --titech-chat-info: #0369a1;
---titech-chat-info-soft: #eff6ff;
---titech-chat-info-border: #bfdbfe;
+--titech-chat-info-soft: #edf7ff;
+--titech-chat-info-border: #b7ddff;
 
 /* --------------------------------------------------------------------------
 Typography

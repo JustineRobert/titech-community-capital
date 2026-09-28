@@ -12,7 +12,7 @@ import BrandLogo from "../../components/BrandLogo";
 
 const STATUS_COLORS = {
   DRAFT: "#6b7280",
-  VERIFICATION: "#3b82f6",
+  VERIFICATION: "#0066e8",
   KYC_PENDING: "#f59e0b",
   KYC_APPROVED: "#10b981",
   SUBSCRIPTION: "#8b5cf6",
@@ -227,7 +227,7 @@ const OnboardingDashboard = () => {
           value={
             metrics?.totalSaccos || 0
           }
-          color="#2563eb"
+          color="#0058d8"
         />
 
         <DashboardCard
@@ -522,7 +522,7 @@ const OnboardingDashboard = () => {
       <div
         style={{
           background:
-            "#eff6ff",
+            "#edf7ff",
           borderRadius:
             "12px",
           padding: "20px",

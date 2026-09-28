@@ -39,3 +39,14 @@ Shared aliases and reusable primitives live in `frontend/src/branding/brand.css`
 ## Integrity rule
 
 The canonical source hash is recorded in `branding/BRAND_MANIFEST.json`. Regenerate derived assets instead of editing deployment copies directly.
+
+## Vision-board alignment
+
+The product identity is additionally governed by `branding/vision/VISION_BOARD_CONTRACT.json` and the supplied artwork in `branding/vision/TITech_Vision_Board_Igune_Justine_Robert.png`. The implementation standard is:
+
+- Tagline: **Community Finance. Stronger Together.**
+- Mission: **To empower communities through innovative financial solutions, technology, and education, creating sustainable wealth and shared prosperity across Africa.**
+- 2035 vision: a more inclusive and prosperous Africa powered by trusted community financial infrastructure, strong communities, sustainable growth and opportunity.
+- Primary visual family: deep blue, electric/bright blue, cyan, Africa green, lime green and gold yellow, with navy ink for readable text.
+
+See `docs/brand/TITECH_VISION_BOARD_IMPLEMENTATION_2026-09-28.md` for the repository-wide implementation and change map.

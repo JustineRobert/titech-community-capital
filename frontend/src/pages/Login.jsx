@@ -765,14 +765,13 @@ export default function Login() {
               id="brand-title"
               className="brand-title"
             >
-              Grow Your Wealth Together
+              Community Finance. Stronger Together.
             </h1>
 
             <p className="brand-subtitle">
-              Secure, transparent and
-              community-driven financial
-              services built for
-              sustainable growth.
+              To empower communities through innovative financial solutions,
+              technology, and education, creating sustainable wealth and shared
+              prosperity across Africa.
             </p>
 
             <div
@@ -795,13 +794,12 @@ export default function Login() {
 
                 <div>
                   <strong>
-                    Secure Savings
+                    Build Community Finance
                   </strong>
 
                   <p>
-                    Designed with security
-                    and financial
-                    accountability in mind.
+                    Trusted digital infrastructure for groups, institutions and
+                    community financial activity.
                   </p>
                 </div>
               </div>
@@ -821,13 +819,12 @@ export default function Login() {
 
                 <div>
                   <strong>
-                    Community Driven
+                    Connect Digital Inclusion
                   </strong>
 
                   <p>
-                    Financial tools that
-                    help communities grow
-                    together.
+                    Financial services designed to bring more communities into
+                    the formal financial economy.
                   </p>
                 </div>
               </div>
@@ -847,13 +844,12 @@ export default function Login() {
 
                 <div>
                   <strong>
-                    Trusted Access
+                    Enable Capital Access
                   </strong>
 
                   <p>
-                    Protected account
-                    access for every
-                    community member.
+                    Trusted records, payments, reconciliation and pathways to
+                    responsible financial capital.
                   </p>
                 </div>
               </div>

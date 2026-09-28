@@ -64,6 +64,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 import Providers from './app/providers';
+import './index.css';
 import './branding/brand.css';
 import AppRoutes from './routes/AppRoutes';
 
@@ -476,7 +477,7 @@ function renderFatalBootstrapError(error) {
       'padding:10px 16px',
       'border:0',
       'border-radius:8px',
-      'background:#2563eb',
+      'background:#0058d8',
       'color:#ffffff',
       'font-size:14px',
       'font-weight:600',

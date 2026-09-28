@@ -34,6 +34,14 @@ Risk / intelligence
 Partner capital infrastructure
 ```
 
+## 🎨 Vision-Board Product & Brand Contract
+
+The supplied TITech vision board is now represented as an implementation contract across the repository. The product tagline is **“Community Finance. Stronger Together.”** and the canonical mission is: **“To empower communities through innovative financial solutions, technology, and education, creating sustainable wealth and shared prosperity across Africa.”**
+
+The vision-board color system is centralized in `frontend/src/branding/brand.js`, `frontend/src/branding/brand.css`, `frontend/src/index.css`, and `backend/shared/branding/brandConfig.cjs`. The machine-readable reference is `branding/vision/VISION_BOARD_CONTRACT.json`, with the supplied artwork retained at `branding/vision/TITech_Vision_Board_Igune_Justine_Robert.png`.
+
+The product intent remains infrastructure-first: TITech connects savings groups, SACCOs, VSLAs/ROSCAs, cooperatives, community enterprises and financial institutions through trusted records, payments, reconciliation, risk intelligence and pathways to institutional capital. The vision-board layer is additive and does not replace the financial, tenancy, authentication, payment, ledger, reconciliation or offline architecture.
+
 ## 🚀 Project Status
 
 **Status:** Active Development / Production Hardening

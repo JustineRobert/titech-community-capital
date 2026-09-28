@@ -5,8 +5,8 @@
    ========================================================== */
 
 :root {
-    --primary: #2563eb;
-    --primary-dark: #1d4ed8;
+    --primary: #0058d8;
+    --primary-dark: #0030a0;
 
     --success: #16a34a;
     --success-light: #dcfce7;
@@ -102,7 +102,7 @@
     background: linear-gradient(
         90deg,
         var(--primary),
-        #60a5fa
+        #4baaf5
     );
     transition: width .4s ease;
 }
@@ -256,7 +256,7 @@ textarea.form-control {
 
 .upload-area:hover {
     border-color: var(--primary);
-    background: #eff6ff;
+    background: #edf7ff;
 }
 
 .upload-area input {

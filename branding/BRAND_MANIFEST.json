@@ -20,16 +20,27 @@
     "favicon_variant": "favicon"
   },
   "visual_identity_reference": {
-    "electric_blue": "#159FE8",
-    "deep_blue": "#0B4FD8",
-    "lime_green": "#8BE617",
-    "gold_yellow": "#F8C51B",
-    "cyan": "#2BD8E9",
-    "navy_ink": "#0B1F3A"
+    "deep_blue": "#0030A0",
+    "electric_blue": "#0058D8",
+    "bright_blue": "#0066E8",
+    "cyan": "#00B8F8",
+    "africa_green": "#008000",
+    "lime_green": "#A8F000",
+    "gold_yellow": "#F8D800",
+    "navy_ink": "#082B67",
+    "white": "#FFFFFF"
   },
   "notes": [
-    "Do not independently edit generated copies; regenerate from the canonical source.",
-    "The supplied official artwork is preserved as the canonical master without redesign.",
-    "The reference colors are visual-system aliases derived from the supplied artwork, not a replacement color specification."
-  ]
+    "Do not independently edit generated logo copies; regenerate from the canonical logo source.",
+    "The supplied official logo artwork remains the canonical logo master.",
+    "The vision board is a product/brand direction reference and is not treated as a financial authority.",
+    "Bright lime and gold are accent colors and must use dark text for accessible contrast.",
+    "Financial state colors remain semantic and must not be interpreted as product approval or financial risk decisions."
+  ],
+  "vision_board": {
+    "source": "branding/vision/TITech_Vision_Board_Igune_Justine_Robert.png",
+    "source_sha256": "5e0b6bc29a0956b06106d51fcade960c62ead690fe75f48864241f48ceb31ca7",
+    "frontend_public_copy": "frontend/public/brand/titech-vision-board.png",
+    "purpose": "Reference artifact defining the TITech mission, vision, strategic pillars, values, impact themes and visual color direction."
+  }
 }

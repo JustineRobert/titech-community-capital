@@ -134,7 +134,7 @@ const EXPORT_FORMATS = [
 ];
 
 const CHART_COLORS = [
-  "#2563eb",
+  "#0058d8",
   "#10b981",
   "#f59e0b",
   "#ef4444",

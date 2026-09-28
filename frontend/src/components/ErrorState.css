@@ -49,7 +49,7 @@
   --titech-error-muted: var(--color-text-secondary, #64748b);
   --titech-error-border: var(--color-border, #e2e8f0);
 
-  --titech-error-primary: var(--color-primary, #0f766e);
+  --titech-error-primary: var(--color-primary, #008000);
   --titech-error-primary-hover: var(--color-primary-hover, #115e59);
   --titech-error-primary-active: var(--color-primary-active, #134e4a);
   --titech-error-primary-contrast: var(
@@ -82,15 +82,15 @@
 
   --titech-error-network: var(
     --color-info,
-    #2563eb
+    #0058d8
   );
   --titech-error-network-soft: var(
     --color-info-soft,
-    #eff6ff
+    #edf7ff
   );
   --titech-error-network-border: var(
     --color-info-border,
-    #bfdbfe
+    #b7ddff
   );
 
   --titech-error-permission: var(

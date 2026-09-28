@@ -4,14 +4,24 @@
  */
 
 :root {
-  /* Official-logo visual-system aliases. */
-  --titech-brand-electric-blue: #159fe8;
-  --titech-brand-deep-blue: #0b4fd8;
-  --titech-brand-lime: #8be617;
-  --titech-brand-gold: #f8c51b;
-  --titech-brand-cyan: #2bd8e9;
-  --titech-brand-navy: #0b1f3a;
+  /* Vision-board aligned official color roles. */
+  --titech-brand-deep-blue: #0030a0;
+  --titech-brand-electric-blue: #0058d8;
+  --titech-brand-bright-blue: #0066e8;
+  --titech-brand-cyan: #00b8f8;
+  --titech-brand-green: #008000;
+  --titech-brand-lime: #a8f000;
+  --titech-brand-gold: #f8d800;
+  --titech-brand-navy: #082b67;
   --titech-brand-white: #ffffff;
+
+  /* Backward-compatible visual aliases. */
+  --titech-brand-primary: var(--titech-brand-deep-blue);
+  --titech-brand-secondary: var(--titech-brand-electric-blue);
+  --titech-brand-success-accent: var(--titech-brand-green);
+  --titech-brand-growth-accent: var(--titech-brand-lime);
+  --titech-brand-highlight: var(--titech-brand-gold);
+  --titech-brand-information: var(--titech-brand-cyan);
 
   /* Shared product-design contract. */
   --titech-ui-control-height: 44px;
@@ -20,16 +30,16 @@
   --titech-ui-radius-control: 12px;
   --titech-ui-radius-card: 16px;
   --titech-ui-radius-dialog: 20px;
-  --titech-ui-focus-ring: 0 0 0 3px rgb(21 159 232 / 0.25);
-  --titech-ui-focus-ring-strong: 0 0 0 4px rgb(21 159 232 / 0.30);
+  --titech-ui-focus-ring: 0 0 0 3px rgb(0 88 216 / 0.25);
+  --titech-ui-focus-ring-strong: 0 0 0 4px rgb(0 88 216 / 0.30);
   --titech-ui-shadow-card: 0 10px 30px rgb(11 31 58 / 0.08);
   --titech-ui-shadow-dialog: 0 24px 64px rgb(11 31 58 / 0.18);
 
   /* Financial state aliases: these describe state, not business approval. */
-  --titech-financial-positive: #16803d;
+  --titech-financial-positive: var(--titech-brand-green);
   --titech-financial-pending: #b45309;
   --titech-financial-negative: #b91c1c;
-  --titech-financial-info: #1d4ed8;
+  --titech-financial-info: #0030a0;
 }
 
 .titech-brand-logo {
@@ -72,12 +82,12 @@
 
 .titech-brand-button--primary {
   color: #fff;
-  background: linear-gradient(135deg, var(--titech-brand-deep-blue), var(--titech-brand-electric-blue));
+  background: linear-gradient(135deg, var(--titech-brand-deep-blue), var(--titech-brand-electric-blue), var(--titech-brand-bright-blue));
 }
 
 .titech-brand-button--primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgb(11 79 216 / 0.20);
+  box-shadow: 0 8px 20px rgb(0 88 216 / 0.20);
 }
 
 .titech-brand-card {
@@ -130,6 +140,62 @@
   margin: 0.125rem 0 0;
   color: var(--titech-color-text-muted, #475569);
   font-size: 0.75rem;
+}
+
+/* ============================================================================
+   Vision-board product identity primitives
+   ============================================================================ */
+
+.titech-brand-gradient {
+  background: linear-gradient(135deg, var(--titech-brand-deep-blue), var(--titech-brand-electric-blue), var(--titech-brand-bright-blue));
+}
+
+.titech-brand-gradient--impact {
+  background: linear-gradient(135deg, var(--titech-brand-deep-blue), var(--titech-brand-bright-blue), var(--titech-brand-cyan));
+}
+
+.titech-brand-accent--growth {
+  color: var(--titech-brand-navy);
+  background: var(--titech-brand-lime);
+}
+
+.titech-brand-accent--sustainability {
+  color: var(--titech-brand-navy);
+  background: var(--titech-brand-gold);
+}
+
+.titech-brand-accent--community {
+  color: var(--titech-brand-white);
+  background: var(--titech-brand-green);
+}
+
+.titech-brand-story {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgb(0 88 216 / 0.16);
+  border-radius: var(--titech-ui-radius-card);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.98), rgb(239 247 255 / 0.98));
+  box-shadow: var(--titech-ui-shadow-card);
+}
+
+.titech-brand-story__tagline {
+  margin: 0;
+  color: var(--titech-brand-electric-blue);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.titech-brand-story__mission {
+  margin: 0;
+  color: var(--titech-brand-navy);
+  line-height: 1.55;
+}
+
+.titech-brand-story__meta {
+  margin: 0;
+  color: var(--titech-color-text-muted, #475569);
+  font-size: 0.875rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

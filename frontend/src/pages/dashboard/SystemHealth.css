@@ -35,8 +35,8 @@
   --health-text-secondary: #64748b;
   --health-text-muted: #94a3b8;
 
-  --health-primary: #2563eb;
-  --health-primary-hover: #1d4ed8;
+  --health-primary: #0058d8;
+  --health-primary-hover: #0030a0;
   --health-primary-soft: rgba(37, 99, 235, 0.08);
 
   --health-success: #16a34a;
@@ -753,8 +753,8 @@
   --health-text-secondary: #94a3b8;
   --health-text-muted: #64748b;
 
-  --health-primary: #60a5fa;
-  --health-primary-hover: #93c5fd;
+  --health-primary: #4baaf5;
+  --health-primary-hover: #81c4ff;
 
   --health-primary-soft:
     rgba(96, 165, 250, 0.1);

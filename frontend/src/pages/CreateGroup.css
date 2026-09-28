@@ -28,10 +28,10 @@
 ============================================================================ */
 
 .create-group-page {
-  --cg-primary: #2563eb;
-  --cg-primary-hover: #1d4ed8;
-  --cg-primary-active: #1e40af;
-  --cg-primary-soft: #eff6ff;
+  --cg-primary: #0058d8;
+  --cg-primary-hover: #0030a0;
+  --cg-primary-active: #002780;
+  --cg-primary-soft: #edf7ff;
 
   --cg-success: #059669;
   --cg-success-soft: #ecfdf5;
@@ -50,7 +50,7 @@
 
   --cg-border: #d1d5db;
   --cg-border-light: #e5e7eb;
-  --cg-border-focus: #2563eb;
+  --cg-border-focus: #0058d8;
 
   --cg-surface: #ffffff;
   --cg-surface-secondary: #f9fafb;
@@ -386,7 +386,7 @@
 }
 
 .create-group-page input[type="file"]::file-selector-button:hover {
-  background: #dbeafe;
+  background: #d8eeff;
   border-color: rgba(37, 99, 235, 0.35);
 }
 
@@ -1111,7 +1111,7 @@
   }
 
   .create-group-page input[type="file"]::file-selector-button {
-    color: #bfdbfe;
+    color: #b7ddff;
     background: rgba(37, 99, 235, 0.16);
     border-color: rgba(96, 165, 250, 0.25);
   }
@@ -1139,7 +1139,7 @@
   }
 
   .create-group-page .step.active {
-    color: #bfdbfe;
+    color: #b7ddff;
     background: var(--cg-primary-soft);
     border-color: rgba(96, 165, 250, 0.25);
   }

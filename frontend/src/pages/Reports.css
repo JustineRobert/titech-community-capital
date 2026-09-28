@@ -24,10 +24,10 @@
    ============================================================================ */
 
 :root {
-  --titech-report-primary: #2563eb;
-  --titech-report-primary-hover: #1d4ed8;
-  --titech-report-primary-active: #1e40af;
-  --titech-report-primary-soft: #eff6ff;
+  --titech-report-primary: #0058d8;
+  --titech-report-primary-hover: #0030a0;
+  --titech-report-primary-active: #002780;
+  --titech-report-primary-soft: #edf7ff;
 
   --titech-report-success: #16a34a;
   --titech-report-success-soft: #f0fdf4;
@@ -1909,7 +1909,7 @@
   .report-export-actions button:hover:not(:disabled) {
     background: var(--titech-report-primary-soft);
 
-    color: #93c5fd;
+    color: #81c4ff;
   }
 
   .report-select-wrapper select,
@@ -1929,7 +1929,7 @@
   .reports-filter-current {
     background: var(--titech-report-primary-soft);
 
-    color: #93c5fd;
+    color: #81c4ff;
   }
 
   .reports-error {

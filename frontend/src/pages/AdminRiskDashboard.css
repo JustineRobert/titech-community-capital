@@ -18,9 +18,9 @@
    ============================================================================ */
 
 :root {
-  --titech-primary: #2563eb;
-  --titech-primary-dark: #1d4ed8;
-  --titech-primary-soft: #eff6ff;
+  --titech-primary: #0058d8;
+  --titech-primary-dark: #0030a0;
+  --titech-primary-soft: #edf7ff;
 
   --titech-success: #10b981;
   --titech-success-dark: #059669;
@@ -572,7 +572,7 @@
     --titech-surface: #111827;
     --titech-surface-muted: #172033;
 
-    --titech-primary-soft: #172554;
+    --titech-primary-soft: #00153f;
     --titech-success-soft: #052e1f;
     --titech-warning-soft: #3b2605;
     --titech-danger-soft: #3b1015;
@@ -596,7 +596,7 @@
 
   .risk-dashboard .refresh-btn:hover:not(:disabled) {
     background: var(--titech-primary-soft);
-    color: #93c5fd;
+    color: #81c4ff;
   }
 
   .risk-error {

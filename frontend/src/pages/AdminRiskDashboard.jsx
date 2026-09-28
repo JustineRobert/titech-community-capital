@@ -1154,7 +1154,7 @@ export default function AdminRiskDashboard() {
               ),
             ],
             backgroundColor: [
-              "#2563EB",
+              "#0058D8",
               "#10B981",
               "#EF4444",
             ],

@@ -832,7 +832,7 @@ function AdminDashboard({
                   >
                     <stop
                       offset="0%"
-                      stopColor="#2563eb"
+                      stopColor="#0058d8"
                       stopOpacity={
                         0.4
                       }
@@ -840,7 +840,7 @@ function AdminDashboard({
 
                     <stop
                       offset="100%"
-                      stopColor="#2563eb"
+                      stopColor="#0058d8"
                       stopOpacity={
                         0.05
                       }
@@ -876,7 +876,7 @@ function AdminDashboard({
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="#2563eb"
+                  stroke="#0058d8"
                   fill={`url(#${chartId}-savings-gradient)`}
                   strokeWidth={2}
                   connectNulls
@@ -956,7 +956,7 @@ function AdminDashboard({
                 <Bar
                   dataKey="count"
                   name="Loans"
-                  fill="#2563eb"
+                  fill="#0058d8"
                   radius={[
                     4,
                     4,

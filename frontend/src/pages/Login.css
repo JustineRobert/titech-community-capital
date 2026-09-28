@@ -28,14 +28,14 @@
  * ========================================================================== */
 
 .login-page {
-  --login-primary: #0f766e;
+  --login-primary: #008000;
   --login-primary-dark: #115e59;
   --login-primary-darker: #0f5f59;
   --login-primary-light: #ccfbf1;
   --login-primary-soft: #f0fdfa;
 
-  --login-secondary: #2563eb;
-  --login-secondary-dark: #1d4ed8;
+  --login-secondary: #0058d8;
+  --login-secondary-dark: #0030a0;
 
   --login-success: #15803d;
   --login-success-bg: #f0fdf4;
@@ -196,7 +196,7 @@
     linear-gradient(
       145deg,
       #064e3b 0%,
-      #0f766e 48%,
+      #008000 48%,
       #115e59 100%
     );
 

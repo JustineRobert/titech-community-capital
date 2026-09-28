@@ -6,8 +6,8 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0B4FD8",
-  "theme_color": "#159FE8",
+  "background_color": "#0030A0",
+  "theme_color": "#0058D8",
   "icons": [
     {
       "src": "/brand/titech-community-capital-icon-192.png",
