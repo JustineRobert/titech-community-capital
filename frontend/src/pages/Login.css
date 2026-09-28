@@ -2027,3 +2027,19 @@
       #000000;
   }
 }
+
+.brand-mark--official {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.brand-mark--official .titech-brand-logo {
+  width: 88px;
+  height: 88px;
+}

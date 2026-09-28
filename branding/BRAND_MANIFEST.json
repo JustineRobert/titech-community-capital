@@ -1,0 +1,35 @@
+{
+  "brand": "TITech Community Capital",
+  "status": "approved official circular logo source supplied for repository standardization",
+  "source": "branding/official/TITech_Community_Capital_Official.jpeg",
+  "source_sha256": "07a7197393c2af00813f544c9e9bb360331035c8c80866af6d92ad682dbf25c5",
+  "generated_from_source_only": true,
+  "variants": {
+    "full": "branding/generated/titech-community-capital-full.png",
+    "transparent": "branding/generated/titech-community-capital-transparent.png",
+    "monochrome": "branding/generated/titech-community-capital-monochrome.png",
+    "app_icon": "branding/generated/titech-community-capital-app-icon.png",
+    "icon_512": "branding/generated/titech-community-capital-icon-512.png",
+    "icon_192": "branding/generated/titech-community-capital-icon-192.png",
+    "favicon": "branding/generated/favicon.ico"
+  },
+  "web_usage": {
+    "preferred_ui_variant": "transparent",
+    "print_document_variant": "full",
+    "small_icon_variant": "icon_192",
+    "favicon_variant": "favicon"
+  },
+  "visual_identity_reference": {
+    "electric_blue": "#159FE8",
+    "deep_blue": "#0B4FD8",
+    "lime_green": "#8BE617",
+    "gold_yellow": "#F8C51B",
+    "cyan": "#2BD8E9",
+    "navy_ink": "#0B1F3A"
+  },
+  "notes": [
+    "Do not independently edit generated copies; regenerate from the canonical source.",
+    "The supplied official artwork is preserved as the canonical master without redesign.",
+    "The reference colors are visual-system aliases derived from the supplied artwork, not a replacement color specification."
+  ]
+}

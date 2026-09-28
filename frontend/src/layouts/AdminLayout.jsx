@@ -33,12 +33,12 @@ import {
   LogOut,
   Bell,
   ChevronRight,
-  Building2,
 } from "lucide-react";
 
 import { toast } from "react-toastify";
 
 import { useAuth } from "../context/AuthContext";
+import BrandLogo from "../components/BrandLogo";
 
 import "./AdminLayout.css";
 
@@ -320,8 +320,10 @@ export default function AdminLayout() {
       >
         <div className="sidebar-header">
           <div className="sidebar-brand">
-            <Building2
-              size={28}
+            <BrandLogo
+              variant="transparent"
+              size="sm"
+              alt="TITech Community Capital"
             />
 
             <div>

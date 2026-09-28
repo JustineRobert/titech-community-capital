@@ -60,6 +60,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 import './Register.css';
+import BrandLogo from "../components/BrandLogo";
 
 // ============================================================================
 // Constants
@@ -606,6 +607,16 @@ export default function Register() {
           aria-labelledby={`${componentId}-brand`}
         >
           <div className="register-features-inner">
+            <div className="register-official-brand">
+              <BrandLogo
+                variant="transparent"
+                size="lg"
+                alt="TITech Community Capital"
+                loading="eager"
+                fetchPriority="high"
+              />
+            </div>
+
             <div className="register-security-badge">
               <ShieldCheck
                 size={18}

@@ -67,6 +67,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 
 import "./Login.css";
+import BrandLogo from "../components/BrandLogo";
 
 /* ============================================================================
  * Constants
@@ -745,11 +746,14 @@ export default function Login() {
         >
           <div className="brand-content">
             <div
-              className="brand-mark"
-              aria-hidden="true"
+              className="brand-mark brand-mark--official"
             >
-              <ShieldCheck
-                size={30}
+              <BrandLogo
+                variant="transparent"
+                size="lg"
+                alt="TITech Community Capital"
+                loading="eager"
+                fetchPriority="high"
               />
             </div>
 

@@ -4099,10 +4099,10 @@ function validateBootstrapComposition() {
 
   if (
     SERVICE_METADATA.nodeMajor <
-    20
+    24
   ) {
     throw new Error(
-      `TITech Community Capital requires Node.js 20+; detected Node.js ${process.versions.node}.`,
+      `TITech Community Capital requires Node.js 24.15+; detected Node.js ${process.versions.node}.`,
     );
   }
 

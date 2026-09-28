@@ -152,6 +152,58 @@
   line-height: 1.6;
 }
 
+
+/* ============================================================================
+   Official Brand Header
+   ============================================================================ */
+
+.payment-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--titech-payment-border);
+  border-radius: var(--titech-payment-radius-md);
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  box-shadow: var(--titech-payment-shadow-sm);
+}
+
+.payment-brand-mark--official {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.payment-brand-mark--official img {
+  display: block;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.payment-brand {
+  display: block;
+  color: var(--titech-payment-text);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.payment-brand-subtitle {
+  display: block;
+  margin-top: 2px;
+  color: var(--titech-payment-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
 /* ============================================================================
    Provider Selection
    ============================================================================ */

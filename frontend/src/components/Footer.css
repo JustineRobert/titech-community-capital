@@ -891,3 +891,22 @@
 /* ============================================================================
  * End of TITech Footer Styles
  * ========================================================================== */
+
+/* Official brand lockup */
+.footer-brand-lockup {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.footer-brand-lockup__logo {
+  width: 72px;
+  height: 72px;
+}
+
+@media (max-width: 640px) {
+  .footer-brand-lockup__logo {
+    width: 60px;
+    height: 60px;
+  }
+}

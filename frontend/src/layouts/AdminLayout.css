@@ -418,3 +418,12 @@
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
 }
+
+.sidebar-brand .titech-brand-logo {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+}
+
+.admin-sidebar.closed .sidebar-brand > div { display: none; }
+.admin-sidebar.closed .sidebar-brand { justify-content: center; width: 100%; }

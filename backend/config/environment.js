@@ -1966,7 +1966,7 @@ function validateEnvironmentConfiguration(
 
     if (
         environment.runtime.nodeMajor <
-        20
+        24
     ) {
 
         errors.push({
@@ -1974,7 +1974,7 @@ function validateEnvironmentConfiguration(
                 'NODE_VERSION_UNSUPPORTED',
 
             message:
-                `TITech requires Node.js 20+. Detected ${environment.runtime.nodeVersion}.`,
+                `TITech requires Node.js 24.15+. Detected ${environment.runtime.nodeVersion}.`,
         });
 
     }

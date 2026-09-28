@@ -30,6 +30,7 @@ import api from "../services/api";
 import logger from "../utils/logger";
 
 import "./ForgotPassword.css";
+import BrandLogo from "../components/BrandLogo";
 
 // ============================================================================
 // Constants
@@ -746,10 +747,14 @@ export default function ForgotPassword({
       <section className="forgot-password-card">
         <header className="forgot-password-header">
           <div
-            className="forgot-password-brand-icon"
-            aria-hidden="true"
+            className="forgot-password-brand-icon forgot-password-brand-icon--official"
           >
-            <ShieldCheck size={30} />
+            <BrandLogo
+              variant="transparent"
+              size="md"
+              alt="TITech Community Capital"
+              loading="eager"
+            />
           </div>
 
           <div>

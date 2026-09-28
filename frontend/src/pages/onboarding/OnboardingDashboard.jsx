@@ -8,6 +8,8 @@ import {
   getSaccos
 } from "./OnboardingAPI";
 
+import BrandLogo from "../../components/BrandLogo";
+
 const STATUS_COLORS = {
   DRAFT: "#6b7280",
   VERIFICATION: "#3b82f6",
@@ -158,22 +160,35 @@ const OnboardingDashboard = () => {
 
       <div
         style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "14px",
           marginBottom: "30px"
         }}
       >
-        <h1>
-          TITech Community Capital
-        </h1>
+        <BrandLogo
+          variant="transparent"
+          size="sm"
+          alt="TITech Community Capital"
+          loading="eager"
+          fetchPriority="high"
+        />
 
-        <h2>
-          SACCO Onboarding Dashboard
-        </h2>
+        <div>
+          <h1>
+            TITech Community Capital
+          </h1>
 
-        <p>
-          Executive onboarding,
-          compliance, and
-          go-live monitoring.
-        </p>
+          <h2>
+            SACCO Onboarding Dashboard
+          </h2>
+
+          <p>
+            Executive onboarding,
+            compliance, and
+            go-live monitoring.
+          </p>
+        </div>
       </div>
 
       {/* ===================================== */}

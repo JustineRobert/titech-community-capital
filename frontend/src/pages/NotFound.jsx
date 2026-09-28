@@ -23,7 +23,6 @@ import React, { useCallback } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  Compass,
   Home,
   Search,
   ShieldAlert,
@@ -152,13 +151,11 @@ export default function NotFound() {
             ==================================================================== */}
 
         <div className="not-found-brand">
-          <div
-            className="not-found-brand-mark"
-            aria-hidden="true"
-          >
-            <Compass
-              size={22}
-              strokeWidth={2}
+          <div className="not-found-brand-mark not-found-brand-mark--official">
+            <BrandLogo
+              variant="transparent"
+              size="xs"
+              alt="TITech Community Capital"
             />
           </div>
 

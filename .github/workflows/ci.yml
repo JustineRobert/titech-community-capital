@@ -51,6 +51,8 @@ jobs:
         run: npm run check:runtime-imports
       - name: Enterprise release readiness audit
         run: npm run release:gate
+      - name: TITech 90-day implementation gate
+        run: npm run titech:90-day-gate
 
       - name: Upload release readiness evidence
         uses: actions/upload-artifact@v4

@@ -15,6 +15,8 @@ import {
   Loader2,
 } from "lucide-react";
 
+import BrandLogo from "../components/BrandLogo";
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -64,9 +66,19 @@ function LoadingScreen({
         {/* Logo */}
         {/* -------------------------------------------------------------- */}
 
-        {logo && (
+        {logo ? (
           <div className="tt-loading-logo">
             {logo}
+          </div>
+        ) : (
+          <div className="tt-loading-logo tt-loading-logo--official">
+            <BrandLogo
+              variant="transparent"
+              size="md"
+              alt="TITech Community Capital"
+              loading="eager"
+              fetchPriority="high"
+            />
           </div>
         )}
 

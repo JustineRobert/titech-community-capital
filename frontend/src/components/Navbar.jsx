@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
+import BrandLogo from "./BrandLogo";
 
 import "./Navbar.css";
 
@@ -74,8 +75,6 @@ import "./Navbar.css";
 // ============================================================================
 
 const DEFAULT_TEST_ID = "titech-navbar";
-
-const LOGO_SRC = "/images/Designer.png";
 
 const NAVIGATION_ITEMS = Object.freeze([
   {
@@ -469,14 +468,13 @@ function Navbar({
           onClick={handleNavigationClick}
         >
           <span className="titech-navbar__brand-mark">
-            <img
-              src={LOGO_SRC}
-              alt=""
-              className="titech-navbar__logo"
-              width="40"
-              height="40"
+            <BrandLogo
+              variant="transparent"
+              size="sm"
+              alt="TITech Community Capital"
               loading="eager"
-              decoding="async"
+              fetchPriority="high"
+              className="titech-navbar__logo"
             />
           </span>
 

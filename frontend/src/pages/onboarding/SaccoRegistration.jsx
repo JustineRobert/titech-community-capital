@@ -21,6 +21,7 @@ import {
 } from "../../features/onboarding/onboardingSlice";
 
 import OnboardingAPI from "../../services/onboardingService";
+import BrandLogo from "../../components/BrandLogo";
 
 import "./SaccoRegistration.css";
 
@@ -368,10 +369,21 @@ function SaccoRegistration() {
     >
       <div className="sacco-registration">
         <div className="registration-card">
-          <h1>
-            TITech Community
-            Capital
-          </h1>
+          <div className="registration-brand-lockup">
+            <BrandLogo
+              variant="transparent"
+              size="sm"
+              alt="TITech Community Capital"
+              loading="eager"
+              fetchPriority="high"
+            />
+            <div>
+              <h1>
+                TITech Community Capital
+              </h1>
+              <p>Community financial infrastructure</p>
+            </div>
+          </div>
 
           <h2>
             SACCO Onboarding

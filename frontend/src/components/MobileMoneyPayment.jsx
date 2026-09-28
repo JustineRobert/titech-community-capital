@@ -92,6 +92,7 @@ import {
 import { toast } from "react-toastify";
 
 import api from "../services/api";
+import BrandLogo from "./BrandLogo";
 
 import "./MobileMoneyPayment.css";
 
@@ -2034,11 +2035,12 @@ function MobileMoneyPayment({
         className="payment-header"
         data-testid={`${testId}-header`}
       >
-        <div className="payment-brand-mark">
-          <Smartphone
-            size={20}
+        <div className="payment-brand-mark payment-brand-mark--official">
+          <BrandLogo
+            variant="transparent"
+            size="xs"
+            alt="TITech Community Capital"
             aria-hidden="true"
-            focusable="false"
           />
         </div>
 

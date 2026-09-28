@@ -1,0 +1,31 @@
+{
+  "version": "2026-09-28",
+  "product": "TITech Community Capital",
+  "targetRuntime": {
+    "node": "24.15.0",
+    "npm": "11.x"
+  },
+  "approvalStatus": "NOT_PRODUCTION_APPROVED",
+  "features": {
+    "repositoryTruth": "IMPLEMENTED",
+    "goldenMoneyPath": "IMPLEMENTED",
+    "mtnMomo": "PENDING_EXTERNAL_VERIFICATION",
+    "reconciliation": "IMPLEMENTED",
+    "ledger": "IMPLEMENTED",
+    "financialStatements": "IMPLEMENTED",
+    "audit": "IMPLEMENTED",
+    "loans": "IMPLEMENTED",
+    "customerOnboarding": "IMPLEMENTED",
+    "security": "PENDING_EXTERNAL_VERIFICATION",
+    "backupRestore": "PENDING_EXTERNAL_VERIFICATION",
+    "pilotReadiness": "IMPLEMENTED",
+    "brandStandardization": "IMPLEMENTED"
+  },
+  "externalEvidenceRequired": [
+    "MTN provider certification and controlled live transaction evidence",
+    "three signed/onboarded SACCO pilots",
+    "security scans and independent review evidence",
+    "backup/restore drill evidence",
+    "Uganda legal/regulatory review"
+  ]
+}

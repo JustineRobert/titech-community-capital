@@ -59,6 +59,7 @@ import { toast } from "react-toastify";
 import api from "../services/api";
 
 import "./ResetPassword.css";
+import BrandLogo from "../components/BrandLogo";
 
 // ============================================================================
 // CONSTANTS
@@ -323,11 +324,14 @@ function BrandPanel() {
   return (
     <aside className="reset-password-brand">
       <div className="brand-content">
-        <div
-          className="brand-mark"
-          aria-hidden="true"
-        >
-          TT
+        <div className="brand-mark brand-mark--official">
+          <BrandLogo
+            variant="transparent"
+            size="lg"
+            alt="TITech Community Capital"
+            loading="eager"
+            fetchPriority="high"
+          />
         </div>
 
         <p className="brand-kicker">

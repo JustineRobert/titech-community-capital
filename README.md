@@ -1,5 +1,13 @@
 # TITech Community Capital
 
+<p align="center">
+  <img src="branding/generated/titech-community-capital-full.png" alt="TITech Community Capital official circular logo" width="180" />
+</p>
+
+<p align="center"><strong>Official brand asset standardized in this repository on 2026-09-28.</strong></p>
+
+See [`docs/brand/OFFICIAL_BRAND_STANDARD_2026-09-28.md`](docs/brand/OFFICIAL_BRAND_STANDARD_2026-09-28.md) for usage rules and [`BRANDING_CHANGESET_2026-09-28.md`](BRANDING_CHANGESET_2026-09-28.md) for the implementation map.
+
 > **Community Financial Infrastructure Layer for Africa's community economy.**
 
 > STATUS NOTICE (2026-09-22): This repository is an enterprise production-hardening artifact. Implementation, test, security, operational, partner and regulatory evidence may have different maturity. `TITECH_PLATFORM_TRUTH.md` is the authoritative status source.
@@ -1168,6 +1176,20 @@ See:
 [`docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md)
 
 ---
+
+# 🧭 90-Day Enterprise Implementation (2026-09-28)
+
+The repository now carries the executable implementation contract for the 90-day production/pilot program. The authoritative sequence is **inspect → prove → stabilize → complete → integrate → verify → certify → pilot → operationalize**.
+
+- Master execution plan: `docs/90-DAY_IMPLEMENTATION_MASTER_2026-09-28.md`
+- Production scorecard: `docs/PRODUCTION_READINESS_SCORECARD_2026-09-28.md`
+- SACCO pilot package: `docs/pilot/PILOT_DEPLOYMENT_PACKAGE_2026-09-28.md`
+- Compliance review pack: `docs/compliance/COMPLIANCE_REVIEW_PACK_2026-09-28.md`
+- Investor data-room index: `docs/investor/DATA_ROOM_INDEX_2026-09-28.md`
+- Machine-readable status: `docs/90-DAY_STATUS_2026-09-28.json`
+- Repeatable gate: `npm run titech:90-day-gate` (strict variant: `npm run titech:90-day-gate:strict`)
+
+**Production approval remains an evidence gate.** The repository does not claim live MTN certification, live customer transactions, signed SACCO pilots, external legal/regulatory approval, security certification, or disaster-recovery proof unless dated evidence is attached.
 
 # 🛡️ Production Readiness
 

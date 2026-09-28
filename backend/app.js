@@ -95,7 +95,7 @@ const {
 // =============================================================================
 
 const MINIMUM_NODE_MAJOR =
-    20;
+    24;
 
 const NODE_VERSION =
     process.versions.node;

@@ -446,3 +446,31 @@ button:disabled {
     font-size: 0.75rem;
   }
 }
+
+/* ============================================================================
+   Official TITech Brand Lockup
+   ============================================================================ */
+
+.registration-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.registration-brand-lockup img {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  object-fit: contain;
+}
+
+.registration-brand-lockup h1 {
+  margin: 0;
+}
+
+.registration-brand-lockup p {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+}

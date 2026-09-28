@@ -1,0 +1,139 @@
+/**
+ * TITech Community Capital — Shared Design System and Brand Layer
+ * File: frontend/src/branding/brand.css
+ */
+
+:root {
+  /* Official-logo visual-system aliases. */
+  --titech-brand-electric-blue: #159fe8;
+  --titech-brand-deep-blue: #0b4fd8;
+  --titech-brand-lime: #8be617;
+  --titech-brand-gold: #f8c51b;
+  --titech-brand-cyan: #2bd8e9;
+  --titech-brand-navy: #0b1f3a;
+  --titech-brand-white: #ffffff;
+
+  /* Shared product-design contract. */
+  --titech-ui-control-height: 44px;
+  --titech-ui-control-height-small: 36px;
+  --titech-ui-control-height-large: 52px;
+  --titech-ui-radius-control: 12px;
+  --titech-ui-radius-card: 16px;
+  --titech-ui-radius-dialog: 20px;
+  --titech-ui-focus-ring: 0 0 0 3px rgb(21 159 232 / 0.25);
+  --titech-ui-focus-ring-strong: 0 0 0 4px rgb(21 159 232 / 0.30);
+  --titech-ui-shadow-card: 0 10px 30px rgb(11 31 58 / 0.08);
+  --titech-ui-shadow-dialog: 0 24px 64px rgb(11 31 58 / 0.18);
+
+  /* Financial state aliases: these describe state, not business approval. */
+  --titech-financial-positive: #16803d;
+  --titech-financial-pending: #b45309;
+  --titech-financial-negative: #b91c1c;
+  --titech-financial-info: #1d4ed8;
+}
+
+.titech-brand-logo {
+  display: block;
+  flex: 0 0 auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center;
+  user-select: none;
+}
+
+.titech-brand-logo--transparent,
+.titech-brand-logo--full,
+.titech-brand-logo--monochrome,
+.titech-brand-logo--icon {
+  border-radius: 50%;
+}
+
+.titech-brand-logo--favicon {
+  border-radius: 50%;
+}
+
+.titech-focus-ring:focus-visible,
+.titech-brand-button:focus-visible,
+.titech-brand-control:focus-visible {
+  outline: none;
+  box-shadow: var(--titech-ui-focus-ring-strong);
+}
+
+.titech-brand-button {
+  min-height: var(--titech-ui-control-height);
+  padding-inline: 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--titech-ui-radius-control);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.titech-brand-button--primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--titech-brand-deep-blue), var(--titech-brand-electric-blue));
+}
+
+.titech-brand-button--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgb(11 79 216 / 0.20);
+}
+
+.titech-brand-card {
+  border: 1px solid var(--titech-color-border, #e2e8f0);
+  border-radius: var(--titech-ui-radius-card);
+  background: var(--titech-color-surface, #fff);
+  box-shadow: var(--titech-ui-shadow-card);
+}
+
+.titech-brand-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.titech-brand-status--positive { color: var(--titech-financial-positive); background: rgb(22 128 61 / 0.08); }
+.titech-brand-status--pending { color: var(--titech-financial-pending); background: rgb(180 83 9 / 0.10); }
+.titech-brand-status--negative { color: var(--titech-financial-negative); background: rgb(185 28 28 / 0.08); }
+.titech-brand-status--info { color: var(--titech-financial-info); background: rgb(29 78 216 / 0.08); }
+
+.titech-financial-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.titech-document-header {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 0;
+}
+
+.titech-document-header__copy {
+  min-width: 0;
+}
+
+.titech-document-header__name {
+  margin: 0;
+  color: var(--titech-brand-navy);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.titech-document-header__product {
+  margin: 0.125rem 0 0;
+  color: var(--titech-color-text-muted, #475569);
+  font-size: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titech-brand-button {
+    transition: none;
+  }
+}

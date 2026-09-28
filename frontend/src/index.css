@@ -56,6 +56,16 @@
    ============================================================================ */
 
 :root {
+  /* Shared product design-system aliases. Official brand artwork is
+     supplied in /branding/official and referenced through BrandLogo. */
+  --titech-color-brand-electric-blue: #159fe8;
+  --titech-color-brand-deep-blue: #0b4fd8;
+  --titech-color-brand-lime: #8be617;
+  --titech-color-brand-gold: #f8c51b;
+  --titech-color-brand-cyan: #2bd8e9;
+  --titech-color-brand-navy: #0b1f3a;
+  --titech-color-brand-white: #ffffff;
+
   /* --------------------------------------------------------------------------
      Typography
      -------------------------------------------------------------------------- */

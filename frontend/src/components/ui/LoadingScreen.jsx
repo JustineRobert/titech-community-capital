@@ -68,6 +68,8 @@ import {
   X,
 } from "lucide-react";
 
+import BrandLogo from "../../components/BrandLogo";
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -397,15 +399,15 @@ const LoadingScreen =
             {showBrand && (
               <div
                 className="tt-loading-brand"
-                aria-hidden="true"
+                aria-label="TITech Community Capital"
               >
-                <div className="tt-loading-brand-mark">
-                  TT
-                </div>
-
-                <div className="tt-loading-brand-name">
-                  TITech
-                </div>
+                <BrandLogo
+                  variant="transparent"
+                  size="md"
+                  alt="TITech Community Capital"
+                  loading="eager"
+                  fetchPriority="high"
+                />
               </div>
             )}
 

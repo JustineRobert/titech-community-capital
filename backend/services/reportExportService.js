@@ -13,6 +13,7 @@ const ExcelJS = require("exceljs");
 const PDFDocument = require("pdfkit");
 
 const logger = require("../utils/logger");
+const BRAND = require("../shared/branding/brandConfig.cjs");
 
 // ============================================================================
 // Constants
@@ -106,59 +107,35 @@ async function exportPDF({
   title,
   data
 }) {
-  return new Promise(
-    (resolve, reject) => {
-      try {
-        const doc =
-          new PDFDocument({
-            margin: 50
-          });
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
 
-        const stream =
-          fs.createWriteStream(
-            filePath
-          );
-
-        doc.pipe(stream);
-
-        doc
-          .fontSize(20)
-          .text(title);
-
-        doc.moveDown();
-
-        data.forEach(
-          (row, index) => {
-            doc
-              .fontSize(10)
-              .text(
-                `${index + 1}. ${JSON.stringify(
-                  row
-                )}`
-              );
-
-            doc.moveDown(
-              0.5
-            );
-          }
-        );
-
-        doc.end();
-
-        stream.on(
-          "finish",
-          () => resolve()
-        );
-
-        stream.on(
-          "error",
-          reject
-        );
-      } catch (error) {
-        reject(error);
+      if (fs.existsSync(BRAND.assets.transparent)) {
+        doc.image(BRAND.assets.transparent, 50, 42, { fit: [56, 56] });
       }
+
+      doc.fontSize(16).fillColor(BRAND.colors.deepBlue).text(BRAND.fullName, 118, 46, { width: 420 });
+      doc.fontSize(9).fillColor('#64748b').text(BRAND.productName, 118, 66);
+      doc.moveTo(50, 112).lineTo(545, 112).strokeColor(BRAND.colors.electricBlue).stroke();
+      doc.moveDown(3);
+      doc.fontSize(20).fillColor(BRAND.colors.navyInk).text(title);
+      doc.moveDown();
+
+      data.forEach((row, index) => {
+        doc.fontSize(10).fillColor('#0f172a').text(`${index + 1}. ${JSON.stringify(row)}`);
+        doc.moveDown(0.5);
+      });
+
+      doc.end();
+      stream.on('finish', () => resolve());
+      stream.on('error', reject);
+    } catch (error) {
+      reject(error);
     }
-  );
+  });
 }
 
 // ============================================================================
@@ -170,32 +147,37 @@ async function exportExcel({
   sheetName,
   data
 }) {
-  const workbook =
-    new ExcelJS.Workbook();
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sheetName);
 
-  const worksheet =
-    workbook.addWorksheet(
-      sheetName
-    );
+  worksheet.mergeCells('A1:H2');
+  const brandCell = worksheet.getCell('A1');
+  brandCell.value = `${BRAND.fullName} — ${BRAND.productName}`;
+  brandCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+  brandCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  brandCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.colors.deepBlue.replace('#', 'FF') } };
 
-  if (
-    data &&
-    data.length > 0
-  ) {
-    worksheet.columns =
-      Object.keys(
-        data[0]
-      ).map((key) => ({
-        header: key,
-        key
-      }));
+  worksheet.mergeCells('A3:H3');
+  const sourceCell = worksheet.getCell('A3');
+  sourceCell.value = 'Official TITech Community Capital export';
+  sourceCell.font = { italic: true, color: { argb: 'FF64748B' } };
 
-    worksheet.addRows(data);
+  if (data && data.length > 0) {
+    const headers = Object.keys(data[0]);
+    worksheet.columns = headers.map((key) => ({
+      header: key,
+      key,
+      width: Math.min(Math.max(String(key).length + 4, 12), 28),
+    }));
+
+    worksheet.getRow(4).values = headers;
+    worksheet.getRow(4).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    worksheet.getRow(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.colors.electricBlue.replace('#', 'FF') } };
+    worksheet.addRows(data, 5);
+    worksheet.views = [{ state: 'frozen', ySplit: 4 }];
   }
 
-  await workbook.xlsx.writeFile(
-    filePath
-  );
+  await workbook.xlsx.writeFile(filePath);
 }
 
 // ============================================================================

@@ -1,0 +1,76 @@
+status,path,purpose
+NEW,BRANDING_CHANGESET_2026-09-28.md,Brand change traceability
+NEW,BRANDING_FILE_CHANGE_INDEX_2026-09-28.csv,Brand change traceability
+MODIFIED,README.md,GitHub/corporate repository branding
+MODIFIED,backend/services/emailService.js,Branded transactional/authentication email templates
+MODIFIED,backend/services/reportExportService.js,Branded PDF/XLSX document exports
+NEW,backend/shared/branding/assets/favicon.ico,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-app-icon.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-favicon-16.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-favicon-32.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-full.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-icon-192.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-icon-48.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-icon-512.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-icon-96.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-monochrome.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/assets/titech-community-capital-transparent.png,Backend brand configuration and deployment assets
+NEW,backend/shared/branding/brandConfig.cjs,Backend brand configuration and deployment assets
+NEW,branding/BRAND_MANIFEST.json,Brand integrity manifest and canonical-source hash
+NEW,branding/corporate/README.md,Corporate/investor/data-room/social asset usage contract
+NEW,branding/generated/favicon.ico,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-app-icon.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-favicon-16.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-favicon-32.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-full.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-icon-192.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-icon-48.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-icon-512.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-icon-96.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-monochrome.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/generated/titech-community-capital-transparent.png,Derived approved logo/brand variant generated from canonical source
+NEW,branding/official/TITech_Community_Capital_Official.jpeg,Canonical approved official logo source
+NEW,docs/brand/OFFICIAL_BRAND_STANDARD_2026-09-28.md,Official brand governance and usage standard
+MODIFIED,frontend/index.html,Favicon/PWA/browser brand integration
+NEW,frontend/public/brand/favicon.ico,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-app-icon.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-favicon-16.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-favicon-32.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-full.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-icon-192.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-icon-48.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-icon-512.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-icon-96.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-monochrome.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/brand/titech-community-capital-transparent.png,Frontend deployment-ready official brand assets
+NEW,frontend/public/manifest.webmanifest,PWA/app identity and icon manifest
+NEW,frontend/src/__tests__/branding/BrandLogo.test.jsx,Brand logo component regression test
+NEW,frontend/src/branding/brand.css,Frontend single source of truth for brand tokens/assets
+NEW,frontend/src/branding/brand.js,Frontend single source of truth for brand tokens/assets
+NEW,frontend/src/components/BrandLogo.jsx,Reusable official-logo component
+MODIFIED,frontend/src/components/Footer.css,Global navigation/footer official logo application
+MODIFIED,frontend/src/components/Footer.jsx,Global navigation/footer official logo application
+MODIFIED,frontend/src/components/MobileMoneyPayment.css,Customer-facing financial transaction brand surface
+MODIFIED,frontend/src/components/MobileMoneyPayment.jsx,Customer-facing financial transaction brand surface
+MODIFIED,frontend/src/components/Navbar.jsx,Global navigation/footer official logo application
+MODIFIED,frontend/src/components/ui/LoadingScreen.jsx,Authentication/error/loading official logo application
+MODIFIED,frontend/src/index.css,Global brand visual-system aliases
+MODIFIED,frontend/src/layouts/AdminLayout.css,Administration/navigation official logo application
+MODIFIED,frontend/src/layouts/AdminLayout.jsx,Administration/navigation official logo application
+MODIFIED,frontend/src/main.jsx,Global brand stylesheet bootstrapping
+MODIFIED,frontend/src/pages/ForgotPassword.css,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/ForgotPassword.jsx,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/Login.css,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/Login.jsx,Authentication/error/loading official logo application
+NEW,frontend/src/pages/NotFound.css,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/NotFound.jsx,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/Register.css,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/Register.jsx,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/ResetPassword.css,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/ResetPassword.jsx,Authentication/error/loading official logo application
+MODIFIED,frontend/src/pages/onboarding/OnboardingDashboard.jsx,SACCO onboarding brand application
+MODIFIED,frontend/src/pages/onboarding/SaccoRegistration.css,SACCO onboarding brand application
+MODIFIED,frontend/src/pages/onboarding/SaccoRegistration.jsx,SACCO onboarding brand application
+MODIFIED,frontend/src/ui/LoadingScreen.jsx,Authentication/error/loading official logo application
+NEW,mobile/branding/README.md,Mobile/native-wrapper branding consumption contract
+NEW,scripts/sync-brand-assets.mjs,Canonical asset synchronization to deployment targets

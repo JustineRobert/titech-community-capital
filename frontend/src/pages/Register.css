@@ -1361,3 +1361,14 @@
 
   border: 0;
 }
+
+.register-official-brand {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.register-official-brand .titech-brand-logo {
+  width: 92px;
+  height: 92px;
+}

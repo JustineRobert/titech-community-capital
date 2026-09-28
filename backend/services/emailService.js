@@ -9,6 +9,7 @@
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const logger = require("../utils/logger");
+const BRAND = require("../shared/branding/brandConfig.cjs");
 
 // ============================================================================
 // Constants
@@ -50,7 +51,7 @@ const DEFAULT_FROM_EMAIL =
 
 const DEFAULT_FROM_NAME =
   process.env.EMAIL_FROM_NAME ||
-  "Community Savings";
+  BRAND.emailFromName;
 
 const EMAIL_TIMEOUT =
   Number(process.env.EMAIL_TIMEOUT_MS || 30000);
@@ -78,6 +79,33 @@ class EmailServiceError extends Error {
 // ============================================================================
 // Helpers
 // ============================================================================
+// ============================================================================
+// Official branded email shell
+// ============================================================================
+
+function renderBrandedEmail({ title, content, footer = '' }) {
+  const safeTitle = String(title || BRAND.fullName);
+
+  return `
+    <div style="margin:0;padding:24px;background:#f8fafc;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+      <div style="max-width:680px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;">
+        <div style="padding:20px 24px;background:linear-gradient(135deg, ${BRAND.colors.deepBlue}, ${BRAND.colors.electricBlue});color:#fff;">
+          <img src="cid:titech-community-capital-logo" alt="${BRAND.fullName}" width="72" height="72" style="display:block;border-radius:50%;margin-bottom:12px;" />
+          <div style="font-size:20px;font-weight:800;line-height:1.2;">${BRAND.fullName}</div>
+          <div style="font-size:12px;opacity:.92;margin-top:4px;">Community financial infrastructure</div>
+        </div>
+        <div style="padding:24px;">
+          <h2 style="margin:0 0 14px;font-size:22px;line-height:1.25;">${safeTitle}</h2>
+          ${content}
+        </div>
+        <div style="padding:16px 24px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
+          ${footer || `This communication was sent by ${BRAND.fullName}.`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 
 function generateEmailId() {
   return `email_${crypto.randomUUID()}`;
@@ -273,12 +301,24 @@ async function send({
     generateEmailId();
 
   try {
+    const effectiveAttachments = [...attachments];
+
+    if (
+      typeof html === 'string' &&
+      html.includes('cid:titech-community-capital-logo') &&
+      !effectiveAttachments.some((attachment) => attachment?.cid === 'titech-community-capital-logo')
+    ) {
+      effectiveAttachments.push({
+        filename: 'titech-community-capital-transparent.png',
+        path: BRAND.assets.transparent,
+        cid: 'titech-community-capital-logo',
+      });
+    }
+
     const payload = {
       from: {
-        name:
-          DEFAULT_FROM_NAME,
-        address:
-          DEFAULT_FROM_EMAIL
+        name: DEFAULT_FROM_NAME,
+        address: DEFAULT_FROM_EMAIL
       },
 
       to,
@@ -289,10 +329,9 @@ async function send({
       text,
       html,
 
-      attachments,
+      attachments: effectiveAttachments,
 
-      priority:
-        priority.toLowerCase()
+      priority: priority.toLowerCase()
     };
 
     const response =
@@ -385,24 +424,20 @@ async function sendBulk({
 async function sendOTP({
   email,
   otp,
-  tenantName =
-    "Community Savings"
+  tenantName = BRAND.fullName
 }) {
   return send({
     to: email,
-
-    subject:
-      "Verification Code",
-
-    html: `
-      <h3>${tenantName}</h3>
-      <p>Your verification code is:</p>
-      <h2>${otp}</h2>
-      <p>Do not share this code.</p>
-    `,
-
-    text:
-      `Your verification code is ${otp}`
+    subject: "Verification Code",
+    html: renderBrandedEmail({
+      title: 'Verification Code',
+      content: `
+        <p>${tenantName} verification code:</p>
+        <p style="font-size:28px;font-weight:800;letter-spacing:0.2em;text-align:center;">${otp}</p>
+        <p>Do not share this code with anyone.</p>
+      `,
+    }),
+    text: `Your verification code is ${otp}`,
   });
 }
 
@@ -418,18 +453,12 @@ async function sendTransactionAlert({
 }) {
   return send({
     to: email,
-
-    subject:
-      `${transactionType} Notification`,
-
-    html: `
-      <h3>${transactionType}</h3>
-      <p>Amount: UGX ${amount}</p>
-      <p>Reference: ${reference}</p>
-    `,
-
-    text:
-      `${transactionType}: UGX ${amount}. Ref: ${reference}`
+    subject: `${transactionType} Notification`,
+    html: renderBrandedEmail({
+      title: `${transactionType} Notification`,
+      content: `<p><strong>Amount:</strong> UGX ${amount}</p><p><strong>Reference:</strong> ${reference}</p>`,
+    }),
+    text: `${transactionType}: UGX ${amount}. Ref: ${reference}`,
   });
 }
 
@@ -444,16 +473,11 @@ async function sendLoanApproval({
 }) {
   return send({
     to: email,
-
-    subject:
-      "Loan Approved",
-
-    html: `
-      <h2>Loan Approved</h2>
-      <p>Your loan application has been approved.</p>
-      <p>Amount: UGX ${amount}</p>
-      <p>Loan ID: ${loanId}</p>
-    `
+    subject: "Loan Approved",
+    html: renderBrandedEmail({
+      title: 'Loan Approved',
+      content: `<p>Your loan application has been approved.</p><p><strong>Amount:</strong> UGX ${amount}</p><p><strong>Loan ID:</strong> ${loanId}</p>`,
+    }),
   });
 }
 
@@ -467,10 +491,10 @@ const templates = {
       subject:
         "Welcome",
 
-      html: `
-        <h2>Welcome ${data.name}</h2>
-        <p>Thank you for joining us.</p>
-      `
+      html: renderBrandedEmail({
+        title: `Welcome ${data.name}`,
+        content: '<p>Thank you for joining TITech Community Capital.</p>',
+      })
     };
   },
 
@@ -479,10 +503,10 @@ const templates = {
       subject:
         "Repayment Received",
 
-      html: `
-        <h3>Repayment Received</h3>
-        <p>Amount: UGX ${data.amount}</p>
-      `
+      html: renderBrandedEmail({
+        title: 'Repayment Received',
+        content: `<p>Amount: UGX ${data.amount}</p>`,
+      })
     };
   },
 
@@ -491,10 +515,10 @@ const templates = {
       subject:
         "Deposit Successful",
 
-      html: `
-        <h3>Deposit Successful</h3>
-        <p>Amount: UGX ${data.amount}</p>
-      `
+      html: renderBrandedEmail({
+        title: 'Deposit Successful',
+        content: `<p>Amount: UGX ${data.amount}</p>`,
+      })
     };
   },
 
@@ -503,11 +527,10 @@ const templates = {
       subject:
         "Invoice Generated",
 
-      html: `
-        <h3>Invoice</h3>
-        <p>Invoice #: ${data.invoiceNumber}</p>
-        <p>Amount: UGX ${data.amount}</p>
-      `
+      html: renderBrandedEmail({
+        title: 'Invoice',
+        content: `<p>Invoice #: ${data.invoiceNumber}</p><p>Amount: UGX ${data.amount}</p>`,
+      })
     };
   }
 };
@@ -581,11 +604,27 @@ async function sendEmail(emailData) {
     throw new Error('Email recipient and subject required');
   }
 
-  const html = (template && getEmailTemplate(template, data).html) || data?.html || '';
-  const text = (template && getEmailTemplate(template, data).text) || data?.text || '';
+  const resolvedTemplate = template ? getEmailTemplate(template, data) : null;
+  const html = resolvedTemplate?.html || data?.html || '';
+  const text = resolvedTemplate?.text || data?.text || '';
 
-  // Route via provider (DEFAULT_PROVIDER uses MOCK in tests)
+  // Route via provider (DEFAULT_PROVIDER uses MOCK in tests).
   const provider = emailData.provider || DEFAULT_PROVIDER;
+
+  // Branded email templates use a CID-backed logo so mail clients do not
+  // depend on a publicly reachable web asset URL. Preserve caller attachments.
+  const effectiveAttachments = [...(attachments || [])];
+  if (
+    typeof html === 'string' &&
+    html.includes('cid:titech-community-capital-logo') &&
+    !effectiveAttachments.some((attachment) => attachment?.cid === 'titech-community-capital-logo')
+  ) {
+    effectiveAttachments.push({
+      filename: 'titech-community-capital-transparent.png',
+      path: BRAND.assets.transparent,
+      cid: 'titech-community-capital-logo',
+    });
+  }
 
   const payload = {
     to,
@@ -594,7 +633,7 @@ async function sendEmail(emailData) {
     subject,
     text,
     html,
-    attachments: attachments || [],
+    attachments: effectiveAttachments,
   };
 
   const response = await routeEmail(provider, payload);
@@ -605,30 +644,36 @@ function getEmailTemplate(name, data = {}) {
   switch (name) {
     case 'email_verification': {
       const { userName, verificationUrl, expiresIn } = data;
+      const expiry = expiresIn || '24 hours';
       return {
         subject: 'Please verify your email',
-        html: `
-          <h3>Welcome to Community Savings</h3>
-          <p>Hi ${userName || ''},</p>
-          <p>Please verify your email by clicking the link below:</p>
-          <p><a href="${verificationUrl}">Verify Email</a></p>
-          <p>This link expires in ${expiresIn || '24 hours'}.</p>
-        `,
-        text: `Please verify your email: ${verificationUrl} (expires in ${expiresIn || '24 hours'})`,
+        html: renderBrandedEmail({
+          title: 'Verify your email',
+          content: `
+            <p>Hi ${userName || ''},</p>
+            <p>Please verify your email address to continue using ${BRAND.fullName}.</p>
+            <p><a href="${verificationUrl}" style="display:inline-block;padding:12px 18px;background:${BRAND.colors.electricBlue};color:#fff;text-decoration:none;border-radius:10px;font-weight:700;">Verify Email</a></p>
+            <p>This link expires in ${expiry}.</p>
+          `,
+        }),
+        text: `Please verify your email: ${verificationUrl} (expires in ${expiry})`,
       };
     }
     case 'password_reset': {
       const { userName, resetUrl, expiresIn } = data;
+      const expiry = expiresIn || '1 hour';
       return {
         subject: 'Password Reset',
-        html: `
-          <h3>Password Reset</h3>
-          <p>Hi ${userName || ''},</p>
-          <p>Use the link below to reset your password:</p>
-          <p><a href="${resetUrl}">Reset Password</a></p>
-          <p>This link expires in ${expiresIn || '1 hour'}.</p>
-        `,
-        text: `Reset your password: ${resetUrl} (expires in ${expiresIn || '1 hour'})`,
+        html: renderBrandedEmail({
+          title: 'Password Reset',
+          content: `
+            <p>Hi ${userName || ''},</p>
+            <p>Use the secure link below to reset your ${BRAND.fullName} password.</p>
+            <p><a href="${resetUrl}" style="display:inline-block;padding:12px 18px;background:${BRAND.colors.deepBlue};color:#fff;text-decoration:none;border-radius:10px;font-weight:700;">Reset Password</a></p>
+            <p>This link expires in ${expiry}.</p>
+          `,
+        }),
+        text: `Reset your password: ${resetUrl} (expires in ${expiry})`,
       };
     }
     default:

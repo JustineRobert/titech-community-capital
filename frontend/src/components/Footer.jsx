@@ -64,6 +64,7 @@ import {
 import PropTypes from 'prop-types';
 
 import './Footer.css';
+import BrandLogo from './BrandLogo';
 
 /* ============================================================================
  * Constants
@@ -798,6 +799,15 @@ function Footer({
             className="footer-section footer-company"
             aria-labelledby={`${testId}-company`}
           >
+            <div className="footer-brand-lockup">
+              <BrandLogo
+                variant="transparent"
+                size="md"
+                alt="TITech Community Capital"
+                className="footer-brand-lockup__logo"
+              />
+            </div>
+
             <h2
               id={`${testId}-company`}
               className="footer-title"
