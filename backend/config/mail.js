@@ -1383,10 +1383,10 @@ function createMailConfig(
 
                         password:
                             source.password ??
-                            env(
+                            (env(
                                 'SMTP_PASSWORD',
                             ) ||
-                            null,
+                            null),
 
                     },
 

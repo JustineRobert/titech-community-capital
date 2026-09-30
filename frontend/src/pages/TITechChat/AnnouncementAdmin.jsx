@@ -37,7 +37,7 @@
  *   - Minimal assumptions about backend response shapes.
  *   - Graceful compatibility with evolving announcement services.
  *   - No backend implementation leakage.
- *   - No ACFOS terminology.
+ *   - No TITech terminology.
  *
  * Branding:
  *   TITech Community Capital

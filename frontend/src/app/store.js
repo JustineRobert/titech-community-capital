@@ -14,6 +14,7 @@ import {
   persistStore,
   persistReducer,
   createMigrate,
+  createTransform,
   FLUSH,
   REHYDRATE,
   PAUSE,
@@ -89,6 +90,42 @@ const IS_DEV =
   import.meta.env.DEV;
 
 const APP_VERSION = "1.0.0";
+
+/**
+ * Persist only non-secret authentication/session state. Access and refresh
+ * credentials are stripped before persistence and after rehydration.
+ */
+export const authPersistenceTransform = createTransform(
+  (inboundState, key) => {
+    if (key !== "auth" || !inboundState) {
+      return inboundState;
+    }
+
+    return {
+      ...inboundState,
+      token: null,
+      refreshToken: null,
+      authenticated: false,
+      status: "unauthenticated",
+      refreshInProgress: false,
+    };
+  },
+  (outboundState, key) => {
+    if (key !== "auth" || !outboundState) {
+      return outboundState;
+    }
+
+    return {
+      ...outboundState,
+      token: null,
+      refreshToken: null,
+      authenticated: false,
+      status: "unauthenticated",
+      refreshInProgress: false,
+    };
+  },
+  { whitelist: ["auth"] },
+);
 
 // ============================================================================
 // Root Reset Action
@@ -203,6 +240,8 @@ const persistConfig = {
         debug: IS_DEV,
       }
     ),
+
+  transforms: [authPersistenceTransform],
 
   timeout: 10000,
 };

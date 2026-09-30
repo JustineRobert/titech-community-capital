@@ -48,7 +48,7 @@
 * particular financial activity.
 *
 * Legacy terminology:
-* ACFOS terminology must not be introduced into this module.
+* TITech terminology must not be introduced into this module.
 *
 * ============================================================================
   */

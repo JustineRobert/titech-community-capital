@@ -4,14 +4,14 @@
  * ============================================================================
  * CONVERSATION CONTROLLER
  * ============================================================================
- * TITech Community Capital LTD (ACFOS)
+ * TITech Community Capital LTD (TITech)
  * TITechChat Enterprise Communication Platform
  *
  * PURPOSE
  * ----------------------------------------------------------------------------
  * Handles HTTP layer for conversation operations including:
  *
- * ✅ Conversation Creation (ACFOS governed)
+ * ✅ Conversation Creation (TITech governed)
  * ✅ Fetch Single Conversation
  * ✅ Archive Conversation
  * ✅ User Conversation Listing
@@ -46,7 +46,7 @@ exports.createConversation = async (
 
     /*
     |--------------------------------------------------------------------------
-    | ACFOS RULE ENFORCEMENT
+    | TITech RULE ENFORCEMENT
     |--------------------------------------------------------------------------
     | No free-form social chat allowed.
     | Every conversation MUST be:
@@ -64,7 +64,7 @@ exports.createConversation = async (
     if (isFreeForm) {
       return res.status(403).json({
         error:
-          'Free-form conversations are not allowed in ACFOS chat system',
+          'Free-form conversations are not allowed in TITech chat system',
       });
     }
 

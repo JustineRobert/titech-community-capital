@@ -75,24 +75,6 @@ const repairForecastEngine =
         metrics
     });
 
-const forecast =
-    await repairForecastEngine.forecast({
-        tenantId,
-        horizonDays: 30,
-        historicalDays: 180,
-        dailyCapacityMinutes: 480
-    });
-
-
-const forecast =
-    await repairForecastEngine.forecastFromHistory({
-        tenantId,
-        history: repairHistory,
-        horizonDays: 30
-    });
-
-
-
 /**
  * ============================================================================
  * Repair Lifecycle States
@@ -289,6 +271,36 @@ const REPAIR_SEVERITY = Object.freeze({
  * StatementRepairService
  * ============================================================================
  */
+
+
+
+/**
+ * Ledger repair action types used by the repair executor.
+ */
+const LEDGER_REPAIR_ACTION = Object.freeze({
+
+    ADJUSTMENT:
+        'ADJUSTMENT',
+
+    REVERSAL:
+        'REVERSAL'
+
+});
+
+
+
+const JOURNAL_STATUS = Object.freeze({
+
+    CREATED:
+        'CREATED',
+
+    POSTED:
+        'POSTED',
+
+    REVERSED:
+        'REVERSED'
+
+});
 
 class StatementRepairService {
 
@@ -825,30 +837,6 @@ validateAuthority(
  * ============================================================================
  */
 
-const LEDGER_REPAIR_ACTION = Object.freeze({
-
-    ADJUSTMENT:
-        'ADJUSTMENT',
-
-    REVERSAL:
-        'REVERSAL'
-
-});
-
-
-
-const JOURNAL_STATUS = Object.freeze({
-
-    CREATED:
-        'CREATED',
-
-    POSTED:
-        'POSTED',
-
-    REVERSED:
-        'REVERSED'
-
-});
 
 
 

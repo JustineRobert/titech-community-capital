@@ -2450,7 +2450,6 @@ function SavingsGrowthChartComponent({
                 ),
             ),
           ),
-        ),
       [
         normalized.series,
         rows,

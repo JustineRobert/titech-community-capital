@@ -79,6 +79,7 @@ import './branding/brand.css';
 import './branding/official-theme.css';
 import AppRoutes from './routes/AppRoutes';
 import TITECH_BRAND from './branding/brand';
+import { applyTheme, getInitialTheme } from './branding/theme';
 
 // ============================================================================
 // Application identity
@@ -610,6 +611,12 @@ function applyOfficialBrandRuntime() {
 
     rootElement.dataset.titechBrandName =
       OFFICIAL_BRAND_NAME;
+
+    // ------------------------------------------------------------------------
+    // Canonical deterministic theme runtime
+    // ------------------------------------------------------------------------
+
+    applyTheme(getInitialTheme());
 
     // ------------------------------------------------------------------------
     // Runtime theme variable

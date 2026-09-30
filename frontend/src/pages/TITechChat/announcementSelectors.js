@@ -45,7 +45,7 @@
  *   TITech Community Capital
  *
  * IMPORTANT:
- *   ACFOS terminology is intentionally not used.
+ *   TITech terminology is intentionally not used.
  *
  * ============================================================================
  */

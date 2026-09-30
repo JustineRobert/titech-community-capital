@@ -12,7 +12,7 @@ Recommended usage:
 
 ## Vision-board color contract
 
-Future native wrappers must consume the same vision-board palette defined in `../../branding/vision/VISION_BOARD_CONTRACT.json` and `frontend/src/branding/brand.js` rather than introducing a separate mobile color system.
+Future native wrappers must consume the same official palette defined in `../../branding/vision/VISION_BOARD_CONTRACT.json`, `../../branding/BRAND_MANIFEST.json`, and `titech-theme.tokens.json` rather than introducing a separate mobile color system.
 
 Primary roles:
 - Deep Blue: `#0030A0`
@@ -23,3 +23,6 @@ Primary roles:
 - Lime Green: `#A8F000`
 - Gold Yellow: `#F8D800`
 - Navy Ink: `#082B67`
+
+
+The machine-readable token contract is `titech-theme.tokens.json`. Native wrappers should import or map these semantic roles directly; the JSON file is a token source, not a second visual implementation.

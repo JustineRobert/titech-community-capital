@@ -4,7 +4,7 @@
  * ============================================================================
  * ANNOUNCEMENT CONTROLLER
  * ============================================================================
- * TITech Community Capital LTD (ACFOS)
+ * TITech Community Capital LTD (TITech)
  * TITechChat Enterprise Communication Platform
  *
  * PURPOSE
@@ -82,7 +82,7 @@ exports.postAnnouncement = async (
 
     /*
     |--------------------------------------------------------------------------
-    | MODERATION LAYER (ACFOS COMPLIANCE)
+    | MODERATION LAYER (TITech COMPLIANCE)
     |--------------------------------------------------------------------------
     */
 

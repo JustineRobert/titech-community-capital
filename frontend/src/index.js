@@ -49,6 +49,7 @@ import './index.css';
 import './branding/brand.css';
 import './branding/official-theme.css';
 import TITECH_BRAND from './branding/brand';
+import { applyTheme, getInitialTheme } from './branding/theme';
 
 // ============================================================================
 // Application identity
@@ -95,10 +96,13 @@ function assertBrowserRuntime() {
 
 function applyOfficialBrandRuntime() {
   if (typeof document === 'undefined') return;
+
   const root = document.documentElement;
   root.dataset.titechBrand = 'official';
   root.dataset.titechBrandName = TITECH_BRAND?.fullName || APP_NAME;
-  document.body?.setAttribute('data-titech-brand', 'official');
+
+  const initialTheme = getInitialTheme();
+  applyTheme(initialTheme);
 }
 
 

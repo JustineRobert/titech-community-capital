@@ -1,0 +1,340 @@
+# TITech Community Capital — Implementation Change Discovery 2026-09-30
+
+Baseline files: 2797 | Current files: 2826 | Modified: 171 | Renamed: 38 | Added: 71 | Deleted: 46
+
+Input archive SHA-256: `db55488f3c91f1338e4cd2c794809a92fc84b9f454db69a5d77216879d47ae3a`
+
+## MODIFIED
+- `backend/bootstrap/index.js` — Production source remediation, +1/-1 lines
+- `backend/bootstrap/lifecycleManager.js` — Production source remediation, +2/-2 lines
+- `backend/bootstrap/middleware.js` — Production source remediation, +1/-1 lines
+- `backend/commercial/services/billing/billingPayment.service.js` — Commercial / revenue tests, +1/-1 lines
+- `backend/config/mail.js` — Production source remediation, +2/-2 lines
+- `backend/controllers/adminDashboard.controller.js` — Production source remediation, +1/-1 lines
+- `backend/controllers/adminManagement.controller.js` — Production source remediation, +1/-1 lines
+- `backend/controllers/chat/announcementController.js` — Chat test inventory, +2/-2 lines
+- `backend/controllers/chat/conversationController.js` — Chat test inventory, +4/-4 lines
+- `backend/controllers/chat/exportController.js` — Chat test inventory, +1/-1 lines
+- `backend/controllers/chat/messageController.js` — Chat test inventory, +2/-2 lines
+- `backend/controllers/chat/supportThreadController.js` — Chat test inventory, +3/-3 lines
+- `backend/controllers/complianceController.js` — Production source remediation, +7/-41 lines
+- `backend/errors/AppError.js` — Production source remediation, +1/-1 lines
+- `backend/errors/BadRequestError.js` — Production source remediation, +1/-1 lines
+- `backend/errors/ConflictError.js` — Production source remediation, +1/-1 lines
+- `backend/errors/NotFoundError.js` — Production source remediation, +1/-1 lines
+- `backend/errors/PaymentRequiredError.js` — Production source remediation, +1/-1 lines
+- `backend/errors/financialErrors.js` — Production source remediation, +2/-2 lines
+- `backend/errors/index.js` — Production source remediation, +1/-1 lines
+- `backend/jest.config.cjs` — Test / ESM-CJS / CI, +53/-18 lines
+- `backend/legal/controllers/legalController.js` — Production source remediation, +1/-1 lines
+- `backend/legal/models/LegalAcceptance.js` — Production source remediation, +1/-1 lines
+- `backend/legal/models/LegalAuditEvent.js` — Production source remediation, +1/-1 lines
+- `backend/legal/models/LegalDocument.js` — Production source remediation, +1/-1 lines
+- `backend/legal/models/LegalDocumentVersion.js` — Production source remediation, +1/-1 lines
+- `backend/middleware/attachmentValidation.js` — Production source remediation, +1/-1 lines
+- `backend/middleware/chatAuthorization.js` — Chat test inventory, +1/-1 lines
+- `backend/middleware/chatRateLimit.js` — Chat test inventory, +1/-1 lines
+- `backend/middleware/conversationAccess.js` — Production source remediation, +1/-1 lines
+- `backend/middleware/idempotency.js` — Production source remediation, +2/-2 lines
+- `backend/middleware/messageSanitizer.js` — Production source remediation, +1/-1 lines
+- `backend/middleware/resilience/bootstrap.js` — Production source remediation, +1/-1 lines
+- `backend/middleware/resilience/gracefulDegradation.js` — Production source remediation, +0/-57 lines
+- `backend/middleware/tenancy/tenantResolver.js` — Production source remediation, +0/-659 lines
+- `backend/models/ReferralReward.js` — Production source remediation, +1/-1 lines
+- `backend/modules/finance/jobs/interestAccrualJob.js` — Production source remediation, +1/-1 lines
+- `backend/modules/finance/statements/StatementRepairService.js` — Production source remediation, +30/-42 lines
+- `backend/modules/loan/models/loan.model.js` — Production source remediation, +2/-2 lines
+- `backend/modules/loan/models/loanAudit.model.js` — Production source remediation, +1/-1 lines
+- `backend/modules/loan/services/loanWorkflowService.js` — Loan workflow / schedule, +54/-36 lines
+- `backend/modules/payment/airtel/settlement/settlementService.js` — Production source remediation, +0/-3274 lines
+- `backend/modules/transactions/orchestration/SagaStep.js` — Production source remediation, +41/-5144 lines
+- `backend/modules/transactions/repositories/DistributedTransactionRepository.js` — Production source remediation, +2/-2 lines
+- `backend/package.json` — Test / ESM-CJS / CI, +16/-11 lines
+- `backend/repositories/BalanceRepository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/admin/adminLoan.repository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/analytics/analytics.repository.js` — Production source remediation, +1/-9 lines
+- `backend/repositories/analytics/financialAnalytics.repository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/analytics/loanAnalytics.repository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/analytics/memberAnalytics.repository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/complianceRepository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/financial/balance.repository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/financial/financialTransaction.repository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/financial/ledger.repository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/financial/loan.repository.js` — Production source remediation, +1/-1 lines
+- `backend/repositories/reconciliationRepository.js` — Production source remediation, +1/-1 lines
+- `backend/routes/auth.js` — Production source remediation, +1/-1 lines
+- `backend/routes/bizchat.js` — Chat test inventory, +1/-1 lines
+- `backend/routes/chatRoutes.js` — Chat test inventory, +1/-1 lines
+- `backend/routes/contributions.js` — Production source remediation, +1/-1 lines
+- `backend/routes/email.js` — Production source remediation, +1/-1 lines
+- `backend/routes/faq.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/financial.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/forums.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/groups.js` — Production source remediation, +1/-1 lines
+- `backend/routes/helpCenter.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/kyc.js` — Production source remediation, +1/-1 lines
+- `backend/routes/legal.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/momo.js` — Production source remediation, +1/-1 lines
+- `backend/routes/momo.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/momoRoutes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/mtnRoutes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/mtnWebhookRoutes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/payments.js` — Production source remediation, +1/-1 lines
+- `backend/routes/rbac.js` — Production source remediation, +1/-1 lines
+- `backend/routes/referrals.js` — Production source remediation, +1/-1 lines
+- `backend/routes/risk.js` — Production source remediation, +1/-1 lines
+- `backend/routes/savings.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/settings.js` — Production source remediation, +1/-1 lines
+- `backend/routes/testUssdTenant.routes.js` — Test / ESM-CJS / CI, +1/-1 lines
+- `backend/routes/transaction.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/transactionRoutes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/ussd.routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/v1-production-routes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/walletRoutes.js` — Production source remediation, +1/-1 lines
+- `backend/routes/webhook.js` — Production source remediation, +1/-1 lines
+- `backend/services/admin/adminReports.service.js` — Production source remediation, +1/-1 lines
+- `backend/services/chat/conversationService.js` — Chat test inventory, +4/-4 lines
+- `backend/services/chat/exportService.js` — Chat test inventory, +1/-1 lines
+- `backend/services/chat/messageService.js` — Chat test inventory, +1/-1 lines
+- `backend/services/chat/moderationService.js` — Chat test inventory, +1/-1 lines
+- `backend/services/chat/participantService.js` — Chat test inventory, +1/-1 lines
+- `backend/services/chat/searchService.js` — Chat test inventory, +1/-1 lines
+- `backend/services/chat/threadLinkService.js` — Chat test inventory, +3/-3 lines
+- `backend/services/chat/unreadService.js` — Chat test inventory, +1/-1 lines
+- `backend/services/idempotency/idempotency.service.js` — Production source remediation, +1/-1 lines
+- `backend/services/idempotency/idempotency.store.js` — Production source remediation, +2/-2 lines
+- `backend/sockets/chatSocket.js` — Chat test inventory, +1/-1 lines
+- `backend/sockets/roomManager.js` — Production source remediation, +1/-1 lines
+- `backend/sockets/socketAuth.js` — Production source remediation, +1/-1 lines
+- `backend/tenancy/tenant.constants.js` — Production source remediation, +1/-1 lines
+- `backend/tenancy/tenant.context.js` — Production source remediation, +1/-1 lines
+- `backend/tenancy/tenant.middleware.js` — Production source remediation, +1/-1 lines
+- `backend/tenancy/tenant.model.js` — Production source remediation, +1/-1 lines
+- `backend/tenancy/tenant.service.js` — Production source remediation, +1/-1 lines
+- `backend/tenancy/tenant.validator.js` — Production source remediation, +1/-1 lines
+- `backend/tests/helpers/mockLocalStorage.js` — Test / ESM-CJS / CI, +8/-3 lines
+- `backend/utils/admin/adminDates.js` — Production source remediation, +1/-1 lines
+- `backend/utils/admin/adminMetrics.js` — Production source remediation, +1/-1 lines
+- `backend/utils/admin/adminPagination.js` — Production source remediation, +1/-1 lines
+- `backend/utils/admin/adminValidation.js` — Production source remediation, +1/-1 lines
+- `backend/utils/chat/conversationHelpers.js` — Chat test inventory, +1/-1 lines
+- `backend/utils/chat/exportBuilder.js` — Chat test inventory, +1/-1 lines
+- `backend/utils/chat/messageEvents.js` — Chat test inventory, +1/-1 lines
+- `backend/utils/rateLimiter.js` — Deterministic helpers / frontend correctness, +45/-13 lines
+- `backend/utils/validateInput.js` — Deterministic helpers / frontend correctness, +11/-4 lines
+- `branding/BRAND_MANIFEST.json` — Brand / Theme, +28/-0 lines
+- `frontend/src/app/store.js` — Production source remediation, +39/-0 lines
+- `frontend/src/branding/brand.css` — Brand / Theme, +10/-1 lines
+- `frontend/src/branding/official-theme.css` — Brand / Theme, +98/-23 lines
+- `frontend/src/charts/MemberGrowthChart.jsx` — Production source remediation, +2/-2 lines
+- `frontend/src/charts/RevenueChart.jsx` — Commercial / revenue tests, +0/-1 lines
+- `frontend/src/charts/SavingsGrowthChart.jsx` — Production source remediation, +0/-1 lines
+- `frontend/src/charts/StackedBarChart.jsx` — Production source remediation, +0/-1 lines
+- `frontend/src/charts/index.js` — Production source remediation, +1/-1 lines
+- `frontend/src/components/Footer.css` — Production source remediation, +1/-1 lines
+- `frontend/src/components/ui/PermissionGate.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/components/ui/SearchBox.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/components/ui/Select.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/components/ui/StatCard.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/components/ui/StatusBadge.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/components/ui/index.js` — Production source remediation, +2/-2 lines
+- `frontend/src/features/auth/authSlice.js` — Production source remediation, +18/-63 lines
+- `frontend/src/features/onboarding/onboardingSlice.js` — Deterministic helpers / frontend correctness, +3/-3 lines
+- `frontend/src/index.js` — Production source remediation, +5/-1 lines
+- `frontend/src/legal/documents/FinancialDisclaimer.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/legal/documents/GeneralDisclaimer.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/legal/documents/PrivacyPolicy.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/legal/documents/TermsOfService.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/legal/index.js` — Production source remediation, +3/-3 lines
+- `frontend/src/legal/legalRegistry.js` — Production source remediation, +1/-1 lines
+- `frontend/src/main.jsx` — Production source remediation, +7/-0 lines
+- `frontend/src/offline/constants.js` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/ConversationList.js` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/Login.css` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/Logout.css` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/ResetPassword.css` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/Savings.css` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/Savings.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/SupportChat.js` — Chat test inventory, +10/-4 lines
+- `frontend/src/pages/TITechChat.css` — Chat test inventory, +1/-1 lines
+- `frontend/src/pages/TITechChat/AnnouncementAdmin.jsx` — Chat test inventory, +1/-1 lines
+- `frontend/src/pages/TITechChat/AnnouncementBell.jsx` — Chat test inventory, +1/-1 lines
+- `frontend/src/pages/TITechChat/ChatHome.css` — Chat test inventory, +1/-1 lines
+- `frontend/src/pages/TITechChat/SupportThreads.css` — Chat test inventory, +1/-1 lines
+- `frontend/src/pages/TITechChat/SupportThreads.jsx` — Chat test inventory, +1/-1 lines
+- `frontend/src/pages/TITechChat/announcementConstants.js` — Chat test inventory, +1/-1 lines
+- `frontend/src/pages/TITechChat/announcementSelectors.js` — Chat test inventory, +1/-1 lines
+- `frontend/src/pages/TermsOfService.jsx` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/Transactions.css` — Production source remediation, +1/-1 lines
+- `frontend/src/pages/dashboard/DashboardHeader.jsx` — Production source remediation, +9/-174 lines
+- `frontend/src/pages/onboarding/OnboardingAPI.js` — Production source remediation, +7/-3 lines
+- `frontend/src/services/api.js` — Production source remediation, +5/-1 lines
+- `frontend/src/services/chatService.js` — Chat test inventory, +1/-1 lines
+- `frontend/src/sockets/chatSocket.js` — Chat test inventory, +1/-1 lines
+- `frontend/src/ui/index.js` — Production source remediation, +2/-2 lines
+- `mobile/branding/README.md` — Brand / Theme, +4/-1 lines
+- `package.json` — Test / ESM-CJS / CI, +9/-1 lines
+- `scripts/repository-truth-inventory.mjs` — Evidence / tooling, +8/-4 lines
+- `scripts/titech-brand-gate.mjs` — Evidence / tooling, +1/-1 lines
+
+## RENAMED
+- `backend/tests/airtelMoney.test.js` → `backend/tests/airtelMoney.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/bootstrap/BootstrapContext.test.js` → `backend/tests/bootstrap/BootstrapContext.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/bootstrap/bootstrap.smoke.test.js` → `backend/tests/bootstrap/bootstrap.smoke.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/bootstrap/phaseRunner.test.js` → `backend/tests/bootstrap/phaseRunner.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/announcement.tenant-isolation.test.js` → `backend/tests/integration/announcement.tenant-isolation.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/auth.test.js` → `backend/tests/integration/auth.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/bizchat.test.js` → `backend/tests/integration/bizchat.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/chat.test.js` → `backend/tests/integration/chat.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/contributions.test.js` → `backend/tests/integration/contributions.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/controllers/email.test.js` → `backend/tests/integration/controllers/email.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/controllers/loans.test.js` → `backend/tests/integration/controllers/loans.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/email.test.js` → `backend/tests/integration/email.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/legal.test.js` → `backend/tests/integration/legal.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/loans.test.js` → `backend/tests/integration/loans.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/payment.test.js` → `backend/tests/integration/payment.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/payments.test.js` → `backend/tests/integration/payments.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/referral.service.integration.test.js` → `backend/tests/integration/referral.service.integration.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/referralReward.test.js` → `backend/tests/integration/referralReward.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/socket-io.test.js` → `backend/tests/integration/socket-io.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/integration/systemSetting.test.js` → `backend/tests/integration/systemSetting.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/linkedEntityValidator.test.js` → `backend/tests/linkedEntityValidator.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/mtnMomo.test.js` → `backend/tests/mtnMomo.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/security/penetration.test.js` → `backend/tests/security/penetration.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/auth.controller.test.js` → `backend/tests/unit/auth.controller.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/modules/loan/services/createLoanApplication.test.js` → `backend/tests/unit/modules/loan/services/createLoanApplication.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/payroll/payroll.crypto.test.js` → `backend/tests/unit/payroll/payroll.crypto.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/payroll/payroll.csv.test.js` → `backend/tests/unit/payroll/payroll.csv.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/referral/referral.repository.test.js` → `backend/tests/unit/referral/referral.repository.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/referral/referral.service.test.js` → `backend/tests/unit/referral/referral.service.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/referralRewardService.test.js` → `backend/tests/unit/referralRewardService.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/services/emailService.test.js` → `backend/tests/unit/services/emailService.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/services/emailVerificationService.test.js` → `backend/tests/unit/services/emailVerificationService.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/services/loanWorkflowService.test.js` → `backend/tests/unit/services/loanWorkflowService.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/services/passwordResetService.test.js` → `backend/tests/unit/services/passwordResetService.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/services/paymentService.test.js` → `backend/tests/unit/services/paymentService.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/services/referralService.test.js` → `backend/tests/unit/services/referralService.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/unit/systemSettingService.test.js` → `backend/tests/unit/systemSettingService.test.cjs` — Test / ESM-CJS / CI
+- `backend/tests/helpers/renderWithProviders.js` → `frontend/src/testUtils/renderWithProviders.jsx` — Test / ESM-CJS / CI
+
+## ADDED
+- `.titech-remediation/baseline/backend-tests.before.txt` — Production source remediation, +80/-0 lines
+- `.titech-remediation/baseline/sha256.before.txt` — Production source remediation, +13/-0 lines
+- `backend/.env.production.example` — Hosting / deployment, +105/-0 lines
+- `backend/modules/finance/ledger/tests/balanceService.test.planned.md` — Test / ESM-CJS / CI, +18/-0 lines
+- `backend/modules/finance/ledger/tests/ledgerEngine.test.planned.md` — Test / ESM-CJS / CI, +18/-0 lines
+- `backend/modules/finance/ledger/tests/ledgerIntegrity.test.planned.md` — Test / ESM-CJS / CI, +27/-0 lines
+- `backend/modules/finance/ledger/tests/periodCloseService.test.planned.md` — Test / ESM-CJS / CI, +18/-0 lines
+- `backend/modules/finance/ledger/tests/reversalService.test.planned.md` — Test / ESM-CJS / CI, +18/-0 lines
+- `backend/modules/finance/ledger/tests/snapshotService.test.planned.md` — Test / ESM-CJS / CI, +18/-0 lines
+- `backend/modules/finance/services/interestAccrualService.cjs` — Production source remediation, +135/-0 lines
+- `backend/modules/loan/repositories/loanScheduleRepository.js` — Loan workflow / schedule, +477/-0 lines
+- `backend/tests/bootstrap/environment.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/Conversation.model.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/Message.model.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chat.permissions.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chat.realtime.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chat.routes.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chat.service.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chat.validation.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chatController.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chatRoutes.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chatService.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/chatSocket.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/conversationModel.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/chat/messageModel.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/commercial/compatibility/billingRuntime.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/commercial/models/commercial.models.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/commercial/services.planned.md` — Test / ESM-CJS / CI, +14/-0 lines
+- `backend/tests/commercial/stage01d/stage01d.reconciliation.planned.md` — Test / ESM-CJS / CI, +16/-0 lines
+- `backend/tests/commercial/stage01d/stage01d.shadowRead.planned.md` — Test / ESM-CJS / CI, +16/-0 lines
+- `backend/tests/helpers/__tests__/mockLocalStorage.test.cjs` — Test / ESM-CJS / CI, +670/-0 lines
+- `backend/tests/integration/commercial/transactionRevenue.integration.planned.md` — Test / ESM-CJS / CI, +17/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/feeAssessment.service.planned.md` — Test / ESM-CJS / CI, +17/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/feeCalculation.service.planned.md` — Test / ESM-CJS / CI, +17/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/feeRule.service.planned.md` — Test / ESM-CJS / CI, +17/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/revenueEntry.service.planned.md` — Test / ESM-CJS / CI, +17/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/revenueReversal.service.planned.md` — Test / ESM-CJS / CI, +17/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/settlement.service.planned.md` — Test / ESM-CJS / CI, +17/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/transactionRevenue.service.planned.md` — Test / ESM-CJS / CI, +17/-0 lines
+- `backend/tests/unit/contribution.controller.test.cjs` — Test / ESM-CJS / CI, +355/-0 lines
+- `backend/tests/unit/finance/interestAccrualService.test.cjs` — Test / ESM-CJS / CI, +67/-0 lines
+- `backend/tests/unit/group.controller.test.cjs` — Test / ESM-CJS / CI, +389/-0 lines
+- `backend/tests/unit/loan.controller.test.cjs` — Test / ESM-CJS / CI, +385/-0 lines
+- `backend/tests/unit/loanWorkflowService.test.cjs` — Test / ESM-CJS / CI, +170/-0 lines
+- `backend/tests/unit/models/User.test.cjs` — Test / ESM-CJS / CI, +255/-0 lines
+- `backend/tests/unit/modules/loan/repositories/loanScheduleRepository.test.cjs` — Test / ESM-CJS / CI, +75/-0 lines
+- `backend/tests/unit/modules/loan/services/loanApprovalWorkflow.test.cjs` — Test / ESM-CJS / CI, +310/-0 lines
+- `backend/tests/unit/utils.test.cjs` — Test / ESM-CJS / CI, +275/-0 lines
+- `backend/tests/unit/utils/rateLimiter.test.cjs` — Test / ESM-CJS / CI, +180/-0 lines
+- `backend/tests/unit/utils/validateInput.test.cjs` — Test / ESM-CJS / CI, +619/-0 lines
+- `branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png` — Brand / Theme, +75604/-0 lines
+- `docs/REPOSITORY_TRUTH_INVENTORY_2026-09-30.md` — Evidence / tooling, +41/-0 lines
+- `docs/TITECH_FINTECH_HOSTING_IMPLEMENTATION_2026-09-30.md` — Evidence / tooling, +164/-0 lines
+- `docs/TITECH_PLATFORM_THEME_IMPLEMENTATION_2026-09-30.md` — Evidence / tooling, +40/-0 lines
+- `frontend/.env.production.example` — Hosting / deployment, +20/-0 lines
+- `frontend/src/branding/__tests__/theme.test.js` — Brand / Theme, +98/-0 lines
+- `frontend/src/branding/theme.js` — Brand / Theme, +206/-0 lines
+- `mobile/branding/titech-theme.tokens.json` — Brand / Theme, +34/-0 lines
+- `reports/dependency-install-attempt-2026-09-30.txt` — Evidence / tooling, +20/-0 lines
+- `reports/esm-cjs-audit-2026-09-30.json` — Evidence / tooling, +11295/-0 lines
+- `reports/official-theme-audit-2026-09-30.json` — Evidence / tooling, +82/-0 lines
+- `reports/repository-truth-inventory-2026-09-30.json` — Evidence / tooling, +2033/-0 lines
+- `reports/runtime-import-audit.json` — Evidence / tooling, +1658/-0 lines
+- `reports/security-static-gate.json` — Evidence / tooling, +15/-0 lines
+- `reports/test-discovery-audit-2026-09-30.json` — Test / ESM-CJS / CI, +13/-0 lines
+- `reports/titech-brand-gate.json` — Evidence / tooling, +236/-0 lines
+- `reports/titech-hosting-gate.json` — Evidence / tooling, +32/-0 lines
+- `reports/verification-command-summary-2026-09-30.txt` — Evidence / tooling, +31/-0 lines
+- `scripts/esm-cjs-audit.mjs` — Evidence / tooling, +129/-0 lines
+- `scripts/official-theme-audit.mjs` — Evidence / tooling, +129/-0 lines
+- `scripts/test-discovery-audit.mjs` — Test / ESM-CJS / CI, +93/-0 lines
+
+## DELETED
+- `backend/backend/package-lock.json` — Production source remediation, +0/-6 lines
+- `backend/commercial/services/billing/decimalMoney.js` — Commercial / revenue tests, +0/-0 lines
+- `backend/modules/finance/ledger/tests/balanceService.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/modules/finance/ledger/tests/ledgerEngine.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/modules/finance/ledger/tests/ledgerIntegrity.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/modules/finance/ledger/tests/periodCloseService.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/modules/finance/ledger/tests/reversalService.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/modules/finance/ledger/tests/snapshotService.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/modules/finance/services/interestAccrualService.js` — Production source remediation, +0/-0 lines
+- `backend/tests/bootstrap/environment.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/Conversation.model.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/Message.model.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chat.permissions.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chat.realtime.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chat.routes.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chat.service.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chat.validation.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chatController.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chatRoutes.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chatService.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/chatSocket.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/conversationModel.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/chat/messageModel.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/commercial/compatibility/billingRuntime.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/commercial/models/commercial.models.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/commercial/services.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/commercial/stage01d/stage01d.reconciliation.test.cjs` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/commercial/stage01d/stage01d.shadowRead.test.cjs` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/helpers/__tests__/mockLocalStorage.test.js` — Test / ESM-CJS / CI, +0/-622 lines
+- `backend/tests/integration/commercial/transactionRevenue.integration.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/feeAssessment.service.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/feeCalculation.service.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/feeRule.service.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/revenueEntry.service.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/revenueReversal.service.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/settlement.service.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/unit/commercial/transactionRevenue/transactionRevenue.service.test.js` — Test / ESM-CJS / CI, +0/-0 lines
+- `backend/tests/unit/contribution.controller.test.js` — Test / ESM-CJS / CI, +0/-355 lines
+- `backend/tests/unit/group.controller.test.js` — Test / ESM-CJS / CI, +0/-389 lines
+- `backend/tests/unit/loan.controller.test.js` — Test / ESM-CJS / CI, +0/-385 lines
+- `backend/tests/unit/loanWorkflowService.test.js` — Test / ESM-CJS / CI, +0/-170 lines
+- `backend/tests/unit/models/User.test.js` — Test / ESM-CJS / CI, +0/-255 lines
+- `backend/tests/unit/modules/loan/services/loanApprovalWorkflow.test.js` — Test / ESM-CJS / CI, +0/-310 lines
+- `backend/tests/unit/utils.test.js` — Test / ESM-CJS / CI, +0/-271 lines
+- `backend/tests/unit/utils/rateLimiter.test.js` — Test / ESM-CJS / CI, +0/-163 lines
+- `backend/tests/unit/utils/validateInput.test.js` — Test / ESM-CJS / CI, +0/-619 lines
+

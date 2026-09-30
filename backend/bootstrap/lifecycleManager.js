@@ -3,7 +3,7 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * African Community Finance Operating System (TITech)
  * =============================================================================
  *
  * File:
@@ -2088,7 +2088,7 @@ function listManagers(options) {
 
 /**
  * -----------------------------------------------------------------------------
- * Standard ACFOS Manager Registration
+ * Standard TITech Manager Registration
  * -----------------------------------------------------------------------------
  *
  * This creates stable lifecycle names for major architectural boundaries.

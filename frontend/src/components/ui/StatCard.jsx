@@ -60,7 +60,7 @@
  *   ✓ Enterprise financial dashboard friendly
  *
  * Important:
- *   This component contains no ACFOS references.
+ *   This component contains no TITech references.
  *
  * ============================================================================
  */

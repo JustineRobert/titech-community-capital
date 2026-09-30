@@ -33,7 +33,7 @@
  *   ✓ Enterprise financial-platform friendly defaults
  *
  * Notes:
- *   - This component intentionally contains no ACFOS references.
+ *   - This component intentionally contains no TITech references.
  *   - It is UI-library agnostic and can be used with Tailwind CSS.
  *   - The search function may return:
  *       1. an array

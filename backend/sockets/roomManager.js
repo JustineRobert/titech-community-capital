@@ -4,7 +4,7 @@
  * ============================================================================
  * SOCKET ROOM MANAGER
  * ============================================================================
- * TITech Community Capital LTD (ACFOS)
+ * TITech Community Capital LTD (TITech)
  * TITechChat Enterprise Communication Platform
  *
  * PURPOSE

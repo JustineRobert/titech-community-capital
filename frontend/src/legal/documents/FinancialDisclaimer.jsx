@@ -40,7 +40,7 @@
 * TITech Community Capital
 *
 * IMPORTANT:
-* Do not introduce ACFOS terminology into this file. TITech is the
+* Do not introduce TITech terminology into this file. TITech is the
 * canonical product/platform name.
 *
 * ============================================================================

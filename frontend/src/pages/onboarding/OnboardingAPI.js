@@ -13,10 +13,14 @@ import { getToken } from "../../services/api";
  * AXIOS INSTANCE
  * ============================================================
  */
+const apiBaseUrl =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? `${window.location.origin}/api/v1`
+    : "http://localhost:5000/api/v1");
+
 const api = axios.create({
-  baseURL:
-    process.env.REACT_APP_API_URL ||
-    "/api/v1",
+  baseURL: apiBaseUrl,
 
   timeout: 30000,
 

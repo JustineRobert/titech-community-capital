@@ -19,7 +19,7 @@
  * - Defensive browser API usage
  * - Uganda governing-law disclosure
  * - TITech Community Capital terminology consistency
- * - No ACFOS terminology
+ * - No TITech terminology
  * ============================================================================
  */
 

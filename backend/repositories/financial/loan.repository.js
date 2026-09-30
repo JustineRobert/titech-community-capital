@@ -111,7 +111,7 @@
  * TITech terminology
  * ============================================================================
  *
- * All legacy ACFOS references have been replaced with TITech terminology.
+ * All legacy TITech references have been replaced with TITech terminology.
  *
  * ============================================================================
  */

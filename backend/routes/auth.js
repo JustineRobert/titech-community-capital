@@ -71,7 +71,7 @@
  *
  * TITech terminology
  * ----------------------------------------------------------------------------
- * All ACFOS references are replaced with TITech Community Capital.
+ * All TITech references are replaced with TITech Community Capital.
  *
  * ============================================================================
  */

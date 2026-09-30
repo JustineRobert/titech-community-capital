@@ -122,7 +122,15 @@
     "titech:90-day-gate": "node scripts/titech-90-day-readiness-gate.mjs",
     "titech:90-day-gate:strict": "node scripts/titech-90-day-readiness-gate.mjs --strict",
     "titech:production-evidence": "node scripts/production-evidence-package.mjs",
-    "titech:hosting-gate": "node scripts/titech-hosting-gate.mjs"
+    "titech:hosting-gate": "node scripts/titech-hosting-gate.mjs",
+    "audit:modules": "node scripts/esm-cjs-audit.mjs",
+    "audit:test-discovery": "node scripts/test-discovery-audit.mjs",
+    "test:bootstrap": "npm --prefix backend run test:bootstrap",
+    "test:financial": "npm --prefix backend run test:financial",
+    "test:commercial": "npm --prefix backend run test:commercial",
+    "test:chat": "npm --prefix backend run test:chat",
+    "test:all": "npm --prefix backend run test:all",
+    "audit:theme": "node scripts/official-theme-audit.mjs"
   },
   "dependencies": {}
 }

@@ -26,7 +26,7 @@
 // ✓ No business logic inside protected components
 // ✓ Safe handling of malformed authorization data
 // ✓ Reusable hooks
-// ✓ No ACFOS references
+// ✓ No TITech references
 //
 // SECURITY NOTE
 // ----------------------------------------------------------------------------

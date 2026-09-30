@@ -74,7 +74,7 @@
  * TITech terminology
  * ============================================================================
  *
- * Legacy ACFOS references have been removed in favor of TITech terminology.
+ * Legacy TITech references have been removed in favor of TITech terminology.
  * ============================================================================
  */
 

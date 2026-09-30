@@ -50,7 +50,7 @@
 *
 * TITech terminology
 * ---
-* All legacy ACFOS terminology has intentionally been removed.
+* All legacy TITech terminology has intentionally been removed.
 *
 * ============================================================================
   */

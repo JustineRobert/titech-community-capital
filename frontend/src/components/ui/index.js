@@ -3,7 +3,7 @@
 /**
  * ============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * African Community Finance Operating System (TITech)
  * ============================================================================
  *
  * Enterprise UI Component Registry & Barrel Export
@@ -55,7 +55,7 @@
  * ----------------------------------------------------------------------------
  * TITech Community Capital LTD
  *
- * Do not introduce ACFOS branding into frontend component identifiers,
+ * Do not introduce TITech branding into frontend component identifiers,
  * metadata, user-facing labels, or registry names.
  *
  * ============================================================================

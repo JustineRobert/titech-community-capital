@@ -80,7 +80,7 @@
 * TITech Community Capital
 *
 * LEGACY TERMINOLOGY:
-* ACFOS must not be used in this module.
+* TITech must not be used in this module.
 *
 * ============================================================================
   */

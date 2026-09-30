@@ -2693,12 +2693,12 @@ function ComposedChartShell({
         },
         React.createElement('stop', {
           offset: '0%',
-          stopColor={CSS.chart1},
+          stopColor: CSS.chart1,
           stopOpacity: 0.28,
         }),
         React.createElement('stop', {
           offset: '100%',
-          stopColor={CSS.chart1},
+          stopColor: CSS.chart1,
           stopOpacity: 0.035,
         }),
       ),

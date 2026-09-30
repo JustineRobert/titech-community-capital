@@ -32,7 +32,7 @@
 //
 // Project consistency:
 // - TITech terminology is used throughout.
-// - No "ACFOS" references.
+// - No "TITech" references.
 // - No redux/actions directory naming is introduced.
 // ============================================================================
 

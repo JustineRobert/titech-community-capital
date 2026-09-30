@@ -27,7 +27,7 @@
 *
 * IMPORTANT:
 * TITech Community Capital is the canonical product/platform identity.
-* Legacy ACFOS terminology must not be introduced into this document.
+* Legacy TITech terminology must not be introduced into this document.
 *
 * Legal review:
 * This document provides an enterprise-oriented contractual framework.

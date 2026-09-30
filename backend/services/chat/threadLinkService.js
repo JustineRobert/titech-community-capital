@@ -4,12 +4,12 @@
  * ============================================================================
  * THREAD LINK SERVICE
  * ============================================================================
- * TITech Community Capital LTD (ACFOS)
+ * TITech Community Capital LTD (TITech)
  * TITechChat Enterprise Communication Platform
  *
  * PURPOSE
  * ----------------------------------------------------------------------------
- * Ensures strict enforcement of ACFOS business entity → conversation mapping.
+ * Ensures strict enforcement of TITech business entity → conversation mapping.
  *
  * TITechChat is NOT a free-form chat system.
  * Every thread MUST be tied to a governed business entity:
@@ -78,7 +78,7 @@ class ThreadLinkService {
 
     /**
      * ----------------------------------------------------------------------------
-     * ACFOS EXTENSION POINT
+     * TITech EXTENSION POINT
      * ----------------------------------------------------------------------------
      * In production, this is where we enforce:
      *

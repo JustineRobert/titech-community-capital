@@ -23,7 +23,7 @@
  *
  * Branding:
  *   - TITech is the canonical product identity.
- *   - Legacy ACFOS terminology MUST NOT be introduced here.
+ *   - Legacy TITech terminology MUST NOT be introduced here.
  *
  * Design goals:
  *   - Stable frontend import contract.

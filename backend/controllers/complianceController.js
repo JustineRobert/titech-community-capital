@@ -1,5 +1,3 @@
-"use strict";
-
 /**
  * ============================================================================
  * TITech Community Capital LTD
@@ -7,39 +5,11 @@
  * Enterprise Compliance Controller
  * ============================================================================
  */
-jest.mock(
-    "../../backend/services/complianceService"
-);
 
-jest.mock(
-    "../../backend/services/auditService"
-);
-
-jest.mock(
-    "../../backend/services/metricsService"
-);
-
-const logger =
-    require("../utils/logger");
-
-const complianceService =
-    require("../services/complianceService");
-
-const auditService =
-    require("../services/auditService");
-
-const metricsService =
-    require("../services/metricsService");
-
-const complianceController =
-    require(
-        "../../backend/controllers/complianceController"
-    );
-
-const complianceService =
-    require(
-        "../../backend/services/complianceService"
-    );
+import logger from '../utils/logger.js';
+import complianceService from '../services/complianceService.js';
+import auditService from '../services/auditService.js';
+import metricsService from '../services/metricsService.js';
 
 class ComplianceController {
 
@@ -512,11 +482,7 @@ class ComplianceController {
     }
 }
 
-const complianceController =
-    new ComplianceController();
+const complianceController = new ComplianceController();
 
-module.exports =
-    complianceController;
-
-module.exports.ComplianceController =
-    ComplianceController;
+export { ComplianceController };
+export default complianceController;

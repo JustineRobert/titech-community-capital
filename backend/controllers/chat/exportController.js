@@ -4,7 +4,7 @@
  * ============================================================================
  * EXPORT CONTROLLER
  * ============================================================================
- * TITech Community Capital LTD (ACFOS)
+ * TITech Community Capital LTD (TITech)
  * TITechChat Enterprise Communication Platform
  *
  * PURPOSE

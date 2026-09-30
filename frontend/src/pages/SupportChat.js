@@ -863,10 +863,8 @@ export default function SupportChat({
       () => {
         const configured =
           websocketUrl ||
-          process.env
-            ?.REACT_APP_WS_URL ||
-          process.env
-            ?.REACT_APP_API_WS;
+          import.meta.env.VITE_WS_URL ||
+          import.meta.env.VITE_API_WS;
 
         if (
           configured
@@ -893,6 +891,14 @@ export default function SupportChat({
         ) {
           return null;
         }
+
+        const protocol =
+          window.location.protocol ===
+          'https:'
+            ? 'wss:'
+            : 'ws:';
+
+        return `${protocol}//${window.location.host}/ws/support`;
 
         const protocol =
           window.location.protocol ===

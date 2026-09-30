@@ -61,7 +61,7 @@
  * TITech naming
  * ============================================================================
  *
- * All legacy ACFOS terminology has been removed in favor of TITech.
+ * All legacy TITech terminology has been removed in favor of TITech.
  * ============================================================================
  */
 

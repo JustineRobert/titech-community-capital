@@ -186,7 +186,7 @@ function validateIdempotencyKey(
 /**
  * Resolve the authenticated principal.
  *
- * Supports the current ACFOS authentication shapes while keeping the
+ * Supports the current TITech authentication shapes while keeping the
  * middleware independent from the authentication implementation.
  */
 function resolvePrincipalId(
@@ -230,7 +230,7 @@ function resolveTenantId(
 /**
  * Resolve device identity.
  *
- * Device identity is useful for offline-first ACFOS workflows because the
+ * Device identity is useful for offline-first TITech workflows because the
  * same logical operation may originate from a specific registered device.
  */
 function resolveDeviceId(

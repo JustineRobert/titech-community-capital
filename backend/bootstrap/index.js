@@ -351,7 +351,7 @@ function createContext() {
         config?.app?.serviceName ||
         config?.service?.name ||
         environment?.app?.serviceName ||
-        'acfos-backend',
+        'titech-backend',
 
       version:
         config?.app?.version ||

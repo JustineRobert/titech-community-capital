@@ -96,7 +96,7 @@
  * TITech terminology
  * ============================================================================
  *
- * All legacy ACFOS terminology has been replaced with TITech terminology.
+ * All legacy TITech terminology has been replaced with TITech terminology.
  *
  * ============================================================================
  */

@@ -57,7 +57,7 @@ add(
 );
 
 const mainJs = read('frontend/src/main.jsx');
-add('runtime-brand-namespace', mainJs.includes('applyOfficialBrandTheme()') ? 'PASS' : 'BLOCKED', 'Browser startup applies the official brand namespace.');
+add('runtime-brand-namespace', (mainJs.includes('applyOfficialBrandTheme()') || mainJs.includes('applyOfficialBrandRuntime()')) ? 'PASS' : 'BLOCKED', 'Browser startup applies the official brand namespace.');
 
 const chartFiles = [
   'frontend/src/charts/BarChartCard.jsx',

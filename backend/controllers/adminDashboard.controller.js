@@ -69,7 +69,7 @@
  *   - Read-only dashboard boundary.
  *
  * IMPORTANT:
- *   This controller intentionally contains no ACFOS naming.
+ *   This controller intentionally contains no TITech naming.
  *
  * =============================================================================
  */

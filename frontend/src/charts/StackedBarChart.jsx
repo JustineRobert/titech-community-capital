@@ -2260,7 +2260,6 @@ function StackedBarChartComponent({
                 ),
             ),
           ),
-        ),
       [
         normalized.series,
         rows,

@@ -80,7 +80,7 @@
  * 17. Legal-hold records cannot be soft deleted.
  * 18. Worker IDs and raw error messages are redacted from normal JSON output.
  * 19. Query helpers are explicitly tenant scoped.
- * 20. All legacy ACFOS terminology is replaced by TITech terminology.
+ * 20. All legacy TITech terminology is replaced by TITech terminology.
  *
  * =============================================================================
  */

@@ -43,6 +43,12 @@ import { toast } from "react-toastify";
 
 import { useAuth } from "../../context/AuthContext";
 import useRealtimeDashboard from "../../hooks/useRealtimeDashboard";
+import {
+  applyTheme,
+  getInitialTheme,
+  subscribeToThemeChanges,
+  toggleTheme as toggleThemePreference,
+} from "../../branding/theme";
 
 import {
   Button,
@@ -58,11 +64,6 @@ import "./DashboardHeader.css";
 // ============================================================================
 
 const DEFAULT_TITLE = "Dashboard";
-
-const THEME_STORAGE_KEY = "theme";
-
-const THEME_DARK = "dark";
-const THEME_LIGHT = "light";
 
 const MAX_NOTIFICATION_BADGE = 99;
 
@@ -96,123 +97,6 @@ function getUserDisplayName(user) {
     user?.email ||
     "User"
   );
-}
-
-function getInitialTheme() {
-  if (
-    typeof document === "undefined"
-  ) {
-    return THEME_LIGHT;
-  }
-
-  const root =
-    document.documentElement;
-
-  if (
-    root.classList.contains(
-      THEME_DARK
-    )
-  ) {
-    return THEME_DARK;
-  }
-
-  if (
-    root.classList.contains(
-      THEME_LIGHT
-    )
-  ) {
-    return THEME_LIGHT;
-  }
-
-  if (
-    typeof window !== "undefined" &&
-    typeof window.localStorage !==
-      "undefined"
-  ) {
-    try {
-      const storedTheme =
-        window.localStorage.getItem(
-          THEME_STORAGE_KEY
-        );
-
-      if (
-        storedTheme === THEME_DARK ||
-        storedTheme === THEME_LIGHT
-      ) {
-        return storedTheme;
-      }
-    } catch {
-      // Storage may be unavailable.
-    }
-  }
-
-  if (
-    typeof window !== "undefined" &&
-    window.matchMedia
-  ) {
-    try {
-      return window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches
-        ? THEME_DARK
-        : THEME_LIGHT;
-    } catch {
-      // Ignore unsupported matchMedia implementations.
-    }
-  }
-
-  return THEME_LIGHT;
-}
-
-function applyTheme(theme) {
-  if (
-    typeof document === "undefined"
-  ) {
-    return;
-  }
-
-  const root =
-    document.documentElement;
-
-  const isDark =
-    theme === THEME_DARK;
-
-  root.classList.toggle(
-    THEME_DARK,
-    isDark
-  );
-
-  root.classList.toggle(
-    THEME_LIGHT,
-    !isDark
-  );
-
-  root.setAttribute(
-    "data-theme",
-    isDark
-      ? THEME_DARK
-      : THEME_LIGHT
-  );
-
-  root.style.colorScheme =
-    isDark ? "dark" : "light";
-}
-
-function persistTheme(theme) {
-  if (
-    typeof window === "undefined"
-  ) {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(
-      THEME_STORAGE_KEY,
-      theme
-    );
-  } catch {
-    // Storage may be unavailable or blocked.
-  }
 }
 
 function normalizeNotificationCount(
@@ -352,7 +236,7 @@ function DashboardHeader({
         );
 
   const isDarkMode =
-    theme === THEME_DARK;
+    theme === "dark";
 
   const effectiveLoading =
     loading ||
@@ -371,46 +255,7 @@ function DashboardHeader({
   // ==========================================================================
 
   useEffect(() => {
-    if (
-      typeof window === "undefined"
-    ) {
-      return undefined;
-    }
-
-    const handleStorage = event => {
-      if (
-        event.key !==
-          THEME_STORAGE_KEY ||
-        !event.newValue
-      ) {
-        return;
-      }
-
-      if (
-        event.newValue !==
-          THEME_DARK &&
-        event.newValue !==
-          THEME_LIGHT
-      ) {
-        return;
-      }
-
-      setTheme(
-        event.newValue
-      );
-    };
-
-    window.addEventListener(
-      "storage",
-      handleStorage
-    );
-
-    return () => {
-      window.removeEventListener(
-        "storage",
-        handleStorage
-      );
-    };
+    return subscribeToThemeChanges(setTheme);
   }, []);
 
   // ==========================================================================
@@ -601,19 +446,9 @@ function DashboardHeader({
   const toggleTheme =
     useCallback(() => {
       const nextTheme =
-        theme === THEME_DARK
-          ? THEME_LIGHT
-          : THEME_DARK;
+        toggleThemePreference(theme);
 
       setTheme(nextTheme);
-
-      applyTheme(
-        nextTheme
-      );
-
-      persistTheme(
-        nextTheme
-      );
     }, [theme]);
 
   // ==========================================================================

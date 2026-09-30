@@ -7,6 +7,10 @@ class TokenBucketLimiter {
   constructor(redisClient, opts = {}) {
     this.redis = redisClient;
     this.logger = opts.logger || console;
+    this.defaultWindowSeconds = Number.isFinite(opts.defaultWindowSeconds)
+      ? Math.max(1, Math.floor(opts.defaultWindowSeconds))
+      : 60;
+    this.failureMode = opts.failureMode === 'closed' ? 'closed' : 'open';
   }
 
   /**
@@ -16,10 +20,16 @@ class TokenBucketLimiter {
    * @param {number} windowSeconds - Time window in seconds for the limit
    * @returns {Object} - { allowed, remaining, retryAfter, resetAt }
    */
-  async allow(key, cost = 1, windowSeconds = 60) {
+  async allow(key, cost = 1, windowSeconds = this.defaultWindowSeconds) {
     try {
+      const normalizedWindowSeconds = Number.isFinite(windowSeconds)
+        ? Math.max(1, Math.floor(windowSeconds))
+        : this.defaultWindowSeconds;
+      const normalizedCost = Number.isFinite(cost)
+        ? Math.max(0, cost)
+        : 1;
       const now = Date.now();
-      const windowMs = windowSeconds * 1000;
+      const windowMs = normalizedWindowSeconds * 1000;
       const bucketKey = `rate-limit:${key}`;
 
       // Get current bucket state
@@ -28,25 +38,29 @@ class TokenBucketLimiter {
       if (!bucket) {
         // Initialize new bucket
         bucket = {
-          tokens: windowSeconds, // Start with windowSeconds tokens (1 per second)
+          tokens: normalizedWindowSeconds, // One token is restored per second up to capacity
           lastRefill: now,
           resetAt: now + windowMs,
+          capacity: normalizedWindowSeconds,
         };
       }
 
       // Refill tokens based on time elapsed
       const timePassed = (now - bucket.lastRefill) / 1000; // seconds
-      const tokensToAdd = timePassed * (windowSeconds / windowSeconds); // 1 token per second
-      bucket.tokens = Math.min(windowSeconds, bucket.tokens + tokensToAdd);
+      const tokensToAdd = timePassed; // One token per second
+      const capacity = Number.isFinite(bucket.capacity)
+        ? Math.max(1, bucket.capacity)
+        : normalizedWindowSeconds;
+      bucket.tokens = Math.min(capacity, bucket.tokens + tokensToAdd);
       bucket.lastRefill = now;
 
       // Check if token cost can be satisfied
-      if (bucket.tokens >= cost) {
-        bucket.tokens -= cost;
+      if (bucket.tokens >= normalizedCost) {
+        bucket.tokens -= normalizedCost;
         const remaining = Math.floor(bucket.tokens);
 
         // Store updated bucket with expiration
-        await this.redis.setex(bucketKey, windowSeconds + 60, JSON.stringify(bucket));
+        await this.redis.setex(bucketKey, normalizedWindowSeconds + 60, JSON.stringify(bucket));
 
         return {
           allowed: true,
@@ -57,7 +71,7 @@ class TokenBucketLimiter {
       }
 
       // Token budget exhausted
-      const retryAfter = Math.ceil((cost - bucket.tokens) / (windowSeconds / windowSeconds));
+      const retryAfter = Math.max(1, Math.ceil((normalizedCost - bucket.tokens)));
 
       return {
         allowed: false,
@@ -66,13 +80,31 @@ class TokenBucketLimiter {
         resetAt: Math.ceil(bucket.resetAt / 1000),
       };
     } catch (err) {
-      this.logger.error('Rate limiter error', err);
-      // Fail open: allow on redis error
+      const normalizedWindowSeconds = Number.isFinite(windowSeconds)
+        ? Math.max(1, Math.floor(windowSeconds))
+        : this.defaultWindowSeconds;
+
+      this.logger.error('Rate limiter degraded: Redis unavailable', {
+        key,
+        failureMode: this.failureMode,
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      if (this.failureMode === 'closed') {
+        return {
+          allowed: false,
+          remaining: 0,
+          retryAfter: normalizedWindowSeconds,
+          resetAt: Math.ceil((Date.now() + normalizedWindowSeconds * 1000) / 1000),
+        };
+      }
+
+      // Default contract: fail open with the actual configured bucket capacity.
       return {
         allowed: true,
-        remaining: 1000,
+        remaining: normalizedWindowSeconds,
         retryAfter: 0,
-        resetAt: Math.ceil((Date.now() + 60000) / 1000),
+        resetAt: Math.ceil((Date.now() + normalizedWindowSeconds * 1000) / 1000),
       };
     }
   }

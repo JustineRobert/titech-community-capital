@@ -3,14 +3,14 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * African Community Finance Operating System (TITech)
  * =============================================================================
  *
  * File:
  *   backend/errors/financialErrors.js
  *
  * Purpose:
- *   Canonical financial-domain error definitions for the ACFOS backend.
+ *   Canonical financial-domain error definitions for the TITech backend.
  *
  * Design Goals:
  *   ✓ Extend the canonical AppError hierarchy

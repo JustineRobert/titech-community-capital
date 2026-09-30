@@ -2053,7 +2053,6 @@ function RevenueChartComponent({
                 ),
               ),
             ),
-        ),
       [
         normalized.series,
         rows,

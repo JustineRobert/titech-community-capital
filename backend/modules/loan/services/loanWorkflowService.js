@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * ============================================================================
  * TITech Community Capital LTD
@@ -49,32 +47,18 @@
  * ============================================================================
  */
 
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
-const logger =
-    require('../../../utils/logger');
+import logger from '../../../utils/logger.js';
+import LoanRepository from '../repositories/loanRepository.js';
+import LoanAuditRepository from '../repositories/loanAuditRepository.js';
+import ScheduleRepository from '../repositories/loanScheduleRepository.js';
+import CreditScoringService from './creditScoringService.js';
+import RiskEngineService from '../../risk/services/riskEngineService.js';
+import ComplianceService from '../../../services/complianceService.js';
+import validateInput from '../../../utils/validateInput.js';
 
-const LoanRepository =
-    require('../repositories/loanRepository');
-
-const LoanAuditRepository =
-    require('../repositories/loanAuditRepository');
-
-const ScheduleRepository =
-    require('../repositories/loanScheduleRepository');
-
-const CreditScoringService =
-    require('./creditScoringService');
-
-const RiskEngineService =
-    require('../../risk/services/riskEngineService');
-
-const ComplianceService =
-    require('../../compliance/services/complianceService');
-
-const {
-    validateLoanApplication
-} = require('../../../utils/validateInput');
+const { validateLoanApplication } = validateInput;
 
 
 /* ============================================================================
@@ -1641,7 +1625,19 @@ class LoanWorkflowService {
                 await ScheduleRepository.applyRepayment(
                     loanId,
                     amount,
-                    tenantId
+                    tenantId,
+                    {
+                        reference: paymentReference,
+                        transactionReference:
+                            repaymentData.transactionReference,
+                        paymentMethod:
+                            repaymentData.channel,
+                        providerReference:
+                            repaymentData.providerReference,
+                        transactionId:
+                            repaymentData.transactionId,
+                        paidAt: paymentDate,
+                    }
                 );
             }
 
@@ -1818,7 +1814,11 @@ class LoanWorkflowService {
             const scheduleItems =
                 Array.isArray(schedule)
                     ? schedule
-                    : [];
+                    : schedule
+                        ? (Array.isArray(schedule.installments)
+                            ? schedule.installments
+                            : [schedule])
+                        : [];
 
 
             const auditItems =
@@ -1834,14 +1834,14 @@ class LoanWorkflowService {
             const paidInstallments =
                 scheduleItems.filter(
                     item =>
-                        item.status === 'PAID'
+                        String(item.status || '').toUpperCase() === 'PAID'
                 ).length;
 
 
             const overdueInstallments =
                 scheduleItems.filter(
                     item =>
-                        item.status === 'OVERDUE'
+                        String(item.status || '').toUpperCase() === 'OVERDUE'
                 ).length;
 
 
@@ -1852,7 +1852,7 @@ class LoanWorkflowService {
                             'PENDING',
                             'DUE'
                         ].includes(
-                            item.status
+                            String(item.status || '').toUpperCase()
                         )
                 ) || null;
 
@@ -1866,16 +1866,34 @@ class LoanWorkflowService {
                         ) =>
                             total +
                             Number(
-                                installment.amountPaid || 0
+                                installment.amountPaid ??
+                                installment.paidAmount ??
+                                0
                             ),
                         0
                     )
                 );
 
 
+            const scheduleRepayable =
+                scheduleItems.reduce(
+                    (total, installment) =>
+                        total +
+                        Number(
+                            installment.amountDue ??
+                            installment.totalDue ??
+                            0
+                        ),
+                    0
+                );
+
             const totalRepayable =
-                Number(
-                    loan.totalRepayable || 0
+                this.roundMoney(
+                    Number(
+                        loan.totalRepayable ??
+                        scheduleRepayable ??
+                        0
+                    )
                 );
 
 
@@ -4186,5 +4204,5 @@ class LoanWorkflowService {
  * EXPORT
  * ========================================================================== */
 
-module.exports =
-    LoanWorkflowService;
+export default LoanWorkflowService;
+export { LoanWorkflowService };

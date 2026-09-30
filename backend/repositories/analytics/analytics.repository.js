@@ -47,7 +47,7 @@
  *
  * TITech terminology
  * ----------------------------------------------------------------------------
- * All legacy ACFOS references are replaced with TITech Community Capital.
+ * All legacy TITech references are replaced with TITech Community Capital.
  *
  * ============================================================================
  */
@@ -4599,14 +4599,6 @@ function csvEscape(
  * Factory / Exports
  * ============================================================================
  */
-
-function createAnalyticsRepository(
-    dependencies = {}
-) {
-    return new AnalyticsRepository(
-        dependencies
-    );
-}
 
 module.exports =
     Object.freeze({

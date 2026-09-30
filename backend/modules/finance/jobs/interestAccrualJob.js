@@ -8,7 +8,7 @@ const os = require('os');
 const Tenant = require('../../../modules/tenant/models/Tenant');
 
 const interestAccrualService =
-  require('../services/interestAccrualService');
+  require('../services/interestAccrualService.cjs');
 
 const AuditLog =
   require('../../../shared/models/AuditLog');

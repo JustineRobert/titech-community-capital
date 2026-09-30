@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * CHAT SERVICE (FRONTEND - ACFOS ENTERPRISE EDITION)
+ * CHAT SERVICE (FRONTEND - TITech ENTERPRISE EDITION)
  * ============================================================================
  * TITech Community Capital LTD
  *

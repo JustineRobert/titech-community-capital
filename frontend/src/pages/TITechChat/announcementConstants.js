@@ -40,7 +40,7 @@
  *   - Offline-aware.
  *   - Multi-tenant aware.
  *   - Financial-platform appropriate.
- *   - No ACFOS terminology.
+ *   - No TITech terminology.
  *
  * IMPORTANT:
  *   These values are frontend contracts. Any value exchanged with the backend

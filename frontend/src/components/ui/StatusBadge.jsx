@@ -44,7 +44,7 @@
  *   ✓ Optional click interaction
  *   ✓ Optional href
  *   ✓ Financial workflow friendly
- *   ✓ No ACFOS references
+ *   ✓ No TITech references
  *
  * ============================================================================
  */

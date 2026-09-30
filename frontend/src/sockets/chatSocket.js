@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * FRONTEND CHAT SOCKET (ACFOS ENTERPRISE EDITION)
+ * FRONTEND CHAT SOCKET (TITech ENTERPRISE EDITION)
  * ============================================================================
  * TITech Community Capital LTD
  *

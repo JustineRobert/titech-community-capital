@@ -4,7 +4,7 @@
  */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --titech-official-gradient-primary: linear-gradient(135deg, #0030A0 0%, #0058D8 48%, #0066E8 100%);
   --titech-official-gradient-impact: linear-gradient(135deg, #0030A0 0%, #0066E8 55%, #00B8F8 100%);
   --titech-official-gradient-growth: linear-gradient(135deg, #0030A0 0%, #008000 70%, #A8F000 100%);
@@ -39,6 +39,15 @@
   --titech-ui-focus-ring-strong: 0 0 0 4px rgb(0 88 216 / 0.30);
   --titech-ui-shadow-card: 0 10px 30px rgb(11 31 58 / 0.08);
   --titech-ui-shadow-dialog: 0 24px 64px rgb(11 31 58 / 0.18);
+
+  /* Canonical platform semantic tokens shared by web/PWA surfaces. */
+  --titech-color-background: #f6faff;
+  --titech-color-surface: #ffffff;
+  --titech-color-surface-muted: #eef6ff;
+  --titech-color-text: var(--titech-brand-navy);
+  --titech-color-text-muted: #456180;
+  --titech-color-border: #d8e7f5;
+  --titech-color-border-strong: #b7cfe8;
 
   /* Financial state aliases: these describe state, not business approval. */
   --titech-financial-positive: var(--titech-brand-green);

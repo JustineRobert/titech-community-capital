@@ -38,7 +38,7 @@
  * 6. CSV/JSON export must use sanitized report rows.
  * 7. Report limits are bounded to prevent accidental memory exhaustion.
  * 8. No guessed Report/ReportJob repository interface is introduced.
- * 9. ACFOS terminology is replaced with TITech Community Capital.
+ * 9. TITech terminology is replaced with TITech Community Capital.
  * 10. Authorization/RBAC remains the controller/middleware responsibility.
  *
  * Current project model notes

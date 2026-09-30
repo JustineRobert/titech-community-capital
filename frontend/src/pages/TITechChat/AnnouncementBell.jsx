@@ -40,7 +40,7 @@
  *   TITechChat
  *
  * IMPORTANT:
- *   No ACFOS terminology is intentionally used in this component.
+ *   No TITech terminology is intentionally used in this component.
  *
  * ============================================================================
  */

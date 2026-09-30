@@ -91,7 +91,7 @@
  * TITech terminology
  * ============================================================================
  *
- * All legacy ACFOS references have been replaced with TITech Community
+ * All legacy TITech references have been replaced with TITech Community
  * Capital terminology.
  *
  * ============================================================================

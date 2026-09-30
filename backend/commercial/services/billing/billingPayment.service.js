@@ -71,7 +71,7 @@ const {
 const {
     compare,
     normalizeDecimal,
-} = require("./decimalMoney");
+} = require("./decimalMoney.cjs");
 
 
 const MAX_IDEMPOTENCY_KEY_LENGTH = 255;

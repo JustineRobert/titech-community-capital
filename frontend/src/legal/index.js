@@ -63,7 +63,7 @@
 * ✓ Suitable for automated compliance validation
 * ✓ Suitable for enterprise testing
 * ✓ TITech terminology consistency
-* ✓ No ACFOS terminology
+* ✓ No TITech terminology
 *
 * Important:
 * This module is intentionally an API boundary.
@@ -492,7 +492,7 @@ getLegalDocumentsByAudience,
 * private API keys or privileged configuration.
 *
 *
-* 9. Legacy ACFOS terminology must not be introduced.
+* 9. Legacy TITech terminology must not be introduced.
 *
 * The canonical platform identity is:
 *
@@ -556,7 +556,7 @@ getLegalDocumentsByAudience,
 * ✓ No duplicate document slugs exist.
 * ✓ No duplicate public routes exist.
 * ✓ Legal configuration is internally consistent.
-* ✓ Legacy ACFOS references are absent from production legal metadata.
+* ✓ Legacy TITech references are absent from production legal metadata.
 * ✓ Contact information matches the approved legal configuration.
 *
 * ============================================================================

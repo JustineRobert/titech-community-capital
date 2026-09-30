@@ -484,11 +484,16 @@ function setTheme(
  */
 function getTheme() {
 
-    return (
+    const storedTheme =
         localStorage.getItem(
             STORAGE_KEYS.THEME
-        ) || "light"
-    );
+        );
+
+    return SUPPORTED_THEMES.includes(
+        storedTheme
+    ) && storedTheme !== "system"
+        ? storedTheme
+        : "light";
 }
 
 /**

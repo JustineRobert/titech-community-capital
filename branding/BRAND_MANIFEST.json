@@ -42,5 +42,33 @@
     "source_sha256": "5e0b6bc29a0956b06106d51fcade960c62ead690fe75f48864241f48ceb31ca7",
     "frontend_public_copy": "frontend/public/brand/titech-vision-board.png",
     "purpose": "Reference artifact defining the TITech mission, vision, strategic pillars, values, impact themes and visual color direction."
+  },
+  "platform_theme": {
+    "name": "TITech Official Platform Theme",
+    "reference_image": "branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png",
+    "reference_sha256": "8a82c0164b927cd1bba45179b7a817b12259567850fa14f71d0c9504facd2f21",
+    "role": "Authoritative visual reference supplied for the TITech web/mobile platform theme.",
+    "palette": {
+      "deep_blue": "#0030A0",
+      "electric_blue": "#0058D8",
+      "bright_blue": "#0066E8",
+      "cyan": "#00B8F8",
+      "africa_green": "#008000",
+      "lime_green": "#A8F000",
+      "gold_yellow": "#F8D800",
+      "navy_ink": "#082B67",
+      "white": "#FFFFFF"
+    },
+    "runtime_contract": {
+      "default_theme": "light",
+      "valid_themes": [
+        "light",
+        "dark"
+      ],
+      "system_preference_is_not_default": true,
+      "frontend_runtime": "frontend/src/branding/theme.js",
+      "global_css": "frontend/src/branding/official-theme.css",
+      "mobile_tokens": "mobile/branding/titech-theme.tokens.json"
+    }
   }
 }

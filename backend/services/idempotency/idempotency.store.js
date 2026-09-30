@@ -3,14 +3,14 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * African Community Finance Operating System (TITech)
  * =============================================================================
  *
  * File:
  *   backend/services/idempotency/idempotency.store.js
  *
  * Purpose:
- *   Transaction-aware persistence boundary for ACFOS idempotency records.
+ *   Transaction-aware persistence boundary for TITech idempotency records.
  *
  * Architecture:
  *

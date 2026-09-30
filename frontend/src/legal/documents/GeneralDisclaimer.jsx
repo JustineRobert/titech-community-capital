@@ -28,7 +28,7 @@
 * TITech Community Capital
 *
 * IMPORTANT:
-* Do not introduce ACFOS terminology into this document.
+* Do not introduce TITech terminology into this document.
 * TITech Community Capital is the canonical product/platform identity.
 *
 * Legal notice:

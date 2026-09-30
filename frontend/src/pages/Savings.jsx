@@ -19,7 +19,7 @@
  * - Role-aware transaction creation
  * - Accessible controls, table semantics and status messaging
  * - Empty states and resilient error handling
- * - No ACFOS terminology
+ * - No TITech terminology
  * ============================================================================
  */
 

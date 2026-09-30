@@ -1,6 +1,6 @@
 /**
  * TITech Community Capital - Official Theme Enforcement
- * Version: 2026-09-29
+ * Version: 2026-09-30
  *
  * This layer is intentionally presentation-only. It does not change financial,
  * authentication, tenancy, payment, ledger, routing or state-management logic.
@@ -63,18 +63,6 @@
   --titech-color-border-strong: #2e6a9b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root[data-titech-brand="official"][data-theme="system"] {
-    --titech-color-background: #06172d;
-    --titech-color-surface: #0b2443;
-    --titech-color-surface-muted: #103159;
-    --titech-color-text: #eff8ff;
-    --titech-color-text-muted: #b9d2e8;
-    --titech-color-text-subtle: #8eb0cf;
-    --titech-color-border: #1f4a75;
-    --titech-color-border-strong: #2e6a9b;
-  }
-}
 
 :root[data-titech-brand="official"][data-theme="light"] {
   color-scheme: light;
@@ -84,17 +72,7 @@
   color-scheme: dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root[data-titech-brand="official"][data-theme="system"] {
-    color-scheme: dark;
-  }
-}
 
-@media (prefers-color-scheme: light) {
-  :root[data-titech-brand="official"][data-theme="system"] {
-    color-scheme: light;
-  }
-}
 
 :root[data-titech-brand="official"] body {
   background: var(--titech-color-background);
@@ -272,4 +250,101 @@
   background: var(--titech-color-surface);
   border-color: var(--titech-color-border);
   color: var(--titech-color-text);
+}
+
+
+/* ========================================================================== */
+/* TITech platform-wide component contract                                  */
+/* ========================================================================== */
+
+:root[data-titech-brand="official"] .surface,
+:root[data-titech-brand="official"] .surface-muted,
+:root[data-titech-brand="official"] .card,
+:root[data-titech-brand="official"] .panel,
+:root[data-titech-brand="official"] .modal,
+:root[data-titech-brand="official"] .drawer,
+:root[data-titech-brand="official"] .popover,
+:root[data-titech-brand="official"] [role="dialog"],
+:root[data-titech-brand="official"] [data-brand-surface="surface"] {
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"] .surface-muted,
+:root[data-titech-brand="official"] [data-brand-surface="muted"] {
+  background: var(--titech-color-surface-muted);
+}
+
+:root[data-titech-brand="official"] header,
+:root[data-titech-brand="official"] nav,
+:root[data-titech-brand="official"] [data-brand-surface="navigation"] {
+  color: var(--titech-color-text);
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"] table {
+  color: var(--titech-color-text);
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"] thead,
+:root[data-titech-brand="official"] [data-brand-surface="table-header"] {
+  background: var(--titech-official-deep-blue);
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] th,
+:root[data-titech-brand="official"] td {
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"] input,
+:root[data-titech-brand="official"] textarea,
+:root[data-titech-brand="official"] select {
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+  border: 1px solid var(--titech-color-border-strong);
+}
+
+:root[data-titech-brand="official"] input::placeholder,
+:root[data-titech-brand="official"] textarea::placeholder {
+  color: var(--titech-color-text-muted);
+  opacity: 1;
+}
+
+:root[data-titech-brand="official"] .btn-primary,
+:root[data-titech-brand="official"] .button-primary,
+:root[data-titech-brand="official"] .primary-button,
+:root[data-titech-brand="official"] [data-brand-role="primary-action"] {
+  background-image: var(--titech-official-gradient-primary);
+}
+
+:root[data-titech-brand="official"] .btn-secondary,
+:root[data-titech-brand="official"] .button-secondary,
+:root[data-titech-brand="official"] [data-brand-role="secondary-action"] {
+  color: var(--titech-official-deep-blue);
+  background: var(--titech-color-surface);
+  border-color: var(--titech-official-electric-blue);
+}
+
+:root[data-titech-brand="official"] .brand-gradient,
+:root[data-titech-brand="official"] [data-brand-gradient="primary"] {
+  background-image: var(--titech-official-gradient-primary);
+}
+
+:root[data-titech-brand="official"] [data-brand-gradient="impact"] {
+  background-image: var(--titech-official-gradient-impact);
+}
+
+:root[data-titech-brand="official"] [data-brand-gradient="growth"] {
+  background-image: var(--titech-official-gradient-growth);
+}
+
+:root[data-titech-brand="official"] [data-brand-gradient="value"] {
+  background-image: var(--titech-official-gradient-value);
+}
+
+:root[data-titech-brand="official"] :focus-visible {
+  outline-color: var(--titech-official-electric-blue);
 }

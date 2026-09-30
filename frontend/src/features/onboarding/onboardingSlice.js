@@ -544,7 +544,7 @@ function normalizeUploadedFile(
     };
 }
 
-function upsertUploadedFile(
+function mergeUploadedFileState(
     files,
     file,
 ) {
@@ -1193,7 +1193,7 @@ const onboardingSlice =
                 action,
             ) {
                 state.uploadedFiles =
-                    upsertUploadedFile(
+                    mergeUploadedFileState(
                         state.uploadedFiles,
                         action.payload,
                     );
@@ -1208,7 +1208,7 @@ const onboardingSlice =
                 action,
             ) {
                 state.uploadedFiles =
-                    upsertUploadedFile(
+                    mergeUploadedFileState(
                         state.uploadedFiles,
                         action.payload,
                     );

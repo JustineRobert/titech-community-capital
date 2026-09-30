@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITechChat SOCKET LAYER (ACFOS ENTERPRISE EDITION)
+ * TITechChat SOCKET LAYER (TITech ENTERPRISE EDITION)
  * ============================================================================
  * TITech Community Capital LTD
  *

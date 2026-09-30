@@ -4,7 +4,7 @@
  * ============================================================================
  * SUPPORT THREAD CONTROLLER
  * ============================================================================
- * TITech Community Capital LTD (ACFOS)
+ * TITech Community Capital LTD (TITech)
  * TITechChat Enterprise Communication Platform
  *
  * PURPOSE
@@ -22,7 +22,7 @@
  * FEATURES
  * ----------------------------------------------------------------------------
  * ✅ Support Thread Creation
- * ✅ ACFOS Entity Binding Enforcement
+ * ✅ TITech Entity Binding Enforcement
  * ✅ RBAC Ready (Support/Admin roles)
  * ✅ Audit-Friendly Structure
  * ✅ Linked Ticket Traceability
@@ -58,7 +58,7 @@ exports.createSupportThread = async (
 
     /*
     |--------------------------------------------------------------------------
-    | ACFOS VALIDATION: ENTITY THREAD RULE
+    | TITech VALIDATION: ENTITY THREAD RULE
     |--------------------------------------------------------------------------
     | Every support thread MUST be linked to a valid support ticket
     |--------------------------------------------------------------------------

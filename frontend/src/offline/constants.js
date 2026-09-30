@@ -2673,7 +2673,7 @@ function requiresIdempotency(
  * =============================================================================
  *
  * These aliases make the constants layer easier to consume during migration
- * from older offline implementations without reintroducing legacy ACFOS naming.
+ * from older offline implementations without reintroducing legacy TITech naming.
  * =============================================================================
  */
 

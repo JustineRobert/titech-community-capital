@@ -327,15 +327,22 @@ function validatePhoneNumber(
         "Phone Number"
     );
 
-    const regex =
-        /^\+?[0-9]{9,15}$/;
+    const normalized =
+        String(phone).trim();
+
+    // TITech stores/cross-integrates phone identifiers in E.164 form.
+    // A country prefix is therefore mandatory at this generic boundary.
+    // Local/national presentation formats belong to a country-aware
+    // normalization layer before calling this validator.
+    const e164Regex =
+        /^\+[1-9]\d{7,14}$/;
 
     if (
-        !regex.test(phone)
+        !e164Regex.test(normalized)
     ) {
 
         throw new ApiError(
-            "Invalid phone number",
+            "Invalid phone number. Expected E.164 format, e.g. +256772123546",
             HttpStatus.BAD_REQUEST,
             "INVALID_PHONE"
         );

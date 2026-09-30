@@ -84,7 +84,7 @@
  * -----------------------------------------------------------------------------
  * This controller deliberately contains NO direct database access.
  *
- * This controller deliberately contains NO ACFOS naming.
+ * This controller deliberately contains NO TITech naming.
  *
  * =============================================================================
  */

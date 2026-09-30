@@ -2255,7 +2255,7 @@ export function validateLegalRegistry() {
 
     if (serializedDocument.includes('acfos')) {
       errors.push(
-        `${prefix} Legacy ACFOS terminology detected. Use TITech terminology.`
+        `${prefix} Legacy TITech terminology detected. Use TITech terminology.`
       );
     }
   }

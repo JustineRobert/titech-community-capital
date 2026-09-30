@@ -230,11 +230,11 @@ export const COMPONENT_REGISTRY =
 // ============================================================================
 
 export const UI_VERSION =
-  process.env.REACT_APP_UI_VERSION ||
+  import.meta.env.VITE_UI_VERSION ||
   "1.0.0";
 
 export const UI_BUILD =
-  process.env.REACT_APP_BUILD_NUMBER ||
+  import.meta.env.VITE_BUILD_NUMBER ||
   "development";
 
 // ============================================================================

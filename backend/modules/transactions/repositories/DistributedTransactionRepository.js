@@ -811,7 +811,7 @@ class DistributedTransactionRepository {
             );
 
 
-        const history =
+        const normalizedHistory =
             this.limitHistory(
                 snapshot.history
             );
@@ -833,7 +833,7 @@ class DistributedTransactionRepository {
             completedOperations,
 
             executionHistory:
-                history,
+                normalizedHistory,
 
             failure:
                 this.normalizeFailure(

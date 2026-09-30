@@ -48,7 +48,7 @@
  *
  * TITech terminology
  * ----------------------------------------------------------------------------
- * All legacy ACFOS terminology is replaced with TITech Community Capital.
+ * All legacy TITech terminology is replaced with TITech Community Capital.
  *
  * ============================================================================
  */

@@ -3,14 +3,14 @@
 /**
  * =============================================================================
  * TITech Community Capital LTD
- * African Community Finance Operating System (ACFOS)
+ * African Community Finance Operating System (TITech)
  * =============================================================================
  *
  * File:
  *   backend/models/loan.model.js
  *
  * Purpose:
- *   Enterprise-grade MongoDB/Mongoose loan aggregate for ACFOS.
+ *   Enterprise-grade MongoDB/Mongoose loan aggregate for TITech.
  *
  * Financial invariants:
  *

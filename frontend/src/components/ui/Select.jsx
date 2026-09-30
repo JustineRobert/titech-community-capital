@@ -62,7 +62,7 @@
  *   ✓ Enterprise-friendly defaults
  *
  * Important:
- *   This component contains no ACFOS references.
+ *   This component contains no TITech references.
  *
  * ============================================================================
  */

@@ -4,7 +4,7 @@
  * ============================================================================
  * CONVERSATION SERVICE
  * ============================================================================
- * TITech Community Capital LTD (ACFOS)
+ * TITech Community Capital LTD (TITech)
  * TITechChat Enterprise Communication Platform
  *
  * PURPOSE
@@ -12,7 +12,7 @@
  * Central business service responsible for conversation lifecycle management.
  *
  * TITechChat is not an open social chat system. Conversations are tightly
- * coupled to ACFOS business entities:
+ * coupled to TITech business entities:
  *
  * ✅ Group Discussions
  * ✅ Loan Threads
@@ -145,7 +145,7 @@ class ConversationService {
 
       /*
       |--------------------------------------------------------------------------
-      | ACFOS Restriction
+      | TITech Restriction
       |--------------------------------------------------------------------------
       */
 
@@ -165,7 +165,7 @@ class ConversationService {
           !payload.linkedEntityId
         ) {
           throw new Error(
-            'Business conversations must be linked to an ACFOS entity.'
+            'Business conversations must be linked to an TITech entity.'
           );
         }
       }

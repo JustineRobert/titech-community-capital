@@ -55,10 +55,10 @@ import {
  * NOTE
  * -----------------------------------------------------------------------------
  *
- * Tokens are retained in browser storage here for compatibility with the
- * existing application architecture. For the strongest web security model,
- * prefer Secure + HttpOnly + SameSite cookies for refresh/session credentials
- * and keep access-token exposure as narrow as possible.
+ * Tokens are memory-only. The backend owns the refresh credential in an
+ * HttpOnly + Secure cookie, while the access token is supplied to the Redux
+ * slice only for active runtime use. Persisted Redux/auth state is explicitly
+ * sanitized by the store persistence transform and contains no token.
  * =============================================================================
  */
 
@@ -477,22 +477,11 @@ function addError(
 
 function persistSession(
     {
-        token,
-        refreshToken,
         user,
         tenantId,
     },
 ) {
-    safeStorageSet(
-        AUTH_STORAGE_KEYS.TOKEN,
-        token,
-    );
-
-    safeStorageSet(
-        AUTH_STORAGE_KEYS.REFRESH_TOKEN,
-        refreshToken,
-    );
-
+    // Credentials are intentionally excluded from browser storage.
     safeStorageSet(
         AUTH_STORAGE_KEYS.USER,
         user,
@@ -541,16 +530,8 @@ function clearPersistedSession() {
 }
 
 function readStoredSession() {
-    const token =
-        safeStorageGet(
-            AUTH_STORAGE_KEYS.TOKEN,
-        );
-
-    const refreshToken =
-        safeStorageGet(
-            AUTH_STORAGE_KEYS.REFRESH_TOKEN,
-        );
-
+    // Authentication credentials are not restored from browser storage.
+    // The refresh/session handshake must obtain a fresh access token.
     const user =
         parseStoredJson(
             AUTH_STORAGE_KEYS.USER,
@@ -562,11 +543,9 @@ function readStoredSession() {
         );
 
     return {
-        token:
-            token || null,
+        token: null,
 
-        refreshToken:
-            refreshToken || null,
+        refreshToken: null,
 
         user,
 
@@ -761,11 +740,9 @@ const authSlice =
                 state.user =
                     stored.user;
 
-                state.token =
-                    stored.token;
+                state.token = null;
 
-                state.refreshToken =
-                    stored.refreshToken;
+                state.refreshToken = null;
 
                 state.tenantId =
                     stored.tenantId ||
@@ -996,8 +973,6 @@ const authSlice =
                     tenantId;
 
                 persistSession({
-                    token,
-                    refreshToken,
                     user,
                     tenantId,
                 });
@@ -1160,25 +1135,10 @@ const authSlice =
                     state.user?.tenantId ||
                     null;
 
-                safeStorageSet(
-                    AUTH_STORAGE_KEYS.TOKEN,
-                    state.token,
-                );
-
-                safeStorageSet(
-                    AUTH_STORAGE_KEYS.REFRESH_TOKEN,
-                    state.refreshToken,
-                );
-
-                safeStorageSet(
-                    AUTH_STORAGE_KEYS.USER,
-                    state.user,
-                );
-
-                safeStorageSet(
-                    AUTH_STORAGE_KEYS.TENANT,
-                    state.tenantId,
-                );
+                persistSession({
+                    user: state.user,
+                    tenantId: state.tenantId,
+                });
 
                 state.sessionVersion =
                     safeStorageGet(
@@ -1515,21 +1475,16 @@ const authSlice =
                 state.user =
                     session.user;
 
-                state.token =
-                    session.token;
+                state.token = null;
 
-                state.refreshToken =
-                    session.refreshToken;
+                state.refreshToken = null;
 
                 state.tenantId =
                     session.tenantId ||
                     session.user?.tenantId ||
                     null;
 
-                state.authenticated =
-                    Boolean(
-                        session.token,
-                    );
+                state.authenticated = false;
 
                 state.status =
                     state.authenticated
