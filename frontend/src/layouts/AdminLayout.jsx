@@ -27,6 +27,7 @@ import {
   CreditCard,
   Receipt,
   FileText,
+  Banknote,
   Settings,
   Menu,
   X,
@@ -129,6 +130,14 @@ export default function AdminLayout() {
             FileText,
           path:
             "/reports",
+        },
+        {
+          label:
+            "Payroll",
+          icon:
+            Banknote,
+          path:
+            "/payroll",
         },
       ];
 

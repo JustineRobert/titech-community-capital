@@ -136,6 +136,30 @@ Institutional Capital
 * Regulatory reporting foundations
 * Enterprise observability
 
+### Enterprise Employer Payroll
+
+TITech now includes an employer payroll orchestration boundary under `backend/modules/payroll` and `frontend/src/features/payroll`. The payroll layer is designed to sit on top of the existing tenant, authentication, provider, financial-core, reconciliation and audit architecture rather than replace it.
+
+Core API surface:
+
+```text
+POST /api/v1/payroll/uploadPayroll
+POST /api/v1/payroll/processBatch
+POST /api/v1/payroll/reconcile
+GET  /api/v1/payroll/report
+POST /api/v1/payroll/retryFailed
+POST /api/v1/payroll/webhookSubscriptions
+GET  /api/v1/payroll/webhookSubscriptions
+DELETE /api/v1/payroll/webhookSubscriptions/:subscriptionId
+POST /api/v1/payroll/testWebhook
+GET  /api/v1/payroll/testWebhook/auditLogs
+POST /webhooks
+```
+
+Payroll controls include tenant-scoped RBAC (`ADMIN`, `AUDITOR`, `EMPLOYER_USER`), bounded CSV ingestion, idempotency, provider status tracking, explicit `UNKNOWN` state handling, separate `financialPostingStatus`, signed employer callbacks, replay protection, secure webhook-secret storage, callback SSRF protections, audit evidence and a simulator. See [`docs/payroll/IMPLEMENTATION.md`](docs/payroll/IMPLEMENTATION.md) and [`docs/payroll/OPENAPI.yaml`](docs/payroll/OPENAPI.yaml).
+
+> **Verification boundary:** the repository contains the implementation and static verification work, but live provider certification, configured MongoDB/Redis, secrets, real E2E execution, production infrastructure and regulatory approval remain required evidence gates.
+
 ### Payments
 
 The architecture is designed to support integrations with payment and mobile-money providers, including African mobile-money ecosystems.

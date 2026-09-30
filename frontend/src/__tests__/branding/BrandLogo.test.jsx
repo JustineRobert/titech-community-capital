@@ -31,3 +31,12 @@ describe('BrandLogo', () => {
     expect(image).toHaveAttribute('aria-hidden', 'true');
   });
 });
+
+describe('BrandLogo DOM contract', () => {
+  it('forwards fetchPriority as the supported lowercase HTML attribute', () => {
+    render(<BrandLogo fetchPriority="high" testId="priority-logo" />);
+    const image = screen.getByTestId('priority-logo');
+    expect(image).toHaveAttribute('fetchpriority', 'high');
+    expect(image).not.toHaveAttribute('fetchPriority');
+  });
+});

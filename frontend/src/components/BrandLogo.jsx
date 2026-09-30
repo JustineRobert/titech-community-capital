@@ -55,7 +55,7 @@ function BrandLogo({
       height={resolvedHeight}
       loading={loading}
       decoding="async"
-      fetchPriority={fetchPriority}
+      fetchpriority={fetchPriority}
       data-testid={testId}
       data-brand-asset-variant={variant}
       data-brand-component="official-logo"

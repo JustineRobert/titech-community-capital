@@ -76,6 +76,7 @@ import ReactDOM from 'react-dom/client';
 import Providers from './app/providers';
 import './index.css';
 import './branding/brand.css';
+import './branding/official-theme.css';
 import AppRoutes from './routes/AppRoutes';
 import TITECH_BRAND from './branding/brand';
 
@@ -605,6 +606,9 @@ function applyOfficialBrandRuntime() {
     rootElement.dataset[
       OFFICIAL_BRAND_DATASET_KEY
     ] =
+      'official';
+
+    rootElement.dataset.titechBrandName =
       OFFICIAL_BRAND_NAME;
 
     // ------------------------------------------------------------------------
@@ -624,6 +628,9 @@ function applyOfficialBrandRuntime() {
       document.body.dataset[
         OFFICIAL_BRAND_DATASET_KEY
       ] =
+        'official';
+
+      document.body.dataset.titechBrandName =
         OFFICIAL_BRAND_NAME;
     }
 

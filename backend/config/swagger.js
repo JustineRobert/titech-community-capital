@@ -267,6 +267,7 @@ const DEFAULTS =
             [
                 'backend/routes/**/*.js',
                 'backend/controllers/**/*.js',
+                'backend/modules/payroll/**/*.js',
             ],
 
         excludePatterns:

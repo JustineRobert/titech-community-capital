@@ -11,6 +11,8 @@ import repaymentsControllerModule from '../controllers/repaymentsController.js';
 import consentRoutes from '../modules/consent/consent.routes.js';
 import capitalRoutes from '../modules/capital/capital.routes.js';
 import operationsRoutes from '../modules/operations/operations.routes.js';
+import tenantMiddlewareModule from '../middleware/tenantMiddleware.js';
+import { payrollApiRouter, payrollWebhookRouter } from '../modules/payroll/payroll.routes.js';
 
 /**
  * =============================================================================
@@ -109,7 +111,7 @@ const ROUTE_REGISTRY_NAME =
     'titech-api-v1';
 
 const ROUTE_REGISTRY_VERSION =
-    '1.2.0';
+    '1.3.0';
 
 const API_VERSION =
     'v1';
@@ -608,11 +610,18 @@ if (
  */
 
 const tenantAuthorizationModule =
+    resolveMiddlewareExport(
+        tenantMiddlewareModule,
+        [
+            'tenantAuthorization',
+            'requireTenant',
+            'tenantMiddleware',
+        ],
+    ) ||
     resolveOptionalModule(
         [
             '../middleware/tenantAuthorization',
             '../middleware/tenant.authorization',
-            '../middleware/tenantMiddleware',
             '../middleware/tenant',
         ],
     );
@@ -1807,6 +1816,19 @@ function registerRoutes(
         '/api/email',
         emailRoutes,
     );
+
+    // ------------------------------------------------------------------------
+    // Payroll API and provider callback boundaries.
+    //
+    // Payroll routes own their RBAC/tenant boundary. Provider callbacks remain
+    // outside the authenticated API router and are protected by their
+    // provider-signature policy. Two API mounts preserve both the explicit
+    // payroll namespace and the legacy-style endpoint names requested by the
+    // product contract.
+    // ------------------------------------------------------------------------
+    app.use('/api/v1/payroll', payrollApiRouter);
+    app.use('/api/v1', payrollApiRouter);
+    app.use('/webhooks', payrollWebhookRouter);
 
     app.use(
         normalizedMountPath,

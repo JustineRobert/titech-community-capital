@@ -95,6 +95,7 @@ const ROUTES = Object.freeze({
   TRANSACTIONS: '/transactions',
   REPORTS: '/reports',
   SETTINGS: '/settings',
+  PAYROLL: '/payroll',
 });
 
 // ============================================================================
@@ -248,6 +249,11 @@ const PrivacyPolicy =
 const Settings = lazyWithRecovery(
   () => import('../pages/Settings'),
   'Settings'
+);
+
+const Payroll = lazyWithRecovery(
+  () => import('../pages/Payroll'),
+  'Payroll'
 );
 
 const NotFound = lazyWithRecovery(
@@ -601,6 +607,13 @@ function ApplicationRouteTree() {
             path={ROUTES.REPORTS}
             element={
               <Reports />
+            }
+          />
+
+          <Route
+            path={ROUTES.PAYROLL}
+            element={
+              <Payroll />
             }
           />
 

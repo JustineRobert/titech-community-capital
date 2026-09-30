@@ -201,3 +201,75 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ========================================================================== */
+/* Global platform token harmonization                                      */
+/* ========================================================================== */
+
+:root[data-titech-brand="official"] {
+  --primary: var(--titech-official-deep-blue);
+  --primary-color: var(--titech-official-deep-blue);
+  --primary-blue: var(--titech-official-deep-blue);
+  --accent: var(--titech-official-electric-blue);
+  --accent-color: var(--titech-official-electric-blue);
+  --secondary: var(--titech-official-electric-blue);
+  --success: var(--titech-official-green);
+  --info: var(--titech-official-cyan);
+  --warning: var(--titech-official-gold);
+  --danger: #a61b1b;
+  --background: var(--titech-color-background);
+  --background-color: var(--titech-color-background);
+  --surface: var(--titech-color-surface);
+  --surface-color: var(--titech-color-surface);
+  --card-background: var(--titech-color-surface);
+  --text: var(--titech-color-text);
+  --text-color: var(--titech-color-text);
+  --text-muted: var(--titech-color-text-muted);
+  --border: var(--titech-color-border);
+  --border-color: var(--titech-color-border);
+  --focus-color: var(--titech-focus-color);
+  --titech-brand-deep-blue: var(--titech-official-deep-blue);
+  --titech-brand-electric-blue: var(--titech-official-electric-blue);
+  --titech-brand-bright-blue: var(--titech-official-bright-blue);
+  --titech-brand-cyan: var(--titech-official-cyan);
+  --titech-brand-green: var(--titech-official-green);
+  --titech-brand-lime: var(--titech-official-lime);
+  --titech-brand-gold: var(--titech-official-gold);
+  --titech-brand-navy: var(--titech-official-navy);
+  --titech-brand-white: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .btn-primary,
+:root[data-titech-brand="official"] .button-primary,
+:root[data-titech-brand="official"] .primary-button,
+:root[data-titech-brand="official"] [data-brand-role="primary-action"] {
+  background: var(--titech-official-deep-blue);
+  border-color: var(--titech-official-deep-blue);
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .btn-primary:hover,
+:root[data-titech-brand="official"] .button-primary:hover,
+:root[data-titech-brand="official"] .primary-button:hover,
+:root[data-titech-brand="official"] [data-brand-role="primary-action"]:hover {
+  background: var(--titech-official-electric-blue);
+  border-color: var(--titech-official-electric-blue);
+}
+
+:root[data-titech-brand="official"] .app-shell,
+:root[data-titech-brand="official"] .dashboard-shell,
+:root[data-titech-brand="official"] .page-shell,
+:root[data-titech-brand="official"] .content-shell {
+  background: var(--titech-color-background);
+  color: var(--titech-color-text);
+}
+
+:root[data-titech-brand="official"] .card,
+:root[data-titech-brand="official"] .panel,
+:root[data-titech-brand="official"] .modal,
+:root[data-titech-brand="official"] .table-container,
+:root[data-titech-brand="official"] [data-brand-surface="card"] {
+  background: var(--titech-color-surface);
+  border-color: var(--titech-color-border);
+  color: var(--titech-color-text);
+}

@@ -1800,14 +1800,6 @@ NotificationProvider.propTypes = {
 // Defaults
 // ============================================================================
 
-NotificationProvider.defaultProps = {
-  autoLoad: true,
-  realtime: true,
-  enableBrowserNotifications: true,
-  enableToastNotifications: true,
-  pageSize: DEFAULT_PAGE_SIZE,
-  maxNotifications: MAX_NOTIFICATIONS,
-};
 
 // ============================================================================
 // Exports

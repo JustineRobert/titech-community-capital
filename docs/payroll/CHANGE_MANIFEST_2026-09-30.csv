@@ -1,0 +1,35 @@
+Path,Change Type,Reason,Impact,Tests/Evidence
+backend/modules/payroll/models/PayrollBatch.cjs,ADDED,Durable tenant-scoped payroll batch lifecycle evidence,Batch status totals and idempotent upload persistence,Node syntax
+backend/modules/payroll/models/PayrollTransaction.cjs,ADDED,Durable per-employee provider and financial evidence,Tracks provider state posting state attempts and reconciliation,Node syntax
+backend/modules/payroll/models/WebhookSubscription.cjs,ADDED,Secure employer callback subscription persistence,Encrypted secret and tenant-scoped subscription management,Node syntax
+backend/modules/payroll/payroll.constants.cjs,ADDED,Define payroll roles states events limits and audit actions,Shared workflow contract,Node syntax
+backend/modules/payroll/payroll.crypto.cjs,ADDED,Encrypt webhook secrets and provide HMAC signing/replay protection,Secure employer callback authenticity,Payroll crypto smoke
+backend/modules/payroll/payroll.csv.cjs,ADDED,Bounded CSV parsing and field validation,Safe payroll ingestion and single-currency batches,Payroll CSV smoke
+backend/modules/payroll/payroll.errors.cjs,ADDED,Stable machine-readable payroll errors,Consistent API failure contract,Node syntax
+backend/modules/payroll/payroll.financialGateway.cjs,ADDED,Delegate accounting to canonical financial services,Prevents direct ledger/balance mutation,Node syntax
+backend/modules/payroll/payroll.providerGateway.cjs,ADDED,Delegate provider execution to existing MTN/Airtel service boundaries,Prevents a parallel provider HTTP stack,Node syntax
+backend/modules/payroll/payroll.routes.js,ADDED,Expose payroll API provider callback and simulator endpoints,Server-side RBAC tenant enforcement idempotency and safe errors,Node syntax + OpenAPI marker check
+backend/modules/payroll/payroll.service.cjs,ADDED,Orchestrate upload process reconcile retry report subscriptions callbacks and audit,End-to-end payroll workflow while preserving financial authority,Node syntax + payroll smoke
+backend/tests/unit/payroll/payroll.crypto.test.js,ADDED,Regression coverage for encryption signing and replay checks,Prevents callback security regressions,Test source added; suite not executed due dependency block
+backend/tests/unit/payroll/payroll.csv.test.js,ADDED,Regression coverage for CSV validation boundaries,Prevents unsafe payroll ingestion,Test source added; suite not executed due dependency block
+docs/payroll/CHANGE_MANIFEST_2026-09-30.csv,ADDED,Machine-readable change discovery and traceability,Complete baseline-to-updated file manifest,Manifest generated from supplied archive baseline
+docs/payroll/IMPLEMENTATION.md,ADDED,Document payroll architecture security and verification boundary,Operational implementation contract,Documentation inspection
+docs/payroll/OPENAPI.yaml,ADDED,Document payroll endpoints RBAC JWT examples HMAC simulator and error examples,Portable API contract,PyYAML parse + marker check
+docs/payroll/REMEDIATION_REPORT_2026-09-30.md,ADDED,Record root causes changes evidence and blockers,Prevents unsupported production-readiness claims,Documentation generated from executed checks
+docs/payroll/FILE_CHANGE_DISCOVERY_2026-09-30.md,ADDED,Provide ordered folder and file discovery from supplied baseline,Explains exactly where payroll branding and runtime changes landed,Baseline-to-updated comparison
+frontend/src/__tests__/payroll/payrollPage.contract.test.jsx,ADDED,Protect payroll page RBAC visibility contract,Prevents auditor/admin UX regression,Test source added; suite not executed due dependency block
+frontend/src/features/payroll/payrollApi.js,ADDED,Centralize frontend payroll API calls,Environment-safe API paths idempotency and callback subscription calls,Source inspection
+frontend/src/pages/Payroll.css,ADDED,Style payroll UI with official TITech token system,Brand-consistent responsive payroll UX,Source inspection
+frontend/src/pages/Payroll.jsx,ADDED,Provide employer/admin/auditor payroll UI,Operational access to upload report process reconcile retry subscriptions simulator and audit log,Source inspection
+README.md,MODIFIED,Document enterprise payroll capability and verification boundary,Public repository discoverability without overstating readiness,Source inspection
+backend/.env.example,MODIFIED,Document payroll encryption/provider webhook settings,Explicit environment contract,Source inspection
+backend/config/swagger.js,MODIFIED,Include payroll route annotations in generated Swagger,Payroll documentation coverage,Source inspection
+backend/routes/index.js,MODIFIED,Replace risky CommonJS tenant middleware resolution with authoritative ESM import and mount payroll routers,Removes concrete startup module-boundary failure and exposes payroll routes,Node syntax + enterprise syntax gate
+frontend/src/__tests__/branding/BrandLogo.test.jsx,MODIFIED,Add regression coverage for lowercase fetchpriority DOM attribute,Prevents React warning regression,Test source added; suite not executed due dependency block
+frontend/src/branding/official-theme.css,MODIFIED,Map official TITech palette to global UI tokens and common components,Applies deep blue electric blue bright blue cyan Africa green lime gold navy and white across platform tokens,Source inspection
+frontend/src/components/BrandLogo.jsx,MODIFIED,Consume fetchPriority component prop and forward supported lowercase DOM attribute,Removes React DOM warning without suppressing validation,Node/JSX source inspection
+frontend/src/components/ui/NotificationProvider.jsx,MODIFIED,Remove obsolete function-component defaultProps declaration,Removes reported React defaultProps warning while retaining parameter defaults,Node/JSX source inspection
+frontend/src/index.js,MODIFIED,Import official theme and publish canonical official brand marker,Activates official palette for alternate entry point,Source inspection
+frontend/src/layouts/AdminLayout.jsx,MODIFIED,Add protected Payroll navigation item,Expose payroll operations in admin navigation,Source inspection
+frontend/src/main.jsx,MODIFIED,Import official theme and normalize runtime brand marker,Activates official palette in canonical entry point,Source inspection
+frontend/src/routes/AppRoutes.jsx,MODIFIED,Add protected Payroll route,Connects frontend page to application routing,Source inspection

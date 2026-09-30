@@ -1,0 +1,202 @@
+.titech-payroll {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  color: var(--titech-color-text);
+}
+
+.titech-payroll__hero,
+.titech-payroll__card {
+  border: 1px solid var(--titech-color-border);
+  border-radius: 1rem;
+  padding: 1.1rem;
+}
+
+.titech-payroll__hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, var(--titech-official-deep-blue), var(--titech-official-electric-blue));
+  color: var(--titech-official-white);
+  border: 0;
+}
+
+.titech-payroll__hero p {
+  max-width: 70rem;
+  margin: 0.4rem 0 0;
+}
+
+.titech-payroll__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.titech-payroll__metrics,
+.titech-payroll__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.titech-payroll__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.titech-payroll__metric {
+  border: 1px solid var(--titech-color-border);
+  background: var(--titech-color-surface);
+  border-radius: 0.85rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.titech-payroll__metric span,
+.titech-payroll__subscription span,
+.titech-payroll__readonly,
+.titech-payroll__empty,
+.titech-payroll__audit span {
+  color: var(--titech-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.titech-payroll__card-heading {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.titech-payroll__card-heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.titech-payroll form,
+.titech-payroll label {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.titech-payroll input[type='url'],
+.titech-payroll input[type='text'],
+.titech-payroll input:not([type]),
+.titech-payroll input[type='file'] {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--titech-color-border-strong);
+  border-radius: 0.6rem;
+  padding: 0.65rem;
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+}
+
+.titech-payroll button {
+  border: 1px solid var(--titech-official-deep-blue);
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  background: transparent;
+  color: var(--titech-official-deep-blue);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.titech-payroll button.titech-official-primary {
+  background: var(--titech-official-deep-blue);
+  color: var(--titech-official-white);
+  border-color: var(--titech-official-deep-blue);
+}
+
+.titech-payroll button.titech-official-interactive {
+  background: var(--titech-official-electric-blue);
+  color: var(--titech-official-white);
+  border-color: var(--titech-official-electric-blue);
+}
+
+.titech-payroll button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.titech-payroll__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.titech-payroll fieldset {
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.6rem;
+}
+
+.titech-payroll__check {
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.titech-payroll__table-wrap {
+  overflow-x: auto;
+}
+
+.titech-payroll table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.titech-payroll th,
+.titech-payroll td {
+  padding: 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--titech-color-border);
+  white-space: nowrap;
+}
+
+.titech-payroll__subscription,
+.titech-payroll__audit > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--titech-color-border);
+}
+
+.titech-payroll__subscription div:first-child,
+.titech-payroll__audit > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+@media (max-width: 900px) {
+  .titech-payroll__metrics,
+  .titech-payroll__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .titech-payroll {
+    padding: 0.8rem;
+  }
+
+  .titech-payroll__metrics,
+  .titech-payroll__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .titech-payroll__hero {
+    align-items: flex-start;
+  }
+}
+
+.titech-payroll__secret code {
+  display: block;
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+  background: var(--titech-color-surface-muted);
+  border-radius: 0.6rem;
+  color: var(--titech-official-navy);
+}

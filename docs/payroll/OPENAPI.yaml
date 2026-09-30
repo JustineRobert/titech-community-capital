@@ -1,0 +1,330 @@
+openapi: 3.1.0
+info:
+  title: TITech Community Capital Employer Payroll API
+  version: 1.0.0
+  description: |
+    Production-oriented employer payroll disbursement contract for TITech Community Capital.
+    Financial completion remains authoritative to TITech's provider/ledger/reconciliation
+    architecture. Provider acceptance or a locally queued intent is not settlement.
+servers:
+  - url: https://api.example.com
+    description: Production placeholder
+  - url: http://localhost:5000
+    description: Local development
+security:
+  - BearerAuth: []
+tags:
+  - name: Payroll
+paths:
+  /api/v1/payroll/uploadPayroll:
+    post:
+      tags: [Payroll]
+      summary: Upload and validate a CSV payroll batch
+      x-rbac: [ADMIN, EMPLOYER_USER]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - in: header
+          name: X-Filename
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema: { type: string }
+            example: |
+              employeeId,employeeName,phoneNumber,amount,currency,provider
+              EMP-001,Grace Namara,256700000001,150000,UGX,MTN_MOMO
+              EMP-002,John Okello,256700000002,225000,UGX,AIRTEL_MONEY
+      responses:
+        '201': { description: Payroll batch created }
+        '200': { description: Idempotent replay of the existing upload }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/v1/payroll/processBatch:
+    post:
+      tags: [Payroll]
+      summary: Process pending payroll transactions
+      x-rbac: [ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batchId]
+              properties:
+                batchId: { type: string }
+      responses:
+        '200': { description: Batch processing result }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '504': { $ref: '#/components/responses/ProviderTimeout' }
+  /api/v1/payroll/reconcile:
+    post:
+      tags: [Payroll]
+      summary: Reconcile provider statuses with TITech payroll records
+      x-rbac: [ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batchId]
+              properties:
+                batchId: { type: string }
+      responses:
+        '200': { description: Reconciliation result }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '504': { $ref: '#/components/responses/ProviderTimeout' }
+  /api/v1/payroll/report:
+    get:
+      tags: [Payroll]
+      summary: View tenant-scoped payroll reports
+      x-rbac: [ADMIN, AUDITOR, EMPLOYER_USER]
+      parameters:
+        - { in: query, name: batchId, schema: { type: string } }
+        - { in: query, name: status, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Payroll report
+          content:
+            application/json:
+              example:
+                success: true
+                page: 1
+                pageSize: 20
+                total: 2
+                batches: []
+                transactions: []
+  /api/v1/payroll/retryFailed:
+    post:
+      tags: [Payroll]
+      summary: Retry only explicitly failed payroll transactions
+      x-rbac: [ADMIN]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                batchId: { type: string }
+      responses:
+        '200': { description: Retry result }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '504': { $ref: '#/components/responses/ProviderTimeout' }
+  /api/v1/payroll/webhookSubscriptions:
+    post:
+      tags: [Payroll]
+      summary: Register employer callback URL
+      x-rbac: [ADMIN, EMPLOYER_USER]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [callbackUrl, events]
+              properties:
+                callbackUrl: { type: string, format: uri }
+                events:
+                  type: array
+                  items:
+                    type: string
+                    enum: [BATCH_PROCESSED, RECONCILED, RETRY_ATTEMPTED]
+      responses:
+        '201':
+          description: Subscription created. The plaintext secret is returned once.
+          content:
+            application/json:
+              example:
+                success: true
+                secret: ONE_TIME_BASE64URL_SECRET
+                subscription:
+                  subscriptionId: sub_123
+                  callbackUrl: https://employer.example.com/titech/webhooks
+                  events: [BATCH_PROCESSED, RECONCILED]
+    get:
+      tags: [Payroll]
+      summary: List employer callback subscriptions
+      x-rbac: [ADMIN, EMPLOYER_USER]
+      responses:
+        '200': { description: Subscription list }
+  /api/v1/payroll/webhookSubscriptions/{subscriptionId}:
+    delete:
+      tags: [Payroll]
+      summary: Delete an employer callback subscription
+      x-rbac: [ADMIN, EMPLOYER_USER]
+      parameters:
+        - { in: path, name: subscriptionId, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Subscription deleted }
+  /api/v1/payroll/testWebhook:
+    post:
+      tags: [Payroll]
+      summary: Send a signed simulator callback to an employer subscription
+      x-rbac: [ADMIN, EMPLOYER_USER]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscriptionId, eventType]
+              properties:
+                subscriptionId: { type: string }
+                eventType:
+                  type: string
+                  enum: [BATCH_PROCESSED, RECONCILED, RETRY_ATTEMPTED]
+      responses:
+        '200': { description: Simulator dispatch result }
+  /api/v1/payroll/testWebhook/auditLogs:
+    get:
+      tags: [Payroll]
+      summary: View webhook simulator audit records
+      x-rbac: [ADMIN, AUDITOR, EMPLOYER_USER]
+      responses:
+        '200': { description: Audit record page }
+  /webhooks:
+    post:
+      tags: [Payroll]
+      summary: Provider payroll status webhook
+      security: []
+      description: |
+        Public callback boundary. In production, enable provider HMAC verification
+        with TITECH_PAYROLL_WEBHOOK_REQUIRE_SIGNATURE=true and provision
+        TITECH_PAYROLL_PROVIDER_WEBHOOK_SECRET.
+      parameters:
+        - in: header
+          name: X-TITech-Provider-Signature
+          schema: { type: string, example: sha256=hex_digest }
+        - in: header
+          name: X-TITech-Provider-Timestamp
+          schema: { type: string, format: date-time }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, transactionId, status]
+              properties:
+                provider: { type: string, enum: [MTN_MOMO, AIRTEL_MONEY] }
+                transactionId: { type: string }
+                batchId: { type: string }
+                status: { type: string }
+                providerRef: { type: string }
+                errorCode: { type: string }
+                message: { type: string }
+            example:
+              provider: MTN_MOMO
+              transactionId: mtn-ref-001
+              batchId: payroll_batch_123
+              status: SUCCESS
+              providerRef: external-ref-001
+      responses:
+        '200': { description: Callback accepted }
+        '401': { description: Invalid provider signature/timestamp }
+        '404': { description: Unknown payroll transaction }
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema:
+        type: string
+        maxLength: 200
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          example:
+            success: false
+            error:
+              code: PAYROLL_ROW_INVALID
+              message: Payroll row is invalid.
+              requestId: req_123
+              correlationId: corr_123
+    Forbidden:
+      description: Role not permitted
+      content:
+        application/json:
+          example:
+            success: false
+            error:
+              code: PAYROLL_FORBIDDEN
+              message: Your role is not authorized for this payroll operation.
+    Conflict:
+      description: State or idempotency conflict
+      content:
+        application/json:
+          example:
+            success: false
+            error:
+              code: PAYROLL_BATCH_ALREADY_PROCESSING
+              message: Payroll batch is already processing.
+    ProviderTimeout:
+      description: Provider did not complete within the bounded operation window
+      content:
+        application/json:
+          example:
+            success: false
+            error:
+              code: PAYROLL_PROVIDER_TIMEOUT
+              message: The payroll provider did not respond within the allowed time.
+              requestId: req_123
+              correlationId: corr_123
+    InsufficientFunds:
+      description: Provider or funding account rejected the disbursement because available funds were insufficient
+      content:
+        application/json:
+          example:
+            success: false
+            error:
+              code: PAYROLL_INSUFFICIENT_FUNDS
+              message: The payroll disbursement could not be completed because available funds were insufficient.
+    PayloadTooLarge:
+      description: Payroll file is too large
+    Unavailable:
+      description: Required service is unavailable
+x-jwtRoleExamples:
+  ADMIN:
+    sub: admin-user-123
+    tenantId: employer-tenant-001
+    role: admin
+  AUDITOR:
+    sub: auditor-user-123
+    tenantId: employer-tenant-001
+    role: auditor
+  EMPLOYER_USER:
+    sub: employer-user-123
+    tenantId: employer-tenant-001
+    role: employer_user
+x-employer-webhook-verification:
+  canonicalSigningInput: "<timestamp>.<compact JSON payload>"
+  nodejs: |
+    const expected = crypto.createHmac('sha256', secret)
+      .update(`${timestamp}.${JSON.stringify(payload)}`).digest('hex');
+    const signature = `sha256=${expected}`;
+    // Compare the complete strings with a timing-safe comparison.
+  python: |
+    import hmac, hashlib, json
+    body = f"{timestamp}.{json.dumps(payload, separators=(',', ':'))}".encode()
+    expected = 'sha256=' + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    # Use hmac.compare_digest(signature, expected).
+# Employer callback signing headers emitted by TITech:
+#   X-TITech-Signature: sha256=<hex HMAC-SHA256>
+#   X-TITech-Timestamp: ISO-8601 timestamp
+x-employer-callback-headers:
+  X-TITech-Signature: sha256=<hex HMAC-SHA256>
+  X-TITech-Timestamp: 2026-09-30T08:46:00.000Z
