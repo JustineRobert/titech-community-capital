@@ -240,9 +240,9 @@ env:
 
   IMAGE_NAMESPACE: ${{ github.repository_owner }}
 
-  BACKEND_IMAGE: community-savings-backend
+  BACKEND_IMAGE: titech-community-capital-backend
 
-  FRONTEND_IMAGE: community-savings-frontend
+  FRONTEND_IMAGE: titech-community-capital-frontend
 
   ##########################################################################
   # Kubernetes
@@ -601,6 +601,10 @@ jobs:
         working-directory: ${{ env.FRONTEND_DIR }}
 
         run: npm ci
+
+      - name: Enterprise hosting gate
+
+        run: npm run titech:hosting-gate
 
       - name: Enterprise release readiness audit
 

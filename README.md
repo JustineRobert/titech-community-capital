@@ -1470,3 +1470,10 @@ The repository now includes a bounded control-plane foundation for the parts of 
 ### Evidence boundary
 
 This repository is **not labelled production-approved from source presence alone**. Live database/Redis behavior, provider certification, security penetration testing, disaster recovery, load/chaos testing, Kubernetes rollout, contractual and regulatory approval remain external evidence gates. See `TITECH_PLATFORM_TRUTH.md`.
+
+
+## Web + Mobile Hosting
+
+The canonical deployment path is documented in `docs/deployment/TITECH_WEB_MOBILE_HOSTING_IMPLEMENTATION_2026-09-29.md`. Production images use Node.js 24.15.x, the React/Vite PWA is served by Nginx, the API is exposed under `/api/v1`, Socket.IO is same-origin, and TLS is terminated at the production edge. MongoDB and Redis are externalized from the production compose profile so financial state is not tied to a single local datastore.
+
+Run `npm run titech:hosting-gate` before packaging a release.

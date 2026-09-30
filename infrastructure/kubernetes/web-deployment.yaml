@@ -1,0 +1,86 @@
+# TITech Community Capital standalone Kubernetes reference.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: titech-frontend
+  namespace: community-capital-production
+  labels:
+    app: titech-frontend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: titech-frontend
+  template:
+    metadata:
+      labels:
+        app: titech-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/titech/community-capital-frontend:REPLACE_IMMUTABLE_TAG
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: titech-frontend
+  namespace: community-capital-production
+spec:
+  type: ClusterIP
+  selector:
+    app: titech-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: titech-backend
+  namespace: community-capital-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: titech-backend
+  minReplicas: 3
+  maxReplicas: 15
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65

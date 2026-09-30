@@ -1,0 +1,68 @@
+# Self-hosted Redis reference for staging / controlled environments.
+# Production should use a managed Redis/Valkey HA service where practical.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: titech-redis-data
+  namespace: community-capital-production
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: titech-redis
+  namespace: community-capital-production
+spec:
+  serviceName: titech-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: titech-redis
+  template:
+    metadata:
+      labels:
+        app: titech-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: titech-redis-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: titech-redis
+  namespace: community-capital-production
+spec:
+  selector:
+    app: titech-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis

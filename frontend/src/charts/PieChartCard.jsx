@@ -23,20 +23,24 @@ import {
 
 import ChartCard from "./ChartCard";
 
+import {
+  TITECH_BRAND,
+} from "../branding/brand";
+
+
 // ============================================================================
 // Constants
 // ============================================================================
 
 const DEFAULT_COLORS = [
-  "#0058d8",
-  "#00b8f8",
-  "#22c55e",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899",
-  "#0ea5e9",
-  "#64748b",
+  TITECH_BRAND.colors.electricBlue,
+  TITECH_BRAND.colors.cyan,
+  TITECH_BRAND.colors.africaGreen,
+  TITECH_BRAND.colors.goldYellow,
+  TITECH_BRAND.colors.limeGreen,
+  TITECH_BRAND.colors.brightBlue,
+  TITECH_BRAND.colors.deepBlue,
+  TITECH_BRAND.colors.navyInk,
 ];
 
 const DEFAULT_HEIGHT = 320;

@@ -1,0 +1,70 @@
+# Self-hosted MongoDB reference for staging / controlled environments.
+# Production financial data should use MongoDB Atlas or an equivalently HA
+# managed service with tested backups, encryption and restore procedures.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: titech-mongo-data
+  namespace: community-capital-production
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: titech-mongodb
+  namespace: community-capital-production
+spec:
+  serviceName: titech-mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: titech-mongodb
+  template:
+    metadata:
+      labels:
+        app: titech-mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7.0-jammy
+          args: ["--bind_ip_all"]
+          ports:
+            - name: mongo
+              containerPort: 27017
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.adminCommand({ping:1}).ok"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: titech-mongo-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: titech-mongodb
+  namespace: community-capital-production
+spec:
+  clusterIP: None
+  selector:
+    app: titech-mongodb
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: mongo

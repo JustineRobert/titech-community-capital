@@ -66,7 +66,9 @@ const BUILD_TIME =
 const API_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_APP_API_URL ||
-  'http://localhost:5000';
+  (import.meta.env.PROD
+    ? '/api/v1'
+    : 'http://localhost:5000');
 
 const IS_DEVELOPMENT =
   Boolean(import.meta.env.DEV);

@@ -1,0 +1,49 @@
+# TITech Community Capital HTTPS ingress reference.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: titech-community-capital
+  namespace: community-capital-production
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "90"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "90"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - app.titech.co.ug
+      secretName: titech-community-capital-tls
+  rules:
+    - host: app.titech.co.ug
+      http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: titech-backend
+                port:
+                  name: http
+          - path: /socket.io/
+            pathType: Prefix
+            backend:
+              service:
+                name: titech-backend
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: titech-frontend
+                port:
+                  name: http

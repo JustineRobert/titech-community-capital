@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital",
   "version": "1.0.0",
-  "description": "TITech Community Capital \u2014 Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
+  "description": "TITech Community Capital — Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
   "private": true,
   "keywords": [
     "TITech",
@@ -58,7 +58,7 @@
     "build": "npm run build:frontend",
     "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
-    "check": "npm run check:conflicts && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run lint && npm run format:check",
     "check:all": "npm run check && npm run test",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs",
@@ -121,7 +121,8 @@
     "validate:syntax": "node scripts/enterprise-gate.mjs --syntax",
     "titech:90-day-gate": "node scripts/titech-90-day-readiness-gate.mjs",
     "titech:90-day-gate:strict": "node scripts/titech-90-day-readiness-gate.mjs --strict",
-    "titech:production-evidence": "node scripts/production-evidence-package.mjs"
+    "titech:production-evidence": "node scripts/production-evidence-package.mjs",
+    "titech:hosting-gate": "node scripts/titech-hosting-gate.mjs"
   },
   "dependencies": {}
 }

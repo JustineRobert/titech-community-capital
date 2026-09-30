@@ -59,6 +59,8 @@ import {
   StatusBadge,
 } from "../../ui";
 
+import { TITECH_BRAND } from "../../branding/brand";
+
 import "./ExecutiveDashboard.css";
 
 // ============================================================================
@@ -66,11 +68,11 @@ import "./ExecutiveDashboard.css";
 // ============================================================================
 
 const COLORS = [
-  "#0058d8",
-  "#16a34a",
-  "#f59e0b",
-  "#ef4444",
-  "#7c3aed",
+  TITECH_BRAND.colors.electricBlue,
+  TITECH_BRAND.colors.africaGreen,
+  TITECH_BRAND.colors.goldYellow,
+  TITECH_BRAND.colors.brightBlue,
+  TITECH_BRAND.colors.cyan,
 ];
 
 const DEFAULT_METRICS = Object.freeze({

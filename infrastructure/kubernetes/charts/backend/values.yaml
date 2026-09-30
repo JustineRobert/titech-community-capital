@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: community-savings-backend
+  repository: titech-community-capital-backend
   tag: latest
   pullPolicy: IfNotPresent
 

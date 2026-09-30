@@ -58,6 +58,8 @@ import {
   StatusBadge,
 } from "../../ui";
 
+import { TITECH_BRAND } from "../../branding/brand";
+
 import "./AdminDashboard.css";
 
 // ============================================================================
@@ -113,9 +115,9 @@ const DEFAULT_FRAUD = Object.freeze([
 const CHART_HEIGHT = 320;
 
 const FRAUD_COLORS = [
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
+  TITECH_BRAND.colors.africaGreen,
+  TITECH_BRAND.colors.goldYellow,
+  "#B91C1C",
 ];
 
 const STATUS_VALUES = new Set([

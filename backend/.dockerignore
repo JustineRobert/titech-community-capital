@@ -1,0 +1,14 @@
+node_modules
+coverage
+test-reports
+logs
+tmp
+.env
+.env.*
+!.env.example
+.git
+.github
+*.log
+*.zip
+*.tar
+*.gz

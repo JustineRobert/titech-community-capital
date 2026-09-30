@@ -17,12 +17,14 @@
  *   - Establish the React 18 root
  *   - Bootstrap global application providers
  *   - Bootstrap application routes
+ *   - Apply the canonical TITech frontend brand runtime
  *   - Install global browser runtime diagnostics
  *   - Capture uncaught browser errors
  *   - Capture unhandled promise rejections
  *   - Expose safe, non-sensitive application diagnostics
  *   - Provide deterministic startup behavior
  *   - Provide a controlled bootstrap failure boundary
+ *   - Synchronize the browser theme-color with the official brand contract
  *
  * Non-responsibilities:
  *   - Authentication business logic
@@ -45,7 +47,9 @@
  *   main.jsx
  *      │
  *      ├── Runtime diagnostics
+ *      ├── Runtime state
  *      ├── Global error handlers
+ *      ├── Official brand runtime
  *      ├── React root
  *      │
  *      ▼
@@ -57,6 +61,12 @@
  *      ▼
  *   Application
  *
+ * Important runtime rule:
+ *
+ *   Presentation/branding failures must NEVER prevent the core application
+ *   from booting. Financial, authentication, tenancy, routing, ledger,
+ *   payments, reconciliation, and offline concerns remain outside this file.
+ *
  * ============================================================================
  */
 
@@ -67,6 +77,7 @@ import Providers from './app/providers';
 import './index.css';
 import './branding/brand.css';
 import AppRoutes from './routes/AppRoutes';
+import TITECH_BRAND from './branding/brand';
 
 // ============================================================================
 // Application identity
@@ -101,6 +112,23 @@ const GLOBAL_APP_INFO_KEY =
 const GLOBAL_RUNTIME_STATE_KEY =
   '__TITECH_RUNTIME_STATE__';
 
+const GLOBAL_RUNTIME_HANDLERS_MARKER =
+  '__TITECH_RUNTIME_HANDLERS_INSTALLED__';
+
+const OFFICIAL_BRAND_NAME =
+  TITECH_BRAND?.fullName ||
+  APP_NAME;
+
+const OFFICIAL_THEME_COLOR =
+  TITECH_BRAND?.colorRoles?.primaryInteractive ||
+  '#0058D8';
+
+const OFFICIAL_BRAND_DATASET_KEY =
+  'titechBrand';
+
+const RUNTIME_THEME_COLOR_VARIABLE =
+  '--titech-runtime-theme-color';
+
 // ============================================================================
 // Safe runtime diagnostics
 // ============================================================================
@@ -129,6 +157,10 @@ function installApplicationDiagnostics() {
   }
 
   try {
+    if (window[GLOBAL_APP_INFO_KEY]) {
+      return;
+    }
+
     const applicationInfo = Object.freeze({
       name: APP_NAME,
       version: APP_VERSION,
@@ -167,6 +199,10 @@ function installApplicationDiagnostics() {
 //
 // It is NOT an application state store.
 // It is only intended for safe browser-runtime diagnostics.
+//
+// HMR-safe behavior:
+//   - Preserve an existing runtime state object.
+//   - Avoid resetting diagnostic counters during module re-evaluation.
 // ============================================================================
 
 function initializeRuntimeState() {
@@ -324,12 +360,17 @@ function reportRuntimeError(
   const normalizedError =
     normalizeError(error);
 
+  let currentRuntimeErrors = 0;
+
+  if (typeof window !== 'undefined') {
+    currentRuntimeErrors =
+      window[GLOBAL_RUNTIME_STATE_KEY]
+        ?.runtimeErrors || 0;
+  }
+
   updateRuntimeState({
     runtimeErrors:
-      (
-        window?.[GLOBAL_RUNTIME_STATE_KEY]
-          ?.runtimeErrors || 0
-      ) + 1,
+      currentRuntimeErrors + 1,
   });
 
   const payload = {
@@ -416,6 +457,11 @@ function renderFatalBootstrapError(error) {
       'alert'
     );
 
+    wrapper.setAttribute(
+      'aria-live',
+      'assertive'
+    );
+
     wrapper.style.cssText = [
       'min-height:100vh',
       'display:flex',
@@ -424,7 +470,7 @@ function renderFatalBootstrapError(error) {
       'padding:24px',
       'box-sizing:border-box',
       'font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-      'background:#f8fafc',
+      `background:${OFFICIAL_THEME_COLOR}`,
       'color:#0f172a',
     ].join(';');
 
@@ -437,7 +483,7 @@ function renderFatalBootstrapError(error) {
       'padding:32px',
       'box-sizing:border-box',
       'background:#ffffff',
-      'border:1px solid #e2e8f0',
+      'border:1px solid rgba(15,23,42,.12)',
       'border-radius:16px',
       'box-shadow:0 10px 30px rgba(15,23,42,.08)',
     ].join(';');
@@ -446,12 +492,13 @@ function renderFatalBootstrapError(error) {
       document.createElement('h1');
 
     heading.textContent =
-      'TITech Community Capital';
+      APP_NAME;
 
     heading.style.cssText = [
       'margin:0 0 12px',
       'font-size:24px',
       'line-height:1.25',
+      `color:${OFFICIAL_THEME_COLOR}`,
     ].join(';');
 
     const paragraph =
@@ -473,11 +520,16 @@ function renderFatalBootstrapError(error) {
     reloadButton.textContent =
       'Reload application';
 
+    reloadButton.setAttribute(
+      'aria-label',
+      'Reload TITech Community Capital application'
+    );
+
     reloadButton.style.cssText = [
       'padding:10px 16px',
       'border:0',
       'border-radius:8px',
-      'background:#0058d8',
+      `background:${OFFICIAL_THEME_COLOR}`,
       'color:#ffffff',
       'font-size:14px',
       'font-weight:600',
@@ -507,6 +559,101 @@ function renderFatalBootstrapError(error) {
       console.error(
         '[TITech] Failed to render bootstrap failure UI.',
         renderError
+      );
+    }
+  }
+}
+
+// ============================================================================
+// Official brand runtime
+// ============================================================================
+//
+// IMPORTANT:
+//
+// This function only applies presentation/runtime metadata.
+//
+// It MUST NOT:
+//   - perform authentication
+//   - call APIs
+//   - mutate financial state
+//   - initialize payment providers
+//   - initialize ledger services
+//   - initialize offline synchronization
+//   - modify tenant/application state
+//
+// A branding failure is logged in development and otherwise ignored so that
+// the core application remains bootable.
+// ============================================================================
+
+function applyOfficialBrandRuntime() {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  try {
+    const rootElement =
+      document.documentElement;
+
+    if (!rootElement) {
+      return;
+    }
+
+    // ------------------------------------------------------------------------
+    // Canonical brand metadata
+    // ------------------------------------------------------------------------
+
+    rootElement.dataset[
+      OFFICIAL_BRAND_DATASET_KEY
+    ] =
+      OFFICIAL_BRAND_NAME;
+
+    // ------------------------------------------------------------------------
+    // Runtime theme variable
+    // ------------------------------------------------------------------------
+
+    rootElement.style.setProperty(
+      RUNTIME_THEME_COLOR_VARIABLE,
+      OFFICIAL_THEME_COLOR
+    );
+
+    // ------------------------------------------------------------------------
+    // Keep document body metadata aligned when available
+    // ------------------------------------------------------------------------
+
+    if (document.body) {
+      document.body.dataset[
+        OFFICIAL_BRAND_DATASET_KEY
+      ] =
+        OFFICIAL_BRAND_NAME;
+    }
+
+    // ------------------------------------------------------------------------
+    // Synchronize browser theme color
+    // ------------------------------------------------------------------------
+
+    const themeColorMeta =
+      document.querySelector(
+        'meta[name="theme-color"]'
+      );
+
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute(
+        'content',
+        OFFICIAL_THEME_COLOR
+      );
+    }
+  } catch (error) {
+    /*
+     * Branding is presentation infrastructure.
+     *
+     * Never allow a branding error to prevent authentication, tenancy,
+     * routing, ledger, payment, reconciliation, or other application
+     * functionality from starting.
+     */
+    if (IS_DEVELOPMENT) {
+      console.warn(
+        '[TITech] Unable to apply official brand runtime.',
+        error
       );
     }
   }
@@ -591,10 +738,11 @@ function installRuntimeHandlers() {
     return () => {};
   }
 
-  const marker =
-    '__TITECH_RUNTIME_HANDLERS_INSTALLED__';
-
-  if (window[marker]) {
+  if (
+    window[
+      GLOBAL_RUNTIME_HANDLERS_MARKER
+    ]
+  ) {
     return () => {};
   }
 
@@ -611,7 +759,7 @@ function installRuntimeHandlers() {
   try {
     Object.defineProperty(
       window,
-      marker,
+      GLOBAL_RUNTIME_HANDLERS_MARKER,
       {
         configurable: true,
         enumerable: false,
@@ -641,7 +789,9 @@ function installRuntimeHandlers() {
     );
 
     try {
-      delete window[marker];
+      delete window[
+        GLOBAL_RUNTIME_HANDLERS_MARKER
+      ];
     } catch {
       // Ignore cleanup failures.
     }
@@ -691,6 +841,15 @@ function getRootContainer() {
 // ============================================================================
 
 function bootstrapApplication() {
+  // --------------------------------------------------------------------------
+  // Apply non-critical runtime branding first.
+  //
+  // applyOfficialBrandRuntime() is intentionally fail-safe and does not
+  // throw presentation errors into the application bootstrap boundary.
+  // --------------------------------------------------------------------------
+
+  applyOfficialBrandRuntime();
+
   const container =
     getRootContainer();
 
@@ -703,7 +862,23 @@ function bootstrapApplication() {
   try {
     root =
       ReactDOM.createRoot(
-        container
+        container,
+        {
+          onRecoverableError:
+            (error, errorInfo) => {
+              reportRuntimeError(
+                error,
+                {
+                  type:
+                    'bootstrap.react_recoverable_error',
+
+                  componentStack:
+                    errorInfo?.componentStack ||
+                    null,
+                }
+              );
+            },
+        }
       );
   } catch (error) {
     reportRuntimeError(
@@ -720,6 +895,14 @@ function bootstrapApplication() {
   // --------------------------------------------------------------------------
   // Render application
   // --------------------------------------------------------------------------
+
+  /*
+   * React 18 may surface rendering/runtime failures asynchronously.
+   *
+   * Therefore this try/catch only protects synchronous render invocation
+   * failures. Global error handlers and application-level error boundaries
+   * remain responsible for asynchronous render/runtime failures.
+   */
 
   try {
     root.render(
@@ -753,8 +936,10 @@ function bootstrapApplication() {
 //   1. Application diagnostics
 //   2. Runtime state
 //   3. Global runtime handlers
-//   4. React bootstrap
-//   5. Startup state
+//   4. Official brand runtime
+//   5. Root validation
+//   6. React bootstrap
+//   7. Startup state
 //
 // ============================================================================
 
@@ -772,6 +957,7 @@ try {
 
   updateRuntimeState({
     bootstrapped: true,
+    bootstrapFailed: false,
     bootstrappedAt:
       new Date().toISOString(),
   });
@@ -832,6 +1018,14 @@ if (IS_DEVELOPMENT) {
       `[${APP_NAME}] Build time: ${BUILD_TIME}`
     );
   }
+
+  console.info(
+    `[${APP_NAME}] Official brand: ${OFFICIAL_BRAND_NAME}`
+  );
+
+  console.info(
+    `[${APP_NAME}] Theme color: ${OFFICIAL_THEME_COLOR}`
+  );
 }
 
 // ============================================================================

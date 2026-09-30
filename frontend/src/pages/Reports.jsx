@@ -70,6 +70,8 @@ import { toast } from "react-toastify";
 
 import api from "../services/api";
 
+import { TITECH_BRAND } from "../branding/brand";
+
 import "./Reports.css";
 
 // ============================================================================
@@ -134,14 +136,14 @@ const EXPORT_FORMATS = [
 ];
 
 const CHART_COLORS = [
-  "#0058d8",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#06b6d4",
-  "#ec4899",
-  "#64748b",
+  TITECH_BRAND.colors.electricBlue,
+  TITECH_BRAND.colors.cyan,
+  TITECH_BRAND.colors.africaGreen,
+  TITECH_BRAND.colors.goldYellow,
+  TITECH_BRAND.colors.limeGreen,
+  TITECH_BRAND.colors.brightBlue,
+  TITECH_BRAND.colors.deepBlue,
+  TITECH_BRAND.colors.navyInk,
 ];
 
 const DEFAULT_REPORT_DATA = {

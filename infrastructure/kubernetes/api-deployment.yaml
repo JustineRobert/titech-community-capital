@@ -1,0 +1,86 @@
+# TITech Community Capital standalone Kubernetes reference.
+# Production deployments should prefer the Helm chart with a managed MongoDB
+# and Redis service and a platform-managed secret store.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: titech-backend
+  namespace: community-capital-production
+  labels:
+    app: titech-backend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: titech-backend
+  template:
+    metadata:
+      labels:
+        app: titech-backend
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          image: ghcr.io/titech/community-capital-backend:REPLACE_IMMUTABLE_TAG
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 5000
+              name: http
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: "5000"
+          envFrom:
+            - secretRef:
+                name: titech-community-capital-backend-production
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: titech-backend
+  namespace: community-capital-production
+spec:
+  type: ClusterIP
+  selector:
+    app: titech-backend
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http

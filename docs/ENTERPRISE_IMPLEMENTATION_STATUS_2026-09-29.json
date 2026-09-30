@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-09-29T00:00:00Z",
+  "repository": "https://github.com/JustineRobert/titech-community-capital",
+  "baseline": "titech-community-capital-main(1).zip",
+  "release": "2026-09-29-enterprise-brand-and-provider-boundary",
+  "implemented": {
+    "officialBrandTheme": true,
+    "runtimeBrandNamespace": true,
+    "explicitThemePrecedence": true,
+    "chartPaletteMigration": true,
+    "airtelCompatibilityBoundary": true,
+    "brandVerificationGate": true,
+    "airtelProductionSafetyContract": true
+  },
+  "externalVerificationRequired": [
+    "Node 24.15.0 / npm 11 dependency-backed runtime",
+    "MongoDB/Redis concurrency and failure-injection evidence",
+    "MTN provider certification and live/sandbox credential evidence",
+    "Airtel provider certification and live/sandbox credential evidence",
+    "Real transaction/callback/settlement/reconciliation replay",
+    "Independent SAST/DAST/secret/container/IaC/security review",
+    "Backup/restore drill",
+    "Three SACCO pilot UAT and operational evidence",
+    "Applicable Uganda legal/regulatory review and approvals"
+  ],
+  "productionApproval": "NOT_PRODUCTION_APPROVED"
+}

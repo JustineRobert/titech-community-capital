@@ -64,7 +64,10 @@ import {
  * API CONFIGURATION
  * ========================================================================== */
 
-const DEFAULT_API_BASE_URL = 'http://localhost:5000/api';
+const DEFAULT_API_BASE_URL =
+  import.meta.env.PROD
+    ? '/api/v1'
+    : 'http://localhost:5000/api';
 
 const DEFAULT_LEGAL_API_PREFIX = '/legal';
 

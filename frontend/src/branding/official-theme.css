@@ -1,0 +1,203 @@
+/**
+ * TITech Community Capital - Official Theme Enforcement
+ * Version: 2026-09-29
+ *
+ * This layer is intentionally presentation-only. It does not change financial,
+ * authentication, tenancy, payment, ledger, routing or state-management logic.
+ * The supplied official palette is the canonical product color language.
+ */
+
+:root[data-titech-brand="official"] {
+  --titech-official-deep-blue: #0030a0;
+  --titech-official-electric-blue: #0058d8;
+  --titech-official-bright-blue: #0066e8;
+  --titech-official-cyan: #00b8f8;
+  --titech-official-green: #008000;
+  --titech-official-lime: #a8f000;
+  --titech-official-gold: #f8d800;
+  --titech-official-navy: #082b67;
+  --titech-official-white: #ffffff;
+
+  --titech-color-background: #f6faff;
+  --titech-color-surface: var(--titech-official-white);
+  --titech-color-surface-muted: #eef6ff;
+  --titech-color-text: var(--titech-official-navy);
+  --titech-color-text-muted: #456180;
+  --titech-color-text-subtle: #6b829a;
+  --titech-color-border: #d8e7f5;
+  --titech-color-border-strong: #b7cfe8;
+
+  --titech-focus-color: var(--titech-official-electric-blue);
+  --titech-focus-ring: 0 0 0 3px rgb(0 88 216 / 0.24);
+
+  --titech-state-success: var(--titech-official-green);
+  --titech-state-warning: #a35b00;
+  --titech-state-danger: #a61b1b;
+  --titech-state-info: var(--titech-official-deep-blue);
+
+  --titech-chart-1: var(--titech-official-deep-blue);
+  --titech-chart-2: var(--titech-official-electric-blue);
+  --titech-chart-3: var(--titech-official-bright-blue);
+  --titech-chart-4: var(--titech-official-cyan);
+  --titech-chart-5: var(--titech-official-green);
+  --titech-chart-6: var(--titech-official-lime);
+  --titech-chart-7: var(--titech-official-gold);
+  --titech-chart-8: var(--titech-official-navy);
+
+  --titech-brand-primary: var(--titech-official-deep-blue);
+  --titech-brand-secondary: var(--titech-official-electric-blue);
+  --titech-brand-information: var(--titech-official-cyan);
+  --titech-brand-community: var(--titech-official-green);
+  --titech-brand-growth: var(--titech-official-lime);
+  --titech-brand-sustainability: var(--titech-official-gold);
+}
+
+:root[data-titech-brand="official"][data-theme="dark"] {
+  --titech-color-background: #06172d;
+  --titech-color-surface: #0b2443;
+  --titech-color-surface-muted: #103159;
+  --titech-color-text: #eff8ff;
+  --titech-color-text-muted: #b9d2e8;
+  --titech-color-text-subtle: #8eb0cf;
+  --titech-color-border: #1f4a75;
+  --titech-color-border-strong: #2e6a9b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-titech-brand="official"][data-theme="system"] {
+    --titech-color-background: #06172d;
+    --titech-color-surface: #0b2443;
+    --titech-color-surface-muted: #103159;
+    --titech-color-text: #eff8ff;
+    --titech-color-text-muted: #b9d2e8;
+    --titech-color-text-subtle: #8eb0cf;
+    --titech-color-border: #1f4a75;
+    --titech-color-border-strong: #2e6a9b;
+  }
+}
+
+:root[data-titech-brand="official"][data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-titech-brand="official"][data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-titech-brand="official"][data-theme="system"] {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-titech-brand="official"][data-theme="system"] {
+    color-scheme: light;
+  }
+}
+
+:root[data-titech-brand="official"] body {
+  background: var(--titech-color-background);
+  color: var(--titech-color-text);
+}
+
+:root[data-titech-brand="official"] a {
+  color: var(--titech-official-electric-blue);
+}
+
+:root[data-titech-brand="official"] a:hover {
+  color: var(--titech-official-bright-blue);
+}
+
+:root[data-titech-brand="official"] ::selection {
+  color: var(--titech-official-white);
+  background: var(--titech-official-deep-blue);
+}
+
+:root[data-titech-brand="official"] button,
+:root[data-titech-brand="official"] input,
+:root[data-titech-brand="official"] textarea,
+:root[data-titech-brand="official"] select {
+  font-family: inherit;
+}
+
+:root[data-titech-brand="official"] input:focus-visible,
+:root[data-titech-brand="official"] textarea:focus-visible,
+:root[data-titech-brand="official"] select:focus-visible,
+:root[data-titech-brand="official"] button:focus-visible {
+  outline: 2px solid var(--titech-official-electric-blue);
+  outline-offset: 2px;
+}
+
+:root[data-titech-brand="official"] .titech-official-primary {
+  color: var(--titech-official-white);
+  background: var(--titech-official-deep-blue);
+}
+
+:root[data-titech-brand="official"] .titech-official-interactive {
+  color: var(--titech-official-white);
+  background: var(--titech-official-electric-blue);
+}
+
+:root[data-titech-brand="official"] .titech-official-info {
+  color: var(--titech-official-navy);
+  background: rgb(0 184 248 / 0.12);
+  border-color: rgb(0 184 248 / 0.35);
+}
+
+:root[data-titech-brand="official"] .titech-official-community {
+  color: var(--titech-official-white);
+  background: var(--titech-official-green);
+}
+
+:root[data-titech-brand="official"] .titech-official-growth,
+:root[data-titech-brand="official"] .titech-official-sustainability {
+  color: var(--titech-official-navy);
+}
+
+:root[data-titech-brand="official"] .titech-official-growth {
+  background: var(--titech-official-lime);
+}
+
+:root[data-titech-brand="official"] .titech-official-sustainability {
+  background: var(--titech-official-gold);
+}
+
+:root[data-titech-brand="official"] .titech-surface,
+:root[data-titech-brand="official"] .titech-brand-card {
+  background: var(--titech-color-surface);
+  border-color: var(--titech-color-border);
+  color: var(--titech-color-text);
+}
+
+:root[data-titech-brand="official"] .titech-brand-logo {
+  background: transparent;
+}
+
+:root[data-titech-brand="official"] .titech-financial-positive,
+:root[data-titech-brand="official"] [data-financial-state="positive"] {
+  color: var(--titech-state-success);
+}
+
+:root[data-titech-brand="official"] .titech-financial-pending,
+:root[data-titech-brand="official"] [data-financial-state="pending"] {
+  color: var(--titech-state-warning);
+}
+
+:root[data-titech-brand="official"] .titech-financial-negative,
+:root[data-titech-brand="official"] [data-financial-state="negative"] {
+  color: var(--titech-state-danger);
+}
+
+:root[data-titech-brand="official"] .titech-financial-info,
+:root[data-titech-brand="official"] [data-financial-state="info"] {
+  color: var(--titech-state-info);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-titech-brand="official"] *,
+  :root[data-titech-brand="official"] *::before,
+  :root[data-titech-brand="official"] *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -35,7 +35,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 const API_BASE =
   import.meta.env.VITE_API_URL ||
-  'http://localhost:5000';
+  (import.meta.env.PROD
+    ? '/api/v1'
+    : 'http://localhost:5000');
 
 const REQUEST_TIMEOUT =
   Number(import.meta.env.VITE_REQUEST_TIMEOUT) || 30000;

@@ -1,0 +1,425 @@
+[
+  {
+    "index": 0,
+    "status": "MODIFIED",
+    "path": ".github/workflows/ci.yml",
+    "size_before": 6095,
+    "size_after": 6175,
+    "sha256_before": "5d3165c5968da9941614448865f0354d8e7d2955b888a33a5248a6c37aec542a",
+    "sha256_after": "32d62a9547bbaf52c3b42fa937da620cb494fbc92e2071c21c93398f5bacde43"
+  },
+  {
+    "index": 1,
+    "status": "MODIFIED",
+    "path": ".github/workflows/deploy.yml",
+    "size_before": 67728,
+    "size_after": 67823,
+    "sha256_before": "b67ca334d7d7855e08a930ae3771c733414b593e770998aaaac96814241fcdfa",
+    "sha256_after": "38126edacb812e6fcad6975d4162c094219ae0eb66197144032d91b4023a435e"
+  },
+  {
+    "index": 2,
+    "status": "MODIFIED",
+    "path": "README.md",
+    "size_before": 36034,
+    "size_after": 36562,
+    "sha256_before": "a23ad1a47d4ed269f3f183b1c7eded2a5667705b09f5520d590d63c678a1edaf",
+    "sha256_after": "457a87a8364464c860b441eda89810f028e211c9425c4797e0fa7a7af0b0df59"
+  },
+  {
+    "index": 3,
+    "status": "ADDED",
+    "path": "TITECH_IMPLEMENTATION_CHANGE_DISCOVERY_2026-09-29.md",
+    "size_before": "",
+    "size_after": 5397,
+    "sha256_before": "",
+    "sha256_after": "bf4679e42a835a78a5b853e3a14bb47c8eb0972a246268c8c7bb9ff9957ca3e7"
+  },
+  {
+    "index": 4,
+    "status": "ADDED",
+    "path": "backend/.dockerignore",
+    "size_before": "",
+    "size_after": 106,
+    "sha256_before": "",
+    "sha256_after": "a0e2ad705da1e2444bf9f58985b5fac4ce3885d084e0e94f6410ef14cfca7d7c"
+  },
+  {
+    "index": 5,
+    "status": "MODIFIED",
+    "path": "backend/.env.example",
+    "size_before": 1267,
+    "size_after": 1314,
+    "sha256_before": "8fe3760cde257b6f46e5285990800f1a40a8b2429a4ef755fb99b97588ce7762",
+    "sha256_after": "0c32db8ef9370ad2143e2bd5933a9a5043f73db387c51d6f555893a806eb4dfc"
+  },
+  {
+    "index": 6,
+    "status": "ADDED",
+    "path": "backend/.env.production.example",
+    "size_before": "",
+    "size_after": 920,
+    "sha256_before": "",
+    "sha256_after": "0823f8fce73eb9cc3505c134bca461932882f60547ba9b7d8fb0fdc0ae0ca9ca"
+  },
+  {
+    "index": 7,
+    "status": "ADDED",
+    "path": "docker/.dockerignore",
+    "size_before": "",
+    "size_after": 138,
+    "sha256_before": "",
+    "sha256_after": "ec52f49ba5c355a0bb7cb6df919cbc75ac449b4935632162393e86f40dc852e6"
+  },
+  {
+    "index": 8,
+    "status": "MODIFIED",
+    "path": "docker/backend.Dockerfile",
+    "size_before": 0,
+    "size_after": 1007,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "68c35d36047f5f514c730d549cdb4ac5cc00744cc3f77eca20849b7c8497e364"
+  },
+  {
+    "index": 9,
+    "status": "MODIFIED",
+    "path": "docker/docker-compose.dev.yml",
+    "size_before": 0,
+    "size_after": 1856,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "71c6a538c66d2d6252ca79af6d680f02500a6d51b1354c6a871d174d4d256360"
+  },
+  {
+    "index": 10,
+    "status": "MODIFIED",
+    "path": "docker/docker-compose.prod.yml",
+    "size_before": 0,
+    "size_after": 2399,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "5b213f745f31e71858b719849d87217cb32334e48216550b6d613217542e4d21"
+  },
+  {
+    "index": 11,
+    "status": "MODIFIED",
+    "path": "docker/frontend.Dockerfile",
+    "size_before": 0,
+    "size_after": 1107,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "2d1c38f8b1b9707e9796e0af7eefe27a3e892f8329bf9eb14924f598b46ae416"
+  },
+  {
+    "index": 12,
+    "status": "ADDED",
+    "path": "docs/brand/TITECH_OFFICIAL_THEME_2026-09-29.md",
+    "size_before": "",
+    "size_after": 1476,
+    "sha256_before": "",
+    "sha256_after": "2a5dd516c108e260d59b1a4660ce3f02ba6eb26d4c88a65ae9b0a1f1c0c4d493"
+  },
+  {
+    "index": 13,
+    "status": "ADDED",
+    "path": "docs/deployment/PRODUCTION_DEPLOYMENT_CHECKLIST_2026-09-29.md",
+    "size_before": "",
+    "size_after": 1818,
+    "sha256_before": "",
+    "sha256_after": "726e08fbba9b9a31b61caf3376a13fe9394f8c4112ba420d80e711165a4031ff"
+  },
+  {
+    "index": 14,
+    "status": "ADDED",
+    "path": "docs/deployment/TITECH_ENTERPRISE_IMPLEMENTATION_2026-09-29.md",
+    "size_before": "",
+    "size_after": 4295,
+    "sha256_before": "",
+    "sha256_after": "361028d84014fa0bfc285421808a60e76652ac38c34950507bd99c8001cec8eb"
+  },
+  {
+    "index": 15,
+    "status": "ADDED",
+    "path": "docs/deployment/TITECH_WEB_MOBILE_HOSTING_IMPLEMENTATION_2026-09-29.md",
+    "size_before": "",
+    "size_after": 4229,
+    "sha256_before": "",
+    "sha256_after": "46819550f4fc766a6b88ea14538f206c68573f7718d28a85d342b153236ba83a"
+  },
+  {
+    "index": 16,
+    "status": "ADDED",
+    "path": "frontend/.dockerignore",
+    "size_before": "",
+    "size_after": 109,
+    "sha256_before": "",
+    "sha256_after": "792dc81ed3106fb095b5f71853c4f7d29180f9685a0538b512305de35670d7e4"
+  },
+  {
+    "index": 17,
+    "status": "ADDED",
+    "path": "frontend/.env.production.example",
+    "size_before": "",
+    "size_after": 341,
+    "sha256_before": "",
+    "sha256_after": "0a98fb2c05ce40412d3a2adfe56806a1b7413e894043c9e529e9f605215c77c8"
+  },
+  {
+    "index": 18,
+    "status": "MODIFIED",
+    "path": "frontend/nginx.conf",
+    "size_before": 791,
+    "size_after": 1701,
+    "sha256_before": "cfcb8eeec488bff52eb0bc9936a1c1b79713771b9b2cb9ebe36b566a3dbe06ed",
+    "sha256_after": "65196137139ff785feb67b8f604bc8ba7b7fcc84948633bdb0fa1a710f8c47a9"
+  },
+  {
+    "index": 19,
+    "status": "MODIFIED",
+    "path": "frontend/src/branding/brand.css",
+    "size_before": 5843,
+    "size_after": 6564,
+    "sha256_before": "9f765c64d18a85f729ea5aa2121022693a407a00cd618777894c695ae827373a",
+    "sha256_after": "ea3727eb153bdd6b04545669f411ee8eeaf8d35bbc03373e3a58b7a7530a4c9a"
+  },
+  {
+    "index": 20,
+    "status": "MODIFIED",
+    "path": "frontend/src/charts/AreaChartCard.jsx",
+    "size_before": 7951,
+    "size_after": 8165,
+    "sha256_before": "31eb736cafc4963e14e3eea636bedc8c2de2f7b908f1317f42c57f9961d8b047",
+    "sha256_after": "713ee5883a1cb08b64ff13f011b538bd1563c648a414715a47db293a3d337950"
+  },
+  {
+    "index": 21,
+    "status": "MODIFIED",
+    "path": "frontend/src/charts/BarChartCard.jsx",
+    "size_before": 8594,
+    "size_after": 8808,
+    "sha256_before": "1acdd82525564a0b00c7f826ecbd371a70992155b69443bac6b5708179d26ed9",
+    "sha256_after": "f396ca4c94d2c45207daac71ca62a419b093d2fcf066276a6e9de480d0fc535d"
+  },
+  {
+    "index": 22,
+    "status": "MODIFIED",
+    "path": "frontend/src/charts/LineChartCard.jsx",
+    "size_before": 7664,
+    "size_after": 7878,
+    "sha256_before": "2915041f28dd931412a6022b53722177f99c779ce48c4bc6c12592a171263ee2",
+    "sha256_after": "ae869af1f80deff325320109a5084774a03b3195349f0cbd97dcce2b958d1d5f"
+  },
+  {
+    "index": 23,
+    "status": "MODIFIED",
+    "path": "frontend/src/charts/PieChartCard.jsx",
+    "size_before": 8328,
+    "size_after": 8529,
+    "sha256_before": "79fba87af64312853669746bb00674af0b037ca7a305437fee1f924efd773da5",
+    "sha256_after": "cec37c1e9202761091f0326f4d86f5cc698f243d667ec47b5e74ec734058351b"
+  },
+  {
+    "index": 24,
+    "status": "MODIFIED",
+    "path": "frontend/src/index.js",
+    "size_before": 13730,
+    "size_after": 13775,
+    "sha256_before": "c52efb2844a13e98090bf785ab748fd0b6072b27669f028d4167f1f72e185a42",
+    "sha256_after": "aca3e90e6d6ab8953122d3e60343ef21b87ae84c52b0619fb2e106c55ffd403d"
+  },
+  {
+    "index": 25,
+    "status": "MODIFIED",
+    "path": "frontend/src/legal/legalApi.js",
+    "size_before": 29085,
+    "size_after": 29130,
+    "sha256_before": "74142d86ed9421ec829a6329d42abc9d5b999210c68f4cccbc7fb1f9084ed320",
+    "sha256_after": "f712d7ec594128df2de74cd769d7336ce158d4813a89f16df88abbfe0945939d"
+  },
+  {
+    "index": 26,
+    "status": "MODIFIED",
+    "path": "frontend/src/main.jsx",
+    "size_before": 20500,
+    "size_after": 20924,
+    "sha256_before": "adab6f5c5c96ef32aed2fae71ef6489b94b14c9614a500f4fab0cb9419f16978",
+    "sha256_after": "103961cdb33db37f78de00527e193331fef4b50b7a111b7f107a4158502e73a8"
+  },
+  {
+    "index": 27,
+    "status": "MODIFIED",
+    "path": "frontend/src/pages/Reports.jsx",
+    "size_before": 49343,
+    "size_after": 49553,
+    "sha256_before": "284c4eac4bee61ff8e1af773eff96014b17d08092543dad01be35e45310b175c",
+    "sha256_after": "e360c417889258ab3d2dbe56a913be188843b9d8e530849ef130c6f3974b5179"
+  },
+  {
+    "index": 28,
+    "status": "MODIFIED",
+    "path": "frontend/src/pages/dashboard/AdminDashboard.jsx",
+    "size_before": 31755,
+    "size_after": 31852,
+    "sha256_before": "8de11aa829ad47a2597e51a2c5d2c7cd7b11fe7e749e6873f4199f95a3c0d155",
+    "sha256_after": "5a448a281bef968a85f0280e7bce527cfc8036209ad4d3271944fec19378c0ab"
+  },
+  {
+    "index": 29,
+    "status": "MODIFIED",
+    "path": "frontend/src/pages/dashboard/ExecutiveDashboard.jsx",
+    "size_before": 23701,
+    "size_after": 23857,
+    "sha256_before": "c75e43b4f0eb3affcffb6552c6efa1f494ade6e66095c9cde68999758701ec1b",
+    "sha256_after": "e16ca343047f21aa24e72a8dfea2a741ffadfa153b0948ef104c789e467e0dc6"
+  },
+  {
+    "index": 30,
+    "status": "MODIFIED",
+    "path": "frontend/src/services/api.js",
+    "size_before": 44126,
+    "size_after": 44171,
+    "sha256_before": "ebfb06c299e4a3398221f83806b66d0aa9896d4b4b65e288539935d3cc83f074",
+    "sha256_after": "f40e79bc252ce24c9c2e20dbe935e7cb4393f21f17145eb156e96172e7d571ee"
+  },
+  {
+    "index": 31,
+    "status": "MODIFIED",
+    "path": "frontend/src/services/socket.js",
+    "size_before": 9796,
+    "size_after": 9809,
+    "sha256_before": "c9244c4313e79f85a282747f7a45960c9f7898b79ffbfcbd0c3e36353cb7bfa7",
+    "sha256_after": "64f2af00f1fa4e32292d7d35e5942ab4b923015b347ac7ee79468971e0391341"
+  },
+  {
+    "index": 32,
+    "status": "MODIFIED",
+    "path": "infrastructure/kubernetes/README.md",
+    "size_before": 634,
+    "size_after": 1748,
+    "sha256_before": "4d204eccc332a63148037867e068f45245508058af0e970e75cfb744c96556bf",
+    "sha256_after": "11d9b96a0efa6d851330a262332ecfb86e00794a510ba47f25e1aae563cd6ff1"
+  },
+  {
+    "index": 33,
+    "status": "MODIFIED",
+    "path": "infrastructure/kubernetes/api-deployment.yaml",
+    "size_before": 0,
+    "size_after": 2177,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "6f446a308327af23b047ddd87b077e72d07045ff746406d0de7f1be9928a7942"
+  },
+  {
+    "index": 34,
+    "status": "MODIFIED",
+    "path": "infrastructure/kubernetes/charts/backend/values.yaml",
+    "size_before": 708,
+    "size_after": 715,
+    "sha256_before": "89b43564bf79550ce3e3158267431770b45f3b923b5ea52e21935e950b458287",
+    "sha256_after": "e863ba830d72e20cb196ba4f4004af04b3a3e561b975a7cb8fb046a6ceea7c3e"
+  },
+  {
+    "index": 35,
+    "status": "MODIFIED",
+    "path": "infrastructure/kubernetes/charts/frontend/values.yaml",
+    "size_before": 589,
+    "size_after": 596,
+    "sha256_before": "6702913ae15d5af5eb28841b005eeddc8fa40bcaa6f0b873da9c553e8ca3c3f7",
+    "sha256_after": "06b9e3fe30222966963bcecb80c70f4afd0b2a0a30e102a4760fbe21c6a8200c"
+  },
+  {
+    "index": 36,
+    "status": "MODIFIED",
+    "path": "infrastructure/kubernetes/ingress.yaml",
+    "size_before": 0,
+    "size_after": 1647,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "c6707eda5e7d6a40ccdd26a01d1cf580965698211a76601ba39aaaa5a47e20e8"
+  },
+  {
+    "index": 37,
+    "status": "MODIFIED",
+    "path": "infrastructure/kubernetes/mongo-deployment.yaml",
+    "size_before": 0,
+    "size_after": 1706,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "dc3d396b617a97142fb8daec553ca2d99a05ecf37fd5ee7ba2e73add050737fc"
+  },
+  {
+    "index": 38,
+    "status": "ADDED",
+    "path": "infrastructure/kubernetes/namespace.yaml",
+    "size_before": "",
+    "size_after": 144,
+    "sha256_before": "",
+    "sha256_after": "701840887663eb7f2d96ee145f7c17de1891854901df50f17b83698b87d5ef88"
+  },
+  {
+    "index": 39,
+    "status": "MODIFIED",
+    "path": "infrastructure/kubernetes/redis-deployment.yaml",
+    "size_before": 0,
+    "size_after": 1572,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "0baa1f50fe592952633f25a5d0fad79bc87b429755dbf5d11f8dff3eef878989"
+  },
+  {
+    "index": 40,
+    "status": "MODIFIED",
+    "path": "infrastructure/kubernetes/web-deployment.yaml",
+    "size_before": 0,
+    "size_after": 1903,
+    "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_after": "d5636e6ba8dec66ed214c04700f6f9908a33a59e904b9221ab3a623e7196d010"
+  },
+  {
+    "index": 41,
+    "status": "ADDED",
+    "path": "nginx/production.conf.template",
+    "size_before": "",
+    "size_after": 4028,
+    "sha256_before": "",
+    "sha256_after": "2e3e2ed9fdb309e858e8894c4f6ecd05bcea12c4a219a27f8d4d37b5738a6d35"
+  },
+  {
+    "index": 42,
+    "status": "MODIFIED",
+    "path": "package.json",
+    "size_before": 6131,
+    "size_after": 6226,
+    "sha256_before": "e98ae146bf189974db9ef97517f684bf3e809f3af40e84aa6f7a840294fd3af6",
+    "sha256_after": "b06af4d87e936f2e868cc33b7b925ae6caeff78d7f4fff8e03340f8f4f72f910"
+  },
+  {
+    "index": 43,
+    "status": "ADDED",
+    "path": "reports/runtime-import-audit.json",
+    "size_before": "",
+    "size_after": 51876,
+    "sha256_before": "",
+    "sha256_after": "e3a6342d49a5be2c2a038613b364870e52c41167768f8a11b595dc20e329ae52"
+  },
+  {
+    "index": 44,
+    "status": "ADDED",
+    "path": "reports/titech-90-day-readiness.json",
+    "size_before": "",
+    "size_after": 1911,
+    "sha256_before": "",
+    "sha256_after": "253a3807be502269727e517c2db208088a5073180b7a2e23e283606fd9dcc7da"
+  },
+  {
+    "index": 45,
+    "status": "ADDED",
+    "path": "reports/titech-hosting-gate.json",
+    "size_before": "",
+    "size_after": 903,
+    "sha256_before": "",
+    "sha256_after": "f7856239905c6a7d6978b24552f3aea5a846ee9f29be132ee654e79b1cd73031"
+  },
+  {
+    "index": 46,
+    "status": "ADDED",
+    "path": "scripts/titech-hosting-gate.mjs",
+    "size_before": "",
+    "size_after": 4157,
+    "sha256_before": "",
+    "sha256_after": "8524dabb4d6f3d7e33f8c37bff6d09ec76cb2f09c96c49f43a9fdf17553b5aed"
+  }
+]

@@ -49,6 +49,9 @@ jobs:
         run: npm run check:financial
       - name: Canonical runtime import audit
         run: npm run check:runtime-imports
+      - name: Enterprise hosting gate
+        run: npm run titech:hosting-gate
+
       - name: Enterprise release readiness audit
         run: npm run release:gate
       - name: TITech 90-day implementation gate

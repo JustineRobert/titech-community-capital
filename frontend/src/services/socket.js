@@ -13,23 +13,21 @@ import { io } from "socket.io-client";
 // ============================================================================
 
 const SOCKET_URL =
-  process.env.REACT_APP_SOCKET_URL ||
-  process.env.REACT_APP_API_URL ||
-  "http://localhost:5000";
+  import.meta.env.VITE_SOCKET_URL ||
+  (typeof window !== 'undefined'
+    ? window.location.origin
+    : 'http://localhost:5000');
 
 const TOKEN_KEY =
-  process.env.REACT_APP_TOKEN_KEY ||
+  import.meta.env.VITE_TOKEN_KEY ||
   "token";
 
 const TENANT_KEY =
-  process.env.REACT_APP_TENANT_KEY ||
+  import.meta.env.VITE_TENANT_KEY ||
   "activeTenant";
 
 const MAX_RECONNECT_ATTEMPTS =
-  Number(
-    process.env
-      .REACT_APP_SOCKET_RETRIES
-  ) || 10;
+  Number(import.meta.env.VITE_SOCKET_RETRIES) || 10;
 
 // ============================================================================
 // Token Helpers
