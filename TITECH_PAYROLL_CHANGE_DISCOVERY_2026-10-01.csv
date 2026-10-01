@@ -1,0 +1,18 @@
+path,change_type,domain,purpose,evidence_status
+backend/modules/payroll/payroll.stateMachine.cjs,ADDED,payroll,Explicit deterministic batch lifecycle and role transition policy,UNIT_TESTED
+backend/modules/payroll/models/Employer.cjs,ADDED,payroll,Employer onboarding/KYC/compliance/risk domain record,IMPLEMENTED_BUT_NOT_VERIFIED
+backend/modules/payroll/models/Employee.cjs,ADDED,payroll,Employee/member payroll identity and employment record,IMPLEMENTED_BUT_NOT_VERIFIED
+backend/modules/payroll/models/PayrollApproval.cjs,ADDED,payroll,Immutable maker-checker approval history,IMPLEMENTED_BUT_NOT_VERIFIED
+backend/modules/payroll/models/PayrollPaymentAttempt.cjs,ADDED,payments,Persist provider attempt evidence and idempotency,IMPLEMENTED_BUT_NOT_VERIFIED
+backend/modules/payroll/models/PayrollWebhookEvent.cjs,ADDED,payments,Provider webhook event deduplication and evidence,IMPLEMENTED_BUT_NOT_VERIFIED
+backend/modules/payroll/payroll.constants.cjs,MODIFIED,payroll,Expanded enterprise roles states and audit actions,IMPLEMENTED
+backend/modules/payroll/models/PayrollBatch.cjs,MODIFIED,payroll,Expanded lifecycle and approval metadata,IMPLEMENTED
+backend/modules/payroll/models/PayrollTransaction.cjs,MODIFIED,payments,Linked payment intent/settlement status fields,IMPLEMENTED
+backend/modules/payroll/payroll.service.cjs,MODIFIED,payroll,Integrated employer employee approval attempts and webhook dedupe,IMPLEMENTED_BUT_NOT_VERIFIED
+backend/modules/payroll/payroll.routes.js,MODIFIED,api,Added employer employee approval history and maker-checker endpoints,IMPLEMENTED_BUT_NOT_VERIFIED
+backend/tests/unit/payroll/payroll.stateMachine.test.cjs,ADDED,testing,State transition and SoD tests,UNIT_TESTED
+backend/tests/unit/payroll/payroll.moneySafety.test.cjs,ADDED,testing,Negative/mixed-currency financial input tests,UNIT_TESTED
+docs/TITECH_PAYROLL_ENTERPRISE_IMPLEMENTATION_2026-10-01.md,ADDED,documentation,Implementation and evidence boundary,VERIFIED
+docs/TITECH_SECURITY_COMPLIANCE_EVIDENCE_REGISTER_2026-10-01.md,ADDED,compliance,Security/compliance evidence register,VERIFIED
+TITECH_PAYROLL_CHANGE_DISCOVERY_2026-10-01.csv,ADDED,traceability,Machine-readable implementation index,VERIFIED
+reports/TITECH_PAYROLL_VALIDATION_2026-10-01.json,ADDED,validation,Actual implementation validation evidence and explicit external blockers,VERIFIED

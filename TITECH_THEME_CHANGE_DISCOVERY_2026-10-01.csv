@@ -1,0 +1,16 @@
+status,path,change,category
+MODIFIED,branding/BRAND_MANIFEST.json,See implementation report for rationale,implementation
+MODIFIED,frontend/index.html,See implementation report for rationale,implementation
+MODIFIED,frontend/src/branding/official-theme.css,See implementation report for rationale,implementation
+MODIFIED,frontend/src/charts/LoanPortfolioChart.jsx,See implementation report for rationale,implementation
+MODIFIED,frontend/src/charts/MemberGrowthChart.jsx,See implementation report for rationale,implementation
+MODIFIED,frontend/src/charts/MultiSeriesChart.jsx,See implementation report for rationale,implementation
+MODIFIED,frontend/src/charts/PortfolioAtRiskChart.jsx,See implementation report for rationale,implementation
+MODIFIED,frontend/src/charts/RevenueChart.jsx,See implementation report for rationale,implementation
+MODIFIED,frontend/src/charts/SavingsGrowthChart.jsx,See implementation report for rationale,implementation
+MODIFIED,frontend/src/charts/StackedBarChart.jsx,See implementation report for rationale,implementation
+MODIFIED,frontend/src/main.jsx,See implementation report for rationale,implementation
+MODIFIED,scripts/official-theme-audit.mjs,See implementation report for rationale,implementation
+ADDED,TITECH_THEME_CHANGE_DISCOVERY_2026-10-01.csv,Created in this pass,implementation/evidence
+ADDED,docs/brand/TITECH_PLATFORM_THEME_IMPLEMENTATION_2026-10-01.md,Created in this pass,implementation/evidence
+ADDED,reports/official-theme-audit-2026-10-01.json,Created in this pass,implementation/evidence

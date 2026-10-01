@@ -7,12 +7,18 @@ const net = require('node:net');
 const PayrollBatch = require('./models/PayrollBatch.cjs');
 const PayrollTransaction = require('./models/PayrollTransaction.cjs');
 const WebhookSubscription = require('./models/WebhookSubscription.cjs');
+const PayrollEmployer = require('./models/Employer.cjs');
+const PayrollEmployee = require('./models/Employee.cjs');
+const PayrollApproval = require('./models/PayrollApproval.cjs');
+const PayrollPaymentAttempt = require('./models/PayrollPaymentAttempt.cjs');
+const PayrollWebhookEvent = require('./models/PayrollWebhookEvent.cjs');
 const { parseCsv } = require('./payroll.csv.cjs');
 const { PayrollError } = require('./payroll.errors.cjs');
 const { PayrollProviderGateway } = require('./payroll.providerGateway.cjs');
 const { PayrollFinancialGateway } = require('./payroll.financialGateway.cjs');
 const {
   PAYROLL_ROLES,
+  PROVIDERS,
   ROLE_ALIASES,
   BATCH_STATUS,
   TRANSACTION_STATUS,
@@ -28,6 +34,7 @@ const {
   generateWebhookSecret,
   signWebhookPayload,
 } = require('./payroll.crypto.cjs');
+const { assertTransition, assertMakerCheckerSeparation } = require('./payroll.stateMachine.cjs');
 
 let auditServicePromise;
 let auditModelPromise;
@@ -49,6 +56,14 @@ function requireTenant(req) {
 
 function makeId(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
+}
+
+function actorRoles(req) {
+  return [req.user?.role, ...(Array.isArray(req.user?.roles) ? req.user.roles : [])].map(normalizeRole).filter(Boolean);
+}
+
+function isRetryableProviderError(errorCode) {
+  return new Set(['TIMEOUT', 'TEMPORARY_FAILURE', 'SERVICE_UNAVAILABLE', 'PROVIDER_TIMEOUT', 'NETWORK_ERROR', 'RATE_LIMITED']).has(String(errorCode || '').toUpperCase());
 }
 
 function serializeDecimal(value) {
@@ -102,6 +117,13 @@ function toPublicBatch(batch) {
     reconciledAt: batch.reconciledAt,
     createdAt: batch.createdAt,
     updatedAt: batch.updatedAt,
+    submittedBy: batch.submittedBy || null,
+    submittedAt: batch.submittedAt || null,
+    approvedBy: batch.approvedBy || null,
+    approvedAt: batch.approvedAt || null,
+    rejectedBy: batch.rejectedBy || null,
+    rejectedAt: batch.rejectedAt || null,
+    rejectionReason: batch.rejectionReason || null,
   };
 }
 
@@ -218,7 +240,7 @@ class PayrollService {
       fileName: String(fileName || 'payroll.csv').slice(0, 255),
       rowCount: rows.length,
       totalAmount: '0',
-      status: BATCH_STATUS.UPLOADED,
+      status: BATCH_STATUS.VALIDATED,
     });
 
     const documents = rows.map((row) => ({
@@ -240,6 +262,13 @@ class PayrollService {
     }));
 
     await PayrollTransaction.insertMany(documents, { ordered: true });
+    for (const row of rows) {
+      await PayrollEmployee.updateOne(
+        { tenantId, employerId: tenantId, employeeId: row.employeeId },
+        { $set: { fullName: row.employeeName, phoneNumber: row.phoneNumber, paymentRail: row.provider, currency: row.currency }, $setOnInsert: { tenantId, employerId: tenantId, employeeId: row.employeeId } },
+        { upsert: true },
+      );
+    }
     const totals = await PayrollTransaction.aggregate([
       { $match: { batchId, tenantId } },
       { $group: { _id: '$currency', totalAmount: { $sum: '$amount' } } },
@@ -259,6 +288,80 @@ class PayrollService {
 
     const current = await PayrollBatch.findOne({ batchId, tenantId }).lean();
     return { batch: toPublicBatch(current), replay: false };
+  }
+
+  async createEmployer({ req, tenantId, actorId, input }) {
+    if (!input?.legalName) throw new PayrollError('PAYROLL_EMPLOYER_NAME_REQUIRED', 'Employer legal name is required.', 400);
+    const existing = await PayrollEmployer.findOne({ tenantId, legalName: String(input.legalName).trim() }).lean();
+    if (existing) return { employer: existing, replay: true };
+    const employer = await PayrollEmployer.create({
+      employerId: makeId('employer'), tenantId, legalName: String(input.legalName).trim(),
+      tradingName: input.tradingName || null, registrationNumber: input.registrationNumber || null,
+      taxIdentifier: input.taxIdentifier || null, settlementCurrency: input.settlementCurrency || 'UGX',
+      paymentRails: Array.isArray(input.paymentRails) && input.paymentRails.length ? input.paymentRails : [PROVIDERS.MTN_MOMO, PROVIDERS.AIRTEL_MONEY],
+      createdBy: actorId, status: 'KYC_PENDING',
+    });
+    await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: AUDIT_ACTIONS.PAYROLL_EMPLOYER_CREATED, data: { employerId: employer.employerId, legalName: employer.legalName } });
+    return { employer: employer.toObject(), replay: false };
+  }
+
+  async listEmployers({ tenantId }) {
+    return PayrollEmployer.find({ tenantId }).sort({ createdAt: -1 }).lean();
+  }
+
+  async upsertEmployee({ req, tenantId, actorId, input }) {
+    if (!input?.employeeId || !input?.fullName || !input?.phoneNumber) throw new PayrollError('PAYROLL_EMPLOYEE_INVALID', 'employeeId, fullName and phoneNumber are required.', 400);
+    const employee = await PayrollEmployee.findOneAndUpdate(
+      { tenantId, employerId: String(input.employerId || tenantId), employeeId: String(input.employeeId) },
+      { $set: { fullName: String(input.fullName), phoneNumber: String(input.phoneNumber), paymentRail: input.paymentRail || PROVIDERS.MTN_MOMO, currency: input.currency || 'UGX', consentStatus: input.consentStatus || 'PENDING', verificationStatus: input.verificationStatus || 'PENDING', employmentStatus: input.employmentStatus || 'ACTIVE' }, $setOnInsert: { tenantId, employerId: String(input.employerId || tenantId), employeeId: String(input.employeeId) } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: AUDIT_ACTIONS.PAYROLL_EMPLOYEE_UPSERTED, data: { employeeId: employee.employeeId, employerId: employee.employerId } });
+    return { employee: employee.toObject() };
+  }
+
+  async listEmployees({ tenantId, employerId, status }) {
+    const filter = { tenantId };
+    if (employerId) filter.employerId = employerId;
+    if (status) filter.employmentStatus = String(status).toUpperCase();
+    return PayrollEmployee.find(filter).sort({ createdAt: -1 }).limit(500).lean();
+  }
+
+  async submitForApproval({ req, tenantId, actorId, batchId }) {
+    const batch = await PayrollBatch.findOne({ tenantId, batchId }).lean();
+    if (!batch) throw new PayrollError('PAYROLL_BATCH_NOT_FOUND', 'Payroll batch was not found.', 404);
+    assertTransition(batch.status, 'PENDING_APPROVAL');
+    await PayrollBatch.updateOne({ tenantId, batchId, status: batch.status }, { $set: { status: 'PENDING_APPROVAL', submittedBy: actorId, submittedAt: new Date() } });
+    await PayrollApproval.create({ approvalId: makeId('approval'), tenantId, batchId, action: 'SUBMITTED', actorId, actorRole: actorRoles(req)[0] || 'UNKNOWN', previousState: batch.status, nextState: 'PENDING_APPROVAL', requestId: req.requestId, correlationId: req.correlationId });
+    await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: AUDIT_ACTIONS.PAYROLL_SUBMITTED, data: { batchId, previousState: batch.status, nextState: 'PENDING_APPROVAL' } });
+    return { batch: toPublicBatch(await PayrollBatch.findOne({ tenantId, batchId }).lean()) };
+  }
+
+  async approveBatch({ req, tenantId, actorId, batchId, reason = null }) {
+    const batch = await PayrollBatch.findOne({ tenantId, batchId }).lean();
+    if (!batch) throw new PayrollError('PAYROLL_BATCH_NOT_FOUND', 'Payroll batch was not found.', 404);
+    assertTransition(batch.status, 'APPROVED');
+    assertMakerCheckerSeparation(batch.submittedBy, actorId);
+    await PayrollBatch.updateOne({ tenantId, batchId, status: 'PENDING_APPROVAL' }, { $set: { status: 'APPROVED', approvedBy: actorId, approvedAt: new Date() } });
+    await PayrollApproval.create({ approvalId: makeId('approval'), tenantId, batchId, action: 'APPROVED', actorId, actorRole: actorRoles(req)[0] || 'UNKNOWN', reason, previousState: batch.status, nextState: 'APPROVED', requestId: req.requestId, correlationId: req.correlationId });
+    await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: AUDIT_ACTIONS.PAYROLL_APPROVED, data: { batchId, previousState: batch.status, nextState: 'APPROVED' } });
+    return { batch: toPublicBatch(await PayrollBatch.findOne({ tenantId, batchId }).lean()) };
+  }
+
+  async rejectBatch({ req, tenantId, actorId, batchId, reason }) {
+    const batch = await PayrollBatch.findOne({ tenantId, batchId }).lean();
+    if (!batch) throw new PayrollError('PAYROLL_BATCH_NOT_FOUND', 'Payroll batch was not found.', 404);
+    assertTransition(batch.status, 'CANCELLED');
+    if (!reason || String(reason).trim().length < 3) throw new PayrollError('PAYROLL_REJECTION_REASON_REQUIRED', 'A rejection reason is required.', 400);
+    assertMakerCheckerSeparation(batch.submittedBy, actorId);
+    await PayrollBatch.updateOne({ tenantId, batchId, status: batch.status }, { $set: { status: 'CANCELLED', rejectedBy: actorId, rejectedAt: new Date(), rejectionReason: String(reason).trim().slice(0, 1000) } });
+    await PayrollApproval.create({ approvalId: makeId('approval'), tenantId, batchId, action: 'REJECTED', actorId, actorRole: actorRoles(req)[0] || 'UNKNOWN', reason: String(reason).trim(), previousState: batch.status, nextState: 'CANCELLED', requestId: req.requestId, correlationId: req.correlationId });
+    await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: AUDIT_ACTIONS.PAYROLL_REJECTED, data: { batchId, previousState: batch.status, nextState: 'CANCELLED', reason: String(reason).trim() } });
+    return { batch: toPublicBatch(await PayrollBatch.findOne({ tenantId, batchId }).lean()) };
+  }
+
+  async approvalHistory({ tenantId, batchId }) {
+    return PayrollApproval.find({ tenantId, batchId }).sort({ createdAt: 1 }).lean();
   }
 
   async refreshBatchStats(tenantId, batchId) {
@@ -339,9 +442,10 @@ class PayrollService {
     const batch = await PayrollBatch.findOne({ tenantId, batchId }).lean();
     if (!batch) throw new PayrollError('PAYROLL_BATCH_NOT_FOUND', 'Payroll batch was not found.', 404);
     if (batch.status === BATCH_STATUS.PROCESSING) throw new PayrollError('PAYROLL_BATCH_ALREADY_PROCESSING', 'Payroll batch is already processing.', 409);
-    if (batch.status === BATCH_STATUS.RECONCILED) throw new PayrollError('PAYROLL_BATCH_FINAL', 'Reconciled payroll batches cannot be reprocessed.', 409);
+    if (batch.status === BATCH_STATUS.RECONCILED || batch.status === BATCH_STATUS.COMPLETED || batch.status === BATCH_STATUS.CANCELLED) throw new PayrollError('PAYROLL_BATCH_FINAL', 'Final payroll batches cannot be reprocessed.', 409);
+    if (![BATCH_STATUS.APPROVED, BATCH_STATUS.PARTIALLY_PROCESSED, BATCH_STATUS.FAILED].includes(batch.status)) throw new PayrollError('PAYROLL_APPROVAL_REQUIRED', 'Payroll batch must be approved before disbursement processing.', 409, { status: batch.status });
 
-    await PayrollBatch.updateOne({ tenantId, batchId, status: { $in: [BATCH_STATUS.UPLOADED, BATCH_STATUS.PARTIALLY_PROCESSED, BATCH_STATUS.FAILED] } }, { $set: { status: BATCH_STATUS.PROCESSING } });
+    await PayrollBatch.updateOne({ tenantId, batchId, status: { $in: [BATCH_STATUS.APPROVED, BATCH_STATUS.PARTIALLY_PROCESSED, BATCH_STATUS.FAILED] } }, { $set: { status: BATCH_STATUS.PROCESSING } });
     const transactions = await PayrollTransaction.find({ tenantId, batchId, status: { $in: [TRANSACTION_STATUS.PENDING, TRANSACTION_STATUS.RETRYING] } }).lean();
 
     for (const tx of transactions) {
@@ -366,6 +470,7 @@ class PayrollService {
       });
 
       const nextStatus = providerResult.status === 'SUCCESS' ? TRANSACTION_STATUS.SUCCESS : providerResult.status === 'FAILED' ? TRANSACTION_STATUS.FAILED : TRANSACTION_STATUS.UNKNOWN;
+      await PayrollPaymentAttempt.create({ attemptId: makeId('attempt'), tenantId, batchId, transactionId: claimed.transactionId, attemptNumber: claimed.attemptCount, idempotencyKey: claimed.idempotencyKey, provider: claimed.provider, outcome: providerResult.status === 'SUCCESS' ? 'SUCCESS' : providerResult.status === 'FAILED' ? 'FAILED' : 'UNKNOWN', providerTransactionId: providerResult.providerTransactionId || null, providerRef: providerResult.providerRef || null, errorCode: providerResult.errorCode || null, occurredAt: new Date() });
       await PayrollTransaction.updateOne(
         { tenantId, transactionId: claimed.transactionId },
         {
@@ -461,7 +566,12 @@ class PayrollService {
     return { batch: toPublicBatch(updatedBatch) };
   }
 
-  async handleProviderWebhook({ req, provider, transactionId, batchId, status, providerRef, errorCode, message }) {
+  async handleProviderWebhook({ req, provider, transactionId, batchId, status, providerRef, errorCode, message, eventId = null, payloadHash = null }) {
+    if (eventId) {
+      const existingEvent = await PayrollWebhookEvent.findOne({ provider, eventId }).lean();
+      if (existingEvent) return { duplicate: true, transaction: null, batch: null };
+      await PayrollWebhookEvent.create({ eventId, provider, transactionId, status, payloadHash: payloadHash || crypto.createHash('sha256').update(JSON.stringify({ provider, transactionId, status, providerRef, errorCode, message })).digest('hex'), receivedAt: new Date() });
+    }
     const tx = await PayrollTransaction.findOne({ provider: String(provider).toUpperCase(), providerTransactionId: transactionId }).lean()
       || await PayrollTransaction.findOne({ provider: String(provider).toUpperCase(), providerRef: transactionId }).lean();
     if (!tx) throw new PayrollError('PAYROLL_TRANSACTION_NOT_FOUND', 'Payroll transaction was not found.', 404);
@@ -505,6 +615,9 @@ class PayrollService {
       data: { provider, transactionId, batchId: tx.batchId, status: nextStatus, providerRef: providerRef || null, changed: !noChange },
     });
 
+
+    if (eventId) await PayrollWebhookEvent.updateOne({ provider, eventId }, { $set: { tenantId: tx.tenantId, processedAt: new Date() } });
+
     if (updatedBatch.status === BATCH_STATUS.RECONCILED) {
       await this.dispatchEvent(tx.tenantId, WEBHOOK_EVENTS.RECONCILED, { batch: toPublicBatch(updatedBatch) }, req);
     }
@@ -516,13 +629,15 @@ class PayrollService {
     const filter = { tenantId, status: TRANSACTION_STATUS.FAILED };
     if (batchId) filter.batchId = batchId;
     const transactions = await PayrollTransaction.find(filter).lean();
+    const eligible = transactions.filter((tx) => !tx.errorCode || isRetryableProviderError(tx.errorCode));
     const results = [];
 
-    for (const tx of transactions) {
+    for (const tx of eligible) {
       const nextIdempotencyKey = `${tx.idempotencyKey}:retry:${tx.attemptCount + 1}`;
       await PayrollTransaction.updateOne({ tenantId, transactionId: tx.transactionId, status: TRANSACTION_STATUS.FAILED }, { $set: { status: TRANSACTION_STATUS.RETRYING, lastAttemptIdempotencyKey: nextIdempotencyKey, retryOf: tx.transactionId }, $inc: { attemptCount: 1 }, });
       const result = await this.providerGateway.disburse({ provider: tx.provider, tenantId, amount: serializeDecimal(tx.amount), currency: tx.currency, phoneNumber: tx.phoneNumber, idempotencyKey: nextIdempotencyKey, transactionId: tx.transactionId, employeeId: tx.employeeId, employeeName: tx.employeeName, correlationId: req.correlationId });
       const nextStatus = result.status === 'SUCCESS' ? TRANSACTION_STATUS.SUCCESS : result.status === 'FAILED' ? TRANSACTION_STATUS.FAILED : TRANSACTION_STATUS.UNKNOWN;
+      await PayrollPaymentAttempt.create({ attemptId: makeId('attempt'), tenantId, batchId: tx.batchId, transactionId: tx.transactionId, attemptNumber: tx.attemptCount + 1, idempotencyKey: nextIdempotencyKey, provider: tx.provider, outcome: result.status === 'SUCCESS' ? 'SUCCESS' : result.status === 'FAILED' ? 'FAILED' : 'UNKNOWN', providerTransactionId: result.providerTransactionId || null, providerRef: result.providerRef || null, errorCode: result.errorCode || null, occurredAt: new Date() });
       await PayrollTransaction.updateOne({ tenantId, transactionId: tx.transactionId }, { $set: { status: nextStatus, providerTransactionId: result.providerTransactionId || tx.providerTransactionId, providerRef: result.providerRef || tx.providerRef, errorCode: result.errorCode || null, message: result.message || null, lastProviderUpdateAt: new Date() } });
       if (nextStatus === TRANSACTION_STATUS.SUCCESS) {
         await this.finalizeFinancialPosting({
@@ -684,4 +799,5 @@ module.exports = {
   decryptSecret,
   signWebhookPayload,
   PAYROLL_ROLES,
+  PROVIDERS,
 };

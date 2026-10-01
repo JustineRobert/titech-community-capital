@@ -132,5 +132,8 @@
     "test:all": "npm --prefix backend run test:all",
     "audit:theme": "node scripts/official-theme-audit.mjs"
   },
-  "dependencies": {}
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.3.2"
+  }
 }
