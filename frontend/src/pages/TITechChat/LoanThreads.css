@@ -65,7 +65,7 @@
   --loan-color-purple: #6842c2;
   --loan-color-purple-soft: #f3efff;
 
-  --loan-color-text: #172033;
+  --loan-color-text: var(--titech-brand-navy);
   --loan-color-text-secondary: #566176;
   --loan-color-text-muted: #778196;
   --loan-color-text-inverse: #ffffff;
@@ -1833,7 +1833,7 @@
     --loan-color-border: #2c3545;
     --loan-color-border-strong: #3c475a;
 
-    --loan-color-surface: #111827;
+    --loan-color-surface: var(--titech-brand-navy);
     --loan-color-surface-soft: #0b1220;
     --loan-color-surface-muted: #1a2333;
 

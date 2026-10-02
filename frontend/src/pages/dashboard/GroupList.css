@@ -13,16 +13,16 @@
 
 :root {
   --group-bg: #ffffff;
-  --group-surface: #f8fafc;
+  --group-surface: var(--titech-color-background);
   --group-surface-raised: #ffffff;
-  --group-surface-hover: #f1f5f9;
+  --group-surface-hover: var(--titech-color-surface-muted);
 
-  --group-border: #e2e8f0;
-  --group-border-strong: #cbd5e1;
+  --group-border: var(--titech-color-border);
+  --group-border-strong: var(--titech-color-border-strong);
 
-  --group-text: #0f172a;
-  --group-text-secondary: #64748b;
-  --group-text-muted: #94a3b8;
+  --group-text: var(--titech-brand-navy);
+  --group-text-secondary: var(--titech-color-text-subtle);
+  --group-text-muted: var(--titech-color-text-subtle);
 
   --group-primary: #0058d8;
   --group-primary-hover: #0030a0;
@@ -636,17 +636,17 @@
    ============================================================================ */
 
 .dark {
-  --group-bg: #0f172a;
-  --group-surface: #1e293b;
-  --group-surface-raised: #172033;
+  --group-bg: var(--titech-brand-navy);
+  --group-surface: var(--titech-brand-navy);
+  --group-surface-raised: var(--titech-brand-navy);
   --group-surface-hover: #243247;
 
   --group-border: #334155;
-  --group-border-strong: #475569;
+  --group-border-strong: var(--titech-color-text-muted);
 
-  --group-text: #f8fafc;
-  --group-text-secondary: #94a3b8;
-  --group-text-muted: #64748b;
+  --group-text: var(--titech-color-background);
+  --group-text-secondary: var(--titech-color-text-subtle);
+  --group-text-muted: var(--titech-color-text-subtle);
 
   --group-primary: #4baaf5;
   --group-primary-hover: #81c4ff;
@@ -911,7 +911,7 @@
 
     box-shadow: none;
 
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--titech-color-border-strong);
   }
 
   .group-card::before,

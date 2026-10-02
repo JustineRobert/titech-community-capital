@@ -40,18 +40,10 @@
  * ============================================================================
  */
 
-const crypto =
-    require('crypto');
-
-
-const TransactionOutboxRecord =
-    require('../models/TransactionOutboxRecord');
-
-
-const {
-    OUTBOX_STATUS
-} =
-    require('../models/TransactionOutboxRecord');
+import crypto from 'node:crypto';
+import TransactionOutboxRecord, {
+    OUTBOX_STATUS,
+} from '../models/TransactionOutboxRecord.js';
 
 
 /**
@@ -3347,13 +3339,9 @@ class TransactionOutboxRepository {
 }
 
 
-module.exports =
-    TransactionOutboxRepository;
+export {
+    TransactionOutboxRepository,
+    OUTBOX_STATUS,
+};
 
-
-module.exports.TransactionOutboxRepository =
-    TransactionOutboxRepository;
-
-
-module.exports.OUTBOX_STATUS =
-    OUTBOX_STATUS;
+export default TransactionOutboxRepository;

@@ -49,7 +49,7 @@ module.exports = { tenantRateLimiter, normalizeHeaders, apiVersioning };
 'use strict';
 
 const logger = require('../utils/logger'); // structured logger
-const ERROR_CODES = require('../utils/errorCodes'); // optional
+const ERROR_CODES = require('../utils/errorCodes.cjs'); // optional
 const AppError = require('../utils/AppError'); // optional
 
 const DEFAULT_PHONE = '256772123546';

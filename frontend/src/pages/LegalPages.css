@@ -88,27 +88,27 @@
    * Surfaces
    * ------------------------------------------------------------------------ */
 
-  --legal-page-bg: #f8fafc;
+  --legal-page-bg: var(--titech-color-background);
   --legal-surface: #ffffff;
   --legal-surface-raised: #ffffff;
-  --legal-surface-muted: #f1f5f9;
-  --legal-surface-subtle: #f8fafc;
+  --legal-surface-muted: var(--titech-color-surface-muted);
+  --legal-surface-subtle: var(--titech-color-background);
 
   /* --------------------------------------------------------------------------
    * Typography
    * ------------------------------------------------------------------------ */
 
-  --legal-text: #0f172a;
-  --legal-text-muted: #475569;
-  --legal-text-subtle: #64748b;
+  --legal-text: var(--titech-brand-navy);
+  --legal-text-muted: var(--titech-color-text-muted);
+  --legal-text-subtle: var(--titech-color-text-subtle);
   --legal-text-inverse: #ffffff;
 
   /* --------------------------------------------------------------------------
    * Borders
    * ------------------------------------------------------------------------ */
 
-  --legal-border: #e2e8f0;
-  --legal-border-strong: #cbd5e1;
+  --legal-border: var(--titech-color-border);
+  --legal-border-strong: var(--titech-color-border-strong);
 
   /* --------------------------------------------------------------------------
    * Accessibility
@@ -310,7 +310,7 @@
     ),
     linear-gradient(
       135deg,
-      #0f172a 0%,
+      var(--titech-brand-navy) 0%,
       #134e4a 55%,
       #008000 100%
     );
@@ -2003,17 +2003,17 @@
   .legal-page,
   .legal-pages {
     --legal-page-bg: #020617;
-    --legal-surface: #0f172a;
-    --legal-surface-raised: #111827;
-    --legal-surface-muted: #111827;
+    --legal-surface: var(--titech-brand-navy);
+    --legal-surface-raised: var(--titech-brand-navy);
+    --legal-surface-muted: var(--titech-brand-navy);
     --legal-surface-subtle: #0b1220;
 
-    --legal-text: #f8fafc;
-    --legal-text-muted: #cbd5e1;
-    --legal-text-subtle: #94a3b8;
+    --legal-text: var(--titech-color-background);
+    --legal-text-muted: var(--titech-color-border-strong);
+    --legal-text-subtle: var(--titech-color-text-subtle);
     --legal-text-inverse: #ffffff;
 
-    --legal-border: #1e293b;
+    --legal-border: var(--titech-brand-navy);
     --legal-border-strong: #334155;
 
     --legal-primary-light:
@@ -2029,7 +2029,7 @@
       linear-gradient(
         180deg,
         #020617,
-        #0f172a
+        var(--titech-brand-navy)
       );
   }
 }
@@ -2043,17 +2043,17 @@
 .dark-mode .legal-page,
 .dark-mode .legal-pages {
   --legal-page-bg: #020617;
-  --legal-surface: #0f172a;
-  --legal-surface-raised: #111827;
-  --legal-surface-muted: #111827;
+  --legal-surface: var(--titech-brand-navy);
+  --legal-surface-raised: var(--titech-brand-navy);
+  --legal-surface-muted: var(--titech-brand-navy);
   --legal-surface-subtle: #0b1220;
 
-  --legal-text: #f8fafc;
-  --legal-text-muted: #cbd5e1;
-  --legal-text-subtle: #94a3b8;
+  --legal-text: var(--titech-color-background);
+  --legal-text-muted: var(--titech-color-border-strong);
+  --legal-text-subtle: var(--titech-color-text-subtle);
   --legal-text-inverse: #ffffff;
 
-  --legal-border: #1e293b;
+  --legal-border: var(--titech-brand-navy);
   --legal-border-strong: #334155;
 
   --legal-primary-light:
@@ -2069,7 +2069,7 @@
     linear-gradient(
       180deg,
       #020617,
-      #0f172a
+      var(--titech-brand-navy)
     );
 }
 
@@ -2208,7 +2208,7 @@
 
   .legal-section th {
     background:
-      #111827;
+      var(--titech-brand-navy);
   }
 
   .scroll-to-top,

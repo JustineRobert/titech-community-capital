@@ -125,7 +125,7 @@ const CONTACT = Object.freeze({
     'support@titechcommunity.app',
 
   privacyEmail:
-    'privacy@communitysavings.app',
+    'privacy@titechcommunity.app',
 
   phone:
     '+256 (782) 397907',

@@ -23,7 +23,12 @@ const router = express.Router();
 const webhookRouter = express.Router();
 
 const authenticate = authModule.authenticate || authModule.verifyToken || authModule.default;
-const tenantAuthorization = tenantMiddlewareModule.default || tenantMiddlewareModule.tenantMiddleware || tenantMiddlewareModule.requireTenant;
+const tenantAuthorization =
+  typeof tenantMiddlewareModule === 'function'
+    ? tenantMiddlewareModule
+    : tenantMiddlewareModule.default ||
+      tenantMiddlewareModule.tenantMiddleware ||
+      tenantMiddlewareModule.requireTenant;
 
 if (typeof authenticate !== 'function') throw new TypeError('TITech payroll authentication middleware is unavailable.');
 if (typeof tenantAuthorization !== 'function') throw new TypeError('TITech payroll tenant authorization middleware is unavailable.');
@@ -145,75 +150,13 @@ router.post('/uploadPayroll', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLO
 
 /**
  * @openapi
- * /api/v1/payroll/employers:
- *   post:
- *     summary: Create an employer onboarding record
- *     tags: [Payroll]
- */
-router.post('/employers', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_ADMIN'), express.json(), idempotency({ operation: 'PAYROLL_EMPLOYER_CREATE', resource: 'payroll-employer', required: true }), withErrorHandling(async (req, res) => {
-  const tenantId = requestTenant(req);
-  const result = await getService(req).createEmployer({ req, tenantId, actorId: String(req.user.id || req.user.userId), input: req.body || {} });
-  return sendSuccess(req, res, result.replay ? 200 : 201, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
-}));
-
-router.get('/employers', ...payrollAuth, requirePayrollRole('ADMIN', 'AUDITOR', 'EMPLOYER_ADMIN', 'EMPLOYER_USER'), withErrorHandling(async (req, res) => {
-  const tenantId = requestTenant(req);
-  const employers = await getService(req).listEmployers({ tenantId });
-  return res.json({ success: true, employers, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
-}));
-
-router.post('/employees', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_ADMIN', 'EMPLOYER_USER', 'PAYROLL_MAKER'), express.json(), idempotency({ operation: 'PAYROLL_EMPLOYEE_UPSERT', resource: 'payroll-employee', required: true }), withErrorHandling(async (req, res) => {
-  const tenantId = requestTenant(req);
-  const result = await getService(req).upsertEmployee({ req, tenantId, actorId: String(req.user.id || req.user.userId), input: req.body || {} });
-  return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
-}));
-
-router.get('/employees', ...payrollAuth, requirePayrollRole('ADMIN', 'AUDITOR', 'EMPLOYER_ADMIN', 'EMPLOYER_USER', 'PAYROLL_MAKER', 'READ_ONLY_ANALYST'), withErrorHandling(async (req, res) => {
-  const tenantId = requestTenant(req);
-  const employees = await getService(req).listEmployees({ tenantId, employerId: req.query.employerId, status: req.query.status });
-  return res.json({ success: true, employees, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
-}));
-
-/**
- * @openapi
- * /api/v1/payroll/batches/{batchId}/submit:
- *   post:
- *     summary: Submit a validated payroll batch for maker-checker approval
- *     tags: [Payroll]
- */
-router.post('/batches/:batchId/submit', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_ADMIN', 'EMPLOYER_USER', 'PAYROLL_MAKER'), idempotency({ operation: 'PAYROLL_SUBMIT', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
-  const tenantId = requestTenant(req);
-  const result = await getService(req).submitForApproval({ req, tenantId, actorId: String(req.user.id || req.user.userId), batchId: String(req.params.batchId) });
-  return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
-}));
-
-router.post('/batches/:batchId/approve', ...payrollAuth, requirePayrollRole('ADMIN', 'PAYROLL_CHECKER', 'PAYROLL_APPROVER'), express.json(), idempotency({ operation: 'PAYROLL_APPROVE', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
-  const tenantId = requestTenant(req);
-  const result = await getService(req).approveBatch({ req, tenantId, actorId: String(req.user.id || req.user.userId), batchId: String(req.params.batchId), reason: req.body?.reason || null });
-  return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
-}));
-
-router.post('/batches/:batchId/reject', ...payrollAuth, requirePayrollRole('ADMIN', 'PAYROLL_CHECKER', 'PAYROLL_APPROVER'), express.json(), idempotency({ operation: 'PAYROLL_REJECT', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
-  const tenantId = requestTenant(req);
-  const result = await getService(req).rejectBatch({ req, tenantId, actorId: String(req.user.id || req.user.userId), batchId: String(req.params.batchId), reason: req.body?.reason });
-  return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
-}));
-
-router.get('/batches/:batchId/approval-history', ...payrollAuth, requirePayrollRole('ADMIN', 'AUDITOR', 'EMPLOYER_ADMIN', 'EMPLOYER_USER', 'PAYROLL_MAKER', 'PAYROLL_CHECKER', 'PAYROLL_APPROVER'), withErrorHandling(async (req, res) => {
-  const tenantId = requestTenant(req);
-  const approvals = await getService(req).approvalHistory({ tenantId, batchId: String(req.params.batchId) });
-  return res.json({ success: true, approvals, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
-}));
-
-/**
- * @openapi
  * /api/v1/payroll/processBatch:
  *   post:
  *     summary: Process a payroll batch
  *     tags: [Payroll]
  *     security: [{ BearerAuth: [] }]
  */
-router.post('/processBatch', ...payrollAuth, requirePayrollRole('ADMIN', 'PAYROLL_ADMIN'), idempotency({ operation: 'PAYROLL_PROCESS_BATCH', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
+router.post('/processBatch', ...payrollAuth, requirePayrollRole('ADMIN'), idempotency({ operation: 'PAYROLL_PROCESS_BATCH', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const batchId = String(req.body?.batchId || '').trim();
   if (!batchId) throw new PayrollError('PAYROLL_BATCH_REQUIRED', 'batchId is required.', 400);
@@ -229,7 +172,7 @@ router.post('/processBatch', ...payrollAuth, requirePayrollRole('ADMIN', 'PAYROL
  *     tags: [Payroll]
  *     security: [{ BearerAuth: [] }]
  */
-router.post('/reconcile', ...payrollAuth, requirePayrollRole('ADMIN', 'FINANCE_OFFICER', 'RECONCILIATION_OFFICER'), idempotency({ operation: 'PAYROLL_RECONCILE', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
+router.post('/reconcile', ...payrollAuth, requirePayrollRole('ADMIN'), idempotency({ operation: 'PAYROLL_RECONCILE', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const batchId = String(req.body?.batchId || '').trim();
   if (!batchId) throw new PayrollError('PAYROLL_BATCH_REQUIRED', 'batchId is required.', 400);
@@ -337,9 +280,7 @@ webhookRouter.post('/', express.json({ limit: '64kb' }), withErrorHandling(async
   const status = String(req.body?.status || '').toUpperCase();
   if (!provider || !transactionId || !status) throw new PayrollError('PAYROLL_PROVIDER_WEBHOOK_INVALID', 'provider, transactionId and status are required.', 400);
 
-  const eventId = String(req.get('X-TITech-Provider-Event-Id') || req.body?.eventId || '').trim() || null;
-  const payloadHash = require('node:crypto').createHash('sha256').update(JSON.stringify(req.body || {})).digest('hex');
-  const result = await getService(req).handleProviderWebhook({ req, provider, transactionId, batchId, status, providerRef: req.body?.providerRef || null, errorCode: req.body?.errorCode || null, message: req.body?.message || null, eventId, payloadHash });
+  const result = await getService(req).handleProviderWebhook({ req, provider, transactionId, batchId, status, providerRef: req.body?.providerRef || null, errorCode: req.body?.errorCode || null, message: req.body?.message || null });
   return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
 }));
 

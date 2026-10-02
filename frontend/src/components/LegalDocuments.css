@@ -45,18 +45,18 @@
   --legal-primary-soft: #eef2ff;
   --legal-primary-border: #c7d2fe;
 
-  --legal-text: #111827;
+  --legal-text: var(--titech-brand-navy);
   --legal-text-secondary: #374151;
-  --legal-text-muted: #6b7280;
+  --legal-text-muted: var(--titech-color-text-subtle);
   --legal-text-subtle: #9ca3af;
 
   --legal-surface: #ffffff;
-  --legal-surface-subtle: #f8fafc;
-  --legal-surface-muted: #f1f5f9;
+  --legal-surface-subtle: var(--titech-color-background);
+  --legal-surface-muted: var(--titech-color-surface-muted);
   --legal-surface-elevated: #ffffff;
 
-  --legal-border: #e5e7eb;
-  --legal-border-strong: #d1d5db;
+  --legal-border: var(--titech-color-border);
+  --legal-border-strong: var(--titech-color-border);
 
   --legal-success: #047857;
   --legal-success-soft: #ecfdf5;
@@ -846,9 +846,9 @@
 
 .legal-btn-primary:disabled,
 .legal-btn-primary[aria-disabled="true"] {
-  color: #64748b;
-  background: #e2e8f0;
-  border-color: #e2e8f0;
+  color: var(--titech-color-text-subtle);
+  background: var(--titech-color-border);
+  border-color: var(--titech-color-border);
   cursor: not-allowed;
   box-shadow: none;
   opacity: 0.75;
@@ -965,7 +965,7 @@
 .legal-modal-content {
   scrollbar-width: thin;
   scrollbar-color:
-    #cbd5e1
+    var(--titech-color-border-strong)
     var(--legal-surface-muted);
 }
 
@@ -979,13 +979,13 @@
 }
 
 .legal-modal-content::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--titech-color-border-strong);
   border: 2px solid var(--legal-surface-muted);
   border-radius: 999px;
 }
 
 .legal-modal-content::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--titech-color-text-subtle);
 }
 
 /* ============================================================================
@@ -1000,18 +1000,18 @@
     --legal-primary-soft: rgba(99, 102, 241, 0.14);
     --legal-primary-border: rgba(129, 140, 248, 0.38);
 
-    --legal-text: #f8fafc;
-    --legal-text-secondary: #d1d5db;
+    --legal-text: var(--titech-color-background);
+    --legal-text-secondary: var(--titech-color-border);
     --legal-text-muted: #9ca3af;
-    --legal-text-subtle: #6b7280;
+    --legal-text-subtle: var(--titech-color-text-subtle);
 
-    --legal-surface: #111827;
-    --legal-surface-subtle: #172033;
+    --legal-surface: var(--titech-brand-navy);
+    --legal-surface-subtle: var(--titech-brand-navy);
     --legal-surface-muted: #1f2937;
-    --legal-surface-elevated: #1e293b;
+    --legal-surface-elevated: var(--titech-brand-navy);
 
     --legal-border: #374151;
-    --legal-border-strong: #4b5563;
+    --legal-border-strong: var(--titech-color-text-muted);
 
     --legal-success: #6ee7b7;
     --legal-success-soft: rgba(16, 185, 129, 0.12);
@@ -1055,8 +1055,8 @@
     background:
       linear-gradient(
         180deg,
-        #172033 0%,
-        #111827 100%
+        var(--titech-brand-navy) 0%,
+        var(--titech-brand-navy) 100%
       );
   }
 
@@ -1065,7 +1065,7 @@
   }
 
   .legal-document-text tr:hover td {
-    background: #172033;
+    background: var(--titech-brand-navy);
   }
 
   .legal-document-text pre,
@@ -1080,19 +1080,19 @@
 
   .legal-btn-secondary:hover:not(:disabled) {
     background: #273449;
-    border-color: #6b7280;
+    border-color: var(--titech-color-text-subtle);
   }
 
   .legal-btn-primary:disabled,
   .legal-btn-primary[aria-disabled="true"] {
-    color: #94a3b8;
+    color: var(--titech-color-text-subtle);
     background: #334155;
     border-color: #334155;
   }
 
   .legal-modal-content {
     scrollbar-color:
-      #4b5563
+      var(--titech-color-text-muted)
       #1f2937;
   }
 
@@ -1101,12 +1101,12 @@
   }
 
   .legal-modal-content::-webkit-scrollbar-thumb {
-    background: #4b5563;
+    background: var(--titech-color-text-muted);
     border-color: #1f2937;
   }
 
   .legal-modal-content::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
+    background: var(--titech-color-text-subtle);
   }
 }
 

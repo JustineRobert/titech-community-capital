@@ -117,7 +117,7 @@ supportEmail:
 '[support@titechcommunity.app](mailto:support@titechcommunity.app)',
 
 privacyEmail:
-'[privacy@communitysavings.app](mailto:privacy@communitysavings.app)',
+'[privacy@titechcommunity.app](mailto:privacy@titechcommunity.app)',
 
 phone:
 '+256 (782) 397907',

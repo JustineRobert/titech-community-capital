@@ -100,8 +100,8 @@
  * ============================================================================
  */
 
-const crypto = require("crypto");
-const mongoose = require("mongoose");
+import crypto from "node:crypto";
+import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
@@ -2164,7 +2164,7 @@ RefreshTokenSchema.statics.ISSUED_BY_VALUES =
 // Model
 // ============================================================================
 
-module.exports =
+export default
   mongoose.models.RefreshToken ||
   mongoose.model(
     "RefreshToken",

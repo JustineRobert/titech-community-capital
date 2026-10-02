@@ -738,6 +738,121 @@ function normalizeMetadata(
     );
 }
 
+function requireConsistentEntryField(
+    entries,
+    field,
+    code,
+    label
+) {
+    const values =
+        new Set(
+            entries.map(
+                entry =>
+                    entry[field]
+            )
+        );
+
+    if (
+        values.size >
+        1
+    ) {
+        throw createLedgerError(
+            `Ledger entries must use one ${label}.`,
+            code,
+            400,
+            {
+                field: label
+            }
+        );
+    }
+}
+
+function requireSameTenant(
+    entries
+) {
+    requireConsistentEntryField(
+        entries,
+        "tenantId",
+        "LEDGER_TENANT_MISMATCH",
+        "tenant"
+    );
+}
+
+function requireSameTransaction(
+    entries
+) {
+    requireConsistentEntryField(
+        entries,
+        "financialTransactionId",
+        "LEDGER_TRANSACTION_MISMATCH",
+        "transaction"
+    );
+}
+
+function requireSameCurrency(
+    entries
+) {
+    requireConsistentEntryField(
+        entries,
+        "currency",
+        "LEDGER_CURRENCY_MISMATCH",
+        "currency"
+    );
+}
+
+function validateBalancedEntries(
+    entries
+) {
+    const debitTotal =
+        sumExactDecimals(
+            entries
+                .filter(
+                    entry =>
+                        entry.direction ===
+                        "DEBIT"
+                )
+                .map(
+                    entry =>
+                        entry.amount
+                )
+        );
+
+    const creditTotal =
+        sumExactDecimals(
+            entries
+                .filter(
+                    entry =>
+                        entry.direction ===
+                        "CREDIT"
+                )
+                .map(
+                    entry =>
+                        entry.amount
+                )
+        );
+
+    if (
+        debitTotal === "0" ||
+        creditTotal === "0" ||
+        debitTotal !== creditTotal
+    ) {
+        throw createLedgerError(
+            "Ledger entries must contain matching debit and credit totals.",
+            "LEDGER_ENTRIES_UNBALANCED",
+            400,
+            {
+                debitTotal,
+                creditTotal
+            }
+        );
+    }
+
+    return {
+        debitTotal,
+        creditTotal
+    };
+}
+
 /**
  * ============================================================================
  * Normalize Ledger Entry

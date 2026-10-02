@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital",
   "version": "1.0.0",
-  "description": "TITech Community Capital — Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
+  "description": "TITech Community Capital \u2014 Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
   "private": true,
   "keywords": [
     "TITech",
@@ -58,7 +58,7 @@
     "build": "npm run build:frontend",
     "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
-    "check": "npm run check:conflicts && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run lint && npm run format:check",
     "check:all": "npm run check && npm run test",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs",
@@ -130,10 +130,8 @@
     "test:commercial": "npm --prefix backend run test:commercial",
     "test:chat": "npm --prefix backend run test:chat",
     "test:all": "npm --prefix backend run test:all",
-    "audit:theme": "node scripts/official-theme-audit.mjs"
+    "audit:theme": "node scripts/official-theme-audit.mjs",
+    "titech:implementation-gate": "node scripts/titech-implementation-gate.mjs"
   },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^6.1.1",
-    "vite": "^8.3.2"
-  }
+  "dependencies": {}
 }

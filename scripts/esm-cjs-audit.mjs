@@ -22,6 +22,15 @@ const SOURCE_EXTENSIONS = new Set(['.js', '.cjs', '.mjs']);
 const IMPORT_RE = /\bimport\s+(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]|\bexport\s+(?:default\s+)?/g;
 const REQUIRE_RE = /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
+// This audit is source-scan based rather than AST based. Strip comments before
+// classification so documentation examples such as `module.exports` or
+// `require("./example")` do not become false CJS/runtime findings.
+function codeOnly(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
 function walk(dir, result = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (EXCLUDED.has(entry.name)) continue;
@@ -34,9 +43,10 @@ function walk(dir, result = []) {
 
 function classify(file, source) {
   const ext = path.extname(file).toLowerCase();
-  const hasImportExport = IMPORT_RE.test(source);
+  const code = codeOnly(source);
+  const hasImportExport = IMPORT_RE.test(code);
   IMPORT_RE.lastIndex = 0;
-  const hasRequire = REQUIRE_RE.test(source) || /\bmodule\.exports\b|\bexports\.[A-Za-z_$]/.test(source);
+  const hasRequire = REQUIRE_RE.test(code) || /\bmodule\.exports\b|\bexports\.[A-Za-z_$]/.test(code);
   REQUIRE_RE.lastIndex = 0;
 
   if (ext === '.cjs') return hasImportExport ? 'mixed-cjs' : 'cjs';
@@ -60,6 +70,7 @@ const unresolved = [];
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
+  const code = codeOnly(source);
   const classification = classify(file, source);
   classifications.push({
     file: path.relative(ROOT, file).replaceAll(path.sep, '/'),
@@ -67,7 +78,7 @@ for (const file of files) {
   });
 
   let match;
-  while ((match = REQUIRE_RE.exec(source))) {
+  while ((match = REQUIRE_RE.exec(code))) {
     const spec = match[1];
     if (!spec.startsWith('.')) continue;
     const target = resolveRelative(file, spec);

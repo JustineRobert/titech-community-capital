@@ -465,9 +465,12 @@ const TermsOfService = () => {
           <p className="legal-description">
             These Terms of Service govern access to
             and use of the TITech Community Capital
-            Platform. Please review them carefully
-            before using services provided through
-            the Platform.
+            Platform, including operational controls,
+            financial infrastructure workflows,
+            community and institutional governance,
+            security boundaries, payment orchestration,
+            and reconciliation obligations across the
+            product lifecycle.
           </p>
 
           <div
@@ -485,6 +488,37 @@ const TermsOfService = () => {
               <strong>Version:</strong>{' '}
               {LEGAL_VERSION}
             </span>
+          </div>
+
+          <div
+            style={{
+              marginTop: '1.25rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '0.75rem',
+              width: '100%',
+              maxWidth: '860px',
+            }}
+          >
+            {[
+              ['Status', 'Enterprise-ready governance'],
+              ['Jurisdiction', 'Uganda · applicable cross-border requirements'],
+              ['Operating model', 'Auditable financial infrastructure'],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  borderRadius: '12px',
+                  padding: '0.8rem 0.9rem',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <div style={{ fontSize: '0.7rem', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8, marginBottom: '0.3rem' }}>{label}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{value}</div>
+              </div>
+            ))}
           </div>
         </div>
       </header>

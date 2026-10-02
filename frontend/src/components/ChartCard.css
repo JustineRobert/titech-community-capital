@@ -46,32 +46,32 @@
 
   --titech-chart-bg-subtle: var(
     --titech-surface-subtle,
-    #f8fafc
+    var(--titech-color-background)
   );
 
   --titech-chart-border: var(
     --titech-border,
-    #e2e8f0
+    var(--titech-color-border)
   );
 
   --titech-chart-border-strong: var(
     --titech-border-strong,
-    #cbd5e1
+    var(--titech-color-border-strong)
   );
 
   --titech-chart-text: var(
     --titech-text,
-    #0f172a
+    var(--titech-brand-navy)
   );
 
   --titech-chart-text-secondary: var(
     --titech-text-secondary,
-    #475569
+    var(--titech-color-text-muted)
   );
 
   --titech-chart-text-muted: var(
     --titech-text-muted,
-    #64748b
+    var(--titech-color-text-subtle)
   );
 
   --titech-chart-primary: var(
@@ -1731,13 +1731,13 @@
   --titech-chart-bg:
     var(
       --titech-dark-surface,
-      #0f172a
+      var(--titech-brand-navy)
     );
 
   --titech-chart-bg-subtle:
     var(
       --titech-dark-surface-subtle,
-      #1e293b
+      var(--titech-brand-navy)
     );
 
   --titech-chart-border:
@@ -1749,25 +1749,25 @@
   --titech-chart-border-strong:
     var(
       --titech-dark-border-strong,
-      #475569
+      var(--titech-color-text-muted)
     );
 
   --titech-chart-text:
     var(
       --titech-dark-text,
-      #f8fafc
+      var(--titech-color-background)
     );
 
   --titech-chart-text-secondary:
     var(
       --titech-dark-text-secondary,
-      #cbd5e1
+      var(--titech-color-border-strong)
     );
 
   --titech-chart-text-muted:
     var(
       --titech-dark-text-muted,
-      #94a3b8
+      var(--titech-color-text-subtle)
     );
 
   --titech-chart-shadow:

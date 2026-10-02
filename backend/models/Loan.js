@@ -1333,7 +1333,7 @@ const LoanSchema = new Schema(
   {
     timestamps: true,
 
-    versionKey: true,
+    versionKey: "__v",
 
     optimisticConcurrency: true,
 

@@ -46,23 +46,23 @@
   --chat-danger: #b91c1c;
   --chat-danger-soft: #fef2f2;
 
-  --chat-text: #0f172a;
-  --chat-text-secondary: #475569;
-  --chat-text-muted: #64748b;
-  --chat-text-subtle: #94a3b8;
+  --chat-text: var(--titech-brand-navy);
+  --chat-text-secondary: var(--titech-color-text-muted);
+  --chat-text-muted: var(--titech-color-text-subtle);
+  --chat-text-subtle: var(--titech-color-text-subtle);
 
   --chat-surface: #ffffff;
-  --chat-surface-soft: #f8fafc;
-  --chat-surface-muted: #f1f5f9;
-  --chat-surface-hover: #f8fafc;
+  --chat-surface-soft: var(--titech-color-background);
+  --chat-surface-muted: var(--titech-color-surface-muted);
+  --chat-surface-hover: var(--titech-color-background);
 
-  --chat-border: #e2e8f0;
-  --chat-border-strong: #cbd5e1;
+  --chat-border: var(--titech-color-border);
+  --chat-border-strong: var(--titech-color-border-strong);
 
   --chat-message-own: #0058d8;
   --chat-message-own-text: #ffffff;
-  --chat-message-other: #f1f5f9;
-  --chat-message-other-text: #0f172a;
+  --chat-message-other: var(--titech-color-surface-muted);
+  --chat-message-other-text: var(--titech-brand-navy);
 
   --chat-shadow-sm:
     0 1px 2px rgb(15 23 42 / 0.05);
@@ -438,7 +438,7 @@
 
 .titech-chat-conversation-list::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: #cbd5e1;
+  background: var(--titech-color-border-strong);
 }
 
 .titech-chat-conversation-list::-webkit-scrollbar-track {
@@ -853,7 +853,7 @@
     linear-gradient(
       180deg,
       #fbfdff 0%,
-      #f8fafc 100%
+      var(--titech-color-background) 100%
     );
 
   overscroll-behavior: contain;
@@ -867,7 +867,7 @@
 
 .titech-chat-messages::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: #cbd5e1;
+  background: var(--titech-color-border-strong);
 }
 
 .titech-chat-messages::-webkit-scrollbar-track {
@@ -955,7 +955,7 @@
 
   border-radius: 50%;
 
-  background: #e2e8f0;
+  background: var(--titech-color-border);
 
   color: #334155;
 
@@ -2001,15 +2001,15 @@
 
 @media (prefers-color-scheme: dark) {
   .titech-chat-page {
-    --chat-text: #f8fafc;
-    --chat-text-secondary: #cbd5e1;
-    --chat-text-muted: #94a3b8;
-    --chat-text-subtle: #64748b;
+    --chat-text: var(--titech-color-background);
+    --chat-text-secondary: var(--titech-color-border-strong);
+    --chat-text-muted: var(--titech-color-text-subtle);
+    --chat-text-subtle: var(--titech-color-text-subtle);
 
-    --chat-surface: #0f172a;
-    --chat-surface-soft: #111827;
-    --chat-surface-muted: #1e293b;
-    --chat-surface-hover: #172033;
+    --chat-surface: var(--titech-brand-navy);
+    --chat-surface-soft: var(--titech-brand-navy);
+    --chat-surface-muted: var(--titech-brand-navy);
+    --chat-surface-hover: var(--titech-brand-navy);
 
     --chat-border: #263548;
     --chat-border-strong: #334155;
@@ -2021,8 +2021,8 @@
     --chat-warning-soft: #2b2110;
     --chat-danger-soft: #2a1111;
 
-    --chat-message-other: #1e293b;
-    --chat-message-other-text: #f8fafc;
+    --chat-message-other: var(--titech-brand-navy);
+    --chat-message-other-text: var(--titech-color-background);
 
     background:
       radial-gradient(
@@ -2050,8 +2050,8 @@
     background:
       linear-gradient(
         180deg,
-        #0f172a 0%,
-        #111827 100%
+        var(--titech-brand-navy) 0%,
+        var(--titech-brand-navy) 100%
       );
   }
 
@@ -2060,7 +2060,7 @@
       linear-gradient(
         180deg,
         #0b1220 0%,
-        #0f172a 100%
+        var(--titech-brand-navy) 100%
       );
   }
 
@@ -2068,15 +2068,15 @@
   .titech-chat-composer-input,
   .titech-chat-attachment,
   .titech-chat-main-empty-inner {
-    background: #111827;
+    background: var(--titech-brand-navy);
   }
 
   .titech-chat-search input:hover {
-    border-color: #475569;
+    border-color: var(--titech-color-text-muted);
   }
 
   .titech-chat-conversation-item:hover {
-    background: #172033;
+    background: var(--titech-brand-navy);
   }
 
   .titech-chat-conversation-item.active,
@@ -2085,7 +2085,7 @@
       linear-gradient(
         90deg,
         #00153f,
-        #0f172a
+        var(--titech-brand-navy)
       );
   }
 
@@ -2094,17 +2094,17 @@
   }
 
   .titech-chat-system-message {
-    background: #1e293b;
+    background: var(--titech-brand-navy);
     border-color: #334155;
   }
 
   .titech-chat-new-message-indicator {
-    background: #111827;
+    background: var(--titech-brand-navy);
     border-color: #0030a0;
   }
 
   .titech-chat-modal {
-    background: #0f172a;
+    background: var(--titech-brand-navy);
     border-color: #263548;
   }
 
@@ -2181,7 +2181,7 @@
   }
 
   .titech-chat-message-bubble {
-    border: 1px solid #cbd5e1 !important;
+    border: 1px solid var(--titech-color-border-strong) !important;
     background: #ffffff !important;
     color: #000000 !important;
 

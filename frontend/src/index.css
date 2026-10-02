@@ -124,16 +124,16 @@
   --titech-color-white: #ffffff;
   --titech-color-black: #000000;
 
-  --titech-color-neutral-50: #f8fafc;
-  --titech-color-neutral-100: #f1f5f9;
-  --titech-color-neutral-200: #e2e8f0;
-  --titech-color-neutral-300: #cbd5e1;
-  --titech-color-neutral-400: #94a3b8;
-  --titech-color-neutral-500: #64748b;
-  --titech-color-neutral-600: #475569;
+  --titech-color-neutral-50: var(--titech-color-background);
+  --titech-color-neutral-100: var(--titech-color-surface-muted);
+  --titech-color-neutral-200: var(--titech-color-border);
+  --titech-color-neutral-300: var(--titech-color-border-strong);
+  --titech-color-neutral-400: var(--titech-color-text-subtle);
+  --titech-color-neutral-500: var(--titech-color-text-subtle);
+  --titech-color-neutral-600: var(--titech-color-text-muted);
   --titech-color-neutral-700: #334155;
-  --titech-color-neutral-800: #1e293b;
-  --titech-color-neutral-900: #0f172a;
+  --titech-color-neutral-800: var(--titech-brand-navy);
+  --titech-color-neutral-900: var(--titech-brand-navy);
   --titech-color-neutral-950: #020617;
 
   /* --------------------------------------------------------------------------

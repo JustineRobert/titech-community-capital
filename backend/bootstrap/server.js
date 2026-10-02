@@ -62,6 +62,10 @@
  * =============================================================================
  */
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 const fs = require('node:fs');
 const http = require('node:http');
 const https = require('node:https');
@@ -3659,7 +3663,7 @@ function wrapError(
  * =============================================================================
  */
 
-module.exports =
+const serverModule =
   Object.freeze({
     /**
      * Registration.
@@ -3766,3 +3770,44 @@ module.exports =
 
     TRANSPORT_TYPES,
   });
+
+export default serverModule;
+
+export {
+  registerServerHooks,
+  registerBootstrapHooks,
+  initialize,
+  start,
+  shutdown,
+  stop,
+  setApplication,
+  assertApplication,
+  isExpressCompatibleApplication,
+  unwrapApplication,
+  getServer,
+  getHttpServer,
+  getHttpsServer,
+  getApplication,
+  getAddress,
+  getServerType,
+  getConnectionCount,
+  readiness,
+  health,
+  getState,
+  snapshot,
+  isRegistered,
+  isStarted,
+  isStopping,
+  isStopped,
+  isFailed,
+  isReady,
+  isRunning,
+  resolveServerConfiguration,
+  reset,
+  ServerBootstrapError,
+  COMPONENT,
+  SERVICE_NAME,
+  APPLICATION_NAME,
+  SERVER_STATES,
+  TRANSPORT_TYPES,
+};

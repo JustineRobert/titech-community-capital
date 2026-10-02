@@ -51,37 +51,37 @@
   --titech-skeleton-bg-subtle:
     var(
       --titech-surface-subtle,
-      #f8fafc
+      var(--titech-color-background)
     );
 
   --titech-skeleton-bg-muted:
     var(
       --titech-surface-muted,
-      #f1f5f9
+      var(--titech-color-surface-muted)
     );
 
   --titech-skeleton-border:
     var(
       --titech-border,
-      #e2e8f0
+      var(--titech-color-border)
     );
 
   --titech-skeleton-border-strong:
     var(
       --titech-border-strong,
-      #cbd5e1
+      var(--titech-color-border-strong)
     );
 
   --titech-skeleton-base:
     var(
       --titech-skeleton-base-color,
-      #e2e8f0
+      var(--titech-color-border)
     );
 
   --titech-skeleton-highlight:
     var(
       --titech-skeleton-highlight-color,
-      #f8fafc
+      var(--titech-color-background)
     );
 
   --titech-skeleton-primary:
@@ -132,7 +132,7 @@
   color:
     var(
       --titech-text,
-      #0f172a
+      var(--titech-brand-navy)
     );
 
   background:
@@ -1485,19 +1485,19 @@
   --titech-skeleton-bg:
     var(
       --titech-dark-surface,
-      #0f172a
+      var(--titech-brand-navy)
     );
 
   --titech-skeleton-bg-subtle:
     var(
       --titech-dark-surface-subtle,
-      #172033
+      var(--titech-brand-navy)
     );
 
   --titech-skeleton-bg-muted:
     var(
       --titech-dark-surface-muted,
-      #1e293b
+      var(--titech-brand-navy)
     );
 
   --titech-skeleton-border:
@@ -1509,7 +1509,7 @@
   --titech-skeleton-border-strong:
     var(
       --titech-dark-border-strong,
-      #475569
+      var(--titech-color-text-muted)
     );
 
   --titech-skeleton-base:
@@ -1521,7 +1521,7 @@
   --titech-skeleton-highlight:
     var(
       --titech-dark-skeleton-highlight,
-      #475569
+      var(--titech-color-text-muted)
     );
 }
 
@@ -1853,7 +1853,7 @@
   .titech-dashboard-skeleton__block {
     animation: none;
 
-    background: #e5e7eb;
+    background: var(--titech-color-border);
   }
 }
 

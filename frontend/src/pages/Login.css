@@ -50,19 +50,19 @@
   --login-danger-bg: #fef2f2;
   --login-danger-border: #fecaca;
 
-  --login-text: #0f172a;
-  --login-text-secondary: #475569;
-  --login-text-muted: #64748b;
-  --login-text-subtle: #94a3b8;
+  --login-text: var(--titech-brand-navy);
+  --login-text-secondary: var(--titech-color-text-muted);
+  --login-text-muted: var(--titech-color-text-subtle);
+  --login-text-subtle: var(--titech-color-text-subtle);
 
   --login-border: #dbe3ec;
-  --login-border-strong: #cbd5e1;
+  --login-border-strong: var(--titech-color-border-strong);
 
   --login-surface: #ffffff;
-  --login-surface-soft: #f8fafc;
-  --login-surface-muted: #f1f5f9;
+  --login-surface-soft: var(--titech-color-background);
+  --login-surface-muted: var(--titech-color-surface-muted);
 
-  --login-background: #f8fafc;
+  --login-background: var(--titech-color-background);
 
   --login-shadow-sm:
     0 1px 2px rgba(15, 23, 42, 0.05);
@@ -619,7 +619,7 @@
 
 .form-input:hover:not(:disabled):not(.has-error) {
   border-color:
-    #94a3b8;
+    var(--titech-color-text-subtle);
 }
 
 .form-input:focus {
@@ -1698,17 +1698,17 @@
 
 @media (prefers-color-scheme: dark) {
   .login-page {
-    --login-text: #f8fafc;
-    --login-text-secondary: #cbd5e1;
-    --login-text-muted: #94a3b8;
-    --login-text-subtle: #64748b;
+    --login-text: var(--titech-color-background);
+    --login-text-secondary: var(--titech-color-border-strong);
+    --login-text-muted: var(--titech-color-text-subtle);
+    --login-text-subtle: var(--titech-color-text-subtle);
 
     --login-border: #334155;
-    --login-border-strong: #475569;
+    --login-border-strong: var(--titech-color-text-muted);
 
-    --login-surface: #0f172a;
-    --login-surface-soft: #111827;
-    --login-surface-muted: #1e293b;
+    --login-surface: var(--titech-brand-navy);
+    --login-surface-soft: var(--titech-brand-navy);
+    --login-surface-muted: var(--titech-brand-navy);
 
     --login-background: #020617;
 
@@ -1756,7 +1756,7 @@
       var(--login-border-strong);
 
     background:
-      #111827;
+      var(--titech-brand-navy);
 
     color:
       var(--login-text);
@@ -1764,22 +1764,22 @@
 
   .form-input::placeholder {
     color:
-      #64748b;
+      var(--titech-color-text-subtle);
   }
 
   .form-input:hover:not(:disabled):not(.has-error) {
     border-color:
-      #64748b;
+      var(--titech-color-text-subtle);
   }
 
   .form-input:disabled {
     background:
-      #1e293b;
+      var(--titech-brand-navy);
   }
 
   .password-toggle:hover:not(:disabled) {
     background:
-      #1e293b;
+      var(--titech-brand-navy);
   }
 
   .form-input.has-error {
@@ -1817,7 +1817,7 @@
 
     -webkit-box-shadow:
       0 0 0 1000px
-      #111827
+      var(--titech-brand-navy)
       inset;
   }
 }

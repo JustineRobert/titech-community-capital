@@ -37,17 +37,17 @@
   --titech-purple: #7c3aed;
   --titech-purple-soft: #f5f3ff;
 
-  --titech-text-primary: #111827;
-  --titech-text-secondary: #4b5563;
-  --titech-text-muted: #6b7280;
+  --titech-text-primary: var(--titech-brand-navy);
+  --titech-text-secondary: var(--titech-color-text-muted);
+  --titech-text-muted: var(--titech-color-text-subtle);
   --titech-text-inverse: #ffffff;
 
-  --titech-border: #e5e7eb;
-  --titech-border-strong: #d1d5db;
+  --titech-border: var(--titech-color-border);
+  --titech-border-strong: var(--titech-color-border);
 
-  --titech-background: #f8fafc;
+  --titech-background: var(--titech-color-background);
   --titech-surface: #ffffff;
-  --titech-surface-muted: #f9fafb;
+  --titech-surface-muted: var(--titech-color-background);
 
   --titech-shadow-xs:
     0 1px 2px rgba(15, 23, 42, 0.04);
@@ -93,15 +93,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --titech-text-primary: #f9fafb;
-    --titech-text-secondary: #d1d5db;
+    --titech-text-primary: var(--titech-color-background);
+    --titech-text-secondary: var(--titech-color-border);
     --titech-text-muted: #9ca3af;
 
     --titech-border: #374151;
-    --titech-border-strong: #4b5563;
+    --titech-border-strong: var(--titech-color-text-muted);
 
-    --titech-background: #0f172a;
-    --titech-surface: #111827;
+    --titech-background: var(--titech-brand-navy);
+    --titech-surface: var(--titech-brand-navy);
     --titech-surface-muted: #1f2937;
 
     --titech-primary-soft: #00153f;

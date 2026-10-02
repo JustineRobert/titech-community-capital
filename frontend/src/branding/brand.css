@@ -49,6 +49,15 @@
   --titech-color-border: #d8e7f5;
   --titech-color-border-strong: #b7cfe8;
 
+  /* Canonical neutral aliases used to harmonize legacy page-level styles. */
+  --titech-color-white: var(--titech-brand-white);
+  --titech-color-black: #000000;
+  --titech-color-text-strong: var(--titech-brand-navy);
+  --titech-color-text-muted-legacy: var(--titech-color-text-muted);
+  --titech-color-border-muted: var(--titech-color-border);
+  --titech-color-surface-strong: var(--titech-color-surface);
+  --titech-color-surface-subtle: var(--titech-color-surface-muted);
+
   /* Financial state aliases: these describe state, not business approval. */
   --titech-financial-positive: var(--titech-brand-green);
   --titech-financial-pending: #b45309;

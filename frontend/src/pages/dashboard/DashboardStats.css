@@ -13,15 +13,15 @@
    ========================================================================== */
 
 :root {
-  --dashboard-bg: #f8fafc;
+  --dashboard-bg: var(--titech-color-background);
   --dashboard-card-bg: #ffffff;
-  --dashboard-surface: #f1f5f9;
-  --dashboard-border: #e2e8f0;
-  --dashboard-border-strong: #cbd5e1;
+  --dashboard-surface: var(--titech-color-surface-muted);
+  --dashboard-border: var(--titech-color-border);
+  --dashboard-border-strong: var(--titech-color-border-strong);
 
-  --dashboard-text: #0f172a;
-  --dashboard-text-secondary: #64748b;
-  --dashboard-text-muted: #94a3b8;
+  --dashboard-text: var(--titech-brand-navy);
+  --dashboard-text-secondary: var(--titech-color-text-subtle);
+  --dashboard-text-muted: var(--titech-color-text-subtle);
 
   --dashboard-primary: #0058d8;
   --dashboard-primary-hover: #0030a0;
@@ -646,15 +646,15 @@
 
 .dark {
   --dashboard-bg: #020617;
-  --dashboard-card-bg: #0f172a;
-  --dashboard-surface: #172033;
+  --dashboard-card-bg: var(--titech-brand-navy);
+  --dashboard-surface: var(--titech-brand-navy);
 
   --dashboard-border: #263449;
   --dashboard-border-strong: #3b4b63;
 
-  --dashboard-text: #f8fafc;
-  --dashboard-text-secondary: #94a3b8;
-  --dashboard-text-muted: #64748b;
+  --dashboard-text: var(--titech-color-background);
+  --dashboard-text-secondary: var(--titech-color-text-subtle);
+  --dashboard-text-muted: var(--titech-color-text-subtle);
 
   --dashboard-primary: #4baaf5;
   --dashboard-primary-hover: #81c4ff;

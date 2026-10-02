@@ -36,15 +36,15 @@
   --titech-warning: #d97706;
   --titech-warning-soft: #fffbeb;
 
-  --titech-text: #111827;
-  --titech-text-secondary: #4b5563;
-  --titech-text-muted: #6b7280;
+  --titech-text: var(--titech-brand-navy);
+  --titech-text-secondary: var(--titech-color-text-muted);
+  --titech-text-muted: var(--titech-color-text-subtle);
 
-  --titech-border: #d1d5db;
-  --titech-border-soft: #e5e7eb;
+  --titech-border: var(--titech-color-border);
+  --titech-border-soft: var(--titech-color-border);
 
   --titech-surface: #ffffff;
-  --titech-surface-muted: #f9fafb;
+  --titech-surface-muted: var(--titech-color-background);
   --titech-background: #f3f6fa;
 
   --titech-radius-xs: 4px;
@@ -198,7 +198,7 @@
     ),
     linear-gradient(
       145deg,
-      #0f172a 0%,
+      var(--titech-brand-navy) 0%,
       #00153f 48%,
       #001f66 100%
     );
@@ -561,7 +561,7 @@
 
   border-radius: 999px;
 
-  background: #e5e7eb;
+  background: var(--titech-color-border);
 }
 
 .strength-bar {
@@ -1142,14 +1142,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --titech-text: #f9fafb;
-    --titech-text-secondary: #cbd5e1;
-    --titech-text-muted: #94a3b8;
+    --titech-text: var(--titech-color-background);
+    --titech-text-secondary: var(--titech-color-border-strong);
+    --titech-text-muted: var(--titech-color-text-subtle);
 
     --titech-border: #374151;
     --titech-border-soft: #334155;
 
-    --titech-surface: #111827;
+    --titech-surface: var(--titech-brand-navy);
     --titech-surface-muted: #1f2937;
     --titech-background: #020617;
 
@@ -1191,13 +1191,13 @@
   }
 
   .form-input {
-    background: #111827;
+    background: var(--titech-brand-navy);
 
     border-color: #374151;
   }
 
   .form-input:hover:not(:disabled) {
-    border-color: #4b5563;
+    border-color: var(--titech-color-text-muted);
   }
 
   .form-input:focus {
@@ -1217,12 +1217,12 @@
   .form-input:-webkit-autofill,
   .form-input:-webkit-autofill:hover,
   .form-input:-webkit-autofill:focus {
-    -webkit-text-fill-color: #f9fafb;
+    -webkit-text-fill-color: var(--titech-color-background);
 
-    caret-color: #f9fafb;
+    caret-color: var(--titech-color-background);
 
     box-shadow:
-      0 0 0 1000px #111827 inset;
+      0 0 0 1000px var(--titech-brand-navy) inset;
   }
 
   .password-toggle:hover {
@@ -1230,7 +1230,7 @@
   }
 
   .password-requirements {
-    background: #0f172a;
+    background: var(--titech-brand-navy);
 
     border-color: #334155;
   }

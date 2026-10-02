@@ -1,7 +1,7 @@
 // utils/AppError.js
 'use strict';
 
-const errorCodes = require('./errorCodes');
+const errorCodes = require('./errorCodes.cjs');
 
 /**
  * Custom application error class

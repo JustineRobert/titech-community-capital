@@ -26,18 +26,18 @@
   --titech-info: #0284c7;
   --titech-info-soft: #f0f9ff;
 
-  --dashboard-bg: #f8fafc;
+  --dashboard-bg: var(--titech-color-background);
   --surface: #ffffff;
-  --surface-muted: #f8fafc;
-  --surface-hover: #f1f5f9;
+  --surface-muted: var(--titech-color-background);
+  --surface-hover: var(--titech-color-surface-muted);
 
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --border: var(--titech-color-border);
+  --border-strong: var(--titech-color-border-strong);
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-disabled: #94a3b8;
+  --text-primary: var(--titech-brand-navy);
+  --text-secondary: var(--titech-color-text-muted);
+  --text-muted: var(--titech-color-text-subtle);
+  --text-disabled: var(--titech-color-text-subtle);
 
   --shadow-xs:
     0 1px 2px rgba(15, 23, 42, 0.04);
@@ -91,8 +91,8 @@
   background:
     linear-gradient(
       180deg,
-      #f8fafc 0%,
-      #f1f5f9 100%
+      var(--titech-color-background) 0%,
+      var(--titech-color-surface-muted) 100%
     );
   color: var(--text-primary);
 }
@@ -710,7 +710,7 @@ line {
 
   overflow: hidden;
 
-  background: #e2e8f0;
+  background: var(--titech-color-border);
 
   border-radius: 6px;
 }
@@ -1121,17 +1121,17 @@ line {
 @media (prefers-color-scheme: dark) {
   :root {
     --dashboard-bg: #020617;
-    --surface: #0f172a;
-    --surface-muted: #111827;
-    --surface-hover: #1e293b;
+    --surface: var(--titech-brand-navy);
+    --surface-muted: var(--titech-brand-navy);
+    --surface-hover: var(--titech-brand-navy);
 
-    --border: #1e293b;
+    --border: var(--titech-brand-navy);
     --border-strong: #334155;
 
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --text-disabled: #64748b;
+    --text-primary: var(--titech-color-background);
+    --text-secondary: var(--titech-color-border-strong);
+    --text-muted: var(--titech-color-text-subtle);
+    --text-disabled: var(--titech-color-text-subtle);
   }
 
   .dashboard-container {
@@ -1139,7 +1139,7 @@ line {
       linear-gradient(
         180deg,
         #020617 0%,
-        #0f172a 100%
+        var(--titech-brand-navy) 100%
       );
   }
 
@@ -1192,24 +1192,24 @@ line {
 
   .chart-card
   .recharts-default-tooltip {
-    background: #0f172a !important;
+    background: var(--titech-brand-navy) !important;
     border-color: #334155 !important;
   }
 
   .chart-card
   .recharts-cartesian-axis-tick-value {
-    fill: #94a3b8;
+    fill: var(--titech-color-text-subtle);
   }
 
   .chart-card
   .recharts-cartesian-grid-horizontal
   line {
-    stroke: #1e293b;
+    stroke: var(--titech-brand-navy);
   }
 
   .skeleton-title,
   .skeleton-line {
-    background: #1e293b;
+    background: var(--titech-brand-navy);
   }
 
   .skeleton-title::after,
@@ -1257,7 +1257,7 @@ line {
   .chart-card,
   .group-card {
     box-shadow: none;
-    border-color: #d1d5db;
+    border-color: var(--titech-color-border);
   }
 
   .dashboard-actions,

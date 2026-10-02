@@ -13,16 +13,16 @@
   --primary-color: #0058d8;
   --primary-hover: #0030a0;
 
-  --sidebar-bg: #0f172a;
-  --sidebar-text: #cbd5e1;
+  --sidebar-bg: var(--titech-brand-navy);
+  --sidebar-text: var(--titech-color-border-strong);
   --sidebar-text-active: #ffffff;
 
-  --background: #f8fafc;
+  --background: var(--titech-color-background);
   --surface: #ffffff;
-  --border: #e2e8f0;
+  --border: var(--titech-color-border);
 
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
+  --text-primary: var(--titech-brand-navy);
+  --text-secondary: var(--titech-color-text-subtle);
 
   --danger: #dc2626;
   --shadow:
@@ -96,7 +96,7 @@
 
 .sidebar-brand span {
   display: block;
-  color: #94a3b8;
+  color: var(--titech-color-text-subtle);
   font-size: 0.75rem;
 }
 
@@ -412,11 +412,11 @@
 
 [data-theme="dark"] {
   --background: #020617;
-  --surface: #0f172a;
-  --border: #1e293b;
+  --surface: var(--titech-brand-navy);
+  --border: var(--titech-brand-navy);
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
+  --text-primary: var(--titech-color-background);
+  --text-secondary: var(--titech-color-text-subtle);
 }
 
 .sidebar-brand .titech-brand-logo {

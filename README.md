@@ -12,6 +12,8 @@ See [`docs/brand/OFFICIAL_BRAND_STANDARD_2026-09-28.md`](docs/brand/OFFICIAL_BRA
 
 > STATUS NOTICE (2026-09-22): This repository is an enterprise production-hardening artifact. Implementation, test, security, operational, partner and regulatory evidence may have different maturity. `TITECH_PLATFORM_TRUTH.md` is the authoritative status source.
 
+> **2026-10-02 Enterprise implementation update:** This archive includes the latest repository-truth remediation pass, canonical ESM bootstrap consolidation, official TITech theme harmonization, and an evidence-backed readiness/change index. Current certification remains **PILOT READY — PRODUCTION GAPS REMAIN**; external provider, infrastructure, security-assessment, legal/regulatory, pilot and commercial evidence is not fabricated or implied. See [`docs/evidence/2026-10-02-enterprise-readiness-dashboard.md`](docs/evidence/2026-10-02-enterprise-readiness-dashboard.md) and [`docs/evidence/2026-10-02-enterprise-implementation-change-discovery.md`](docs/evidence/2026-10-02-enterprise-implementation-change-discovery.md).
+
 TITech Community Capital connects savings groups, VSLAs/ROSCAs, SACCOs, cooperatives and community enterprises with trusted records, payment rails, reconciliation, risk intelligence, credit infrastructure and—subject to authorization and partner agreements—formal financial capital.
 
 TITech is intentionally **not** positioned as a consumer wallet, generic SACCO ERP, payment provider, or balance-sheet lender. Account and wallet representations may exist as internal financial primitives; the architectural center is the provider-neutral financial infrastructure layer.
@@ -1065,7 +1067,7 @@ The `docs/` directory contains project documentation.
 A simplified representation:
 
 ```text
-society-community-savings-app/
+titech-community-capital-main/
 │
 ├── backend/
 │   ├── bootstrap/
@@ -1078,7 +1080,7 @@ society-community-savings-app/
 │   ├── scripts/
 │   └── tests/
 │
-├── community-savings-app-frontend/
+├── frontend/
 │   ├── src/
 │   │   ├── components/
 │   │   ├── contexts/

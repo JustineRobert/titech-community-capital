@@ -7,13 +7,16 @@
 // - Admin and user session management.
 // ============================================================================
 
-const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
-const User = require('../models/User');
-const RefreshToken = require('../models/RefreshToken');
+import { createRequire } from 'node:module';
+import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import mongoose from 'mongoose';
+import logger from '../utils/logger.js';
+import { User } from '../models/User.js';
+import RefreshToken from '../models/RefreshToken.js';
+
+const require = createRequire(import.meta.url);
 
 const ACCESS_TOKEN_EXP = process.env.ACCESS_TOKEN_EXP || '15m';
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || process.env.JWT_SECRET;
@@ -116,7 +119,7 @@ async function createFallbackRefreshToken(userId, deviceInfo = {}) {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
   const dbEntry = {
-    id: crypto.randomUUID(),
+    id: RefreshToken.generatePublicId(),
     userId,
     tokenHash,
     deviceInfo,
@@ -165,6 +168,7 @@ function generateAccessToken(user) {
     user: {
       id: userId,
       email: user.email,
+      name: user.name,
       role: user.role,
       tenantId,
     },
@@ -188,7 +192,7 @@ async function createRefreshToken(userId, deviceInfo = {}) {
   const expiresAt = new Date(now.getTime() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
 
   const dbEntry = await RefreshToken.create({
-    id: crypto.randomUUID(),
+    id: RefreshToken.generatePublicId(),
     userId,
     tokenHash,
     deviceInfo,
@@ -956,7 +960,7 @@ async function getUserById(userId) {
   return User.findById(userId);
 }
 
-module.exports = {
+export {
   // public
   register,
   login,

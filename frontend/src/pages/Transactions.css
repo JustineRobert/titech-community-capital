@@ -44,20 +44,20 @@
   --tx-danger-soft: #fef2f2;
   --tx-danger-border: #fecaca;
 
-  --tx-neutral: #475569;
-  --tx-neutral-soft: #f8fafc;
+  --tx-neutral: var(--titech-color-text-muted);
+  --tx-neutral-soft: var(--titech-color-background);
 
-  --tx-text: #0f172a;
-  --tx-text-secondary: #475569;
-  --tx-text-muted: #64748b;
-  --tx-text-subtle: #94a3b8;
+  --tx-text: var(--titech-brand-navy);
+  --tx-text-secondary: var(--titech-color-text-muted);
+  --tx-text-muted: var(--titech-color-text-subtle);
+  --tx-text-subtle: var(--titech-color-text-subtle);
 
-  --tx-border: #e2e8f0;
-  --tx-border-strong: #cbd5e1;
+  --tx-border: var(--titech-color-border);
+  --tx-border-strong: var(--titech-color-border-strong);
 
   --tx-surface: #ffffff;
-  --tx-surface-soft: #f8fafc;
-  --tx-surface-muted: #f1f5f9;
+  --tx-surface-soft: var(--titech-color-background);
+  --tx-surface-muted: var(--titech-color-surface-muted);
 
   --tx-background: #f6f8fb;
 
@@ -288,7 +288,7 @@
 }
 
 .secondary-btn:hover:not(:disabled) {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
   background: var(--tx-surface-soft);
   color: var(--tx-text);
 }
@@ -1028,9 +1028,9 @@
 }
 
 .transaction-type-fee {
-  border-color: #e5e7eb;
-  background: #f9fafb;
-  color: #4b5563;
+  border-color: var(--titech-color-border);
+  background: var(--titech-color-background);
+  color: var(--titech-color-text-muted);
 }
 
 .transaction-type-adjustment {
@@ -1244,7 +1244,7 @@
 }
 
 .pagination button:hover:not(:disabled) {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
   background: #ffffff;
   color: var(--tx-text);
 }
@@ -1338,7 +1338,7 @@
     linear-gradient(
       90deg,
       #eef2f7 25%,
-      #f8fafc 37%,
+      var(--titech-color-background) 37%,
       #eef2f7 63%
     );
 
@@ -1376,7 +1376,7 @@
     linear-gradient(
       90deg,
       #f0f3f7 25%,
-      #f8fafc 37%,
+      var(--titech-color-background) 37%,
       #f0f3f7 63%
     );
 
@@ -1755,17 +1755,17 @@
 
 @media (prefers-color-scheme: dark) {
   .transactions-page {
-    --tx-text: #f8fafc;
-    --tx-text-secondary: #cbd5e1;
-    --tx-text-muted: #94a3b8;
-    --tx-text-subtle: #64748b;
+    --tx-text: var(--titech-color-background);
+    --tx-text-secondary: var(--titech-color-border-strong);
+    --tx-text-muted: var(--titech-color-text-subtle);
+    --tx-text-subtle: var(--titech-color-text-subtle);
 
     --tx-border: #243244;
     --tx-border-strong: #334155;
 
-    --tx-surface: #0f172a;
-    --tx-surface-soft: #111827;
-    --tx-surface-muted: #1e293b;
+    --tx-surface: var(--titech-brand-navy);
+    --tx-surface-soft: var(--titech-brand-navy);
+    --tx-surface-muted: var(--titech-brand-navy);
 
     --tx-background: #020617;
 
@@ -1811,13 +1811,13 @@
     background:
       linear-gradient(
         to bottom,
-        #0f172a,
-        #111827
+        var(--titech-brand-navy),
+        var(--titech-brand-navy)
       );
   }
 
   .transactions-table thead th {
-    background: #111827;
+    background: var(--titech-brand-navy);
   }
 
   .transactions-table tbody tr:hover {
@@ -1837,7 +1837,7 @@
   .transactions-select-field select,
   .table-action-button,
   .pagination button {
-    background: #0f172a;
+    background: var(--titech-brand-navy);
   }
 
   .secondary-btn:hover:not(:disabled),
@@ -1851,16 +1851,16 @@
   }
 
   .transactions-sync-status {
-    color: #94a3b8;
+    color: var(--titech-color-text-subtle);
   }
 
   .error-box button {
     border-color: #7f1d1d;
-    background: #111827;
+    background: var(--titech-brand-navy);
   }
 
   .transactions-empty-state > svg {
-    color: #64748b;
+    color: var(--titech-color-text-subtle);
   }
 
   .transaction-skeleton,
@@ -1870,9 +1870,9 @@
     background:
       linear-gradient(
         90deg,
-        #172033 25%,
+        var(--titech-brand-navy) 25%,
         #1d2839 37%,
-        #172033 63%
+        var(--titech-brand-navy) 63%
       );
 
     background-size: 400% 100%;

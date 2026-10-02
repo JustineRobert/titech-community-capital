@@ -44,10 +44,10 @@
 
 .error-state {
   --titech-error-bg: var(--color-surface, #ffffff);
-  --titech-error-surface: var(--color-surface-subtle, #f8fafc);
-  --titech-error-text: var(--color-text, #172033);
-  --titech-error-muted: var(--color-text-secondary, #64748b);
-  --titech-error-border: var(--color-border, #e2e8f0);
+  --titech-error-surface: var(--color-surface-subtle, var(--titech-color-background));
+  --titech-error-text: var(--color-text, var(--titech-brand-navy));
+  --titech-error-muted: var(--color-text-secondary, var(--titech-color-text-subtle));
+  --titech-error-border: var(--color-border, var(--titech-color-border));
 
   --titech-error-primary: var(--color-primary, #008000);
   --titech-error-primary-hover: var(--color-primary-hover, #115e59);
@@ -108,15 +108,15 @@
 
   --titech-error-not-found: var(
     --color-neutral,
-    #475569
+    var(--titech-color-text-muted)
   );
   --titech-error-not-found-soft: var(
     --color-neutral-soft,
-    #f1f5f9
+    var(--titech-color-surface-muted)
   );
   --titech-error-not-found-border: var(
     --color-neutral-border,
-    #cbd5e1
+    var(--titech-color-border-strong)
   );
 
   --titech-error-radius: var(
@@ -1067,7 +1067,7 @@
 .dark-mode .error-state {
   --titech-error-bg: var(
     --color-surface,
-    #111827
+    var(--titech-brand-navy)
   );
 
   --titech-error-surface: var(
@@ -1077,12 +1077,12 @@
 
   --titech-error-text: var(
     --color-text,
-    #f8fafc
+    var(--titech-color-background)
   );
 
   --titech-error-muted: var(
     --color-text-secondary,
-    #cbd5e1
+    var(--titech-color-border-strong)
   );
 
   --titech-error-border: var(
@@ -1146,7 +1146,7 @@
   :root:not([data-theme="light"]) .error-state {
     --titech-error-bg: var(
       --color-surface,
-      #111827
+      var(--titech-brand-navy)
     );
 
     --titech-error-surface: var(
@@ -1156,12 +1156,12 @@
 
     --titech-error-text: var(
       --color-text,
-      #f8fafc
+      var(--titech-color-background)
     );
 
     --titech-error-muted: var(
       --color-text-secondary,
-      #cbd5e1
+      var(--titech-color-border-strong)
     );
 
     --titech-error-border: var(

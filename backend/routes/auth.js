@@ -76,30 +76,18 @@
  * ============================================================================
  */
 
-const express = require('express');
-const crypto = require('node:crypto');
-const rateLimit = require('express-rate-limit');
+import crypto from 'node:crypto';
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+import { validationRules, handleValidation } from '../utils/validators.js';
+import authMiddleware from '../middleware/auth.js';
+import * as authController from '../controllers/authController.js';
 
-const asyncHandler =
-  require('../utils/asyncHandler');
+const { authenticate, requireRole } = authMiddleware;
 
-const {
-  validationRules,
-  handleValidation,
-} =
-  require('../utils/validators');
-
-const {
-  authenticate,
-  requireRole,
-} =
-  require('../middleware/auth');
-
-const authController =
-  require('../controllers/authController');
-
-const emailController =
-  require('../controllers/emailController');
+const asyncHandler = (handler) => (req, res, next) => {
+  Promise.resolve(handler(req, res, next)).catch(next);
+};
 
 /**
  * ============================================================================
@@ -131,12 +119,6 @@ const SERVICE_NAME =
 const APPLICATION_NAME =
   'TITech Community Capital Ltd';
 
-/**
- * ============================================================================
- * REQUIRED CONTROLLER CONTRACT
- * ============================================================================
- */
-
 const REQUIRED_AUTH_HANDLERS =
   Object.freeze([
     'register',
@@ -167,24 +149,6 @@ for (
 }
 
 if (
-  !emailController ||
-  typeof emailController
-    .requestPasswordReset !== 'function'
-) {
-  throw new Error(
-    `[${ROUTER_NAME}] Missing emailController.requestPasswordReset export.`,
-  );
-}
-
-if (
-  typeof emailController.resetPassword !== 'function'
-) {
-  throw new Error(
-    `[${ROUTER_NAME}] Missing emailController.resetPassword export.`,
-  );
-}
-
-if (
   typeof authenticate !== 'function'
 ) {
   throw new Error(
@@ -208,6 +172,19 @@ if (
     `[${ROUTER_NAME}] Authentication validation infrastructure is incomplete.`,
   );
 }
+
+const emailControllerHandler = (method) =>
+  asyncHandler(async (req, res, next) => {
+    const { default: emailController } =
+      await import('../controllers/emailController.js');
+
+    return emailController[method](req, res, next);
+  });
+
+/*
+ * Eagerly verify the core authentication handlers while keeping the optional
+ * email/password-reset subsystem lazy-loaded at request time.
+ */
 
 /**
  * ============================================================================
@@ -806,9 +783,7 @@ router.post(
 
   validatePasswordReset,
 
-  asyncHandler(
-    emailController.requestPasswordReset,
-  ),
+  emailControllerHandler('requestPasswordReset'),
 );
 
 /**
@@ -823,9 +798,7 @@ router.post(
 
   passwordResetLimiter,
 
-  asyncHandler(
-    emailController.resetPassword,
-  ),
+  emailControllerHandler('resetPassword'),
 );
 
 /**
@@ -1204,4 +1177,4 @@ router.applicationName =
  * ============================================================================
  */
 
-module.exports = router;
+export default router;

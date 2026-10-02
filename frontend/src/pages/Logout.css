@@ -49,18 +49,18 @@
   --logout-danger-bg: #fef2f2;
   --logout-danger-border: #fecaca;
 
-  --logout-text: #0f172a;
-  --logout-text-secondary: #475569;
-  --logout-text-muted: #64748b;
+  --logout-text: var(--titech-brand-navy);
+  --logout-text-secondary: var(--titech-color-text-muted);
+  --logout-text-muted: var(--titech-color-text-subtle);
 
   --logout-border: #dbe3ec;
-  --logout-border-strong: #cbd5e1;
+  --logout-border-strong: var(--titech-color-border-strong);
 
   --logout-surface: #ffffff;
-  --logout-surface-soft: #f8fafc;
-  --logout-surface-muted: #f1f5f9;
+  --logout-surface-soft: var(--titech-color-background);
+  --logout-surface-muted: var(--titech-color-surface-muted);
 
-  --logout-background: #f8fafc;
+  --logout-background: var(--titech-color-background);
 
   --logout-shadow-sm:
     0 1px 2px rgba(15, 23, 42, 0.05);
@@ -132,8 +132,8 @@
     ),
     linear-gradient(
       180deg,
-      #f8fafc 0%,
-      #f1f5f9 100%
+      var(--titech-color-background) 0%,
+      var(--titech-color-surface-muted) 100%
     );
 
   color: var(--logout-text);
@@ -275,7 +275,7 @@
   background:
     linear-gradient(
       145deg,
-      #f8fafc,
+      var(--titech-color-background),
       #eef2f7
     );
 
@@ -422,7 +422,7 @@
     linear-gradient(
       135deg,
       #f0fdfa,
-      #f8fafc
+      var(--titech-color-background)
     );
 
   color: var(--logout-primary-dark);
@@ -630,7 +630,7 @@
 .logout-button--secondary:hover:not(:disabled) {
   transform: translateY(-1px);
 
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 
   background: var(--logout-surface-soft);
 
@@ -1071,16 +1071,16 @@
 
 @media (prefers-color-scheme: dark) {
   .logout-page {
-    --logout-text: #f8fafc;
-    --logout-text-secondary: #cbd5e1;
-    --logout-text-muted: #94a3b8;
+    --logout-text: var(--titech-color-background);
+    --logout-text-secondary: var(--titech-color-border-strong);
+    --logout-text-muted: var(--titech-color-text-subtle);
 
     --logout-border: #334155;
-    --logout-border-strong: #475569;
+    --logout-border-strong: var(--titech-color-text-muted);
 
-    --logout-surface: #0f172a;
-    --logout-surface-soft: #111827;
-    --logout-surface-muted: #1e293b;
+    --logout-surface: var(--titech-brand-navy);
+    --logout-surface-soft: var(--titech-brand-navy);
+    --logout-surface-muted: var(--titech-brand-navy);
 
     --logout-background: #020617;
 
@@ -1124,8 +1124,8 @@
     background:
       linear-gradient(
         145deg,
-        #111827,
-        #1e293b
+        var(--titech-brand-navy),
+        var(--titech-brand-navy)
       );
 
     color: #5eead4;
@@ -1180,23 +1180,23 @@
   }
 
   .logout-button--secondary {
-    border-color: #475569;
+    border-color: var(--titech-color-text-muted);
 
-    background: #111827;
+    background: var(--titech-brand-navy);
 
-    color: #cbd5e1;
+    color: var(--titech-color-border-strong);
   }
 
   .logout-button--secondary:hover:not(:disabled) {
-    border-color: #64748b;
+    border-color: var(--titech-color-text-subtle);
 
-    background: #1e293b;
+    background: var(--titech-brand-navy);
 
-    color: #f8fafc;
+    color: var(--titech-color-background);
   }
 
   .logout-footer {
-    color: #64748b;
+    color: var(--titech-color-text-subtle);
   }
 }
 

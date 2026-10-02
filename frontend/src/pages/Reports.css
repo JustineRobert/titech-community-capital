@@ -47,16 +47,16 @@
   --titech-report-cyan: #0891b2;
   --titech-report-cyan-soft: #ecfeff;
 
-  --titech-report-text: #111827;
-  --titech-report-text-secondary: #4b5563;
-  --titech-report-text-muted: #6b7280;
+  --titech-report-text: var(--titech-brand-navy);
+  --titech-report-text-secondary: var(--titech-color-text-muted);
+  --titech-report-text-muted: var(--titech-color-text-subtle);
   --titech-report-text-faint: #9ca3af;
 
-  --titech-report-border: #d1d5db;
-  --titech-report-border-soft: #e5e7eb;
+  --titech-report-border: var(--titech-color-border);
+  --titech-report-border-soft: var(--titech-color-border);
 
   --titech-report-surface: #ffffff;
-  --titech-report-surface-muted: #f8fafc;
+  --titech-report-surface-muted: var(--titech-color-background);
   --titech-report-background: #f3f6fa;
 
   --titech-report-radius-xs: 5px;
@@ -1259,7 +1259,7 @@
 }
 
 .report-card:hover {
-  border-color: #cbd5e1;
+  border-color: var(--titech-color-border-strong);
 
   box-shadow: var(--titech-report-shadow-md);
 
@@ -1424,7 +1424,7 @@
 
   border-radius: var(--titech-report-radius-sm);
 
-  background: #e5e7eb;
+  background: var(--titech-color-border);
 }
 
 .reports-skeleton-block::after,
@@ -1842,16 +1842,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --titech-report-text: #f8fafc;
-    --titech-report-text-secondary: #cbd5e1;
-    --titech-report-text-muted: #94a3b8;
-    --titech-report-text-faint: #64748b;
+    --titech-report-text: var(--titech-color-background);
+    --titech-report-text-secondary: var(--titech-color-border-strong);
+    --titech-report-text-muted: var(--titech-color-text-subtle);
+    --titech-report-text-faint: var(--titech-color-text-subtle);
 
     --titech-report-border: #374151;
     --titech-report-border-soft: #263244;
 
-    --titech-report-surface: #111827;
-    --titech-report-surface-muted: #0f172a;
+    --titech-report-surface: var(--titech-brand-navy);
+    --titech-report-surface-muted: var(--titech-brand-navy);
     --titech-report-background: #020617;
 
     --titech-report-primary-soft: rgb(37 99 235 / 0.14);
@@ -1923,7 +1923,7 @@
 
   .report-select-wrapper select:hover,
   .report-date-wrapper input:hover {
-    border-color: #4b5563;
+    border-color: var(--titech-color-text-muted);
   }
 
   .reports-filter-current {
@@ -1962,13 +1962,13 @@
   }
 
   .chart-container .recharts-cartesian-axis-tick-value {
-    fill: #94a3b8;
+    fill: var(--titech-color-text-subtle);
   }
 
   .chart-container .recharts-default-tooltip {
     border-color: var(--titech-report-border) !important;
 
-    background: #111827 !important;
+    background: var(--titech-brand-navy) !important;
 
     box-shadow:
       0 12px 30px rgb(0 0 0 / 0.28) !important;

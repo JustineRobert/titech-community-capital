@@ -54,12 +54,25 @@
  * ============================================================================
  */
 
-const request = require("supertest");
-const jwt = require("jsonwebtoken");
-const mongoose = require("mongoose");
+import express from "express";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import request from "supertest";
 
-const app = require("../../server");
-const User = require("../../models/User");
+import { User } from "../../models/User.js";
+
+const TEST_JWT_SECRET =
+  process.env.TEST_JWT_SECRET || "titech-test-secret-authentication";
+
+process.env.JWT_SECRET = TEST_JWT_SECRET;
+process.env.ACCESS_TOKEN_SECRET = TEST_JWT_SECRET;
+
+const { default: authRoutes } = await import("../../routes/auth.js");
+
+const app = express();
+
+app.use(express.json());
+app.use("/api/auth", authRoutes);
 
 /**
  * ============================================================================
@@ -69,11 +82,7 @@ const User = require("../../models/User");
 
 const TEST_MONGO_URI =
   process.env.TEST_MONGO_URI ||
-  process.env.MONGO_URI ||
   "mongodb://127.0.0.1:27017/titech_auth_test";
-
-const TEST_JWT_SECRET =
-  process.env.JWT_SECRET || "titech-test-secret-authentication";
 
 const JWT_ALGORITHM = "HS256";
 
@@ -203,6 +212,18 @@ function expectAuthenticationFailure(response) {
   ]).toContain(response.status);
 }
 
+function assertIsolatedTestDatabase(uri) {
+  const databaseName = decodeURIComponent(
+    new URL(uri).pathname.replace(/^\/+/, "")
+  );
+
+  if (!/(?:^|[_-])(?:test|tests|testing)(?:$|[_-])/i.test(databaseName)) {
+    throw new Error(
+      "Authentication integration tests require a database name containing a test marker."
+    );
+  }
+}
+
 /**
  * ============================================================================
  * Test Lifecycle
@@ -210,6 +231,8 @@ function expectAuthenticationFailure(response) {
  */
 
 beforeAll(async () => {
+  assertIsolatedTestDatabase(TEST_MONGO_URI);
+
   /**
    * Ensure the authentication code resolves the same test secret.
    */
@@ -474,6 +497,45 @@ describe("POST /api/auth/login", () => {
     if (cookies.length > 0) {
       expect(containsRefreshCookie(cookies)).toBe(true);
     }
+  });
+
+  test("registers, logs in, and loads the authenticated dashboard profile", async () => {
+    const email = uniqueEmail("dashboard-smoke");
+    const name = "Dashboard Smoke User";
+
+    const registration = await request(app)
+      .post("/api/auth/register")
+      .send({
+        email,
+        password: PASSWORD,
+        name,
+      })
+      .then((response) => {
+        console.log("AUTH_SMOKE_REGISTRATION", response.status, response.body);
+        expect(response.status).toBe(HTTP.CREATED);
+        return response;
+      });
+    expect(registration.body.user.email).toBe(email.toLowerCase());
+
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({
+        email,
+        password: PASSWORD,
+      })
+      .expect(HTTP.OK);
+
+    const accessToken = extractAccessToken(login);
+
+    expect(accessToken).toBeTruthy();
+
+    const profile = await request(app)
+      .get("/api/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(HTTP.OK);
+
+    expect(profile.body.email).toBe(email.toLowerCase());
+    expect(profile.body.name).toBe(name);
   });
 
   test("returns a structurally valid JWT", async () => {

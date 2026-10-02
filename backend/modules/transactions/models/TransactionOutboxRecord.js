@@ -44,7 +44,7 @@
  * ============================================================================
  */
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const {
     Schema
@@ -1156,17 +1156,10 @@ const TransactionOutboxRecord =
  * ============================================================================
  */
 
-module.exports =
-    TransactionOutboxRecord;
+export {
+    TransactionOutboxRecord,
+    TransactionOutboxRecordSchema,
+    OUTBOX_STATUS,
+};
 
-
-module.exports.TransactionOutboxRecord =
-    TransactionOutboxRecord;
-
-
-module.exports.TransactionOutboxRecordSchema =
-    TransactionOutboxRecordSchema;
-
-
-module.exports.OUTBOX_STATUS =
-    OUTBOX_STATUS;
+export default TransactionOutboxRecord;

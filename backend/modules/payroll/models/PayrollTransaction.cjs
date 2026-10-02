@@ -16,8 +16,6 @@ const PayrollTransactionSchema = new Schema({
   provider: { type: String, required: true, enum: ['MTN_MOMO', 'AIRTEL_MONEY'], immutable: true },
   status: { type: String, required: true, enum: ['PENDING', 'PROCESSING', 'SUCCESS', 'FAILED', 'UNKNOWN', 'RETRYING'], index: true },
   financialPostingStatus: { type: String, required: true, enum: ['PENDING', 'POSTED', 'REQUIRES_REVIEW'], default: 'PENDING' },
-  paymentIntentId: { type: String, default: null, index: true },
-  settlementStatus: { type: String, enum: ['PENDING', 'SETTLED', 'UNKNOWN', 'EXCEPTION'], default: 'PENDING' },
   providerTransactionId: { type: String, default: null, index: true },
   providerRef: { type: String, default: null },
   errorCode: { type: String, default: null, maxlength: 128 },

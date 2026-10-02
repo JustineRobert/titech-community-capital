@@ -10,15 +10,15 @@
    ============================================================================ */
 
 :root {
-  --titech-fraud-bg: #f8fafc;
+  --titech-fraud-bg: var(--titech-color-background);
   --titech-fraud-surface: #ffffff;
-  --titech-fraud-surface-muted: #f1f5f9;
-  --titech-fraud-border: #e2e8f0;
-  --titech-fraud-border-strong: #cbd5e1;
+  --titech-fraud-surface-muted: var(--titech-color-surface-muted);
+  --titech-fraud-border: var(--titech-color-border);
+  --titech-fraud-border-strong: var(--titech-color-border-strong);
 
-  --titech-fraud-text: #0f172a;
-  --titech-fraud-text-secondary: #475569;
-  --titech-fraud-text-muted: #64748b;
+  --titech-fraud-text: var(--titech-brand-navy);
+  --titech-fraud-text-secondary: var(--titech-color-text-muted);
+  --titech-fraud-text-muted: var(--titech-color-text-subtle);
 
   --titech-fraud-primary: #0058d8;
   --titech-fraud-primary-hover: #0030a0;
@@ -177,7 +177,7 @@
 .fraud-monitor .btn-secondary:hover:not(:disabled) {
   background: var(--titech-fraud-surface-muted);
 
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 
   color: var(--titech-fraud-text);
 
@@ -312,7 +312,7 @@
 }
 
 .fraud-monitor .max-h-\[480px\]::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--titech-color-text-subtle);
 }
 
 /* ============================================================================
@@ -455,7 +455,7 @@
 
   border: 1px solid var(--titech-fraud-border);
 
-  border-left: 4px solid #94a3b8;
+  border-left: 4px solid var(--titech-color-text-subtle);
 
   color: var(--titech-fraud-text-secondary);
 }
@@ -560,7 +560,7 @@
   .border-gray-300
   > div:first-child
   > span:first-child {
-  background: #e2e8f0;
+  background: var(--titech-color-border);
 }
 
 /* ============================================================================

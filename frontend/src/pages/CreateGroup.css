@@ -43,17 +43,17 @@
   --cg-danger-hover: #b91c1c;
   --cg-danger-soft: #fef2f2;
 
-  --cg-text: #111827;
+  --cg-text: var(--titech-brand-navy);
   --cg-text-secondary: #374151;
-  --cg-text-muted: #6b7280;
+  --cg-text-muted: var(--titech-color-text-subtle);
   --cg-text-subtle: #9ca3af;
 
-  --cg-border: #d1d5db;
-  --cg-border-light: #e5e7eb;
+  --cg-border: var(--titech-color-border);
+  --cg-border-light: var(--titech-color-border);
   --cg-border-focus: #0058d8;
 
   --cg-surface: #ffffff;
-  --cg-surface-secondary: #f9fafb;
+  --cg-surface-secondary: var(--titech-color-background);
   --cg-surface-tertiary: #f3f4f6;
 
   --cg-page-background: #f5f7fb;
@@ -1072,15 +1072,15 @@
 @media (prefers-color-scheme: dark) {
   .create-group-page {
     --cg-text: #f3f4f6;
-    --cg-text-secondary: #d1d5db;
+    --cg-text-secondary: var(--titech-color-border);
     --cg-text-muted: #9ca3af;
-    --cg-text-subtle: #6b7280;
+    --cg-text-subtle: var(--titech-color-text-subtle);
 
     --cg-border: #374151;
     --cg-border-light: #1f2937;
 
-    --cg-surface: #111827;
-    --cg-surface-secondary: #172033;
+    --cg-surface: var(--titech-brand-navy);
+    --cg-surface-secondary: var(--titech-brand-navy);
     --cg-surface-tertiary: #1f2937;
 
     --cg-page-background: #0b1120;
@@ -1124,7 +1124,7 @@
 
   .create-group-page .btn-secondary:hover:not(:disabled) {
     background: var(--cg-surface-secondary);
-    border-color: #4b5563;
+    border-color: var(--titech-color-text-muted);
   }
 
   .create-group-page .btn-ghost:hover:not(:disabled) {

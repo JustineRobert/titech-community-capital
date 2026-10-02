@@ -14,14 +14,14 @@
 
 :root {
   --widget-bg: #ffffff;
-  --widget-surface: #f8fafc;
-  --widget-surface-muted: #f1f5f9;
-  --widget-border: #e2e8f0;
-  --widget-border-strong: #cbd5e1;
+  --widget-surface: var(--titech-color-background);
+  --widget-surface-muted: var(--titech-color-surface-muted);
+  --widget-border: var(--titech-color-border);
+  --widget-border-strong: var(--titech-color-border-strong);
 
-  --widget-text: #0f172a;
-  --widget-text-secondary: #64748b;
-  --widget-text-muted: #94a3b8;
+  --widget-text: var(--titech-brand-navy);
+  --widget-text-secondary: var(--titech-color-text-subtle);
+  --widget-text-muted: var(--titech-color-text-subtle);
 
   --widget-primary: #0058d8;
   --widget-primary-hover: #0030a0;
@@ -507,16 +507,16 @@
    ========================================================================== */
 
 .dark {
-  --widget-bg: #0f172a;
-  --widget-surface: #1e293b;
+  --widget-bg: var(--titech-brand-navy);
+  --widget-surface: var(--titech-brand-navy);
   --widget-surface-muted: #243244;
 
   --widget-border: #334155;
-  --widget-border-strong: #475569;
+  --widget-border-strong: var(--titech-color-text-muted);
 
-  --widget-text: #f8fafc;
-  --widget-text-secondary: #94a3b8;
-  --widget-text-muted: #64748b;
+  --widget-text: var(--titech-color-background);
+  --widget-text-secondary: var(--titech-color-text-subtle);
+  --widget-text-muted: var(--titech-color-text-subtle);
 
   --widget-shadow:
     0 12px 40px rgba(0, 0, 0, 0.4);

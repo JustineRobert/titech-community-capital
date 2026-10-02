@@ -348,3 +348,60 @@
 :root[data-titech-brand="official"] :focus-visible {
   outline-color: var(--titech-official-electric-blue);
 }
+
+
+/* ========================================================================== */
+/* Legacy visual-token compatibility — official TITech theme                 */
+/* ========================================================================== */
+/*
+ * Existing feature CSS historically defined its own neutral token names.
+ * These aliases keep those surfaces inside the single TITech palette without
+ * rewriting business-state colors (success/warning/danger) or financial
+ * semantics. New styles must use the canonical tokens above directly.
+ */
+:root[data-titech-brand="official"] {
+  --titech-fp-text: var(--titech-color-text);
+  --titech-fp-text-secondary: var(--titech-color-text-muted);
+  --titech-fp-text-muted: var(--titech-color-text-subtle);
+  --titech-fp-border: var(--titech-color-border);
+  --titech-fp-border-strong: var(--titech-color-border-strong);
+  --titech-fp-surface: var(--titech-color-surface);
+  --titech-fp-surface-soft: var(--titech-color-surface-muted);
+  --titech-fp-background: var(--titech-color-background);
+
+  --titech-reset-text: var(--titech-color-text);
+  --titech-reset-text-secondary: var(--titech-color-text-muted);
+  --titech-reset-text-muted: var(--titech-color-text-subtle);
+  --titech-reset-border: var(--titech-color-border);
+  --titech-reset-border-strong: var(--titech-color-border-strong);
+  --titech-reset-surface: var(--titech-color-surface);
+  --titech-reset-surface-soft: var(--titech-color-surface-muted);
+  --titech-reset-surface-muted: var(--titech-color-surface-muted);
+  --titech-reset-background: var(--titech-color-background);
+
+  --titech-login-text: var(--titech-color-text);
+  --titech-login-text-secondary: var(--titech-color-text-muted);
+  --titech-login-text-muted: var(--titech-color-text-subtle);
+  --titech-login-border: var(--titech-color-border);
+  --titech-login-surface: var(--titech-color-surface);
+  --titech-login-surface-soft: var(--titech-color-surface-muted);
+  --titech-login-background: var(--titech-color-background);
+}
+
+:root[data-titech-brand="official"] body,
+:root[data-titech-brand="official"] #root {
+  min-height: 100%;
+}
+
+:root[data-titech-brand="official"] ::-webkit-scrollbar-track {
+  background: var(--titech-color-surface-muted);
+}
+
+:root[data-titech-brand="official"] ::-webkit-scrollbar-thumb {
+  background: var(--titech-official-electric-blue);
+  border-radius: 9999px;
+}
+
+:root[data-titech-brand="official"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--titech-official-bright-blue);
+}

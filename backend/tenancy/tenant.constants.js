@@ -2069,7 +2069,7 @@ const TENANT_CACHE =
  * ============================================================================
  */
 
-module.exports =
+export default
     Object.freeze({
         /**
          * Configuration

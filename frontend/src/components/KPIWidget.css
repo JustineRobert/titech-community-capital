@@ -36,15 +36,15 @@
 
 .kpi-widget {
   --kpi-bg: #ffffff;
-  --kpi-bg-hover: #f8fafc;
-  --kpi-bg-active: #f1f5f9;
-  --kpi-border: #e2e8f0;
-  --kpi-border-strong: #cbd5e1;
+  --kpi-bg-hover: var(--titech-color-background);
+  --kpi-bg-active: var(--titech-color-surface-muted);
+  --kpi-border: var(--titech-color-border);
+  --kpi-border-strong: var(--titech-color-border-strong);
 
-  --kpi-text: #0f172a;
-  --kpi-text-secondary: #475569;
-  --kpi-text-muted: #64748b;
-  --kpi-text-subtle: #94a3b8;
+  --kpi-text: var(--titech-brand-navy);
+  --kpi-text-secondary: var(--titech-color-text-muted);
+  --kpi-text-muted: var(--titech-color-text-subtle);
+  --kpi-text-subtle: var(--titech-color-text-subtle);
 
   --kpi-brand: #008000;
   --kpi-brand-strong: #115e59;
@@ -688,9 +688,9 @@ a.kpi-widget:active {
   background:
     linear-gradient(
       90deg,
-      #e2e8f0 25%,
-      #f1f5f9 50%,
-      #e2e8f0 75%
+      var(--titech-color-border) 25%,
+      var(--titech-color-surface-muted) 50%,
+      var(--titech-color-border) 75%
     );
 
   background-size: 200% 100%;
@@ -710,9 +710,9 @@ a.kpi-widget:active {
   background:
     linear-gradient(
       90deg,
-      #e2e8f0 25%,
-      #f1f5f9 50%,
-      #e2e8f0 75%
+      var(--titech-color-border) 25%,
+      var(--titech-color-surface-muted) 50%,
+      var(--titech-color-border) 75%
     );
 
   background-size: 200% 100%;
@@ -784,7 +784,7 @@ a.kpi-widget:active {
 
   color: var(--kpi-text-muted);
 
-  background: #f1f5f9;
+  background: var(--titech-color-surface-muted);
 
   border-radius: 11px;
 }
@@ -824,7 +824,7 @@ a.kpi-widget:active {
     linear-gradient(
       180deg,
       var(--kpi-bg) 0%,
-      #f8fafc 100%
+      var(--titech-color-background) 100%
     );
 }
 
@@ -954,17 +954,17 @@ a.kpi-widget:active {
 
 @media (prefers-color-scheme: dark) {
   .kpi-widget {
-    --kpi-bg: #0f172a;
-    --kpi-bg-hover: #172033;
-    --kpi-bg-active: #1e293b;
+    --kpi-bg: var(--titech-brand-navy);
+    --kpi-bg-hover: var(--titech-brand-navy);
+    --kpi-bg-active: var(--titech-brand-navy);
 
     --kpi-border: #273449;
     --kpi-border-strong: #3a4a63;
 
-    --kpi-text: #f8fafc;
-    --kpi-text-secondary: #cbd5e1;
-    --kpi-text-muted: #94a3b8;
-    --kpi-text-subtle: #64748b;
+    --kpi-text: var(--titech-color-background);
+    --kpi-text-secondary: var(--titech-color-border-strong);
+    --kpi-text-muted: var(--titech-color-text-subtle);
+    --kpi-text-subtle: var(--titech-color-text-subtle);
 
     --kpi-brand: #2dd4bf;
     --kpi-brand-strong: #5eead4;
@@ -1005,9 +1005,9 @@ a.kpi-widget:active {
     background:
       linear-gradient(
         90deg,
-        #1e293b 25%,
+        var(--titech-brand-navy) 25%,
         #334155 50%,
-        #1e293b 75%
+        var(--titech-brand-navy) 75%
       );
 
     background-size: 200% 100%;
@@ -1032,7 +1032,7 @@ a.kpi-widget:active {
   }
 
   .kpi-widget-state-icon {
-    background: #1e293b;
+    background: var(--titech-brand-navy);
   }
 }
 
@@ -1044,17 +1044,17 @@ a.kpi-widget:active {
 
 [data-theme="dark"] .kpi-widget,
 .dark .kpi-widget {
-  --kpi-bg: #0f172a;
-  --kpi-bg-hover: #172033;
-  --kpi-bg-active: #1e293b;
+  --kpi-bg: var(--titech-brand-navy);
+  --kpi-bg-hover: var(--titech-brand-navy);
+  --kpi-bg-active: var(--titech-brand-navy);
 
   --kpi-border: #273449;
   --kpi-border-strong: #3a4a63;
 
-  --kpi-text: #f8fafc;
-  --kpi-text-secondary: #cbd5e1;
-  --kpi-text-muted: #94a3b8;
-  --kpi-text-subtle: #64748b;
+  --kpi-text: var(--titech-color-background);
+  --kpi-text-secondary: var(--titech-color-border-strong);
+  --kpi-text-muted: var(--titech-color-text-subtle);
+  --kpi-text-subtle: var(--titech-color-text-subtle);
 
   --kpi-brand: #2dd4bf;
   --kpi-brand-strong: #5eead4;
@@ -1097,9 +1097,9 @@ a.kpi-widget:active {
   background:
     linear-gradient(
       90deg,
-      #1e293b 25%,
+      var(--titech-brand-navy) 25%,
       #334155 50%,
-      #1e293b 75%
+      var(--titech-brand-navy) 75%
     );
 
   background-size: 200% 100%;
@@ -1127,7 +1127,7 @@ a.kpi-widget:active {
 
 [data-theme="dark"] .kpi-widget-state-icon,
 .dark .kpi-widget-state-icon {
-  background: #1e293b;
+  background: var(--titech-brand-navy);
 }
 
 /* ============================================================================

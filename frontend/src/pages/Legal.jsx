@@ -1182,8 +1182,10 @@ const Legal = () => {
             carefully. They explain the terms governing
             use of the TITech Community Capital Platform,
             our approach to privacy and data protection,
-            and important financial and operational
-            disclaimers.
+            and important financial, security, and
+            operational disclosures expected of an
+            enterprise-ready financial infrastructure
+            provider.
           </p>
 
           <div
@@ -1207,6 +1209,37 @@ const Legal = () => {
               </strong>{' '}
               {legalVersion}
             </span>
+          </div>
+
+          <div
+            style={{
+              marginTop: '1.25rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '0.75rem',
+              width: '100%',
+              maxWidth: '900px',
+            }}
+          >
+            {[
+              ['Framework', 'Enterprise operating governance'],
+              ['Status', 'Production-ready documentation posture'],
+              ['Evidence', 'Audit trail, controls, and institutional accountability'],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  borderRadius: '12px',
+                  padding: '0.8rem 0.9rem',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <div style={{ fontSize: '0.7rem', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8, marginBottom: '0.3rem' }}>{label}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{value}</div>
+              </div>
+            ))}
           </div>
         </div>
       </header>

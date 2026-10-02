@@ -40,16 +40,16 @@
   --titech-purple: #7c3aed;
   --titech-purple-soft: #f5f3ff;
 
-  --titech-text: #111827;
-  --titech-text-secondary: #4b5563;
-  --titech-text-muted: #6b7280;
+  --titech-text: var(--titech-brand-navy);
+  --titech-text-secondary: var(--titech-color-text-muted);
+  --titech-text-muted: var(--titech-color-text-subtle);
 
-  --titech-border: #e5e7eb;
-  --titech-border-strong: #d1d5db;
+  --titech-border: var(--titech-color-border);
+  --titech-border-strong: var(--titech-color-border);
 
-  --titech-background: #f8fafc;
+  --titech-background: var(--titech-color-background);
   --titech-surface: #ffffff;
-  --titech-surface-muted: #f9fafb;
+  --titech-surface-muted: var(--titech-color-background);
 
   --titech-shadow-sm:
     0 1px 2px rgba(15, 23, 42, 0.05);
@@ -562,15 +562,15 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --titech-text: #f3f4f6;
-    --titech-text-secondary: #d1d5db;
+    --titech-text-secondary: var(--titech-color-border);
     --titech-text-muted: #9ca3af;
 
     --titech-border: #1f2937;
     --titech-border-strong: #374151;
 
     --titech-background: #0b1120;
-    --titech-surface: #111827;
-    --titech-surface-muted: #172033;
+    --titech-surface: var(--titech-brand-navy);
+    --titech-surface-muted: var(--titech-brand-navy);
 
     --titech-primary-soft: #00153f;
     --titech-success-soft: #052e1f;

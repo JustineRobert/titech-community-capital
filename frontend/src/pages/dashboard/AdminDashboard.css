@@ -15,16 +15,16 @@
 
 :root {
   --admin-bg: #ffffff;
-  --admin-surface: #f8fafc;
+  --admin-surface: var(--titech-color-background);
   --admin-surface-raised: #ffffff;
-  --admin-surface-muted: #f1f5f9;
+  --admin-surface-muted: var(--titech-color-surface-muted);
 
-  --admin-border: #e2e8f0;
-  --admin-border-strong: #cbd5e1;
+  --admin-border: var(--titech-color-border);
+  --admin-border-strong: var(--titech-color-border-strong);
 
-  --admin-text: #0f172a;
-  --admin-text-secondary: #64748b;
-  --admin-text-muted: #94a3b8;
+  --admin-text: var(--titech-brand-navy);
+  --admin-text-secondary: var(--titech-color-text-subtle);
+  --admin-text-muted: var(--titech-color-text-subtle);
 
   --admin-primary: #0058d8;
   --admin-primary-hover: #0030a0;
@@ -639,17 +639,17 @@
    ========================================================================== */
 
 .dark {
-  --admin-bg: #0f172a;
+  --admin-bg: var(--titech-brand-navy);
   --admin-surface: #111c2f;
   --admin-surface-raised: #172235;
-  --admin-surface-muted: #1e293b;
+  --admin-surface-muted: var(--titech-brand-navy);
 
   --admin-border: #334155;
-  --admin-border-strong: #475569;
+  --admin-border-strong: var(--titech-color-text-muted);
 
-  --admin-text: #f8fafc;
-  --admin-text-secondary: #cbd5e1;
-  --admin-text-muted: #94a3b8;
+  --admin-text: var(--titech-color-background);
+  --admin-text-secondary: var(--titech-color-border-strong);
+  --admin-text-muted: var(--titech-color-text-subtle);
 
   --admin-primary: #4baaf5;
   --admin-primary-hover: #81c4ff;

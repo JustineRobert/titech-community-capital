@@ -345,73 +345,57 @@ const PHASE_MODULE_CANDIDATES =
   Object.freeze({
     environment:
       Object.freeze([
-        "./environment",
-        "./environmentLoader",
-        "../config/environment",
-        "../config/env",
+        "./environment.js",
       ]),
 
     configuration:
       Object.freeze([
-        "./configuration",
-        "./config",
-        "../config",
-        "../config/index",
+        "../config/index.js",
       ]),
 
     logger:
       Object.freeze([
-        "./logger",
-        "../utils/logger",
-        "../utils/logger/index",
+        "./logger.js",
       ]),
 
     observability:
       Object.freeze([
-        "./observability",
-        "../observability",
-        "../monitoring/observability",
+        "./observability.js",
       ]),
 
     readiness:
       Object.freeze([
-        "./readinessState",
-        "./readiness",
+        "./readinessState.js",
       ]),
 
     resilience:
       Object.freeze([
-        "./resilience",
-        "../resilience",
+        "./resilience.js",
       ]),
 
     infrastructure:
       Object.freeze([
-        "./infrastructure",
-        "../infrastructure",
+        "./infrastructure/index.js",
       ]),
 
     services:
       Object.freeze([
-        "./services",
-        "../services",
+        "./services.js",
       ]),
 
     middleware:
       Object.freeze([
-        "./middleware",
-        "../middleware",
+        "./middleware.js",
       ]),
 
     routes:
       Object.freeze([
-        "./routes",
-        "../routes",
+        "./routes.js",
       ]),
 
     server:
       Object.freeze([
-        "./server",
+        "./server.js",
       ]),
   });
 

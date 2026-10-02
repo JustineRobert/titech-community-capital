@@ -60,14 +60,14 @@
   --st-color-info: #075985;
   --st-color-info-soft: #f0f9ff;
 
-  --st-color-text: #172033;
+  --st-color-text: var(--titech-brand-navy);
   --st-color-text-muted: #5b6472;
   --st-color-text-subtle: #737d8c;
   --st-color-text-inverse: #ffffff;
 
   --st-color-surface: #ffffff;
-  --st-color-surface-subtle: #f8fafc;
-  --st-color-surface-muted: #f1f5f9;
+  --st-color-surface-subtle: var(--titech-color-background);
+  --st-color-surface-muted: var(--titech-color-surface-muted);
 
   --st-color-border: #dbe2ea;
   --st-color-border-strong: #c7d0db;
@@ -1712,17 +1712,17 @@
   --st-color-info: #7dd3fc;
   --st-color-info-soft: #082f49;
 
-  --st-color-text: #f1f5f9;
-  --st-color-text-muted: #cbd5e1;
-  --st-color-text-subtle: #94a3b8;
+  --st-color-text: var(--titech-color-surface-muted);
+  --st-color-text-muted: var(--titech-color-border-strong);
+  --st-color-text-subtle: var(--titech-color-text-subtle);
   --st-color-text-inverse: #052e16;
 
-  --st-color-surface: #0f172a;
+  --st-color-surface: var(--titech-brand-navy);
   --st-color-surface-subtle: #111c2f;
-  --st-color-surface-muted: #1e293b;
+  --st-color-surface-muted: var(--titech-brand-navy);
 
   --st-color-border: #334155;
-  --st-color-border-strong: #475569;
+  --st-color-border-strong: var(--titech-color-text-muted);
 
   --st-color-overlay: rgb(0 0 0 / 0.65);
 

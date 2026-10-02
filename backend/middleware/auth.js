@@ -938,6 +938,14 @@ function normalizeUser(
     id,
     _id: id,
 
+    name:
+      normalizeString(
+        source.name ??
+        source.fullName ??
+        null,
+        null
+      ),
+
     email:
       normalizeString(
         source.email ??

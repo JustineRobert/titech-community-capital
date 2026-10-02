@@ -136,10 +136,10 @@ LEGAL_ROUTES.PRIVACY,
 
 const CONTACT = Object.freeze({
 privacyEmail:
-'[privacy@communitysavings.app](mailto:privacy@communitysavings.app)',
+'[privacy@titechcommunity.app](mailto:privacy@titechcommunity.app)',
 
 dataProtectionEmail:
-'[dpo@communitysavings.app](mailto:dpo@communitysavings.app)',
+'[dpo@titechcommunity.app](mailto:dpo@titechcommunity.app)',
 
 legalEmail:
 '[legal@titechcommunity.app](mailto:legal@titechcommunity.app)',

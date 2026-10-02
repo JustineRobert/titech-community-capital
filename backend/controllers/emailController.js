@@ -57,7 +57,6 @@
 
 import crypto from 'node:crypto';
 
-import asyncHandler from '../utils/asyncHandler.js';
 import logger from '../utils/logger.js';
 
 import User from '../models/User.js';
@@ -114,6 +113,9 @@ const sendVerificationEmail =
 const sendPasswordResetEmail =
   emailServiceModule.sendPasswordResetEmail ??
   emailService.sendPasswordResetEmail;
+
+const asyncHandler = (handler) => (req, res, next) =>
+  Promise.resolve(handler(req, res, next)).catch(next);
 
 /**
  * =============================================================================

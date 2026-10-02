@@ -81,14 +81,13 @@
  * =============================================================================
  */
 
-const crypto = require("crypto");
-const bcrypt = require("bcrypt");
-const mongoose = require("mongoose");
-const zxcvbn = require("zxcvbn");
-
-const PasswordResetToken = require("../models/PasswordResetToken");
-const User = require("../models/User");
-const logger = require("../utils/logger");
+import crypto from "node:crypto";
+import bcrypt from "bcrypt";
+import mongoose from "mongoose";
+import zxcvbn from "zxcvbn";
+import PasswordResetToken from "../models/PasswordResetToken.js";
+import User from "../models/User.js";
+import logger from "../utils/logger.js";
 
 /**
  * =============================================================================
@@ -1135,19 +1134,11 @@ class PasswordResetService {
  * =============================================================================
  */
 
-module.exports = PasswordResetService;
+export default PasswordResetService;
 
-/**
- * Optional named exports retained for compatibility with existing imports.
- */
-module.exports.validatePasswordEnterprise =
-  validatePasswordEnterprise;
-
-module.exports.validatePasswordStrength =
-  validatePasswordStrength;
-
-module.exports.HASH_TOKEN =
-  HASH_TOKEN;
-
-module.exports.hashResetToken =
-  hashResetToken;
+export {
+  validatePasswordEnterprise,
+  validatePasswordStrength,
+  HASH_TOKEN,
+  hashResetToken,
+};

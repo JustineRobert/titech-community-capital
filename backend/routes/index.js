@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 import authModule from '../middleware/auth.js';
+import authRoutes from './auth.js';
 import idempotencyModule from '../middleware/idempotency.js';
 import contributionsControllerModule from '../controllers/contributionsController.js';
 import repaymentsControllerModule from '../controllers/repaymentsController.js';
@@ -72,7 +73,6 @@ const crypto = require('node:crypto');
  * The routers retain ownership of validation, rate limiting, and controller
  * orchestration; this registry only composes them into the application.
  */
-const authRoutes = require('./auth');
 const emailRoutes = require('./email');
 
 const {

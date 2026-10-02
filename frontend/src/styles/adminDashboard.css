@@ -19,11 +19,11 @@
   --background: #f5f7fb;
   --surface: #ffffff;
 
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
+  --text-primary: var(--titech-brand-navy);
+  --text-secondary: var(--titech-color-text-subtle);
   --text-muted: #9ca3af;
 
-  --border: #e5e7eb;
+  --border: var(--titech-color-border);
 
   --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
   --shadow-md: 0 6px 20px rgba(0,0,0,.08);
@@ -119,7 +119,7 @@
 }
 
 .btn-secondary:hover {
-  background: #f9fafb;
+  background: var(--titech-color-background);
 }
 
 .logout-btn {
@@ -243,7 +243,7 @@
 }
 
 .admin-table thead {
-  background: #f8fafc;
+  background: var(--titech-color-background);
 }
 
 .admin-table th {
@@ -261,7 +261,7 @@
 }
 
 .admin-table tbody tr:hover {
-  background: #f9fafb;
+  background: var(--titech-color-background);
 }
 
 /* ==========================================================================
@@ -370,7 +370,7 @@
 .admin-spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid #e5e7eb;
+  border: 4px solid var(--titech-color-border);
   border-top-color: var(--admin-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -389,9 +389,9 @@
 .skeleton {
   background: linear-gradient(
     90deg,
-    #f1f5f9 25%,
-    #e2e8f0 50%,
-    #f1f5f9 75%
+    var(--titech-color-surface-muted) 25%,
+    var(--titech-color-border) 50%,
+    var(--titech-color-surface-muted) 75%
   );
 
   background-size: 200% 100%;
@@ -483,15 +483,15 @@
 @media (prefers-color-scheme: dark) {
 
   :root {
-    --background: #0f172a;
-    --surface: #1e293b;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
+    --background: var(--titech-brand-navy);
+    --surface: var(--titech-brand-navy);
+    --text-primary: var(--titech-color-background);
+    --text-secondary: var(--titech-color-border-strong);
     --border: #334155;
   }
 
   .admin-table thead {
-    background: #1e293b;
+    background: var(--titech-brand-navy);
   }
 
   .admin-table tbody tr:hover {

@@ -59,28 +59,28 @@
     #ffffff;
 
   --titech-chat-surface:
-    #f8fafc;
+    var(--titech-color-background);
 
   --titech-chat-surface-elevated:
     #ffffff;
 
   --titech-chat-border:
-    #e2e8f0;
+    var(--titech-color-border);
 
   --titech-chat-border-strong:
-    #cbd5e1;
+    var(--titech-color-border-strong);
 
   --titech-chat-text:
-    #0f172a;
+    var(--titech-brand-navy);
 
   --titech-chat-text-secondary:
-    #475569;
+    var(--titech-color-text-muted);
 
   --titech-chat-text-muted:
-    #64748b;
+    var(--titech-color-text-subtle);
 
   --titech-chat-placeholder:
-    #94a3b8;
+    var(--titech-color-text-subtle);
 
   --titech-chat-primary:
     #0058d8;
@@ -1863,13 +1863,13 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --titech-chat-bg:
-      #0f172a;
+      var(--titech-brand-navy);
 
     --titech-chat-surface:
-      #111827;
+      var(--titech-brand-navy);
 
     --titech-chat-surface-elevated:
-      #172033;
+      var(--titech-brand-navy);
 
     --titech-chat-border:
       #293548;
@@ -1878,16 +1878,16 @@
       #3b4a60;
 
     --titech-chat-text:
-      #f8fafc;
+      var(--titech-color-background);
 
     --titech-chat-text-secondary:
-      #cbd5e1;
+      var(--titech-color-border-strong);
 
     --titech-chat-text-muted:
-      #94a3b8;
+      var(--titech-color-text-subtle);
 
     --titech-chat-placeholder:
-      #64748b;
+      var(--titech-color-text-subtle);
 
     --titech-chat-primary-soft:
       rgba(
@@ -1959,7 +1959,7 @@
 
   .titech-attachment-preview__extension {
     color:
-      #0f172a;
+      var(--titech-brand-navy);
 
     background:
       rgba(
@@ -1989,13 +1989,13 @@
 [data-theme="dark"]
 .titech-chat-composer {
   --titech-chat-bg:
-    #0f172a;
+    var(--titech-brand-navy);
 
   --titech-chat-surface:
-    #111827;
+    var(--titech-brand-navy);
 
   --titech-chat-surface-elevated:
-    #172033;
+    var(--titech-brand-navy);
 
   --titech-chat-border:
     #293548;
@@ -2004,16 +2004,16 @@
     #3b4a60;
 
   --titech-chat-text:
-    #f8fafc;
+    var(--titech-color-background);
 
   --titech-chat-text-secondary:
-    #cbd5e1;
+    var(--titech-color-border-strong);
 
   --titech-chat-text-muted:
-    #94a3b8;
+    var(--titech-color-text-subtle);
 
   --titech-chat-placeholder:
-    #64748b;
+    var(--titech-color-text-subtle);
 }
 
 

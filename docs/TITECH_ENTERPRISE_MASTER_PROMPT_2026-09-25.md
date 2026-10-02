@@ -62,7 +62,7 @@ TITech is intentionally **not** to be redesigned into:
 
 Account and wallet representations may remain as internal financial primitives where required by the existing application, but they must not become the product's architectural center.
 
-No legacy ACFOS terminology is to be reintroduced into public product positioning.
+No legacy terminology inconsistent with the current TITech Community Capital positioning is to be reintroduced into public product positioning.
 
 ---
 

@@ -10,7 +10,7 @@
 /* Input fields */
 .input-field {
   padding: 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--titech-color-border);
   border-radius: 6px;
   font-size: 1rem;
   width: 100%;
@@ -33,7 +33,7 @@
 }
 
 .submit-btn:disabled {
-  background-color: #e2e8f0;
+  background-color: var(--titech-color-border);
   cursor: not-allowed;
 }
 

@@ -80,20 +80,20 @@
   --titech-forum-color-info: #0369a1;
   --titech-forum-color-info-soft: #f0f9ff;
 
-  --titech-forum-text: #0f172a;
-  --titech-forum-text-secondary: #475569;
-  --titech-forum-text-muted: #64748b;
-  --titech-forum-text-subtle: #94a3b8;
+  --titech-forum-text: var(--titech-brand-navy);
+  --titech-forum-text-secondary: var(--titech-color-text-muted);
+  --titech-forum-text-muted: var(--titech-color-text-subtle);
+  --titech-forum-text-subtle: var(--titech-color-text-subtle);
   --titech-forum-text-inverse: #ffffff;
 
-  --titech-forum-background: #f8fafc;
+  --titech-forum-background: var(--titech-color-background);
   --titech-forum-surface: #ffffff;
-  --titech-forum-surface-subtle: #f8fafc;
-  --titech-forum-surface-hover: #f8fafc;
-  --titech-forum-surface-active: #f1f5f9;
+  --titech-forum-surface-subtle: var(--titech-color-background);
+  --titech-forum-surface-hover: var(--titech-color-background);
+  --titech-forum-surface-active: var(--titech-color-surface-muted);
 
-  --titech-forum-border: #e2e8f0;
-  --titech-forum-border-strong: #cbd5e1;
+  --titech-forum-border: var(--titech-color-border);
+  --titech-forum-border-strong: var(--titech-color-border-strong);
 
   --titech-forum-radius-xs: 0.375rem;
   --titech-forum-radius-sm: 0.5rem;
@@ -266,7 +266,7 @@
 }
 
 .forum-search-input:hover {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .forum-search-input:focus,
@@ -601,8 +601,8 @@
   overflow-x: auto;
   margin: 1rem 0;
   padding: 1rem;
-  color: #e2e8f0;
-  background: #0f172a;
+  color: var(--titech-color-border);
+  background: var(--titech-brand-navy);
   border-radius: var(--titech-forum-radius-md);
   font-family: var(--titech-forum-mono-font-family);
   font-size: 0.8rem;
@@ -822,7 +822,7 @@
 .forum-button:hover {
   color: var(--titech-forum-text);
   background: var(--titech-forum-surface-hover);
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .forum-btn:active,
@@ -950,7 +950,7 @@
 .forum-field input:hover,
 .forum-field select:hover,
 .forum-field textarea:hover {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .forum-form-input:focus,
@@ -1137,7 +1137,7 @@
 .forum-skeleton-line {
   height: 0.75rem;
   margin: 1rem;
-  background: #e2e8f0;
+  background: var(--titech-color-border);
   border-radius: var(--titech-forum-radius-full);
 }
 
@@ -1562,16 +1562,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --titech-forum-text: #f8fafc;
-    --titech-forum-text-secondary: #cbd5e1;
-    --titech-forum-text-muted: #94a3b8;
-    --titech-forum-text-subtle: #64748b;
+    --titech-forum-text: var(--titech-color-background);
+    --titech-forum-text-secondary: var(--titech-color-border-strong);
+    --titech-forum-text-muted: var(--titech-color-text-subtle);
+    --titech-forum-text-subtle: var(--titech-color-text-subtle);
 
-    --titech-forum-background: #0f172a;
-    --titech-forum-surface: #111827;
-    --titech-forum-surface-subtle: #0f172a;
-    --titech-forum-surface-hover: #1e293b;
-    --titech-forum-surface-active: #1e293b;
+    --titech-forum-background: var(--titech-brand-navy);
+    --titech-forum-surface: var(--titech-brand-navy);
+    --titech-forum-surface-subtle: var(--titech-brand-navy);
+    --titech-forum-surface-hover: var(--titech-brand-navy);
+    --titech-forum-surface-active: var(--titech-brand-navy);
 
     --titech-forum-border: #273449;
     --titech-forum-border-strong: #334155;
@@ -1608,7 +1608,7 @@
   .forum-field textarea,
   .forum-search-input {
     color: var(--titech-forum-text);
-    background: #0f172a;
+    background: var(--titech-brand-navy);
   }
 
   .forum-skeleton-line {
@@ -1651,16 +1651,16 @@
 
 [data-theme="dark"] .forum-container,
 .dark .forum-container {
-  --titech-forum-text: #f8fafc;
-  --titech-forum-text-secondary: #cbd5e1;
-  --titech-forum-text-muted: #94a3b8;
-  --titech-forum-text-subtle: #64748b;
+  --titech-forum-text: var(--titech-color-background);
+  --titech-forum-text-secondary: var(--titech-color-border-strong);
+  --titech-forum-text-muted: var(--titech-color-text-subtle);
+  --titech-forum-text-subtle: var(--titech-color-text-subtle);
 
-  --titech-forum-background: #0f172a;
-  --titech-forum-surface: #111827;
-  --titech-forum-surface-subtle: #0f172a;
-  --titech-forum-surface-hover: #1e293b;
-  --titech-forum-surface-active: #1e293b;
+  --titech-forum-background: var(--titech-brand-navy);
+  --titech-forum-surface: var(--titech-brand-navy);
+  --titech-forum-surface-subtle: var(--titech-brand-navy);
+  --titech-forum-surface-hover: var(--titech-brand-navy);
+  --titech-forum-surface-active: var(--titech-brand-navy);
 
   --titech-forum-border: #273449;
   --titech-forum-border-strong: #334155;

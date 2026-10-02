@@ -12,16 +12,16 @@
 
 :root {
   --notification-bg: #ffffff;
-  --notification-surface: #f8fafc;
+  --notification-surface: var(--titech-color-background);
   --notification-surface-raised: #ffffff;
-  --notification-surface-hover: #f1f5f9;
+  --notification-surface-hover: var(--titech-color-surface-muted);
 
-  --notification-border: #e2e8f0;
-  --notification-border-strong: #cbd5e1;
+  --notification-border: var(--titech-color-border);
+  --notification-border-strong: var(--titech-color-border-strong);
 
-  --notification-text: #0f172a;
-  --notification-text-secondary: #64748b;
-  --notification-text-muted: #94a3b8;
+  --notification-text: var(--titech-brand-navy);
+  --notification-text-secondary: var(--titech-color-text-subtle);
+  --notification-text-muted: var(--titech-color-text-subtle);
 
   --notification-primary: #0058d8;
   --notification-primary-hover: #0030a0;
@@ -580,18 +580,18 @@
    ========================================================================== */
 
 .dark {
-  --notification-bg: #0f172a;
+  --notification-bg: var(--titech-brand-navy);
 
-  --notification-surface: #1e293b;
-  --notification-surface-raised: #172033;
+  --notification-surface: var(--titech-brand-navy);
+  --notification-surface-raised: var(--titech-brand-navy);
   --notification-surface-hover: #243247;
 
   --notification-border: #334155;
-  --notification-border-strong: #475569;
+  --notification-border-strong: var(--titech-color-text-muted);
 
-  --notification-text: #f8fafc;
-  --notification-text-secondary: #94a3b8;
-  --notification-text-muted: #64748b;
+  --notification-text: var(--titech-color-background);
+  --notification-text-secondary: var(--titech-color-text-subtle);
+  --notification-text-muted: var(--titech-color-text-subtle);
 
   --notification-primary: #4baaf5;
   --notification-primary-hover: #81c4ff;

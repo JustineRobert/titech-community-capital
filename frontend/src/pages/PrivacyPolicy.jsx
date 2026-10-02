@@ -583,8 +583,44 @@ const PrivacyPolicy = () => {
             We are committed to protecting your personal
             information, respecting your privacy, and
             maintaining appropriate safeguards when you use
-            TITech Community Capital services.
+            TITech Community Capital services. Our operating
+            model is built around data minimization,
+            least-privilege access, auditable system records,
+            and production-grade security controls that support
+            community finance, payments, reconciliation, and
+            institutional accountability.
           </p>
+
+          <div
+            style={{
+              marginTop: '1.25rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '0.75rem',
+              width: '100%',
+              maxWidth: '860px',
+            }}
+          >
+            {[
+              ['Data principles', 'Minimal, lawful, auditable processing'],
+              ['Protection model', 'Access controls, monitoring, and security review'],
+              ['Governance', 'Uganda-aligned privacy practices and regulatory readiness'],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  borderRadius: '12px',
+                  padding: '0.8rem 0.9rem',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <div style={{ fontSize: '0.7rem', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8, marginBottom: '0.3rem' }}>{label}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{value}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -715,7 +751,7 @@ const PrivacyPolicy = () => {
                 , <strong>&quot;we&quot;</strong>,{' '}
                 <strong>&quot;us&quot;</strong>, or{' '}
                 <strong>&quot;our&quot;</strong>) operates the
-                Community Savings App and related digital
+                Community Savings and related digital
                 financial and community-management services
                 (collectively, the &quot;Platform&quot;).
               </p>

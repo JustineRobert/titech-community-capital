@@ -18,12 +18,12 @@
     --warning-light: #fef3c7;
 
     --text: #1f2937;
-    --text-light: #6b7280;
+    --text-light: var(--titech-color-text-subtle);
 
-    --border: #d1d5db;
-    --border-light: #e5e7eb;
+    --border: var(--titech-color-border);
+    --border-light: var(--titech-color-border);
 
-    --background: #f8fafc;
+    --background: var(--titech-color-background);
     --card: #ffffff;
 
     --radius: 12px;
@@ -92,7 +92,7 @@
 .progress-bar {
     height: 12px;
     border-radius: 30px;
-    background: #e5e7eb;
+    background: var(--titech-color-border);
     overflow: hidden;
 }
 
@@ -496,14 +496,14 @@ textarea.form-control {
 
     :root {
 
-        --background:#0f172a;
-        --card:#1e293b;
+        --background:var(--titech-brand-navy);
+        --card:var(--titech-brand-navy);
 
-        --text:#f1f5f9;
+        --text:var(--titech-color-surface-muted);
 
-        --text-light:#94a3b8;
+        --text-light:var(--titech-color-text-subtle);
 
-        --border:#475569;
+        --border:var(--titech-color-text-muted);
 
         --border-light:#334155;
     }

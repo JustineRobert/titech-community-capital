@@ -1,3 +1,7 @@
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
 "use strict";
 
 /**
@@ -2088,9 +2092,18 @@ initializeInfrastructure.service =
 
 
 /* =============================================================================
- * COMMONJS EXPORT
+ * ESM EXPORT
  * =============================================================================
  */
 
-module.exports =
-  initializeInfrastructure;
+export default initializeInfrastructure;
+
+export {
+  initializeInfrastructure,
+  shutdownInfrastructure,
+  health,
+  isReady,
+  getInfrastructure,
+  getInfrastructureStatus,
+  resetForTests,
+};

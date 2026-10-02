@@ -43,17 +43,17 @@
   --savings-danger: #b91c1c;
   --savings-danger-soft: #fef2f2;
 
-  --savings-text: #0f172a;
-  --savings-text-secondary: #475569;
-  --savings-text-muted: #64748b;
-  --savings-text-faint: #94a3b8;
+  --savings-text: var(--titech-brand-navy);
+  --savings-text-secondary: var(--titech-color-text-muted);
+  --savings-text-muted: var(--titech-color-text-subtle);
+  --savings-text-faint: var(--titech-color-text-subtle);
 
   --savings-border: #dbe3ec;
-  --savings-border-strong: #cbd5e1;
+  --savings-border-strong: var(--titech-color-border-strong);
 
   --savings-surface: #ffffff;
-  --savings-surface-soft: #f8fafc;
-  --savings-surface-muted: #f1f5f9;
+  --savings-surface-soft: var(--titech-color-background);
+  --savings-surface-muted: var(--titech-color-surface-muted);
 
   --savings-background: #f6f8fb;
 
@@ -309,7 +309,7 @@
 }
 
 .secondary-btn:hover:not(:disabled) {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 
   background: var(--savings-surface-soft);
 
@@ -596,7 +596,7 @@
 }
 
 .savings-filter-search input:hover {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .savings-filter-search input:focus {
@@ -691,7 +691,7 @@
 }
 
 .savings-filter-control select:hover {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .savings-filter-control select:focus {
@@ -784,7 +784,7 @@
 
 .savings-table-wrapper::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: #cbd5e1;
+  background: var(--titech-color-border-strong);
 }
 
 .savings-table {
@@ -966,7 +966,7 @@
 }
 
 .transaction-adjustment {
-  border-color: #cbd5e1;
+  border-color: var(--titech-color-border-strong);
 
   background: var(--savings-surface-muted);
   color: var(--savings-text-secondary);
@@ -1173,7 +1173,7 @@
 }
 
 .pagination-controls button:hover:not(:disabled) {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
   background: var(--savings-surface-soft);
   color: var(--savings-text);
 }
@@ -1218,7 +1218,7 @@
     linear-gradient(
       90deg,
       #eef2f7 25%,
-      #e2e8f0 50%,
+      var(--titech-color-border) 50%,
       #eef2f7 75%
     );
 
@@ -1515,17 +1515,17 @@
 
 @media (prefers-color-scheme: dark) {
   .savings-page {
-    --savings-text: #f8fafc;
-    --savings-text-secondary: #cbd5e1;
-    --savings-text-muted: #94a3b8;
-    --savings-text-faint: #64748b;
+    --savings-text: var(--titech-color-background);
+    --savings-text-secondary: var(--titech-color-border-strong);
+    --savings-text-muted: var(--titech-color-text-subtle);
+    --savings-text-faint: var(--titech-color-text-subtle);
 
     --savings-border: #273449;
     --savings-border-strong: #3a485d;
 
-    --savings-surface: #0f172a;
+    --savings-surface: var(--titech-brand-navy);
     --savings-surface-soft: #111c2e;
-    --savings-surface-muted: #1e293b;
+    --savings-surface-muted: var(--titech-brand-navy);
 
     --savings-background: #020617;
 

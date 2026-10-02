@@ -53,6 +53,7 @@
     "test:coverage": "npm test -- --coverage",
     "test:unit": "npm test -- --testPathPatterns=tests/unit",
     "test:integration": "npm test -- --testPathPatterns=tests/integration",
+    "test:auth:smoke": "npm test -- --runInBand --runTestsByPath tests/integration/auth.test.js --testNamePattern=dashboard.profile",
     "test:commercial": "npm test -- --testPathPatterns=tests/commercial",
     "test:providers": "npm test -- --testPathPatterns=tests/providers --runInBand",
     "test:financial:money": "node --test tests/unit/financial/money.test.js",

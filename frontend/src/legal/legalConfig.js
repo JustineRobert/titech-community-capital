@@ -97,13 +97,13 @@ export const LEGAL_CONTACTS = Object.freeze({
   }),
 
   privacy: Object.freeze({
-    email: 'privacy@communitysavings.app',
+    email: 'privacy@titechcommunity.app',
     phoneDisplay: '+256 (394) 324760',
     phoneHref: '+256394324760',
   }),
 
   dataProtection: Object.freeze({
-    email: 'dpo@communitysavings.app',
+    email: 'dpo@titechcommunity.app',
     phoneDisplay: '+256 (394) 324760',
     phoneHref: '+256394324760',
   }),

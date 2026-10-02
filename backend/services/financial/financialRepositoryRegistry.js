@@ -9,10 +9,10 @@ import balanceRepository from '../../repositories/financial/balance.repository.j
 import financialTransactionRepository from '../../repositories/financial/financialTransaction.repository.js';
 import ledgerRepository from '../../repositories/financial/ledger.repository.js';
 import loanRepository from '../../repositories/financial/loan.repository.js';
-import TransactionOutboxRepositoryModule from '../../modules/transactions/repositories/TransactionOutboxRepository.js';
+import TransactionOutboxRepository from '../../modules/transactions/repositories/TransactionOutboxRepository.js';
 
 const outboxRepository =
-  new TransactionOutboxRepositoryModule.TransactionOutboxRepository();
+  new TransactionOutboxRepository();
 
 const financialRepositoryRegistry = Object.freeze({
   transactionRepository: financialTransactionRepository,

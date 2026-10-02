@@ -34,7 +34,7 @@
   --titech-footer-surface: rgba(255, 255, 255, 0.04);
   --titech-footer-border: rgba(255, 255, 255, 0.1);
 
-  --titech-footer-text: #f8fafc;
+  --titech-footer-text: var(--titech-color-background);
   --titech-footer-text-muted: #b7c2d0;
   --titech-footer-text-subtle: #8e9bad;
 
@@ -810,14 +810,14 @@
 
 [data-theme="light"] .footer,
 .light .footer {
-  --titech-footer-bg: #f8fafc;
+  --titech-footer-bg: var(--titech-color-background);
   --titech-footer-bg-elevated: #ffffff;
   --titech-footer-surface: rgba(15, 23, 42, 0.04);
   --titech-footer-border: rgba(15, 23, 42, 0.1);
 
-  --titech-footer-text: #0f172a;
-  --titech-footer-text-muted: #475569;
-  --titech-footer-text-subtle: #64748b;
+  --titech-footer-text: var(--titech-brand-navy);
+  --titech-footer-text-muted: var(--titech-color-text-muted);
+  --titech-footer-text-subtle: var(--titech-color-text-subtle);
 
   --titech-footer-link: #334155;
   --titech-footer-link-hover: #0369a1;

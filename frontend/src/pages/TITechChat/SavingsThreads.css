@@ -98,28 +98,28 @@
     #17202a;
 
   --titech-savings-color-text-secondary:
-    #475569;
+    var(--titech-color-text-muted);
 
   --titech-savings-color-text-muted:
-    #64748b;
+    var(--titech-color-text-subtle);
 
   --titech-savings-color-text-inverse:
     #ffffff;
 
   --titech-savings-color-border:
-    #e2e8f0;
+    var(--titech-color-border);
 
   --titech-savings-color-border-strong:
-    #cbd5e1;
+    var(--titech-color-border-strong);
 
   --titech-savings-color-surface:
     #ffffff;
 
   --titech-savings-color-surface-muted:
-    #f8fafc;
+    var(--titech-color-background);
 
   --titech-savings-color-surface-subtle:
-    #f1f5f9;
+    var(--titech-color-surface-muted);
 
   --titech-savings-color-overlay:
     rgb(15 23 42 / 0.08);
@@ -379,7 +379,7 @@
 }
 
 .titech-savings-threads__search-input:hover {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .titech-savings-threads__search-input:focus,
@@ -439,7 +439,7 @@
 }
 
 .titech-savings-threads__filter:hover {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .titech-savings-threads__filter:focus,
@@ -1486,13 +1486,13 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --titech-savings-color-text:
-      #e5e7eb;
+      var(--titech-color-border);
 
     --titech-savings-color-text-secondary:
-      #cbd5e1;
+      var(--titech-color-border-strong);
 
     --titech-savings-color-text-muted:
-      #94a3b8;
+      var(--titech-color-text-subtle);
 
     --titech-savings-color-text-inverse:
       #ffffff;
@@ -1501,16 +1501,16 @@
       #334155;
 
     --titech-savings-color-border-strong:
-      #475569;
+      var(--titech-color-text-muted);
 
     --titech-savings-color-surface:
-      #111827;
+      var(--titech-brand-navy);
 
     --titech-savings-color-surface-muted:
-      #0f172a;
+      var(--titech-brand-navy);
 
     --titech-savings-color-surface-subtle:
-      #1e293b;
+      var(--titech-brand-navy);
 
     --titech-savings-color-primary-soft:
       #052e16;
@@ -1533,7 +1533,7 @@
       linear-gradient(
         180deg,
         #020617 0%,
-        #0f172a 42rem
+        var(--titech-brand-navy) 42rem
       );
   }
 

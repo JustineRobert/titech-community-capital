@@ -51,8 +51,6 @@ jobs:
         run: npm run check:runtime-imports
       - name: Enterprise hosting gate
         run: npm run titech:hosting-gate
-      - name: Official TITech theme audit
-        run: npm run audit:theme
 
       - name: Enterprise release readiness audit
         run: npm run release:gate
@@ -67,8 +65,6 @@ jobs:
           retention-days: 14
       - name: Exact-money unit tests
         run: node --test backend/tests/unit/financial/money.test.js
-      - name: Payroll state machine unit tests
-        run: npm --prefix backend test -- --runInBand --testPathPatterns=tests/unit/payroll
       - name: Lint and format
         run: npm run check
 

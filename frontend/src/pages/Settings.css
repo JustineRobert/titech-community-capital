@@ -43,7 +43,7 @@
   --titech-settings-bg:
     var(
       --titech-app-background,
-      #f8fafc
+      var(--titech-color-background)
     );
 
   --titech-settings-surface:
@@ -55,43 +55,43 @@
   --titech-settings-surface-subtle:
     var(
       --titech-surface-subtle,
-      #f8fafc
+      var(--titech-color-background)
     );
 
   --titech-settings-surface-muted:
     var(
       --titech-surface-muted,
-      #f1f5f9
+      var(--titech-color-surface-muted)
     );
 
   --titech-settings-border:
     var(
       --titech-border,
-      #e2e8f0
+      var(--titech-color-border)
     );
 
   --titech-settings-border-strong:
     var(
       --titech-border-strong,
-      #cbd5e1
+      var(--titech-color-border-strong)
     );
 
   --titech-settings-text:
     var(
       --titech-text,
-      #0f172a
+      var(--titech-brand-navy)
     );
 
   --titech-settings-text-secondary:
     var(
       --titech-text-secondary,
-      #475569
+      var(--titech-color-text-muted)
     );
 
   --titech-settings-text-muted:
     var(
       --titech-text-muted,
-      #64748b
+      var(--titech-color-text-subtle)
     );
 
   --titech-settings-primary:
@@ -3041,19 +3041,19 @@
   --titech-settings-surface:
     var(
       --titech-dark-surface,
-      #0f172a
+      var(--titech-brand-navy)
     );
 
   --titech-settings-surface-subtle:
     var(
       --titech-dark-surface-subtle,
-      #172033
+      var(--titech-brand-navy)
     );
 
   --titech-settings-surface-muted:
     var(
       --titech-dark-surface-muted,
-      #1e293b
+      var(--titech-brand-navy)
     );
 
   --titech-settings-border:
@@ -3065,25 +3065,25 @@
   --titech-settings-border-strong:
     var(
       --titech-dark-border-strong,
-      #475569
+      var(--titech-color-text-muted)
     );
 
   --titech-settings-text:
     var(
       --titech-dark-text,
-      #f8fafc
+      var(--titech-color-background)
     );
 
   --titech-settings-text-secondary:
     var(
       --titech-dark-text-secondary,
-      #cbd5e1
+      var(--titech-color-border-strong)
     );
 
   --titech-settings-text-muted:
     var(
       --titech-dark-text-muted,
-      #94a3b8
+      var(--titech-color-text-subtle)
     );
 
   --titech-settings-shadow:

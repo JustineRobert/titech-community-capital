@@ -23,17 +23,17 @@
    ========================================================================== */
 
 :root {
-  --health-bg: #f8fafc;
+  --health-bg: var(--titech-color-background);
   --health-surface: #ffffff;
-  --health-surface-muted: #f1f5f9;
+  --health-surface-muted: var(--titech-color-surface-muted);
   --health-surface-elevated: #ffffff;
 
-  --health-border: #e2e8f0;
-  --health-border-strong: #cbd5e1;
+  --health-border: var(--titech-color-border);
+  --health-border-strong: var(--titech-color-border-strong);
 
-  --health-text: #0f172a;
-  --health-text-secondary: #64748b;
-  --health-text-muted: #94a3b8;
+  --health-text: var(--titech-brand-navy);
+  --health-text-secondary: var(--titech-color-text-subtle);
+  --health-text-muted: var(--titech-color-text-subtle);
 
   --health-primary: #0058d8;
   --health-primary-hover: #0030a0;
@@ -742,16 +742,16 @@
 .dark {
   --health-bg: #020617;
 
-  --health-surface: #0f172a;
+  --health-surface: var(--titech-brand-navy);
   --health-surface-muted: #111c2f;
   --health-surface-elevated: #162033;
 
-  --health-border: #1e293b;
+  --health-border: var(--titech-brand-navy);
   --health-border-strong: #334155;
 
-  --health-text: #f8fafc;
-  --health-text-secondary: #94a3b8;
-  --health-text-muted: #64748b;
+  --health-text: var(--titech-color-background);
+  --health-text-secondary: var(--titech-color-text-subtle);
+  --health-text-muted: var(--titech-color-text-subtle);
 
   --health-primary: #4baaf5;
   --health-primary-hover: #81c4ff;

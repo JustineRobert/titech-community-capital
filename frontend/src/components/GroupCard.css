@@ -40,15 +40,15 @@
 
 :root {
   --titech-group-card-bg: #ffffff;
-  --titech-group-card-surface: #f8fafc;
-  --titech-group-card-surface-hover: #f1f5f9;
+  --titech-group-card-surface: var(--titech-color-background);
+  --titech-group-card-surface-hover: var(--titech-color-surface-muted);
 
-  --titech-group-card-border: #e2e8f0;
-  --titech-group-card-border-strong: #cbd5e1;
+  --titech-group-card-border: var(--titech-color-border);
+  --titech-group-card-border-strong: var(--titech-color-border-strong);
 
-  --titech-group-card-text: #0f172a;
-  --titech-group-card-text-muted: #64748b;
-  --titech-group-card-text-subtle: #94a3b8;
+  --titech-group-card-text: var(--titech-brand-navy);
+  --titech-group-card-text-muted: var(--titech-color-text-subtle);
+  --titech-group-card-text-subtle: var(--titech-color-text-subtle);
 
   --titech-group-card-primary: #008000;
   --titech-group-card-primary-hover: #115e59;
@@ -66,8 +66,8 @@
   --titech-group-card-danger: #b91c1c;
   --titech-group-card-danger-soft: #fee2e2;
 
-  --titech-group-card-neutral: #475569;
-  --titech-group-card-neutral-soft: #f1f5f9;
+  --titech-group-card-neutral: var(--titech-color-text-muted);
+  --titech-group-card-neutral-soft: var(--titech-color-surface-muted);
 
   --titech-group-card-shadow:
     0 1px 2px rgba(15, 23, 42, 0.05);
@@ -571,7 +571,7 @@
 
   overflow: hidden;
 
-  background: #e2e8f0;
+  background: var(--titech-color-border);
   border-radius: 999px;
 }
 
@@ -673,9 +673,9 @@
   background:
     linear-gradient(
       90deg,
-      #f1f5f9 0%,
-      #e2e8f0 50%,
-      #f1f5f9 100%
+      var(--titech-color-surface-muted) 0%,
+      var(--titech-color-border) 50%,
+      var(--titech-color-surface-muted) 100%
     );
 
   background-size: 200% 100%;
@@ -695,7 +695,7 @@
 
   border-radius: 6px;
 
-  background: #e2e8f0;
+  background: var(--titech-color-border);
 }
 
 .group-card-skeleton-line--title {
@@ -723,7 +723,7 @@
 
   border-radius: 8px;
 
-  background: #f1f5f9;
+  background: var(--titech-color-surface-muted);
 }
 
 @keyframes titech-group-card-skeleton {
@@ -925,14 +925,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --titech-group-card-bg: #0f172a;
+    --titech-group-card-bg: var(--titech-brand-navy);
     --titech-group-card-surface: #111c2f;
     --titech-group-card-surface-hover: #17243a;
 
     --titech-group-card-border: #243247;
     --titech-group-card-border-strong: #334155;
 
-    --titech-group-card-text: #f8fafc;
+    --titech-group-card-text: var(--titech-color-background);
     --titech-group-card-text-muted: #a8b4c5;
     --titech-group-card-text-subtle: #7f8da3;
 
@@ -952,8 +952,8 @@
     --titech-group-card-danger: #f87171;
     --titech-group-card-danger-soft: #7f1d1d;
 
-    --titech-group-card-neutral: #cbd5e1;
-    --titech-group-card-neutral-soft: #1e293b;
+    --titech-group-card-neutral: var(--titech-color-border-strong);
+    --titech-group-card-neutral-soft: var(--titech-brand-navy);
 
     --titech-group-card-shadow:
       0 1px 2px rgba(0, 0, 0, 0.28);

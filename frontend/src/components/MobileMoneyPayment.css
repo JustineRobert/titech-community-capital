@@ -44,7 +44,7 @@
   --titech-payment-primary-hover: #d97706;
   --titech-payment-primary-active: #b45309;
 
-  --titech-payment-secondary: #0f172a;
+  --titech-payment-secondary: var(--titech-brand-navy);
   --titech-payment-secondary-soft: #334155;
 
   --titech-payment-success: #16a34a;
@@ -63,16 +63,16 @@
   --titech-payment-info-soft: #d8eeff;
   --titech-payment-info-border: #81c4ff;
 
-  --titech-payment-text: #0f172a;
-  --titech-payment-text-secondary: #475569;
-  --titech-payment-text-muted: #64748b;
+  --titech-payment-text: var(--titech-brand-navy);
+  --titech-payment-text-secondary: var(--titech-color-text-muted);
+  --titech-payment-text-muted: var(--titech-color-text-subtle);
 
   --titech-payment-surface: #ffffff;
-  --titech-payment-surface-soft: #f8fafc;
-  --titech-payment-surface-muted: #f1f5f9;
+  --titech-payment-surface-soft: var(--titech-color-background);
+  --titech-payment-surface-muted: var(--titech-color-surface-muted);
 
-  --titech-payment-border: #e2e8f0;
-  --titech-payment-border-strong: #cbd5e1;
+  --titech-payment-border: var(--titech-color-border);
+  --titech-payment-border-strong: var(--titech-color-border-strong);
 
   --titech-payment-shadow-sm:
     0 1px 2px rgba(15, 23, 42, 0.05);
@@ -165,7 +165,7 @@
   padding: 10px 12px;
   border: 1px solid var(--titech-payment-border);
   border-radius: var(--titech-payment-radius-md);
-  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  background: linear-gradient(135deg, #ffffff, var(--titech-color-background));
   box-shadow: var(--titech-payment-shadow-sm);
 }
 
@@ -295,7 +295,7 @@
 
 .mtn-logo {
   background: #ffcc00;
-  color: #111827;
+  color: var(--titech-brand-navy);
   box-shadow:
     inset 0 0 0 1px rgba(17, 24, 39, 0.08);
 }
@@ -380,11 +380,11 @@
 }
 
 .form-input::placeholder {
-  color: #94a3b8;
+  color: var(--titech-color-text-subtle);
 }
 
 .form-input:hover {
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .form-input:focus {
@@ -393,7 +393,7 @@
 }
 
 .form-input:disabled {
-  color: #94a3b8;
+  color: var(--titech-color-text-subtle);
   background: var(--titech-payment-surface-muted);
   cursor: not-allowed;
 }
@@ -494,7 +494,7 @@
 }
 
 .btn-primary {
-  color: #111827;
+  color: var(--titech-brand-navy);
   background: var(--titech-payment-primary);
   border: 1px solid var(--titech-payment-primary);
   box-shadow:
@@ -524,7 +524,7 @@
 .btn-secondary:hover:not(:disabled) {
   color: var(--titech-payment-text);
   background: var(--titech-payment-surface-muted);
-  border-color: #94a3b8;
+  border-color: var(--titech-color-text-subtle);
   transform: translateY(-1px);
 }
 
@@ -868,13 +868,13 @@
 
 @media (prefers-color-scheme: dark) {
   .mobile-money-payment {
-    --titech-payment-text: #f8fafc;
-    --titech-payment-text-secondary: #cbd5e1;
-    --titech-payment-text-muted: #94a3b8;
+    --titech-payment-text: var(--titech-color-background);
+    --titech-payment-text-secondary: var(--titech-color-border-strong);
+    --titech-payment-text-muted: var(--titech-color-text-subtle);
 
-    --titech-payment-surface: #0f172a;
+    --titech-payment-surface: var(--titech-brand-navy);
     --titech-payment-surface-soft: #111c2f;
-    --titech-payment-surface-muted: #1e293b;
+    --titech-payment-surface-muted: var(--titech-brand-navy);
 
     --titech-payment-border: #263449;
     --titech-payment-border-strong: #3b4a60;
@@ -899,7 +899,7 @@
 
   .provider-card:hover {
     background: var(--titech-payment-surface-soft);
-    border-color: #475569;
+    border-color: var(--titech-color-text-muted);
   }
 
   .provider-card.selected {
@@ -925,7 +925,7 @@
       linear-gradient(
         135deg,
         #111c2f,
-        #1e293b
+        var(--titech-brand-navy)
       );
   }
 
@@ -934,15 +934,15 @@
   }
 
   .btn-secondary {
-    color: #f8fafc;
-    background: #111827;
-    border-color: #475569;
+    color: var(--titech-color-background);
+    background: var(--titech-brand-navy);
+    border-color: var(--titech-color-text-muted);
   }
 
   .btn-secondary:hover:not(:disabled) {
     color: #ffffff;
-    background: #1e293b;
-    border-color: #64748b;
+    background: var(--titech-brand-navy);
+    border-color: var(--titech-color-text-subtle);
   }
 }
 

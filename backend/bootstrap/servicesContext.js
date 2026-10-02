@@ -1,3 +1,7 @@
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 'use strict';
 
 /**
@@ -3100,7 +3104,7 @@ function registerBootstrapHooks(
  * =============================================================================
  */
 
-module.exports =
+const servicesContextModule =
   Object.freeze({
     /* Classes */
     ServicesContext,
@@ -3160,3 +3164,33 @@ module.exports =
 
     APPLICATION_NAME,
   });
+
+export default servicesContextModule;
+
+export {
+  ServicesContext,
+  ServicesContextRegistry,
+  ServicesContextError,
+  DependencyNotFoundError,
+  ContextFrozenError,
+  ContextLifecycleError,
+  createServicesContext,
+  createRootContext,
+  getRootContext,
+  createRequestContext,
+  runWithContext,
+  getCurrentContext,
+  addService,
+  removeService,
+  addInfrastructure,
+  removeInfrastructure,
+  addContainerBinding,
+  registerBootstrapHooks,
+  updateLifecycle,
+  getLifecycleState,
+  snapshot,
+  resetRootContext,
+  COMPONENT,
+  SERVICE_NAME,
+  APPLICATION_NAME,
+};

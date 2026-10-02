@@ -13,16 +13,16 @@
 
 :root {
   --executive-bg: #ffffff;
-  --executive-surface: #f8fafc;
+  --executive-surface: var(--titech-color-background);
   --executive-surface-raised: #ffffff;
-  --executive-surface-muted: #f1f5f9;
+  --executive-surface-muted: var(--titech-color-surface-muted);
 
-  --executive-border: #e2e8f0;
-  --executive-border-strong: #cbd5e1;
+  --executive-border: var(--titech-color-border);
+  --executive-border-strong: var(--titech-color-border-strong);
 
-  --executive-text: #0f172a;
-  --executive-text-secondary: #64748b;
-  --executive-text-muted: #94a3b8;
+  --executive-text: var(--titech-brand-navy);
+  --executive-text-secondary: var(--titech-color-text-subtle);
+  --executive-text-muted: var(--titech-color-text-subtle);
 
   --executive-primary: #0058d8;
   --executive-primary-soft: rgba(37, 99, 235, 0.1);
@@ -820,17 +820,17 @@
    ============================================================================ */
 
 .dark {
-  --executive-bg: #0f172a;
-  --executive-surface: #1e293b;
-  --executive-surface-raised: #172033;
-  --executive-surface-muted: #111827;
+  --executive-bg: var(--titech-brand-navy);
+  --executive-surface: var(--titech-brand-navy);
+  --executive-surface-raised: var(--titech-brand-navy);
+  --executive-surface-muted: var(--titech-brand-navy);
 
   --executive-border: #334155;
-  --executive-border-strong: #475569;
+  --executive-border-strong: var(--titech-color-text-muted);
 
-  --executive-text: #f8fafc;
-  --executive-text-secondary: #94a3b8;
-  --executive-text-muted: #64748b;
+  --executive-text: var(--titech-color-background);
+  --executive-text-secondary: var(--titech-color-text-subtle);
+  --executive-text-muted: var(--titech-color-text-subtle);
 
   --executive-primary: #4baaf5;
   --executive-primary-soft: rgba(96, 165, 250, 0.12);
@@ -1110,7 +1110,7 @@
   .executive-risk-card {
     box-shadow: none !important;
 
-    border-color: #d1d5db;
+    border-color: var(--titech-color-border);
 
     break-inside: avoid;
     page-break-inside: avoid;
@@ -1141,7 +1141,7 @@
   .executive-dashboard
     .recharts-cartesian-grid-vertical
     line {
-    stroke: #d1d5db;
+    stroke: var(--titech-color-border);
   }
 }
 
