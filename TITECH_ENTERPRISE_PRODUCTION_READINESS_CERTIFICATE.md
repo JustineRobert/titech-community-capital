@@ -1,38 +1,53 @@
 # TITech Community Capital — Enterprise Production Infrastructure Readiness Certificate
 
-**Release:** 2026-10-02
-**Commit:** repository working tree snapshot as of current session
-**Date:** 2026-10-02
-**Environment:** Local engineering workspace / controlled validation environment
-**Infrastructure:** Docker, Kubernetes chart templates, and modular service architecture present
-**Database:** MongoDB and Redis integration architecture present; live proof not completed in this environment
-**Cache:** Redis configuration and application-level patterns present; live proof not completed
-**Provider:** Payment integration architecture present; MTN sandbox and production proof not completed
-**Security Assessment:** Partial; not fully evidenced in this environment
-**Backup/Restore:** Documented but not exercised in a real restore drill
-**Deployment:** Helm/Kubernetes deployment structure present; live cluster rollout not completed
-**Pilot Institutions:** Not yet provisioned and validated in this session
-**Paying Customers:** No verified paying customer evidence in this environment
+**Release:** `2026-10-03-enterprise-remediated`
+**Commit:** `NOT AVAILABLE — uploaded archive contains no .git metadata`
+**Date:** 03 October 2026
+**Environment:** Local source/static validation environment; Node 22.16.0 / npm 10.9.2
+**Infrastructure:** Docker/Kubernetes assets and release contracts present; live deployment/rollback not executed here
+**Database:** MongoDB architecture present; live replica-set transaction/concurrency/restore proof pending
+**Cache:** Redis architecture present; live lock/queue/recovery proof pending
+**Provider:** MTN adapter/proof path present; sandbox and production provider execution pending
+**Security Assessment:** Source/static controls partially verified; independent DAST/penetration assessment pending
+**Backup/Restore:** Procedures/evidence slots present; actual restore drill pending
+**Deployment:** Structural hosting/deployment gates pass; live cluster rollout and rollback pending
+**Pilot Institutions:** No live institution evidence in this repository package
+**Paying Customers:** No verified paying-customer evidence in this repository package
 
 ## Readiness scorecard
 
-| Domain | Status |
-|---|---|
-| Repository Integrity | GREEN |
-| Financial Integrity | AMBER |
-| Provider Integration | AMBER |
-| Security | AMBER |
-| Infrastructure | AMBER |
-| Recovery | AMBER |
-| Operations | AMBER |
-| Institutional Pilot | RED |
-| Commercial | RED |
-| Regulatory | RED |
+| Domain | Status | Evidence boundary |
+|---|---|---|
+| Repository Integrity | AMBER | Canonical financial/runtime surface passes; 249 legacy/non-critical missing-import findings remain repository-wide. |
+| Financial Integrity | GREEN | Canonical static/source-contract checks pass; live MongoDB/financial transaction proof remains external. |
+| Provider Integration | AMBER | Provider architecture and source contracts pass; MTN sandbox/live execution is not evidenced. |
+| Security | AMBER | Source/security contracts pass where locally testable; independent security validation remains pending. |
+| Infrastructure | AMBER | Hosting contracts and syntax pass; real MongoDB/Redis/deployment execution remains pending. |
+| Recovery | AMBER | Recovery runbooks/evidence structure exist; actual backup/restore drill remains pending. |
+| Operations | AMBER | Observability/runbook contracts exist; live alerting/incident drill remains pending. |
+| Institutional Pilot | RED | No three-institution operational evidence is present. |
+| Commercial | RED | No verified paying-customer evidence is present. |
+| Regulatory | RED | External Uganda legal/regulatory review is not present in this package. |
+
+## Verification snapshot
+
+- Merge-conflict scan: **PASS** — 2,987 files scanned.
+- Executable JS/TS-family syntax scan: **PASS** — 2,274 files parsed.
+- Canonical financial static gate: **PASS** — 12 files.
+- Enterprise financial completeness gate: **PASS** — 22 authoritative financial files.
+- Implementation gate: **PASS**.
+- Hosting/theme gate: **PASS**.
+- Canonical financial runtime-import audit: **PASS** — 0 missing canonical imports; 0 mixed-module violations on the canonical financial surface.
+- Architecture-debt audit: **PASS** — 242 zero-byte files overall; 0 zero-byte critical financial files; 249 legacy/non-critical missing local imports.
+- Test discovery: **147 test files; 27 empty test files; 33 planned non-executable specifications**.
+- Official theme audit: **PASS** — all nine canonical TITech colors and web/mobile wiring verified.
+- Source contract smoke: **PASS**.
+- Release readiness gate: **PASS with WARN** for the repository-wide 249 legacy/non-critical missing imports.
 
 ## Certification result
 
-> PILOT READY — PRODUCTION GAPS REMAIN
+> **PILOT READY — PRODUCTION GAPS REMAIN**
 
-This is the correct status for the current repository evidence. The engineering work has materially improved repository integrity and canonical financial-surface stability, but live infrastructure, provider, recovery, security and regulatory proof remains incomplete.
+This certificate deliberately does **not** declare Enterprise Production Infrastructure Ready or Production Approved. The repository has a materially stronger canonical runtime/financial surface, but external evidence gates remain open for target-runtime dependency execution, real MongoDB/Redis behavior, MTN sandbox/live provider execution, security assessment, backup/restore, deployment/rollback, legal/regulatory review, institutional pilots, and commercial validation.
 
-The repository is therefore not suitable to claim full enterprise production readiness or production approval. It is suitable for controlled pilot operations under explicit operational boundaries and documented risk acceptance.
+The six formerly empty canonical finance tests now provide executable source-level contracts for balance arithmetic, ledger fail-closed behavior, journal balancing, reversal validation, snapshots, and period-close behavior; full Jest execution still requires the project dependency tree and compatible Node/npm runtime.

@@ -46,7 +46,7 @@
 const crypto = require('crypto');
 
 const RegulatoryAdapterInterface =
-    require('../../compliance/regulatory/RegulatoryAdapterInterface');
+    require('../../RegulatoryAdapterInterface.js');
 
 const {
     REPORT_TYPES,

@@ -1,21 +1,7 @@
-# TITech Community Capital — Evidence Artifact
+# TITech Community Capital — SAST
 
-**Implementation date:** 2026-10-02  
-**Repository:** `https://github.com/JustineRobert/titech-community-capital`  
-**Evidence principle:** executable evidence over repository claims.
+**Date:** 03 October 2026
 
-## SAST
+**Status:** NOT VERIFIED
 
-**Status:** **NOT VERIFIED**
-
-### Evidence presently available
-
-Repository static/security checks exist, but no external SAST report artifact was produced in this environment.
-
-### Required next evidence
-
-Run CI SAST using the approved toolchain and archive the machine-readable result.
-
-### Certification rule
-
-This artifact does not manufacture screenshots, provider responses, transactions, contracts, security certifications, legal approvals or customer payments. A later status change must cite dated executable evidence.
+Tool execution requires dependency/security tooling environment.

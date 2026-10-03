@@ -28,7 +28,7 @@ const reconciliationService = require("../services/mtn/reconciliation");
 let logger;
 
 try {
-  logger = require("../modules/logger");
+  logger = require("../config/logger.js");
 } catch {
   logger = console;
 }

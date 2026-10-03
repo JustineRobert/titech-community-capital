@@ -4,7 +4,7 @@
 const crypto = require('crypto');
 
 const Transaction = require('../models/Transaction');
-const Loan = require('../../loans/models/Loan');
+const Loan = require('../models/Loan.js');
 const Account = require('../models/Account');
 
 /**

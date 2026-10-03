@@ -1,21 +1,7 @@
-# TITech Community Capital — Evidence Artifact
+# TITech Community Capital — Financial architecture
 
-**Implementation date:** 2026-10-02  
-**Repository:** `https://github.com/JustineRobert/titech-community-capital`  
-**Evidence principle:** executable evidence over repository claims.
+**Date:** 03 October 2026
 
-## Financial Architecture
+**Status:** STATIC VERIFIED
 
-**Status:** **PASS**
-
-### Evidence presently available
-
-Enterprise completeness gate passes 22 authoritative financial files; controllers/service boundaries are statically guarded.
-
-### Required next evidence
-
-Verify with dependency-backed MongoDB transactions and real financial data flows.
-
-### Certification rule
-
-This artifact does not manufacture screenshots, provider responses, transactions, contracts, security certifications, legal approvals or customer payments. A later status change must cite dated executable evidence.
+Canonical transaction/ledger authority and no-direct-balance controller rules pass source gates.

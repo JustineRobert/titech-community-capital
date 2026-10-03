@@ -20,7 +20,7 @@
  */
 
 const { v4: uuidv4 } = require('uuid');
-const logger = require('../../../../common/logger');
+const logger = require('../../../../utils/logger.js');
 
 class SettlementRepository {
   constructor(db) {

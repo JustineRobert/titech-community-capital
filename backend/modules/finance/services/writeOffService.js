@@ -4,7 +4,7 @@
 
 const mongoose = require('mongoose');
 
-const Loan = require('../../loans/models/Loan');
+const Loan = require('../models/Loan.js');
 const Journal = require('../models/Journal');
 const Transaction = require('../models/Transaction');
 

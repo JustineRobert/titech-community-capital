@@ -82,7 +82,7 @@
  * ============================================================================
  */
 
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
 /* ============================================================================
  * Constants
@@ -5241,32 +5241,18 @@ function createReversalService(
  * Exports
  * ========================================================================== */
 
-module.exports =
-  ReversalService;
+export {
+  ReversalService,
+  ReversalServiceError,
+  createReversalService,
+  REVERSAL_STATUS,
+  REVERSAL_REASON_CODES,
+  REVERSAL_ERROR_CODES,
+  ENTRY_TYPE,
+  JOURNAL_STATUS,
+};
 
-module.exports.ReversalService =
-  ReversalService;
-
-module.exports.ReversalServiceError =
-  ReversalServiceError;
-
-module.exports.createReversalService =
-  createReversalService;
-
-module.exports.REVERSAL_STATUS =
-  REVERSAL_STATUS;
-
-module.exports.REVERSAL_REASON_CODES =
-  REVERSAL_REASON_CODES;
-
-module.exports.REVERSAL_ERROR_CODES =
-  REVERSAL_ERROR_CODES;
-
-module.exports.ENTRY_TYPE =
-  ENTRY_TYPE;
-
-module.exports.JOURNAL_STATUS =
-  JOURNAL_STATUS;
+export default ReversalService;
 
 /* ============================================================================
  * End of File

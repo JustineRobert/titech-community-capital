@@ -19,7 +19,7 @@
  * ============================================================================
  */
 
-const logger = require('../../../../common/logger');
+const logger = require('../../../../utils/logger.js');
 
 class VarianceDetector {
   constructor(config = {}) {

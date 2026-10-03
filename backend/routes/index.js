@@ -1,9 +1,5 @@
 'use strict';
 
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-
 import authModule from '../middleware/auth.js';
 import authRoutes from './auth.js';
 import groupRoutes from './groups.js';
@@ -16,6 +12,12 @@ import capitalRoutes from '../modules/capital/capital.routes.js';
 import operationsRoutes from '../modules/operations/operations.routes.js';
 import tenantMiddlewareModule from '../middleware/tenantMiddleware.js';
 import { payrollApiRouter, payrollWebhookRouter } from '../modules/payroll/payroll.routes.js';
+import LoansController from '../controllers/loansController.js';
+import groupWalletControllerModule from '../controllers/groupWalletController.js';
+import offlineSyncRoutes from '../modules/offline/routes/offline-sync.routes.js';
+import express from 'express';
+import crypto from 'node:crypto';
+import { param, validationResult } from 'express-validator';
 
 /**
  * =============================================================================
@@ -66,19 +68,6 @@ import { payrollApiRouter, payrollWebhookRouter } from '../modules/payroll/payro
  * =============================================================================
  */
 
-const express = require('express');
-const crypto = require('node:crypto');
-
-/**
- * Canonical public authentication/email routers. These are mounted here so
- * the application bootstrap has a single route-registration boundary.
- * The routers retain ownership of validation, rate limiting, and controller
- * orchestration; this registry only composes them into the application.
- */
-const {
-    param,
-    validationResult,
-} = require('express-validator');
 
 /**
  * =============================================================================
@@ -295,136 +284,18 @@ function sendRouteError(
  * =============================================================================
  */
 
-function resolveModuleExport(
-    loadedModule,
-) {
-    if (
-        loadedModule &&
-        typeof loadedModule ===
-            'object' &&
-        loadedModule.default
-    ) {
-        return loadedModule.default;
-    }
-
-    return loadedModule;
-}
-
-function requireRouteDependency(
-    relativePath,
-    dependencyName,
-) {
-    try {
-        const loaded =
-            require(
-                relativePath,
-            );
-
-        return resolveModuleExport(
-            loaded,
-        );
-    } catch (
-        error
-    ) {
-        const startupError =
-            new Error(
-                `Failed to load TITech route dependency "${dependencyName}" from "${relativePath}".`,
-            );
-
-        startupError.code =
-            'TITECH_ROUTE_DEPENDENCY_LOAD_FAILED';
-
-        startupError.dependency =
-            dependencyName;
-
-        startupError.modulePath =
-            relativePath;
-
-        startupError.cause =
-            error;
-
-        throw startupError;
-    }
-}
-
-function resolveOptionalModule(
-    candidates,
-) {
-    for (
-        const candidate of
-        candidates
-    ) {
-        try {
-            return resolveModuleExport(
-                require(
-                    candidate,
-                ),
-            );
-        } catch (
-            error
-        ) {
-            if (
-                error?.code !==
-                'MODULE_NOT_FOUND'
-            ) {
-                throw error;
-            }
-
-            /**
-             * Only continue when the candidate itself is missing.
-             *
-             * An installed module that throws during initialization must not
-             * be silently swallowed.
-             */
-            if (
-                error?.message &&
-                !error.message.includes(
-                    candidate,
-                )
-            ) {
-                throw error;
-            }
-        }
-    }
-
-    return null;
-}
-
 function resolveMiddlewareExport(
     moduleValue,
     exportNames,
 ) {
-    if (
-        !moduleValue
-    ) {
-        return null;
+    if (!moduleValue) return null;
+    if (typeof moduleValue === 'function') return moduleValue;
+    for (const exportName of exportNames) {
+        if (typeof moduleValue[exportName] === 'function') return moduleValue[exportName];
     }
-
-    if (
-        typeof moduleValue ===
-        'function'
-    ) {
-        return moduleValue;
-    }
-
-    for (
-        const exportName of
-        exportNames
-    ) {
-        if (
-            typeof moduleValue[
-                exportName
-            ] ===
-            'function'
-        ) {
-            return moduleValue[
-                exportName
-            ];
-        }
-    }
-
     return null;
 }
+
 
 /**
  * =============================================================================
@@ -609,22 +480,10 @@ if (
  * =============================================================================
  */
 
-const tenantAuthorizationModule =
-    resolveMiddlewareExport(
-        tenantMiddlewareModule,
-        [
-            'tenantAuthorization',
-            'requireTenant',
-            'tenantMiddleware',
-        ],
-    ) ||
-    resolveOptionalModule(
-        [
-            '../middleware/tenantAuthorization',
-            '../middleware/tenant.authorization',
-            '../middleware/tenant',
-        ],
-    );
+const tenantAuthorizationModule = resolveMiddlewareExport(
+    tenantMiddlewareModule,
+    ['tenantAuthorization', 'requireTenant', 'tenantMiddleware'],
+);
 
 const tenantAuthorization =
     resolveMiddlewareExport(
@@ -689,26 +548,11 @@ if (
 const contributionsController =
     contributionsControllerModule;
 
-const loansController =
-    requireRouteDependency(
-        '../controllers/loansController',
-        'loans controller',
-    );
+const loansController = LoansController;
 
-const repaymentsController =
-    repaymentsControllerModule;
+const repaymentsController = repaymentsControllerModule;
 
-const walletsController =
-    requireRouteDependency(
-        '../controllers/groupWalletController',
-        'group wallet controller',
-    );
-
-const offlineSyncRoutes =
-    requireRouteDependency(
-        '../modules/offline/routes/offline-sync.routes',
-        'offline synchronization routes',
-    );
+const walletsController = groupWalletControllerModule;
 
 /**
  * =============================================================================

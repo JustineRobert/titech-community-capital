@@ -53,6 +53,16 @@ for (const [id, palette, keyMap] of refs) {
   else pass(id, 'All nine official palette values match the supplied reference contract.');
 }
 
+try {
+  const contract = JSON.parse(read('branding/TITECH_OFFICIAL_THEME.json'));
+  const missing = Object.entries(requiredPalette).filter(([name, value]) => String(contract.palette?.[name] ?? '').toUpperCase() !== value);
+  if (missing.length) fail('root-theme-contract', `branding/TITECH_OFFICIAL_THEME.json mismatches: ${missing.map(([k]) => k).join(', ')}`);
+  else if (!Array.isArray(contract.supportedThemes) || !contract.supportedThemes.includes('light') || !contract.supportedThemes.includes('dark')) fail('root-theme-contract', 'Theme contract must declare explicit light and dark themes.');
+  else pass('root-theme-contract', 'Root official theme contract contains all nine palette values and explicit light/dark modes.');
+} catch (error) {
+  fail('root-theme-contract', `Unable to validate branding/TITECH_OFFICIAL_THEME.json: ${error.message}`);
+}
+
 for (const [id, file, key] of [
   ['mobile-tokens', 'mobile/branding/titech-theme.tokens.json', 'palette'],
 ]) {
@@ -124,6 +134,6 @@ const result = {
   checks,
 };
 fs.mkdirSync(path.join(ROOT, 'reports'), { recursive: true });
-fs.writeFileSync(path.join(ROOT, 'reports/official-theme-audit-2026-09-30.json'), JSON.stringify(result, null, 2) + '\n');
+fs.writeFileSync(path.join(ROOT, 'reports/official-theme-audit-2026-10-03.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result, null, 2));
 if (result.status === 'FAIL') process.exitCode = 1;

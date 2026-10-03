@@ -17,7 +17,7 @@
  * ============================================================================
  */
 
-const logger = require('../../../../common/logger');
+const logger = require('../../../../utils/logger.js');
 
 class ReconciliationPolicy {
   constructor(config = {}) {

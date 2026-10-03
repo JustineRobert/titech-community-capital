@@ -1597,12 +1597,83 @@ function loadDotEnv() {
   return loadedEnvironmentFiles;
 }
 
+function applyDevelopmentDefaults() {
+  const nodeEnvironment =
+    normalizeNodeEnvironment(
+      process.env.NODE_ENV,
+      DEFAULTS.NODE_ENV,
+    );
+
+  if (
+    nodeEnvironment !==
+      'development' &&
+    nodeEnvironment !==
+      'test'
+  ) {
+    return;
+  }
+
+  const defaultValues =
+    Object.freeze({
+      HOST: 'localhost',
+      PORT: '5000',
+      MONGO_URI:
+        'mongodb://localhost:27017/community_savings',
+      MONGODB_DATABASE:
+        'community_savings',
+      MONGO_DB_NAME:
+        'community_savings',
+      DB_NAME:
+        'community_savings',
+      REDIS_URL:
+        'redis://localhost:6379',
+      CLIENT_ORIGIN:
+        'http://localhost:3000',
+      CORS_ORIGINS:
+        'http://localhost:3000',
+      JWT_ACCESS_SECRET:
+        'development-access-secret-0123456789abcdef',
+      JWT_SECRET:
+        'development-access-secret-0123456789abcdef',
+      JWT_REFRESH_SECRET:
+        'development-refresh-secret-0123456789abcdef',
+      REFRESH_TOKEN_SECRET:
+        'development-refresh-secret-0123456789abcdef',
+      SESSION_SECRET:
+        'development-session-secret-0123456789abcdef',
+      SECURITY_ENCRYPTION_KEY:
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      MONGODB_ENABLED:
+        'true',
+      REDIS_ENABLED:
+        'true',
+    });
+
+  for (
+    const [
+      key,
+      value,
+    ] of Object.entries(
+      defaultValues,
+    )
+  ) {
+    if (
+      process.env[key] ===
+        undefined
+    ) {
+      process.env[key] =
+        String(value);
+    }
+  }
+}
+
 // =============================================================================
 // BUILD ENVIRONMENT
 // =============================================================================
 
 function buildEnvironment() {
   loadDotEnv();
+  applyDevelopmentDefaults();
 
   const nodeEnv =
     normalizeNodeEnvironment(

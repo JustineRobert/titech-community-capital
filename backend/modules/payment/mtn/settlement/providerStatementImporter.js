@@ -22,8 +22,8 @@ const fs = require('fs');
 const path = require('path');
 const csvParser = require('csv-parser');
 const { v4: uuidv4 } = require('uuid');
-const logger = require('../../../../common/logger');
-const db = require('../../../../common/database');
+const logger = require('../../../../utils/logger.js');
+const db = require('../../../../config/database.js');
 const SettlementRepository = require('./settlementRepository');
 
 class ProviderStatementImporter {

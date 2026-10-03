@@ -19,7 +19,7 @@
  */
 
 const cron = require('node-cron');
-const logger = require('../../../../common/logger');
+const logger = require('../../../../utils/logger.js');
 const ProviderStatementImporter = require('./providerStatementImporter');
 const SettlementEngine = require('./settlementEngine');
 const LedgerReconciler = require('./ledgerReconciler');

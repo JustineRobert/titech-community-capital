@@ -22,6 +22,23 @@ const critical = new Set([
   'backend/controllers/financial/financial.controller.js',
   'backend/controllers/contributionsController.js',
   'backend/middleware/idempotency.js',
+  'backend/bootstrap/servicesContext.js',
+  'backend/bootstrap/logger.js',
+  'backend/routes/index.js',
+  'backend/models/Tenant.js',
+  'backend/services/tenantService.js',
+  'backend/middleware/tenantMiddleware.js',
+  'backend/controllers/groupWalletController.js',
+  'backend/modules/finance/ledger/core/ledgerEngine.js',
+  'backend/modules/finance/ledger/core/balanceService.js',
+  'backend/modules/finance/ledger/core/journalService.js',
+  'backend/modules/finance/ledger/core/postingEngine.js',
+  'backend/modules/finance/ledger/core/reversalService.js',
+  'backend/modules/finance/ledger/core/snapshotService.js',
+  'backend/modules/finance/ledger/core/periodCloseService.js',
+  'backend/modules/finance/ledger/postingEngine.js',
+  'backend/modules/finance/ledger/reversalService.js',
+  'backend/modules/finance/period/periodCloseService.js',
 ]);
 
 const files = [];
@@ -49,24 +66,70 @@ function resolveLocal(fromFile, specifier) {
   return candidates.find(fs.existsSync) ?? null;
 }
 
+/** Remove comments without touching quoted strings/template literals.
+ * This prevents documentation examples such as require('./foo') from being
+ * misclassified as executable dependency edges.
+ */
+function stripComments(source) {
+  let output = '';
+  let state = 'code';
+  let quote = '';
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    const next = source[i + 1];
+
+    if (state === 'lineComment') {
+      if (char === '\n') { state = 'code'; output += char; } else output += ' ';
+      continue;
+    }
+    if (state === 'blockComment') {
+      if (char === '*' && next === '/') { state = 'code'; output += '  '; i += 1; }
+      else output += char === '\n' ? '\n' : ' ';
+      continue;
+    }
+    if (state === 'single' || state === 'double' || state === 'template') {
+      output += char;
+      if (char === '\\') { output += next ?? ''; i += 1; continue; }
+      if (char === quote) { state = 'code'; quote = ''; }
+      continue;
+    }
+    if (char === '/' && next === '/') { state = 'lineComment'; output += '  '; i += 1; continue; }
+    if (char === '/' && next === '*') { state = 'blockComment'; output += '  '; i += 1; continue; }
+    if (char === "'") { state = 'single'; quote = char; output += char; continue; }
+    if (char === '"') { state = 'double'; quote = char; output += char; continue; }
+    if (char === '`') { state = 'template'; quote = char; output += char; continue; }
+    output += char;
+  }
+  return output;
+}
+
 walk(backendRoot);
 
 const importPattern = /(?:\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)|\bimport(?:[^'";]*?from\s*)?['"]([^'"]+)['"])/g;
+const dynamicImportPattern = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
+  const executableSource = stripComments(source);
   const relative = path.relative(root, file).replaceAll(path.sep, '/');
   let match;
-  while ((match = importPattern.exec(source))) {
+  while ((match = importPattern.exec(executableSource))) {
     const specifier = match[1] ?? match[2];
     if (!specifier?.startsWith('.')) continue;
     if (!resolveLocal(file, specifier)) {
       missing.push({ file: relative, specifier, critical: critical.has(relative) });
     }
   }
+  while ((match = dynamicImportPattern.exec(executableSource))) {
+    const specifier = match[1];
+    if (!specifier?.startsWith('.')) continue;
+    if (!resolveLocal(file, specifier)) {
+      missing.push({ file: relative, specifier, critical: critical.has(relative), importKind: 'dynamic' });
+    }
+  }
 
   if (critical.has(relative)) {
-    if (/\bmodule\.exports\s*=/.test(source) || /\brequire\s*\(/.test(source) || /createRequire\(/.test(source)) {
+    if (/\bmodule\.exports\s*=/.test(executableSource) || /\brequire\s*\(\s*['"]/ .test(executableSource) || /createRequire\(/.test(executableSource)) {
       mixed.push({ file: relative, reason: 'CommonJS loading/export construct on canonical ESM financial surface' });
     }
   }
@@ -97,6 +160,11 @@ fs.writeFileSync(reportFile, JSON.stringify({
   missingLocalImports: missing,
   criticalMissing,
   mixedCanonicalFinancialModules: mixed,
+  methodology: {
+    commentsExcluded: true,
+    dynamicImportsChecked: true,
+    note: 'Bare package imports are intentionally outside this local-relative audit. Legacy/non-critical debt remains tracked separately.'
+  },
 }, null, 2) + '\n');
 
 console.log(`Report: ${path.relative(root, reportFile)}`);

@@ -22,7 +22,7 @@
  * ============================================================
  */
 
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
 class LedgerEngineError extends Error {
     constructor(code, message, metadata = {}) {
@@ -2859,7 +2859,5 @@ async closePeriod(
 }
 }
 
-module.exports = {
-    LedgerEngine,
-    LedgerEngineError
-};
+export { LedgerEngine, LedgerEngineError };
+export default LedgerEngine;

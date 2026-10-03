@@ -1,7 +1,3 @@
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-
 'use strict';
 
 /**
@@ -59,9 +55,12 @@ const require = createRequire(import.meta.url);
  * =============================================================================
  */
 
-const {
-  AsyncLocalStorage,
-} = require('node:async_hooks');
+import { AsyncLocalStorage } from 'node:async_hooks';
+import loggerBootstrap from './logger.js';
+import observabilityBootstrap from './observability.js';
+import readinessBootstrap from './readinessState.js';
+import resilienceBootstrap from './resilience.js';
+import hooksBootstrap from './hooks.js';
 
 /**
  * =============================================================================
@@ -69,45 +68,11 @@ const {
  * =============================================================================
  */
 
-let loggerModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  loggerModule =
-    require('./logger');
-} catch {
-  loggerModule = null;
-}
-
-let observabilityModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  observabilityModule =
-    require('./observability');
-} catch {
-  observabilityModule = null;
-}
-
-let readinessModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  readinessModule =
-    require('./readinessState');
-} catch {
-  readinessModule = null;
-}
-
-let resilienceModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  resilienceModule =
-    require('./resilience');
-} catch {
-  resilienceModule = null;
-}
+const loggerModule = loggerBootstrap;
+const observabilityModule = observabilityBootstrap;
+const readinessModule = readinessBootstrap;
+const resilienceModule = resilienceBootstrap;
+const hooksModule = hooksBootstrap;
 
 /**
  * =============================================================================
@@ -2871,11 +2836,7 @@ function registerBootstrapHooks(
   context = {},
   options = {},
 ) {
-  const {
-    hooks,
-    lifecycle,
-  } =
-    require('./hooks');
+  const { hooks, lifecycle } = hooksModule;
 
   if (
     hooks.has(

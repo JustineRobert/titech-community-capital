@@ -79,15 +79,15 @@ const rateLimit = require('express-rate-limit');
 const Joi = require('joi');
 
 const asyncHandler =
-    require('../../../utils/asyncHandler');
+    require('../../utils/asyncHandler.js');
 
 const {
     requireAuth,
-} = require('../../../middleware/auth');
+} = require('../../middleware/auth.js');
 
 const {
     requireTenant,
-} = require('../../../middleware/tenant');
+} = require('../../middleware/tenantMiddleware.js');
 
 const {
     processRepayment,

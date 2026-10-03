@@ -1,7 +1,7 @@
 // controllers/momoCallback.controller.js
 "use strict";
 
-const { createTransaction } = require("../transaction/transaction.service");
+const { createTransaction } = require("../modules/transaction/transaction.service.js");
 const logger = require("../utils/logger") || console;
 
 /**

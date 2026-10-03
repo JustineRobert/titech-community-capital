@@ -114,7 +114,7 @@ let handleError = null;
 try {
     const errorMiddleware =
         require(
-            '../middlewares/errorMiddleware'
+            '../middleware/errorMiddleware.js'
         );
 
     handleError =

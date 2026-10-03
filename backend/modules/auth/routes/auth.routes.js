@@ -11,8 +11,8 @@ const router = express.Router();
 const { body } = require('express-validator');
 
 const AuthController = require('../controllers/AuthController');
-const logger = require('../../../../utils/logger'); // adjust path if needed
-const config = require('../../../../config'); // adjust path if needed
+const logger = require('../../../utils/logger.js'); // adjust path if needed
+const config = require('../../../config/index.js'); // adjust path if needed
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -23,7 +23,7 @@
  */
 
 const MemberService = require('../modules/member/services/memberService');
-const { handleError } = require('../middlewares/errorMiddleware');
+const { handleError } = require('../middleware/errorMiddleware.js');
 
 class MemberController {
 

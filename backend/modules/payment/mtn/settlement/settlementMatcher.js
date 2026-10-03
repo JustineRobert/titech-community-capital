@@ -18,8 +18,8 @@
  * ============================================================================
  */
 
-const logger = require('../../../../common/logger');
-const db = require('../../../../common/database');
+const logger = require('../../../../utils/logger.js');
+const db = require('../../../../config/database.js');
 
 class SettlementMatcher {
   constructor(config = {}) {

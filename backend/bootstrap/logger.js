@@ -1,8 +1,5 @@
 'use strict';
 
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
 
 /**
  * =============================================================================
@@ -94,14 +91,17 @@ const require = createRequire(import.meta.url);
  * =============================================================================
  */
 
-const {
-  AsyncLocalStorage,
-} = require('node:async_hooks');
+import { AsyncLocalStorage } from 'node:async_hooks';
+import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
+import os from 'node:os';
+import pino from 'pino';
+import hooksModule from './hooks.js';
 
-const crypto = require('node:crypto');
-const os = require('node:os');
-
-const pino = require('pino');
+const require =
+  createRequire(
+    import.meta.url,
+  );
 
 /* =============================================================================
  * Constants
@@ -904,10 +904,10 @@ function createDestination(
     return undefined;
   }
 
-  let prettyModule;
+  let prettyTarget;
 
   try {
-    prettyModule =
+    prettyTarget =
       require.resolve(
         'pino-pretty',
       );
@@ -917,7 +917,7 @@ function createDestination(
 
   return pino.transport({
     target:
-      prettyModule,
+      prettyTarget,
 
     options: {
       colorize:
@@ -1416,20 +1416,7 @@ async function initializeLogger(
  */
 
 function getHooksModule() {
-  try {
-    return require('./hooks');
-  } catch (error) {
-    throw new LoggerBootstrapError(
-      'Unable to load TITech bootstrap lifecycle hooks.',
-      {
-        code:
-          'LOGGER_HOOKS_LOAD_FAILED',
-
-        cause:
-          error,
-      },
-    );
-  }
+  return hooksModule;
 }
 
 function registerBootstrapHooks(

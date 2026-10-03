@@ -85,7 +85,7 @@
  * ============================================================================
  */
 
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
 /* ============================================================================
  * Constants
@@ -5133,32 +5133,18 @@ function createPostingEngine(
  * Exports
  * ========================================================================== */
 
-module.exports =
-  PostingEngine;
+export {
+  PostingEngine,
+  PostingEngineError,
+  createPostingEngine,
+  POSTING_STATUS,
+  ENTRY_TYPE,
+  POSTING_OPERATION_TYPES,
+  POSTING_ERROR_CODES,
+  ACCOUNT_STATUS,
+};
 
-module.exports.PostingEngine =
-  PostingEngine;
-
-module.exports.PostingEngineError =
-  PostingEngineError;
-
-module.exports.createPostingEngine =
-  createPostingEngine;
-
-module.exports.POSTING_STATUS =
-  POSTING_STATUS;
-
-module.exports.ENTRY_TYPE =
-  ENTRY_TYPE;
-
-module.exports.POSTING_OPERATION_TYPES =
-  POSTING_OPERATION_TYPES;
-
-module.exports.POSTING_ERROR_CODES =
-  POSTING_ERROR_CODES;
-
-module.exports.ACCOUNT_STATUS =
-  ACCOUNT_STATUS;
+export default PostingEngine;
 
 /* ============================================================================
  * End of File

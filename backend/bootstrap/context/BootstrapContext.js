@@ -97,7 +97,7 @@
  * =============================================================================
  */
 
-const BOOTSTRAP_PHASES = Object.freeze([
+export const BOOTSTRAP_PHASES = Object.freeze([
   "environment",
   "configuration",
   "logger",
@@ -112,7 +112,7 @@ const BOOTSTRAP_PHASES = Object.freeze([
   "runtimeReady",
 ]);
 
-const PHASE_STATES = Object.freeze({
+export const PHASE_STATES = Object.freeze({
   PENDING: "pending",
   RUNNING: "running",
   COMPLETED: "completed",
@@ -120,7 +120,7 @@ const PHASE_STATES = Object.freeze({
   SKIPPED: "skipped",
 });
 
-const CONTEXT_STATES = Object.freeze({
+export const CONTEXT_STATES = Object.freeze({
   CREATED: "created",
   STARTING: "starting",
 
@@ -137,7 +137,7 @@ const CONTEXT_STATES = Object.freeze({
   STOPPED: "stopped",
 });
 
-const LIFECYCLE_TRANSITIONS = Object.freeze({
+export const LIFECYCLE_TRANSITIONS = Object.freeze({
   [CONTEXT_STATES.CREATED]: Object.freeze([
     CONTEXT_STATES.STARTING,
     CONTEXT_STATES.FAILED,
@@ -165,9 +165,9 @@ const LIFECYCLE_TRANSITIONS = Object.freeze({
   [CONTEXT_STATES.STOPPED]: Object.freeze([]),
 });
 
-const DEFAULT_HISTORY_LIMIT = 500;
-const DEFAULT_HISTORY_READ_LIMIT = 100;
-const DEFAULT_SHUTDOWN_HOOK_TIMEOUT_MS = 10_000;
+export const DEFAULT_HISTORY_LIMIT = 500;
+export const DEFAULT_HISTORY_READ_LIMIT = 100;
+export const DEFAULT_SHUTDOWN_HOOK_TIMEOUT_MS = 10_000;
 
 const MAX_ID_LENGTH = 200;
 const MAX_METADATA_DEPTH = 4;
@@ -515,7 +515,7 @@ function freezeShallow(value) {
  * =============================================================================
  */
 
-class BootstrapContext {
+export class BootstrapContext {
   constructor(options = {}) {
     if (
       !options ||
@@ -2803,7 +2803,7 @@ class BootstrapContext {
  * =============================================================================
  */
 
-function createBootstrapContext(
+export function createBootstrapContext(
   options = {},
 ) {
   return new BootstrapContext(
@@ -2817,7 +2817,7 @@ function createBootstrapContext(
  * =============================================================================
  */
 
-module.exports = {
+export default Object.freeze({
   BootstrapContext,
 
   createBootstrapContext,
@@ -2835,4 +2835,4 @@ module.exports = {
   DEFAULT_HISTORY_READ_LIMIT,
 
   DEFAULT_SHUTDOWN_HOOK_TIMEOUT_MS,
-};
+});

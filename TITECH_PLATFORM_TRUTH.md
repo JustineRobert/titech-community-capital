@@ -2,7 +2,14 @@
 
 ## Release status
 
+**PRODUCTION_APPROVED: NO**
+**Production approval:** NO
+**Execution date:** 03 October 2026
+**Measured local runtime:** Node 22.16.0 / npm 10.9.2
+
 **Current status:** PILOT READY — PRODUCTION GAPS REMAIN
+
+| Production approval | NO |
 
 This repository has meaningful engineering hardening and configurable infrastructure, but it is not production approved. The repository evidence confirms that the codebase has been repaired for syntax, repository structure and canonical financial surface integrity, while live-provider, security, recovery and compliance evidence remain outside the current environment.
 
@@ -13,7 +20,7 @@ This repository has meaningful engineering hardening and configurable infrastruc
 | Repository audit | GREEN | Repository inventory and change traceability are present and reconciled to the current codebase. |
 | Syntax surface | GREEN | Enterprise gate parsed 2270 executable JS/TS-family files with no syntax failures. |
 | Canonical financial surface | GREEN | Runtime import audit reports zero missing local imports and zero mixed ESM/CJS violations on the critical financial surface. |
-| Runtime import debt | AMBER | 333 non-critical missing local imports remain in legacy backend surfaces and require later consolidation. |
+| Runtime import debt | AMBER | 331 non-critical missing local imports remain in legacy backend surfaces and require later consolidation. |
 | Node baseline | GREEN | Repository pins Node 24.15 and the current runtime is within the supported target family. |
 | Security validation | AMBER | Security tooling is configured and documented, but full live SAST/dependency/secret/DAST validation is not evidenced in this environment. |
 | MongoDB / Redis / payments | AMBER | Infrastructure templates and service layers exist, but live database/provider integration and payment-sandbox proof are not complete here. |

@@ -7,7 +7,7 @@ const Transaction = require('../models/Transaction');
 const Journal = require('../models/Journal');
 const JournalEntry = require('../models/JournalEntry');
 
-const Loan = require('../../loans/models/Loan');
+const Loan = require('../models/Loan.js');
 
 /**
  * ----------------------------------------------------

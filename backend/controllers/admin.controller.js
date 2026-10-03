@@ -39,7 +39,7 @@ const logger =
 const {
     handleError
 } =
-    require('../middlewares/errorMiddleware');
+    require('../middleware/errorMiddleware.js');
 
 // =============================================================================
 // Configuration

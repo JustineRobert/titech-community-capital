@@ -1,21 +1,7 @@
-# TITech Community Capital — Evidence Artifact
+# TITech Community Capital — Production readiness gate
 
-**Implementation date:** 2026-10-02  
-**Repository:** `https://github.com/JustineRobert/titech-community-capital`  
-**Evidence principle:** executable evidence over repository claims.
+**Date:** 03 October 2026
 
-## Overall Readiness
+**Status:** PILOT READY — PRODUCTION GAPS REMAIN
 
-**Status:** **AMBER**
-
-### Evidence presently available
-
-Static enterprise, financial, security-static, golden-path and official-theme gates pass; external runtime/provider/security/recovery/institutional/commercial evidence remains outstanding.
-
-### Required next evidence
-
-Advance only when each material gate is backed by executable evidence; production approval remains blocked.
-
-### Certification rule
-
-This artifact does not manufacture screenshots, provider responses, transactions, contracts, security certifications, legal approvals or customer payments. A later status change must cite dated executable evidence.
+See TITECH_PLATFORM_TRUTH.md and release readiness report.

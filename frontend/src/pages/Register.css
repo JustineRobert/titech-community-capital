@@ -1,27 +1,38 @@
-/* ============================================================================
-   TITech Community Capital
-   Enterprise Registration Experience
-   File: frontend/src/pages/Register.css
-
-   Production Grade
-   ----------------------------------------------------------------------------
-   - Responsive enterprise authentication UI
-   - WCAG-conscious focus states
-   - Mobile-first behavior
-   - High contrast and reduced-motion support
-   - Password strength visualization
-   - Accessible form states
-   - Dark-mode friendly
-   - Autofill-safe inputs
-   - Print-safe output
-   - No dependency on external CSS frameworks
-   ============================================================================ */
+/*
+ * ============================================================================
+ * TITech Community Capital
+ * Enterprise Registration Experience
+ *
+ * File:
+ *   frontend/src/pages/Register.css
+ *
+ * Production Grade
+ * ----------------------------------------------------------------------------
+ * - Matches the canonical Register.jsx structure and class names
+ * - Responsive enterprise authentication UI
+ * - WCAG-conscious focus states
+ * - Mobile-first behavior
+ * - High contrast and reduced-motion support
+ * - Password strength visualization
+ * - Accessible form and registration states
+ * - Dark-mode friendly
+ * - Autofill-safe inputs
+ * - Print-safe output
+ * - No dependency on external CSS frameworks
+ * ============================================================================
+ */
 
 /* ============================================================================
    DESIGN TOKENS
    ============================================================================ */
 
 :root {
+  /*
+   * The fallback values keep this page self-contained while allowing the
+   * platform-wide TITech theme to override these tokens globally.
+   */
+  --titech-brand-navy: #08204a;
+
   --titech-primary: #0058d8;
   --titech-primary-hover: #0030a0;
   --titech-primary-active: #002780;
@@ -36,15 +47,16 @@
   --titech-warning: #d97706;
   --titech-warning-soft: #fffbeb;
 
-  --titech-text: var(--titech-brand-navy);
-  --titech-text-secondary: var(--titech-color-text-muted);
-  --titech-text-muted: var(--titech-color-text-subtle);
+  --titech-text: var(--titech-color-text, #0f172a);
+  --titech-text-secondary: var(--titech-color-text-muted, #475569);
+  --titech-text-muted: var(--titech-color-text-subtle, #64748b);
 
-  --titech-border: var(--titech-color-border);
-  --titech-border-soft: var(--titech-color-border);
+  --titech-border: var(--titech-color-border, #d7dee8);
+  --titech-border-strong: var(--titech-color-border-strong, #b8c4d4);
+  --titech-border-soft: var(--titech-color-border, #e2e8f0);
 
-  --titech-surface: #ffffff;
-  --titech-surface-muted: var(--titech-color-background);
+  --titech-surface: var(--titech-color-surface, #ffffff);
+  --titech-surface-muted: var(--titech-color-background, #f8fafc);
   --titech-background: #f3f6fa;
 
   --titech-radius-xs: 4px;
@@ -71,6 +83,7 @@
     0 0 0 3px rgb(37 99 235 / 0.18);
 
   --titech-max-width: 1180px;
+  --titech-content-width: 520px;
 
   color-scheme: light;
 }
@@ -93,14 +106,15 @@
 .register-page {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
 
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 
   position: relative;
   isolation: isolate;
-
   overflow-x: hidden;
 
   padding: 32px 20px;
@@ -128,16 +142,18 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .register-page::before {
   content: "";
-
   position: fixed;
   inset: 0;
-
   z-index: -1;
-
   pointer-events: none;
 
   background:
@@ -149,6 +165,11 @@
     );
 
   opacity: 0.45;
+}
+
+.register-page button,
+.register-page input {
+  font-family: inherit;
 }
 
 /* ============================================================================
@@ -179,11 +200,11 @@
 
 .register-features {
   position: relative;
-
+  min-width: 0;
   min-height: 720px;
 
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
 
   overflow: hidden;
@@ -208,7 +229,6 @@
 
 .register-features::before {
   content: "";
-
   position: absolute;
 
   width: 290px;
@@ -218,7 +238,6 @@
   right: -100px;
 
   border-radius: 50%;
-
   background: rgb(255 255 255 / 0.06);
 
   pointer-events: none;
@@ -226,7 +245,6 @@
 
 .register-features::after {
   content: "";
-
   position: absolute;
 
   width: 370px;
@@ -236,15 +254,63 @@
   bottom: -220px;
 
   border-radius: 50%;
-
   background: rgb(96 165 250 / 0.09);
 
   pointer-events: none;
 }
 
-.register-features > * {
+.register-features-inner {
+  width: min(100%, 560px);
   position: relative;
   z-index: 1;
+}
+
+/* ============================================================================
+   OFFICIAL BRAND
+   ============================================================================ */
+
+.register-official-brand {
+  display: flex;
+  align-items: flex-start;
+  margin: 0 0 18px;
+}
+
+.register-official-brand .titech-brand-logo {
+  width: 92px;
+  height: 92px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.register-security-badge {
+  width: fit-content;
+  max-width: 100%;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  margin: 0 0 22px;
+  padding: 7px 10px;
+
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 999px;
+
+  background: rgb(255 255 255 / 0.07);
+  color: rgb(255 255 255 / 0.92);
+
+  font-size: 0.76rem;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.register-security-badge svg {
+  flex: 0 0 auto;
+  color: #72c5ff;
 }
 
 /* ============================================================================
@@ -261,7 +327,6 @@
   font-size: clamp(2rem, 4vw, 2.85rem);
   line-height: 1.1;
   font-weight: 800;
-
   letter-spacing: -0.035em;
 
   text-wrap: balance;
@@ -287,7 +352,6 @@
 .feature-list {
   display: flex;
   flex-direction: column;
-
   gap: 18px;
 
   margin: 0;
@@ -297,9 +361,10 @@
 }
 
 .feature-item {
-  display: flex;
-  align-items: center;
+  min-width: 0;
 
+  display: flex;
+  align-items: flex-start;
   gap: 13px;
 
   color: rgb(255 255 255 / 0.92);
@@ -310,9 +375,9 @@
 
 .feature-item svg {
   flex: 0 0 auto;
+  margin-top: 2px;
 
   color: #4baaf5;
-
   stroke-width: 2.25;
 }
 
@@ -333,7 +398,11 @@
 }
 
 .register-card {
-  width: min(100%, 520px);
+  width: min(100%, var(--titech-content-width));
+}
+
+.register-card-header {
+  margin: 0 0 4px;
 }
 
 /* ============================================================================
@@ -350,7 +419,6 @@
   font-size: clamp(1.7rem, 3vw, 2.15rem);
   line-height: 1.2;
   font-weight: 750;
-
   letter-spacing: -0.025em;
 }
 
@@ -364,13 +432,53 @@
 }
 
 /* ============================================================================
+   REGISTRATION ALERTS / STATUS
+   ============================================================================ */
+
+.registration-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  margin: 0 0 20px;
+  padding: 12px 13px;
+
+  border: 1px solid rgb(220 38 38 / 0.25);
+  border-radius: var(--titech-radius-md);
+
+  background: var(--titech-danger-soft);
+  color: var(--titech-danger);
+
+  font-size: 0.84rem;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.registration-alert svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.registration-alert span {
+  min-width: 0;
+}
+
+.registration-status {
+  margin: -8px 0 20px;
+
+  color: var(--titech-text-secondary);
+
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+/* ============================================================================
    FORM
    ============================================================================ */
 
 .register-form {
   display: flex;
   flex-direction: column;
-
   gap: 20px;
 }
 
@@ -384,7 +492,6 @@
 .form-group > label:not(.checkbox-label) {
   display: flex;
   align-items: center;
-
   gap: 8px;
 
   margin-bottom: 8px;
@@ -399,8 +506,13 @@
 .form-group > label svg,
 .form-icon {
   flex: 0 0 auto;
-
   color: var(--titech-text-muted);
+}
+
+.optional-label {
+  color: var(--titech-text-muted);
+  font-size: 0.78em;
+  font-weight: 500;
 }
 
 /* ============================================================================
@@ -423,6 +535,9 @@
 
   font: inherit;
   font-size: 0.94rem;
+  line-height: 1.4;
+
+  box-shadow: var(--titech-shadow-sm);
 
   transition:
     border-color var(--titech-transition),
@@ -433,6 +548,7 @@
 
 .form-input::placeholder {
   color: #9ca3af;
+  opacity: 1;
 }
 
 .form-input:hover:not(:disabled) {
@@ -441,7 +557,6 @@
 
 .form-input:focus {
   border-color: var(--titech-primary);
-
   box-shadow: var(--titech-focus-ring);
 }
 
@@ -455,18 +570,42 @@
 }
 
 .form-input[aria-invalid="true"],
+.form-input.form-input--error,
 .form-input.error {
   border-color: var(--titech-danger);
-
   background: var(--titech-danger-soft);
 }
 
 .form-input[aria-invalid="true"]:focus,
+.form-input.form-input--error:focus,
 .form-input.error:focus {
   border-color: var(--titech-danger);
 
   box-shadow:
     0 0 0 3px rgb(220 38 38 / 0.14);
+}
+
+.form-input:-moz-read-only {
+  cursor: default;
+}
+
+.form-input[readonly] {
+  background: var(--titech-surface-muted);
+}
+
+/* ============================================================================
+   FORM HELP
+   ============================================================================ */
+
+.form-help {
+  display: block;
+
+  margin-top: 8px;
+
+  color: var(--titech-text-muted);
+
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
 /* ============================================================================
@@ -483,17 +622,16 @@
 }
 
 .password-input-wrapper .form-input {
-  padding-right: 50px;
+  padding-right: 52px;
 }
 
 .password-toggle {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
 
   position: absolute;
-
   top: 50%;
-  right: 8px;
+  right: 7px;
 
   display: inline-flex;
   align-items: center;
@@ -517,13 +655,12 @@
     transform var(--titech-transition);
 }
 
-.password-toggle:hover {
+.password-toggle:hover:not(:disabled) {
   background: var(--titech-surface-muted);
-
   color: var(--titech-text);
 }
 
-.password-toggle:active {
+.password-toggle:active:not(:disabled) {
   transform: translateY(-50%) scale(0.96);
 }
 
@@ -538,68 +675,26 @@
 }
 
 /* ============================================================================
-   PASSWORD STRENGTH
-   ============================================================================ */
-
-.password-strength {
-  display: flex;
-  align-items: center;
-
-  gap: 10px;
-
-  margin-top: 9px;
-}
-
-.strength-meter {
-  flex: 1;
-
-  min-width: 0;
-
-  height: 6px;
-
-  overflow: hidden;
-
-  border-radius: 999px;
-
-  background: var(--titech-color-border);
-}
-
-.strength-bar {
-  height: 100%;
-
-  min-width: 0;
-
-  border-radius: inherit;
-
-  transition:
-    width 180ms ease,
-    background-color 180ms ease;
-}
-
-.strength-text,
-.password-strength > span {
-  min-width: 76px;
-
-  text-align: right;
-
-  font-size: 0.75rem;
-  line-height: 1.2;
-  font-weight: 700;
-}
-
-/* ============================================================================
    PASSWORD REQUIREMENTS
    ============================================================================ */
 
 .password-requirements {
-  margin-top: 10px;
+  margin: 10px 0 0;
 
-  padding: 13px 14px;
+  padding: 10px 12px;
 
   border: 1px solid var(--titech-border-soft);
   border-radius: var(--titech-radius-md);
 
   background: var(--titech-surface-muted);
+  color: var(--titech-text-muted);
+
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.password-requirements:empty {
+  display: none;
 }
 
 .requirements-title {
@@ -615,7 +710,6 @@
 .password-requirements ul {
   display: flex;
   flex-direction: column;
-
   gap: 6px;
 
   margin: 0;
@@ -627,7 +721,6 @@
 .password-requirements li {
   display: flex;
   align-items: center;
-
   gap: 8px;
 
   color: var(--titech-text-muted);
@@ -642,7 +735,6 @@
 
 .password-requirements li svg {
   flex: 0 0 auto;
-
   opacity: 0.7;
 
   transition:
@@ -652,14 +744,115 @@
 
 .password-requirements li.met {
   color: var(--titech-success);
-
   font-weight: 600;
 }
 
 .password-requirements li.met svg {
   color: var(--titech-success);
-
   opacity: 1;
+}
+
+/* ============================================================================
+   PASSWORD STRENGTH
+   ============================================================================ */
+
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin-top: 9px;
+}
+
+.strength-meter {
+  flex: 1;
+  min-width: 0;
+
+  height: 6px;
+
+  overflow: hidden;
+
+  border: 1px solid transparent;
+  border-radius: 999px;
+
+  background: var(--titech-border);
+
+  box-shadow: inset 0 1px 1px rgb(15 23 42 / 0.06);
+}
+
+.strength-bar {
+  width: 0;
+  height: 100%;
+
+  min-width: 0;
+
+  border-radius: inherit;
+
+  background: var(--titech-primary);
+
+  transition:
+    width 180ms ease,
+    background-color 180ms ease;
+}
+
+.strength-bar--weak {
+  background: #dc2626;
+}
+
+.strength-bar--fair {
+  background: #f97316;
+}
+
+.strength-bar--good {
+  background: #eab308;
+}
+
+.strength-bar--strong {
+  background: #16a34a;
+}
+
+.strength-bar--very-strong {
+  background: #0d9488;
+}
+
+.strength-bar--excellent {
+  background: #0284c7;
+}
+
+.strength-text,
+.password-strength > span,
+.strength-label {
+  min-width: 84px;
+
+  text-align: right;
+
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.strength-label--weak {
+  color: var(--titech-danger);
+}
+
+.strength-label--fair {
+  color: #c2410c;
+}
+
+.strength-label--good {
+  color: #a16207;
+}
+
+.strength-label--strong {
+  color: var(--titech-success);
+}
+
+.strength-label--very-strong {
+  color: #0f766e;
+}
+
+.strength-label--excellent {
+  color: #0369a1;
 }
 
 /* ============================================================================
@@ -669,7 +862,6 @@
 .field-error {
   display: flex;
   align-items: flex-start;
-
   gap: 6px;
 
   margin-top: 7px;
@@ -683,7 +875,6 @@
 
 .field-error svg {
   flex: 0 0 auto;
-
   margin-top: 1px;
 }
 
@@ -694,7 +885,6 @@
 .checkbox-label {
   display: flex;
   align-items: flex-start;
-
   gap: 10px;
 
   cursor: pointer;
@@ -714,7 +904,6 @@
   margin: 1px 0 0;
 
   accent-color: var(--titech-primary);
-
   cursor: pointer;
 }
 
@@ -728,6 +917,10 @@
   opacity: 0.6;
 }
 
+.checkbox-label input[type="checkbox"][aria-invalid="true"] {
+  outline-color: var(--titech-danger);
+}
+
 .checkbox-label span {
   min-width: 0;
 }
@@ -735,25 +928,20 @@
 .checkbox-label a,
 .checkbox-label .link {
   color: var(--titech-primary);
-
   font-weight: 650;
-
   text-decoration: none;
 }
 
 .checkbox-label a:hover,
 .checkbox-label .link:hover {
   color: var(--titech-primary-hover);
-
   text-decoration: underline;
 }
 
 .checkbox-label a:focus-visible,
 .checkbox-label .link:focus-visible {
   outline: 2px solid var(--titech-primary);
-
   outline-offset: 2px;
-
   border-radius: var(--titech-radius-xs);
 }
 
@@ -768,22 +956,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   gap: 9px;
 
   margin-top: 2px;
-
   padding: 12px 18px;
 
   border: 1px solid transparent;
   border-radius: var(--titech-radius-md);
 
   background: var(--titech-primary);
-
   color: #ffffff;
 
   font: inherit;
   font-size: 0.94rem;
+  line-height: 1.2;
   font-weight: 700;
 
   cursor: pointer;
@@ -809,7 +995,6 @@
 
 .submit-btn:active:not(:disabled) {
   background: var(--titech-primary-active);
-
   transform: translateY(0);
 }
 
@@ -839,11 +1024,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   gap: 9px;
 }
 
-.spinner {
+.register-spinner {
   width: 17px;
   height: 17px;
 
@@ -851,7 +1035,6 @@
 
   border: 2px solid rgb(255 255 255 / 0.35);
   border-top-color: #ffffff;
-
   border-radius: 50%;
 
   animation:
@@ -873,6 +1056,7 @@
    ============================================================================ */
 
 .login-link {
+  margin: 0;
   padding-top: 2px;
 
   text-align: center;
@@ -888,7 +1072,6 @@
   color: var(--titech-primary);
 
   font-weight: 700;
-
   text-decoration: none;
 
   transition: color var(--titech-transition);
@@ -897,16 +1080,13 @@
 .login-link a:hover,
 .link-highlight:hover {
   color: var(--titech-primary-hover);
-
   text-decoration: underline;
 }
 
 .login-link a:focus-visible,
 .link-highlight:focus-visible {
   outline: 2px solid var(--titech-primary);
-
   outline-offset: 3px;
-
   border-radius: var(--titech-radius-xs);
 }
 
@@ -920,15 +1100,20 @@
   outline-offset: 2px;
 }
 
+.register-page button:focus:not(:focus-visible),
+.register-page a:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* ============================================================================
    AUTOFILL
    ============================================================================ */
 
 .form-input:-webkit-autofill,
 .form-input:-webkit-autofill:hover,
-.form-input:-webkit-autofill:focus {
+.form-input:-webkit-autofill:focus,
+.form-input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--titech-text);
-
   caret-color: var(--titech-text);
 
   box-shadow:
@@ -938,6 +1123,10 @@
     background-color 9999s ease-in-out 0s;
 }
 
+.form-input:-internal-autofill-selected {
+  -webkit-text-fill-color: var(--titech-text);
+}
+
 /* ============================================================================
    RESPONSIVE — TABLET
    ============================================================================ */
@@ -945,7 +1134,6 @@
 @media (max-width: 980px) {
   .register-page {
     align-items: flex-start;
-
     padding: 24px 16px;
   }
 
@@ -957,7 +1145,6 @@
 
   .register-features {
     min-height: 680px;
-
     padding: 44px 34px;
   }
 
@@ -968,6 +1155,10 @@
   .features-title {
     font-size: 2rem;
   }
+
+  .register-security-badge {
+    margin-bottom: 18px;
+  }
 }
 
 /* ============================================================================
@@ -977,6 +1168,7 @@
 @media (max-width: 760px) {
   .register-page {
     min-height: 100vh;
+    min-height: 100dvh;
 
     align-items: flex-start;
 
@@ -985,8 +1177,8 @@
 
   .register-wrapper {
     width: 100%;
-
     min-height: 100vh;
+    min-height: 100dvh;
 
     display: flex;
     flex-direction: column;
@@ -1000,14 +1192,34 @@
   .register-features {
     min-height: auto;
 
+    align-items: stretch;
+
     padding: 34px 24px 30px;
 
     border-radius: 0;
   }
 
+  .register-features-inner {
+    width: 100%;
+  }
+
+  .register-official-brand {
+    margin-bottom: 14px;
+  }
+
+  .register-official-brand .titech-brand-logo {
+    width: 76px;
+    height: 76px;
+  }
+
+  .register-security-badge {
+    margin-bottom: 16px;
+
+    font-size: 0.72rem;
+  }
+
   .features-title {
     margin-bottom: 10px;
-
     font-size: 1.75rem;
   }
 
@@ -1020,7 +1232,6 @@
 
   .feature-list {
     display: grid;
-
     grid-template-columns:
       repeat(2, minmax(0, 1fr));
 
@@ -1029,7 +1240,6 @@
 
   .feature-item {
     align-items: flex-start;
-
     font-size: 0.82rem;
   }
 
@@ -1054,6 +1264,10 @@
   .register-subtitle {
     margin-bottom: 26px;
   }
+
+  .registration-alert {
+    margin-bottom: 18px;
+  }
 }
 
 /* ============================================================================
@@ -1063,6 +1277,11 @@
 @media (max-width: 460px) {
   .register-features {
     padding: 28px 18px 24px;
+  }
+
+  .register-official-brand .titech-brand-logo {
+    width: 68px;
+    height: 68px;
   }
 
   .features-title {
@@ -1075,7 +1294,6 @@
 
   .feature-list {
     grid-template-columns: 1fr;
-
     gap: 10px;
   }
 
@@ -1129,9 +1347,9 @@
   }
 
   .password-strength > span,
-  .strength-text {
+  .strength-text,
+  .strength-label {
     min-width: 0;
-
     text-align: left;
   }
 }
@@ -1142,15 +1360,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --titech-text: var(--titech-color-background);
-    --titech-text-secondary: var(--titech-color-border-strong);
-    --titech-text-muted: var(--titech-color-text-subtle);
+    --titech-text: var(--titech-color-background, #f8fafc);
+    --titech-text-secondary: var(--titech-color-border-strong, #cbd5e1);
+    --titech-text-muted: var(--titech-color-text-subtle, #94a3b8);
 
-    --titech-border: #374151;
+    --titech-border: #334155;
+    --titech-border-strong: #475569;
     --titech-border-soft: #334155;
 
-    --titech-surface: var(--titech-brand-navy);
-    --titech-surface-muted: #1f2937;
+    --titech-surface: var(--titech-brand-navy, #0b1f44);
+    --titech-surface-muted: #17233a;
     --titech-background: #020617;
 
     --titech-primary-soft: #00153f;
@@ -1173,6 +1392,8 @@
         transparent 30%
       ),
       var(--titech-background);
+
+    color: var(--titech-text);
   }
 
   .register-page::before {
@@ -1191,13 +1412,12 @@
   }
 
   .form-input {
-    background: var(--titech-brand-navy);
-
+    background: var(--titech-brand-navy, #0b1f44);
     border-color: #374151;
   }
 
   .form-input:hover:not(:disabled) {
-    border-color: var(--titech-color-text-muted);
+    border-color: var(--titech-text-muted);
   }
 
   .form-input:focus {
@@ -1208,35 +1428,90 @@
   }
 
   .form-input[aria-invalid="true"],
+  .form-input.form-input--error,
   .form-input.error {
     background: rgb(127 29 29 / 0.16);
-
     border-color: #f87171;
+  }
+
+  .form-input[aria-invalid="true"]:focus,
+  .form-input.form-input--error:focus,
+  .form-input.error:focus {
+    border-color: #f87171;
+
+    box-shadow:
+      0 0 0 3px rgb(248 113 113 / 0.16);
+  }
+
+  .form-input::placeholder {
+    color: #94a3b8;
+  }
+
+  .form-help {
+    color: #94a3b8;
+  }
+
+  .registration-alert {
+    border-color: rgb(248 113 113 / 0.32);
+    background: rgb(127 29 29 / 0.16);
+    color: #fecaca;
+  }
+
+  .registration-status {
+    color: #cbd5e1;
   }
 
   .form-input:-webkit-autofill,
   .form-input:-webkit-autofill:hover,
-  .form-input:-webkit-autofill:focus {
-    -webkit-text-fill-color: var(--titech-color-background);
-
-    caret-color: var(--titech-color-background);
+  .form-input:-webkit-autofill:focus,
+  .form-input:-webkit-autofill:active {
+    -webkit-text-fill-color: #f8fafc;
+    caret-color: #f8fafc;
 
     box-shadow:
-      0 0 0 1000px var(--titech-brand-navy) inset;
+      0 0 0 1000px var(--titech-brand-navy, #0b1f44) inset;
   }
 
-  .password-toggle:hover {
+  .password-toggle:hover:not(:disabled) {
     background: #1f2937;
   }
 
   .password-requirements {
-    background: var(--titech-brand-navy);
-
+    background: var(--titech-brand-navy, #0b1f44);
     border-color: #334155;
+    color: #94a3b8;
   }
 
   .strength-meter {
     background: #374151;
+  }
+
+  .strength-label--weak {
+    color: #fca5a5;
+  }
+
+  .strength-label--fair {
+    color: #fdba74;
+  }
+
+  .strength-label--good {
+    color: #fde68a;
+  }
+
+  .strength-label--strong {
+    color: #86efac;
+  }
+
+  .strength-label--very-strong {
+    color: #5eead4;
+  }
+
+  .strength-label--excellent {
+    color: #7dd3fc;
+  }
+
+  .login-link {
+    color: #94a3b8;
   }
 }
 
@@ -1260,28 +1535,39 @@
     transform: none;
   }
 
-  .password-toggle:active {
+  .password-toggle:active:not(:disabled) {
     transform: translateY(-50%);
   }
 }
 
 /* ============================================================================
-   ACCESSIBILITY — HIGH CONTRAST
+   ACCESSIBILITY — HIGH CONTRAST / FORCED COLORS
    ============================================================================ */
 
 @media (forced-colors: active) {
+  .register-page {
+    forced-color-adjust: none;
+  }
+
   .register-wrapper,
   .form-input,
   .submit-btn,
   .password-toggle,
-  .password-requirements {
+  .password-requirements,
+  .registration-alert {
     border: 1px solid CanvasText;
+  }
+
+  .register-security-badge {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
   }
 
   .submit-btn {
     background: ButtonFace;
-
     color: ButtonText;
+    forced-color-adjust: auto;
   }
 
   .submit-btn:disabled {
@@ -1294,9 +1580,15 @@
 
   .strength-meter {
     border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  .strength-bar {
+    background: Highlight;
   }
 
   .password-toggle {
+    color: ButtonText;
     forced-color-adjust: auto;
   }
 }
@@ -1312,12 +1604,20 @@
     padding: 0;
 
     background: #ffffff;
+    color: #000000;
+  }
+
+  .register-page::before {
+    display: none;
   }
 
   .register-wrapper {
     display: block;
 
+    width: 100%;
+
     border: 0;
+    border-radius: 0;
 
     box-shadow: none;
   }
@@ -1327,7 +1627,22 @@
   }
 
   .register-container {
+    display: block;
+
     padding: 0;
+
+    background: #ffffff;
+  }
+
+  .register-card {
+    width: 100%;
+    max-width: none;
+  }
+
+  .registration-alert,
+  .registration-status,
+  .password-strength {
+    display: none;
   }
 
   .submit-btn,
@@ -1337,6 +1652,16 @@
 
   .form-input {
     border: 1px solid #000000;
+    box-shadow: none;
+  }
+
+  .login-link {
+    text-align: left;
+  }
+
+  .register-footer {
+    margin-top: 24px;
+    color: #000000;
   }
 }
 
@@ -1356,19 +1681,76 @@
   overflow: hidden;
 
   clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
 
   white-space: nowrap;
-
   border: 0;
 }
 
-.register-official-brand {
+/* ============================================================================
+   FOOTER
+   ============================================================================ */
+
+.register-footer {
+  width: min(100%, var(--titech-max-width));
+
   display: flex;
-  align-items: flex-start;
-  margin-bottom: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  margin-top: 16px;
+  padding: 0 4px;
+
+  color: var(--titech-text-muted);
+
+  font-size: 0.72rem;
+  line-height: 1.5;
+
+  text-align: center;
 }
 
-.register-official-brand .titech-brand-logo {
-  width: 92px;
-  height: 92px;
+.register-footer p {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .register-footer {
+    width: 100%;
+
+    flex-direction: column;
+
+    margin: 0;
+
+    padding: 16px 18px 20px;
+
+    background: var(--titech-surface);
+
+    border-top: 1px solid var(--titech-border-soft);
+
+    font-size: 0.7rem;
+  }
+}
+
+@media print {
+  .register-footer {
+    width: 100%;
+
+    display: block;
+
+    margin-top: 20px;
+    padding: 0;
+
+    border: 0;
+
+    background: transparent;
+
+    color: #000000;
+
+    text-align: left;
+  }
+
+  .register-footer p + p {
+    margin-top: 4px;
+  }
 }

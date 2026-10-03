@@ -2,7 +2,7 @@
 
 'use strict';
 
-const Loan = require('../../loans/models/Loan');
+const Loan = require('../models/Loan.js');
 const Transaction = require('../models/Transaction');
 const Account = require('../models/Account');
 

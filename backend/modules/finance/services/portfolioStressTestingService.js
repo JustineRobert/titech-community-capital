@@ -1,7 +1,7 @@
 // backend/modules/finance/services/portfolioStressTestingService.js
 'use strict';
 
-const Loan = require('../../loans/models/Loan');
+const Loan = require('../models/Loan.js');
 const Account = require('../models/Account');
 const Transaction = require('../models/Transaction');
 

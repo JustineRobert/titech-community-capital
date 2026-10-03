@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1.0.0",
+  "name": "TITech Official Platform Theme",
+  "product": "TITech Community Capital",
+  "organization": "TITech Africa",
+  "sourceReference": "branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png",
+  "defaultTheme": "light",
+  "supportedThemes": ["light", "dark"],
+  "palette": {
+    "deepBlue": "#0030A0",
+    "electricBlue": "#0058D8",
+    "brightBlue": "#0066E8",
+    "cyan": "#00B8F8",
+    "africaGreen": "#008000",
+    "limeGreen": "#A8F000",
+    "goldYellow": "#F8D800",
+    "navyInk": "#082B67",
+    "white": "#FFFFFF"
+  },
+  "semanticRoles": {
+    "primary": "deepBlue",
+    "primaryInteractive": "electricBlue",
+    "primaryBright": "brightBlue",
+    "information": "cyan",
+    "community": "africaGreen",
+    "growth": "limeGreen",
+    "sustainability": "goldYellow",
+    "text": "navyInk",
+    "surface": "white"
+  },
+  "coverage": [
+    "web",
+    "mobile",
+    "authentication",
+    "dashboards",
+    "forms",
+    "reports",
+    "receipts",
+    "onboarding",
+    "administration",
+    "notifications",
+    "marketing"
+  ],
+  "rules": [
+    "Use the semantic role rather than hard-coding a brand hex value in new UI code.",
+    "Keep financial/security status colors distinct from brand identity where accessibility or risk signaling requires it.",
+    "Light is the deterministic default; dark is an explicit user-selected mode.",
+    "The official TITech circular logo remains the primary product mark."
+  ]
+}

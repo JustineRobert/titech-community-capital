@@ -7,14 +7,14 @@
 'use strict';
 
 const Joi = require('joi');
-const logger = require('../../../../utils/logger');
+const logger = require('../../../utils/logger.js');
 const { processRepayment } = require('../services/repaymentService');
 
-const ApiError = require('../../../../errors/ApiError');
-const NotFoundError = require('../../../../errors/NotFoundError');
-const ConflictError = require('../../../../errors/ConflictError');
-const PaymentRequiredError = require('../../../../errors/PaymentRequiredError');
-const BadRequestError = require('../../../../errors/BadRequestError');
+const ApiError = require('../../../errors/ApiError.js');
+const NotFoundError = require('../../../errors/NotFoundError.js');
+const ConflictError = require('../../../errors/ConflictError.js');
+const PaymentRequiredError = require('../../../errors/PaymentRequiredError.js');
+const BadRequestError = require('../../../errors/BadRequestError.js');
 
 /**
  * Request validation schema

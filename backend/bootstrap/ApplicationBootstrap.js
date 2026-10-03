@@ -77,6 +77,11 @@ import {
   pathToFileURL,
 } from "node:url";
 
+import {
+  BootstrapContext,
+  createBootstrapContext,
+} from "./context/index.js";
+
 /* =============================================================================
  * MODULE IDENTITY
  * =============================================================================
@@ -792,20 +797,52 @@ function unwrapModule(
       "object" &&
     "default" in value
   ) {
-    const namedExports =
-      Object.keys(
-        value,
-      ).filter(
-        key =>
-          key !==
-          "default",
-      );
+    const defaultValue =
+      value.default;
 
     if (
-      namedExports.length ===
-      0
+      typeof defaultValue ===
+        "function"
     ) {
-      return value.default;
+      return defaultValue;
+    }
+
+    if (
+      defaultValue &&
+      typeof defaultValue ===
+        "object"
+    ) {
+      const namedExports =
+        Object.keys(
+          value,
+        ).filter(
+          key =>
+            key !==
+            "default",
+        );
+
+      if (
+        namedExports.length ===
+          0
+      ) {
+        return defaultValue;
+      }
+
+      const hasLifecycleShape =
+        typeof defaultValue.initialize ===
+          "function" ||
+        typeof defaultValue.start ===
+          "function" ||
+        typeof defaultValue.bootstrap ===
+          "function" ||
+        typeof defaultValue.setup ===
+          "function";
+
+      if (
+        hasLifecycleShape
+      ) {
+        return defaultValue;
+      }
     }
 
     return value;
@@ -1462,7 +1499,7 @@ class ApplicationBootstrap {
   createContext(
     suppliedContext = {},
   ) {
-    const context =
+    const contextData =
       isObject(
         suppliedContext,
       )
@@ -1471,35 +1508,47 @@ class ApplicationBootstrap {
           }
         : {};
 
-    context.bootstrap =
+    if (
+      !this.lifecycleAbortController
+    ) {
+      this.lifecycleAbortController =
+        new AbortController();
+    }
+
+    contextData.bootstrap =
       this;
 
-    context.bootstrapId =
+    contextData.bootstrapId =
       this.bootstrapId;
 
-    context.component =
+    contextData.component =
       COMPONENT;
 
-    context.version =
+    contextData.version =
       this.getVersion();
 
-    context.applicationName =
+    contextData.applicationName =
       this.getApplicationName();
 
-    context.serviceName =
+    contextData.serviceName =
       this.getServiceName();
 
-    context.signal =
+    contextData.signal =
       this.lifecycleAbortController
         .signal;
 
     if (
-      !context.application &&
+      !contextData.application &&
       this.application
     ) {
-      context.application =
+      contextData.application =
         this.application;
     }
+
+    const context =
+      createBootstrapContext(
+        contextData,
+      );
 
     return context;
   }
@@ -2672,9 +2721,15 @@ class ApplicationBootstrap {
       typeof result.context ===
         "object"
     ) {
+      const {
+        state: _ignoredState,
+        _state: _ignoredInternalState,
+        ...safeContext
+      } = result.context;
+
       Object.assign(
         this.context,
-        result.context,
+        safeContext,
       );
     }
 

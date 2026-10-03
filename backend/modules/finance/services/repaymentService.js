@@ -8,16 +8,16 @@
 
 const mongoose = require('mongoose');
 const Loan = require('../models/Loan');
-const Wallet = require('../models/Wallet');
+const Wallet = require('../../../models/Wallet.js');
 const LedgerEntry = require('../models/LedgerEntry');
 const Journal = require('../models/Journal');
-const logger = require('../../../../utils/logger');
+const logger = require('../../../utils/logger.js');
 
-const ApiError = require('../../../../errors/ApiError');
-const NotFoundError = require('../../../../errors/NotFoundError');
-const ConflictError = require('../../../../errors/ConflictError');
-const PaymentRequiredError = require('../../../../errors/PaymentRequiredError');
-const BadRequestError = require('../../../../errors/BadRequestError');
+const ApiError = require('../../../errors/ApiError.js');
+const NotFoundError = require('../../../errors/NotFoundError.js');
+const ConflictError = require('../../../errors/ConflictError.js');
+const PaymentRequiredError = require('../../../errors/PaymentRequiredError.js');
+const BadRequestError = require('../../../errors/BadRequestError.js');
 
 /**
  * processRepayment

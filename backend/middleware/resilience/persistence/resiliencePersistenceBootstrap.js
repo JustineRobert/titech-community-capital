@@ -3,13 +3,13 @@
 
 const ResilienceStateManager =
 require(
-'./resilienceStateManager'
+'../../persistence/resilienceStateManager.js'
 );
 
 
 const ResilienceCircuitStateStore =
 require(
-'./resilienceCircuitStateStore'
+'../../persistence/resilienceCircuitStateStore.js'
 );
 
 

@@ -1,21 +1,7 @@
-# TITech Community Capital — Evidence Artifact
+# TITech Community Capital — First paying customer
 
-**Implementation date:** 2026-10-02  
-**Repository:** `https://github.com/JustineRobert/titech-community-capital`  
-**Evidence principle:** executable evidence over repository claims.
+**Date:** 03 October 2026
 
-## Commercial Validation
+**Status:** NOT VERIFIED
 
-**Status:** **NOT VERIFIED**
-
-### Evidence presently available
-
-No customer payment evidence was supplied; unpaid/free/internal pilots are not counted as commercial proof.
-
-### Required next evidence
-
-Attach contract/MOU, invoice, payment, deployed usage and operational evidence.
-
-### Certification rule
-
-This artifact does not manufacture screenshots, provider responses, transactions, contracts, security certifications, legal approvals or customer payments. A later status change must cite dated executable evidence.
+No invoice/payment evidence available in the repository execution environment.

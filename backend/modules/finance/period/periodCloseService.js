@@ -40,7 +40,7 @@
  * ============================================================================
  */
 
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
 /* ============================================================================
  * Constants
@@ -1322,5 +1322,5 @@ PeriodCloseService.OPERATION_TYPES =
  * Export
  * ========================================================================== */
 
-module.exports =
-    PeriodCloseService;
+export default PeriodCloseService;
+export { PERIOD_STATUS, SNAPSHOT_TYPES, OPERATION_TYPES };

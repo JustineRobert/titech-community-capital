@@ -9,7 +9,7 @@ const dividendForecastService = require('./dividendForecastService');
 const fraudAnalyticsService = require('./fraudAnalyticsService');
 const regulatoryAnalyticsService = require('./regulatoryAnalyticsService');
 
-const Loan = require('../../loans/models/Loan');
+const Loan = require('../models/Loan.js');
 const Transaction = require('../models/Transaction');
 const Account = require('../models/Account');
 

@@ -44,6 +44,7 @@ module.exports = {
   verbose: true,
   bail: false,
   passWithNoTests: false,
+  injectGlobals: true,
   clearMocks: true,
   restoreMocks: true,
   resetMocks: false,

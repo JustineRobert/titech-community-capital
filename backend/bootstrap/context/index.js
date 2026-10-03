@@ -81,27 +81,17 @@
  * =============================================================================
  */
 
-const BootstrapContext = require("./BootstrapContext");
-
-/* =============================================================================
- * PUBLIC CONTRACT VALIDATION
- * =============================================================================
- *
- * Validate only the imported constructor contract.
- *
- * This validation MUST remain side-effect free:
- *
- *   - no instance creation;
- *   - no lifecycle execution;
- *   - no dependency initialization;
- *   - no infrastructure connection;
- *   - no runtime mutation.
- *
- * Fail-fast module loading is intentional. If BootstrapContext.js does not
- * expose a valid constructor, consumers should discover the contract error at
- * import time rather than during application bootstrap.
- * =============================================================================
- */
+import {
+  BootstrapContext,
+  createBootstrapContext,
+  BOOTSTRAP_PHASES,
+  PHASE_STATES,
+  CONTEXT_STATES,
+  LIFECYCLE_TRANSITIONS,
+  DEFAULT_HISTORY_LIMIT,
+  DEFAULT_HISTORY_READ_LIMIT,
+  DEFAULT_SHUTDOWN_HOOK_TIMEOUT_MS,
+} from "./BootstrapContext.js";
 
 if (typeof BootstrapContext !== "function") {
   throw new TypeError(
@@ -110,33 +100,26 @@ if (typeof BootstrapContext !== "function") {
   );
 }
 
-/* =============================================================================
- * PUBLIC API
- * =============================================================================
- *
- * Object.freeze() protects the barrel export object from accidental mutation.
- *
- * The BootstrapContext implementation itself remains owned by:
- *
- *   ./BootstrapContext
- *
- * Therefore this module remains a pure API boundary and never becomes a second
- * lifecycle state container.
- * =============================================================================
- */
-
-module.exports = Object.freeze({
-  /**
-   * Canonical TITech bootstrap lifecycle context.
-   *
-   * Consumers should instantiate it directly when a new lifecycle context is
-   * required:
-   *
-   *   const {
-   *     BootstrapContext,
-   *   } = require("./context");
-   *
-   *   const context = new BootstrapContext();
-   */
+export {
   BootstrapContext,
+  createBootstrapContext,
+  BOOTSTRAP_PHASES,
+  PHASE_STATES,
+  CONTEXT_STATES,
+  LIFECYCLE_TRANSITIONS,
+  DEFAULT_HISTORY_LIMIT,
+  DEFAULT_HISTORY_READ_LIMIT,
+  DEFAULT_SHUTDOWN_HOOK_TIMEOUT_MS,
+};
+
+export default Object.freeze({
+  BootstrapContext,
+  createBootstrapContext,
+  BOOTSTRAP_PHASES,
+  PHASE_STATES,
+  CONTEXT_STATES,
+  LIFECYCLE_TRANSITIONS,
+  DEFAULT_HISTORY_LIMIT,
+  DEFAULT_HISTORY_READ_LIMIT,
+  DEFAULT_SHUTDOWN_HOOK_TIMEOUT_MS,
 });

@@ -1,7 +1,7 @@
 //  backend/modules/finance/controllers/LoanController.js
 'use strict';
 
-const LoanService = require('../services/LoanService');
+const LoanService = require('../services/loanService.js');
 const Loan = require('../models/Loan');
 
 class LoanController {
