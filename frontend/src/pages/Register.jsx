@@ -176,6 +176,12 @@ const RegisterSchema = Yup.object({
     )
     .required('Email address is required.'),
 
+  tenantInviteCode: Yup.string()
+    .trim()
+    .min(32, 'Enter the tenant invitation code provided by your administrator.')
+    .max(128, 'Tenant invitation code is invalid.')
+    .required('A tenant invitation code is required to join an existing tenant.'),
+
   phone: Yup.string()
     .nullable()
     .transform((value) => {
@@ -509,6 +515,7 @@ export default function Register() {
           name: normalizeName(values.name),
           email: normalizeEmail(values.email),
           password: values.password,
+          tenantInviteCode: values.tenantInviteCode.trim(),
         };
 
         const phone = normalizePhone(values.phone);
@@ -734,6 +741,7 @@ export default function Register() {
               initialValues={{
                 name: '',
                 email: '',
+                tenantInviteCode: '',
                 phone: '',
                 password: '',
                 confirmPassword: '',
@@ -890,6 +898,54 @@ export default function Register() {
                             <span>
                               {errors.email}
                             </span>
+                          </div>
+                        )}
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor={`${componentId}-tenant-invite-code`}>
+                        Tenant invitation code
+                      </label>
+                      <Field
+                        id={`${componentId}-tenant-invite-code`}
+                        name="tenantInviteCode"
+                        type="text"
+                        className={`form-input ${
+                          touched.tenantInviteCode &&
+                          errors.tenantInviteCode
+                            ? 'form-input--error'
+                            : ''
+                        }`}
+                        placeholder="Enter the code from your tenant administrator"
+                        autoComplete="off"
+                        maxLength={128}
+                        aria-invalid={
+                          touched.tenantInviteCode &&
+                          Boolean(errors.tenantInviteCode)
+                        }
+                        aria-describedby={
+                          touched.tenantInviteCode &&
+                          errors.tenantInviteCode
+                            ? `${componentId}-tenant-invite-code-error`
+                            : `${componentId}-tenant-invite-code-help`
+                        }
+                      />
+                      <small
+                        id={`${componentId}-tenant-invite-code-help`}
+                        className="form-help"
+                      >
+                        An invitation code is required to join an existing tenant
+                        and access community groups.
+                      </small>
+                      {touched.tenantInviteCode &&
+                        errors.tenantInviteCode && (
+                          <div
+                            id={`${componentId}-tenant-invite-code-error`}
+                            className="field-error"
+                            role="alert"
+                          >
+                            <AlertCircle size={14} aria-hidden="true" />
+                            <span>{errors.tenantInviteCode}</span>
                           </div>
                         )}
                     </div>

@@ -55,7 +55,7 @@
  * =============================================================================
  */
 
-const constants = require('./constants');
+import constants from './constants.js';
 
 // =============================================================================
 // Destructure Canonical Constants
@@ -787,4 +787,4 @@ const offlineModule = Object.freeze({
   getConfiguration,
 });
 
-module.exports = offlineModule;
+export default offlineModule;

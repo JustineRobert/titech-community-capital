@@ -6,6 +6,8 @@ const require = createRequire(import.meta.url);
 
 import authModule from '../middleware/auth.js';
 import authRoutes from './auth.js';
+import groupRoutes from './groups.js';
+import emailRoutes from './email.js';
 import idempotencyModule from '../middleware/idempotency.js';
 import contributionsControllerModule from '../controllers/contributionsController.js';
 import repaymentsControllerModule from '../controllers/repaymentsController.js';
@@ -73,8 +75,6 @@ const crypto = require('node:crypto');
  * The routers retain ownership of validation, rate limiting, and controller
  * orchestration; this registry only composes them into the application.
  */
-const emailRoutes = require('./email');
-
 const {
     param,
     validationResult,
@@ -1816,6 +1816,10 @@ function registerRoutes(
         '/api/email',
         emailRoutes,
     );
+
+    app.use('/api/groups', groupRoutes);
+    app.use('/api/v1/groups', groupRoutes);
+    app.use('/groups', groupRoutes);
 
     // ------------------------------------------------------------------------
     // Payroll API and provider callback boundaries.

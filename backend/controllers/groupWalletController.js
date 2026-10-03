@@ -1,13 +1,6 @@
-// controllers/groupWalletController.js
-'use strict';
+import LedgerEntry from '../models/LedgerEntry.js';
 
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-
-const { LedgerEntry } = require("../models");
-
-exports.getBalance = async (req, res) => {
+export async function getBalance(req, res) {
   const { id } = req.params;
   const entries = await LedgerEntry.findAll({ where: { saccoId: id } });
   const balance = entries.reduce((acc, e) => {
@@ -16,10 +9,12 @@ exports.getBalance = async (req, res) => {
     return acc;
   }, 0);
   res.json({ saccoId: id, balance });
-};
+}
 
-exports.getLedger = async (req, res) => {
+export async function getLedger(req, res) {
   const { id } = req.params;
   const entries = await LedgerEntry.findAll({ where: { saccoId: id }, order: [["createdAt", "DESC"]] });
   res.json(entries);
-};
+}
+
+export default { getBalance, getLedger };

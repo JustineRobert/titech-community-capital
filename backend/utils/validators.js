@@ -552,6 +552,17 @@ export const validationRules = {
       .trim()
       .isMobilePhone('any')
       .withMessage('Please provide a valid phone number'),
+
+    body('tenantInviteCode')
+      .exists({ checkFalsy: true })
+      .withMessage('A tenant invitation code is required')
+      .bail()
+      .isString()
+      .withMessage('Tenant invite code must be a string')
+      .bail()
+      .trim()
+      .isLength({ min: 32, max: 128 })
+      .withMessage('Tenant invite code is invalid'),
   ],
 
   login: [
@@ -785,7 +796,7 @@ export const handleValidationErrors = (req, res, next) => {
    *   - personal information
    */
   return next({
-    status: 400,
+    statusCode: 400,
     code: 'VALIDATION_ERROR',
     message: 'Request validation failed',
     errors,

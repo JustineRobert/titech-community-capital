@@ -82,35 +82,44 @@
  * ============================================================================
  */
 
-const express =
-  require('express');
+import express from 'express';
+import crypto from 'node:crypto';
+import rateLimit from 'express-rate-limit';
+import { body } from 'express-validator';
+import { handleValidationErrors } from '../utils/validators.js';
+import authModule from '../middleware/auth.js';
 
-const crypto =
-  require('node:crypto');
+const { verifyToken, requireRole } = authModule;
+const asyncHandler = (handler) => (req, res, next) =>
+  Promise.resolve(handler(req, res, next)).catch(next);
+const loadEmailHandler = (method) => async (req, res, next) => {
+  const { default: emailController } = await import(
+    '../controllers/emailController.js'
+  );
+  const handler = emailController[method];
 
-const rateLimit =
-  require('express-rate-limit');
+  if (typeof handler !== 'function') {
+    throw new TypeError(`Email controller handler "${method}" is unavailable`);
+  }
 
-const {
-  body,
-} = require('express-validator');
-
-const asyncHandler =
-  require('../utils/asyncHandler');
-
-const {
-  handleValidationErrors,
-} =
-  require('../utils/validators');
-
-const {
-  verifyToken,
-  requireRole,
-} =
-  require('../middleware/auth');
-
-const emailController =
-  require('../controllers/emailController');
+  return handler(req, res, next);
+};
+const emailController = {
+  verifyEmail: loadEmailHandler('verifyEmail'),
+  requestPasswordReset: loadEmailHandler('requestPasswordReset'),
+  resetPassword: loadEmailHandler('resetPassword'),
+  sendEmailVerification: loadEmailHandler('sendEmailVerification'),
+  sendVerificationEmailRequest: loadEmailHandler(
+    'sendVerificationEmailRequest'
+  ),
+  resendEmailVerification: loadEmailHandler('resendEmailVerification'),
+  getEmailVerificationStatus: loadEmailHandler(
+    'getEmailVerificationStatus'
+  ),
+  changePassword: loadEmailHandler('changePassword'),
+  testEmailConfiguration: loadEmailHandler('testEmailConfiguration'),
+  sendTestEmail: loadEmailHandler('sendTestEmail'),
+};
 
 /**
  * ============================================================================
@@ -516,9 +525,7 @@ function createLimiter({
  * ============================================================================
  */
 
-const verifyLimiter =
-  emailController.verifyEmailLimiter ||
-  createLimiter({
+const verifyLimiter = createLimiter({
     windowMs:
       60 * 60 * 1000,
 
@@ -532,9 +539,7 @@ const verifyLimiter =
       'Too many email verification attempts. Please try again later.',
   });
 
-const passwordResetRequestLimiter =
-  emailController.requestResetLimiter ||
-  createLimiter({
+const passwordResetRequestLimiter = createLimiter({
     windowMs:
       60 * 60 * 1000,
 
@@ -548,9 +553,7 @@ const passwordResetRequestLimiter =
       'Too many password reset requests. Please try again later.',
   });
 
-const passwordResetLimiter =
-  emailController.resetPasswordLimiter ||
-  createLimiter({
+const passwordResetLimiter = createLimiter({
     windowMs:
       60 * 60 * 1000,
 
@@ -564,9 +567,7 @@ const passwordResetLimiter =
       'Too many password reset attempts. Please try again later.',
   });
 
-const verificationRequestLimiter =
-  emailController.requestVerificationLimiter ||
-  createLimiter({
+const verificationRequestLimiter = createLimiter({
     windowMs:
       60 * 60 * 1000,
 
@@ -1479,5 +1480,4 @@ router.applicationName =
  * ============================================================================
  */
 
-module.exports =
-  router;
+export default router;

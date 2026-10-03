@@ -43,21 +43,14 @@
  *   - Financial mutations require idempotency.
  *
  * Module system:
- *   - CommonJS only.
- *   - Do NOT mix import/export syntax with require/module.exports.
+ *   - Native ECMAScript modules.
  *
  * =============================================================================
  */
 
-const LoanWorkflowService = require(
-    '../modules/loan/services/loanWorkflowService'
-);
-
-const {
-    handleError,
-} = require(
-    '../middleware/errorMiddleware'
-);
+function handleError(error, req, res, next) {
+    return next(error);
+}
 
 // =============================================================================
 // Constants
@@ -561,6 +554,10 @@ class LoansController {
                         : undefined,
             };
 
+            const { default: LoanWorkflowService } = await import(
+                '../modules/loan/services/loanWorkflowService.js'
+            );
+
             const result =
                 await LoanWorkflowService.disburseLoan(
                     null,
@@ -612,4 +609,4 @@ class LoansController {
     }
 }
 
-module.exports = LoansController;
+export default LoansController;

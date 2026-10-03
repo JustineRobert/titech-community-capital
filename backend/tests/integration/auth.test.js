@@ -58,14 +58,17 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import request from "supertest";
+import crypto from "node:crypto";
 
 import { User } from "../../models/User.js";
+import TenantInvitation from "../../models/TenantInvitation.js";
 
 const TEST_JWT_SECRET =
   process.env.TEST_JWT_SECRET || "titech-test-secret-authentication";
 
 process.env.JWT_SECRET = TEST_JWT_SECRET;
 process.env.ACCESS_TOKEN_SECRET = TEST_JWT_SECRET;
+process.env.TITECH_AUTH_ALLOW_LOCALHOST_RATE_LIMIT_BYPASS = "true";
 
 const { default: authRoutes } = await import("../../routes/auth.js");
 
@@ -88,6 +91,9 @@ const JWT_ALGORITHM = "HS256";
 
 const PASSWORD = "SecurePassword123!";
 const NEW_PASSWORD = "NewSecurePassword456!";
+const TEST_TENANT_ID = new mongoose.Types.ObjectId();
+const TEST_TENANT_INVITE_CODE =
+  "titech-test-tenant-invitation-code-0123456789abcdef";
 
 const HTTP = Object.freeze({
   OK: 200,
@@ -131,7 +137,9 @@ function uniqueEmail(prefix = "test") {
  * @returns {string}
  */
 function uniquePhoneNumber() {
-  const suffix = String(Date.now()).slice(-7);
+  const suffix = String(
+    10_000_000 + Math.floor(Math.random() * 90_000_000)
+  );
 
   return `+2567${suffix}`;
 }
@@ -285,6 +293,17 @@ beforeEach(async () => {
    * Authentication tests must be independently reproducible.
    */
   await User.deleteMany({});
+  await TenantInvitation.deleteMany({});
+  await TenantInvitation.create({
+    tenantId: TEST_TENANT_ID,
+    createdBy: new mongoose.Types.ObjectId(),
+    codeHash: crypto
+      .createHash("sha256")
+      .update(TEST_TENANT_INVITE_CODE)
+      .digest("hex"),
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    maxUses: 1000,
+  });
 });
 
 /**
@@ -304,6 +323,7 @@ describe("POST /api/auth/register", () => {
         password: PASSWORD,
         fullName: "TITech Test User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(response.status);
@@ -340,6 +360,7 @@ describe("POST /api/auth/register", () => {
         password: PASSWORD,
         fullName: "Original User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(firstResponse.status);
@@ -351,6 +372,7 @@ describe("POST /api/auth/register", () => {
         password: "AnotherSecurePassword456!",
         fullName: "Duplicate User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.CONFLICT, HTTP.BAD_REQUEST]).toContain(
@@ -411,6 +433,7 @@ describe("POST /api/auth/register", () => {
         password: PASSWORD,
         fullName: "Normalization User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(response.status);
@@ -466,6 +489,7 @@ describe("POST /api/auth/login", () => {
         password: PASSWORD,
         fullName: "Login Test User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(registration.status);
@@ -509,9 +533,10 @@ describe("POST /api/auth/login", () => {
         email,
         password: PASSWORD,
         name,
+        phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       })
       .then((response) => {
-        console.log("AUTH_SMOKE_REGISTRATION", response.status, response.body);
         expect(response.status).toBe(HTTP.CREATED);
         return response;
       });
@@ -655,6 +680,7 @@ describe("POST /api/auth/refresh-token", () => {
         password: PASSWORD,
         fullName: "Refresh Token User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(registration.status);
@@ -802,6 +828,7 @@ describe("POST /api/auth/logout", () => {
         password: PASSWORD,
         fullName: "Logout Test User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(registration.status);
@@ -897,6 +924,7 @@ describe("POST /api/email/request-password-reset", () => {
         password: PASSWORD,
         fullName: "Password Reset User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(registration.status);
@@ -989,6 +1017,7 @@ describe("Authentication security regression guards", () => {
         password: PASSWORD,
         fullName: "Password Storage User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       })
       .expect((response) => {
         expect([HTTP.OK, HTTP.CREATED]).toContain(response.status);
@@ -1100,6 +1129,7 @@ describe("Authentication security regression guards", () => {
       password: PASSWORD,
       fullName: "Duplicate Regression User",
       phoneNumber,
+      tenantInviteCode: TEST_TENANT_INVITE_CODE,
     };
 
     const responses = await Promise.all([
@@ -1141,6 +1171,7 @@ describe("Authentication persistence integrity", () => {
         password: PASSWORD,
         fullName: "Persistence User",
         phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: TEST_TENANT_INVITE_CODE,
       });
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(response.status);

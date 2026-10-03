@@ -15,6 +15,7 @@ import mongoose from 'mongoose';
 import logger from '../utils/logger.js';
 import { User } from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
+import TenantInvitation from '../models/TenantInvitation.js';
 
 const require = createRequire(import.meta.url);
 
@@ -224,6 +225,7 @@ async function register(req, res) {
       firstName,
       lastName,
       phoneNumber,
+      tenantInviteCode,
       deviceInfo = {},
     } = req.body;
 
@@ -239,6 +241,13 @@ async function register(req, res) {
       });
     }
 
+    if (!tenantInviteCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'A tenant invitation code is required',
+      });
+    }
+
     const existing = isMongoConnected()
       ? await User.findOne({ email: normalizedEmail })
       : await findFallbackUserByEmail(normalizedEmail);
@@ -250,32 +259,70 @@ async function register(req, res) {
       });
     }
 
-    const tenantHeader = req.headers?.['x-tenant-id'];
-    const tenantId =
-      tenantHeader &&
-      mongoose.Types.ObjectId.isValid(tenantHeader)
-        ? tenantHeader
-        : null;
+    let tenantInvitation = null;
+    let tenantId = null;
+
+    if (tenantInviteCode) {
+      if (!isMongoConnected()) {
+        return res.status(503).json({
+          success: false,
+          message: 'Tenant invitations are temporarily unavailable',
+        });
+      }
+
+      const codeHash = hashToken(tenantInviteCode);
+      const now = new Date();
+      tenantInvitation = await TenantInvitation.findOneAndUpdate(
+        {
+          codeHash,
+          revokedAt: null,
+          expiresAt: { $gt: now },
+          $expr: { $lt: ['$uses', '$maxUses'] },
+        },
+        { $inc: { uses: 1 } },
+        { new: true }
+      );
+
+      if (!tenantInvitation) {
+        return res.status(400).json({
+          success: false,
+          message: 'Tenant invite code is invalid, expired, or already used',
+        });
+      }
+
+      tenantId = tenantInvitation.tenantId;
+    }
 
     let user;
-    if (isMongoConnected()) {
-      user = await User.create({
-        name: normalizedName,
-        email: normalizedEmail,
-        password,
-        phone: normalizedPhone,
-        tenantId,
-      });
-    } else {
-      const hashedPassword = await bcrypt.hash(password, 12);
-      user = createFallbackUserRecord({
-        name: normalizedName,
-        email: normalizedEmail,
-        password: hashedPassword,
-        phone: normalizedPhone,
-        tenantId,
-      });
-      await saveFallbackUser(user);
+    try {
+      if (isMongoConnected()) {
+        user = await User.create({
+          name: normalizedName,
+          email: normalizedEmail,
+          password,
+          phone: normalizedPhone,
+          tenantId,
+        });
+      } else {
+        const hashedPassword = await bcrypt.hash(password, 12);
+        user = createFallbackUserRecord({
+          name: normalizedName,
+          email: normalizedEmail,
+          password: hashedPassword,
+          phone: normalizedPhone,
+          tenantId,
+        });
+        await saveFallbackUser(user);
+      }
+    } catch (error) {
+      if (tenantInvitation) {
+        await TenantInvitation.updateOne(
+          { _id: tenantInvitation._id, uses: { $gt: 0 } },
+          { $inc: { uses: -1 } }
+        );
+      }
+
+      throw error;
     }
 
     if (tenantId) {
@@ -315,6 +362,7 @@ async function register(req, res) {
         email: user.email,
         name: user.name,
         role: user.role,
+        tenantId: user.tenantId || null,
       },
     });
   } catch (err) {
@@ -326,6 +374,63 @@ async function register(req, res) {
     });
   }
 }
+
+async function createTenantInvitation(req, res) {
+    const userId = req.user?._id || req.user?.id;
+    const tenantId = req.user?.tenantId;
+
+    if (
+      !userId ||
+      !tenantId ||
+      !mongoose.Types.ObjectId.isValid(userId) ||
+      !mongoose.Types.ObjectId.isValid(tenantId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'An authenticated tenant administrator is required',
+      });
+    }
+
+    const requestedMaxUses = Number(req.body?.maxUses ?? 1);
+    const maxUses = Number.isInteger(requestedMaxUses)
+      ? requestedMaxUses
+      : 0;
+    const expiresInHours = Number(req.body?.expiresInHours ?? 72);
+
+    if (
+      maxUses < 1 ||
+      maxUses > 1000 ||
+      !Number.isInteger(expiresInHours) ||
+      expiresInHours < 1 ||
+      expiresInHours > 720
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invitation limits are invalid',
+      });
+    }
+
+    const code = crypto.randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+
+    await TenantInvitation.create({
+      tenantId,
+      createdBy: userId,
+      codeHash: hashToken(code),
+      expiresAt,
+      maxUses,
+    });
+
+    return res.status(201).json({
+      success: true,
+      invitation: {
+        code,
+        expiresAt,
+        maxUses,
+      },
+    });
+}
+
 /**
  * async function register(req, res) {
   try {
@@ -976,6 +1081,7 @@ export {
   // admin sessions
   adminListSessions,
   adminRevokeSession,
+  createTenantInvitation,
 
   // helpers
   findUserByEmail,

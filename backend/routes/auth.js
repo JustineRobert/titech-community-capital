@@ -131,6 +131,7 @@ const REQUIRED_AUTH_HANDLERS =
     'revokeSession',
     'adminListSessions',
     'adminRevokeSession',
+    'createTenantInvitation',
   ]);
 
 for (
@@ -771,6 +772,13 @@ router.post(
   asyncHandler(
     authController.login,
   ),
+);
+
+router.post(
+  '/tenant-invitations',
+  authenticate,
+  requireRole('admin'),
+  asyncHandler(authController.createTenantInvitation),
 );
 
 /**

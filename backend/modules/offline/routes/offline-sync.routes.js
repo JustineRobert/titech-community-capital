@@ -67,13 +67,10 @@
  * =============================================================================
  */
 
-const express = require('express');
+import express from 'express';
+import offlineSyncController from '../controllers/offlineSyncController.js';
 
 const router = express.Router();
-
-const offlineSyncController = require(
-  '../controllers/offlineSyncController',
-);
 
 // =============================================================================
 // Constants
@@ -689,4 +686,4 @@ router.get(
 // Export
 // =============================================================================
 
-module.exports = router;
+export default router;

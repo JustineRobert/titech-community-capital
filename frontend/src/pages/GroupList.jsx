@@ -486,7 +486,7 @@ export default function GroupList() {
       try {
         const response =
           await api.get(
-            '/api/groups',
+            '/groups',
             {
               signal:
                 controller.signal,
@@ -752,7 +752,7 @@ export default function GroupList() {
 
       try {
         await api.post(
-          `/api/groups/join/${encodeURIComponent(
+          `/groups/join/${encodeURIComponent(
             normalizedGroupId
           )}`,
           null,

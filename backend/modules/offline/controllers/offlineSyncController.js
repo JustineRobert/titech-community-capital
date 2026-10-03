@@ -72,11 +72,12 @@
  * =============================================================================
  */
 
-const crypto = require('crypto');
-
-const offline = require('../index');
+import crypto from 'node:crypto';
+import offline from '../index.js';
 
 const {
+  MODULE_NAME,
+  MODULE_VERSION,
   EVENT_METADATA,
   EVENT_VERSION,
   HEADERS,
@@ -1428,7 +1429,7 @@ const metadata = Object.freeze({
 // Public Controller API
 // =============================================================================
 
-module.exports = Object.freeze({
+export default Object.freeze({
   metadata,
 
   sync,

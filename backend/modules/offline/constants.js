@@ -217,7 +217,7 @@ const CONFLICT_RESOLUTION = Object.freeze({
 // Device Trust States
 // =============================================================================
 
-const DEVICE_STATUS = Object.freeze({
+export const DEVICE_STATUS = Object.freeze({
   PENDING: 'PENDING',
   ACTIVE: 'ACTIVE',
   SUSPENDED: 'SUSPENDED',
@@ -768,4 +768,4 @@ const OFFLINE_CONSTANTS = Object.freeze({
 // Public API
 // =============================================================================
 
-module.exports = OFFLINE_CONSTANTS;
+export default OFFLINE_CONSTANTS;
