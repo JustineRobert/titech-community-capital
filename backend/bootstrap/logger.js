@@ -69,9 +69,10 @@
  *
  * Dependency policy:
  *
- *   logger.js intentionally does NOT eagerly require hooks.js.
+ *   Bootstrap hook dependencies are exposed through the canonical
+ *   registerBootstrapHooks() adapter.
  *
- *   Bootstrap hook dependencies are loaded lazily through
+ *   Keeping the adapter here avoids forcing bootstrap callers to depend on
  *   registerBootstrapHooks().
  *
  *   This prevents:
@@ -93,15 +94,10 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import crypto from 'node:crypto';
-import { createRequire } from 'node:module';
 import os from 'node:os';
 import pino from 'pino';
 import hooksModule from './hooks.js';
 
-const require =
-  createRequire(
-    import.meta.url,
-  );
 
 /* =============================================================================
  * Constants
@@ -907,8 +903,12 @@ function createDestination(
   let prettyTarget;
 
   try {
+    if (typeof import.meta.resolve !== 'function') {
+      return undefined;
+    }
+
     prettyTarget =
-      require.resolve(
+      import.meta.resolve(
         'pino-pretty',
       );
   } catch {
@@ -1408,10 +1408,8 @@ async function initializeLogger(
  *
  * IMPORTANT:
  *
- * hooks.js is intentionally required lazily.
- *
- * This prevents logger.js from participating in the initial module dependency
- * cycle.
+ * hooks.js is accessed through a single canonical adapter so bootstrap callers
+ * do not need to depend on its internal representation.
  * =============================================================================
  */
 

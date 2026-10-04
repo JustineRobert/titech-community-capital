@@ -15,6 +15,7 @@ import { payrollApiRouter, payrollWebhookRouter } from '../modules/payroll/payro
 import LoansController from '../controllers/loansController.js';
 import groupWalletControllerModule from '../controllers/groupWalletController.js';
 import offlineSyncRoutes from '../modules/offline/routes/offline-sync.routes.js';
+import agricultureRoutes from '../modules/agriculture/routes/agriculture.routes.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import { param, validationResult } from 'express-validator';
@@ -1153,6 +1154,22 @@ router.use(
     authenticate,
     tenantAuthorization,
     operationsRoutes,
+);
+
+/**
+ * =============================================================================
+ * AGRICULTURE / PRODUCER ECONOMY
+ * =============================================================================
+ * Agriculture is an extension of the existing community-finance core. It does
+ * not own a second ledger, wallet, payment rail, or identity system.
+ * =============================================================================
+ */
+
+router.use(
+    `${API_PREFIX}/agriculture`,
+    authenticate,
+    tenantAuthorization,
+    agricultureRoutes,
 );
 
 

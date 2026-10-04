@@ -74,7 +74,25 @@ const GROUP_TYPES = Object.freeze([
   "investment",
   "community",
   "welfare",
+  "farmer_group",
+  "cooperative",
+  "producer_organization",
+  "vsla",
+  "sacco",
+  "chama",
+  "rosca",
+  "mixed_community_group",
 ]);
+
+const GROUP_CAPABILITIES_DEFAULTS = Object.freeze({
+  savings: true,
+  lending: false,
+  agriculture: false,
+  procurement: false,
+  collectiveSale: false,
+  inputFinancing: false,
+  collectiveInvestment: false,
+});
 
 const MEMBER_ROLES = Object.freeze([
   "member",
@@ -490,6 +508,23 @@ const groupSchema = new Schema(
       lowercase: true,
       trim: true,
       index: true,
+    },
+
+    // -------------------------------------------------------------------------
+    // CONFIGURABLE GROUP CAPABILITIES
+    // -------------------------------------------------------------------------
+
+    capabilities: {
+      type: new Schema({
+        savings: { type: Boolean, default: GROUP_CAPABILITIES_DEFAULTS.savings },
+        lending: { type: Boolean, default: GROUP_CAPABILITIES_DEFAULTS.lending },
+        agriculture: { type: Boolean, default: GROUP_CAPABILITIES_DEFAULTS.agriculture, index: true },
+        procurement: { type: Boolean, default: GROUP_CAPABILITIES_DEFAULTS.procurement },
+        collectiveSale: { type: Boolean, default: GROUP_CAPABILITIES_DEFAULTS.collectiveSale },
+        inputFinancing: { type: Boolean, default: GROUP_CAPABILITIES_DEFAULTS.inputFinancing },
+        collectiveInvestment: { type: Boolean, default: GROUP_CAPABILITIES_DEFAULTS.collectiveInvestment },
+      }, { _id: false, strict: true }),
+      default: () => ({ ...GROUP_CAPABILITIES_DEFAULTS }),
     },
 
     // -------------------------------------------------------------------------
@@ -1848,6 +1883,7 @@ export default Group;
 
 export {
   GROUP_TYPES,
+  GROUP_CAPABILITIES_DEFAULTS,
   MEMBER_ROLES,
   INVITATION_STATUSES,
   GROUP_STATUSES,
@@ -1861,7 +1897,7 @@ export const GROUP_MODEL_METADATA =
       "Group",
 
     schemaVersion:
-      3,
+      4,
 
     tenantField:
       "tenantId",

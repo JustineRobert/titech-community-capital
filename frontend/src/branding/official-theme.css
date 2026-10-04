@@ -1,6 +1,6 @@
 /**
  * TITech Community Capital - Official Theme Enforcement
- * Version: 2026-09-30
+ * Version: 2026-10-04
  *
  * This layer is intentionally presentation-only. It does not change financial,
  * authentication, tenancy, payment, ledger, routing or state-management logic.
@@ -50,6 +50,21 @@
   --titech-brand-community: var(--titech-official-green);
   --titech-brand-growth: var(--titech-official-lime);
   --titech-brand-sustainability: var(--titech-official-gold);
+
+  /* Canonical gradients: all are composed only from the supplied official palette. */
+  --titech-official-gradient-primary: linear-gradient(135deg, var(--titech-official-deep-blue), var(--titech-official-electric-blue));
+  --titech-official-gradient-impact: linear-gradient(135deg, var(--titech-official-electric-blue), var(--titech-official-cyan));
+  --titech-official-gradient-growth: linear-gradient(135deg, var(--titech-official-green), var(--titech-official-lime));
+  --titech-official-gradient-value: linear-gradient(135deg, var(--titech-official-deep-blue), var(--titech-official-gold));
+
+  /* Domain-specific semantic accents. */
+  --titech-agriculture-production: var(--titech-official-bright-blue);
+  --titech-agriculture-information: var(--titech-official-cyan);
+  --titech-agriculture-community: var(--titech-official-green);
+  --titech-agriculture-growth: var(--titech-official-lime);
+  --titech-agriculture-value: var(--titech-official-gold);
+  --titech-agriculture-text: var(--titech-official-navy);
+  --titech-agriculture-surface: var(--titech-official-white);
 }
 
 :root[data-titech-brand="official"][data-theme="dark"] {

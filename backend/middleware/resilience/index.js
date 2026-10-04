@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * =============================================================================
  * TITech Community Capital LTD
@@ -69,6 +67,30 @@
  *
  * =============================================================================
  */
+
+import OpossumBreakerImport from 'opossum';
+import rateLimiterFlexibleImport from 'rate-limiter-flexible';
+
+const OpossumBreaker =
+  typeof OpossumBreakerImport === 'function'
+    ? OpossumBreakerImport
+    : OpossumBreakerImport?.default;
+
+const RateLimiterMemory =
+  rateLimiterFlexibleImport?.RateLimiterMemory ||
+  rateLimiterFlexibleImport?.default?.RateLimiterMemory;
+
+if (typeof OpossumBreaker !== 'function') {
+  throw Object.assign(new Error('Opossum circuit breaker implementation is unavailable.'), {
+    code: 'RESILIENCE_OPOSSUM_UNAVAILABLE',
+  });
+}
+
+if (typeof RateLimiterMemory !== 'function') {
+  throw Object.assign(new Error('Rate limiter implementation is unavailable.'), {
+    code: 'RESILIENCE_RATE_LIMITER_UNAVAILABLE',
+  });
+}
 
 const COMPONENT = 'resilience';
 
@@ -178,51 +200,6 @@ let stopped = false;
 
 let initializePromise = null;
 let shutdownPromise = null;
-
-let OpossumBreaker = null;
-let RateLimiterMemory = null;
-
-loadOptionalDependencies();
-
-/**
- * =============================================================================
- * Optional Dependency Loading
- * =============================================================================
- *
- * The resilience subsystem must be able to boot even when optional providers
- * are unavailable. This is deliberately different from silently disabling
- * resilience itself.
- *
- * The core resilience primitives implemented below do not require external
- * dependencies.
- * =============================================================================
- */
-
-function loadOptionalDependencies() {
-  try {
-    // eslint-disable-next-line global-require
-    const loaded = require('opossum');
-
-    if (typeof loaded === 'function') {
-      OpossumBreaker = loaded;
-    } else if (typeof loaded?.default === 'function') {
-      OpossumBreaker = loaded.default;
-    }
-  } catch {
-    OpossumBreaker = null;
-  }
-
-  try {
-    // eslint-disable-next-line global-require
-    const loaded = require('rate-limiter-flexible');
-
-    if (typeof loaded?.RateLimiterMemory === 'function') {
-      RateLimiterMemory = loaded.RateLimiterMemory;
-    }
-  } catch {
-    RateLimiterMemory = null;
-  }
-}
 
 /**
  * =============================================================================
@@ -3560,7 +3537,7 @@ async function reset() {
  * =============================================================================
  */
 
-module.exports = Object.freeze({
+export default Object.freeze({
   /**
    * Metadata.
    */
@@ -3651,3 +3628,38 @@ module.exports = Object.freeze({
   BulkheadRejectedError,
   RateLimitExceededError,
 });
+
+export {
+  COMPONENT,
+  SERVICE_NAME,
+  VERSION,
+  initialize,
+  start,
+  shutdown,
+  isReady,
+  readiness,
+  health,
+  isStarted,
+  isStopped,
+  isFailed,
+  isDegraded,
+  getManager,
+  getResilience,
+  getState,
+  execute,
+  createCircuitBreaker,
+  getCircuitBreaker,
+  createRateLimiter,
+  consumeRateLimit,
+  createBulkhead,
+  middleware,
+  configure,
+  snapshot,
+  diagnostics,
+  reset,
+  ResilienceError,
+  TimeoutError,
+  CircuitOpenError,
+  BulkheadRejectedError,
+  RateLimitExceededError,
+};

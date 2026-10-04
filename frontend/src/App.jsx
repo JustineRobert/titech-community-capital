@@ -127,6 +127,10 @@ const CreateGroup = lazy(
   () => import('./pages/CreateGroupV2')
 );
 
+const AgricultureDashboard = lazy(
+  () => import('./pages/agriculture/AgricultureDashboard')
+);
+
 const NotFound = lazy(
   () => import('./pages/NotFound')
 );
@@ -171,6 +175,7 @@ const ROUTES = Object.freeze({
   GROUPS: '/groups',
   GROUP_DETAILS: '/groups/:groupId',
   CREATE_GROUP: '/create-group',
+  AGRICULTURE: '/agriculture',
 
   ADMIN: '/admin',
   ADMIN_SETTINGS: '/admin/settings',
@@ -715,6 +720,15 @@ function ProtectedApplicationRoutes() {
         element={
           <ProtectedRoute>
             <CreateGroup />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.AGRICULTURE}
+        element={
+          <ProtectedRoute>
+            <AgricultureDashboard />
           </ProtectedRoute>
         }
       />

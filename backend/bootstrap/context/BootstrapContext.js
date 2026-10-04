@@ -92,7 +92,7 @@
  * ✓ Production-safe diagnostics
  * ✓ Defensive serialization
  * ✓ CommonJS compatibility
- * ✓ Node.js 20+ compatible
+ * ✓ Node.js 24+ compatible
  *
  * =============================================================================
  */
@@ -1358,6 +1358,23 @@ export class BootstrapContext {
     return record;
   }
 
+  /**
+   * Canonical lifecycle compatibility alias.
+   *
+   * `startPhase()` owns phase-state mutation; `beginPhase()` exists so the
+   * canonical phase runner and the context expose one shared lifecycle API
+   * without introducing a second transition mechanism.
+   */
+  beginPhase(
+    phase,
+    metadata = {},
+  ) {
+    return this.startPhase(
+      phase,
+      metadata,
+    );
+  }
+
   completePhase(
     phase,
     metadata = {},
@@ -1476,10 +1493,18 @@ export class BootstrapContext {
       },
     );
 
-    this.markFailed(
-      error,
-      phase,
-    );
+    // A non-critical phase may fail while the process remains operational,
+    // but the runtime must be explicitly marked degraded. Critical phase
+    // failures transition the context to FAILED through the one canonical
+    // lifecycle transition API.
+    if (metadata?.critical === false) {
+      this.runtime.degraded = true;
+    } else {
+      this.markFailed(
+        error,
+        phase,
+      );
+    }
 
     return record;
   }
@@ -2411,8 +2436,15 @@ export class BootstrapContext {
       "services",
       "middleware",
       "routes",
-      "httpServer",
     ];
+
+    // HTTP server ownership is a composition-root policy. Tests and workers
+    // may intentionally run without a listening socket. Production server
+    // startup remains required by ApplicationBootstrap unless explicitly
+    // disabled by its options.
+    if (this.metadata?.requireHttpServer !== false) {
+      mandatoryDependencies.push("httpServer");
+    }
 
     for (
       const dependency of

@@ -220,7 +220,7 @@ const DEFAULT_PHASES =
         400,
 
       required:
-        false,
+        true,
 
       dependencies:
         [
@@ -252,7 +252,7 @@ const DEFAULT_PHASES =
         600,
 
       required:
-        false,
+        true,
 
       dependencies:
         [
@@ -339,6 +339,7 @@ const DEFAULT_PHASES =
           "routes",
         ],
     }),
+
   ]);
 
 /* =============================================================================
@@ -403,6 +404,19 @@ const PHASE_MODULE_CANDIDATES =
         "./server.js",
       ]),
   });
+
+/**
+ * ApplicationBootstrap historically exposes the HTTP phase as `server`, while
+ * BootstrapContext uses the canonical `httpServer` phase name. Keep one
+ * lifecycle state machine and translate only at that boundary.
+ */
+const CONTEXT_PHASE_ALIASES = Object.freeze({
+  server: "httpServer",
+});
+
+function getContextPhaseName(phaseName) {
+  return CONTEXT_PHASE_ALIASES[phaseName] || phaseName;
+}
 
 /* =============================================================================
  * ERRORS
@@ -1533,6 +1547,11 @@ class ApplicationBootstrap {
     contextData.serviceName =
       this.getServiceName();
 
+    contextData.metadata = {
+      ...(isObject(contextData.metadata) ? contextData.metadata : {}),
+      requireHttpServer: this.options.startServer !== false,
+    };
+
     contextData.signal =
       this.lifecycleAbortController
         .signal;
@@ -1634,13 +1653,19 @@ class ApplicationBootstrap {
       return this.logger;
     }
 
-    this.logger =
+    const normalizedLogger =
       Object.freeze({
         ...createFallbackLogger(),
         ...logger,
       });
 
-    return this.logger;
+    this.logger = normalizedLogger;
+
+    if (this.context) {
+      this.context.logger = normalizedLogger;
+    }
+
+    return normalizedLogger;
   }
 
   log(
@@ -2516,10 +2541,23 @@ class ApplicationBootstrap {
     const phaseStart =
       Date.now();
 
+    const contextPhase =
+      getContextPhaseName(definition.name);
+
     try {
       this.assertPhaseDependenciesStarted(
         definition,
       );
+
+      if (typeof this.context?.startPhase === "function") {
+        this.context.startPhase(
+          contextPhase,
+          {
+            applicationPhase: definition.name,
+            required: definition.required,
+          },
+        );
+      }
 
       const implementation =
         await this.resolvePhaseImplementation(
@@ -2565,6 +2603,16 @@ class ApplicationBootstrap {
             phaseStart,
           );
 
+        if (typeof this.context?.skipPhase === "function") {
+          this.context.skipPhase(
+            contextPhase,
+            state.skippedReason,
+            {
+              applicationPhase: definition.name,
+            },
+          );
+        }
+
         this.emit(
           "phase.skipped",
           {
@@ -2600,6 +2648,16 @@ class ApplicationBootstrap {
       this.applyPhaseResult(
         result,
       );
+
+      if (typeof this.context?.completePhase === "function") {
+        this.context.completePhase(
+          contextPhase,
+          {
+            applicationPhase: definition.name,
+            required: definition.required,
+          },
+        );
+      }
 
       state.result =
         result;
@@ -2653,6 +2711,22 @@ class ApplicationBootstrap {
         elapsedMs(
           phaseStart,
         );
+
+      try {
+        if (typeof this.context?.failPhase === "function") {
+          this.context.failPhase(
+            contextPhase,
+            error,
+            {
+              applicationPhase: definition.name,
+              critical: definition.required,
+            },
+          );
+        }
+      } catch {
+        // Preserve the original phase error. Context failure-recording is
+        // diagnostic and must never mask the underlying bootstrap failure.
+      }
 
       this.emit(
         "phase.failed",
@@ -2721,16 +2795,78 @@ class ApplicationBootstrap {
       typeof result.context ===
         "object"
     ) {
-      const {
-        state: _ignoredState,
-        _state: _ignoredInternalState,
-        ...safeContext
-      } = result.context;
+      const allowedContextFields = new Set([
+        "environment",
+        "configuration",
+        "logger",
+        "observability",
+        "readiness",
+        "resilience",
+        "infrastructure",
+        "services",
+        "middleware",
+        "routes",
+        "application",
+        "httpServer",
+        "server",
+        "container",
+        "metadata",
+        "runtime",
+      ]);
 
-      Object.assign(
-        this.context,
-        safeContext,
-      );
+      for (const field of allowedContextFields) {
+        if (!Object.prototype.hasOwnProperty.call(result.context, field)) {
+          continue;
+        }
+
+        if (field === "application") {
+          if (result.context.application) {
+            this.setApplication(result.context.application);
+          }
+          continue;
+        }
+
+        if (field === "logger") {
+          if (result.context.logger) {
+            this.setLogger(result.context.logger);
+          }
+          continue;
+        }
+
+        if (field === "container") {
+          if (isObject(result.context.container)) {
+            this.context.container = {
+              ...this.context.container,
+              ...result.context.container,
+            };
+          }
+          continue;
+        }
+
+        if (field === "metadata") {
+          if (isObject(result.context.metadata)) {
+            this.context.metadata = {
+              ...this.context.metadata,
+              ...result.context.metadata,
+            };
+          }
+          continue;
+        }
+
+        if (field === "runtime") {
+          if (isObject(result.context.runtime)) {
+            for (const [key, value] of Object.entries(result.context.runtime)) {
+              if (key === "ready" || key === "acceptingTraffic" || key === "shuttingDown" || key === "shutdownComplete" || key === "degraded" || key === "startupDurationMs" || key === "shutdownDurationMs") {
+                this.context.runtime[key] = value;
+              }
+            }
+          }
+          continue;
+        }
+
+        // Explicitly apply only known, non-lifecycle context dependencies.
+        this.context[field] = result.context[field];
+      }
     }
 
     if (
@@ -3256,31 +3392,48 @@ class ApplicationBootstrap {
     this.completedPhases =
       [];
 
+    const incomingContext =
+      isObject(suppliedContext)
+        ? { ...suppliedContext }
+        : {};
+
+    // A failed/stopped context is terminal evidence for that bootstrap
+    // attempt. Restart with a fresh context rather than mutating protected
+    // lifecycle state or carrying stale resources into the next attempt.
+    const existingState =
+      typeof this.context?.getState === "function"
+        ? this.context.getState()
+        : this.context?.state;
+
     if (
-      !this.context
+      !this.context ||
+      existingState === "failed" ||
+      existingState === "stopped"
     ) {
       this.context =
         this.createContext(
-          suppliedContext,
-        );
-    } else {
-      Object.assign(
-        this.context,
-        suppliedContext || {},
-      );
-
-      this.context =
-        this.createContext(
-          this.context,
+          incomingContext,
         );
     }
 
     if (
-      this.context.application
+      typeof this.context?.getState === "function" &&
+      this.context.getState() === "created"
     ) {
-      this.setApplication(
-        this.context.application,
-      );
+      this.context.metadata.requireHttpServer =
+        this.options.startServer !== false;
+      this.context.start();
+    }
+
+    if (this.context.application) {
+      if (!this.application) {
+        this.setApplication(this.context.application);
+      } else if (this.application !== this.context.application) {
+        throw new ApplicationBootstrapError(
+          "The bootstrap context attempted to replace the active Express application during startup.",
+          { code: "APPLICATION_REPLACEMENT_ATTEMPT" },
+        );
+      }
     }
 
     if (
@@ -3486,6 +3639,19 @@ class ApplicationBootstrap {
         }
       }
 
+      // Complete the context's final runtimeReady phase only after the full
+      // application composition sequence has completed. BootstrapContext
+      // validates the entire phase chain before entering READY.
+      if (typeof this.context?.startPhase === "function") {
+        this.context.startPhase("runtimeReady", {
+          serverEnabled: this.options.startServer !== false,
+        });
+        this.context.completePhase("runtimeReady", {
+          serverEnabled: this.options.startServer !== false,
+        });
+        this.context.markReady();
+      }
+
       if (
         this.options
           .requireApplication
@@ -3547,6 +3713,15 @@ class ApplicationBootstrap {
         );
       }
 
+      try {
+        if (this.context?.isFailed?.() || this.context?.isStarting?.()) {
+          this.context.beginShutdownAfterFailure?.("startup_failure");
+          this.context.markStopped?.();
+        }
+      } catch {
+        // Preserve the original startup failure.
+      }
+
       throw error;
     }
   }
@@ -3579,6 +3754,14 @@ class ApplicationBootstrap {
 
       state.completedAt =
         now();
+
+      if (typeof this.context?.skipPhase === "function") {
+        this.context.skipPhase(
+          getContextPhaseName("server"),
+          state.skippedReason,
+          { applicationPhase: "server" },
+        );
+      }
 
       this.emit(
         "phase.skipped",
@@ -3630,7 +3813,16 @@ class ApplicationBootstrap {
     const serverStart =
       Date.now();
 
+    const contextPhase = getContextPhaseName("server");
+
     try {
+      if (typeof this.context?.startPhase === "function") {
+        this.context.startPhase(contextPhase, {
+          applicationPhase: "server",
+          required: true,
+        });
+      }
+
       const result =
         await withTimeout(
           signal =>
@@ -3649,6 +3841,13 @@ class ApplicationBootstrap {
 
       state.result =
         result;
+
+      if (typeof this.context?.completePhase === "function") {
+        this.context.completePhase(
+          contextPhase,
+          { applicationPhase: "server", required: true },
+        );
+      }
 
       state.status =
         "started";
@@ -3699,6 +3898,16 @@ class ApplicationBootstrap {
         elapsedMs(
           serverStart,
         );
+
+      try {
+        this.context?.failPhase?.(
+          contextPhase,
+          error,
+          { applicationPhase: "server", critical: true },
+        );
+      } catch {
+        // Preserve the original server startup error.
+      }
 
       this.emit(
         "phase.failed",
@@ -3995,6 +4204,16 @@ class ApplicationBootstrap {
       false;
 
     try {
+      const contextState = this.context?.getState?.();
+      if (contextState && ["starting", "ready", "failed"].includes(contextState)) {
+        this.context.beginShutdown?.(reason);
+      }
+    } catch {
+      // Preserve shutdown flow; lifecycle state errors are surfaced through
+      // diagnostics and the original shutdown work remains authoritative.
+    }
+
+    try {
       if (
         !this.lifecycleAbortController
           .signal.aborted
@@ -4073,6 +4292,14 @@ class ApplicationBootstrap {
           shutdownError ||
           error;
       }
+    }
+
+    try {
+      if (this.context?.getState?.() === "shutting_down") {
+        this.context.markStopped?.();
+      }
+    } catch (error) {
+      shutdownError = shutdownError || error;
     }
 
     this.stopping =

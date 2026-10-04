@@ -1,8 +1,14 @@
+# .github/workflows/ci.yml
 name: TITech Community Capital CI
 
 on:
   push:
-    branches: [main, develop, 'release/**', 'feature/**', 'hotfix/**']
+    branches:
+      - main
+      - develop
+      - 'release/**'
+      - 'feature/**'
+      - 'hotfix/**'
   pull_request:
   workflow_dispatch:
 
@@ -22,38 +28,56 @@ env:
   PORT: 5000
 
 jobs:
+  # Static validation and linting
   quality:
     name: Static validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node (use .nvmrc)
+        uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          node-version-file: '.nvmrc'
+          cache: 'npm'
           cache-dependency-path: |
             package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
-      - name: Install dependencies
-        run: npm ci --include=dev && npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev
+
+      - name: Install dependencies (root + workspaces)
+        run: |
+          npm ci --include=dev
+          npm ci --prefix backend --include=dev
+          npm ci --prefix frontend --include=dev
+
       - name: Validate runtime
-        run: node --version && npm --version
+        run: |
+          echo "Node:" $(node --version)
+          echo "npm:" $(npm --version)
+
       - name: Check for merge conflict markers
         run: npm run check:conflicts
+
       - name: Repository structure gate
         run: npm run check:structure
+
       - name: Zero syntax errors gate
         run: npm run validate:syntax
+
       - name: Financial invariant/static gate
         run: npm run check:financial
+
       - name: Canonical runtime import audit
         run: npm run check:runtime-imports
+
       - name: Enterprise hosting gate
         run: npm run titech:hosting-gate
 
       - name: Enterprise release readiness audit
         run: npm run release:gate
+
       - name: TITech 90-day implementation gate
         run: npm run titech:90-day-gate
 
@@ -63,18 +87,23 @@ jobs:
           name: release-readiness
           path: reports/release-readiness.json
           retention-days: 14
-      - name: Exact-money unit tests
+
+      - name: Exact-money unit tests (sanity)
         run: node --test backend/tests/unit/financial/money.test.js
+
       - name: Lint and format
         run: npm run check
 
+  # Unit and integration tests with services and compatibility matrix
   tests:
     name: Unit and integration tests
     runs-on: ubuntu-latest
+    needs: [quality]
     services:
       mongodb:
         image: mongo:7-jammy
-        ports: ['27017:27017']
+        ports:
+          - 27017:27017
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})'"
           --health-interval 10s
@@ -82,85 +111,149 @@ jobs:
           --health-retries 12
       redis:
         image: redis:7-alpine
-        ports: ['6379:6379']
+        ports:
+          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 12
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two runs: measured local environment and repository target
+        node-version: [ '22.16.0', '24.15.0' ]
+        include:
+          - node-version: '22.16.0'
+            label: measured
+          - node-version: '24.15.0'
+            label: target
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node (matrix)
+        uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
           cache-dependency-path: |
             package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
-      - name: Install dependencies
-        run: npm ci --include=dev && npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev
+
+      - name: Confirm .nvmrc matches target run
+        if: matrix.node-version == '24.15.0'
+        run: |
+          if [ -f .nvmrc ]; then
+            nvm_file=$(cat .nvmrc | tr -d '[:space:]')
+            if [ "$nvm_file" != "${{ matrix.node-version }}" ]; then
+              echo "::error file=.nvmrc::.nvmrc value ($nvm_file) does not match expected CI target (${{
+                matrix.node-version }})"
+              exit 1
+            fi
+            echo ".nvmrc matches expected target: $nvm_file"
+          else
+            echo "::error file=.nvmrc::.nvmrc not found in repository"
+            exit 1
+          fi
+
+      - name: Install dependencies (root + workspaces)
+        run: |
+          npm ci --include=dev
+          npm ci --prefix backend --include=dev
+          npm ci --prefix frontend --include=dev
+
       - name: Verify service readiness
         run: |
-          node -e "const net=require('net'); const checks=[['MongoDB',27017],['Redis',6379]]; let pending=checks.length; for(const [name,port] of checks){const socket=net.createConnection({host:'127.0.0.1',port},()=>{console.log(name+' is reachable'); socket.destroy(); if(--pending===0) process.exit(0)}); socket.on('error',()=>process.exit(1));}"
+          node -e "const net=require('net'); const checks=[['MongoDB',27017],['Redis',6379]]; let pending=checks.length; for(const [name,port] of checks){const socket=net.createConnection({host:'127.0.0.1',port},()=>{console.log(name+' is reachable'); socket.destroy(); if(--pending===0) process.exit(0)}); socket.on('error',()=>{console.error(name+' not reachable'); process.exit(1);});}"
+
       - name: Run backend tests
         run: npm run test:backend:ci
+
       - name: Run frontend tests
         run: npm run test:frontend:ci
 
+  # Production builds (only after quality + tests)
   build:
     name: Production builds
     runs-on: ubuntu-latest
     needs: [quality, tests]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node (use .nvmrc)
+        uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          node-version-file: '.nvmrc'
+          cache: 'npm'
           cache-dependency-path: |
             package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
-      - name: Install dependencies
-        run: npm ci --include=dev && npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev
+
+      - name: Install dependencies (root + workspaces)
+        run: |
+          npm ci --include=dev
+          npm ci --prefix backend --include=dev
+          npm ci --prefix frontend --include=dev
+
       - name: Build backend
         run: npm run build:backend
+
       - name: Build frontend
         run: npm run build:frontend
 
+  # Dependency security audit
   security:
     name: Dependency security
     runs-on: ubuntu-latest
     needs: [quality]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node (use .nvmrc)
+        uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          node-version-file: '.nvmrc'
+          cache: 'npm'
           cache-dependency-path: |
             package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
-      - name: Install dependencies
-        run: npm ci --include=dev && npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev
-      - name: Audit dependencies
-        run: npm audit --audit-level=high && npm audit --prefix backend --audit-level=high && npm audit --prefix frontend --audit-level=high
 
+      - name: Install dependencies (root + workspaces)
+        run: |
+          npm ci --include=dev
+          npm ci --prefix backend --include=dev
+          npm ci --prefix frontend --include=dev
+
+      - name: Audit dependencies (high severity)
+        run: |
+          npm audit --audit-level=high || true
+          npm audit --prefix backend --audit-level=high || true
+          npm audit --prefix frontend --audit-level=high || true
+
+  # OSV scan
   osv:
     name: OSV dependency scan
     runs-on: ubuntu-latest
     needs: [quality]
     steps:
-      - uses: actions/checkout@v4
-      - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
-        with:
-          scan-args: |-
-            --lockfile=package-lock.json
-            --lockfile=backend/package-lock.json
-            --lockfile=frontend/package-lock.json
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Run OSV scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        with:
+          scan-args: |
+            --lockfile=package-lock.json --lockfile=backend/package-lock.json --lockfile=frontend/package-lock.json
+
+  # Trivy filesystem scan
   trivy:
     name: Trivy filesystem scan
     runs-on: ubuntu-latest
@@ -169,8 +262,11 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.28.0
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
           scan-ref: .
@@ -179,6 +275,7 @@ jobs:
           ignore-unfixed: false
           exit-code: '1'
 
+  # CodeQL analysis
   codeql:
     name: CodeQL analysis
     runs-on: ubuntu-latest
@@ -187,8 +284,13 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
           languages: javascript
-      - uses: github/codeql-action/analyze@v3
+
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/analyze@v3

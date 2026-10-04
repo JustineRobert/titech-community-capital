@@ -1,21 +1,21 @@
 # TITech Community Capital — Implementation Inventory
 
-**Snapshot:** 03 October 2026  
+**Snapshot:** 04 October 2026  
 **Source of truth:** latest uploaded `titech-community-capital-main.zip` plus the remediation working tree.
 
 ## Current repository metrics
 
 | Metric | Current result |
 |---|---:|
-| Executable JS/TS-family files | 2,274 |
-| Backend source files scanned by runtime import audit | 1,902 |
+| Executable JS/TS-family files | 2,294 |
+| Backend source files scanned by runtime import audit | 1,921 |
 | Repository-wide legacy/non-critical missing local imports | 249 |
 | Missing local imports on canonical financial surface | 0 |
 | Mixed-module violations on canonical financial surface | 0 |
-| Zero-byte files | 242 |
+| Zero-byte files | 251 |
 | Critical-finance zero-byte files | 0 |
-| Test files | 147 |
-| Empty test files | 27 |
+| Test/spec-named files | 156 |
+| Empty test/spec files | 25 |
 | Planned non-executable test specs | 33 |
 | Merge-conflict scan | PASS |
 | Official theme audit | PASS |
@@ -108,6 +108,17 @@
 - legal/regulatory review;
 - three institution pilots;
 - paying customer and revenue evidence.
+
+## 04 October 2026 additions
+
+- Canonical bootstrap lifecycle/result application was hardened against protected-state mutation and repeat-start identity replacement.
+- Canonical logger ESM boundary was cleaned up; the runtime-import audit now reports zero mixed-module violations on the critical financial surface.
+- Agriculture is implemented as a tenant-scoped module using the existing Group/Member/RBAC/audit/financial transaction/outbox architecture.
+- Agricultural settlement confirmation transitions the delivery to `SETTLED` inside the same financial transaction boundary as the ledger transaction.
+- Agriculture UI is available at `/agriculture` and consumes the same tenant-aware API.
+- Official agriculture semantic theme tokens were added without changing the nine official palette values.
+- A safe agriculture foundation migration is provided in dry-run-by-default mode.
+- Local contract tests cover bootstrap imports/state/restarts and exact-money agricultural allocation invariants.
 
 ## Certification
 

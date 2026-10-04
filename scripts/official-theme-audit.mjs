@@ -134,6 +134,6 @@ const result = {
   checks,
 };
 fs.mkdirSync(path.join(ROOT, 'reports'), { recursive: true });
-fs.writeFileSync(path.join(ROOT, 'reports/official-theme-audit-2026-10-03.json'), JSON.stringify(result, null, 2) + '\n');
+fs.writeFileSync(path.join(ROOT, 'reports/official-theme-audit-2026-10-04.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result, null, 2));
 if (result.status === 'FAIL') process.exitCode = 1;

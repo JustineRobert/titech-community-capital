@@ -29,17 +29,27 @@ const ROLE_PERMISSIONS = Object.freeze({
     'consent:read', 'consent:grant', 'consent:withdraw',
     'capital:share:read', 'capital:share:create', 'capital:share:revoke',
     'support:case:read', 'support:case:create', 'support:case:transition',
+    'agriculture:read', 'agriculture:write', 'agriculture:manage', 'agriculture:verify', 'agriculture:settle', 'agriculture:finance', 'agriculture:audit:read',
   ]),
   COMPLIANCE_OFFICER: new Set([
     'consent:read', 'consent:withdraw', 'capital:share:read', 'capital:share:approve',
-    'support:case:read', 'support:case:transition',
+    'support:case:read', 'support:case:transition', 'agriculture:read', 'agriculture:audit:read',
   ]),
   APPROVER: new Set([
     'capital:share:read', 'capital:share:approve',
     'support:case:read', 'support:case:transition',
   ]),
   SUPPORT_AGENT: new Set(['support:case:read', 'support:case:create', 'support:case:transition']),
-  AUDITOR: new Set(['consent:read', 'capital:share:read', 'support:case:read']),
+  AUDITOR: new Set(['consent:read', 'capital:share:read', 'support:case:read', 'agriculture:read', 'agriculture:audit:read']),
+  AGRICULTURE_MANAGER: new Set(['agriculture:read', 'agriculture:write', 'agriculture:manage', 'agriculture:verify']),
+  FIELD_AGENT: new Set(['agriculture:read', 'agriculture:write']),
+  GROUP_ADMIN: new Set(['agriculture:read', 'agriculture:write', 'agriculture:verify']),
+  GROUP_LEADER: new Set(['agriculture:read', 'agriculture:write']),
+  PRODUCER: new Set(['agriculture:read', 'agriculture:write']),
+  BUYER: new Set(['agriculture:read', 'agriculture:write', 'agriculture:settle']),
+  SUPPLIER: new Set(['agriculture:read', 'agriculture:write']),
+  FINANCE_OFFICER: new Set(['agriculture:read', 'agriculture:settle', 'agriculture:finance']),
+  RISK_OFFICER: new Set(['agriculture:read', 'agriculture:risk:read']),
 });
 
 function normalizedPermissions(user = {}) {

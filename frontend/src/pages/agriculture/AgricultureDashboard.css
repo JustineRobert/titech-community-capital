@@ -1,0 +1,41 @@
+.agriculture-page { min-height: calc(100vh - 120px); padding: 28px; }
+.agriculture-hero { display:flex; justify-content:space-between; gap:24px; align-items:flex-end; padding:28px; border-radius:20px; color:var(--titech-official-white); box-shadow:0 18px 50px rgb(0 48 160 / .16); }
+.agriculture-eyebrow,.agri-kicker { display:block; text-transform:uppercase; letter-spacing:.12em; font-size:.72rem; font-weight:800; opacity:.9; }
+.agriculture-hero h1 { margin:8px 0; font-size:clamp(1.8rem,3vw,2.7rem); }
+.agriculture-hero p { max-width:760px; margin:0; color:rgb(255 255 255 / .9); line-height:1.6; }
+.agriculture-status { display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px; background:rgb(255 255 255 / .13); border:1px solid rgb(255 255 255 / .26); white-space:nowrap; }
+.agri-dot { width:10px; height:10px; border-radius:50%; background:var(--titech-official-gold); }
+.agri-dot--online { background:var(--titech-official-lime); }
+.agriculture-metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; margin:18px 0; }
+.agri-metric { position:relative; overflow:hidden; min-height:112px; padding:18px; border:1px solid var(--titech-color-border); border-radius:16px; background:var(--titech-color-surface); box-shadow:0 8px 28px rgb(8 43 103 / .06); }
+.agri-metric strong { display:block; font-size:1.85rem; color:var(--titech-color-text); }
+.agri-metric span { color:var(--titech-color-text-muted); }
+.agri-metric__accent { position:absolute; inset:0 0 auto; height:5px; background:var(--titech-official-deep-blue); }
+.agri-metric--interactive .agri-metric__accent { background:var(--titech-official-electric-blue); }
+.agri-metric--bright .agri-metric__accent { background:var(--titech-official-bright-blue); }
+.agri-metric--information .agri-metric__accent { background:var(--titech-official-cyan); }
+.agri-metric--community .agri-metric__accent { background:var(--titech-official-green); }
+.agriculture-grid { display:grid; grid-template-columns:2fr 1fr; gap:18px; }
+.agriculture-card { padding:22px; border:1px solid var(--titech-color-border); border-radius:18px; background:var(--titech-color-surface); }
+.agriculture-card--accent { background:linear-gradient(135deg,rgb(168 240 0 / .16),rgb(248 216 0 / .12)); border-color:rgb(168 240 0 / .4); }
+.agriculture-card h2 { margin:6px 0 10px; color:var(--titech-color-text); }
+.agriculture-card p { color:var(--titech-color-text-muted); line-height:1.6; }
+.agriculture-card__heading { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.agri-refresh { border:1px solid var(--titech-official-electric-blue); border-radius:10px; background:var(--titech-color-surface); color:var(--titech-official-deep-blue); padding:8px 12px; font-weight:700; cursor:pointer; }
+.agri-refresh:hover:not(:disabled) { background:var(--titech-official-electric-blue); color:var(--titech-official-white); }
+.agri-flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:18px; }
+.agri-flow__step { display:flex; align-items:center; gap:8px; border-radius:12px; padding:10px 12px; background:rgb(0 48 160 / .07); color:var(--titech-official-navy); font-weight:700; }
+.agri-flow__step span { width:22px; height:22px; display:grid; place-items:center; border-radius:50%; background:var(--titech-official-deep-blue); color:var(--titech-official-white); font-size:.72rem; }
+.agri-flow__step--1 span { background:var(--titech-official-electric-blue); }
+.agri-flow__step--2 span { background:var(--titech-official-cyan); color:var(--titech-official-navy); }
+.agri-flow__step--3 span { background:var(--titech-official-green); }
+.agri-flow__step--4 span { background:var(--titech-official-bright-blue); }
+.agri-flow__arrow { color:var(--titech-official-electric-blue); font-weight:900; }
+.agri-legend { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; color:var(--titech-color-text-muted); font-size:.85rem; }
+.agri-legend span { display:flex; align-items:center; gap:6px; }
+.legend-swatch { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.legend-swatch--cyan { background:var(--titech-official-cyan); }.legend-swatch--lime { background:var(--titech-official-lime); }.legend-swatch--gold { background:var(--titech-official-gold); }.legend-swatch--green { background:var(--titech-official-green); }
+.agri-kicker--growth { color:var(--titech-official-green); }
+.agriculture-alert { margin:16px 0; padding:12px 14px; border:1px solid rgb(248 216 0 / .5); border-radius:12px; background:rgb(248 216 0 / .14); color:var(--titech-color-text); }
+@media (max-width: 1050px) { .agriculture-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); } .agriculture-grid { grid-template-columns:1fr; } }
+@media (max-width: 720px) { .agriculture-page { padding:16px; } .agriculture-hero { flex-direction:column; align-items:flex-start; } .agriculture-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .agriculture-status { white-space:normal; } }
