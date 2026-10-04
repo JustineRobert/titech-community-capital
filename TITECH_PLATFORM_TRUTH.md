@@ -53,3 +53,20 @@ The platform remains an engineering artifact for controlled pilot operation, not
 ## Production decision
 
 The platform may be treated as pilot-ready for controlled operational experiments and staged onboarding, but not as enterprise production infrastructure approved for live institutional financial operations.
+
+## 2026-10-04 Archive Truth Snapshot
+
+The current machine-generated source-of-truth inventory is:
+
+- `docs/evidence/platform-truth.json`
+- `docs/evidence/production-readiness.md`
+- `docs/evidence/financial-invariants.md`
+- `docs/evidence/provider-proof.md`
+- `docs/evidence/reconciliation-proof.md`
+- `docs/evidence/security-assessment.md`
+- `docs/evidence/backup-restore-proof.md`
+- `docs/evidence/tenant-isolation-proof.md`
+- `docs/evidence/pilot-readiness.md`
+- `docs/evidence/FINAL-IMPLEMENTATION-REPORT.md`
+
+Source-only evidence does not authorize `productionApproved=true`; runtime, provider, security, restore and pilot evidence remain separate gates.

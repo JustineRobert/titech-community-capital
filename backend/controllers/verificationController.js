@@ -1,11 +1,11 @@
 // controllers/verificationController.js
 
-const OTPService = require('../services/otpService');
+const OTPService = require('../services/otpService.cjs');
 
-const verifyOTP = (req, res) => {
+const verifyOTP = async (req, res) => {
   const { userId, otp } = req.body;
 
-  const isValid = OTPService.verifyOTP(userId, otp);
+  const isValid = await OTPService.verifyOTP(userId, otp);
 
   if (!isValid) {
     return res.status(400).json({

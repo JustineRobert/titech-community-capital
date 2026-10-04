@@ -420,3 +420,154 @@
 :root[data-titech-brand="official"] ::-webkit-scrollbar-thumb:hover {
   background: var(--titech-official-bright-blue);
 }
+
+/* ========================================================================== */
+/* Platform-wide legacy surface harmonization                               */
+/* ========================================================================== */
+/*
+ * Older page styles may still declare local visual token names. The rules
+ * below bind the most common control/surface primitives to the official theme
+ * while leaving financial state colors (success/warning/danger/pending) under
+ * their semantic contract.
+ */
+:root[data-titech-brand="official"] {
+  --primary-color: var(--titech-official-deep-blue);
+  --primary-hover: var(--titech-official-electric-blue);
+  --primary-blue: var(--titech-official-deep-blue);
+  --secondary-color: var(--titech-official-electric-blue);
+  --accent-color: var(--titech-official-cyan);
+  --brand-green: var(--titech-official-green);
+  --brand-lime: var(--titech-official-lime);
+  --brand-gold: var(--titech-official-gold);
+  --brand-navy: var(--titech-official-navy);
+  --app-background: var(--titech-color-background);
+  --page-background: var(--titech-color-background);
+  --surface-background: var(--titech-color-surface);
+  --surface-muted: var(--titech-color-surface-muted);
+  --border-color: var(--titech-color-border);
+  --text-primary: var(--titech-color-text);
+  --text-secondary: var(--titech-color-text-muted);
+}
+
+:root[data-titech-brand="official"] button:not([aria-disabled="true"]):hover,
+:root[data-titech-brand="official"] [role="button"]:hover,
+:root[data-titech-brand="official"] .btn:hover,
+:root[data-titech-brand="official"] .button:hover {
+  border-color: var(--titech-official-electric-blue);
+}
+
+:root[data-titech-brand="official"] .btn-primary,
+:root[data-titech-brand="official"] .button-primary,
+:root[data-titech-brand="official"] [class*="primary-button"] {
+  background: var(--titech-official-deep-blue);
+  border-color: var(--titech-official-deep-blue);
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .btn-primary:hover,
+:root[data-titech-brand="official"] .button-primary:hover,
+:root[data-titech-brand="official"] [class*="primary-button"]:hover {
+  background: var(--titech-official-electric-blue);
+  border-color: var(--titech-official-electric-blue);
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .btn-outline,
+:root[data-titech-brand="official"] .button-outline,
+:root[data-titech-brand="official"] [class*="secondary-button"] {
+  background: var(--titech-color-surface);
+  border-color: var(--titech-official-electric-blue);
+  color: var(--titech-official-deep-blue);
+}
+
+:root[data-titech-brand="official"] .btn-outline:hover,
+:root[data-titech-brand="official"] .button-outline:hover,
+:root[data-titech-brand="official"] [class*="secondary-button"]:hover {
+  background: var(--titech-color-surface-muted);
+}
+
+:root[data-titech-brand="official"] .sidebar,
+:root[data-titech-brand="official"] .side-nav,
+:root[data-titech-brand="official"] .admin-sidebar,
+:root[data-titech-brand="official"] [data-navigation="sidebar"] {
+  background: var(--titech-official-deep-blue);
+  border-color: var(--titech-official-electric-blue);
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .sidebar a,
+:root[data-titech-brand="official"] .side-nav a,
+:root[data-titech-brand="official"] .admin-sidebar a,
+:root[data-titech-brand="official"] [data-navigation="sidebar"] a {
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .sidebar a:hover,
+:root[data-titech-brand="official"] .side-nav a:hover,
+:root[data-titech-brand="official"] .admin-sidebar a:hover,
+:root[data-titech-brand="official"] [data-navigation="sidebar"] a:hover {
+  background: var(--titech-official-electric-blue);
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .table-header,
+:root[data-titech-brand="official"] .data-table thead,
+:root[data-titech-brand="official"] [data-table-header] {
+  background: var(--titech-official-deep-blue);
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .link-primary,
+:root[data-titech-brand="official"] .text-primary,
+:root[data-titech-brand="official"] [data-brand-role="link"] {
+  color: var(--titech-official-electric-blue);
+}
+
+:root[data-titech-brand="official"] .link-primary:hover,
+:root[data-titech-brand="official"] .text-primary:hover,
+:root[data-titech-brand="official"] [data-brand-role="link"]:hover {
+  color: var(--titech-official-bright-blue);
+}
+
+:root[data-titech-brand="official"] .brand-chip--community {
+  background: var(--titech-official-green);
+  color: var(--titech-official-white);
+}
+
+:root[data-titech-brand="official"] .brand-chip--growth {
+  background: var(--titech-official-lime);
+  color: var(--titech-official-navy);
+}
+
+:root[data-titech-brand="official"] .brand-chip--value {
+  background: var(--titech-official-gold);
+  color: var(--titech-official-navy);
+}
+
+:root[data-titech-brand="official"] .brand-chip--information {
+  background: var(--titech-official-cyan);
+  color: var(--titech-official-navy);
+}
+
+:root[data-titech-brand="official"] .titech-theme-gradient,
+:root[data-titech-brand="official"] [data-titech-gradient="primary"] {
+  background-image: var(--titech-official-gradient-primary);
+}
+
+:root[data-titech-brand="official"] [data-titech-gradient="impact"] {
+  background-image: var(--titech-official-gradient-impact);
+}
+
+:root[data-titech-brand="official"] [data-titech-gradient="growth"] {
+  background-image: var(--titech-official-gradient-growth);
+}
+
+:root[data-titech-brand="official"] [data-titech-gradient="value"] {
+  background-image: var(--titech-official-gradient-value);
+}
+
+@media (forced-colors: active) {
+  :root[data-titech-brand="official"] * {
+    forced-color-adjust: auto;
+  }
+}

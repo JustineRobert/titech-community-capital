@@ -1,0 +1,305 @@
+{
+  "generatedAt": "2026-10-04T19:53:46.683301+00:00",
+  "sourceArchive": "titech-community-capital-main(4).zip",
+  "currentRepository": "titech-community-capital",
+  "baselineFileCount": 3019,
+  "currentFileCount": 3058,
+  "addedCountExcludingSelf": 38,
+  "deletedCount": 0,
+  "modifiedCount": 9,
+  "added": [
+    {
+      "path": "backend/constants/httpStatus.js",
+      "size": 472,
+      "sha256": "5b6c6d260ebda226366845e8f08fc431af11c2707b4da49e38c92cf119d5975e"
+    },
+    {
+      "path": "backend/jobs/emailService.js",
+      "size": 223,
+      "sha256": "448f8fb057e6d178c3b3ccd0150b616af85785a5a71249f363132679c0a18483"
+    },
+    {
+      "path": "backend/jobs/loanWorkflowService.js",
+      "size": 226,
+      "sha256": "2351ca995c8d04bc128f0b21a13095addd5323ef4e78e7719605f344fb85031c"
+    },
+    {
+      "path": "backend/middleware/authorizeMiddleware.js",
+      "size": 613,
+      "sha256": "814a8e8e35a0d8efcc7bbbd161b5f5ab9b2df6aa521c6e77f1191d824731bff2"
+    },
+    {
+      "path": "backend/middleware/resilience/retryErrors.js",
+      "size": 346,
+      "sha256": "d17d1e5072df0d090d4d766a5ed2f9af2deeebb67343b8ba8bdb585c625d40f9"
+    },
+    {
+      "path": "backend/services/cacheService.js",
+      "size": 1699,
+      "sha256": "5b89a339c9337c5a2d2f76b55b6be8b115afc73452149b79f2a5a1f1dd3f5909"
+    },
+    {
+      "path": "backend/services/eventBus.js",
+      "size": 294,
+      "sha256": "2aada0109344d7fcc3470d5d43ac3e62f82260e8e847e68f58af932e0d6e790f"
+    },
+    {
+      "path": "backend/services/featureFlagService.js",
+      "size": 1416,
+      "sha256": "ede1864d7fb4a90bf6454beb8451898d27132c477f2587122159c0cab8149d05"
+    },
+    {
+      "path": "backend/services/loanService.js",
+      "size": 862,
+      "sha256": "621d3f1ebfc6b20ad05805bc3bbd0fdb0b93f5dd7ae7cff14173340aed86be21"
+    },
+    {
+      "path": "backend/services/memberService.js",
+      "size": 515,
+      "sha256": "912ef1cc99236bb231d6b495ec08b8b306e075c83e0b8c10b6e20f0e14b9e919"
+    },
+    {
+      "path": "backend/services/otpService.cjs",
+      "size": 2308,
+      "sha256": "5d797b9aef322daa11cd5b269d88b1ede48bb232b34950085ba1c363027653cf"
+    },
+    {
+      "path": "backend/services/reconciliationService.js",
+      "size": 247,
+      "sha256": "e29739957f6e5d32931d96665abf4138fa3d8045cfc1a28010b806020bf15342"
+    },
+    {
+      "path": "backend/services/redis.cjs",
+      "size": 13433,
+      "sha256": "8ed2ff4c661db809c8a07b6b6f2b991c3bf2195643716b0e5cf13dc59e58fe0b"
+    },
+    {
+      "path": "backend/services/sanctionsService.js",
+      "size": 1323,
+      "sha256": "5d2a07f8279958525bebc3499a2465742098850500dd54a8e2fa18ba9b1f1645"
+    },
+    {
+      "path": "backend/services/settlementService.js",
+      "size": 796,
+      "sha256": "d6747213b9f6ae19bf42bb2b38c246a11b97952991027bb5b4d3de0a6e4dae9e"
+    },
+    {
+      "path": "backend/shared/audit/AuditService.js",
+      "size": 225,
+      "sha256": "a7eb9a6c95aeeaf4e3d133c68b601cfb1b5a275adbf8084c173e95d862764e75"
+    },
+    {
+      "path": "backend/shared/events/EventBus.js",
+      "size": 233,
+      "sha256": "cc22b4d51b8c58f605e331854879738ff0da489ab4ed350b73e6cbc5d54b6c32"
+    },
+    {
+      "path": "backend/tests/unit/services/otpService.test.cjs",
+      "size": 843,
+      "sha256": "d5b8713a5d5656c77c40a4e0b4879039bd77d78e65f7dfc3e9a511cda8929734"
+    },
+    {
+      "path": "docs/capital-connectivity/README.md",
+      "size": 267,
+      "sha256": "feed3fd8c7c29a0779a1547a6a7b4fb28a7b7bb3fd57f963a6fbda1d41f2ad66"
+    },
+    {
+      "path": "docs/compliance/compliance-matrix.md",
+      "size": 1560,
+      "sha256": "2ce0cb489fcdd55375fe931a36de930c80a377a3016e4c3a913aaa08a6f70332"
+    },
+    {
+      "path": "docs/evidence/2026-10-04-source-change-discovery.md",
+      "size": 7879,
+      "sha256": "0ed55a89abe92d21cb4bc1e7060857bb3f8ed11a20690aac4c9f9c9fbe2d4719"
+    },
+    {
+      "path": "docs/evidence/FINAL-IMPLEMENTATION-REPORT.md",
+      "size": 6892,
+      "sha256": "c2ee0c2a6e1598b468799d9f7f0b68f7c51f05e4f31cbd5759f19257eb7529e3"
+    },
+    {
+      "path": "docs/evidence/backup-restore-proof.md",
+      "size": 659,
+      "sha256": "07551067d8be84b2ec0e6808e61f9c46b182005f9b8fdd5365c8939aaf3565e0"
+    },
+    {
+      "path": "docs/evidence/financial-invariants.md",
+      "size": 2189,
+      "sha256": "0d6bcdfa517bb20587760e5cc7e19cac3ad4fc0d0252582cc10f5ae6fb275b65"
+    },
+    {
+      "path": "docs/evidence/pilot-readiness.md",
+      "size": 792,
+      "sha256": "7992b73d119f8a0dc6e18c1a6f84809b8940952809779e9ba8b362d81bf42570"
+    },
+    {
+      "path": "docs/evidence/platform-truth.json",
+      "size": 44245,
+      "sha256": "e873b6651ad71e9e5ccdd5bae552d01fbdb5ee83cdd35e86f148c0267796388a"
+    },
+    {
+      "path": "docs/evidence/production-readiness.md",
+      "size": 1579,
+      "sha256": "8c7b4e876c69303c96acba917930e92698ea77b5aa7ade4f1ba40bd839ce5949"
+    },
+    {
+      "path": "docs/evidence/provider-proof.md",
+      "size": 1385,
+      "sha256": "254d5e34442cde88e52a41e20cc75846b12251fe3f58e0a7c442b0b25cdfa095"
+    },
+    {
+      "path": "docs/evidence/reconciliation-proof.md",
+      "size": 969,
+      "sha256": "d2418a84f2ec4633b4bfa3b0b4753d288e994643eceb6c7566bf8b1ac1a4fc18"
+    },
+    {
+      "path": "docs/evidence/security-assessment.md",
+      "size": 1319,
+      "sha256": "60e4d15b4a31df1c1f594c5064be222e36d7300c9676bb5474ef3b4aafa6d6d8"
+    },
+    {
+      "path": "docs/evidence/tenant-isolation-proof.md",
+      "size": 531,
+      "sha256": "f31e51300bbec92d6040f55b499c8b61bbbe0e095dbe4b3c9e2752fd87fd7300"
+    },
+    {
+      "path": "docs/evidence/zero-byte-classification-2026-10-04.md",
+      "size": 1433,
+      "sha256": "ee4c9ae8db3926ba268c7216d8fa3f5bf5d4dddc33dff69760d6772ebf261dd2"
+    },
+    {
+      "path": "docs/financial/README.md",
+      "size": 256,
+      "sha256": "2b548fa79d7b259708c5e29ef6035de23563baac3cf1943bc02ec40b3ad05fd6"
+    },
+    {
+      "path": "docs/providers/README.md",
+      "size": 256,
+      "sha256": "a1df7939bacc43d066942b837e2a686393674f62d111171f128c6240365420c6"
+    },
+    {
+      "path": "docs/reconciliation/README.md",
+      "size": 261,
+      "sha256": "0560bcf1fd76738eec6175205b9cb2d9028e8e5400ab521c4e1412fdc8c8cfe8"
+    },
+    {
+      "path": "docs/risk/README.md",
+      "size": 251,
+      "sha256": "82be09a2419788849b670cd24226da0f0ce41aff7d771d42d12f59ed9d27e97e"
+    },
+    {
+      "path": "reports/titech-90-day-readiness.json",
+      "size": 1911,
+      "sha256": "debf7a2facf70280fa5d795841ba46194474efc3dbaa31605ad259647d7b3ade"
+    },
+    {
+      "path": "scripts/platform-truth.mjs",
+      "size": 6794,
+      "sha256": "ab6256237a3b6c26a25ee99ae1317e1a1818d0a2f0ab1c10e9edf77d8d1c0dc8"
+    }
+  ],
+  "deleted": [],
+  "modified": [
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "before": {
+        "size": 4350,
+        "sha256": "1d84f91b284b3645f9a2c8da62b0a5f2a395863e11eb17b34896660ec1f18091"
+      },
+      "after": {
+        "size": 5010,
+        "sha256": "1aa71343e1ba15718d704dd61f608c6c0375d25b757d551be195975baae78d0a"
+      }
+    },
+    {
+      "path": "backend/controllers/verificationController.js",
+      "before": {
+        "size": 437,
+        "sha256": "23738b6a748efe0027439536527c3f27e87fb996bac6873c947f5e755c46b8a9"
+      },
+      "after": {
+        "size": 453,
+        "sha256": "346b6eb55c115dd36ee6675e73a34eda3d7d64d3f01aadc66a1caae264fac0dd"
+      }
+    },
+    {
+      "path": "backend/middleware/fraudMiddleware.js",
+      "before": {
+        "size": 1757,
+        "sha256": "0d9f81255d6741074e31808bf4f4db81a43717af9fd642295d7736da66dc241b"
+      },
+      "after": {
+        "size": 1767,
+        "sha256": "be9d4b34458ede158c68afbe35f123b653f30648a67999f68d171825ddc373bd"
+      }
+    },
+    {
+      "path": "backend/package.json",
+      "before": {
+        "size": 9022,
+        "sha256": "28f665ef45a53573f6ac54906aca119d8fb625137097a73b9a5b96ae9759fb1d"
+      },
+      "after": {
+        "size": 9096,
+        "sha256": "d5a33e901670493e4b4990033260d9c8bbfabac24ff133cf11aea291bc8e1510"
+      }
+    },
+    {
+      "path": "backend/services/redis.js",
+      "before": {
+        "size": 13433,
+        "sha256": "8ed2ff4c661db809c8a07b6b6f2b991c3bf2195643716b0e5cf13dc59e58fe0b"
+      },
+      "after": {
+        "size": 674,
+        "sha256": "e480fc0dbe276b67305a807c1644d28d584917e54b6ebd17f7b218663a067cbe"
+      }
+    },
+    {
+      "path": "frontend/src/branding/official-theme.css",
+      "before": {
+        "size": 16061,
+        "sha256": "1f99fb583ecb0a89b65c2df1a623ad70c4ddd1dc419c956d3af5cf3b948529f3"
+      },
+      "after": {
+        "size": 21835,
+        "sha256": "83a34be4ce02c5ec5a925b3b54267ca2b8d8433b31a1102b764fd60bc2a60b69"
+      }
+    },
+    {
+      "path": "package.json",
+      "before": {
+        "size": 6833,
+        "sha256": "d5c261330e40b570f765ec6b9fa45d2b32bcfba6c1dac92101a5202c09a633b2"
+      },
+      "after": {
+        "size": 6894,
+        "sha256": "73cfd96cf03377cb4fca227fbddb52e6fd4c73d57055e5e37147cd60a3482991"
+      }
+    },
+    {
+      "path": "reports/official-theme-audit-2026-10-04.json",
+      "before": {
+        "size": 2655,
+        "sha256": "c1d2ad06c6540b135495ed6c80484b1129bed3c9503e139dac0c5bc41cc77f47"
+      },
+      "after": {
+        "size": 2655,
+        "sha256": "52d8e05fe570445653f38fbf3e4b6472fe08f85d9a224aea1dab43a1c63df63d"
+      }
+    },
+    {
+      "path": "reports/titech-implementation-gate-2026-10-02.json",
+      "before": {
+        "size": 387,
+        "sha256": "67f1118da62a7d50f60134b4c95392507ab3e707c3c97a0d28b6137c5966b06b"
+      },
+      "after": {
+        "size": 387,
+        "sha256": "117160d141d9e6e4d91f674fbfeabb58ee8d3e91bcfe35f4615fbacd14ac277b"
+      }
+    }
+  ],
+  "note": "The change-manifest file itself is excluded from the enumerated change set to avoid self-referential hash churn."
+}

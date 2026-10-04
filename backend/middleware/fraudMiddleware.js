@@ -2,7 +2,7 @@
 
 const { FraudDetectionService } = require('../services/fraudDetectionService');
 const DeviceFingerprintService = require('../services/deviceFingerprintService');
-const OTPService = require('../services/otpService');
+const OTPService = require('../services/otpService.cjs');
 const MoMoAlertService = require('../services/momoAlertService');
 
 const fraudMiddleware = async (req, res, next) => {
@@ -29,7 +29,7 @@ const fraudMiddleware = async (req, res, next) => {
 
     // ✅ STEP-UP FLOW (OTP + ALERT)
     if (result.decision === 'STEP_UP_AUTH') {
-      const otp = OTPService.generateOTP(user._id);
+      const otp = await OTPService.generateOTP(user._id);
 
       await MoMoAlertService.sendSMS(
         user.phone,
