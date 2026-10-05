@@ -23,7 +23,8 @@
 export const DEFAULT_THEME = 'light';
 export const THEME_LIGHT = 'light';
 export const THEME_DARK = 'dark';
-export const THEME_STORAGE_KEY = 'theme';
+export const THEME_STORAGE_KEY = 'titech.theme';
+export const LEGACY_THEME_STORAGE_KEY = 'theme';
 
 export const VALID_THEMES = Object.freeze([
   THEME_LIGHT,
@@ -58,9 +59,14 @@ export function getStoredTheme() {
 
   try {
     const storedTheme = storage.getItem(THEME_STORAGE_KEY);
+    if (isValidTheme(storedTheme)) {
+      return storedTheme;
+    }
 
-    return isValidTheme(storedTheme)
-      ? storedTheme
+    // Backward compatibility for the pre-namespaced preference key.
+    const legacyTheme = storage.getItem(LEGACY_THEME_STORAGE_KEY);
+    return isValidTheme(legacyTheme)
+      ? legacyTheme
       : DEFAULT_THEME;
   } catch {
     return DEFAULT_THEME;
@@ -123,6 +129,9 @@ export function persistTheme(theme) {
 
   try {
     storage.setItem(THEME_STORAGE_KEY, nextTheme);
+    if (LEGACY_THEME_STORAGE_KEY !== THEME_STORAGE_KEY) {
+      storage.removeItem(LEGACY_THEME_STORAGE_KEY);
+    }
   } catch {
     // Storage may be disabled, blocked, or unavailable in private contexts.
   }
@@ -194,6 +203,7 @@ export default Object.freeze({
   THEME_LIGHT,
   THEME_DARK,
   THEME_STORAGE_KEY,
+  LEGACY_THEME_STORAGE_KEY,
   VALID_THEMES,
   getStoredTheme,
   getInitialTheme,

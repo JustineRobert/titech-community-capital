@@ -18,8 +18,8 @@
    ============================================================================ */
 
 :root {
-  --titech-primary: #0058d8;
-  --titech-primary-dark: #0030a0;
+  --titech-primary: var(--titech-brand-electric-blue);
+  --titech-primary-dark: var(--titech-brand-deep-blue);
   --titech-primary-soft: #edf7ff;
 
   --titech-success: #10b981;
@@ -48,7 +48,7 @@
   --titech-border-strong: var(--titech-color-border);
 
   --titech-background: var(--titech-color-background);
-  --titech-surface: #ffffff;
+  --titech-surface: var(--titech-brand-white);
   --titech-surface-muted: var(--titech-color-background);
 
   --titech-shadow-sm:
@@ -805,7 +805,7 @@
     max-width: none;
     padding: 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .risk-header {

@@ -5,6 +5,7 @@ import {
   THEME_DARK,
   THEME_LIGHT,
   THEME_STORAGE_KEY,
+  LEGACY_THEME_STORAGE_KEY,
   applyTheme,
   getInitialTheme,
   getStoredTheme,
@@ -39,12 +40,23 @@ describe('TITech canonical theme runtime', () => {
     matchMedia.mockRestore();
   });
 
-  it('preserves explicit light and dark preferences', () => {
+  it('uses the TITech-namespaced storage key while preserving explicit preferences', () => {
+    expect(THEME_STORAGE_KEY).toBe('titech.theme');
+    expect(LEGACY_THEME_STORAGE_KEY).toBe('theme');
+
     localStorage.setItem(THEME_STORAGE_KEY, THEME_LIGHT);
     expect(getInitialTheme()).toBe(THEME_LIGHT);
 
     localStorage.setItem(THEME_STORAGE_KEY, THEME_DARK);
     expect(getInitialTheme()).toBe(THEME_DARK);
+  });
+
+  it('migrates a valid legacy theme preference to the canonical runtime on next persistence', () => {
+    localStorage.setItem(LEGACY_THEME_STORAGE_KEY, THEME_DARK);
+    expect(getInitialTheme()).toBe(THEME_DARK);
+    expect(toggleTheme(THEME_DARK)).toBe(THEME_LIGHT);
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(THEME_LIGHT);
+    expect(localStorage.getItem(LEGACY_THEME_STORAGE_KEY)).toBeNull();
   });
 
   it('falls back to light for invalid persisted state', () => {

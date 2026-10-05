@@ -24,9 +24,9 @@
 
 :root {
   --health-bg: var(--titech-color-background);
-  --health-surface: #ffffff;
+  --health-surface: var(--titech-brand-white);
   --health-surface-muted: var(--titech-color-surface-muted);
-  --health-surface-elevated: #ffffff;
+  --health-surface-elevated: var(--titech-brand-white);
 
   --health-border: var(--titech-color-border);
   --health-border-strong: var(--titech-color-border-strong);
@@ -35,8 +35,8 @@
   --health-text-secondary: var(--titech-color-text-subtle);
   --health-text-muted: var(--titech-color-text-subtle);
 
-  --health-primary: #0058d8;
-  --health-primary-hover: #0030a0;
+  --health-primary: var(--titech-brand-electric-blue);
+  --health-primary-hover: var(--titech-brand-deep-blue);
   --health-primary-soft: rgba(37, 99, 235, 0.08);
 
   --health-success: #16a34a;
@@ -1110,7 +1110,7 @@
 
     padding: 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }

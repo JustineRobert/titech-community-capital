@@ -39,7 +39,7 @@
  * ========================================================================== */
 
 :root {
-  --titech-group-card-bg: #ffffff;
+  --titech-group-card-bg: var(--titech-brand-white);
   --titech-group-card-surface: var(--titech-color-background);
   --titech-group-card-surface-hover: var(--titech-color-surface-muted);
 
@@ -50,7 +50,7 @@
   --titech-group-card-text-muted: var(--titech-color-text-subtle);
   --titech-group-card-text-subtle: var(--titech-color-text-subtle);
 
-  --titech-group-card-primary: #008000;
+  --titech-group-card-primary: var(--titech-brand-green);
   --titech-group-card-primary-hover: #115e59;
   --titech-group-card-primary-soft: #ccfbf1;
 

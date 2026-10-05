@@ -63,9 +63,9 @@
   --st-color-text: var(--titech-brand-navy);
   --st-color-text-muted: #5b6472;
   --st-color-text-subtle: #737d8c;
-  --st-color-text-inverse: #ffffff;
+  --st-color-text-inverse: var(--titech-brand-white);
 
-  --st-color-surface: #ffffff;
+  --st-color-surface: var(--titech-brand-white);
   --st-color-surface-subtle: var(--titech-color-background);
   --st-color-surface-muted: var(--titech-color-surface-muted);
 

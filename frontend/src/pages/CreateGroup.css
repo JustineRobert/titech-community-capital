@@ -28,8 +28,8 @@
 ============================================================================ */
 
 .create-group-page {
-  --cg-primary: #0058d8;
-  --cg-primary-hover: #0030a0;
+  --cg-primary: var(--titech-brand-electric-blue);
+  --cg-primary-hover: var(--titech-brand-deep-blue);
   --cg-primary-active: #002780;
   --cg-primary-soft: #edf7ff;
 
@@ -50,9 +50,9 @@
 
   --cg-border: var(--titech-color-border);
   --cg-border-light: var(--titech-color-border);
-  --cg-border-focus: #0058d8;
+  --cg-border-focus: var(--titech-brand-electric-blue);
 
-  --cg-surface: #ffffff;
+  --cg-surface: var(--titech-brand-white);
   --cg-surface-secondary: var(--titech-color-background);
   --cg-surface-tertiary: #f3f4f6;
 
@@ -428,7 +428,7 @@
   width: 1.25rem;
   height: 1.25rem;
   margin-top: 0.05rem;
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--cg-danger);
   border-radius: 999px;
   font-size: 0.75rem;
@@ -523,7 +523,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 1rem;
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--cg-primary);
   border: 1px solid var(--cg-primary);
   border-radius: var(--cg-radius-md);
@@ -1220,7 +1220,7 @@
     max-width: none;
     padding: 0;
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .create-group-page .card {
@@ -1242,7 +1242,7 @@
 
   .create-group-page .step {
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
     border-color: #cccccc;
   }
 }

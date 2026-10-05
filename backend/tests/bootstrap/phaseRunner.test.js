@@ -34,15 +34,13 @@
  * =============================================================================
  */
 
-const {
+import {
   createBootstrapContext,
   PHASE_STATES,
   CONTEXT_STATES,
-} = require('../../bootstrap/context');
+} from '../../bootstrap/context/index.js';
 
-const {
-  runPhase,
-} = require('../../bootstrap/lifecycle/phaseRunner');
+import { runPhase } from '../../bootstrap/lifecycle/phaseRunner.js';
 
 /**
  * =============================================================================

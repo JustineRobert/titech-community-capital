@@ -31,8 +31,8 @@
  * ========================================================================== */
 
 .titech-chat-page {
-  --chat-primary: #0058d8;
-  --chat-primary-hover: #0030a0;
+  --chat-primary: var(--titech-brand-electric-blue);
+  --chat-primary-hover: var(--titech-brand-deep-blue);
   --chat-primary-active: #002780;
   --chat-primary-soft: #edf7ff;
   --chat-primary-border: #b7ddff;
@@ -51,7 +51,7 @@
   --chat-text-muted: var(--titech-color-text-subtle);
   --chat-text-subtle: var(--titech-color-text-subtle);
 
-  --chat-surface: #ffffff;
+  --chat-surface: var(--titech-brand-white);
   --chat-surface-soft: var(--titech-color-background);
   --chat-surface-muted: var(--titech-color-surface-muted);
   --chat-surface-hover: var(--titech-color-background);
@@ -59,8 +59,8 @@
   --chat-border: var(--titech-color-border);
   --chat-border-strong: var(--titech-color-border-strong);
 
-  --chat-message-own: #0058d8;
-  --chat-message-own-text: #ffffff;
+  --chat-message-own: var(--titech-brand-electric-blue);
+  --chat-message-own-text: var(--titech-brand-white);
   --chat-message-other: var(--titech-color-surface-muted);
   --chat-message-other-text: var(--titech-brand-navy);
 
@@ -202,7 +202,7 @@
   background:
     linear-gradient(
       180deg,
-      #ffffff 0%,
+      var(--titech-brand-white) 0%,
       #fbfdff 100%
     );
 }
@@ -483,7 +483,7 @@
     linear-gradient(
       90deg,
       var(--chat-primary-soft),
-      #ffffff
+      var(--titech-brand-white)
     );
 }
 
@@ -529,7 +529,7 @@
       #e0f2fe
     );
 
-  color: #0030a0;
+  color: var(--titech-brand-deep-blue);
 
   font-size: 0.9rem;
   font-weight: 800;
@@ -653,7 +653,7 @@
 
   background: var(--chat-primary);
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   font-size: 0.67rem;
   line-height: 1;
@@ -724,7 +724,7 @@
   border-radius: 9px;
 
   background: var(--chat-primary);
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   font: inherit;
   font-size: 0.8rem;
@@ -1287,10 +1287,10 @@
     linear-gradient(
       135deg,
       var(--chat-primary),
-      var(--chat-primary-dark, #0030a0)
+      var(--chat-primary-dark, var(--titech-brand-deep-blue))
     );
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   cursor: pointer;
 
@@ -2015,7 +2015,7 @@
     --chat-border-strong: #334155;
 
     --chat-primary-soft: #00153f;
-    --chat-primary-border: #0030a0;
+    --chat-primary-border: var(--titech-brand-deep-blue);
 
     --chat-success-soft: #052e16;
     --chat-warning-soft: #2b2110;
@@ -2100,7 +2100,7 @@
 
   .titech-chat-new-message-indicator {
     background: var(--titech-brand-navy);
-    border-color: #0030a0;
+    border-color: var(--titech-brand-deep-blue);
   }
 
   .titech-chat-modal {
@@ -2122,7 +2122,7 @@
   .titech-chat-page {
     min-height: auto;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 
@@ -2157,13 +2157,13 @@
   .titech-chat-main {
     display: block;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .titech-chat-main-header {
     border-bottom: 1px solid #000000;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }
@@ -2173,7 +2173,7 @@
 
     padding: 16px 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .titech-chat-message-group {
@@ -2182,7 +2182,7 @@
 
   .titech-chat-message-bubble {
     border: 1px solid var(--titech-color-border-strong) !important;
-    background: #ffffff !important;
+    background: var(--titech-brand-white) !important;
     color: #000000 !important;
 
     box-shadow: none;

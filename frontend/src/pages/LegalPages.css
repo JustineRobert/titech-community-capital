@@ -71,13 +71,13 @@
    * Brand
    * ------------------------------------------------------------------------ */
 
-  --legal-primary: #008000;
+  --legal-primary: var(--titech-brand-green);
   --legal-primary-hover: #115e59;
   --legal-primary-active: #134e4a;
   --legal-primary-light: #ccfbf1;
   --legal-primary-soft: #f0fdfa;
 
-  --legal-secondary: #0030a0;
+  --legal-secondary: var(--titech-brand-deep-blue);
   --legal-secondary-hover: #002780;
 
   --legal-success: #15803d;
@@ -89,8 +89,8 @@
    * ------------------------------------------------------------------------ */
 
   --legal-page-bg: var(--titech-color-background);
-  --legal-surface: #ffffff;
-  --legal-surface-raised: #ffffff;
+  --legal-surface: var(--titech-brand-white);
+  --legal-surface-raised: var(--titech-brand-white);
   --legal-surface-muted: var(--titech-color-surface-muted);
   --legal-surface-subtle: var(--titech-color-background);
 
@@ -101,7 +101,7 @@
   --legal-text: var(--titech-brand-navy);
   --legal-text-muted: var(--titech-color-text-muted);
   --legal-text-subtle: var(--titech-color-text-subtle);
-  --legal-text-inverse: #ffffff;
+  --legal-text-inverse: var(--titech-brand-white);
 
   /* --------------------------------------------------------------------------
    * Borders
@@ -312,7 +312,7 @@
       135deg,
       var(--titech-brand-navy) 0%,
       #134e4a 55%,
-      #008000 100%
+      var(--titech-brand-green) 100%
     );
 }
 
@@ -522,7 +522,7 @@
 }
 
 .legal-header-meta strong {
-  color: #ffffff;
+  color: var(--titech-brand-white);
 }
 
 
@@ -1663,7 +1663,7 @@
 
   cursor: pointer;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   border:
     1px solid
@@ -1687,7 +1687,7 @@
 
 .scroll-to-top:hover,
 .scroll-top-btn:hover {
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--legal-primary-hover);
@@ -1743,7 +1743,7 @@
 
 .legal-page ::selection,
 .legal-pages ::selection {
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--legal-primary);
@@ -2011,7 +2011,7 @@
     --legal-text: var(--titech-color-background);
     --legal-text-muted: var(--titech-color-border-strong);
     --legal-text-subtle: var(--titech-color-text-subtle);
-    --legal-text-inverse: #ffffff;
+    --legal-text-inverse: var(--titech-brand-white);
 
     --legal-border: var(--titech-brand-navy);
     --legal-border-strong: #334155;
@@ -2051,7 +2051,7 @@
   --legal-text: var(--titech-color-background);
   --legal-text-muted: var(--titech-color-border-strong);
   --legal-text-subtle: var(--titech-color-text-subtle);
-  --legal-text-inverse: #ffffff;
+  --legal-text-inverse: var(--titech-brand-white);
 
   --legal-border: var(--titech-brand-navy);
   --legal-border-strong: #334155;
@@ -2532,7 +2532,7 @@
   html,
   body {
     background:
-      #ffffff !important;
+      var(--titech-brand-white) !important;
   }
 
   .legal-page,
@@ -2542,7 +2542,7 @@
     color: #000000;
 
     background:
-      #ffffff !important;
+      var(--titech-brand-white) !important;
 
     overflow: visible !important;
   }
@@ -2614,7 +2614,7 @@
 
     border-radius: 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     box-shadow: none;
   }
@@ -2625,7 +2625,7 @@
   .legal-disclaimer,
   .highlight {
     background:
-      #ffffff;
+      var(--titech-brand-white);
   }
 
   .legal-major-section {
@@ -2948,7 +2948,7 @@
       #777777 !important;
 
     background:
-      #ffffff !important;
+      var(--titech-brand-white) !important;
   }
 
   .legal-sr-only {

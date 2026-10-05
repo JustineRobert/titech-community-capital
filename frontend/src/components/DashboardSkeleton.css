@@ -45,7 +45,7 @@
   --titech-skeleton-bg:
     var(
       --titech-surface,
-      #ffffff
+      var(--titech-brand-white)
     );
 
   --titech-skeleton-bg-subtle:
@@ -87,7 +87,7 @@
   --titech-skeleton-primary:
     var(
       --titech-primary,
-      #0058d8
+      var(--titech-brand-electric-blue)
     );
 
   --titech-skeleton-radius:
@@ -1419,7 +1419,7 @@
         in srgb,
         var(
           --titech-primary,
-          #0058d8
+          var(--titech-brand-electric-blue)
         )
         20%,
         var(
@@ -1437,7 +1437,7 @@
         in srgb,
         var(
           --titech-primary,
-          #0058d8
+          var(--titech-brand-electric-blue)
         )
         22%,
         var(
@@ -1464,7 +1464,7 @@
         in srgb,
         var(
           --titech-primary,
-          #0058d8
+          var(--titech-brand-electric-blue)
         )
         16%,
         var(
@@ -1895,7 +1895,7 @@
     2px solid
       var(
         --titech-primary,
-        #0058d8
+        var(--titech-brand-electric-blue)
       );
 
   outline-offset: 2px;

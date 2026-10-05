@@ -1,0 +1,440 @@
+# TITech Community Capital — Legacy Runtime Import Debt (2026-10-05)
+
+## Status
+
+Repository-wide audit found **214** missing local imports/requires. **0** are on the canonical financial surface. The release gate treats these as legacy/non-critical debt rather than hiding them.
+
+## Production interpretation
+
+This is a repository hygiene and consolidation gap. It is not evidence that the canonical financial path is broken. It also does **not** justify a production-approved status.
+
+## Inventory
+
+1. `backend/middleware/fraudMiddleware.js`
+   - specifier=../services/deviceFingerprintService
+2. `backend/middleware/tenancy/tenantRepository.js`
+   - specifier=../../config/ConfigurationProvider
+3. `backend/models/FraudLog.js`
+   - specifier=../utils/encryption.js
+4. `backend/modules/airtelMoneyService.js`
+   - specifier=./models/Transaction
+5. `backend/modules/airtelMoneyService.js`
+   - specifier=./logger
+6. `backend/modules/airtelMoneyService.js`
+   - specifier=./auditService
+7. `backend/modules/finance/__tests__/repayment.int.test.js`
+   - specifier=../../models/Loan
+8. `backend/modules/finance/__tests__/repayment.int.test.js`
+   - specifier=../../models/Wallet
+9. `backend/modules/finance/__tests__/repayment.int.test.js`
+   - specifier=../../models/Journal
+10. `backend/modules/finance/__tests__/repayment.int.test.js`
+   - specifier=../../../../models/User
+11. `backend/modules/finance/__tests__/repayment.int.test.js`
+   - specifier=../../../../app
+12. `backend/modules/finance/jobs/airtelSettlementJob.js`
+   - specifier=../../payments/airtel/airtelService
+13. `backend/modules/finance/jobs/dividendDistributionJob.js`
+   - specifier=../../members/models/Member
+14. `backend/modules/finance/jobs/interestAccrualJob.js`
+   - specifier=../../../modules/tenant/models/Tenant
+15. `backend/modules/finance/jobs/momoSettlementJob.js`
+   - specifier=../../payments/momo/momoService
+16. `backend/modules/finance/jobs/portfolioAnalyticsJob.js`
+   - specifier=../../loans/models/Loan
+17. `backend/modules/finance/jobs/reconciliationJob.js`
+   - specifier=../../../modules/tenant/models/Tenant
+18. `backend/modules/finance/jobs/regulatoryReportingJob.js`
+   - specifier=../../loans/models/Loan
+19. `backend/modules/finance/jobs/regulatoryReportingJob.js`
+   - specifier=../../members/models/Member
+20. `backend/modules/finance/jobs/statementGenerationJob.js`
+   - specifier=../../../modules/tenant/models/Tenant
+21. `backend/modules/finance/middleware/loanWorkflowGuard.js`
+   - specifier=../../../shared/utils/AppError
+22. `backend/modules/finance/utils/idempotency.js`
+   - specifier=./redis
+23. `backend/modules/fraud/fraud.service.js`
+   - specifier=../utils/logger
+24. `backend/modules/integrations/momo.service.js`
+   - specifier=../utils/idempotency
+25. `backend/modules/integrations/momo.service.js`
+   - specifier=../utils/logger
+26. `backend/modules/integrations/momo.webhook.js`
+   - specifier=../utils/idempotency
+27. `backend/modules/integrations/momo.webhook.js`
+   - specifier=../utils/logger
+28. `backend/modules/ledger/ledger.service.js`
+   - specifier=../models/Ledger
+29. `backend/modules/loan/repositories/loanAuditRepository.js`
+   - specifier=../../../shared/utils/logger
+30. `backend/modules/loan/repositories/loanAuditRepository.js`
+   - specifier=../../../shared/utils/requestContext
+31. `backend/modules/loan/repositories/loanAuditRepository.js`
+   - specifier=../../../shared/observability/metrics
+32. `backend/modules/loan/services/creditScoringService.js`
+   - specifier=../../utils/logger
+33. `backend/modules/member/services/memberService.js`
+   - specifier=../../../repositories/memberRepository
+34. `backend/modules/member/services/memberService.js`
+   - specifier=../../../repositories/accountRepository
+35. `backend/modules/member/services/memberService.js`
+   - specifier=../../../repositories/savingsRepository
+36. `backend/modules/member/services/memberService.js`
+   - specifier=../../../repositories/loanRepository
+37. `backend/modules/member/services/memberService.js`
+   - specifier=../../../repositories/auditRepository
+38. `backend/modules/member/services/memberService.js`
+   - specifier=../../../repositories/documentRepository
+39. `backend/modules/member/services/memberService.js`
+   - specifier=../../../repositories/walletRepository
+40. `backend/modules/member/services/memberService.js`
+   - specifier=../../credit/services/creditScoreService
+41. `backend/modules/mobileMoneySettlementService.js`
+   - specifier=./logger
+42. `backend/modules/mtnMomoService.js`
+   - specifier=./payments/mtn/callbacks
+43. `backend/modules/mtnMomoService.js`
+   - specifier=./logger
+44. `backend/modules/mtnMomoService.js`
+   - specifier=./auditService
+45. `backend/modules/mtnMomoService.js`
+   - specifier=./reconciliationService
+46. `backend/modules/mtnMomoService.js`
+   - specifier=./queueService
+47. `backend/modules/onboarding/__tests__/onboarding.integration.test.js`
+   - specifier=../../services/tenantProvisioningService
+48. `backend/modules/onboarding/__tests__/onboarding.integration.test.js`
+   - specifier=../../services/auditService
+49. `backend/modules/onboarding/__tests__/onboarding.integration.test.js`
+   - specifier=../../events/onboardingPublisher
+50. `backend/modules/onboarding/__tests__/onboarding.integration.test.js`
+   - specifier=../../modules/finance/services/ledgerService
+51. `backend/modules/onboarding/__tests__/onboarding.integration.test.js`
+   - specifier=../../services/identityBootstrapService
+52. `backend/modules/onboarding/onboarding.controller.js`
+   - specifier=../../shared/utils/apiResponse
+53. `backend/modules/onboarding/onboarding.controller.js`
+   - specifier=../../shared/logger
+54. `backend/modules/onboarding/onboarding.routes.js`
+   - specifier=../../middleware/auth.middleware
+55. `backend/modules/onboarding/onboarding.routes.js`
+   - specifier=../../middleware/rbac.middleware
+56. `backend/modules/onboarding/onboarding.routes.js`
+   - specifier=../../middleware/upload.middleware
+57. `backend/modules/onboarding/onboarding.routes.js`
+   - specifier=../../security/rateLimiting
+58. `backend/modules/onboarding/onboarding.routes.js`
+   - specifier=../../middleware/validateObjectId
+59. `backend/modules/onboarding/onboarding.routes.js`
+   - specifier=../../middleware/idempotency.middleware
+60. `backend/modules/onboarding/onboarding.routes.js`
+   - specifier=../../middleware/auditLogMiddleware
+61. `backend/modules/onboarding/onboarding.service.js`
+   - specifier=../../shared/errors
+62. `backend/modules/payment/airtel/auth/credentialManager.js`
+   - specifier=../../../shared/errors
+63. `backend/modules/payment/airtel/auth/healthMonitor.js`
+   - specifier=../../../shared/errors
+64. `backend/modules/payment/airtel/auth/oauthClient.js`
+   - specifier=../../../shared/errors
+65. `backend/modules/payment/airtel/auth/refreshManager.js`
+   - specifier=../../../shared/errors
+66. `backend/modules/payment/airtel/auth.js`
+   - specifier=./refreshManager
+67. `backend/modules/payment/mtn/collections/collectionsService.js`
+   - specifier=../../../shared/errors
+68. `backend/modules/payment/mtn/settlement/ledgerReconciler.js`
+   - specifier=../../../../config/database.js
+69. `backend/modules/payment/mtn/settlement/providerStatementImporter.js`
+   - specifier=../../../../config/database.js
+70. `backend/modules/payment/mtn/settlement/reconciliationAudit.js`
+   - specifier=../../../../common/database
+71. `backend/modules/payment/mtn/settlement/recoveryManager.js`
+   - specifier=../../../../config/database.js
+72. `backend/modules/payment/mtn/settlement/settlementMatcher.js`
+   - specifier=../../../../config/database.js
+73. `backend/modules/risk/risk.service.js`
+   - specifier=../utils/logger
+74. `backend/modules/risk/services/behavioralAnalysisService.js`
+   - specifier=../../models/RiskAlert
+75. `backend/modules/risk/services/behavioralAnalysisService.js`
+   - specifier=../../models/BehavioralProfile
+76. `backend/modules/risk/services/caseManagementService.js`
+   - specifier=../../models/Case
+77. `backend/modules/risk/services/caseManagementService.js`
+   - specifier=../../models/RiskAlert
+78. `backend/modules/risk/services/creditScoringService.js`
+   - specifier=../../models/RiskProfile
+79. `backend/modules/risk/services/deviceFingerprintService.js`
+   - specifier=../../models/DeviceFingerprint
+80. `backend/modules/risk/services/deviceFingerprintService.js`
+   - specifier=../../models/RiskAlert
+81. `backend/modules/risk/services/riskAnalyticsService.js`
+   - specifier=../../models/TransactionLog
+82. `backend/modules/risk/services/riskAnalyticsService.js`
+   - specifier=../../models/RiskAlert
+83. `backend/modules/risk/services/riskAnalyticsService.js`
+   - specifier=../../models/Case
+84. `backend/modules/risk/services/riskAnalyticsService.js`
+   - specifier=../../models/RiskProfile
+85. `backend/modules/risk/services/transactionMonitoringService.js`
+   - specifier=../../models/RiskAlert
+86. `backend/modules/risk/services/transactionMonitoringService.js`
+   - specifier=../../models/TransactionLog
+87. `backend/modules/savingsAccountingService.js`
+   - specifier=./logger
+88. `backend/modules/transaction/transaction.service.js`
+   - specifier=../models/Transaction
+89. `backend/modules/transactions/TransactionEventPublisher.js`
+   - specifier=./transactions/TransactionErrors
+90. `backend/modules/transactions/TransactionEventPublisher.js`
+   - specifier=./transactions/TransactionEvents
+91. `backend/modules/transactions/TransactionEventPublisher.js`
+   - specifier=./transactions/TransactionConstants
+92. `backend/modules/transactions/TransactionEventPublisher.js`
+   - specifier=../shared/logging/StructuredLogger
+93. `backend/modules/transactions/TransactionEventPublisher.js`
+   - specifier=../shared/logging/LoggerFactory
+94. `backend/modules/transactions/orchestration/AuditCorrelationManager.js`
+   - specifier=../../models/AuditLog
+95. `backend/queues/transaction.worker.js`
+   - specifier=../constants/transactionConstants
+96. `backend/queues/transaction.worker.js`
+   - specifier=../services/transactionService
+97. `backend/repositories/complianceRepository.js`
+   - specifier=../models/Compliance
+98. `backend/repositories/complianceRepository.js`
+   - specifier=../infrastructure/logging/logger
+99. `backend/repositories/reconciliationRepository.js`
+   - specifier=../infrastructure/logging/logger
+100. `backend/routes/airtelRoutes.js`
+   - specifier=../middleware/authorize
+101. `backend/routes/airtelRoutes.js`
+   - specifier=../middleware/rateLimiter
+102. `backend/routes/airtelRoutes.js`
+   - specifier=../middleware/rateLimit
+103. `backend/routes/airtelRoutes.js`
+   - specifier=../middleware/airtelWebhook
+104. `backend/routes/airtelRoutes.js`
+   - specifier=../middleware/webhookVerification
+105. `backend/routes/analytics.js`
+   - specifier=../middleware/authorize
+106. `backend/routes/auditRoutes.js`
+   - specifier=../middleware/authorize
+107. `backend/routes/chat.js`
+   - specifier=../middlewares/auth
+108. `backend/routes/transaction.routes.js`
+   - specifier=../middlewares/auth
+109. `backend/routes/ussd.js`
+   - specifier=../middleware/authenticate
+110. `backend/routes/ussd.js`
+   - specifier=../constants/features
+111. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../utils/logger
+112. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/User
+113. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/Member
+114. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/Group
+115. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/Savings
+116. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/Contribution
+117. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/Transaction
+118. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/Loan
+119. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/Audit
+120. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/FraudLog
+121. `backend/services/admin/adminAnalytics.service.js`
+   - specifier=../models/ComplianceLog
+122. `backend/services/airtel/auth.js`
+   - specifier=../../modules/logger
+123. `backend/services/airtel/collections.js`
+   - specifier=../../modules/logger
+124. `backend/services/airtel/collections.js`
+   - specifier=../../modules/auditService
+125. `backend/services/airtel/collections.js`
+   - specifier=../../modules/queueService
+126. `backend/services/airtel/disbursements.js`
+   - specifier=../../modules/logger
+127. `backend/services/airtel/disbursements.js`
+   - specifier=../../modules/auditService
+128. `backend/services/airtel/disbursements.js`
+   - specifier=../../modules/queueService
+129. `backend/services/airtel/reconciliation.js`
+   - specifier=../../modules/logger
+130. `backend/services/airtel/reconciliation.js`
+   - specifier=../../models/ReconciliationRun
+131. `backend/services/airtel/reconciliation.js`
+   - specifier=../../models/ReconciliationException
+132. `backend/services/airtel/webhooks.js`
+   - specifier=../../modules/logger
+133. `backend/services/airtel/webhooks.js`
+   - specifier=../../models/WebhookEvent
+134. `backend/services/bizchatService.js`
+   - specifier=../services/transactionService
+135. `backend/services/crbService.js`
+   - specifier=../utils/redisClient
+136. `backend/services/dashboardService.js`
+   - specifier=../../../utils/logger
+137. `backend/services/dashboardService.js`
+   - specifier=../../../repositories/memberRepository
+138. `backend/services/dashboardService.js`
+   - specifier=../../../repositories/loanRepository
+139. `backend/services/dashboardService.js`
+   - specifier=../../../repositories/savingsRepository
+140. `backend/services/dashboardService.js`
+   - specifier=../../../repositories/transactionRepository
+141. `backend/services/dashboardService.js`
+   - specifier=../../../repositories/auditRepository
+142. `backend/services/mtn/auth.js`
+   - specifier=../../modules/logger
+143. `backend/services/mtn/collections.js`
+   - specifier=../../modules/logger
+144. `backend/services/mtn/collections.js`
+   - specifier=../../modules/auditService
+145. `backend/services/mtn/collections.js`
+   - specifier=../../modules/queueService
+146. `backend/services/mtn/disbursements.js`
+   - specifier=../../modules/logger
+147. `backend/services/mtn/disbursements.js`
+   - specifier=../../modules/auditService
+148. `backend/services/mtn/disbursements.js`
+   - specifier=../../modules/queueService
+149. `backend/services/mtn/reconciliation.js`
+   - specifier=../../modules/logger
+150. `backend/services/mtn/reconciliation.js`
+   - specifier=../../modules/queueService
+151. `backend/services/mtn/reconciliation.js`
+   - specifier=../../modules/reportExportService
+152. `backend/services/mtn/webhooks.js`
+   - specifier=../../modules/logger
+153. `backend/services/mtn/webhooks.js`
+   - specifier=../../models/WebhookEvent
+154. `backend/services/mtn/webhooks.js`
+   - specifier=../../modules/auditService
+155. `backend/services/mtn/webhooks.js`
+   - specifier=../../modules/queueService
+156. `backend/services/notificationService.js`
+   - specifier=./pushService
+157. `backend/services/savingsService.js`
+   - specifier=../repositories/savingsRepository
+158. `backend/services/savingsService.js`
+   - specifier=./fraudService
+159. `backend/services/systemSettingService.js`
+   - specifier=../models/systemSetting.model
+160. `backend/services/ussdService.js`
+   - specifier=./mobileMoneySettlementService
+161. `backend/services/walletService.js`
+   - specifier=../models/SavingsAccount
+162. `backend/services/walletService.js`
+   - specifier=./mobileMoneySettlementService
+163. `backend/shared/middleware/auditLogMiddleware.js`
+   - specifier=../utils/logger
+164. `backend/shared/tracing/events/EventBus.js`
+   - specifier=../tracing/TraceContext
+165. `backend/src/infrastructure/monitoring/health.controller.js`
+   - specifier=../../config/redis
+166. `backend/src/infrastructure/monitoring/metrics.controller.js`
+   - specifier=../../utils/logger
+167. `backend/src/modules/compliance/services/compliance.service.js`
+   - specifier=../../models/Compliance
+168. `backend/src/modules/payments/providers/airtel/airtel.routes.js`
+   - specifier=../../../../middleware/tenantMiddleware
+169. `backend/src/modules/payments/providers/airtel/airtel.routes.js`
+   - specifier=../../../../middleware/authenticationMiddleware
+170. `backend/src/modules/payments/providers/airtel/airtel.routes.js`
+   - specifier=../../../../middleware/authorizationMiddleware
+171. `backend/src/modules/payments/providers/airtel/airtel.routes.js`
+   - specifier=../../../../middleware/requestContextMiddleware
+172. `backend/src/modules/payments/providers/airtel/airtel.service.js`
+   - specifier=../../../ledger/services/ledger.service
+173. `backend/src/modules/payments/providers/airtel/airtel.service.js`
+   - specifier=../../../notifications/services/notification.service
+174. `backend/src/modules/payments/providers/airtel/airtel.service.js`
+   - specifier=../../../compliance/services/aml.service
+175. `backend/src/modules/payments/providers/airtel/airtel.service.js`
+   - specifier=../../../fraud/services/fraud.service
+176. `backend/src/modules/payments/providers/airtel/airtel.service.js`
+   - specifier=../../../billing/services/billingEngine
+177. `backend/src/modules/payments/providers/airtel/airtel.webhook.js`
+   - specifier=../../../ledger/services/ledger.service
+178. `backend/src/modules/payments/providers/airtel/airtel.webhook.js`
+   - specifier=../../../savings/services/savings.service
+179. `backend/src/modules/payments/providers/airtel/airtel.webhook.js`
+   - specifier=../../../loans/services/loan.service
+180. `backend/src/modules/payments/providers/airtel/airtel.webhook.js`
+   - specifier=../../../billing/services/billingEngine
+181. `backend/src/modules/payments/providers/airtel/airtel.webhook.js`
+   - specifier=../../../notifications/services/notification.service
+182. `backend/src/modules/payments/providers/airtel/airtel.webhook.js`
+   - specifier=../../../compliance/services/aml.service
+183. `backend/src/modules/payments/providers/airtel/airtel.webhook.js`
+   - specifier=../../../fraud/services/fraud.service
+184. `backend/src/modules/payments/providers/momo/momo.routes.js`
+   - specifier=../../../../middleware/tenantMiddleware
+185. `backend/src/modules/payments/providers/momo/momo.routes.js`
+   - specifier=../../../../middleware/authenticationMiddleware
+186. `backend/src/modules/payments/providers/momo/momo.routes.js`
+   - specifier=../../../../middleware/authorizationMiddleware
+187. `backend/src/modules/payments/providers/momo/momo.routes.js`
+   - specifier=../../../../middleware/requestContextMiddleware
+188. `backend/src/modules/payments/providers/momo/momo.service.js`
+   - specifier=../../../ledger/services/ledger.service
+189. `backend/src/modules/payments/providers/momo/momo.service.js`
+   - specifier=../../../notifications/services/notification.service
+190. `backend/src/modules/payments/providers/momo/momo.service.js`
+   - specifier=../../../compliance/services/aml.service
+191. `backend/src/modules/payments/providers/momo/momo.service.js`
+   - specifier=../../../fraud/services/fraud.service
+192. `backend/src/modules/payments/providers/momo/momo.service.js`
+   - specifier=../../../billing/services/billingEngine
+193. `backend/src/modules/payments/providers/momo/momo.webhook.js`
+   - specifier=../../../ledger/services/ledger.service
+194. `backend/src/modules/payments/providers/momo/momo.webhook.js`
+   - specifier=../../../notifications/services/notification.service
+195. `backend/src/modules/payments/providers/momo/momo.webhook.js`
+   - specifier=../../../savings/services/savings.service
+196. `backend/src/modules/payments/providers/momo/momo.webhook.js`
+   - specifier=../../../loans/services/loan.service
+197. `backend/src/modules/payments/providers/momo/momo.webhook.js`
+   - specifier=../../../billing/services/billingEngine
+198. `backend/src/modules/payments/providers/momo/momo.webhook.js`
+   - specifier=../../../fraud/services/fraud.service
+199. `backend/src/modules/payments/providers/momo/momo.webhook.js`
+   - specifier=../../../compliance/services/aml.service
+200. `backend/src/modules/payments/reconciliation/reconciliation.job.js`
+   - specifier=../../../../repositories/tenantRepository
+201. `backend/tests/integration/legal.test.cjs`
+   - specifier=../../models/LegalAcceptance
+202. `backend/tests/integration/legal.test.js`
+   - specifier=../../models/LegalAcceptance
+203. `backend/tests/unit/contribution.controller.test.cjs`
+   - specifier=../controllers/contributionController
+204. `backend/tests/unit/contribution.controller.test.js`
+   - specifier=../models/Contribution
+205. `backend/tests/unit/contribution.controller.test.js`
+   - specifier=../models/Group
+206. `backend/tests/unit/contribution.controller.test.js`
+   - specifier=../controllers/contributionController
+207. `backend/tests/unit/loan.controller.test.cjs`
+   - specifier=../controllers/loanController
+208. `backend/tests/unit/loan.controller.test.js`
+   - specifier=../models/Loan
+209. `backend/tests/unit/loan.controller.test.js`
+   - specifier=../models/User
+210. `backend/tests/unit/loan.controller.test.js`
+   - specifier=../models/Group
+211. `backend/tests/unit/loan.controller.test.js`
+   - specifier=../controllers/loanController
+212. `backend/tests/unit/loanWorkflowService.test.js`
+   - specifier=../../../backend/modules/compliance/services/complianceService
+213. `backend/utils/tracing.js`
+   - specifier=./utils/tracing
+214. `backend/utils/validators.js`
+   - specifier=./utils/validators.js

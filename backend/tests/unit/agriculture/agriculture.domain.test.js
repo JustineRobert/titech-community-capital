@@ -59,3 +59,48 @@ test('agriculture quantities use a separate six-decimal exact representation', (
 test('quantity precision rejects excessive fractional digits', () => {
   assert.throws(() => normalizeQuantity('1.1234567'), /quantity/i);
 });
+
+
+test('weighted allocation keeps deterministic ordering for very large exact weights', () => {
+  const result = calculateAllocations({
+    amount: '100.01',
+    rule: 'WEIGHTED',
+    recipients: [
+      {
+        accountId: '507f1f77bcf86cd799439021',
+        purpose: 'PRODUCER',
+        weight: '999999999999999999999999999999999999.000001',
+      },
+      {
+        accountId: '507f1f77bcf86cd799439022',
+        purpose: 'PRODUCER',
+        weight: '999999999999999999999999999999999998.000001',
+      },
+      {
+        accountId: '507f1f77bcf86cd799439023',
+        purpose: 'GROUP',
+        weight: '1.000001',
+      },
+    ],
+  });
+
+  assert.equal(result.reduce((sum, item) => addMoney(sum, item.amount), '0.00'), '100.01');
+  assert.equal(result[0].accountId, '507f1f77bcf86cd799439021');
+  assert.equal(result[1].accountId, '507f1f77bcf86cd799439022');
+});
+
+test('weighted allocation rejects zero and negative exact weights', () => {
+  for (const weight of ['0', '0.000000', '-1', '-0.000001']) {
+    assert.throws(
+      () => calculateAllocations({
+        amount: '10.00',
+        rule: 'WEIGHTED',
+        recipients: [
+          { accountId: '507f1f77bcf86cd799439024', weight },
+          { accountId: '507f1f77bcf86cd799439025', weight: '1' },
+        ],
+      }),
+      /Allocation weights must be positive decimals/,
+    );
+  }
+});

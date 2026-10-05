@@ -35,7 +35,7 @@
  * ========================================================================== */
 
 .kpi-widget {
-  --kpi-bg: #ffffff;
+  --kpi-bg: var(--titech-brand-white);
   --kpi-bg-hover: var(--titech-color-background);
   --kpi-bg-active: var(--titech-color-surface-muted);
   --kpi-border: var(--titech-color-border);
@@ -46,7 +46,7 @@
   --kpi-text-muted: var(--titech-color-text-subtle);
   --kpi-text-subtle: var(--titech-color-text-subtle);
 
-  --kpi-brand: #008000;
+  --kpi-brand: var(--titech-brand-green);
   --kpi-brand-strong: #115e59;
   --kpi-brand-soft: #ccfbf1;
   --kpi-brand-ring: rgba(15, 118, 110, 0.22);
@@ -1199,7 +1199,7 @@ a.kpi-widget:active {
     min-height: auto;
 
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     border: 1px solid #999999;
 

@@ -100,7 +100,7 @@
  *   Node.js 20+
  *
  * Module:
- *   CommonJS
+ *   Native ESM
  *
  * =============================================================================
  */
@@ -663,6 +663,13 @@ async function runPhase(
  * =============================================================================
  */
 
-module.exports = Object.freeze({
+const phaseRunner = Object.freeze({
   runPhase,
 });
+
+export {
+  runPhase,
+  phaseRunner,
+};
+
+export default phaseRunner;

@@ -20,7 +20,20 @@ import React, {
 import PropTypes from "prop-types";
 import { toast } from "react-toastify";
 
-import api from "../../services/api";
+import {
+  useAuth,
+} from "../../context/useAuth";
+
+import api, {
+  getApiConnectivity,
+  onApiConnectivityChange,
+  probeApiReadiness,
+} from "../../services/api";
+
+import {
+  API_CONNECTIVITY_STATUS,
+} from "../../services/runtimeConnectivity.js";
+
 import socket from "../../services/socket";
 
 // ============================================================================
@@ -33,8 +46,6 @@ const NOTIFICATION_ENDPOINT =
 const DEFAULT_PAGE_SIZE = 20;
 
 const MAX_NOTIFICATIONS = 100;
-
-const MAX_RETRIES = 3;
 
 const RETRY_BASE_DELAY = 2000;
 
@@ -356,6 +367,17 @@ export function NotificationProvider({
   pageSize = DEFAULT_PAGE_SIZE,
   maxNotifications = MAX_NOTIFICATIONS,
 }) {
+  const {
+    user,
+    authenticated,
+    authReady,
+    online,
+    tenantId,
+  } = useAuth();
+
+  const [apiConnectivity, setApiConnectivity] =
+    useState(() => getApiConnectivity());
+
   // ==========================================================================
   // State
   // ==========================================================================
@@ -395,6 +417,16 @@ export function NotificationProvider({
 
   const requestSequenceRef =
     useRef(0);
+
+  const pageRef =
+    useRef(1);
+
+  const lastAutoLoadKeyRef =
+    useRef(null);
+
+  useEffect(() => {
+    pageRef.current = state.page;
+  }, [state.page]);
 
   // ==========================================================================
   // State Helpers
@@ -732,7 +764,24 @@ export function NotificationProvider({
           const requestedPage =
             reset
               ? 1
-              : state.page;
+              : pageRef.current;
+
+          const connectivity =
+            await probeApiReadiness();
+
+          if (!connectivity.ready) {
+            if (mountedRef.current) {
+              setState((previous) => ({
+                ...previous,
+                loading: false,
+                refreshing: false,
+                initialized: true,
+                error: null,
+              }));
+            }
+
+            return [];
+          }
 
           const response =
             await api.get(
@@ -874,7 +923,6 @@ export function NotificationProvider({
       [
         pageSize,
         maxNotifications,
-        state.page,
       ]
     );
 
@@ -892,18 +940,10 @@ export function NotificationProvider({
         );
       }
 
-      retryRef.current += 1;
-
-      if (
-        retryRef.current >
-        MAX_RETRIES
-      ) {
-        retryRef.current = 0;
-
-        return fetchNotifications({
-          reset: true,
-        });
-      }
+      retryRef.current = Math.min(
+        retryRef.current + 1,
+        3
+      );
 
       const delay =
         RETRY_BASE_DELAY *
@@ -1285,7 +1325,11 @@ export function NotificationProvider({
   // ==========================================================================
 
   useEffect(() => {
-    if (!realtime) {
+    if (
+      !realtime ||
+      !authenticated ||
+      !authReady
+    ) {
       return undefined;
     }
 
@@ -1442,6 +1486,8 @@ export function NotificationProvider({
     };
   }, [
     realtime,
+    authenticated,
+    authReady,
     addNotification,
     updateNotifications,
   ]);
@@ -1477,57 +1523,111 @@ export function NotificationProvider({
   ]);
 
   // ==========================================================================
-  // Initialization
+  // Authentication / API-aware Initialization
   // ==========================================================================
 
   useEffect(() => {
-    mountedRef.current =
-      true;
+    mountedRef.current = true;
 
-    if (autoLoad) {
+    if (!authReady) {
+      return () => {
+        mountedRef.current = false;
+      };
+    }
+
+    const identity =
+      user?.id || user?._id || "anonymous";
+
+    if (!authenticated) {
+      abortRef.current?.abort();
+
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
+
+      lastAutoLoadKeyRef.current = null;
+      retryRef.current = 0;
+
+      setState({
+        ...DEFAULT_STATE,
+        initialized: true,
+        loading: false,
+        refreshing: false,
+      });
+
+      return () => {
+        mountedRef.current = false;
+        abortRef.current?.abort();
+      };
+    }
+
+    const autoLoadKey =
+      `${identity}:${tenantId || ""}`;
+
+    const canLoad =
+      autoLoad &&
+      online &&
+      apiConnectivity.status ===
+        API_CONNECTIVITY_STATUS.READY;
+
+    if (
+      canLoad &&
+      lastAutoLoadKeyRef.current !== autoLoadKey
+    ) {
+      lastAutoLoadKeyRef.current = autoLoadKey;
+
       fetchNotifications({
         reset: true,
         silent: true,
       }).catch(() => {
-        // Error is already reflected
-        // in provider state.
+        // Provider state contains the diagnostic; bootstrap must not reject.
       });
-    } else {
-      setState(
-        (previous) => ({
-          ...previous,
-          initialized: true,
-          loading: false,
-        })
-      );
+    } else if (!autoLoad) {
+      setState((previous) => ({
+        ...previous,
+        initialized: true,
+        loading: false,
+      }));
+    } else if (
+      apiConnectivity.status !==
+      API_CONNECTIVITY_STATUS.READY
+    ) {
+      setState((previous) => ({
+        ...previous,
+        initialized: true,
+        loading: false,
+      }));
     }
 
     return () => {
-      mountedRef.current =
-        false;
-
+      mountedRef.current = false;
       abortRef.current?.abort();
 
-      if (
-        retryTimerRef.current
-      ) {
-        clearTimeout(
-          retryTimerRef.current
-        );
-      }
-
-      if (
-        refreshTimerRef.current
-      ) {
-        clearInterval(
-          refreshTimerRef.current
-        );
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
       }
     };
   }, [
     autoLoad,
+    authenticated,
+    authReady,
+    online,
+    apiConnectivity.status,
+    tenantId,
+    user?.id,
+    user?._id,
     fetchNotifications,
   ]);
+
+  // ==========================================================================
+  // API connectivity subscription
+  // ==========================================================================
+
+  useEffect(() => {
+    return onApiConnectivityChange((nextState) => {
+      setApiConnectivity(nextState);
+    });
+  }, []);
 
   // ==========================================================================
   // Automatic Refresh

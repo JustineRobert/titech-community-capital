@@ -104,7 +104,7 @@
     var(--titech-color-text-subtle);
 
   --titech-savings-color-text-inverse:
-    #ffffff;
+    var(--titech-brand-white);
 
   --titech-savings-color-border:
     var(--titech-color-border);
@@ -113,7 +113,7 @@
     var(--titech-color-border-strong);
 
   --titech-savings-color-surface:
-    #ffffff;
+    var(--titech-brand-white);
 
   --titech-savings-color-surface-muted:
     var(--titech-color-background);
@@ -731,7 +731,7 @@
 .titech-savings-thread__badge--unread {
   border-color: #b7ddff;
   background: #edf7ff;
-  color: #0030a0;
+  color: var(--titech-brand-deep-blue);
 }
 
 /* ============================================================================
@@ -1439,7 +1439,7 @@
 
 @media print {
   .titech-savings-threads {
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 
@@ -1495,7 +1495,7 @@
       var(--titech-color-text-subtle);
 
     --titech-savings-color-text-inverse:
-      #ffffff;
+      var(--titech-brand-white);
 
     --titech-savings-color-border:
       #334155;

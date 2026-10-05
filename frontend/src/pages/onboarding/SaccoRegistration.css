@@ -6,8 +6,8 @@
    ========================================================================== */
 
 :root {
-  --sacco-primary: #0058d8;
-  --sacco-primary-dark: #0030a0;
+  --sacco-primary: var(--titech-brand-electric-blue);
+  --sacco-primary-dark: var(--titech-brand-deep-blue);
   --sacco-success: #16a34a;
   --sacco-danger: #dc2626;
   --sacco-warning: #f59e0b;
@@ -15,7 +15,7 @@
   --sacco-text-light: var(--titech-color-text-subtle);
   --sacco-border: var(--titech-color-border);
   --sacco-bg: var(--titech-color-background);
-  --sacco-card: #ffffff;
+  --sacco-card: var(--titech-brand-white);
   --sacco-shadow:
     0 8px 24px rgba(0, 0, 0, 0.08);
   --radius: 16px;

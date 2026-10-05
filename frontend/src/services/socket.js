@@ -8,6 +8,14 @@
 
 import { io } from "socket.io-client";
 
+import {
+  getToken,
+  getTenant,
+  getDeviceId,
+  setToken,
+  clearToken,
+} from "./api.js";
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -18,14 +26,6 @@ const SOCKET_URL =
     ? window.location.origin
     : 'http://localhost:5000');
 
-const TOKEN_KEY =
-  import.meta.env.VITE_TOKEN_KEY ||
-  "token";
-
-const TENANT_KEY =
-  import.meta.env.VITE_TENANT_KEY ||
-  "activeTenant";
-
 const MAX_RECONNECT_ATTEMPTS =
   Number(import.meta.env.VITE_SOCKET_RETRIES) || 10;
 
@@ -33,60 +33,8 @@ const MAX_RECONNECT_ATTEMPTS =
 // Token Helpers
 // ============================================================================
 
-function getToken() {
-  return (
-    localStorage.getItem(
-      TOKEN_KEY
-    ) ||
-    sessionStorage.getItem(
-      TOKEN_KEY
-    )
-  );
-}
-
 function getTenantId() {
-  try {
-    const tenant =
-      localStorage.getItem(
-        TENANT_KEY
-      );
-
-    if (!tenant) {
-      return null;
-    }
-
-    const parsed =
-      JSON.parse(tenant);
-
-    return (
-      parsed?.id ||
-      parsed?._id ||
-      tenant
-    );
-  } catch {
-    return (
-      localStorage.getItem(
-        TENANT_KEY
-      ) || null
-    );
-  }
-}
-
-function getDeviceId() {
-  let deviceId =
-    localStorage.getItem(
-      "deviceId"
-    );
-
-  if (!deviceId) {
-    deviceId = crypto.randomUUID();
-    localStorage.setItem(
-      "deviceId",
-      deviceId
-    );
-  }
-
-  return deviceId;
+  return getTenant();
 }
 
 function getCorrelationId() {
@@ -211,13 +159,8 @@ export function reconnectSocket() {
 export function switchTenant(
   tenantId
 ) {
-  localStorage.setItem(
-    TENANT_KEY,
-    JSON.stringify({
-      id: tenantId,
-    })
-  );
-
+  setTenant(tenantId);
+  updateAuth();
   reconnectSocket();
 }
 
@@ -228,24 +171,36 @@ export function switchTenant(
 export function updateSocketToken(
   token
 ) {
+  return refreshSocketAuthentication(token);
+}
+
+/**
+ * Synchronize the current memory-only access token with Socket.IO.
+ *
+ * This is intentionally separate from persistence: the socket handshake may
+ * be refreshed/reconnected, but the token is never written to browser storage.
+ */
+export function refreshSocketAuthentication(token = getToken()) {
   if (token) {
-    localStorage.setItem(
-      TOKEN_KEY,
-      token
-    );
-  } else {
-    localStorage.removeItem(
-      TOKEN_KEY
-    );
+    socket.auth = {
+      ...socket.auth,
+      token,
+      tenantId: getTenantId(),
+      deviceId: getDeviceId(),
+      correlationId: getCorrelationId(),
+    };
+
+    if (socket.connected) {
+      reconnectSocket();
+    }
+
+    return true;
   }
 
+  manuallyDisconnected = true;
   updateAuth();
-
-  if (
-    socket.connected
-  ) {
-    reconnectSocket();
-  }
+  socket.disconnect();
+  return false;
 }
 
 // ============================================================================

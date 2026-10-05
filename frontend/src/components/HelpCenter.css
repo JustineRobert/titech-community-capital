@@ -44,7 +44,7 @@
   --titech-help-surface:
     var(
       --color-surface,
-      #ffffff
+      var(--titech-brand-white)
     );
 
   --titech-help-surface-soft:
@@ -86,7 +86,7 @@
   --titech-help-primary:
     var(
       --color-primary,
-      #008000
+      var(--titech-brand-green)
     );
 
   --titech-help-primary-hover:
@@ -258,7 +258,7 @@
 
   overflow: hidden;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     radial-gradient(
@@ -268,7 +268,7 @@
     ),
     linear-gradient(
       135deg,
-      #008000 0%,
+      var(--titech-brand-green) 0%,
       #115e59 55%,
       #134e4a 100%
     );
@@ -327,7 +327,7 @@
   width: 3.25rem;
   height: 3.25rem;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     rgb(255 255 255 / 0.12);
@@ -366,7 +366,7 @@
 .help-center-hero h1 {
   margin: 0;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   font-size:
     clamp(
@@ -1214,7 +1214,7 @@
   padding:
     0.6rem 1rem;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--titech-help-primary);
@@ -1373,14 +1373,14 @@
 }
 
 .help-center-support-button--primary {
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--titech-help-primary);
 }
 
 .help-center-support-button--primary:hover {
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--titech-help-primary-hover);
@@ -1865,7 +1865,7 @@
   .help-center-empty-button,
   .help-center-support-button--primary {
     color:
-      #ffffff;
+      var(--titech-brand-white);
   }
 }
 
@@ -1878,7 +1878,7 @@
     padding: 0;
 
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .help-center-hero {
@@ -1886,7 +1886,7 @@
 
     color: #000000;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     border:
       1px solid #000000;
@@ -1926,7 +1926,7 @@
 
     color: #000000;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .help-center-footer {

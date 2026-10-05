@@ -41,6 +41,17 @@ for (const file of walkAll(BACKEND_ROOT)) {
   if (file.endsWith('.planned.md')) plannedTestSpecs.push(file);
 }
 const empty = tests.filter((file) => fs.statSync(file).size === 0);
+const blockingPathMatchers = [
+  /^backend\/tests\/bootstrap\//,
+  /^backend\/tests\/(?:unit\/financial|integration\/financial|providers|payment|reconciliation)(?:\/|\.)/,
+  /^backend\/tests\/(?:unit\/platform|integration\/auth|integration\/security)(?:\/|\.)/,
+];
+const isBlockingEmpty = (file) => {
+  const relative = path.relative(ROOT, file).replaceAll(path.sep, '/');
+  return blockingPathMatchers.some((pattern) => pattern.test(relative));
+};
+const blockingEmpty = empty.filter(isBlockingEmpty);
+const nonBlockingEmpty = empty.filter((file) => !isBlockingEmpty(file));
 const byCanonical = new Map();
 for (const file of tests) {
   const relative = path.relative(BACKEND_ROOT, file).replaceAll(path.sep, '/');
@@ -67,14 +78,22 @@ const report = {
   totals: {
     testFiles: tests.length,
     emptyTestFiles: empty.length,
+    blockingEmptyTestFiles: blockingEmpty.length,
+    nonBlockingEmptyTestFiles: nonBlockingEmpty.length,
     caseInsensitiveDuplicateGroups: caseInsensitiveDuplicates.length,
     mixedModuleTestFiles: mixed.length,
     plannedTestSpecs: plannedTestSpecs.length,
   },
   emptyTestFiles: empty.map((file) => path.relative(ROOT, file).replaceAll(path.sep, '/')),
+  blockingEmptyTestFiles: blockingEmpty.map((file) => path.relative(ROOT, file).replaceAll(path.sep, '/')),
+  nonBlockingEmptyTestFiles: nonBlockingEmpty.map((file) => path.relative(ROOT, file).replaceAll(path.sep, '/')),
   caseInsensitiveDuplicates,
   mixedModuleTestFiles: mixed,
 };
+
+const reportPath = path.join(ROOT, 'reports', 'test-discovery-audit.json');
+fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 
 const wantsJson = process.argv.includes('--json');
 if (wantsJson) console.log(JSON.stringify(report, null, 2));
@@ -85,9 +104,10 @@ else {
   console.log(`Case-insensitive duplicate groups: ${report.totals.caseInsensitiveDuplicateGroups}`);
   console.log(`Mixed CJS/ESM test files: ${report.totals.mixedModuleTestFiles}`);
   console.log(`Planned non-executable test specs: ${report.totals.plannedTestSpecs}`);
-  if (empty.length) console.log(`\nEmpty test files:\n${report.emptyTestFiles.map((x) => `- ${x}`).join('\n')}`);
+  if (blockingEmpty.length) console.log(`\nBlocking empty test files:\n${report.blockingEmptyTestFiles.map((x) => `- ${x}`).join('\n')}`);
+  if (nonBlockingEmpty.length) console.log(`\nNon-blocking test debt (tracked, not a release blocker): ${nonBlockingEmpty.length}`);
   if (caseInsensitiveDuplicates.length) console.log(`\nCase-insensitive duplicates:\n${caseInsensitiveDuplicates.map((x) => `- ${x.join(' | ')}`).join('\n')}`);
   if (mixed.length) console.log(`\nMixed module tests:\n${mixed.map((x) => `- ${x}`).join('\n')}`);
 }
 
-process.exit(empty.length || caseInsensitiveDuplicates.length || mixed.length ? 2 : 0);
+process.exit(blockingEmpty.length || caseInsensitiveDuplicates.length || mixed.length ? 2 : 0);

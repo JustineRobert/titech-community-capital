@@ -68,6 +68,7 @@ import { toast } from "react-toastify";
 
 import socket, {
   connectSocket,
+  refreshSocketAuthentication,
 } from "../services/socket";
 
 import {
@@ -84,6 +85,9 @@ import {
   isOnline,
   onNetworkStateChange,
   get as apiGet,
+  getApiConnectivity,
+  onApiConnectivityChange,
+  probeApiReadiness,
 } from "../services/api";
 
 // ============================================================================
@@ -107,6 +111,21 @@ const REFRESH_RETRY_COOLDOWN_MS =
 
 const AUTH_BOOTSTRAP_TIMEOUT_MS =
   30000;
+
+function isTransientAuthFailure(error) {
+  const status = error?.response?.status;
+
+  return (
+    !error?.response ||
+    error?.code === 'ERR_NETWORK' ||
+    error?.code === 'ECONNABORTED' ||
+    error?.code === 'API_UNAVAILABLE' ||
+    error?.code === 'CLIENT_OFFLINE' ||
+    status >= 500 ||
+    status === 408 ||
+    status === 429
+  );
+}
 
 // ============================================================================
 // Context
@@ -428,6 +447,11 @@ export function AuthProvider({
       isOnline()
     );
 
+  const [apiConnectivity, setApiConnectivity] =
+    useState(() =>
+      getApiConnectivity()
+    );
+
   const [refreshing, setRefreshing] =
     useState(false);
 
@@ -576,6 +600,16 @@ export function AuthProvider({
         ) {
           clearToken();
 
+          try {
+            refreshSocketAuthentication(null);
+          } catch (error) {
+            devLog(
+              "warn",
+              "[AUTH] Socket authentication cleanup failed",
+              error
+            );
+          }
+
           if (
             mountedRef.current
           ) {
@@ -590,6 +624,18 @@ export function AuthProvider({
         setToken(
           accessToken
         );
+
+        try {
+          refreshSocketAuthentication(
+            accessToken
+          );
+        } catch (error) {
+          devLog(
+            "warn",
+            "[AUTH] Socket authentication synchronization failed",
+            error
+          );
+        }
 
         if (
           mountedRef.current
@@ -1161,10 +1207,16 @@ export function AuthProvider({
               clearRefreshTimer();
 
               /**
-               * Only destroy the token when the operation still belongs to
-               * the current session.
+               * Network/dependency failures do not prove the refresh session
+               * is invalid. Preserve the memory-only token and let the shared
+               * connectivity monitor drive safe recovery. Only a definitive
+               * authentication response is allowed to clear the session.
                */
+              const transientFailure =
+                isTransientAuthFailure(error);
+
               if (
+                !transientFailure &&
                 isSessionCurrent(
                   generation
                 )
@@ -1741,6 +1793,32 @@ export function AuthProvider({
                 );
               }
 
+              if (!onlineRef.current) {
+                devLog(
+                  "info",
+                  "[AUTH] Authentication bootstrap deferred because application is offline"
+                );
+
+                return;
+              }
+
+              const apiState =
+                await probeApiReadiness({
+                  force: true,
+                });
+
+              if (!apiState.ready) {
+                devLog(
+                  "info",
+                  "[AUTH] Authentication bootstrap deferred because TITech API is not ready",
+                  {
+                    status: apiState.status,
+                  }
+                );
+
+                return;
+              }
+
               let currentToken =
                 getToken();
 
@@ -1807,17 +1885,6 @@ export function AuthProvider({
               // ============================================================
               // Restore from HttpOnly refresh cookie
               // ============================================================
-
-              if (
-                !onlineRef.current
-              ) {
-                devLog(
-                  "info",
-                  "[AUTH] Bootstrap deferred because application is offline"
-                );
-
-                return;
-              }
 
               const refreshedToken =
                 await refreshSession({
@@ -1988,6 +2055,37 @@ export function AuthProvider({
         updateAccessToken,
       ]
     );
+
+  // ========================================================================
+  // API Connectivity Lifecycle
+  // ========================================================================
+
+  useEffect(() => {
+    return onApiConnectivityChange((nextState) => {
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setApiConnectivity(nextState);
+
+      if (
+        nextState.status !== "READY" ||
+        !onlineRef.current ||
+        loadingRef.current ||
+        userRef.current
+      ) {
+        return;
+      }
+
+      initializeAuthentication().catch((error) => {
+        devLog(
+          "warn",
+          "[AUTH] Authentication recovery after API readiness change failed",
+          error
+        );
+      });
+    });
+  }, [initializeAuthentication]);
 
   // ========================================================================
   // Initial Authentication Lifecycle
@@ -2567,6 +2665,11 @@ export function AuthProvider({
 
         online,
 
+        apiConnectivity,
+
+        apiReady:
+          apiConnectivity.status === "READY",
+
         // --------------------------------------------------------------
         // Session state
         // --------------------------------------------------------------
@@ -2621,6 +2724,7 @@ export function AuthProvider({
       token,
       loading,
       online,
+      apiConnectivity,
       refreshing,
       authError,
       login,

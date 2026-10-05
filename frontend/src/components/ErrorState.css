@@ -43,18 +43,18 @@
  * ========================================================================== */
 
 .error-state {
-  --titech-error-bg: var(--color-surface, #ffffff);
+  --titech-error-bg: var(--color-surface, var(--titech-brand-white));
   --titech-error-surface: var(--color-surface-subtle, var(--titech-color-background));
   --titech-error-text: var(--color-text, var(--titech-brand-navy));
   --titech-error-muted: var(--color-text-secondary, var(--titech-color-text-subtle));
   --titech-error-border: var(--color-border, var(--titech-color-border));
 
-  --titech-error-primary: var(--color-primary, #008000);
+  --titech-error-primary: var(--color-primary, var(--titech-brand-green));
   --titech-error-primary-hover: var(--color-primary-hover, #115e59);
   --titech-error-primary-active: var(--color-primary-active, #134e4a);
   --titech-error-primary-contrast: var(
     --color-primary-contrast,
-    #ffffff
+    var(--titech-brand-white)
   );
 
   --titech-error-danger: var(--color-danger, #dc2626);
@@ -82,7 +82,7 @@
 
   --titech-error-network: var(
     --color-info,
-    #0058d8
+    var(--titech-brand-electric-blue)
   );
   --titech-error-network-soft: var(
     --color-info-soft,

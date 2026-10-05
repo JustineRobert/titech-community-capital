@@ -119,12 +119,16 @@ export function compareMoney(left, right) {
 }
 
 function parseWeight(value) {
-  const raw = normalizeString(value, 'weight', { max: 24 });
-  if (!/^\d+(?:\.\d{1,6})?$/.test(raw) || Number(raw) <= 0) {
+  const raw = normalizeString(value, 'weight', { max: 48 });
+  if (!/^\d+(?:\.\d{1,6})?$/.test(raw)) {
     throw new AgricultureDomainError('Allocation weights must be positive decimals.', 'AGRICULTURE_WEIGHT_INVALID');
   }
   const [whole, fraction = ''] = raw.split('.');
-  return BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, '0'));
+  const scaled = BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, '0'));
+  if (scaled <= 0n) {
+    throw new AgricultureDomainError('Allocation weights must be positive decimals.', 'AGRICULTURE_WEIGHT_INVALID');
+  }
+  return scaled;
 }
 
 export function calculateAllocations({ amount, rule = 'EXPLICIT', recipients = [] }) {
@@ -163,7 +167,12 @@ export function calculateAllocations({ amount, rule = 'EXPLICIT', recipients = [
     base.push({ item, cents, remainder });
   }
   let remaining = amountCents - allocated;
-  base.sort((a, b) => Number(b.remainder - a.remainder) || String(a.item.accountId).localeCompare(String(b.item.accountId)));
+  base.sort((a, b) => {
+    if (a.remainder === b.remainder) {
+      return String(a.item.accountId).localeCompare(String(b.item.accountId));
+    }
+    return a.remainder > b.remainder ? -1 : 1;
+  });
   for (let i = 0; remaining > 0n; i += 1) {
     base[i % base.length].cents += 1n;
     remaining -= 1n;

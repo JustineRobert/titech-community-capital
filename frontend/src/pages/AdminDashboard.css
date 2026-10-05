@@ -15,8 +15,8 @@
  * ============================================================================ */
 
 :root {
-  --titech-primary: #0058d8;
-  --titech-primary-hover: #0030a0;
+  --titech-primary: var(--titech-brand-electric-blue);
+  --titech-primary-hover: var(--titech-brand-deep-blue);
   --titech-primary-soft: #edf7ff;
 
   --titech-success: #16a34a;
@@ -40,13 +40,13 @@
   --titech-text-primary: var(--titech-brand-navy);
   --titech-text-secondary: var(--titech-color-text-muted);
   --titech-text-muted: var(--titech-color-text-subtle);
-  --titech-text-inverse: #ffffff;
+  --titech-text-inverse: var(--titech-brand-white);
 
   --titech-border: var(--titech-color-border);
   --titech-border-strong: var(--titech-color-border);
 
   --titech-background: var(--titech-color-background);
-  --titech-surface: #ffffff;
+  --titech-surface: var(--titech-brand-white);
   --titech-surface-muted: var(--titech-color-background);
 
   --titech-shadow-xs:
@@ -1185,7 +1185,7 @@ textarea:focus-visible {
 
     padding: 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }
@@ -1223,7 +1223,7 @@ textarea:focus-visible {
   .admin-error {
     border-color: #000000;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }

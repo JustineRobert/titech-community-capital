@@ -10,8 +10,8 @@
    ============================================================================ */
 
 :root {
-  --titech-primary: #0058d8;
-  --titech-primary-dark: #0030a0;
+  --titech-primary: var(--titech-brand-electric-blue);
+  --titech-primary-dark: var(--titech-brand-deep-blue);
   --titech-primary-soft: #edf7ff;
 
   --titech-success: #059669;
@@ -27,7 +27,7 @@
   --titech-info-soft: #f0f9ff;
 
   --dashboard-bg: var(--titech-color-background);
-  --surface: #ffffff;
+  --surface: var(--titech-brand-white);
   --surface-muted: var(--titech-color-background);
   --surface-hover: var(--titech-color-surface-muted);
 
@@ -204,7 +204,7 @@
   align-items: center;
   justify-content: center;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--titech-danger);
 
   border: 2px solid var(--surface);
@@ -375,7 +375,7 @@
   padding: 8px 13px;
 
   color: #991b1b;
-  background: #ffffff;
+  background: var(--titech-brand-white);
 
   border: 1px solid #fecaca;
   border-radius: 8px;
@@ -592,7 +592,7 @@ line {
 .group-card:hover {
   transform: translateY(-3px);
 
-  background: #ffffff;
+  background: var(--titech-brand-white);
 
   border-color: #b7ddff;
 
@@ -810,7 +810,7 @@ line {
 
   padding: 9px 18px;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--titech-primary);
 
   border: 1px solid var(--titech-primary);
@@ -877,7 +877,7 @@ line {
 }
 
 .logout-btn:hover {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--titech-danger);
   border-color: var(--titech-danger);
 
@@ -1160,7 +1160,7 @@ line {
 
   .dashboard-actions button:hover {
     background: #00153f;
-    border-color: #0030a0;
+    border-color: var(--titech-brand-deep-blue);
   }
 
   .dashboard-actions button span {
@@ -1170,7 +1170,7 @@ line {
   .stat-card:hover,
   .group-card:hover {
     background: #111c31;
-    border-color: #0030a0;
+    border-color: var(--titech-brand-deep-blue);
   }
 
   .error-box {
@@ -1186,7 +1186,7 @@ line {
   }
 
   .error-box button:hover {
-    color: #ffffff;
+    color: var(--titech-brand-white);
     background: #7f1d1d;
   }
 
@@ -1235,7 +1235,7 @@ line {
   }
 
   .logout-btn:hover {
-    color: #ffffff;
+    color: var(--titech-brand-white);
     background: var(--titech-danger);
   }
 }
@@ -1249,7 +1249,7 @@ line {
     padding: 0;
 
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .dashboard-header,

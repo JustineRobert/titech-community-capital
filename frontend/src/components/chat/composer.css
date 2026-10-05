@@ -56,13 +56,13 @@
     sans-serif;
 
   --titech-chat-bg:
-    #ffffff;
+    var(--titech-brand-white);
 
   --titech-chat-surface:
     var(--titech-color-background);
 
   --titech-chat-surface-elevated:
-    #ffffff;
+    var(--titech-brand-white);
 
   --titech-chat-border:
     var(--titech-color-border);
@@ -83,10 +83,10 @@
     var(--titech-color-text-subtle);
 
   --titech-chat-primary:
-    #0058d8;
+    var(--titech-brand-electric-blue);
 
   --titech-chat-primary-hover:
-    #0030a0;
+    var(--titech-brand-deep-blue);
 
   --titech-chat-primary-active:
     #002780;
@@ -660,7 +660,7 @@
     var(--titech-chat-radius-md);
 
   color:
-    #ffffff;
+    var(--titech-brand-white);
 
   background:
     var(--titech-chat-primary);
@@ -1155,7 +1155,7 @@
     center;
 
   color:
-    #ffffff;
+    var(--titech-brand-white);
 
   background:
     rgba(
@@ -1276,7 +1276,7 @@
     var(--titech-chat-danger);
 
   background:
-    #ffffff;
+    var(--titech-brand-white);
 
   font-family:
     inherit;

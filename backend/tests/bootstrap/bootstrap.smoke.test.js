@@ -88,7 +88,12 @@
  * =============================================================================
  */
 
-const path = require('node:path');
+import path from 'node:path';
+import { dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * =============================================================================
@@ -143,7 +148,7 @@ process.env.NODE_ENV =
  * embedding application startup logic inside the test.
  */
 
-function loadBootstrapModule() {
+async function loadBootstrapModule() {
   const candidates = [
     path.resolve(
       __dirname,
@@ -164,13 +169,21 @@ function loadBootstrapModule() {
   const failures = [];
 
   for (const candidate of candidates) {
-    try {
-      return require(candidate);
-    } catch (error) {
-      failures.push({
-        candidate,
-        error,
-      });
+    const moduleCandidates = [
+      candidate,
+      `${candidate}.js`,
+      path.join(candidate, 'index.js'),
+    ];
+
+    for (const moduleCandidate of moduleCandidates) {
+      try {
+        return await import(pathToFileURL(moduleCandidate).href);
+      } catch (error) {
+        failures.push({
+          candidate: moduleCandidate,
+          error,
+        });
+      }
     }
   }
 
@@ -216,7 +229,7 @@ function loadBootstrapModule() {
 
 async function startTITechBootstrap() {
   const bootstrap =
-    loadBootstrapModule();
+    await loadBootstrapModule();
 
   /**
    * Preferred enterprise contract:
@@ -1030,6 +1043,4 @@ describe(
  * Jest itself does not require this export.
  */
 
-module.exports = {
-  MANDATORY_BOOTSTRAP_PHASES,
-};
+export { MANDATORY_BOOTSTRAP_PHASES };

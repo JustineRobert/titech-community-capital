@@ -33,7 +33,7 @@
 
 .faq-container {
   --titech-faq-bg: #f5f7fb;
-  --titech-faq-surface: #ffffff;
+  --titech-faq-surface: var(--titech-brand-white);
   --titech-faq-surface-muted: var(--titech-color-background);
   --titech-faq-surface-hover: var(--titech-color-surface-muted);
 
@@ -44,7 +44,7 @@
   --titech-faq-text-secondary: var(--titech-color-text-muted);
   --titech-faq-text-muted: var(--titech-color-text-subtle);
 
-  --titech-faq-primary: #008000;
+  --titech-faq-primary: var(--titech-brand-green);
   --titech-faq-primary-hover: #115e59;
   --titech-faq-primary-active: #134e4a;
   --titech-faq-primary-soft: #ccfbf1;
@@ -59,7 +59,7 @@
   --titech-faq-success: #047857;
   --titech-faq-success-soft: #ecfdf5;
 
-  --titech-faq-focus: #00b8f8;
+  --titech-faq-focus: var(--titech-brand-cyan);
   --titech-faq-focus-ring: rgba(20, 184, 166, 0.28);
 
   --titech-faq-shadow-sm:
@@ -461,7 +461,7 @@
 }
 
 .faq-category-btn.active {
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--titech-faq-primary);
@@ -475,7 +475,7 @@
 }
 
 .faq-category-btn.active:hover {
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--titech-faq-primary-hover);
@@ -663,7 +663,7 @@
     rotate(180deg);
 
   color:
-    #ffffff;
+    var(--titech-brand-white);
 
   background:
     var(--titech-faq-primary);
@@ -975,7 +975,7 @@
   padding:
     0.65rem 1rem;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--titech-faq-primary);
@@ -1151,7 +1151,7 @@
   padding:
     0.65rem 1rem;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     var(--titech-faq-primary);
@@ -1563,7 +1563,7 @@
 @media print {
   .faq-container {
     background:
-      #ffffff;
+      var(--titech-brand-white);
 
     color:
       #000000;

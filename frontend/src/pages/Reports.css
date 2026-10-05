@@ -24,8 +24,8 @@
    ============================================================================ */
 
 :root {
-  --titech-report-primary: #0058d8;
-  --titech-report-primary-hover: #0030a0;
+  --titech-report-primary: var(--titech-brand-electric-blue);
+  --titech-report-primary-hover: var(--titech-brand-deep-blue);
   --titech-report-primary-active: #002780;
   --titech-report-primary-soft: #edf7ff;
 
@@ -55,7 +55,7 @@
   --titech-report-border: var(--titech-color-border);
   --titech-report-border-soft: var(--titech-color-border);
 
-  --titech-report-surface: #ffffff;
+  --titech-report-surface: var(--titech-brand-white);
   --titech-report-surface-muted: var(--titech-color-background);
   --titech-report-background: #f3f6fa;
 
@@ -528,7 +528,7 @@
 
   background: var(--titech-report-primary);
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   font: inherit;
   font-size: 0.83rem;
@@ -2100,7 +2100,7 @@
 
     padding: 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }
@@ -2138,7 +2138,7 @@
 
     box-shadow: none;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     break-inside: avoid;
   }

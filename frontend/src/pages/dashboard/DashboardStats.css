@@ -14,7 +14,7 @@
 
 :root {
   --dashboard-bg: var(--titech-color-background);
-  --dashboard-card-bg: #ffffff;
+  --dashboard-card-bg: var(--titech-brand-white);
   --dashboard-surface: var(--titech-color-surface-muted);
   --dashboard-border: var(--titech-color-border);
   --dashboard-border-strong: var(--titech-color-border-strong);
@@ -23,8 +23,8 @@
   --dashboard-text-secondary: var(--titech-color-text-subtle);
   --dashboard-text-muted: var(--titech-color-text-subtle);
 
-  --dashboard-primary: #0058d8;
-  --dashboard-primary-hover: #0030a0;
+  --dashboard-primary: var(--titech-brand-electric-blue);
+  --dashboard-primary-hover: var(--titech-brand-deep-blue);
   --dashboard-primary-soft: rgba(37, 99, 235, 0.1);
 
   --dashboard-success: #15803d;
@@ -36,7 +36,7 @@
   --dashboard-warning: #b45309;
   --dashboard-warning-soft: rgba(245, 158, 11, 0.14);
 
-  --dashboard-focus: #0058d8;
+  --dashboard-focus: var(--titech-brand-electric-blue);
 
   --dashboard-shadow-sm:
     0 2px 8px rgba(15, 23, 42, 0.05);

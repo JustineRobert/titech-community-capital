@@ -27,8 +27,8 @@
  * ========================================================================== */
 
 .transactions-page {
-  --tx-primary: #0058d8;
-  --tx-primary-hover: #0030a0;
+  --tx-primary: var(--titech-brand-electric-blue);
+  --tx-primary-hover: var(--titech-brand-deep-blue);
   --tx-primary-active: #002780;
   --tx-primary-soft: #edf7ff;
 
@@ -55,7 +55,7 @@
   --tx-border: var(--titech-color-border);
   --tx-border-strong: var(--titech-color-border-strong);
 
-  --tx-surface: #ffffff;
+  --tx-surface: var(--titech-brand-white);
   --tx-surface-soft: var(--titech-color-background);
   --tx-surface-muted: var(--titech-color-surface-muted);
 
@@ -258,7 +258,7 @@
 .primary-btn {
   border: 1px solid var(--tx-primary);
   background: var(--tx-primary);
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   box-shadow:
     0 2px 6px rgba(37, 99, 235, 0.16);
@@ -683,7 +683,7 @@
   border: 1px solid #fecaca;
   border-radius: 8px;
 
-  background: #ffffff;
+  background: var(--titech-brand-white);
   color: var(--tx-danger);
 
   cursor: pointer;
@@ -724,7 +724,7 @@
   background:
     linear-gradient(
       to bottom,
-      #ffffff,
+      var(--titech-brand-white),
       #fbfcfe
     );
 }
@@ -994,7 +994,7 @@
   border: 1px solid #d8eeff;
 
   background: #edf7ff;
-  color: #0030a0;
+  color: var(--titech-brand-deep-blue);
 }
 
 .transaction-type-deposit {
@@ -1018,7 +1018,7 @@
 .transaction-type-loan_repayment {
   border-color: #b7ddff;
   background: #edf7ff;
-  color: #0030a0;
+  color: var(--titech-brand-deep-blue);
 }
 
 .transaction-type-transfer {
@@ -1245,7 +1245,7 @@
 
 .pagination button:hover:not(:disabled) {
   border-color: var(--titech-color-text-subtle);
-  background: #ffffff;
+  background: var(--titech-brand-white);
   color: var(--tx-text);
 }
 
@@ -1891,7 +1891,7 @@
   .transactions-page {
     min-height: auto;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 
@@ -1916,7 +1916,7 @@
 
   .transactions-title-icon {
     border-color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 
@@ -1941,14 +1941,14 @@
   .transactions-table thead th {
     position: static;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 
   .transaction-type,
   .transaction-status {
     border: 1px solid #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 

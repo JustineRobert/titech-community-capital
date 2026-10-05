@@ -13,11 +13,11 @@
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
-  --info: #0066e8;
+  --info: var(--titech-brand-bright-blue);
 
-  --white: #ffffff;
+  --white: var(--titech-brand-white);
   --background: #f5f7fb;
-  --surface: #ffffff;
+  --surface: var(--titech-brand-white);
 
   --text-primary: var(--titech-brand-navy);
   --text-secondary: var(--titech-color-text-subtle);

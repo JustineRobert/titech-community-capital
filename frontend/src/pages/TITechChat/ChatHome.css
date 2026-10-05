@@ -56,7 +56,7 @@ TITech brand
 --titech-chat-primary-soft: #eaf3fb;
 --titech-chat-primary-border: #c7dced;
 
---titech-chat-secondary: #008000;
+--titech-chat-secondary: var(--titech-brand-green);
 --titech-chat-secondary-hover: #0b5f59;
 --titech-chat-secondary-soft: #e8f7f5;
 
@@ -89,15 +89,15 @@ Typography
 --titech-chat-text-muted: var(--titech-color-text-subtle);
 --titech-chat-text-subtle: var(--titech-color-text-subtle);
 --titech-chat-heading: var(--titech-brand-navy);
---titech-chat-inverse: #ffffff;
+--titech-chat-inverse: var(--titech-brand-white);
 
 /* --------------------------------------------------------------------------
 Surfaces
 ----------------------------------------------------------------------- */
 
 --titech-chat-background: #f4f7fb;
---titech-chat-surface: #ffffff;
---titech-chat-surface-raised: #ffffff;
+--titech-chat-surface: var(--titech-brand-white);
+--titech-chat-surface-raised: var(--titech-brand-white);
 --titech-chat-surface-muted: var(--titech-color-background);
 --titech-chat-surface-hover: var(--titech-color-surface-muted);
 --titech-chat-surface-active: #eaf3fb;
@@ -2735,7 +2735,7 @@ auto;
 
 
 background:
-  #ffffff;
+  var(--titech-brand-white);
 
 color:
   #000000;
@@ -2758,7 +2758,7 @@ none !important;
 .titech-chat-home__panel,
 .chat-home__panel {
 background:
-#ffffff;
+var(--titech-brand-white);
 
 
 box-shadow:

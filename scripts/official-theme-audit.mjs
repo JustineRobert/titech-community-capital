@@ -115,7 +115,7 @@ if (!/matchMedia\s*\(/.test(themeJs) && !/prefers-color-scheme/.test(themeJs)) {
 for (const [id, file, required] of [
   ['main-entry-theme-bootstrap', 'frontend/src/main.jsx', ["import { applyTheme, getInitialTheme } from './branding/theme';", 'applyTheme(getInitialTheme());']],
   ['index-entry-theme-bootstrap', 'frontend/src/index.js', ["import { applyTheme, getInitialTheme } from './branding/theme';", 'applyTheme(initialTheme);']],
-  ['theme-tests', 'frontend/src/branding/__tests__/theme.test.js', ['defaults deterministically to light', 'preserves explicit light and dark preferences', 'falls back to light for invalid persisted state', 'clear']],
+  ['theme-tests', 'frontend/src/branding/__tests__/theme.test.js', ['defaults deterministically to light', 'uses the TITech-namespaced storage key while preserving explicit preferences', 'falls back to light for invalid persisted state', 'clear']],
 ]) {
   if (!exists(file)) {
     fail(id, `${file} is missing.`);
@@ -127,13 +127,113 @@ for (const [id, file, required] of [
   else pass(id, `${file} is wired to the canonical official theme contract.`);
 }
 
+
+
+const FRONTEND_SOURCE_ROOT = path.join(ROOT, 'frontend', 'src');
+const officialPaletteHexes = new Set(Object.values(requiredPalette).map((value) => value.toUpperCase()));
+const officialColorToRole = Object.fromEntries(
+  Object.entries(requiredPalette).map(([role, value]) => [value.toUpperCase(), role]),
+);
+
+function walkFiles(dir, result = []) {
+  if (!fs.existsSync(dir)) return result;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', 'dist', 'coverage', 'build'].includes(entry.name)) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkFiles(full, result);
+    else result.push(full);
+  }
+  return result;
+}
+
+function auditFrontendThemeCoverage() {
+  const files = walkFiles(FRONTEND_SOURCE_ROOT);
+  const cssFiles = files.filter((file) => /\.css$/i.test(file));
+  const nonBrandCssFiles = cssFiles.filter((file) => !file.includes(`${path.sep}branding${path.sep}`));
+  const hardcodedOfficial = [];
+  const hardcodedOfficialByRole = Object.fromEntries(Object.keys(requiredPalette).map((key) => [key, 0]));
+
+  for (const file of nonBrandCssFiles) {
+    const text = fs.readFileSync(file, 'utf8');
+    const hits = normalizedHexes(text);
+    for (const hex of hits) {
+      if (!officialPaletteHexes.has(hex)) continue;
+      const role = officialColorToRole[hex];
+      const occurrences = (text.match(new RegExp(hex.replace('#', '#'), 'gi')) ?? []).length;
+      hardcodedOfficial.push({
+        file: path.relative(ROOT, file).replaceAll(path.sep, '/'),
+        role,
+        occurrences,
+      });
+      hardcodedOfficialByRole[role] += occurrences;
+    }
+  }
+
+  if (hardcodedOfficial.length === 0) {
+    pass(
+      'frontend-css-token-coverage',
+      `All ${nonBrandCssFiles.length} non-brand frontend CSS files consume the centralized TITech brand token layer rather than hard-coding official palette hex values.`,
+    );
+  } else {
+    fail(
+      'frontend-css-token-coverage',
+      `Found ${hardcodedOfficial.reduce((sum, item) => sum + item.occurrences, 0)} hard-coded official palette usages across ${hardcodedOfficial.length} non-brand CSS files.`,
+    );
+  }
+
+  const componentEntrypoints = [
+    'frontend/src/main.jsx',
+    'frontend/src/index.js',
+    'frontend/src/branding/brand.css',
+    'frontend/src/branding/official-theme.css',
+    'frontend/src/branding/theme.js',
+  ];
+  const missingEntrypoints = componentEntrypoints.filter((file) => !exists(file));
+  if (missingEntrypoints.length) {
+    fail('frontend-theme-entrypoints', `Canonical frontend theme entrypoints are missing: ${missingEntrypoints.join(', ')}`);
+  } else {
+    pass('frontend-theme-entrypoints', 'Web/PWA startup, semantic brand CSS and theme runtime entrypoints are present.');
+  }
+
+  // Inline chart/JS colors are retained as an advisory metric because CSS
+  // custom properties cannot safely replace colors consumed by canvas/chart
+  // libraries. New UI code should use TITECH_BRAND.colorRoles instead.
+  const scriptFiles = files.filter((file) => /\.(?:js|jsx|ts|tsx)$/i.test(file) && !file.includes(`${path.sep}branding${path.sep}`));
+  let inlineHexOccurrences = 0;
+  const inlineFiles = [];
+  for (const file of scriptFiles) {
+    const text = fs.readFileSync(file, 'utf8');
+    let count = 0;
+    for (const [hex] of Object.entries(requiredPalette)) {
+      const value = requiredPalette[hex];
+      count += (text.match(new RegExp(value, 'gi')) ?? []).length;
+    }
+    if (count) {
+      inlineHexOccurrences += count;
+      inlineFiles.push(path.relative(ROOT, file).replaceAll(path.sep, '/'));
+    }
+  }
+
+  return {
+    cssFilesScanned: nonBrandCssFiles.length,
+    hardcodedOfficialCssOccurrences: hardcodedOfficial.reduce((sum, item) => sum + item.occurrences, 0),
+    hardcodedOfficialCssFiles: hardcodedOfficial,
+    hardcodedOfficialCssByRole: hardcodedOfficialByRole,
+    inlineScriptOfficialColorOccurrences: inlineHexOccurrences,
+    inlineScriptOfficialColorFiles: inlineFiles,
+  };
+}
+
+const frontendThemeCoverage = auditFrontendThemeCoverage();
+
 const result = {
   generatedAt: new Date().toISOString(),
   status: checks.some((x) => x.status === 'FAIL') ? 'FAIL' : 'PASS',
   palette: requiredPalette,
+  frontendThemeCoverage,
   checks,
 };
 fs.mkdirSync(path.join(ROOT, 'reports'), { recursive: true });
-fs.writeFileSync(path.join(ROOT, 'reports/official-theme-audit-2026-10-04.json'), JSON.stringify(result, null, 2) + '\n');
+fs.writeFileSync(path.join(ROOT, 'reports/official-theme-audit.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result, null, 2));
 if (result.status === 'FAIL') process.exitCode = 1;

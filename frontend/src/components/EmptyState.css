@@ -53,7 +53,7 @@
 .empty-state {
   --titech-empty-bg: var(
     --titech-surface,
-    #ffffff
+    var(--titech-brand-white)
   );
 
   --titech-empty-bg-subtle: var(
@@ -88,17 +88,17 @@
 
   --titech-empty-primary: var(
     --titech-primary,
-    #0058d8
+    var(--titech-brand-electric-blue)
   );
 
   --titech-empty-primary-hover: var(
     --titech-primary-hover,
-    #0030a0
+    var(--titech-brand-deep-blue)
   );
 
   --titech-empty-primary-contrast: var(
     --titech-primary-contrast,
-    #ffffff
+    var(--titech-brand-white)
   );
 
   --titech-empty-danger: var(

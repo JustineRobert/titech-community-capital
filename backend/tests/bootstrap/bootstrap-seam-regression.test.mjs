@@ -19,37 +19,14 @@ function indexOrThrow(source, needle, file) {
   return index;
 }
 
-test('observability initializes createRequire before its compatibility require calls', async () => {
+test('observability is native ESM without CommonJS boundaries', async () => {
   const file = 'bootstrap/observability.js';
   const source = await readBackendFile(file);
-  const createRequireIndex = indexOrThrow(
-    source,
-    'const require = createRequire(import.meta.url);',
-    file,
-  );
 
-  const requireCall = 'require(';
-  const startupErrorsSpecifier = './startupErrors.js';
-  const canonicalObservabilitySpecifier = '../observability.js';
-  const startupErrorsRequireIndex = indexOrThrow(
-    source,
-    `${requireCall}'${startupErrorsSpecifier}')`,
-    file,
-  );
-  const canonicalRequireIndex = indexOrThrow(
-    source,
-    `${requireCall}'${canonicalObservabilitySpecifier}')`,
-    file,
-  );
-
-  assert.ok(
-    createRequireIndex < startupErrorsRequireIndex,
-    `${file} evaluates startupErrors before require is initialized`,
-  );
-  assert.ok(
-    createRequireIndex < canonicalRequireIndex,
-    `${file} evaluates canonical observability before require is initialized`,
-  );
+  const executable = source.replace(/\/\*.*?\*\//gs, '').replace(/(^|\n)\s*\/\/.*$/gm, '$1');
+  assert.doesNotMatch(executable, /\bmodule\.exports\b/);
+  assert.doesNotMatch(executable, /\brequire\s*\(/);
+  assert.match(executable, /(^|\n)\s*export\s+(?:default|\{)/);
 });
 
 test('resilience initializes createRequire before its CommonJS fallback path', async () => {

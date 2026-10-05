@@ -28,19 +28,56 @@
 
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  API_CONNECTIVITY_STATUS,
+  getApiConnectivityState,
+  onApiConnectivityChange as subscribeApiConnectivity,
+  probeApiConnectivity,
+  setApiConnectivityDegraded,
+  setApiConnectivityReady,
+  setBrowserConnectivity,
+} from './runtimeConnectivity.js';
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
+function normalizeApiBaseUrl(value) {
+  const normalized = String(value || '').trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  const withoutTrailingSlash = normalized.replace(/\/+$/, '');
+
+  try {
+    const url = new URL(withoutTrailingSlash);
+
+    if (
+      url.pathname === '/api' ||
+      url.pathname === '/api/v1'
+    ) {
+      url.pathname = '';
+      url.search = '';
+      url.hash = '';
+    }
+
+    return url.toString().replace(/\/+$/, '');
+  } catch {
+    return withoutTrailingSlash;
+  }
+}
+
 const API_BASE =
-  import.meta.env.VITE_API_URL ||
+  normalizeApiBaseUrl(
+    import.meta.env.VITE_API_URL ||
+      import.meta.env.VITE_API_BASE_URL
+  ) ||
   (import.meta.env.PROD
-    ? (
-        typeof window !== 'undefined'
-          ? `${window.location.origin}/api/v1`
-          : '/api/v1'
-      )
+    ? (typeof window !== 'undefined'
+        ? window.location.origin
+        : '')
     : 'http://localhost:5000');
 
 const REQUEST_TIMEOUT =
@@ -51,7 +88,7 @@ const HEALTH_TIMEOUT =
 
 const MAX_RETRIES = Math.max(
   0,
-  Number(import.meta.env.VITE_API_RETRIES) || 3
+  Number(import.meta.env.VITE_API_RETRIES) || 2
 );
 
 const RETRY_DELAY = Math.max(
@@ -82,6 +119,10 @@ const REGISTER_ENDPOINT =
 
 const LOGOUT_ENDPOINT =
   '/api/auth/logout';
+
+const API_READINESS_ENDPOINT =
+  import.meta.env.VITE_API_READINESS_PATH ||
+  '/api/v1/ready';
 
 // ============================================================================
 // Security / HTTP Constants
@@ -854,7 +895,7 @@ function isRetryableStatus(
 // - ledger operations
 // ============================================================================
 
-function shouldRetryRequest(
+export function shouldRetryRequest(
   config,
   error
 ) {
@@ -876,10 +917,22 @@ function shouldRetryRequest(
   const retryableStatus =
     isRetryableStatus(status);
 
-  if (
-    !retryableNetwork &&
-    !retryableStatus
-  ) {
+  if (retryableNetwork) {
+    /**
+     * Do not create a retry storm while the API is already known to be
+     * unavailable. The centralized readiness monitor owns recovery probing.
+     */
+    if (
+      getApiConnectivityState().status !==
+      API_CONNECTIVITY_STATUS.READY
+    ) {
+      return false;
+    }
+
+    return isSafeMethod(method);
+  }
+
+  if (!retryableStatus) {
     return false;
   }
 
@@ -887,12 +940,8 @@ function shouldRetryRequest(
     return true;
   }
 
-  if (
-    isMutationMethod(method)
-  ) {
-    return hasIdempotencyKey(
-      config
-    );
+  if (isMutationMethod(method)) {
+    return hasIdempotencyKey(config);
   }
 
   return false;
@@ -1062,7 +1111,7 @@ function isAbortError(error) {
 // Authentication Endpoint Detection
 // ============================================================================
 
-function isAuthenticationEndpoint(
+export function isAuthenticationEndpoint(
   url
 ) {
   if (!url) {
@@ -1099,15 +1148,11 @@ async function refreshAccessToken() {
 
   refreshPromise =
     authApi
-      .post(
-        REFRESH_ENDPOINT
-      )
+      .post(REFRESH_ENDPOINT)
       .then(response => {
         const token =
-          response.data
-            ?.accessToken ||
-          response.data
-            ?.token;
+          response.data?.accessToken ||
+          response.data?.token;
 
         if (!token) {
           throw new Error(
@@ -1115,27 +1160,48 @@ async function refreshAccessToken() {
           );
         }
 
+        setApiConnectivityReady({
+          status: response.status,
+        });
+
         setToken(token);
 
         const tenantId =
-          response.data
-            ?.tenantId ||
-          response.data
-            ?.user?.tenantId;
+          response.data?.tenantId ||
+          response.data?.user?.tenantId;
 
         if (
           tenantId !== undefined &&
           tenantId !== null
         ) {
-          setTenant(
-            tenantId
-          );
+          setTenant(tenantId);
         }
 
         api.defaults.headers.common.Authorization =
           `Bearer ${token}`;
 
         return token;
+      })
+      .catch(error => {
+        if (!error?.response) {
+          setApiConnectivityDegraded({
+            offline: isBrowserOffline(),
+            code: error?.code || 'AUTH_REFRESH_NETWORK_ERROR',
+            message:
+              error?.message ||
+              'TITech authentication refresh could not reach the API.',
+          });
+        } else if (error.response.status >= 500) {
+          setApiConnectivityDegraded({
+            status: error.response.status,
+            code: error?.code || 'AUTH_REFRESH_SERVER_ERROR',
+            message:
+              error?.message ||
+              'TITech authentication refresh service is unavailable.',
+          });
+        }
+
+        throw error;
       })
       .finally(() => {
         refreshPromise = null;
@@ -1347,6 +1413,14 @@ api.interceptors.response.use(
       response.config
     );
 
+    setApiConnectivityReady({
+      status: response.status,
+      latencyMs:
+        response.config?.metadata?.startedAt
+          ? Date.now() - response.config.metadata.startedAt
+          : null,
+    });
+
     if (
       response.config?.metadata
     ) {
@@ -1419,11 +1493,30 @@ api.interceptors.response.use(
     if (
       isBrowserOffline()
     ) {
+      setApiConnectivityDegraded({
+        offline: true,
+        code: 'CLIENT_OFFLINE',
+        message: 'The browser reports that the device is offline.',
+      });
+
       return Promise.reject(
         createOfflineError(
           error
         )
       );
+    }
+
+    if (!error?.response) {
+      setApiConnectivityDegraded({
+        code: error?.code || 'ERR_NETWORK',
+        message: error?.message || 'TITech API network error.',
+      });
+    } else if (status >= 500) {
+      setApiConnectivityDegraded({
+        status,
+        code: error?.code || 'HTTP_5XX',
+        message: error?.message || 'TITech API server error.',
+      });
     }
 
     // ========================================================================
@@ -1455,8 +1548,32 @@ api.interceptors.response.use(
       } catch (
         refreshError
       ) {
-        clearAuthenticationState();
+        const refreshStatus =
+          refreshError?.response?.status;
 
+        const refreshWasTransportFailure =
+          !refreshError?.response ||
+          refreshError?.code === 'ERR_NETWORK' ||
+          refreshError?.code === 'ECONNABORTED' ||
+          getApiConnectivityState().status !==
+            API_CONNECTIVITY_STATUS.READY;
+
+        /**
+         * A transport/infrastructure failure is not proof that the user's
+         * session is invalid. Preserve the session boundary and allow the
+         * connectivity monitor to recover it when the API returns.
+         */
+        if (
+          refreshWasTransportFailure ||
+          (refreshStatus !== 401 &&
+            refreshStatus !== 403)
+        ) {
+          return Promise.reject(
+            refreshError
+          );
+        }
+
+        clearAuthenticationState();
         redirectToLogin();
 
         return Promise.reject(
@@ -1719,13 +1836,31 @@ export async function bootstrapAuthentication() {
     return {
       authenticated: true,
       accessToken: token,
+      deferred: false,
     };
-  } catch {
+  } catch (error) {
+    const transient =
+      !error?.response ||
+      error?.code === 'ERR_NETWORK' ||
+      error?.code === 'ECONNABORTED' ||
+      error?.response?.status >= 500;
+
+    if (transient) {
+      const currentToken = getToken();
+
+      return {
+        authenticated: Boolean(currentToken),
+        accessToken: currentToken,
+        deferred: true,
+      };
+    }
+
     clearAuthenticationState();
 
     return {
       authenticated: false,
       accessToken: null,
+      deferred: false,
     };
   }
 }
@@ -2088,6 +2223,9 @@ export function getApiDiagnostics() {
 
     appVersion:
       APP_VERSION,
+
+    apiConnectivity:
+      getApiConnectivityState(),
   };
 
   if (IS_DEV) {
@@ -2119,44 +2257,110 @@ export async function checkApiHealth() {
   const startedAt =
     Date.now();
 
+  if (
+    isBrowserOffline()
+  ) {
+    return {
+      healthy: false,
+      offline: true,
+      status: null,
+      latency: 0,
+      code: 'CLIENT_OFFLINE',
+      message: 'The browser reports that the device is offline.',
+    };
+  }
+
   try {
     const response =
       await authApi.get(
-        '/health',
+        API_READINESS_ENDPOINT,
         {
           timeout:
             HEALTH_TIMEOUT,
         }
       );
 
+    const latency =
+      Date.now() - startedAt;
+
+    const statusValue =
+      String(response.data?.status || '').toLowerCase();
+
+    const healthy =
+      response.status >= 200 &&
+      response.status < 300 &&
+      (!statusValue ||
+        statusValue === 'ready' ||
+        statusValue === 'healthy' ||
+        statusValue === 'ok' ||
+        statusValue === 'alive');
+
+    if (healthy) {
+      setApiConnectivityReady({
+        status: response.status,
+        latencyMs: latency,
+      });
+    } else {
+      setApiConnectivityDegraded({
+        status: response.status,
+        latencyMs: latency,
+        code: 'API_NOT_READY',
+        message: response.data?.message || 'TITech API is not ready.',
+      });
+    }
+
     return {
-      healthy: true,
-
-      status:
-        response.status,
-
-      latency:
-        Date.now() -
-        startedAt,
+      healthy,
+      status: response.status,
+      latency,
+      code: healthy ? null : 'API_NOT_READY',
+      message: healthy ? null : 'TITech API is not ready.',
     };
   } catch (error) {
-    return {
+    const latency =
+      Date.now() - startedAt;
+
+    const offline =
+      isBrowserOffline();
+
+    const result = {
       healthy: false,
-
+      offline,
       status:
-        error?.response
-          ?.status ||
-        null,
-
-      latency:
-        Date.now() -
-        startedAt,
-
+        error?.response?.status || null,
+      latency,
+      code:
+        error?.code ||
+        (offline
+          ? 'CLIENT_OFFLINE'
+          : 'API_UNAVAILABLE'),
       message:
         error?.message ||
         'TITech API unavailable',
     };
+
+    setApiConnectivityDegraded(result);
+
+    return result;
   }
+}
+
+export async function probeApiReadiness({ force = false } = {}) {
+  return probeApiConnectivity(
+    checkApiHealth,
+    {
+      force,
+      minIntervalMs: 5000,
+    }
+  );
+}
+
+export function getApiConnectivity() {
+  return getApiConnectivityState();
+}
+
+export function onApiConnectivityChange(callback) {
+  return subscribeApiConnectivity(callback);
 }
 
 // ============================================================================
@@ -2195,6 +2399,7 @@ export function onNetworkStateChange(
 
   const handleOnline =
     () => {
+      setBrowserConnectivity(true);
       callback({
         online: true,
       });
@@ -2202,6 +2407,7 @@ export function onNetworkStateChange(
 
   const handleOffline =
     () => {
+      setBrowserConnectivity(false);
       callback({
         online: false,
       });

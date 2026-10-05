@@ -58,15 +58,15 @@
 :root {
   /* Shared product design-system aliases. Official brand artwork is
      supplied in /branding/official and referenced through BrandLogo. */
-  --titech-color-brand-electric-blue: #0058d8;
-  --titech-color-brand-deep-blue: #0030a0;
-  --titech-color-brand-lime: #a8f000;
-  --titech-color-brand-gold: #f8d800;
-  --titech-color-brand-cyan: #00b8f8;
-  --titech-color-brand-navy: #082b67;
-  --titech-color-brand-white: #ffffff;
-  --titech-color-brand-bright-blue: #0066e8;
-  --titech-color-brand-green: #008000;
+  --titech-color-brand-electric-blue: var(--titech-brand-electric-blue);
+  --titech-color-brand-deep-blue: var(--titech-brand-deep-blue);
+  --titech-color-brand-lime: var(--titech-brand-lime);
+  --titech-color-brand-gold: var(--titech-brand-gold);
+  --titech-color-brand-cyan: var(--titech-brand-cyan);
+  --titech-color-brand-navy: var(--titech-brand-navy);
+  --titech-color-brand-white: var(--titech-brand-white);
+  --titech-color-brand-bright-blue: var(--titech-brand-bright-blue);
+  --titech-color-brand-green: var(--titech-brand-green);
 
   /* --------------------------------------------------------------------------
      Typography
@@ -110,9 +110,9 @@
   --titech-color-brand-200: #b7ddff;
   --titech-color-brand-300: #81c4ff;
   --titech-color-brand-400: #4baaf5;
-  --titech-color-brand-500: #0066e8;
-  --titech-color-brand-600: #0058d8;
-  --titech-color-brand-700: #0030a0;
+  --titech-color-brand-500: var(--titech-brand-bright-blue);
+  --titech-color-brand-600: var(--titech-brand-electric-blue);
+  --titech-color-brand-700: var(--titech-brand-deep-blue);
   --titech-color-brand-800: #002780;
   --titech-color-brand-900: #001f66;
   --titech-color-brand-950: #00153f;
@@ -121,47 +121,48 @@
      Neutral palette
      -------------------------------------------------------------------------- */
 
-  --titech-color-white: #ffffff;
+  --titech-color-white: var(--titech-brand-white);
   --titech-color-black: #000000;
 
-  --titech-color-neutral-50: var(--titech-color-background);
-  --titech-color-neutral-100: var(--titech-color-surface-muted);
-  --titech-color-neutral-200: var(--titech-color-border);
-  --titech-color-neutral-300: var(--titech-color-border-strong);
-  --titech-color-neutral-400: var(--titech-color-text-subtle);
-  --titech-color-neutral-500: var(--titech-color-text-subtle);
-  --titech-color-neutral-600: var(--titech-color-text-muted);
+  --titech-color-neutral-50: #f6faff;
+  --titech-color-neutral-100: #eef6ff;
+  --titech-color-neutral-200: #d8e7f5;
+  --titech-color-neutral-300: #b7cfe8;
+  --titech-color-neutral-400: #6b829a;
+  --titech-color-neutral-500: #6b829a;
+  --titech-color-neutral-600: #456180;
   --titech-color-neutral-700: #334155;
-  --titech-color-neutral-800: var(--titech-brand-navy);
-  --titech-color-neutral-900: var(--titech-brand-navy);
+  --titech-color-neutral-800: var(--titech-color-brand-navy);
+  --titech-color-neutral-900: var(--titech-color-brand-navy);
   --titech-color-neutral-950: #020617;
 
   /* --------------------------------------------------------------------------
      Semantic colors
      -------------------------------------------------------------------------- */
 
-  --titech-color-success-50: #f0fdf4;
-  --titech-color-success-100: #dcfce7;
-  --titech-color-success-500: #22c55e;
-  --titech-color-success-600: #16a34a;
-  --titech-color-success-700: #15803d;
+  --titech-color-success-50: rgb(0 128 0 / 0.08);
+  --titech-color-success-100: rgb(0 128 0 / 0.14);
+  --titech-color-success-500: var(--titech-color-brand-green);
+  --titech-color-success-600: var(--titech-color-brand-green);
+  --titech-color-success-700: var(--titech-color-brand-green);
 
-  --titech-color-warning-50: #fffbeb;
-  --titech-color-warning-100: #fef3c7;
-  --titech-color-warning-500: #f59e0b;
-  --titech-color-warning-600: #d97706;
-  --titech-color-warning-700: #b45309;
+  --titech-color-warning-50: rgb(248 216 0 / 0.12);
+  --titech-color-warning-100: rgb(248 216 0 / 0.20);
+  --titech-color-warning-500: #a35b00;
+  --titech-color-warning-600: #8a4b00;
+  --titech-color-warning-700: #713d00;
 
-  --titech-color-danger-50: #fef2f2;
-  --titech-color-danger-100: #fee2e2;
-  --titech-color-danger-500: #ef4444;
-  --titech-color-danger-600: #dc2626;
-  --titech-color-danger-700: #b91c1c;
+  /* Financial/security danger remains intentionally distinct from brand identity. */
+  --titech-color-danger-50: rgb(166 27 27 / 0.08);
+  --titech-color-danger-100: rgb(166 27 27 / 0.14);
+  --titech-color-danger-500: #a61b1b;
+  --titech-color-danger-600: #8e1717;
+  --titech-color-danger-700: #761313;
 
-  --titech-color-info-50: #edf7ff;
-  --titech-color-info-100: #d8eeff;
-  --titech-color-info-500: #0066e8;
-  --titech-color-info-600: #0058d8;
+  --titech-color-info-50: rgb(0 184 248 / 0.10);
+  --titech-color-info-100: rgb(0 184 248 / 0.16);
+  --titech-color-info-500: var(--titech-color-brand-bright-blue);
+  --titech-color-info-600: var(--titech-color-brand-electric-blue);
 
   /* --------------------------------------------------------------------------
      Application surfaces
@@ -200,7 +201,7 @@
 
   --titech-focus-ring:
     0 0 0 3px
-    rgba(37, 99, 235, 0.25);
+    rgb(0 88 216 / 0.24);
 
   /* --------------------------------------------------------------------------
      Border radius
@@ -1173,7 +1174,7 @@ textarea {
   }
 
   body {
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 

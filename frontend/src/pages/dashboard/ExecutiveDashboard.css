@@ -12,9 +12,9 @@
    ============================================================================ */
 
 :root {
-  --executive-bg: #ffffff;
+  --executive-bg: var(--titech-brand-white);
   --executive-surface: var(--titech-color-background);
-  --executive-surface-raised: #ffffff;
+  --executive-surface-raised: var(--titech-brand-white);
   --executive-surface-muted: var(--titech-color-surface-muted);
 
   --executive-border: var(--titech-color-border);
@@ -24,7 +24,7 @@
   --executive-text-secondary: var(--titech-color-text-subtle);
   --executive-text-muted: var(--titech-color-text-subtle);
 
-  --executive-primary: #0058d8;
+  --executive-primary: var(--titech-brand-electric-blue);
   --executive-primary-soft: rgba(37, 99, 235, 0.1);
   --executive-primary-border: rgba(37, 99, 235, 0.25);
 
@@ -1101,7 +1101,7 @@
 
     color: #000000;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .executive-header,

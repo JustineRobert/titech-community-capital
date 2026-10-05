@@ -68,12 +68,12 @@
   --loan-color-text: var(--titech-brand-navy);
   --loan-color-text-secondary: #566176;
   --loan-color-text-muted: #778196;
-  --loan-color-text-inverse: #ffffff;
+  --loan-color-text-inverse: var(--titech-brand-white);
 
   --loan-color-border: #dfe4ec;
   --loan-color-border-strong: #cbd2de;
 
-  --loan-color-surface: #ffffff;
+  --loan-color-surface: var(--titech-brand-white);
   --loan-color-surface-soft: #f7f9fc;
   --loan-color-surface-muted: #f1f4f8;
 
@@ -352,7 +352,7 @@
 
   border-color: var(--loan-color-danger);
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 }
 
 /* ============================================================================
@@ -1085,7 +1085,7 @@
 
   background: var(--loan-color-primary);
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 }
 
 .loan-thread__action--primary:hover {
@@ -1093,7 +1093,7 @@
 
   background: var(--loan-color-primary-hover);
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 }
 
 /* ============================================================================
@@ -1204,7 +1204,7 @@
 
   border-radius: 50%;
 
-  background: #ffffff;
+  background: var(--titech-brand-white);
 
   font-weight: 800;
 }
@@ -1370,7 +1370,7 @@
 
   background: var(--loan-color-primary);
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 }
 
 .loan-threads__pagination-button:disabled {
@@ -1950,7 +1950,7 @@
 
 @media print {
   .loan-threads {
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }

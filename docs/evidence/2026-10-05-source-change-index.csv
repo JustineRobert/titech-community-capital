@@ -1,0 +1,82 @@
+status,path,category,what_changed
+ADDED,docs/brand/TITECH_PLATFORM_THEME_IMPLEMENTATION_2026-10-05.md,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,docs/evidence/2026-10-05-source-change-discovery.md,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,docs/evidence/2026-10-05-source-change-index.csv,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,docs/evidence/legacy-runtime-debt-2026-10-05.md,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/evidence/golden-money-path-proof.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/official-theme-audit-2026-10-04.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/official-theme-audit.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/release-readiness.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/repository-completeness.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/repository-sha256.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/runtime-import-audit.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/security-static-gate.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/test-discovery-audit.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+ADDED,reports/titech-brand-gate.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+MODIFIED,backend/bootstrap/context/BootstrapContext.js,Bootstrap / ESM lifecycle,Fixed nullable class-field shadowing of container-registered dependencies; requireDependency follows the same precedence.
+MODIFIED,backend/bootstrap/lifecycle/phaseRunner.js,Bootstrap / ESM lifecycle,Converted the canonical phase runner from CommonJS export to native ESM with named/default compatibility exports.
+MODIFIED,backend/modules/agriculture/domain/agriculture.domain.js,Agriculture exact arithmetic,Uses exact BigInt scaling/comparison for large allocation weights and rejects zero/negative weights.
+MODIFIED,backend/tests/bootstrap/BootstrapContext.test.js,Bootstrap / financial regression tests,Aligned tests to the STARTING lifecycle and full readiness contract.
+MODIFIED,backend/tests/bootstrap/bootstrap-seam-regression.test.mjs,Bootstrap / financial regression tests,Updated the observability seam test to analyze executable code instead of comments.
+MODIFIED,backend/tests/bootstrap/bootstrap.smoke.test.js,Bootstrap / financial regression tests,Aligned bootstrap smoke-test module semantics with native ESM.
+MODIFIED,backend/tests/bootstrap/environment.test.js,Bootstrap / financial regression tests,Replaced an empty test with dependency-free environment boundary and production-safety contract tests.
+MODIFIED,backend/tests/bootstrap/phaseRunner.test.js,Bootstrap / financial regression tests,Aligned phase-runner test imports with native ESM.
+MODIFIED,backend/tests/unit/agriculture/agriculture.domain.test.js,Agriculture exact arithmetic,Added large exact-weight and zero/negative allocation regressions.
+MODIFIED,docs/evidence/FINAL-IMPLEMENTATION-REPORT.md,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+MODIFIED,docs/evidence/platform-truth.json,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+MODIFIED,docs/evidence/production-readiness.md,Machine evidence / implementation documentation,Generated or changed during the 2026-10-05 remediation/evidence pass.
+MODIFIED,frontend/src/branding/__tests__/theme.test.js,Official theme runtime contract,Updated theme namespace/migration/persistence tests.
+MODIFIED,frontend/src/branding/theme.js,Official theme runtime contract,Namespaced theme persistence to titech.theme with legacy-key migration.
+MODIFIED,frontend/src/components/ChartCard.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/DashboardSkeleton.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/EmptyState.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/ErrorState.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/FAQ.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/Footer.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/Forum.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/GroupCard.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/HelpCenter.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/KPIWidget.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/LegalDocuments.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/MobileMoneyPayment.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/components/chat/composer.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/index.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/layouts/AdminLayout.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/AdminDashboard.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/AdminRiskDashboard.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/CreateGroup.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/CreateGroupV2.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Dashboard.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/ForgotPassword.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/FraudMonitor.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Legal.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/LegalPages.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Login.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Logout.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Register.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Reports.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/ResetPassword.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Savings.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Settings.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/TITechChat.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/TITechChat/ChatHome.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/TITechChat/LoanThreads.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/TITechChat/SavingsThreads.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/TITechChat/SupportThreads.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/Transactions.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/dashboard/AdminDashboard.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/dashboard/DashboardStats.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/dashboard/DashboardWidgets.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/dashboard/ExecutiveDashboard.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/dashboard/GroupList.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/dashboard/NotificationsPanel.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/dashboard/SystemHealth.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/onboarding/KYCVerification.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/pages/onboarding/SaccoRegistration.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,frontend/src/styles/adminDashboard.css,Official TITech theme tokenization,Replaced exact official TITech palette literals with centralized CSS variables.
+MODIFIED,scripts/official-theme-audit.mjs,Release / evidence automation,Added CSS token coverage audit and consolidated current report path.
+MODIFIED,scripts/platform-truth.mjs,Release / evidence automation,Machine-generates source/evidence truth with explicit external-proof and production-status separation.
+MODIFIED,scripts/release-readiness-gate.mjs,Release / evidence automation,Separates canonical financial import blockers from legacy debt and blocks strict release on observed runtime mismatch.
+MODIFIED,scripts/test-discovery-audit.mjs,Release / evidence automation,Persists test audit reports and distinguishes blocking versus legacy empty tests.
+DELETED,backend/tests/bootstrap/BootstrapContext.test.cjs,Bootstrap / financial regression tests,Generated or changed during the 2026-10-05 remediation/evidence pass.
+DELETED,backend/tests/bootstrap/phaseRunner.test.cjs,Bootstrap / financial regression tests,Generated or changed during the 2026-10-05 remediation/evidence pass.

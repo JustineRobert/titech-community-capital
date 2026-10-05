@@ -41,7 +41,7 @@
 .titech-chart-card {
   --titech-chart-bg: var(
     --titech-surface,
-    #ffffff
+    var(--titech-brand-white)
   );
 
   --titech-chart-bg-subtle: var(
@@ -76,7 +76,7 @@
 
   --titech-chart-primary: var(
     --titech-primary,
-    #0058d8
+    var(--titech-brand-electric-blue)
   );
 
   --titech-chart-success: var(

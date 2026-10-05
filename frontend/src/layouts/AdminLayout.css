@@ -10,15 +10,15 @@
   --sidebar-collapsed-width: 88px;
   --header-height: 72px;
 
-  --primary-color: #0058d8;
-  --primary-hover: #0030a0;
+  --primary-color: var(--titech-brand-electric-blue);
+  --primary-hover: var(--titech-brand-deep-blue);
 
   --sidebar-bg: var(--titech-brand-navy);
   --sidebar-text: var(--titech-color-border-strong);
-  --sidebar-text-active: #ffffff;
+  --sidebar-text-active: var(--titech-brand-white);
 
   --background: var(--titech-color-background);
-  --surface: #ffffff;
+  --surface: var(--titech-brand-white);
   --border: var(--titech-color-border);
 
   --text-primary: var(--titech-brand-navy);

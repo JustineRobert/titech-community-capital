@@ -11,7 +11,7 @@
 
 :root {
   --titech-fraud-bg: var(--titech-color-background);
-  --titech-fraud-surface: #ffffff;
+  --titech-fraud-surface: var(--titech-brand-white);
   --titech-fraud-surface-muted: var(--titech-color-surface-muted);
   --titech-fraud-border: var(--titech-color-border);
   --titech-fraud-border-strong: var(--titech-color-border-strong);
@@ -20,8 +20,8 @@
   --titech-fraud-text-secondary: var(--titech-color-text-muted);
   --titech-fraud-text-muted: var(--titech-color-text-subtle);
 
-  --titech-fraud-primary: #0058d8;
-  --titech-fraud-primary-hover: #0030a0;
+  --titech-fraud-primary: var(--titech-brand-electric-blue);
+  --titech-fraud-primary-hover: var(--titech-brand-deep-blue);
   --titech-fraud-primary-soft: #edf7ff;
 
   --titech-fraud-success: #059669;
@@ -274,7 +274,7 @@
 
   background: var(--titech-fraud-danger);
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   font-size: 0.7rem;
   font-weight: 800;
@@ -362,7 +362,7 @@
 
   background: var(--titech-fraud-success);
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   font-size: 0.8rem;
   font-weight: 800;

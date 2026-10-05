@@ -13,7 +13,7 @@
    ========================================================================== */
 
 :root {
-  --widget-bg: #ffffff;
+  --widget-bg: var(--titech-brand-white);
   --widget-surface: var(--titech-color-background);
   --widget-surface-muted: var(--titech-color-surface-muted);
   --widget-border: var(--titech-color-border);
@@ -23,8 +23,8 @@
   --widget-text-secondary: var(--titech-color-text-subtle);
   --widget-text-muted: var(--titech-color-text-subtle);
 
-  --widget-primary: #0058d8;
-  --widget-primary-hover: #0030a0;
+  --widget-primary: var(--titech-brand-electric-blue);
+  --widget-primary-hover: var(--titech-brand-deep-blue);
   --widget-primary-soft: rgba(37, 99, 235, 0.1);
 
   --widget-success: #16a34a;
@@ -785,10 +785,10 @@
   }
 
   .dashboard-widget-header {
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .dashboard-widget-body {
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 }

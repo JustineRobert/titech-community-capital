@@ -25,8 +25,8 @@ Production-grade styling for:
    ========================================================================== */
 
 .create-group-wrapper {
-  --titech-primary: #0058d8;
-  --titech-primary-hover: #0030a0;
+  --titech-primary: var(--titech-brand-electric-blue);
+  --titech-primary-hover: var(--titech-brand-deep-blue);
   --titech-primary-active: #002780;
   --titech-primary-soft: #edf7ff;
 
@@ -50,7 +50,7 @@ Production-grade styling for:
   --titech-border: var(--titech-color-border);
   --titech-border-strong: var(--titech-color-border);
 
-  --titech-surface: #ffffff;
+  --titech-surface: var(--titech-brand-white);
   --titech-surface-muted: var(--titech-color-background);
   --titech-surface-soft: #f3f4f6;
 
@@ -179,7 +179,7 @@ Production-grade styling for:
 .create-group-wrapper .step-dot.active {
   border-color: var(--titech-primary);
   background: var(--titech-primary);
-  color: #ffffff;
+  color: var(--titech-brand-white);
 }
 
 /*
@@ -864,7 +864,7 @@ select.input-field {
   background: linear-gradient(
     90deg,
     var(--titech-primary),
-    #0066e8
+    var(--titech-brand-bright-blue)
   );
 
   transition: width 250ms ease;
@@ -958,7 +958,7 @@ select.input-field {
 .btn-primary {
   border: 1px solid var(--titech-primary);
   background: var(--titech-primary);
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   box-shadow: var(--titech-shadow-sm);
 }
@@ -1439,7 +1439,7 @@ select.input-field {
   .create-group-wrapper {
     min-height: auto;
     padding: 0;
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .create-group-container {

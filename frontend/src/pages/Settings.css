@@ -49,7 +49,7 @@
   --titech-settings-surface:
     var(
       --titech-surface,
-      #ffffff
+      var(--titech-brand-white)
     );
 
   --titech-settings-surface-subtle:
@@ -97,13 +97,13 @@
   --titech-settings-primary:
     var(
       --titech-primary,
-      #0058d8
+      var(--titech-brand-electric-blue)
     );
 
   --titech-settings-primary-hover:
     var(
       --titech-primary-hover,
-      #0030a0
+      var(--titech-brand-deep-blue)
     );
 
   --titech-settings-primary-soft:
@@ -1501,7 +1501,7 @@
 
 .settings-btn--primary {
   color:
-    #ffffff;
+    var(--titech-brand-white);
 
   background:
     var(
@@ -1730,7 +1730,7 @@
     999px;
 
   background:
-    #ffffff;
+    var(--titech-brand-white);
 
   box-shadow:
     0 1px 3px

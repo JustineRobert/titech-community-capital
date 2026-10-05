@@ -1,5 +1,79 @@
 # TITech Community Capital — Final Implementation Report
 
+**Current execution date:** 05 October 2026  
+**Source archive:** uploaded `titech-community-capital-main.zip`  
+**Repository target:** `https://github.com/JustineRobert/titech-community-capital`  
+**Implementation mode:** repository-first / evidence-driven / no-false-completion
+
+## 2026-10-05 End-to-End Remediation Update
+
+This update supersedes the earlier point-in-time metrics below where they conflict. The working tree was compared byte-for-byte with the uploaded archive and the following delta was applied:
+
+- **14 files added** (including machine-generated evidence and implementation documentation)
+- **65 files modified**
+- **2 duplicate test files deleted**
+- **56 non-brand frontend CSS files migrated to centralized official TITech brand tokens**
+- **0 canonical-financial missing local imports**
+- **214 repository-wide missing local imports remain as explicitly tracked legacy/non-critical debt**
+- **0 blocking empty tests**; 26 empty tests remain classified as non-blocking/legacy
+
+### Root-cause fixes implemented
+
+1. **Bootstrap dependency resolution:** `BootstrapContext` now falls through from nullable class fields to container-registered dependencies. The previous implementation could report a registered dependency as missing because the class already contained the same property with a null value.
+2. **ESM lifecycle boundary:** `phaseRunner.js` now uses native ESM exports while preserving named/default compatibility. Duplicate CommonJS bootstrap test copies were removed.
+3. **Agriculture exact arithmetic:** large allocation weights are parsed/compared in BigInt space instead of through `Number`, preserving deterministic behavior for large exact inputs.
+4. **Bootstrap test truth:** stale lifecycle/readiness assertions were aligned to the hardened STARTING state and full runtime-readiness contract; observability seam checks now ignore explanatory comments when assessing executable CommonJS constructs.
+5. **Official theme:** exact official palette literals were removed from non-brand frontend CSS in favor of the centralized TITech token contract. Theme persistence is namespaced to `titech.theme` with migration from the legacy `theme` key.
+6. **Evidence automation:** test discovery now persists its JSON report and distinguishes release-path empty-test blockers from legacy debt. Strict release readiness now blocks on the observed runtime mismatch while retaining legacy import debt as a visible warning.
+
+## 2026-10-05 Verification
+
+| Evidence | Result | Notes |
+|---|---|---|
+| Financial static gate | PASS | 12 canonical financial files |
+| Enterprise contract gate | PASS | 11 contracts |
+| Enterprise completeness | PASS | 22 authoritative financial files |
+| Syntax gate | PASS | 2,311 executable JS/TS-family files parsed |
+| Security static gate | PASS | source-level static controls |
+| Golden money path proof | PASS | machine evidence generated |
+| Official theme audit | PASS | 56 non-brand CSS files; 0 official hex literals in CSS |
+| TITech brand gate | PASS | official theme/logo/control checks |
+| Canonical runtime imports | PASS | 0 missing on financial surface |
+| Targeted bootstrap/context tests | PASS | 41/41 |
+| Money/agriculture dependency-free tests | PASS | 12/12 |
+| Strict release gate | BLOCKED | observed Node 22.16.0 vs required 24.15.0 |
+| Production approval gate | BLOCKED | protected human approval evidence absent |
+
+## 2026-10-05 Current Production Status
+
+# NOT READY
+
+The repository is **not** being represented as production-approved. Source-level controls and targeted deterministic proof improved materially, but the master prompt still requires runtime-backed and external evidence for MongoDB transactions, Redis, MTN provider execution, reconciliation, security testing, backup/restore, disaster recovery, regulatory review, and real institution pilots.
+
+## Current Runtime Constraint
+
+The repository pins **Node.js 24.15.0 / npm 11.x**. The available execution environment is **Node.js 22.16.0 / npm 10.9.2**. The strict gate therefore remains correctly blocked until the target runtime is used. Dependency installation also did not complete during this run, so the full Jest/Vitest/lint/build pipeline remains **UNVERIFIED** rather than falsely green.
+
+## External Evidence Still UNPROVEN
+
+- MongoDB replica-set transaction/rollback/concurrency proof
+- Redis runtime resilience proof
+- MTN sandbox and production end-to-end payment proof
+- Provider/internal reconciliation execution
+- DAST and independent penetration testing
+- Backup/restore and disaster-recovery drills
+- Regulatory/legal approval
+- Three real institution pilot evidence
+- Production human approval
+
+## Exact Change Discovery
+
+The current hash-based file inventory is in `docs/evidence/2026-10-05-source-change-discovery.md`, with one row per file in `docs/evidence/2026-10-05-source-change-index.csv`. Legacy runtime import debt is enumerated in `docs/evidence/legacy-runtime-debt-2026-10-05.md`.
+
+---
+
+# TITech Community Capital — Final Implementation Report
+
 **Execution date:** 04 October 2026  
 **Source archive:** `titech-community-capital-main(4).zip`  
 **Repository target:** `https://github.com/JustineRobert/titech-community-capital`  

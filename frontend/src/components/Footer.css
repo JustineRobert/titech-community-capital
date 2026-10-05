@@ -39,7 +39,7 @@
   --titech-footer-text-subtle: #8e9bad;
 
   --titech-footer-link: #dbe7f5;
-  --titech-footer-link-hover: #ffffff;
+  --titech-footer-link-hover: var(--titech-brand-white);
   --titech-footer-accent: #38bdf8;
   --titech-footer-accent-strong: #0ea5e9;
 
@@ -811,7 +811,7 @@
 [data-theme="light"] .footer,
 .light .footer {
   --titech-footer-bg: var(--titech-color-background);
-  --titech-footer-bg-elevated: #ffffff;
+  --titech-footer-bg-elevated: var(--titech-brand-white);
   --titech-footer-surface: rgba(15, 23, 42, 0.04);
   --titech-footer-border: rgba(15, 23, 42, 0.1);
 

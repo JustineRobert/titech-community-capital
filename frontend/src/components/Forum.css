@@ -58,8 +58,8 @@
     "Liberation Mono",
     monospace;
 
-  --titech-forum-color-primary: #0058d8;
-  --titech-forum-color-primary-hover: #0030a0;
+  --titech-forum-color-primary: var(--titech-brand-electric-blue);
+  --titech-forum-color-primary-hover: var(--titech-brand-deep-blue);
   --titech-forum-color-primary-active: #002780;
   --titech-forum-color-primary-soft: #edf7ff;
   --titech-forum-color-primary-border: #b7ddff;
@@ -84,10 +84,10 @@
   --titech-forum-text-secondary: var(--titech-color-text-muted);
   --titech-forum-text-muted: var(--titech-color-text-subtle);
   --titech-forum-text-subtle: var(--titech-color-text-subtle);
-  --titech-forum-text-inverse: #ffffff;
+  --titech-forum-text-inverse: var(--titech-brand-white);
 
   --titech-forum-background: var(--titech-color-background);
-  --titech-forum-surface: #ffffff;
+  --titech-forum-surface: var(--titech-brand-white);
   --titech-forum-surface-subtle: var(--titech-color-background);
   --titech-forum-surface-hover: var(--titech-color-background);
   --titech-forum-surface-active: var(--titech-color-surface-muted);
@@ -838,28 +838,28 @@
 
 .forum-btn-primary,
 .forum-button-primary {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--titech-forum-color-primary);
   border-color: var(--titech-forum-color-primary);
 }
 
 .forum-btn-primary:hover,
 .forum-button-primary:hover {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--titech-forum-color-primary-hover);
   border-color: var(--titech-forum-color-primary-hover);
 }
 
 .forum-btn-danger,
 .forum-button-danger {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--titech-forum-color-danger);
   border-color: var(--titech-forum-color-danger);
 }
 
 .forum-btn-danger:hover,
 .forum-button-danger:hover {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--titech-forum-color-danger-hover);
   border-color: var(--titech-forum-color-danger-hover);
 }
@@ -1240,7 +1240,7 @@
 
 .forum-pagination .active,
 .forum-pagination [aria-current="page"] {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--titech-forum-color-primary);
   border-color: var(--titech-forum-color-primary);
 }
@@ -1727,7 +1727,7 @@
 @media print {
   .forum-container {
     padding: 0;
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 

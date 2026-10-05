@@ -27,13 +27,13 @@
  * ========================================================================== */
 
 .logout-page {
-  --logout-primary: #008000;
+  --logout-primary: var(--titech-brand-green);
   --logout-primary-dark: #115e59;
   --logout-primary-darker: #134e4a;
   --logout-primary-light: #ccfbf1;
 
-  --logout-secondary: #0058d8;
-  --logout-secondary-dark: #0030a0;
+  --logout-secondary: var(--titech-brand-electric-blue);
+  --logout-secondary-dark: var(--titech-brand-deep-blue);
 
   --logout-success: #15803d;
   --logout-success-light: #22c55e;
@@ -56,7 +56,7 @@
   --logout-border: #dbe3ec;
   --logout-border-strong: var(--titech-color-border-strong);
 
-  --logout-surface: #ffffff;
+  --logout-surface: var(--titech-brand-white);
   --logout-surface-soft: var(--titech-color-background);
   --logout-surface-muted: var(--titech-color-surface-muted);
 
@@ -584,7 +584,7 @@
       var(--logout-primary-dark)
     );
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   box-shadow:
     0 6px 15px rgba(15, 118, 110, 0.18);
@@ -1210,7 +1210,7 @@
 
     padding: 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }
@@ -1227,7 +1227,7 @@
 
     border-radius: 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     box-shadow: none;
 
@@ -1237,7 +1237,7 @@
   .logout-icon {
     border-color: #000000;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
 
@@ -1258,7 +1258,7 @@
   .logout-error {
     border-color: #000000;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }

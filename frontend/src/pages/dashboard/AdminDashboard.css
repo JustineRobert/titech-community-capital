@@ -14,9 +14,9 @@
    ========================================================================== */
 
 :root {
-  --admin-bg: #ffffff;
+  --admin-bg: var(--titech-brand-white);
   --admin-surface: var(--titech-color-background);
-  --admin-surface-raised: #ffffff;
+  --admin-surface-raised: var(--titech-brand-white);
   --admin-surface-muted: var(--titech-color-surface-muted);
 
   --admin-border: var(--titech-color-border);
@@ -26,8 +26,8 @@
   --admin-text-secondary: var(--titech-color-text-subtle);
   --admin-text-muted: var(--titech-color-text-subtle);
 
-  --admin-primary: #0058d8;
-  --admin-primary-hover: #0030a0;
+  --admin-primary: var(--titech-brand-electric-blue);
+  --admin-primary-hover: var(--titech-brand-deep-blue);
   --admin-primary-soft: rgba(37, 99, 235, 0.1);
 
   --admin-success: #16a34a;

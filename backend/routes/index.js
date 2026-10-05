@@ -16,6 +16,7 @@ import LoansController from '../controllers/loansController.js';
 import groupWalletControllerModule from '../controllers/groupWalletController.js';
 import offlineSyncRoutes from '../modules/offline/routes/offline-sync.routes.js';
 import agricultureRoutes from '../modules/agriculture/routes/agriculture.routes.js';
+import notificationsRoutes from './notifications.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import { param, validationResult } from 'express-validator';
@@ -1671,6 +1672,13 @@ function registerRoutes(
     app.use(
         '/api/auth',
         authRoutes,
+    );
+
+    app.use(
+        '/api/notifications',
+        authenticate,
+        tenantAuthorization,
+        notificationsRoutes,
     );
 
     app.use(

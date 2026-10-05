@@ -26,12 +26,12 @@
  * ========================================================================== */
 
 .savings-page {
-  --savings-primary: #008000;
+  --savings-primary: var(--titech-brand-green);
   --savings-primary-hover: #115e59;
   --savings-primary-active: #134e4a;
   --savings-primary-soft: #ecfdf5;
 
-  --savings-blue: #0058d8;
+  --savings-blue: var(--titech-brand-electric-blue);
   --savings-blue-soft: #edf7ff;
 
   --savings-success: #15803d;
@@ -51,7 +51,7 @@
   --savings-border: #dbe3ec;
   --savings-border-strong: var(--titech-color-border-strong);
 
-  --savings-surface: #ffffff;
+  --savings-surface: var(--titech-brand-white);
   --savings-surface-soft: var(--titech-color-background);
   --savings-surface-muted: var(--titech-color-surface-muted);
 
@@ -277,7 +277,7 @@
   border: 1px solid var(--savings-primary);
 
   background: var(--savings-primary);
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   box-shadow:
     0 4px 10px rgb(15 118 110 / 0.14);
@@ -507,7 +507,7 @@
 .error-box .secondary-btn {
   border-color: #fecaca;
 
-  background: #ffffff;
+  background: var(--titech-brand-white);
   color: var(--savings-danger);
 }
 
@@ -1704,7 +1704,7 @@
 
     padding: 0;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     color: #000000;
   }
@@ -1715,7 +1715,7 @@
   .savings-table-wrapper {
     border-color: #000000;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     box-shadow: none;
   }
@@ -1741,7 +1741,7 @@
   .savings-table thead th {
     position: static;
 
-    background: #ffffff;
+    background: var(--titech-brand-white);
     color: #000000;
   }
 
@@ -1753,7 +1753,7 @@
   .transaction-badge {
     border-color: #000000;
 
-    background: #ffffff !important;
+    background: var(--titech-brand-white) !important;
     color: #000000 !important;
   }
 

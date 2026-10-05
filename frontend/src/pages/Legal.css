@@ -87,7 +87,7 @@
   --legal-primary-soft: #eaf3fb;
   --legal-primary-border: #c9dced;
 
-  --legal-secondary: #008000;
+  --legal-secondary: var(--titech-brand-green);
   --legal-secondary-hover: #0b5f59;
   --legal-secondary-soft: #e8f7f5;
 
@@ -131,9 +131,9 @@
   -------------------------------------------------------------------------- */
 
   --legal-background: #f5f7fa;
-  --legal-surface: #ffffff;
+  --legal-surface: var(--titech-brand-white);
   --legal-surface-muted: var(--titech-color-background);
-  --legal-surface-elevated: #ffffff;
+  --legal-surface-elevated: var(--titech-brand-white);
 
   /* --------------------------------------------------------------------------
      Borders
@@ -219,7 +219,7 @@
   -------------------------------------------------------------------------- */
 
   --legal-selection-background: var(--legal-primary);
-  --legal-selection-text: #ffffff;
+  --legal-selection-text: var(--titech-brand-white);
 
   /* --------------------------------------------------------------------------
      Rendering
@@ -388,7 +388,7 @@
   background:
     linear-gradient(
       135deg,
-      #ffffff 0%,
+      var(--titech-brand-white) 0%,
       #f3f8fc 100%
     );
 
@@ -1718,7 +1718,7 @@
   border-radius: 50%;
 
   background: var(--legal-primary);
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   box-shadow:
     0 8px 20px rgba(15, 76, 129, 0.25);
@@ -2613,7 +2613,7 @@ Supported host patterns:
   --legal-primary-soft: #eaf3fb;
   --legal-primary-border: #c9dced;
 
-  --legal-secondary: #008000;
+  --legal-secondary: var(--titech-brand-green);
   --legal-secondary-hover: #0b5f59;
   --legal-secondary-soft: #e8f7f5;
 
@@ -2640,9 +2640,9 @@ Supported host patterns:
   --legal-heading: var(--titech-brand-navy);
 
   --legal-background: #f5f7fa;
-  --legal-surface: #ffffff;
+  --legal-surface: var(--titech-brand-white);
   --legal-surface-muted: var(--titech-color-background);
-  --legal-surface-elevated: #ffffff;
+  --legal-surface-elevated: var(--titech-brand-white);
 
   --legal-border: #dbe3ec;
   --legal-border-strong: var(--titech-color-border-strong);
@@ -2654,7 +2654,7 @@ Supported host patterns:
   --legal-highlight-heading: #78350f;
 
   --legal-selection-background: #0f4c81;
-  --legal-selection-text: #ffffff;
+  --legal-selection-text: var(--titech-brand-white);
 
   color-scheme: light;
 }
@@ -2674,7 +2674,7 @@ Supported host patterns:
   background:
     linear-gradient(
       135deg,
-      #ffffff 0%,
+      var(--titech-brand-white) 0%,
       #f3f8fc 100%
     );
 }
@@ -2689,7 +2689,7 @@ Supported host patterns:
   background:
     linear-gradient(
       180deg,
-      #ffffff 0%,
+      var(--titech-brand-white) 0%,
       var(--titech-color-background) 100%
     );
 }
@@ -2818,13 +2818,13 @@ Supported host patterns:
 
   html,
   body {
-    background: #ffffff !important;
+    background: var(--titech-brand-white) !important;
   }
 
   .legal-page {
     min-height: 0;
 
-    background: #ffffff !important;
+    background: var(--titech-brand-white) !important;
     color: #000000 !important;
 
     font-family:
@@ -2841,7 +2841,7 @@ Supported host patterns:
   .legal-header {
     border-bottom: 2px solid #000000;
 
-    background: #ffffff !important;
+    background: var(--titech-brand-white) !important;
     box-shadow: none;
   }
 
@@ -2911,7 +2911,7 @@ Supported host patterns:
     border: 0;
     border-radius: 0;
 
-    background: #ffffff !important;
+    background: var(--titech-brand-white) !important;
     box-shadow: none;
 
     scroll-padding: 0;
@@ -2932,7 +2932,7 @@ Supported host patterns:
   .legal-definition,
   .legal-table-wrapper,
   .legal-acceptance {
-    background: #ffffff !important;
+    background: var(--titech-brand-white) !important;
 
     border-color: #cccccc !important;
 
@@ -2978,7 +2978,7 @@ Supported host patterns:
   .legal-notice,
   .legal-quote,
   .legal-acceptance {
-    background: #ffffff !important;
+    background: var(--titech-brand-white) !important;
     color: #000000 !important;
   }
 

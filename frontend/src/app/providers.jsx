@@ -73,8 +73,14 @@ import LoadingScreen from "../components/ui/LoadingScreen";
 import NotificationProvider from "../components/ui/NotificationProvider";
 
 import {
+  getApiConnectivity,
+  onApiConnectivityChange,
   onNetworkStateChange,
+  probeApiReadiness,
 } from "../services/api";
+import {
+  API_CONNECTIVITY_STATUS,
+} from "../services/runtimeConnectivity.js";
 
 // ============================================================================
 // Environment Flags
@@ -280,6 +286,9 @@ function Bootstrap({
       : navigator.onLine
   );
 
+  const [apiConnectivity, setApiConnectivity] =
+    useState(() => getApiConnectivity());
+
   // ========================================================================
   // Network State
   // ========================================================================
@@ -353,6 +362,61 @@ function Bootstrap({
       }
     };
   }, []);
+
+  // ========================================================================
+  // TITech API Connectivity Monitor
+  // ========================================================================
+  //
+  // A single application-level readiness monitor prevents AuthContext and
+  // feature providers from independently retrying an unavailable backend.
+  // It is intentionally bounded and only probes while the browser is online.
+  // ========================================================================
+
+  useEffect(() => {
+    let mounted = true;
+
+    const unsubscribe = onApiConnectivityChange((nextState) => {
+      if (mounted) {
+        setApiConnectivity(nextState);
+      }
+    });
+
+    const probe = () => {
+      if (
+        !mounted ||
+        !online ||
+        getApiConnectivity().status ===
+          API_CONNECTIVITY_STATUS.READY
+      ) {
+        return;
+      }
+
+      void probeApiReadiness();
+    };
+
+    probe();
+
+    const timer =
+      window.setInterval(probe, 15000);
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+      window.clearInterval(timer);
+    };
+  }, [online]);
+
+  useEffect(() => {
+    if (!IS_DEV) {
+      return;
+    }
+
+    console.info("[TITech Runtime] API connectivity", {
+      status: apiConnectivity.status,
+      ready: apiConnectivity.ready,
+      latencyMs: apiConnectivity.lastLatencyMs,
+    });
+  }, [apiConnectivity]);
 
   // ========================================================================
   // Application Initialization

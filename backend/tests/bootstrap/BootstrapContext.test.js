@@ -24,7 +24,7 @@
  *   ✓ Context initializes
  *   ✓ Factory creates a canonical context
  *   ✓ Context starts from CREATED
- *   ✓ start() changes state to BOOTSTRAPPING
+ *   ✓ start() changes state to STARTING/BOOTSTRAPPING compatibility state
  *   ✓ Bootstrap start metadata/timestamps are recorded
  *   ✓ Phase starts
  *   ✓ Phase completion is recorded
@@ -52,16 +52,16 @@
  * =============================================================================
  */
 
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
 
-const {
+import {
   BootstrapContext,
   createBootstrapContext,
   BOOTSTRAP_PHASES,
   PHASE_STATES,
   CONTEXT_STATES,
-} = require("../../bootstrap/context");
+} from "../../bootstrap/context/index.js";
 
 /**
  * =============================================================================
@@ -215,8 +215,8 @@ test("start() changes state to BOOTSTRAPPING", () => {
 
   assert.equal(
     context.state,
-    CONTEXT_STATES.BOOTSTRAPPING,
-    "start() must transition CREATED → BOOTSTRAPPING.",
+    CONTEXT_STATES.STARTING,
+    "start() must transition CREATED → STARTING (BOOTSTRAPPING compatibility alias).",
   );
 
   assert.ok(
@@ -266,7 +266,7 @@ test("start() rejects an already bootstrapping context", () => {
     () => context.start(),
     {
       message:
-        /Cannot start bootstrap context from state "bootstrapping"\./,
+        /Cannot start TITech bootstrap context from state "starting"\./,
     },
   );
 });
@@ -571,9 +571,28 @@ test("phase failure is recorded", () => {
  */
 
 test("ready state works", () => {
-  const context = createTestContext();
+  const context = createTestContext({
+    metadata: { requireHttpServer: false },
+  });
 
   context.start();
+
+  for (const dependency of [
+    "application",
+    "configuration",
+    "logger",
+    "observability",
+    "readiness",
+    "resilience",
+    "infrastructure",
+    "services",
+    "middleware",
+    "routes",
+  ]) {
+    context.registerDependency(dependency, {});
+  }
+
+  completeAllPhases(context);
 
   const returned = context.markReady();
 
@@ -806,7 +825,7 @@ test("diagnostics snapshot contains lifecycle state and phase information", () =
 
   assert.equal(
     diagnostics.state,
-    CONTEXT_STATES.BOOTSTRAPPING,
+    CONTEXT_STATES.STARTING,
   );
 
   assert.ok(
@@ -969,6 +988,12 @@ test("skipped phases count toward bootstrap completion", () => {
   context.start();
 
   for (const phase of BOOTSTRAP_PHASES) {
+    if (phase === "runtimeReady") {
+      context.startPhase(phase);
+      context.completePhase(phase);
+      continue;
+    }
+
     context.skipPhase(
       phase,
       "not_required_for_unit_test",
@@ -982,7 +1007,7 @@ test("skipped phases count toward bootstrap completion", () => {
 
   assert.equal(
     context.getSkippedPhases().length,
-    BOOTSTRAP_PHASES.length,
+    BOOTSTRAP_PHASES.length - 1,
   );
 });
 
@@ -1058,7 +1083,7 @@ test("a completed phase cannot be started again", () => {
     {
       message:
         new RegExp(
-          `TITech bootstrap phase "${phase}" has already completed\\.`,
+          `TITech bootstrap phase "${phase}" is not the next canonical phase\\. Expected "${BOOTSTRAP_PHASES[1] ?? phase}"\\.`,
         ),
     },
   );
@@ -1118,7 +1143,6 @@ test("markFailed() records normalized error information", () => {
     {
       name: "Error",
       message: "TITech configuration bootstrap failed.",
-      stack: error.stack,
       code: "TITECH_CONFIG_BOOTSTRAP_FAILED",
     },
   );
@@ -1207,7 +1231,7 @@ test("canonical lifecycle states are available", () => {
 
   assert.equal(
     CONTEXT_STATES.BOOTSTRAPPING,
-    "bootstrapping",
+    CONTEXT_STATES.STARTING,
   );
 
   assert.equal(

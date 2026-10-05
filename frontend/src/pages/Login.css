@@ -16,12 +16,12 @@
  */
 
 .login-page {
-  --login-primary: #008000;
+  --login-primary: var(--titech-brand-green);
   --login-primary-dark: #115e59;
   --login-primary-darker: #0f5f59;
   --login-primary-light: #ccfbf1;
   --login-primary-soft: #f0fdfa;
-  --login-secondary: #0058d8;
+  --login-secondary: var(--titech-brand-electric-blue);
   --login-success: #15803d;
   --login-success-bg: #f0fdf4;
   --login-success-border: #bbf7d0;
@@ -38,12 +38,12 @@
   --login-text-subtle: var(--titech-color-text-subtle, #64748b);
   --login-border: var(--titech-color-border, #dbe3ec);
   --login-border-strong: var(--titech-color-border-strong, #94a3b8);
-  --login-surface: var(--titech-color-surface, #ffffff);
+  --login-surface: var(--titech-color-surface, var(--titech-brand-white));
   --login-surface-soft: var(--titech-color-background, #f8fafc);
   --login-surface-muted: var(--titech-color-surface-muted, #f1f5f9);
   --login-background: var(--titech-color-background, #f8fafc);
   --login-brand-start: #064e3b;
-  --login-brand-mid: #008000;
+  --login-brand-mid: var(--titech-brand-green);
   --login-brand-end: #115e59;
   --login-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --login-shadow-md: 0 10px 30px rgba(15, 23, 42, 0.08);

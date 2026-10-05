@@ -50,10 +50,10 @@
   --legal-text-muted: var(--titech-color-text-subtle);
   --legal-text-subtle: #9ca3af;
 
-  --legal-surface: #ffffff;
+  --legal-surface: var(--titech-brand-white);
   --legal-surface-subtle: var(--titech-color-background);
   --legal-surface-muted: var(--titech-color-surface-muted);
-  --legal-surface-elevated: #ffffff;
+  --legal-surface-elevated: var(--titech-brand-white);
 
   --legal-border: var(--titech-color-border);
   --legal-border-strong: var(--titech-color-border);
@@ -154,7 +154,7 @@
   margin: 0 0 1.25rem;
   overflow: hidden;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
 
   background:
     radial-gradient(
@@ -188,7 +188,7 @@
 
 .legal-acceptance-prompt h3 {
   margin: 0 0 0.5rem;
-  color: #ffffff;
+  color: var(--titech-brand-white);
   font-size: clamp(1.05rem, 2vw, 1.25rem);
   font-weight: 700;
   line-height: 1.35;
@@ -248,7 +248,7 @@
   min-height: 2.75rem;
   padding: 0.625rem 1rem;
 
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--legal-primary);
 
   border: 1px solid var(--legal-primary);
@@ -520,7 +520,7 @@
 }
 
 .legal-document-text::selection {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--legal-primary);
 }
 
@@ -815,7 +815,7 @@
 }
 
 .legal-btn-primary {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--legal-primary);
 
   border: 1px solid var(--legal-primary);
@@ -824,7 +824,7 @@
 }
 
 .legal-btn-primary:hover:not(:disabled) {
-  color: #ffffff;
+  color: var(--titech-brand-white);
   background: var(--legal-primary-hover);
   border-color: var(--legal-primary-hover);
   box-shadow: var(--legal-shadow-md);
@@ -1361,7 +1361,7 @@
   .legal-documents {
     padding: 0;
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .legal-acceptance-prompt,
@@ -1382,7 +1382,7 @@
     overflow: visible;
 
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     border: 0;
     border-radius: 0;
@@ -1397,7 +1397,7 @@
     padding: 0 0 1rem;
 
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
 
     border-bottom: 1px solid #000000;
   }
@@ -1417,7 +1417,7 @@
     overflow: visible;
 
     color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .legal-document-text {
@@ -1462,7 +1462,7 @@
   .legal-document-text th,
   .legal-document-text td {
     border-color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 
   .legal-document-text tr {
@@ -1484,6 +1484,6 @@
   .legal-document-text pre {
     white-space: pre-wrap;
     border-color: #000000;
-    background: #ffffff;
+    background: var(--titech-brand-white);
   }
 }

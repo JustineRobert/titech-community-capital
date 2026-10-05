@@ -1016,7 +1016,7 @@ try {
 
 if (IS_DEVELOPMENT) {
   console.info(
-    `[${APP_NAME}] Frontend started successfully.`
+    `[TITech Runtime] Frontend bootstrapped; API/auth readiness is monitored by the application provider boundary.`
   );
 
   console.info(

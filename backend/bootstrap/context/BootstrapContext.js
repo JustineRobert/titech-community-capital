@@ -1860,12 +1860,11 @@ export class BootstrapContext {
       Object.prototype.hasOwnProperty.call(
         this,
         normalizedName,
-      )
+      ) &&
+      this[normalizedName] !== null &&
+      this[normalizedName] !== undefined
     ) {
-      return (
-        this[normalizedName] !== null &&
-        this[normalizedName] !== undefined
-      );
+      return true;
     }
 
     return (
@@ -1894,16 +1893,24 @@ export class BootstrapContext {
       );
     }
 
+    const normalizedName =
+      name.trim().slice(
+        0,
+        MAX_DEPENDENCY_NAME_LENGTH,
+      );
+
     if (
       Object.prototype.hasOwnProperty.call(
         this,
-        name,
-      )
+        normalizedName,
+      ) &&
+      this[normalizedName] !== null &&
+      this[normalizedName] !== undefined
     ) {
-      return this[name];
+      return this[normalizedName];
     }
 
-    return this.container[name];
+    return this.container[normalizedName];
   }
 
   requireAnyDependency(names = []) {

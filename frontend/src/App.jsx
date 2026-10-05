@@ -63,7 +63,6 @@ import 'react-toastify/dist/ReactToastify.css';
 // -----------------------------------------------------------------------------
 
 import {
-  AuthProvider,
   useAuth,
 } from './context/AuthContext';
 
@@ -809,10 +808,8 @@ function ApplicationRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppLayout>
-        <ApplicationRoutes />
-      </AppLayout>
-    </AuthProvider>
+    <AppLayout>
+      <ApplicationRoutes />
+    </AppLayout>
   );
 }
