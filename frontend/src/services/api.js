@@ -34,51 +34,26 @@ import {
   onApiConnectivityChange as subscribeApiConnectivity,
   probeApiConnectivity,
   setApiConnectivityDegraded,
+  setApiConnectivityReachable,
   setApiConnectivityReady,
+  setApiConnectivityUnavailable,
   setBrowserConnectivity,
 } from './runtimeConnectivity.js';
+import {
+  getApiConfigurationDiagnostics,
+  resolveApiBaseUrl,
+} from './apiConfiguration.js';
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-function normalizeApiBaseUrl(value) {
-  const normalized = String(value || '').trim();
+const API_CONFIGURATION = getApiConfigurationDiagnostics(import.meta.env);
 
-  if (!normalized) {
-    return '';
-  }
-
-  const withoutTrailingSlash = normalized.replace(/\/+$/, '');
-
-  try {
-    const url = new URL(withoutTrailingSlash);
-
-    if (
-      url.pathname === '/api' ||
-      url.pathname === '/api/v1'
-    ) {
-      url.pathname = '';
-      url.search = '';
-      url.hash = '';
-    }
-
-    return url.toString().replace(/\/+$/, '');
-  } catch {
-    return withoutTrailingSlash;
-  }
-}
-
-const API_BASE =
-  normalizeApiBaseUrl(
-    import.meta.env.VITE_API_URL ||
-      import.meta.env.VITE_API_BASE_URL
-  ) ||
-  (import.meta.env.PROD
-    ? (typeof window !== 'undefined'
-        ? window.location.origin
-        : '')
-    : 'http://localhost:5000');
+const API_BASE = resolveApiBaseUrl(
+  import.meta.env,
+  { production: Boolean(import.meta.env.PROD) },
+);
 
 const REQUEST_TIMEOUT =
   Number(import.meta.env.VITE_REQUEST_TIMEOUT) || 30000;
@@ -119,6 +94,10 @@ const REGISTER_ENDPOINT =
 
 const LOGOUT_ENDPOINT =
   '/api/auth/logout';
+
+const API_HEALTH_ENDPOINT =
+  import.meta.env.VITE_API_HEALTH_PATH ||
+  '/api/v1/health';
 
 const API_READINESS_ENDPOINT =
   import.meta.env.VITE_API_READINESS_PATH ||
@@ -919,13 +898,22 @@ export function shouldRetryRequest(
 
   if (retryableNetwork) {
     /**
-     * Do not create a retry storm while the API is already known to be
-     * unavailable. The centralized readiness monitor owns recovery probing.
+     * Allow a safe request one bounded retry when the API was known to be
+     * reachable immediately before the failure. The subsequent failure
+     * observes API_UNAVAILABLE and is not retried; the shared connectivity
+     * monitor owns recovery probing from there.
      */
-    if (
-      getApiConnectivityState().status !==
-      API_CONNECTIVITY_STATUS.READY
-    ) {
+    const connectivityBeforeFailure =
+      config._connectivityBeforeFailure ||
+      getApiConnectivityState().status;
+
+    const previouslyReachable = new Set([
+      API_CONNECTIVITY_STATUS.READY,
+      API_CONNECTIVITY_STATUS.API_REACHABLE,
+      API_CONNECTIVITY_STATUS.API_DEGRADED,
+    ]).has(connectivityBeforeFailure);
+
+    if (!previouslyReachable) {
       return false;
     }
 
@@ -1403,6 +1391,68 @@ api.interceptors.request.use(
     Promise.reject(error)
 );
 
+// Authentication requests share the same correlation/device metadata but
+// intentionally do not receive the authenticated API response/refresh interceptor.
+authApi.interceptors.request.use((config) => {
+  config.metadata = {
+    ...(config.metadata || {}),
+    startedAt: Date.now(),
+  };
+
+  if (!config.headers) {
+    config.headers = {};
+  }
+
+  ensureHeader(config, 'x-request-id', uuidv4());
+  ensureHeader(config, 'x-correlation-id', uuidv4());
+  ensureHeader(config, 'x-device-id', getDeviceId());
+  ensureHeader(config, 'x-client-version', APP_VERSION);
+  ensureHeader(config, 'x-client-platform', 'web');
+
+  return config;
+});
+
+authApi.interceptors.response.use(
+  (response) => {
+    setApiConnectivityReachable({
+      status: response.status,
+      latencyMs: response.config?.metadata?.startedAt
+        ? Date.now() - response.config.metadata.startedAt
+        : null,
+    });
+    return response;
+  },
+  (error) => {
+    const status = error?.response?.status || null;
+    if (isBrowserOffline()) {
+      setApiConnectivityDegraded({
+        offline: true,
+        status,
+        code: 'CLIENT_OFFLINE',
+        message: 'The browser reports that the device is offline.',
+      });
+    } else if (status === 503) {
+      setApiConnectivityDegraded({
+        status,
+        code: 'API_NOT_READY',
+        message: error?.response?.data?.message || 'TITech API is not ready.',
+      });
+    } else if (!error?.response) {
+      setApiConnectivityUnavailable({
+        code: error?.code || 'TITECH_API_UNAVAILABLE',
+        message: error?.message || 'TITech API is unavailable.',
+      });
+    } else if (status >= 500) {
+      setApiConnectivityReachable({
+        status,
+        code: error?.code || 'HTTP_5XX',
+        message: 'TITech API returned a server error.',
+      });
+    }
+    return Promise.reject(error);
+  },
+);
+
 // ============================================================================
 // Response Interceptor
 // ============================================================================
@@ -1413,7 +1463,7 @@ api.interceptors.response.use(
       response.config
     );
 
-    setApiConnectivityReady({
+    setApiConnectivityReachable({
       status: response.status,
       latencyMs:
         response.config?.metadata?.startedAt
@@ -1474,6 +1524,11 @@ api.interceptors.response.use(
     const status =
       error?.response?.status;
 
+    // Capture state before this error changes it so the retry policy can
+    // allow one safe recovery retry without creating connection-refusal storms.
+    request._connectivityBeforeFailure =
+      getApiConnectivityState().status;
+
     // ========================================================================
     // Cancellation
     // ========================================================================
@@ -1490,29 +1545,29 @@ api.interceptors.response.use(
     // Offline
     // ========================================================================
 
-    if (
-      isBrowserOffline()
-    ) {
+    if (isBrowserOffline()) {
       setApiConnectivityDegraded({
         offline: true,
         code: 'CLIENT_OFFLINE',
         message: 'The browser reports that the device is offline.',
       });
 
-      return Promise.reject(
-        createOfflineError(
-          error
-        )
-      );
+      return Promise.reject(createOfflineError(error));
     }
 
     if (!error?.response) {
-      setApiConnectivityDegraded({
-        code: error?.code || 'ERR_NETWORK',
+      setApiConnectivityUnavailable({
+        code: error?.code || 'TITECH_API_UNAVAILABLE',
         message: error?.message || 'TITech API network error.',
       });
-    } else if (status >= 500) {
+    } else if (status === 503) {
       setApiConnectivityDegraded({
+        status,
+        code: 'API_NOT_READY',
+        message: error?.response?.data?.message || 'TITech API is not ready.',
+      });
+    } else if (status >= 500) {
+      setApiConnectivityReachable({
         status,
         code: error?.code || 'HTTP_5XX',
         message: error?.message || 'TITech API server error.',
@@ -1714,47 +1769,146 @@ api.interceptors.response.use(
 // Authentication APIs
 // ============================================================================
 
-export async function login(
-  payload
-) {
-  const response =
-    await authApi.post(
-      LOGIN_ENDPOINT,
-      payload
-    );
+export const AUTH_ERROR_CATEGORY = Object.freeze({
+  VALIDATION: 'AUTH_VALIDATION_ERROR',
+  API_UNAVAILABLE: 'AUTH_API_UNAVAILABLE',
+  API_TIMEOUT: 'AUTH_API_TIMEOUT',
+  INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
+  ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
+  ACCOUNT_DISABLED: 'AUTH_ACCOUNT_DISABLED',
+  MFA_REQUIRED: 'AUTH_MFA_REQUIRED',
+  TENANT_UNAVAILABLE: 'AUTH_TENANT_UNAVAILABLE',
+  RATE_LIMITED: 'AUTH_RATE_LIMITED',
+  SERVER_ERROR: 'AUTH_SERVER_ERROR',
+  FORBIDDEN: 'AUTH_FORBIDDEN',
+  NOT_READY: 'AUTH_API_NOT_READY',
+  UNKNOWN: 'AUTH_UNKNOWN',
+});
 
-  const token =
-    response.data
-      ?.accessToken ||
-    response.data
-      ?.token;
-
-  if (token) {
-    setToken(token);
-
-    api.defaults.headers.common.Authorization =
-      `Bearer ${token}`;
+export function classifyAuthenticationError(error) {
+  if (isBrowserOffline() || error?.code === 'CLIENT_OFFLINE') {
+    return AUTH_ERROR_CATEGORY.API_UNAVAILABLE;
   }
 
-  const tenantId =
-    response.data
-      ?.tenantId ||
-    response.data
-      ?.user?.tenantId;
+  const status = error?.response?.status ?? null;
+  const code = String(error?.code || '').toUpperCase();
+  const responseCode = String(error?.response?.data?.code || '').toUpperCase();
+  const message = String(error?.response?.data?.message || error?.message || '');
+
+  if (responseCode === 'MFA_REQUIRED') return AUTH_ERROR_CATEGORY.MFA_REQUIRED;
+  if (responseCode === 'TENANT_UNAVAILABLE') return AUTH_ERROR_CATEGORY.TENANT_UNAVAILABLE;
+  if (responseCode === 'ACCOUNT_DISABLED' || /account.*disabled/i.test(message)) {
+    return AUTH_ERROR_CATEGORY.ACCOUNT_DISABLED;
+  }
 
   if (
-    tenantId !== undefined &&
-    tenantId !== null
+    code === 'AUTH_TIMEOUT' ||
+    code === 'ECONNABORTED' ||
+    /timeout|timed out/i.test(message)
   ) {
-    setTenant(
-      tenantId
-    );
+    return AUTH_ERROR_CATEGORY.API_TIMEOUT;
   }
 
-  // Refresh token is expected to be delivered by the backend
-  // through an HttpOnly Secure cookie.
+  if (!error?.response && (
+    code === 'ERR_NETWORK' ||
+    code === 'ECONNREFUSED' ||
+    /ERR_CONNECTION_REFUSED|network error|fetch failed|failed to fetch/i.test(message)
+  )) {
+    return AUTH_ERROR_CATEGORY.API_UNAVAILABLE;
+  }
 
-  return response;
+  if (status === 400 || status === 422) return AUTH_ERROR_CATEGORY.VALIDATION;
+  if (status === 401) return AUTH_ERROR_CATEGORY.INVALID_CREDENTIALS;
+  if (status === 403) return AUTH_ERROR_CATEGORY.FORBIDDEN;
+  if (status === 423) return AUTH_ERROR_CATEGORY.ACCOUNT_LOCKED;
+  if (status === 424 || status === 503) return AUTH_ERROR_CATEGORY.NOT_READY;
+  if (status === 429) return AUTH_ERROR_CATEGORY.RATE_LIMITED;
+  if (status >= 500) return AUTH_ERROR_CATEGORY.SERVER_ERROR;
+
+  return AUTH_ERROR_CATEGORY.UNKNOWN;
+}
+
+export function getAuthenticationErrorMessage(error) {
+  switch (classifyAuthenticationError(error)) {
+    case AUTH_ERROR_CATEGORY.API_UNAVAILABLE:
+      return 'TITech authentication service is currently unavailable. Check your connection or try again shortly.';
+    case AUTH_ERROR_CATEGORY.API_TIMEOUT:
+      return 'TITech authentication service is taking too long to respond. Please try again.';
+    case AUTH_ERROR_CATEGORY.NOT_READY:
+      return 'TITech services are temporarily degraded. Please try again shortly.';
+    case AUTH_ERROR_CATEGORY.INVALID_CREDENTIALS:
+      return 'Email or password is incorrect.';
+    case AUTH_ERROR_CATEGORY.FORBIDDEN:
+      return 'This account is not authorized to sign in.';
+    case AUTH_ERROR_CATEGORY.ACCOUNT_DISABLED:
+      return 'This account is disabled and cannot sign in.';
+    case AUTH_ERROR_CATEGORY.MFA_REQUIRED:
+      return 'Additional verification is required to complete sign-in.';
+    case AUTH_ERROR_CATEGORY.TENANT_UNAVAILABLE:
+      return 'The assigned TITech organization is temporarily unavailable.';
+    case AUTH_ERROR_CATEGORY.ACCOUNT_LOCKED:
+      return 'This account is temporarily locked. Please contact your administrator or try again later.';
+    case AUTH_ERROR_CATEGORY.RATE_LIMITED:
+      return 'Too many sign-in attempts. Please wait and try again.';
+    case AUTH_ERROR_CATEGORY.VALIDATION:
+      return 'Please check the sign-in details and try again.';
+    case AUTH_ERROR_CATEGORY.SERVER_ERROR:
+      return 'TITech authentication service encountered an error. Please try again shortly.';
+    default:
+      return 'Unable to sign in right now. Please try again.';
+  }
+}
+
+function annotateAuthenticationError(error) {
+  const category = classifyAuthenticationError(error);
+  error.authCategory = category;
+  error.userMessage = getAuthenticationErrorMessage(error);
+  return error;
+}
+
+export async function login(payload) {
+  const connectivity = getApiConnectivityState();
+
+  if (connectivity.status === API_CONNECTIVITY_STATUS.OFFLINE) {
+    const error = createOfflineError();
+    throw annotateAuthenticationError(error);
+  }
+
+  if (connectivity.status === API_CONNECTIVITY_STATUS.API_UNAVAILABLE) {
+    const error = new Error('TITech authentication service is currently unavailable.');
+    error.code = 'TITECH_API_UNAVAILABLE';
+    throw annotateAuthenticationError(error);
+  }
+
+  try {
+    const response = await authApi.post(LOGIN_ENDPOINT, payload);
+
+    setApiConnectivityReachable({
+      status: response.status,
+      latencyMs: response.config?.metadata?.startedAt
+        ? Date.now() - response.config.metadata.startedAt
+        : null,
+    });
+
+    const token = response.data?.accessToken || response.data?.token;
+
+    if (token) {
+      setToken(token);
+      api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    }
+
+    const tenantId = response.data?.tenantId || response.data?.user?.tenantId;
+
+    if (tenantId !== undefined && tenantId !== null) {
+      setTenant(tenantId);
+    }
+
+    // Refresh token is expected to be delivered by the backend through an
+    // HttpOnly Secure cookie. JavaScript never reads or persists it.
+    return response;
+  } catch (error) {
+    throw annotateAuthenticationError(error);
+  }
 }
 
 
@@ -2231,6 +2385,9 @@ export function getApiDiagnostics() {
 
     apiConnectivity:
       getApiConnectivityState(),
+
+    apiConfiguration:
+      API_CONFIGURATION,
   };
 
   if (IS_DEV) {
@@ -2259,14 +2416,80 @@ export function getApiDiagnostics() {
 // ============================================================================
 
 export async function checkApiHealth() {
-  const startedAt =
-    Date.now();
+  const startedAt = Date.now();
 
-  if (
-    isBrowserOffline()
-  ) {
+  if (isBrowserOffline()) {
     return {
       healthy: false,
+      unavailable: false,
+      offline: true,
+      reachable: false,
+      status: null,
+      latency: 0,
+      code: 'CLIENT_OFFLINE',
+      message: 'The browser reports that the device is offline.',
+    };
+  }
+
+  try {
+    const response = await authApi.get(API_HEALTH_ENDPOINT, {
+      timeout: HEALTH_TIMEOUT,
+    });
+
+    const latency = Date.now() - startedAt;
+    const healthy = response.status >= 200 && response.status < 300;
+
+    if (healthy) {
+      setApiConnectivityReachable({
+        status: response.status,
+        latencyMs: latency,
+      });
+    }
+
+    return {
+      healthy,
+      reachable: healthy,
+      unavailable: false,
+      offline: false,
+      status: response.status,
+      latency,
+      code: healthy ? null : 'API_HEALTH_FAILED',
+      message: healthy ? null : 'TITech API health check failed.',
+    };
+  } catch (error) {
+    const latency = Date.now() - startedAt;
+    const offline = isBrowserOffline();
+    const result = {
+      healthy: false,
+      reachable: false,
+      unavailable: !offline,
+      offline,
+      status: error?.response?.status || null,
+      latency,
+      code: offline ? 'CLIENT_OFFLINE' : 'TITECH_API_UNAVAILABLE',
+      message: error?.message || 'TITech API health check failed.',
+    };
+
+    if (offline) {
+      setApiConnectivityDegraded(result);
+    } else if (result.status === 503) {
+      setApiConnectivityDegraded({ ...result, code: 'API_NOT_READY' });
+    } else {
+      setApiConnectivityUnavailable(result);
+    }
+
+    return result;
+  }
+}
+
+export async function checkApiReadiness() {
+  const startedAt = Date.now();
+
+  if (isBrowserOffline()) {
+    return {
+      healthy: false,
+      reachable: false,
+      unavailable: false,
       offline: true,
       status: null,
       latency: 0,
@@ -2276,35 +2499,15 @@ export async function checkApiHealth() {
   }
 
   try {
-    const response =
-      await authApi.get(
-        API_READINESS_ENDPOINT,
-        {
-          timeout:
-            HEALTH_TIMEOUT,
-        }
-      );
+    const response = await authApi.get(API_READINESS_ENDPOINT, {
+      timeout: HEALTH_TIMEOUT,
+    });
+    const latency = Date.now() - startedAt;
+    const ready = response.status >= 200 && response.status < 300 &&
+      String(response.data?.status || '').toLowerCase() === 'ready';
 
-    const latency =
-      Date.now() - startedAt;
-
-    const statusValue =
-      String(response.data?.status || '').toLowerCase();
-
-    const healthy =
-      response.status >= 200 &&
-      response.status < 300 &&
-      (!statusValue ||
-        statusValue === 'ready' ||
-        statusValue === 'healthy' ||
-        statusValue === 'ok' ||
-        statusValue === 'alive');
-
-    if (healthy) {
-      setApiConnectivityReady({
-        status: response.status,
-        latencyMs: latency,
-      });
+    if (ready) {
+      setApiConnectivityReady({ status: response.status, latencyMs: latency });
     } else {
       setApiConnectivityDegraded({
         status: response.status,
@@ -2315,49 +2518,46 @@ export async function checkApiHealth() {
     }
 
     return {
-      healthy,
+      healthy: ready,
+      reachable: true,
+      unavailable: false,
+      offline: false,
       status: response.status,
       latency,
-      code: healthy ? null : 'API_NOT_READY',
-      message: healthy ? null : 'TITech API is not ready.',
+      code: ready ? null : 'API_NOT_READY',
+      message: ready ? null : response.data?.message || 'TITech API is not ready.',
     };
   } catch (error) {
-    const latency =
-      Date.now() - startedAt;
-
-    const offline =
-      isBrowserOffline();
-
+    const latency = Date.now() - startedAt;
+    const offline = isBrowserOffline();
     const result = {
       healthy: false,
+      reachable: false,
+      unavailable: !offline,
       offline,
-      status:
-        error?.response?.status || null,
+      status: error?.response?.status || null,
       latency,
-      code:
-        error?.code ||
-        (offline
-          ? 'CLIENT_OFFLINE'
-          : 'API_UNAVAILABLE'),
-      message:
-        error?.message ||
-        'TITech API unavailable',
+      code: offline ? 'CLIENT_OFFLINE' : 'TITECH_API_UNAVAILABLE',
+      message: error?.message || 'TITech API readiness check failed.',
     };
 
-    setApiConnectivityDegraded(result);
+    if (offline) {
+      setApiConnectivityDegraded(result);
+    } else if (result.status === 503) {
+      setApiConnectivityDegraded({ ...result, code: 'API_NOT_READY' });
+    } else {
+      setApiConnectivityUnavailable(result);
+    }
 
     return result;
   }
 }
 
 export async function probeApiReadiness({ force = false } = {}) {
-  return probeApiConnectivity(
-    checkApiHealth,
-    {
-      force,
-      minIntervalMs: 5000,
-    }
-  );
+  return probeApiConnectivity(checkApiReadiness, {
+    force,
+    minIntervalMs: 5000,
+  });
 }
 
 export function getApiConnectivity() {

@@ -555,7 +555,13 @@ async function login(req, res) {
       user: { id: user._id, email: user.email, name: user.name, role: user.role },
     });
   } catch (err) {
-    console.error('[AuthController] login error', err);
+    console.error('[AuthController] login error', {
+      code: err?.code || 'AUTH_LOGIN_INTERNAL_ERROR',
+      name: err?.name || 'Error',
+      message: String(err?.message || 'Login failed').slice(0, 240),
+      requestId: req.requestId || null,
+      correlationId: req.correlationId || req.get('x-correlation-id') || null,
+    });
     return res.status(500).json({ message: 'Login failed' });
   }
 }

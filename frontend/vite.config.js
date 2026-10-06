@@ -26,7 +26,7 @@
  *   - Do not use CommonJS globals such as __dirname or require().
  *
  * Runtime:
- *   Node.js 20+
+ *   Node.js 24.15+
  *
  * Module System:
  *   ES Modules (ESM)
@@ -43,6 +43,7 @@ import {
 } from "vite";
 
 import react from "@vitejs/plugin-react";
+import { resolveApiBaseUrl } from "./src/services/apiConfiguration.js";
 
 /* =============================================================================
  * MODULE IDENTITY
@@ -355,6 +356,12 @@ export default defineConfig(
 
     const isBuild =
       command === "build";
+
+    // Production is fail-closed: an explicit backend origin or an explicit
+    // same-origin proxy path (/api or /api/v1) must be part of the build.
+    if (isProduction && isBuild) {
+      resolveApiBaseUrl(env, { production: true });
+    }
 
     /**
      * Resolve ports deterministically.

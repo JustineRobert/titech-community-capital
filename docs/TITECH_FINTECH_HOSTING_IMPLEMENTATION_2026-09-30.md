@@ -44,7 +44,7 @@ Canonical web surfaces include:
 - `frontend/.env.production.example`
 - `frontend/public/`
 
-Production API transport uses an explicit same-origin fallback (`window.location.origin + /api/v1`) when `VITE_API_URL` is not configured. Development retains its local backend fallback.
+Production API transport now requires an explicit `VITE_API_URL`/`VITE_API_BASE_URL` backend origin at build time, or an intentional same-origin proxy path such as `/api/v1`. Development retains its local backend contract.
 
 ## 4. Configure database and cache
 

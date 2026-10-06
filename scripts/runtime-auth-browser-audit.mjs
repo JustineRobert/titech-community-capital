@@ -19,6 +19,7 @@ const fail = (id, message) => checks.push({ id, status: 'FAIL', message });
 const app = read('frontend/src/App.jsx');
 const providers = read('frontend/src/app/providers.jsx');
 const api = read('frontend/src/services/api.js');
+const apiConfig = read('frontend/src/services/apiConfiguration.js');
 const socket = read('frontend/src/services/socket.js');
 const auth = read('frontend/src/context/AuthContext.jsx');
 const notifications = read('frontend/src/components/ui/NotificationProvider.jsx');
@@ -36,8 +37,8 @@ if (authProviderUsages === 1 && !appNestedAuthProvider) {
 if (readiness) pass('connectivity-state', 'Shared API/browser connectivity state module exists.');
 else fail('connectivity-state', 'Shared runtime connectivity state module is missing.');
 
-if (/VITE_API_URL\s*\|\|\s*import\.meta\.env\.VITE_API_BASE_URL/.test(api) && /window\.location\.origin/.test(api)) {
-  pass('api-origin-contract', 'API origin resolution supports explicit environment configuration and same-origin production fallback.');
+if (/resolveApiBaseUrl/.test(api) && /TITECH_API_ORIGIN_MISSING/.test(apiConfig) && !/window\.location\.origin\s*\?/.test(api)) {
+  pass('api-origin-contract', 'API origin resolution is explicit and production fail-closed; same-origin proxy paths are intentional.');
 } else {
   fail('api-origin-contract', 'API origin contract is incomplete.');
 }
@@ -48,10 +49,10 @@ if (/API_READINESS_ENDPOINT/.test(api) && /\/api\/v1\/ready/.test(api)) {
   fail('readiness-contract', 'Frontend readiness endpoint contract is missing or inconsistent.');
 }
 
-if (/VITE_API_URL.*\/api|normalizeApiBaseUrl[\s\S]*url\.pathname === '\/api'/.test(api)) {
-  pass('api-prefix-normalization', 'API base normalization prevents /api/api or /api/v1/api path duplication.');
+if (/normalizeConfiguredApiBaseUrl/.test(apiConfig) && /API_PREFIXES/.test(apiConfig)) {
+  pass('api-prefix-normalization', 'API base normalization prevents duplicated /api and /api/v1 path prefixes.');
 } else {
-  fail('api-prefix-normalization', 'API base path normalization could allow duplicated API prefixes.');
+  fail('api-prefix-normalization', 'API base path normalization contract is missing.');
 }
 
 if (!/localStorage\.[^(]*\([^\n]*token|sessionStorage\.[^(]*\([^\n]*token|TOKEN_KEY|TENANT_KEY/.test(socket)) {

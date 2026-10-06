@@ -1,33 +1,33 @@
 // ============================================================================
-// TITech Community Capital
-// Runtime connectivity state
-//
-// Purpose:
-//   Single, framework-agnostic source of truth for browser/network and
-//   TITech API readiness state. It intentionally contains no Axios, React,
-//   authentication, or business-domain logic so it can be consumed by the
-//   API client, authentication boundary, notification boundary, and app shell
-//   without circular dependencies.
+// TITech Community Capital — Runtime connectivity state
+// ============================================================================
+// Single shared browser/API connectivity state machine.
+// It deliberately contains no Axios, React or authentication logic.
 // ============================================================================
 
-"use strict";
+'use strict';
 
 export const API_CONNECTIVITY_STATUS = Object.freeze({
-  CHECKING: "CHECKING",
-  READY: "READY",
-  DEGRADED: "DEGRADED",
-  OFFLINE: "OFFLINE",
+  CHECKING: 'CHECKING',
+  READY: 'READY',
+  API_REACHABLE: 'API_REACHABLE',
+  API_DEGRADED: 'API_DEGRADED',
+  API_UNAVAILABLE: 'API_UNAVAILABLE',
+  OFFLINE: 'OFFLINE',
+  // Backward-compatible alias for existing consumers.
+  DEGRADED: 'API_DEGRADED',
 });
 
 const listeners = new Set();
 
 let state = Object.freeze({
   status:
-    typeof navigator !== "undefined" && navigator.onLine === false
+    typeof navigator !== 'undefined' && navigator.onLine === false
       ? API_CONNECTIVITY_STATUS.OFFLINE
       : API_CONNECTIVITY_STATUS.CHECKING,
   browserOnline:
-    typeof navigator === "undefined" ? true : navigator.onLine !== false,
+    typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+  apiReachable: false,
   ready: false,
   lastCheckedAt: null,
   lastLatencyMs: null,
@@ -40,10 +40,7 @@ let probePromise = null;
 let lastProbeStartedAt = 0;
 
 function emit(nextState) {
-  state = Object.freeze({
-    ...state,
-    ...nextState,
-  });
+  state = Object.freeze({ ...state, ...nextState });
 
   for (const listener of listeners) {
     try {
@@ -61,7 +58,7 @@ export function getApiConnectivityState() {
 }
 
 export function onApiConnectivityChange(listener) {
-  if (typeof listener !== "function") {
+  if (typeof listener !== 'function') {
     return () => {};
   }
 
@@ -70,81 +67,113 @@ export function onApiConnectivityChange(listener) {
   try {
     listener(state);
   } catch {
-    // Initial notification failure is isolated from the state machine.
+    // Initial notification failures are isolated.
   }
 
-  return () => {
-    listeners.delete(listener);
-  };
+  return () => listeners.delete(listener);
 }
 
 export function setBrowserConnectivity(online) {
   const browserOnline = Boolean(online);
 
+  if (!browserOnline) {
+    return emit({
+      browserOnline: false,
+      apiReachable: false,
+      ready: false,
+      status: API_CONNECTIVITY_STATUS.OFFLINE,
+      lastErrorCode: 'CLIENT_OFFLINE',
+      lastErrorMessage: 'The browser reports that the device is offline.',
+      lastHttpStatus: null,
+    });
+  }
+
   return emit({
-    browserOnline,
-    status: browserOnline
-      ? API_CONNECTIVITY_STATUS.CHECKING
-      : API_CONNECTIVITY_STATUS.OFFLINE,
+    browserOnline: true,
+    status: API_CONNECTIVITY_STATUS.CHECKING,
     ready: false,
-    lastErrorCode: browserOnline ? null : "CLIENT_OFFLINE",
-    lastErrorMessage: browserOnline
-      ? null
-      : "The browser reports that the device is offline.",
+    lastErrorCode: null,
+    lastErrorMessage: null,
   });
 }
 
 export function setApiConnectivityReady(metadata = {}) {
   return emit({
     browserOnline: true,
+    apiReachable: true,
     status: API_CONNECTIVITY_STATUS.READY,
     ready: true,
     lastCheckedAt: metadata.checkedAt || new Date().toISOString(),
-    lastLatencyMs:
-      Number.isFinite(metadata.latencyMs) ? metadata.latencyMs : null,
-    lastHttpStatus:
-      Number.isFinite(metadata.status) ? metadata.status : null,
+    lastLatencyMs: Number.isFinite(metadata.latencyMs) ? metadata.latencyMs : null,
+    lastHttpStatus: Number.isFinite(metadata.status) ? metadata.status : null,
     lastErrorCode: null,
     lastErrorMessage: null,
   });
 }
 
-export function setApiConnectivityDegraded(metadata = {}) {
+export function setApiConnectivityReachable(metadata = {}) {
   return emit({
     browserOnline:
       metadata.browserOnline !== undefined
         ? Boolean(metadata.browserOnline)
-        : typeof navigator === "undefined" || navigator.onLine !== false,
-    status:
-      metadata.offline === true
-        ? API_CONNECTIVITY_STATUS.OFFLINE
-        : API_CONNECTIVITY_STATUS.DEGRADED,
+        : typeof navigator === 'undefined' || navigator.onLine !== false,
+    apiReachable: true,
+    status: API_CONNECTIVITY_STATUS.API_REACHABLE,
     ready: false,
     lastCheckedAt: metadata.checkedAt || new Date().toISOString(),
-    lastLatencyMs:
-      Number.isFinite(metadata.latencyMs) ? metadata.latencyMs : null,
-    lastHttpStatus:
-      Number.isFinite(metadata.status) ? metadata.status : null,
+    lastLatencyMs: Number.isFinite(metadata.latencyMs) ? metadata.latencyMs : null,
+    lastHttpStatus: Number.isFinite(metadata.status) ? metadata.status : null,
     lastErrorCode: metadata.code || null,
-    lastErrorMessage: metadata.message || "TITech API is unavailable.",
+    lastErrorMessage: metadata.message || null,
+  });
+}
+
+export function setApiConnectivityDegraded(metadata = {}) {
+  const offline = metadata.offline === true;
+
+  return emit({
+    browserOnline:
+      metadata.browserOnline !== undefined
+        ? Boolean(metadata.browserOnline)
+        : typeof navigator === 'undefined' || navigator.onLine !== false,
+    apiReachable: !offline,
+    status: offline
+      ? API_CONNECTIVITY_STATUS.OFFLINE
+      : API_CONNECTIVITY_STATUS.API_DEGRADED,
+    ready: false,
+    lastCheckedAt: metadata.checkedAt || new Date().toISOString(),
+    lastLatencyMs: Number.isFinite(metadata.latencyMs) ? metadata.latencyMs : null,
+    lastHttpStatus: Number.isFinite(metadata.status) ? metadata.status : null,
+    lastErrorCode: metadata.code || (offline ? 'CLIENT_OFFLINE' : 'API_NOT_READY'),
+    lastErrorMessage:
+      metadata.message || (offline ? 'The browser reports that the device is offline.' : 'TITech API is degraded.'),
+  });
+}
+
+export function setApiConnectivityUnavailable(metadata = {}) {
+  return emit({
+    browserOnline: true,
+    apiReachable: false,
+    status: API_CONNECTIVITY_STATUS.API_UNAVAILABLE,
+    ready: false,
+    lastCheckedAt: metadata.checkedAt || new Date().toISOString(),
+    lastLatencyMs: Number.isFinite(metadata.latencyMs) ? metadata.latencyMs : null,
+    lastHttpStatus: Number.isFinite(metadata.status) ? metadata.status : null,
+    lastErrorCode: metadata.code || 'TITECH_API_UNAVAILABLE',
+    lastErrorMessage: metadata.message || 'TITech API is unavailable.',
   });
 }
 
 /**
- * Execute one shared API readiness probe.
- *
- * Multiple callers receive the same in-flight promise. Calls made within the
- * cooldown window reuse the latest state instead of hammering the API.
+ * Execute one shared API availability/readiness probe.
+ * Multiple callers receive the same in-flight promise and cooldown semantics.
  */
 export async function probeApiConnectivity(
   probe,
-  {
-    force = false,
-    minIntervalMs = 5000,
-  } = {},
+  { force = false, minIntervalMs = 5000 } = {},
 ) {
-  if (typeof probe !== "function") {
-    throw new TypeError("A readiness probe function is required.");
+  if (typeof probe !== 'function') {
+    throw new TypeError('A connectivity probe function is required.');
   }
 
   if (state.status === API_CONNECTIVITY_STATUS.OFFLINE) {
@@ -162,39 +191,72 @@ export async function probeApiConnectivity(
   }
 
   lastProbeStartedAt = now;
-
   emit({
     status: API_CONNECTIVITY_STATUS.CHECKING,
+    ready: false,
+    lastErrorCode: null,
+    lastErrorMessage: null,
   });
 
   probePromise = (async () => {
     try {
       const result = await probe();
-      const healthy = Boolean(result?.healthy);
 
-      if (healthy) {
+      if (result?.healthy === true) {
         return setApiConnectivityReady({
-          status: result?.status,
-          latencyMs: result?.latency,
+          status: result.status,
+          latencyMs: result.latency,
+          checkedAt: new Date().toISOString(),
+        });
+      }
+
+      if (result?.reachable === true) {
+        return setApiConnectivityReachable({
+          status: result.status,
+          latencyMs: result.latency,
+          code: result.code,
+          message: result.message,
+          checkedAt: new Date().toISOString(),
+        });
+      }
+
+      if (result?.offline === true) {
+        return setApiConnectivityDegraded({
+          ...result,
+          offline: true,
+          checkedAt: new Date().toISOString(),
+        });
+      }
+
+      if (result?.unavailable === true) {
+        return setApiConnectivityUnavailable({
+          ...result,
           checkedAt: new Date().toISOString(),
         });
       }
 
       return setApiConnectivityDegraded({
-        status: result?.status,
-        latencyMs: result?.latency,
-        code: result?.code || null,
-        message: result?.message,
-        offline: result?.offline === true,
+        ...result,
         checkedAt: new Date().toISOString(),
       });
     } catch (error) {
-      return setApiConnectivityDegraded({
-        status: error?.response?.status,
-        latencyMs: null,
-        code: error?.code || "API_PROBE_FAILED",
-        message: error?.message || "TITech API readiness probe failed.",
-        offline: error?.isOffline === true,
+      const isOffline = error?.isOffline === true;
+      const responseStatus = error?.response?.status;
+
+      if (isOffline) {
+        return setApiConnectivityDegraded({
+          status: responseStatus,
+          code: error?.code || 'CLIENT_OFFLINE',
+          message: error?.message || 'The browser reports that the device is offline.',
+          offline: true,
+          checkedAt: new Date().toISOString(),
+        });
+      }
+
+      return setApiConnectivityUnavailable({
+        status: responseStatus,
+        code: error?.code || 'TITECH_API_UNAVAILABLE',
+        message: error?.message || 'TITech API is unavailable.',
         checkedAt: new Date().toISOString(),
       });
     } finally {
@@ -213,7 +275,7 @@ function handleOffline() {
   setBrowserConnectivity(false);
 }
 
-if (typeof window !== "undefined") {
-  window.addEventListener("online", handleOnline);
-  window.addEventListener("offline", handleOffline);
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
 }

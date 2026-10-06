@@ -1,9 +1,33 @@
 # 🚀 Deployment Guide - Production Readiness
 > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
 
-**Project:** Community Savings App  
+> **TITech runtime/authentication contract (2026-10-06):** For current login/runtime behavior, use the canonical endpoints `GET /api/v1/health`, `GET /api/v1/ready`, and `POST /api/auth/login`. A deployed frontend must have an explicit `VITE_API_URL`; the only supported exception is an intentional same-origin reverse proxy, represented by `VITE_API_URL=/api/v1`. Do not rely on `window.location.origin` as an implicit production API fallback.
+
+### Runtime verification
+
+Run from the repository root after dependencies and required services are available:
+
+```bash
+npm run verify:runtime
+npm run verify:api
+npm run verify:auth
+npm run verify:deployment
+```
+
+For production approval, additionally verify from the deployed frontend/backend pair:
+
+```text
+GET <backend>/api/v1/health  -> 200
+GET <backend>/api/v1/ready   -> 200 ready
+POST <backend>/api/auth/login -> application-level response
+```
+
+A `503 not_ready` is a dependency/readiness condition, not a TCP connection failure. A browser `ERR_CONNECTION_REFUSED` is a transport/process availability failure and must be investigated at the backend listener/startup boundary first.
+
+
+**Project:** TITech Community Capital
 **Version:** 2.0  
-**Status:** Ready for Production
+**Status:** Historical technical reference — not current production approval
 
 ---
 
@@ -73,7 +97,7 @@ cp .env.example .env
 # 1. Go to https://vercel.com
 # 2. Click "New Project"
 # 3. Import GitHub repository
-# 4. Select "society-community-savings-app"
+# 4. Select "titech-community-capital"
 ```
 
 **Step 2: Configure Build Settings**
@@ -107,7 +131,7 @@ git push origin main  # Automatically triggers deployment
 # 2. Click "New +"
 # 3. Select "Web Service"
 # 4. Connect GitHub account
-# 5. Select "society-community-savings-app"
+# 5. Select "titech-community-capital"
 ```
 
 **Step 2: Configure Service**
@@ -240,7 +264,7 @@ Create `app.json` in project root:
 {
   "name": "community-savings-app",
   "description": "Community Savings Platform",
-  "repository": "https://github.com/[user]/society-community-savings-app",
+  "repository": "https://github.com/[user]/titech-community-capital",
   "addons": [
     {
       "plan": "mongolab:sandbox"

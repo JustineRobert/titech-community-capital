@@ -15,7 +15,7 @@ RUN npm ci --include=dev \
 
 COPY frontend/ ./
 
-ARG VITE_API_URL=/api/v1
+ARG VITE_API_URL
 ARG VITE_SOCKET_URL=/
 ARG VITE_APP_VERSION=1.0.0
 ARG VITE_BUILD_TIME

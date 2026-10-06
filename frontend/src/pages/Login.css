@@ -17,10 +17,10 @@
 
 .login-page {
   --login-primary: var(--titech-brand-green);
-  --login-primary-dark: #115e59;
-  --login-primary-darker: #0f5f59;
-  --login-primary-light: #ccfbf1;
-  --login-primary-soft: #f0fdfa;
+  --login-primary-dark: var(--titech-brand-deep-blue);
+  --login-primary-darker: var(--titech-brand-deep-blue);
+  --login-primary-light: color-mix(in srgb, var(--titech-brand-cyan) 18%, var(--titech-brand-white));
+  --login-primary-soft: color-mix(in srgb, var(--titech-brand-cyan) 8%, var(--titech-brand-white));
   --login-secondary: var(--titech-brand-electric-blue);
   --login-success: #15803d;
   --login-success-bg: #f0fdf4;
@@ -42,9 +42,9 @@
   --login-surface-soft: var(--titech-color-background, #f8fafc);
   --login-surface-muted: var(--titech-color-surface-muted, #f1f5f9);
   --login-background: var(--titech-color-background, #f8fafc);
-  --login-brand-start: #064e3b;
-  --login-brand-mid: var(--titech-brand-green);
-  --login-brand-end: #115e59;
+  --login-brand-start: var(--titech-brand-deep-blue);
+  --login-brand-mid: var(--titech-brand-electric-blue);
+  --login-brand-end: var(--titech-brand-bright-blue);
   --login-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --login-shadow-md: 0 10px 30px rgba(15, 23, 42, 0.08);
   --login-shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.12);
@@ -1455,3 +1455,96 @@
     color: #000;
   }
 }
+.login-service-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--login-radius-md);
+  background: var(--titech-color-surface-muted);
+}
+
+.login-service-status__dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--titech-brand-cyan);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--titech-brand-cyan) 14%, transparent);
+}
+
+.login-service-status__content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.login-service-status__content strong {
+  color: var(--titech-color-text-strong);
+  font-size: 0.88rem;
+}
+
+.login-service-status__content span {
+  color: var(--titech-color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.login-service-status--ready {
+  border-color: color-mix(in srgb, var(--titech-brand-green) 35%, var(--titech-color-border));
+  background: color-mix(in srgb, var(--titech-brand-green) 7%, var(--titech-color-surface));
+}
+
+.login-service-status--ready .login-service-status__dot {
+  background: var(--titech-brand-green);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--titech-brand-green) 14%, transparent);
+}
+
+.login-service-status--degraded {
+  border-color: color-mix(in srgb, var(--titech-brand-gold) 45%, var(--titech-color-border));
+  background: color-mix(in srgb, var(--titech-brand-gold) 10%, var(--titech-color-surface));
+}
+
+.login-service-status--degraded .login-service-status__dot {
+  background: var(--titech-brand-gold);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--titech-brand-gold) 15%, transparent);
+}
+
+.login-service-status--unavailable {
+  border-color: color-mix(in srgb, var(--titech-brand-electric-blue) 42%, var(--titech-color-border));
+  background: color-mix(in srgb, var(--titech-brand-electric-blue) 8%, var(--titech-color-surface));
+}
+
+.login-service-status--unavailable .login-service-status__dot {
+  background: var(--titech-brand-electric-blue);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--titech-brand-electric-blue) 15%, transparent);
+}
+
+.login-service-status__retry {
+  justify-self: start;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--titech-brand-electric-blue);
+  border-radius: 8px;
+  color: var(--titech-brand-electric-blue);
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-service-status__retry:hover:not(:disabled),
+.login-service-status__retry:focus-visible {
+  background: var(--titech-brand-electric-blue);
+  color: var(--titech-brand-white);
+}
+
+.login-service-status__retry:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+

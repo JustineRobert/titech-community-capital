@@ -65,6 +65,11 @@ import {
 import { toast } from "react-toastify";
 
 import { useAuth } from "../context/AuthContext";
+import {
+  API_CONNECTIVITY_STATUS,
+  getAuthenticationErrorMessage,
+  probeApiReadiness,
+} from "../services/api.js";
 
 import "./Login.css";
 import BrandLogo from "../components/BrandLogo";
@@ -94,10 +99,7 @@ const ROUTES = Object.freeze({
 });
 
 const DEFAULT_ERROR_MESSAGE =
-  "Unable to sign in. Please check your credentials and try again.";
-
-const AUTHENTICATION_ERROR_MESSAGE =
-  "Invalid email or password.";
+  "Unable to sign in right now. Please try again.";
 
 const LOCKOUT_MESSAGE =
   "Too many unsuccessful attempts. Please try again later.";
@@ -321,25 +323,17 @@ function persistLoginSecurityState(
  * Error Helpers
  * ========================================================================== */
 
-function isAuthenticationError(error) {
-  return (
-    error?.response?.status === 401 ||
-    error?.response?.status === 403
-  );
+function isCredentialFailure(error) {
+  return error?.authCategory === "AUTH_INVALID_CREDENTIALS" ||
+    error?.response?.status === 401;
 }
 
 function getSafeLoginErrorMessage(error) {
-  if (isAuthenticationError(error)) {
-    return AUTHENTICATION_ERROR_MESSAGE;
+  if (typeof error?.userMessage === "string" && error.userMessage.trim()) {
+    return error.userMessage.trim();
   }
 
-  /*
-   * Prefer a controlled backend message only when it is clearly intended for
-   * end users. Do not expose stack traces, database errors, or infrastructure
-   * details from arbitrary error objects.
-   */
-  const serverMessage =
-    error?.response?.data?.message;
+  const serverMessage = error?.response?.data?.message;
 
   if (
     typeof serverMessage === "string" &&
@@ -349,7 +343,7 @@ function getSafeLoginErrorMessage(error) {
     return serverMessage.trim();
   }
 
-  return DEFAULT_ERROR_MESSAGE;
+  return getAuthenticationErrorMessage(error) || DEFAULT_ERROR_MESSAGE;
 }
 
 /* ============================================================================
@@ -360,7 +354,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { login } = useAuth();
+  const { login, apiConnectivity } = useAuth();
 
   const mountedRef = useRef(false);
 
@@ -537,6 +531,21 @@ export default function Login() {
       );
     }, []);
 
+  const serviceState = apiConnectivity?.status || API_CONNECTIVITY_STATUS.CHECKING;
+  const serviceUnavailable =
+    serviceState === API_CONNECTIVITY_STATUS.API_UNAVAILABLE ||
+    serviceState === API_CONNECTIVITY_STATUS.OFFLINE;
+  const serviceDegraded =
+    serviceState === API_CONNECTIVITY_STATUS.API_DEGRADED;
+
+  const handleServiceRetry = useCallback(async () => {
+    try {
+      await probeApiReadiness({ force: true });
+    } catch {
+      // The connectivity state machine owns the classified failure state.
+    }
+  }, []);
+
   /* ==========================================================================
    * Login Handler
    * ======================================================================== */
@@ -625,54 +634,37 @@ export default function Login() {
           return;
         }
 
-        const nextAttemptCount =
-          Math.min(
+        const credentialFailure = isCredentialFailure(error);
+
+        // Only authoritative credential failures consume the client-side
+        // attempt budget. Network/readiness/server failures must never lock a
+        // legitimate user out while the TITech API is unavailable.
+        if (credentialFailure) {
+          const nextAttemptCount = Math.min(
             attemptCount + 1,
             SECURITY.MAX_ATTEMPTS,
           );
 
-        setAttemptCount(
-          nextAttemptCount,
-        );
+          setAttemptCount(nextAttemptCount);
 
-        if (
-          nextAttemptCount >=
-          SECURITY.MAX_ATTEMPTS
-        ) {
-          const nextLockout =
-            new Date(
-              Date.now() +
-                SECURITY.LOCKOUT_DURATION_MS,
+          if (nextAttemptCount >= SECURITY.MAX_ATTEMPTS) {
+            const nextLockout = new Date(
+              Date.now() + SECURITY.LOCKOUT_DURATION_MS,
             );
 
-          setLockoutTime(
-            nextLockout,
-          );
+            setLockoutTime(nextLockout);
+            persistLoginSecurityState(nextAttemptCount, nextLockout);
 
-          persistLoginSecurityState(
-            nextAttemptCount,
-            nextLockout,
-          );
-
-          toast.error(
-            "Too many unsuccessful attempts. Please try again in 15 minutes.",
-            {
-              autoClose: 5000,
-            },
-          );
+            toast.error(
+              "Too many unsuccessful attempts. Please try again in 15 minutes.",
+              { autoClose: 5000 },
+            );
+          } else {
+            persistLoginSecurityState(nextAttemptCount);
+            toast.error(getSafeLoginErrorMessage(error), { autoClose: 4000 });
+          }
         } else {
-          persistLoginSecurityState(
-            nextAttemptCount,
-          );
-
-          toast.error(
-            getSafeLoginErrorMessage(
-              error,
-            ),
-            {
-              autoClose: 4000,
-            },
-          );
+          toast.error(getSafeLoginErrorMessage(error), { autoClose: 5000 });
         }
 
         /*
@@ -689,8 +681,11 @@ export default function Login() {
               status:
                 error?.response?.status ||
                 null,
+              category:
+                error?.authCategory ||
+                null,
               attempt:
-                nextAttemptCount,
+                credentialFailure ? Math.min(attemptCount + 1, SECURITY.MAX_ATTEMPTS) : null,
             },
           );
         }
@@ -939,6 +934,52 @@ export default function Login() {
                   </span>
                 </div>
               )}
+
+            <div
+              className={`login-service-status login-service-status--${
+                serviceUnavailable
+                  ? "unavailable"
+                  : serviceDegraded
+                    ? "degraded"
+                    : serviceState === API_CONNECTIVITY_STATUS.READY
+                      ? "ready"
+                      : "checking"
+              }`}
+              role={serviceUnavailable ? "alert" : "status"}
+              aria-live="polite"
+            >
+              <span className="login-service-status__dot" aria-hidden="true" />
+              <div className="login-service-status__content">
+                <strong>
+                  {serviceUnavailable
+                    ? "Authentication service unavailable"
+                    : serviceDegraded
+                      ? "TITech services are temporarily degraded"
+                      : serviceState === API_CONNECTIVITY_STATUS.READY
+                        ? "Authentication service ready"
+                        : "Checking TITech service availability"}
+                </strong>
+                <span>
+                  {serviceUnavailable
+                    ? "Your password is not being rejected. The API cannot currently be reached."
+                    : serviceDegraded
+                      ? "The API is reachable, but readiness dependencies are degraded. Login may still proceed when authentication is available."
+                      : serviceState === API_CONNECTIVITY_STATUS.READY
+                        ? "TITech API readiness has been confirmed."
+                        : "We will verify API connectivity before restoring or starting your session."}
+                </span>
+                {serviceUnavailable && (
+                  <button
+                    type="button"
+                    className="login-service-status__retry"
+                    onClick={handleServiceRetry}
+                    disabled={loading}
+                  >
+                    Retry service check
+                  </button>
+                )}
+              </div>
+            </div>
 
             <Formik
               initialValues={

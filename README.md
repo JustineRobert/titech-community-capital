@@ -720,12 +720,18 @@ Production deployments should use managed secrets or a secure deployment configu
 
 ## Frontend
 
-Example:
+Example development configuration:
 
 ```env
 VITE_API_URL=http://localhost:5000
+VITE_API_HEALTH_PATH=/api/v1/health
+VITE_API_READINESS_PATH=/api/v1/ready
 VITE_ENVIRONMENT=development
 ```
+
+Production builds require an explicit backend origin in `VITE_API_URL`/`VITE_API_BASE_URL`, unless the deployment intentionally implements the repository's same-origin `/api` proxy contract. The frontend no longer silently falls back to its own browser origin for a separately deployed backend.
+
+Before starting the stack, run `npm run verify:runtime`, `npm run verify:api`, `npm run verify:auth`, and `npm run verify:deployment`.
 
 Frontend environment variables must not contain secrets.
 

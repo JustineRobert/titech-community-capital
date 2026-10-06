@@ -278,6 +278,14 @@ function isNetworkError(error) {
   }
 
   if (
+    error?.authCategory === "AUTH_API_UNAVAILABLE" ||
+    error?.authCategory === "AUTH_API_TIMEOUT" ||
+    error?.authCategory === "AUTH_API_NOT_READY"
+  ) {
+    return true;
+  }
+
+  if (
     error?.message &&
     /network|offline|timeout|fetch failed/i.test(
       error.message
