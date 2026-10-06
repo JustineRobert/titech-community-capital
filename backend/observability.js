@@ -72,43 +72,24 @@
  * =============================================================================
  */
 
-const crypto = require('node:crypto');
-const os = require('node:os');
-const {
-  AsyncLocalStorage,
-} = require('node:async_hooks');
-const {
-  EventEmitter,
-} = require('node:events');
+import crypto from 'node:crypto';
+import os from 'node:os';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { EventEmitter } from 'node:events';
 
-/**
- * -----------------------------------------------------------------------------
- * Logger
- * -----------------------------------------------------------------------------
- */
+import loggerModule from './bootstrap/logger.js';
+import hooksModule from './bootstrap/hooks.js';
 
-const loggerModule =
-  require('./bootstrap/logger');
-
-const logger =
-  loggerModule.getLogger();
-
-/**
- * -----------------------------------------------------------------------------
- * Optional OpenTelemetry API
- * -----------------------------------------------------------------------------
- */
+const logger = loggerModule.getLogger();
 
 let otelApi = null;
-
-try {
-  // Optional dependency.
-  // eslint-disable-next-line global-require
-  otelApi =
-    require('@opentelemetry/api');
-} catch {
-  otelApi = null;
-}
+const otelApiLoadPromise = import('@opentelemetry/api')
+  .then(module => {
+    otelApi = module;
+  })
+  .catch(() => {
+    otelApi = null;
+  });
 
 /**
  * -----------------------------------------------------------------------------
@@ -1564,6 +1545,8 @@ class Observability extends EventEmitter {
 
     this._initializedPromise =
       (async () => {
+        await otelApiLoadPromise;
+
         this.state =
           OBSERVABILITY_STATES.INITIALIZING;
 
@@ -3852,9 +3835,7 @@ function registerBootstrapHooks(
     );
   }
 
-  return require(
-    './bootstrap/hooks',
-  ).lifecycle(
+  return hooksModule.lifecycle(
     'observability',
     {
       priority:
@@ -3902,7 +3883,30 @@ function registerBootstrapHooks(
  * -----------------------------------------------------------------------------
  */
 
-module.exports =
+const initialize = () => observability.initialize();
+const shutdown = () => observability.shutdown();
+const middleware = () => observability.middleware();
+const errorMiddleware = () => observability.errorMiddleware();
+const metricsHandler = () => observability.metricsHandler();
+const metricsText = () => observability.metricsText();
+const metricsContentType = () => observability.metricsContentType();
+const liveness = () => observability.liveness();
+const readiness = () => observability.readiness();
+const health = () => observability.health();
+const snapshot = () => observability.snapshot();
+const startRequest = options => observability.startRequest(options);
+const endRequest = (context, result) => observability.endRequest(context, result);
+const instrument = (operation, fn, options) => observability.instrument(operation, fn, options);
+const checkDependency = (name, check, options) => observability.checkDependency(name, check, options);
+const runWithContext = (context, callback) => observability.runWithContext(context, callback);
+const createRequestContext = input => observability.createRequestContext(input);
+const getContext = () => observability.getContext();
+const extractTraceContext = request => observability.extractTraceContext(request);
+const createSpanContext = options => observability.createSpanContext(options);
+const recordError = (error, context) => observability.recordError(error, context);
+const emitEvent = (type, payload) => observability.emitEvent(type, payload);
+
+const observabilityModule =
   Object.freeze({
     Observability,
 
@@ -3912,141 +3916,86 @@ module.exports =
 
     observability,
 
-    initialize:
-      () =>
-        observability.initialize(),
+    initialize,
 
-    shutdown:
-      () =>
-        observability.shutdown(),
+    shutdown,
 
     registerBootstrapHooks,
 
-    middleware:
-      () =>
-        observability.middleware(),
+    middleware,
 
-    errorMiddleware:
-      () =>
-        observability.errorMiddleware(),
+    errorMiddleware,
 
-    metricsHandler:
-      () =>
-        observability.metricsHandler(),
+    metricsHandler,
 
-    metricsText:
-      () =>
-        observability.metricsText(),
+    metricsText,
 
-    metricsContentType:
-      () =>
-        observability.metricsContentType(),
+    metricsContentType,
 
-    liveness:
-      () =>
-        observability.liveness(),
+    liveness,
 
-    readiness:
-      () =>
-        observability.readiness(),
+    readiness,
 
-    health:
-      () =>
-        observability.health(),
+    health,
 
-    snapshot:
-      () =>
-        observability.snapshot(),
+    snapshot,
 
-    startRequest:
-      options =>
-        observability.startRequest(
-          options,
-        ),
+    startRequest,
 
-    endRequest:
-      (
-        context,
-        result,
-      ) =>
-        observability.endRequest(
-          context,
-          result,
-        ),
+    endRequest,
 
-    instrument:
-      (
-        operation,
-        fn,
-        options,
-      ) =>
-        observability.instrument(
-          operation,
-          fn,
-          options,
-        ),
+    instrument,
 
-    checkDependency:
-      (
-        name,
-        check,
-        options,
-      ) =>
-        observability.checkDependency(
-          name,
-          check,
-          options,
-        ),
+    checkDependency,
 
-    runWithContext:
-      (
-        context,
-        callback,
-      ) =>
-        observability.runWithContext(
-          context,
-          callback,
-        ),
+    runWithContext,
 
-    createRequestContext:
-      input =>
-        observability.createRequestContext(
-          input,
-        ),
+    createRequestContext,
 
-    getContext:
-      () =>
-        observability.getContext(),
+    getContext,
 
-    extractTraceContext:
-      request =>
-        observability.extractTraceContext(
-          request,
-        ),
+    extractTraceContext,
 
-    createSpanContext:
-      options =>
-        observability.createSpanContext(
-          options,
-        ),
+    createSpanContext,
 
-    recordError:
-      (
-        error,
-        context,
-      ) =>
-        observability.recordError(
-          error,
-          context,
-        ),
+    recordError,
 
-    emitEvent:
-      (
-        type,
-        payload,
-      ) =>
-        observability.emitEvent(
-          type,
-          payload,
-        ),
+    emitEvent,
   });
+
+/**
+ * Native ESM public contract.
+ * The default export preserves the historical object-shaped API for adapters,
+ * while named exports provide stable native ESM imports to first-party code.
+ */
+export {
+  Observability,
+  ObservabilityError,
+  OBSERVABILITY_STATES,
+  observability,
+  initialize,
+  shutdown,
+  registerBootstrapHooks,
+  middleware,
+  errorMiddleware,
+  metricsHandler,
+  metricsText,
+  metricsContentType,
+  liveness,
+  readiness,
+  health,
+  snapshot,
+  startRequest,
+  endRequest,
+  instrument,
+  checkDependency,
+  runWithContext,
+  createRequestContext,
+  getContext,
+  extractTraceContext,
+  createSpanContext,
+  recordError,
+  emitEvent,
+};
+
+export default observabilityModule;

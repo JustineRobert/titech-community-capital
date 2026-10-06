@@ -596,13 +596,13 @@ const CashFlowTooltipContent = memo(
           minWidth: 235,
           maxWidth: 320,
           border:
-            '1px solid var(--titech-border, #e2e8f0)',
+            '1px solid var(--titech-border)',
           borderRadius: 12,
           padding: 14,
           background:
-            'var(--titech-surface, var(--color-white))',
+            'var(--titech-surface)',
           color:
-            'var(--titech-text-primary, #0f172a)',
+            'var(--titech-text-primary)',
           boxShadow:
             '0 14px 40px rgba(15, 23, 42, 0.14)',
         }}
@@ -658,7 +658,7 @@ const CashFlowTooltipContent = memo(
           <div
             style={{
               borderTop:
-                '1px solid var(--titech-border, #e2e8f0)',
+                '1px solid var(--titech-border)',
               paddingTop: 8,
               marginTop: 2,
             }}
@@ -800,11 +800,11 @@ function CashFlowLoadingState({
         style={{
           width: '100%',
           border:
-            '1px solid var(--titech-border, #e2e8f0)',
+            '1px solid var(--titech-border)',
           borderRadius: 16,
           padding: 20,
           background:
-            'var(--titech-surface, var(--color-white))',
+            'var(--titech-surface)',
         }}
       >
         <div
@@ -813,7 +813,7 @@ function CashFlowLoadingState({
             height: 18,
             borderRadius: 6,
             background:
-              'var(--titech-skeleton, #e2e8f0)',
+              'var(--titech-skeleton)',
             marginBottom: 10,
           }}
         />
@@ -824,7 +824,7 @@ function CashFlowLoadingState({
             height: 12,
             borderRadius: 6,
             background:
-              'var(--titech-skeleton-muted, #f1f5f9)',
+              'var(--titech-skeleton-muted)',
             marginBottom: 22,
           }}
         />
@@ -838,7 +838,7 @@ function CashFlowLoadingState({
             ),
             borderRadius: 12,
             background:
-              'linear-gradient(90deg, var(--titech-skeleton, #e2e8f0) 25%, var(--titech-skeleton-muted, #f8fafc) 50%, var(--titech-skeleton, #e2e8f0) 75%)',
+              'linear-gradient(90deg, var(--titech-skeleton) 25%, var(--titech-skeleton-muted) 50%, var(--titech-skeleton) 75%)',
             backgroundSize: '200% 100%',
             animation:
               'titech-cash-flow-skeleton 1.5s ease-in-out infinite',
@@ -901,13 +901,13 @@ function CashFlowErrorState({
       <div
         style={{
           border:
-            '1px solid var(--titech-danger-border, #fecaca)',
+            '1px solid var(--titech-danger-border)',
           borderRadius: 16,
           padding: 20,
           background:
-            'var(--titech-danger-surface, #fff7f7)',
+            'var(--titech-danger-surface)',
           color:
-            'var(--titech-text-primary, #0f172a)',
+            'var(--titech-text-primary)',
         }}
       >
         <div
@@ -946,9 +946,9 @@ function CashFlowErrorState({
               padding: '8px 14px',
               cursor: 'pointer',
               background:
-                'var(--titech-primary, #0f172a)',
+                'var(--titech-primary)',
               color:
-                'var(--titech-on-primary, var(--color-white))',
+                'var(--titech-on-primary)',
               fontSize: 13,
               fontWeight: 700,
             }}
@@ -987,11 +987,11 @@ function CashFlowEmptyState({
       <div
         style={{
           border:
-            '1px solid var(--titech-border, #e2e8f0)',
+            '1px solid var(--titech-border)',
           borderRadius: 16,
           padding: 20,
           background:
-            'var(--titech-surface, var(--color-white))',
+            'var(--titech-surface)',
         }}
       >
         <header
@@ -1035,10 +1035,10 @@ function CashFlowEmptyState({
             placeItems: 'center',
             padding: 24,
             border:
-              '1px dashed var(--titech-border-strong, #cbd5e1)',
+              '1px dashed var(--titech-border-strong)',
             borderRadius: 12,
             background:
-              'var(--titech-surface-muted, #f8fafc)',
+              'var(--titech-surface-muted)',
             textAlign: 'center',
           }}
         >
@@ -1313,13 +1313,13 @@ const CashFlowChart = memo(
             width: '100%',
             minWidth: 0,
             border:
-              '1px solid var(--titech-border, #e2e8f0)',
+              '1px solid var(--titech-border)',
             borderRadius: 16,
             padding: 20,
             background:
-              'var(--titech-surface, var(--color-white))',
+              'var(--titech-surface)',
             color:
-              'var(--titech-text-primary, #0f172a)',
+              'var(--titech-text-primary)',
           }}
         >
           {/* ----------------------------------------------------------------
@@ -1372,7 +1372,7 @@ const CashFlowChart = memo(
               style={{
                 flexShrink: 0,
                 border:
-                  '1px solid var(--titech-border, #e2e8f0)',
+                  '1px solid var(--titech-border)',
                 borderRadius: 8,
                 padding: '6px 9px',
                 fontSize: 10,
@@ -1454,13 +1454,13 @@ const CashFlowChart = memo(
               style={{
                 marginBottom: 14,
                 border:
-                  '1px solid var(--titech-warning-border, #fde68a)',
+                  '1px solid var(--titech-warning-border)',
                 borderRadius: 9,
                 padding: '9px 12px',
                 background:
-                  'var(--titech-warning-surface, #fffbeb)',
+                  'var(--titech-warning-surface)',
                 color:
-                  'var(--titech-warning-text, #92400e)',
+                  'var(--titech-warning-text)',
                 fontSize: 11,
                 lineHeight: 1.5,
               }}
@@ -1499,7 +1499,7 @@ const CashFlowChart = memo(
                   <CartesianGrid
                     vertical={false}
                     strokeDasharray="3 3"
-                    stroke="var(--titech-chart-grid, #cbd5e1)"
+                    stroke="var(--titech-chart-grid)"
                     opacity={0.45}
                   />
                 ) : null}
@@ -1517,7 +1517,7 @@ const CashFlowChart = memo(
                     tick={{
                       fontSize: 11,
                       fill:
-                        'var(--titech-chart-axis, #64748b)',
+                        'var(--titech-chart-axis)',
                     }}
                   />
                 ) : null}
@@ -1533,7 +1533,7 @@ const CashFlowChart = memo(
                     tick={{
                       fontSize: 11,
                       fill:
-                        'var(--titech-chart-axis, #64748b)',
+                        'var(--titech-chart-axis)',
                     }}
                   />
                 ) : null}
@@ -1544,7 +1544,7 @@ const CashFlowChart = memo(
                   }
                   cursor={{
                     stroke:
-                      'var(--titech-chart-cursor, #94a3b8)',
+                      'var(--titech-chart-cursor)',
                     strokeDasharray:
                       '4 4',
                   }}
@@ -1559,7 +1559,7 @@ const CashFlowChart = memo(
                     wrapperStyle={{
                       fontSize: 12,
                       color:
-                        'var(--titech-chart-legend, #475569)',
+                        'var(--titech-chart-legend)',
                     }}
                   />
                 ) : null}
@@ -1567,7 +1567,7 @@ const CashFlowChart = memo(
                 {showZeroLine ? (
                   <ReferenceLine
                     y={0}
-                    stroke="var(--titech-chart-zero, #94a3b8)"
+                    stroke="var(--titech-chart-zero)"
                     strokeDasharray="4 4"
                     strokeOpacity={0.7}
                   />
@@ -1580,8 +1580,8 @@ const CashFlowChart = memo(
                   type="monotone"
                   dataKey="inflow"
                   name="Cash inflow"
-                  stroke="var(--titech-chart-inflow, #0f766e)"
-                  fill="var(--titech-chart-inflow-fill, #0f766e)"
+                  stroke="var(--titech-chart-inflow)"
+                  fill="var(--titech-chart-inflow-fill)"
                   fillOpacity={0.11}
                   strokeWidth={2.25}
                   dot={false}
@@ -1603,8 +1603,8 @@ const CashFlowChart = memo(
                   type="monotone"
                   dataKey="outflow"
                   name="Cash outflow"
-                  stroke="var(--titech-chart-outflow, #b45309)"
-                  fill="var(--titech-chart-outflow-fill, #b45309)"
+                  stroke="var(--titech-chart-outflow)"
+                  fill="var(--titech-chart-outflow-fill)"
                   fillOpacity={0.08}
                   strokeWidth={2.25}
                   dot={false}
@@ -1626,8 +1626,8 @@ const CashFlowChart = memo(
                   type="monotone"
                   dataKey="net"
                   name="Net cash flow"
-                  stroke="var(--titech-chart-net, #2563eb)"
-                  fill="var(--titech-chart-net-fill, #2563eb)"
+                  stroke="var(--titech-chart-net)"
+                  fill="var(--titech-chart-net-fill)"
                   fillOpacity={0.045}
                   strokeWidth={2.75}
                   dot={false}
@@ -1702,7 +1702,7 @@ const CashFlowChart = memo(
 
             .titech-cash-flow-chart button:focus-visible {
               outline: 3px solid
-                var(--titech-focus-ring, #2563eb);
+                var(--titech-focus-ring);
               outline-offset: 2px;
             }
 

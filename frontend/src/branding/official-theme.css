@@ -44,6 +44,78 @@
   --titech-chart-7: var(--titech-official-gold);
   --titech-chart-8: var(--titech-official-navy);
 
+
+  /* Canonical semantic aliases consumed by legacy-safe chart/UI surfaces. */
+  --titech-primary: var(--titech-official-deep-blue);
+  --titech-primary-soft: rgb(0 48 160 / 0.12);
+  --titech-surface: var(--titech-color-surface);
+  --titech-surface-muted: var(--titech-color-surface-muted);
+  --titech-text-primary: var(--titech-color-text);
+  --titech-text-secondary: var(--titech-color-text-muted);
+  --titech-border: var(--titech-color-border);
+  --titech-border-strong: var(--titech-color-border-strong);
+  --titech-success: var(--titech-state-success);
+  --titech-warning: var(--titech-state-warning);
+  --titech-danger: var(--titech-state-danger);
+  --titech-chart-series-1: var(--titech-chart-1);
+  --titech-chart-series-2: var(--titech-chart-2);
+  --titech-chart-series-3: var(--titech-chart-3);
+  --titech-chart-series-4: var(--titech-chart-4);
+  --titech-chart-series-5: var(--titech-chart-5);
+  --titech-chart-series-6: var(--titech-chart-6);
+  --titech-chart-series-7: var(--titech-chart-7);
+  --titech-chart-series-8: var(--titech-chart-8);
+  --titech-chart-axis: var(--titech-color-text-subtle);
+  --titech-chart-label: var(--titech-color-text-subtle);
+  --titech-skeleton: var(--titech-color-border);
+  --titech-skeleton-muted: var(--titech-color-surface-muted);
+  --titech-danger-border: rgb(166 27 27 / 0.28);
+  --titech-danger-surface: rgb(166 27 27 / 0.08);
+  --titech-warning-border: rgb(163 91 0 / 0.28);
+  --titech-warning-surface: rgb(163 91 0 / 0.08);
+  --titech-success-surface: rgb(0 128 0 / 0.08);
+
+  --titech-warning-text: var(--titech-state-warning);
+  --titech-on-primary: var(--titech-official-white);
+  --titech-chart-grid: var(--titech-color-border);
+  --titech-chart-zero: var(--titech-color-border-strong);
+  --titech-chart-legend: var(--titech-color-text-muted);
+  --titech-chart-cursor: var(--titech-color-border-strong);
+  --titech-chart-tooltip-cursor: var(--titech-chart-cursor);
+  --titech-chart-collected: var(--titech-official-green);
+  --titech-chart-inflow: var(--titech-official-electric-blue);
+  --titech-chart-inflow-fill: rgb(0 88 216 / 0.16);
+  --titech-chart-net: var(--titech-official-deep-blue);
+  --titech-chart-net-fill: rgb(0 48 160 / 0.14);
+  --titech-chart-other: var(--titech-official-navy);
+  --titech-chart-outflow: var(--titech-state-danger);
+  --titech-chart-outflow-fill: var(--titech-danger-surface);
+  --titech-chart-rate: var(--titech-official-bright-blue);
+  --titech-chart-target: var(--titech-official-gold);
+  --titech-chart-under-target: var(--titech-state-warning);
+  --titech-legend-gap: 16px;
+  --titech-legend-item-gap: 10px;
+
+  /* Context-specific aliases all resolve to the official sequence or state tokens. */
+  --titech-kpi-series-1: var(--titech-chart-series-1);
+  --titech-kpi-series-2: var(--titech-chart-series-2);
+  --titech-kpi-series-3: var(--titech-chart-series-3);
+  --titech-kpi-series-4: var(--titech-chart-series-4);
+  --titech-kpi-series-5: var(--titech-chart-series-5);
+  --titech-kpi-series-6: var(--titech-chart-series-6);
+  --titech-kpi-series-7: var(--titech-chart-series-7);
+  --titech-kpi-series-8: var(--titech-chart-series-8);
+  --titech-fraud-total: var(--titech-chart-series-8);
+  --titech-fraud-flagged: var(--titech-state-warning);
+  --titech-fraud-blocked: var(--titech-chart-series-2);
+  --titech-fraud-confirmed: var(--titech-state-danger);
+  --titech-fraud-rate: var(--titech-chart-series-3);
+  --titech-risk-low: var(--titech-state-success);
+  --titech-risk-medium: var(--titech-state-warning);
+  --titech-risk-high: var(--titech-official-gold);
+  --titech-risk-critical: var(--titech-state-danger);
+  --titech-risk-unknown: var(--titech-color-text-subtle);
+
   --titech-brand-primary: var(--titech-official-deep-blue);
   --titech-brand-secondary: var(--titech-official-electric-blue);
   --titech-brand-information: var(--titech-official-cyan);

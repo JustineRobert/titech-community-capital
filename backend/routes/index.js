@@ -37,15 +37,13 @@ import { param, validationResult } from 'express-validator';
  *
  * Bootstrap contract:
  *
- *   const {
- *       registerRoutes,
- *   } = require('../routes');
+ *   import { registerRoutes } from '../routes/index.js';
  *
  *   registerRoutes(app);
  *
  * Responsibilities:
  *   - Register the canonical TITech API route registry.
- *   - Preserve CommonJS router compatibility.
+ *   - Preserve the canonical ESM router contract.
  *   - Validate middleware/controller contracts during startup.
  *   - Enforce authentication on protected financial boundaries.
  *   - Enforce trusted tenant context for financial operations.
@@ -1595,9 +1593,7 @@ const registeredApplications =
  *
  * Canonical:
  *
- *   const {
- *       registerRoutes,
- *   } = require('../routes');
+ *   import { registerRoutes } from '../routes/index.js';
  *
  *   registerRoutes(app);
  *

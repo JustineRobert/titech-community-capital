@@ -148,19 +148,19 @@ const DEFAULT_MAX_POINTS = 500;
 const DEFAULT_BAR_SIZE = 22;
 
 const DEFAULT_COLORS = {
-  total: 'var(--titech-fraud-total, #64748b)',
-  flagged: 'var(--titech-fraud-flagged, #b45309)',
-  blocked: 'var(--titech-fraud-blocked, #7c3aed)',
-  confirmed: 'var(--titech-fraud-confirmed, #b91c1c)',
-  rate: 'var(--titech-fraud-rate, #2563eb)',
+  total: 'var(--titech-fraud-total)',
+  flagged: 'var(--titech-fraud-flagged)',
+  blocked: 'var(--titech-fraud-blocked)',
+  confirmed: 'var(--titech-fraud-confirmed)',
+  rate: 'var(--titech-fraud-rate)',
 };
 
 const SEVERITY_COLORS = {
-  LOW: 'var(--titech-risk-low, #0f766e)',
-  MEDIUM: 'var(--titech-risk-medium, #b45309)',
-  HIGH: 'var(--titech-risk-high, #ea580c)',
-  CRITICAL: 'var(--titech-risk-critical, #b91c1c)',
-  UNKNOWN: 'var(--titech-risk-unknown, #64748b)',
+  LOW: 'var(--titech-risk-low)',
+  MEDIUM: 'var(--titech-risk-medium)',
+  HIGH: 'var(--titech-risk-high)',
+  CRITICAL: 'var(--titech-risk-critical)',
+  UNKNOWN: 'var(--titech-risk-unknown)',
 };
 
 const DEFAULT_MARGIN = {
@@ -1067,12 +1067,12 @@ const FraudAnalyticsTooltip =
             maxWidth: 350,
             padding: 14,
             border:
-              '1px solid var(--titech-border, #e2e8f0)',
+              '1px solid var(--titech-border)',
             borderRadius: 12,
             background:
-              'var(--titech-surface, var(--color-white))',
+              'var(--titech-surface)',
             color:
-              'var(--titech-text-primary, #0f172a)',
+              'var(--titech-text-primary)',
             boxShadow:
               '0 14px 40px rgba(15, 23, 42, 0.14)',
           }}
@@ -1082,7 +1082,7 @@ const FraudAnalyticsTooltip =
               marginBottom: 10,
               paddingBottom: 8,
               borderBottom:
-                '1px solid var(--titech-border, #e2e8f0)',
+                '1px solid var(--titech-border)',
               fontSize: 12,
               fontWeight: 850,
             }}
@@ -1155,7 +1155,7 @@ const FraudAnalyticsTooltip =
                     marginTop: 2,
                     paddingTop: 8,
                     borderTop:
-                      '1px solid var(--titech-border, #e2e8f0)',
+                      '1px solid var(--titech-border)',
                   }}
                 />
 
@@ -1222,7 +1222,7 @@ const TooltipRow = memo(
         <span
           style={{
             color:
-              'var(--titech-text-secondary, #64748b)',
+              'var(--titech-text-secondary)',
           }}
         >
           {label}
@@ -2120,7 +2120,7 @@ const FraudAnalyticsChart =
                           false
                         }
                         strokeDasharray="3 3"
-                        stroke="var(--titech-chart-grid, #cbd5e1)"
+                        stroke="var(--titech-chart-grid)"
                         opacity={
                           0.42
                         }
@@ -2148,7 +2148,7 @@ const FraudAnalyticsChart =
                         tick={{
                           fontSize: 10,
                           fill:
-                            'var(--titech-chart-axis, #64748b)',
+                            'var(--titech-chart-axis)',
                         }}
                       />
                     ) : null}
@@ -2171,7 +2171,7 @@ const FraudAnalyticsChart =
                         tick={{
                           fontSize: 10,
                           fill:
-                            'var(--titech-chart-axis, #64748b)',
+                            'var(--titech-chart-axis)',
                         }}
                       />
                     ) : null}
@@ -2199,7 +2199,7 @@ const FraudAnalyticsChart =
                         tick={{
                           fontSize: 10,
                           fill:
-                            'var(--titech-chart-axis, #64748b)',
+                            'var(--titech-chart-axis)',
                         }}
                       />
                     ) : null}
@@ -2221,7 +2221,7 @@ const FraudAnalyticsChart =
                         wrapperStyle={{
                           fontSize: 10,
                           color:
-                            'var(--titech-chart-legend, #475569)',
+                            'var(--titech-chart-legend)',
                         }}
                       />
                     ) : null}
@@ -2232,7 +2232,7 @@ const FraudAnalyticsChart =
                           0
                         }
                         yAxisId="primary"
-                        stroke="var(--titech-chart-zero, #94a3b8)"
+                        stroke="var(--titech-chart-zero)"
                         strokeDasharray="4 4"
                         strokeOpacity={
                           0.65

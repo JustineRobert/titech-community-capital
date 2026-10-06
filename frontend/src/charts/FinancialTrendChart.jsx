@@ -127,14 +127,14 @@ const DEFAULT_ERROR_MESSAGE =
   'Unable to load financial trend data.';
 
 const DEFAULT_COLORS = [
-  'var(--titech-chart-series-1, #2563eb)',
-  'var(--titech-chart-series-2, #0f766e)',
-  'var(--titech-chart-series-3, #b45309)',
-  'var(--titech-chart-series-4, #7c3aed)',
-  'var(--titech-chart-series-5, #be123c)',
-  'var(--titech-chart-series-6, #0891b2)',
-  'var(--titech-chart-series-7, #047857)',
-  'var(--titech-chart-series-8, #4f46e5)',
+  'var(--titech-chart-series-1)',
+  'var(--titech-chart-series-2)',
+  'var(--titech-chart-series-3)',
+  'var(--titech-chart-series-4)',
+  'var(--titech-chart-series-5)',
+  'var(--titech-chart-series-6)',
+  'var(--titech-chart-series-7)',
+  'var(--titech-chart-series-8)',
 ];
 
 const DEFAULT_MARGIN = {
@@ -1046,12 +1046,12 @@ const FinancialTrendTooltip =
             maxWidth: 340,
             padding: 13,
             border:
-              '1px solid var(--titech-border, #e2e8f0)',
+              '1px solid var(--titech-border)',
             borderRadius: 12,
             background:
-              'var(--titech-surface, var(--color-white))',
+              'var(--titech-surface)',
             color:
-              'var(--titech-text-primary, #0f172a)',
+              'var(--titech-text-primary)',
             boxShadow:
               '0 14px 40px rgba(15, 23, 42, 0.14)',
           }}
@@ -1061,7 +1061,7 @@ const FinancialTrendTooltip =
               marginBottom: 10,
               paddingBottom: 8,
               borderBottom:
-                '1px solid var(--titech-border, #e2e8f0)',
+                '1px solid var(--titech-border)',
               fontSize: 12,
               fontWeight: 800,
             }}
@@ -1142,7 +1142,7 @@ const FinancialTrendTooltip =
                           minWidth:
                             0,
                           color:
-                            'var(--titech-text-secondary, #64748b)',
+                            'var(--titech-text-secondary)',
                           overflowWrap:
                             'anywhere',
                         }}
@@ -1181,9 +1181,9 @@ const FinancialTrendTooltip =
                 marginTop: 9,
                 paddingTop: 8,
                 borderTop:
-                  '1px solid var(--titech-border, #e2e8f0)',
+                  '1px solid var(--titech-border)',
                 color:
-                  'var(--titech-text-secondary, #64748b)',
+                  'var(--titech-text-secondary)',
                 fontSize: 9,
               }}
             >
@@ -2203,7 +2203,7 @@ const FinancialTrendChart =
                   <CartesianGrid
                     vertical={false}
                     strokeDasharray="3 3"
-                    stroke="var(--titech-chart-grid, #cbd5e1)"
+                    stroke="var(--titech-chart-grid)"
                     opacity={0.42}
                   />
                 ) : null}
@@ -2223,7 +2223,7 @@ const FinancialTrendChart =
                     tick={{
                       fontSize: 10,
                       fill:
-                        'var(--titech-chart-axis, #64748b)',
+                        'var(--titech-chart-axis)',
                     }}
                   />
                 ) : null}
@@ -2240,7 +2240,7 @@ const FinancialTrendChart =
                     tick={{
                       fontSize: 10,
                       fill:
-                        'var(--titech-chart-axis, #64748b)',
+                        'var(--titech-chart-axis)',
                     }}
                   />
                 ) : null}
@@ -2259,7 +2259,7 @@ const FinancialTrendChart =
                     tick={{
                       fontSize: 10,
                       fill:
-                        'var(--titech-chart-axis, #64748b)',
+                        'var(--titech-chart-axis)',
                     }}
                   />
                 ) : null}
@@ -2304,7 +2304,7 @@ const FinancialTrendChart =
                     wrapperStyle={{
                       fontSize: 10,
                       color:
-                        'var(--titech-chart-legend, #475569)',
+                        'var(--titech-chart-legend)',
                     }}
                     formatter={(
                       value,
@@ -2335,7 +2335,7 @@ const FinancialTrendChart =
                   <ReferenceLine
                     y={0}
                     yAxisId="primary"
-                    stroke="var(--titech-chart-zero, #94a3b8)"
+                    stroke="var(--titech-chart-zero)"
                     strokeDasharray="4 4"
                     strokeOpacity={
                       0.7

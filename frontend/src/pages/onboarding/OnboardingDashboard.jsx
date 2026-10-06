@@ -12,14 +12,14 @@ import {
 import BrandLogo from "../../components/BrandLogo";
 
 const STATUS_COLORS = {
-  DRAFT: "#6b7280",
+  DRAFT: "var(--titech-color-text-subtle)",
   VERIFICATION: TITECH_BRAND.colors.brightBlue,
-  KYC_PENDING: "#f59e0b",
-  KYC_APPROVED: "#10b981",
-  SUBSCRIPTION: "#8b5cf6",
-  GO_LIVE_REVIEW: "#06b6d4",
-  LIVE: "#22c55e",
-  REJECTED: "#ef4444",
+  KYC_PENDING: "var(--titech-state-warning)",
+  KYC_APPROVED: "var(--titech-state-success)",
+  SUBSCRIPTION: "var(--titech-official-bright-blue)",
+  GO_LIVE_REVIEW: "var(--titech-official-cyan)",
+  LIVE: "var(--titech-state-success)",
+  REJECTED: "var(--titech-state-danger)",
   SUSPENDED: "#dc2626"
 };
 
@@ -41,7 +41,7 @@ const DashboardCard = ({
     <h4
       style={{
         marginBottom: "10px",
-        color: "#64748b"
+        color: "var(--titech-color-text-muted)"
       }}
     >
       {title}
@@ -236,7 +236,7 @@ const OnboardingDashboard = () => {
           value={
             metrics?.draft || 0
           }
-          color="#6b7280"
+          color="var(--titech-color-text-subtle)"
         />
 
         <DashboardCard
@@ -245,7 +245,7 @@ const OnboardingDashboard = () => {
             metrics?.kycApproved ||
             0
           }
-          color="#10b981"
+          color="var(--titech-state-success)"
         />
 
         <DashboardCard
@@ -254,7 +254,7 @@ const OnboardingDashboard = () => {
             metrics?.subscription ||
             0
           }
-          color="#8b5cf6"
+          color="var(--titech-official-bright-blue)"
         />
 
         <DashboardCard
@@ -263,7 +263,7 @@ const OnboardingDashboard = () => {
             metrics?.goLiveReview ||
             0
           }
-          color="#06b6d4"
+          color="var(--titech-official-cyan)"
         />
 
         <DashboardCard
@@ -271,7 +271,7 @@ const OnboardingDashboard = () => {
           value={
             metrics?.live || 0
           }
-          color="#22c55e"
+          color="var(--titech-state-success)"
         />
       </div>
 
@@ -412,7 +412,7 @@ const OnboardingDashboard = () => {
             <tr
               style={{
                 background:
-                  "#f8fafc"
+                  "var(--titech-color-surface-muted)"
               }}
             >
               <th>SACCO</th>

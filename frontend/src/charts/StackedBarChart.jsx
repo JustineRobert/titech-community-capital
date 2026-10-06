@@ -121,39 +121,39 @@ export const DEFAULT_MAX_POINTS = 36;
 export const DEFAULT_STACK_ID = 'default';
 
 const DEFAULT_COLORS = Object.freeze([
-  'var(--titech-chart-series-1, #146c94)',
-  'var(--titech-chart-series-2, #4f8a8b)',
-  'var(--titech-chart-series-3, #b7791f)',
-  'var(--titech-chart-series-4, #c53a3a)',
-  'var(--titech-chart-series-5, #6b7280)',
-  'var(--titech-chart-series-6, #7c5aa6)',
-  'var(--titech-chart-series-7, #238b8b)',
-  'var(--titech-chart-series-8, #9a6a3a)',
+  'var(--titech-chart-series-1)',
+  'var(--titech-chart-series-2)',
+  'var(--titech-chart-series-3)',
+  'var(--titech-chart-series-4)',
+  'var(--titech-chart-series-5)',
+  'var(--titech-chart-series-6)',
+  'var(--titech-chart-series-7)',
+  'var(--titech-chart-series-8)',
 ]);
 
 const CSS = Object.freeze({
   primary:
-    'var(--titech-primary, #146c94)',
+    'var(--titech-primary)',
   primarySoft:
-    'var(--titech-primary-soft, rgba(20,108,148,0.12))',
+    'var(--titech-primary-soft)',
   surface:
-    'var(--titech-surface, var(--color-white))',
+    'var(--titech-surface)',
   surfaceMuted:
-    'var(--titech-surface-muted, #f7f9fb)',
+    'var(--titech-surface-muted)',
   border:
-    'var(--titech-border, #d9e1e8)',
+    'var(--titech-border)',
   borderStrong:
-    'var(--titech-border-strong, #b8c5d0)',
+    'var(--titech-border-strong)',
   textPrimary:
-    'var(--titech-text-primary, #17212b)',
+    'var(--titech-text-primary)',
   textSecondary:
-    'var(--titech-text-secondary, #637381)',
+    'var(--titech-text-secondary)',
   success:
-    'var(--titech-success, #1f8f55)',
+    'var(--titech-success)',
   warning:
-    'var(--titech-warning, #b7791f)',
+    'var(--titech-warning)',
   danger:
-    'var(--titech-danger, #c53a3a)',
+    'var(--titech-danger)',
 });
 
 const NUMBER_FORMATTER_CACHE = new Map();

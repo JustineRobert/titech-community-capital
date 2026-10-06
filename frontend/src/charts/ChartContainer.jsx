@@ -954,40 +954,40 @@ const ChartContainer = memo(
           {`
             .titech-chart-container {
               --titech-chart-surface:
-                var(--titech-surface, var(--color-white));
+                var(--titech-surface);
 
               --titech-chart-surface-muted:
-                var(--titech-surface-muted, #f8fafc);
+                var(--titech-surface-muted);
 
               --titech-chart-border:
-                var(--titech-border, #e2e8f0);
+                var(--titech-border);
 
               --titech-chart-border-strong:
-                var(--titech-border-strong, #cbd5e1);
+                var(--titech-border-strong);
 
               --titech-chart-text:
-                var(--titech-text-primary, #0f172a);
+                var(--titech-text-primary);
 
               --titech-chart-text-muted:
-                var(--titech-text-secondary, #64748b);
+                var(--titech-text-secondary);
 
               --titech-chart-primary:
-                var(--titech-primary, #0f172a);
+                var(--titech-primary);
 
               --titech-chart-on-primary:
-                var(--titech-on-primary, var(--color-white));
+                var(--titech-on-primary);
 
               --titech-chart-danger:
-                var(--titech-danger, #b91c1c);
+                var(--titech-danger);
 
               --titech-chart-danger-surface:
-                var(--titech-danger-surface, #fff7f7);
+                var(--titech-danger-surface);
 
               --titech-chart-warning:
-                var(--titech-warning, #92400e);
+                var(--titech-warning);
 
               --titech-chart-success:
-                var(--titech-success, #047857);
+                var(--titech-success);
 
               width: 100%;
               min-width: 0;

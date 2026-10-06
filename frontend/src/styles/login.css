@@ -31,12 +31,12 @@
 }
 
 .input-field:focus {
-  border-color: #4caf50;
+  border-color: var(--titech-state-success);
 }
 
 .submit-btn {
   padding: 12px;
-  background-color: #4caf50;
+  background-color: var(--titech-state-success);
   color: white;
   font-size: 1rem;
   border: none;
@@ -46,7 +46,7 @@
 }
 
 .submit-btn:hover {
-  background-color: #45a049;
+  background-color: var(--titech-brand-green);
 }
 
 .submit-btn:disabled {
@@ -55,5 +55,5 @@
 }
 
 .submit-btn.loading {
-  background-color: #2196f3; /* Blue when loading */
+  background-color: var(--titech-brand-bright-blue); /* Blue when loading */
 }

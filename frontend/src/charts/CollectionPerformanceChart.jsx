@@ -727,12 +727,12 @@ const CollectionPerformanceTooltip =
             minWidth: 235,
             padding: 14,
             border:
-              '1px solid var(--titech-border, #e2e8f0)',
+              '1px solid var(--titech-border)',
             borderRadius: 12,
             background:
-              'var(--titech-surface, var(--color-white))',
+              'var(--titech-surface)',
             color:
-              'var(--titech-text-primary, #0f172a)',
+              'var(--titech-text-primary)',
             boxShadow:
               '0 14px 38px rgba(15, 23, 42, 0.14)',
           }}
@@ -834,7 +834,7 @@ const TooltipRow = memo(
         <span
           style={{
             color:
-              'var(--titech-text-secondary, #64748b)',
+              'var(--titech-text-secondary)',
           }}
         >
           {label}
@@ -847,7 +847,7 @@ const TooltipRow = memo(
           style={{
             color:
               emphasized
-                ? 'var(--titech-text-primary, #0f172a)'
+                ? 'var(--titech-text-primary)'
                 : undefined,
             fontVariantNumeric:
               'tabular-nums',
@@ -967,12 +967,12 @@ const StatePanel = memo(
           alignContent: 'center',
           padding: 28,
           border: isError
-            ? '1px solid var(--titech-danger-border, #fecaca)'
-            : '1px dashed var(--titech-border-strong, #cbd5e1)',
+            ? '1px solid var(--titech-danger-border)'
+            : '1px dashed var(--titech-border-strong)',
           borderRadius: 12,
           background: isError
-            ? 'var(--titech-danger-surface, #fff7f7)'
-            : 'var(--titech-surface-muted, #f8fafc)',
+            ? 'var(--titech-danger-surface)'
+            : 'var(--titech-surface-muted)',
           textAlign: 'center',
         }}
       >
@@ -986,7 +986,7 @@ const StatePanel = memo(
             marginBottom: 10,
             borderRadius: 12,
             background:
-              'var(--titech-surface, var(--color-white))',
+              'var(--titech-surface)',
             opacity: 0.58,
             fontSize: 22,
           }}
@@ -1012,7 +1012,7 @@ const StatePanel = memo(
           style={{
             maxWidth: 480,
             color:
-              'var(--titech-text-secondary, #64748b)',
+              'var(--titech-text-secondary)',
             fontSize: 11,
             lineHeight: 1.55,
           }}
@@ -1110,16 +1110,16 @@ const CollectionPerformanceChart =
     collectedBarSize = 22,
 
     targetColor =
-      'var(--titech-chart-target, #94a3b8)',
+      'var(--titech-chart-target)',
 
     collectedColor =
-      'var(--titech-chart-collected, #0f766e)',
+      'var(--titech-chart-collected)',
 
     rateColor =
-      'var(--titech-chart-rate, #2563eb)',
+      'var(--titech-chart-rate)',
 
     underTargetColor =
-      'var(--titech-chart-under-target, #b45309)',
+      'var(--titech-chart-under-target)',
 
     onPointClick = null,
 
@@ -1362,10 +1362,10 @@ const CollectionPerformanceChart =
                       padding:
                         '8px 14px',
                       border:
-                        '1px solid var(--titech-primary, #0f172a)',
+                        '1px solid var(--titech-primary)',
                       borderRadius: 8,
                       background:
-                        'var(--titech-primary, #0f172a)',
+                        'var(--titech-primary)',
                       color:
                         TITECH_BRAND.colors.white,
                       cursor:
@@ -1633,7 +1633,7 @@ const CollectionPerformanceChart =
                   <CartesianGrid
                     vertical={false}
                     strokeDasharray="3 3"
-                    stroke="var(--titech-chart-grid, #cbd5e1)"
+                    stroke="var(--titech-chart-grid)"
                     opacity={0.45}
                   />
                 ) : null}
@@ -1653,7 +1653,7 @@ const CollectionPerformanceChart =
                     tick={{
                       fontSize: 10,
                       fill:
-                        'var(--titech-chart-axis, #64748b)',
+                        'var(--titech-chart-axis)',
                     }}
                   />
                 ) : null}
@@ -1670,7 +1670,7 @@ const CollectionPerformanceChart =
                     tick={{
                       fontSize: 10,
                       fill:
-                        'var(--titech-chart-axis, #64748b)',
+                        'var(--titech-chart-axis)',
                     }}
                   />
                 ) : null}
@@ -1693,7 +1693,7 @@ const CollectionPerformanceChart =
                     tick={{
                       fontSize: 10,
                       fill:
-                        'var(--titech-chart-axis, #64748b)',
+                        'var(--titech-chart-axis)',
                     }}
                   />
                 ) : null}
@@ -1704,7 +1704,7 @@ const CollectionPerformanceChart =
                   }
                   cursor={{
                     fill:
-                      'var(--titech-chart-tooltip-cursor, #94a3b8)',
+                      'var(--titech-chart-tooltip-cursor)',
                     opacity: 0.06,
                   }}
                 />
@@ -1718,7 +1718,7 @@ const CollectionPerformanceChart =
                     wrapperStyle={{
                       fontSize: 11,
                       color:
-                        'var(--titech-chart-legend, #475569)',
+                        'var(--titech-chart-legend)',
                     }}
                   />
                 ) : null}
@@ -1727,7 +1727,7 @@ const CollectionPerformanceChart =
                   <ReferenceLine
                     y={0}
                     yAxisId="amount"
-                    stroke="var(--titech-chart-zero, #94a3b8)"
+                    stroke="var(--titech-chart-zero)"
                     strokeDasharray="4 4"
                     strokeOpacity={
                       0.6
@@ -1807,7 +1807,7 @@ const CollectionPerformanceChart =
                       style={{
                         fontSize: 9,
                         fill:
-                          'var(--titech-chart-label, #64748b)',
+                          'var(--titech-chart-label)',
                       }}
                     />
                   ) : null}
@@ -1882,7 +1882,7 @@ const CollectionPerformanceChart =
                       style={{
                         fontSize: 9,
                         fill:
-                          'var(--titech-chart-label, #0f172a)',
+                          'var(--titech-chart-label)',
                         fontWeight: 700,
                       }}
                     />
@@ -2054,13 +2054,13 @@ const ChartFrame = memo(
           width: '100%',
           minWidth: 0,
           border:
-            '1px solid var(--titech-border, #e2e8f0)',
+            '1px solid var(--titech-border)',
           borderRadius: 16,
           padding: 20,
           background:
-            'var(--titech-surface, var(--color-white))',
+            'var(--titech-surface)',
           color:
-            'var(--titech-text-primary, #0f172a)',
+            'var(--titech-text-primary)',
         }}
       >
         <header
@@ -2102,7 +2102,7 @@ const ChartFrame = memo(
                   margin:
                     '6px 0 0',
                   color:
-                    'var(--titech-text-secondary, #64748b)',
+                    'var(--titech-text-secondary)',
                   fontSize: 12,
                   lineHeight: 1.55,
                 }}
@@ -2118,7 +2118,7 @@ const ChartFrame = memo(
               style={{
                 flexShrink: 0,
                 border:
-                  '1px solid var(--titech-border, #e2e8f0)',
+                  '1px solid var(--titech-border)',
                 borderRadius: 8,
                 padding:
                   '6px 9px',
@@ -2170,7 +2170,7 @@ const ChartLoadingState = memo(
             marginBottom: 8,
             borderRadius: 5,
             background:
-              'var(--titech-skeleton, #e2e8f0)',
+              'var(--titech-skeleton)',
           }}
         />
 
@@ -2183,7 +2183,7 @@ const ChartLoadingState = memo(
               marginBottom: 20,
               borderRadius: 4,
               background:
-                'var(--titech-skeleton-muted, #f1f5f9)',
+                'var(--titech-skeleton-muted)',
             }}
           />
         ) : null}
@@ -2198,7 +2198,7 @@ const ChartLoadingState = memo(
               ),
             borderRadius: 12,
             background:
-              'linear-gradient(90deg, var(--titech-skeleton, #e2e8f0) 25%, var(--titech-skeleton-muted, #f8fafc) 50%, var(--titech-skeleton, #e2e8f0) 75%)',
+              'linear-gradient(90deg, var(--titech-skeleton) 25%, var(--titech-skeleton-muted) 50%, var(--titech-skeleton) 75%)',
             backgroundSize:
               '200% 100%',
             animation:

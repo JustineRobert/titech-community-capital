@@ -1109,7 +1109,7 @@ function SystemHealth() {
               health.memory
                 ?.percentage
             }
-            color="#10b981"
+            color="var(--titech-state-success)"
             label="Memory usage"
           />
 

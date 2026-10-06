@@ -59,7 +59,7 @@
  * and shutdown to that adapter.
  *
  * Runtime:
- *   Node.js 20+
+ *   Node.js 24.15.x+
  *
  * Module System:
  *   ES Modules (ESM)

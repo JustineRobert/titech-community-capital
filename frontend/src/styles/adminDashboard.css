@@ -6,9 +6,9 @@
    ========================================================================== */
 
 :root {
-  --admin-primary: #1e3a5f;
-  --admin-primary-light: #2c5a8a;
-  --admin-secondary: #f5b642;
+  --admin-primary: var(--titech-brand-navy);
+  --admin-primary-light: var(--titech-brand-electric-blue);
+  --admin-secondary: var(--titech-brand-gold);
 
   --success: #10b981;
   --warning: #f59e0b;

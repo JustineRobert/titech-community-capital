@@ -89,6 +89,16 @@ if (!exists(reference)) {
 const brandJs = read('frontend/src/branding/brand.js');
 const brandCss = read('frontend/src/branding/brand.css');
 const officialCss = read('frontend/src/branding/official-theme.css');
+const themeTokensJs = read('frontend/src/branding/themeTokens.js');
+
+const tokenBridgeMissing = Object.entries(requiredPalette).filter(([, value]) => !(themeTokensJs.match(new RegExp(value, 'gi')) ?? []).length);
+if (tokenBridgeMissing.length) {
+  fail('js-token-bridge-palette', `frontend/src/branding/themeTokens.js is missing official palette values: ${tokenBridgeMissing.map(([k]) => k).join(', ')}`);
+} else if (!/TITECH_CHART_COLORS/.test(themeTokensJs) || !/TITECH_SEMANTIC_COLORS/.test(themeTokensJs)) {
+  fail('js-token-bridge-contract', 'themeTokens.js must expose canonical chart and semantic runtime color contracts.');
+} else {
+  pass('js-token-bridge-contract', 'JavaScript/JSX color consumers have a centralized official chart palette and semantic state-color bridge.');
+}
 for (const [id, text, scope] of [
   ['brand-js-palette', brandJs, 'frontend/src/branding/brand.js'],
   ['brand-css-palette', brandCss, 'frontend/src/branding/brand.css'],
@@ -225,6 +235,39 @@ function auditFrontendThemeCoverage() {
 }
 
 const frontendThemeCoverage = auditFrontendThemeCoverage();
+
+const legacyBrandLiterals = [
+  '#1e3a5f', '#2c5a8a', '#f5b642', '#3182ce', '#2b6cb0',
+  '#38a169', '#4caf50', '#007bff', '#2196f3', '#45a049',
+];
+const legacyCssHits = [];
+for (const file of walkFiles(FRONTEND_SOURCE_ROOT).filter((file) => /\.css$/i.test(file) && !file.includes(`${path.sep}branding${path.sep}`))) {
+  const text = fs.readFileSync(file, 'utf8');
+  for (const literal of legacyBrandLiterals) {
+    if (new RegExp(literal, 'i').test(text)) {
+      legacyCssHits.push(path.relative(ROOT, file).replaceAll(path.sep, '/'));
+      break;
+    }
+  }
+}
+if (legacyCssHits.length) {
+  fail('legacy-brand-css-literals', `Legacy brand literals remain in frontend CSS: ${legacyCssHits.join(', ')}`);
+} else {
+  pass('legacy-brand-css-literals', 'Known legacy brand literals are routed through centralized TITech semantic tokens.');
+}
+
+const chartFallbackPattern = /var\(--titech-[^,\n]+,\s*(?:#[0-9A-Fa-f]{3,8}\b|rgba?\([^)]*\))/g;
+const chartFallbackHits = [];
+for (const file of walkFiles(path.join(ROOT, 'frontend', 'src', 'charts')).filter((file) => /\.jsx$/i.test(file))) {
+  const text = fs.readFileSync(file, 'utf8');
+  const count = (text.match(chartFallbackPattern) ?? []).length;
+  if (count) chartFallbackHits.push({ file: path.relative(ROOT, file).replaceAll(path.sep, '/'), count });
+}
+if (chartFallbackHits.length) {
+  fail('chart-fallback-colors', `Chart components still contain hard-coded fallback colors: ${chartFallbackHits.map((x) => `${x.file} (${x.count})`).join(', ')}`);
+} else {
+  pass('chart-fallback-colors', 'Chart components resolve colors through the centralized TITech theme contract rather than hard-coded fallback literals.');
+}
 
 const result = {
   generatedAt: new Date().toISOString(),

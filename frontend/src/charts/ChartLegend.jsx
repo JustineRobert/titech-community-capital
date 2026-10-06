@@ -98,14 +98,14 @@ const DEFAULT_LABEL_MAX_LENGTH =
   80;
 
 const DEFAULT_COLORS = [
-  'var(--titech-chart-series-1, #2563eb)',
-  'var(--titech-chart-series-2, #0f766e)',
-  'var(--titech-chart-series-3, #b45309)',
-  'var(--titech-chart-series-4, #7c3aed)',
-  'var(--titech-chart-series-5, #be123c)',
-  'var(--titech-chart-series-6, #0891b2)',
-  'var(--titech-chart-series-7, #4f46e5)',
-  'var(--titech-chart-series-8, #047857)',
+  'var(--titech-chart-series-1)',
+  'var(--titech-chart-series-2)',
+  'var(--titech-chart-series-3)',
+  'var(--titech-chart-series-4)',
+  'var(--titech-chart-series-5)',
+  'var(--titech-chart-series-6)',
+  'var(--titech-chart-series-7)',
+  'var(--titech-chart-series-8)',
 ];
 
 const DEFAULT_EMPTY_MESSAGE =

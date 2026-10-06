@@ -24,7 +24,7 @@
 .join-btn {
   width: 100%;
   padding: 0.75rem;
-  background-color: #3182ce;
+  background-color: var(--titech-brand-electric-blue);
   color: white;
   border-radius: 4px;
   text-align: center;
@@ -32,7 +32,7 @@
 }
 
 .join-btn:hover {
-  background-color: #2b6cb0;
+  background-color: var(--titech-brand-deep-blue);
 }
 
 .join-btn:disabled {

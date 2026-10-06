@@ -114,14 +114,14 @@ const DEFAULT_ERROR_MESSAGE =
   'Unable to load the chart data.';
 
 const DEFAULT_COLORS = [
-  'var(--titech-chart-series-1, #2563eb)',
-  'var(--titech-chart-series-2, #0f766e)',
-  'var(--titech-chart-series-3, #b45309)',
-  'var(--titech-chart-series-4, #7c3aed)',
-  'var(--titech-chart-series-5, #be123c)',
-  'var(--titech-chart-series-6, #0891b2)',
-  'var(--titech-chart-series-7, #4f46e5)',
-  'var(--titech-chart-series-8, #047857)',
+  'var(--titech-chart-series-1)',
+  'var(--titech-chart-series-2)',
+  'var(--titech-chart-series-3)',
+  'var(--titech-chart-series-4)',
+  'var(--titech-chart-series-5)',
+  'var(--titech-chart-series-6)',
+  'var(--titech-chart-series-7)',
+  'var(--titech-chart-series-8)',
 ];
 
 const DEFAULT_MAX_ITEMS = 12;
@@ -631,12 +631,12 @@ const DonutTooltip = memo(
           minWidth: 210,
           padding: 13,
           border:
-            '1px solid var(--titech-border, #e2e8f0)',
+            '1px solid var(--titech-border)',
           borderRadius: 12,
           background:
-            'var(--titech-surface, var(--color-white))',
+            'var(--titech-surface)',
           color:
-            'var(--titech-text-primary, #0f172a)',
+            'var(--titech-text-primary)',
           boxShadow:
             '0 14px 38px rgba(15, 23, 42, 0.14)',
         }}
@@ -719,7 +719,7 @@ const TooltipRow = memo(
         <span
           style={{
             color:
-              'var(--titech-text-secondary, #64748b)',
+              'var(--titech-text-secondary)',
           }}
         >
           {label}
@@ -1127,7 +1127,7 @@ const DonutChartCard = memo(
     otherLabel = 'Other',
 
     otherColor =
-      'var(--titech-chart-other, #94a3b8)',
+      'var(--titech-chart-other)',
 
     labelMaxLength = 36,
 
@@ -1726,7 +1726,7 @@ const DonutChartCard = memo(
                     paddingAngle={
                       paddingAngle
                     }
-                    stroke="var(--titech-surface, var(--color-white))"
+                    stroke="var(--titech-surface)"
                     strokeWidth={
                       2
                     }

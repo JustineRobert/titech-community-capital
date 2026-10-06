@@ -761,7 +761,7 @@ function ExecutiveDashboard({
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke="#16a34a"
+                  stroke="var(--titech-state-success)"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{

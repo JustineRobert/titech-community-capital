@@ -21,7 +21,7 @@
 }
 
 .text-green-600 {
-  color: #38a169;
+  color: var(--titech-brand-green);
 }
 
 .text-2xl {
@@ -74,7 +74,7 @@
 }
 
 .hover\:bg-blue-700:hover {
-  background-color: #2b6cb0;
+  background-color: var(--titech-brand-deep-blue);
 }
 
 .disabled\:opacity-50:disabled {

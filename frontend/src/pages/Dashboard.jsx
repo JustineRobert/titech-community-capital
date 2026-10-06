@@ -88,7 +88,7 @@ const DEFAULT_STATS = {
   totalDisbursed: 0,
 };
 
-const FRAUD_COLORS = ["#10b981", "#ef4444"];
+const FRAUD_COLORS = ['var(--titech-state-success)', 'var(--titech-state-danger)'];
 
 // ============================================================================
 // Utility Helpers

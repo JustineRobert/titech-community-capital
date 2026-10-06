@@ -1046,8 +1046,8 @@ function AdminDashboard({
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="#16a34a"
-                  fill="#dcfce7"
+                  stroke="var(--titech-state-success)"
+                  fill="var(--titech-success-surface)"
                   strokeWidth={2}
                   connectNulls
                 />

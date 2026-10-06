@@ -31,7 +31,7 @@
 }
 
 .input-field:focus {
-  border-color: #4caf50;
+  border-color: var(--titech-state-success);
 }
 
 .error-message {
@@ -43,7 +43,7 @@
 
 .add-email-btn {
   background-color: #f0f0f0;
-  color: #007bff;
+  color: var(--titech-brand-electric-blue);
   border: 1px solid #ccc;
   border-radius: 4px;
   padding: 8px 12px;
@@ -59,7 +59,7 @@
 .submit-btn {
   width: 100%;
   padding: 12px;
-  background-color: #4caf50;
+  background-color: var(--titech-state-success);
   color: white;
   font-size: 1rem;
   border: none;
@@ -74,5 +74,5 @@
 }
 
 .submit-btn.loading {
-  background-color: #2196f3;
+  background-color: var(--titech-brand-bright-blue);
 }

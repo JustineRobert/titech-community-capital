@@ -201,7 +201,7 @@ const GoLiveReview = ({
         <div
           style={{
             background:
-              "#dcfce7",
+              "var(--titech-success-surface)",
             color:
               "#166534",
             padding:
@@ -223,7 +223,7 @@ const GoLiveReview = ({
           background:
             TITECH_BRAND.colors.white,
           border:
-            "1px solid #e5e7eb",
+            "1px solid var(--titech-color-border)",
           borderRadius:
             "12px",
           padding:
@@ -284,7 +284,7 @@ const GoLiveReview = ({
           background:
             TITECH_BRAND.colors.white,
           border:
-            "1px solid #e5e7eb",
+            "1px solid var(--titech-color-border)",
           borderRadius:
             "12px",
           padding:
@@ -375,7 +375,7 @@ const GoLiveReview = ({
           background:
             TITECH_BRAND.colors.white,
           border:
-            "1px solid #e5e7eb",
+            "1px solid var(--titech-color-border)",
           borderRadius:
             "12px",
           padding:

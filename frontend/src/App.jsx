@@ -341,7 +341,7 @@ function ErrorFallback({ onReset }) {
           marginBottom: 20,
           borderRadius: '50%',
           background: '#fee2e2',
-          color: '#b91c1c',
+          color: 'var(--titech-state-danger)',
           fontSize: 28,
           fontWeight: 700,
         }}

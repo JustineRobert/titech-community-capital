@@ -121,14 +121,14 @@ const DEFAULT_SPARKLINE_HEIGHT = 58;
 const DEFAULT_MAX_KPIS = 12;
 
 const DEFAULT_COLORS = [
-  'var(--titech-kpi-series-1, #2563eb)',
-  'var(--titech-kpi-series-2, #0f766e)',
-  'var(--titech-kpi-series-3, #b45309)',
-  'var(--titech-kpi-series-4, #7c3aed)',
-  'var(--titech-kpi-series-5, #be123c)',
-  'var(--titech-kpi-series-6, #0891b2)',
-  'var(--titech-kpi-series-7, #047857)',
-  'var(--titech-kpi-series-8, #4f46e5)',
+  'var(--titech-kpi-series-1)',
+  'var(--titech-kpi-series-2)',
+  'var(--titech-kpi-series-3)',
+  'var(--titech-kpi-series-4)',
+  'var(--titech-kpi-series-5)',
+  'var(--titech-kpi-series-6)',
+  'var(--titech-kpi-series-7)',
+  'var(--titech-kpi-series-8)',
 ];
 
 /* ============================================================================
@@ -1016,14 +1016,14 @@ const KPISparklineTooltip =
           style={{
             padding: 9,
             border:
-              '1px solid var(--titech-border, #e2e8f0)',
+              '1px solid var(--titech-border)',
             borderRadius: 8,
             background:
-              'var(--titech-surface, var(--color-white))',
+              'var(--titech-surface)',
             boxShadow:
               '0 10px 28px rgba(15, 23, 42, 0.12)',
             color:
-              'var(--titech-text-primary, #0f172a)',
+              'var(--titech-text-primary)',
           }}
         >
           <div
