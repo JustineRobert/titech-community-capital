@@ -83,7 +83,7 @@ import { validationRules, handleValidation } from '../utils/validators.js';
 import authMiddleware from '../middleware/auth.js';
 import * as authController from '../controllers/authController.js';
 
-const { authenticate, requireRole } = authMiddleware;
+const { authenticate, requireRole, requirePermission } = authMiddleware;
 
 const asyncHandler = (handler) => (req, res, next) => {
   Promise.resolve(handler(req, res, next)).catch(next);
@@ -777,7 +777,7 @@ router.post(
 router.post(
   '/tenant-invitations',
   authenticate,
-  requireRole('admin'),
+  requirePermission('TENANT_INVITE_USER'),
   asyncHandler(authController.createTenantInvitation),
 );
 
@@ -939,7 +939,7 @@ router.get(
 
   authenticate,
 
-  requireRole('admin'),
+  requirePermission('SESSION_VIEW_ANY'),
 
   sessionLimiter,
 
@@ -956,7 +956,7 @@ router.delete(
 
   authenticate,
 
-  requireRole('admin'),
+  requirePermission('SESSION_REVOKE_ANY'),
 
   sessionLimiter,
 

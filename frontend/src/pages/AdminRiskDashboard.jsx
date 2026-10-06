@@ -26,6 +26,7 @@
 
 "use strict";
 
+import { TITECH_BRAND } from "../branding/brand";
 import React, {
   useCallback,
   useEffect,
@@ -1154,7 +1155,7 @@ export default function AdminRiskDashboard() {
               ),
             ],
             backgroundColor: [
-              "#0058D8",
+              TITECH_BRAND.colors.electricBlue,
               "#10B981",
               "#EF4444",
             ],

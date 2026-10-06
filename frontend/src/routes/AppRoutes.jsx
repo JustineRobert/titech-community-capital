@@ -84,6 +84,8 @@ const ROUTES = Object.freeze({
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
+  VERIFY_EMAIL: '/verify-email',
+  ACCESS_GOVERNANCE: '/admin/access',
 
   TERMS: '/terms',
   PRIVACY: '/privacy',
@@ -103,6 +105,9 @@ const ROUTES = Object.freeze({
 // ============================================================================
 
 const ADMIN_ROLES = new Set([
+  'platform_admin',
+  'tenant_admin',
+  'group_admin',
   'admin',
   'super_admin',
 ]);
@@ -227,6 +232,16 @@ const ForgotPassword =
     () => import('../pages/ForgotPassword'),
     'ForgotPassword'
   );
+
+const VerifyEmail = lazyWithRecovery(
+  () => import('../pages/VerifyEmail'),
+  'VerifyEmail'
+);
+
+const AccessGovernance = lazyWithRecovery(
+  () => import('../pages/admin/AccessGovernance'),
+  'AccessGovernance'
+);
 
 const ResetPassword =
   lazyWithRecovery(
@@ -520,6 +535,11 @@ function ApplicationRouteTree() {
           path={ROUTES.RESET_PASSWORD}
           element={<ResetPassword />}
         />
+
+        <Route
+          path={ROUTES.VERIFY_EMAIL}
+          element={<VerifyEmail />}
+        />
       </Route>
 
       {/* ================================================================== */}
@@ -630,6 +650,13 @@ function ApplicationRouteTree() {
               path={ROUTES.SETTINGS}
               element={
                 <Settings />
+              }
+            />
+
+            <Route
+              path={ROUTES.ACCESS_GOVERNANCE}
+              element={
+                <AccessGovernance />
               }
             />
           </Route>

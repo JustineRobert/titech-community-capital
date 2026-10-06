@@ -62,6 +62,7 @@
  * ============================================================================
  */
 
+import { TITECH_BRAND } from "../branding/brand";
 import React, {
   forwardRef,
   memo,
@@ -933,7 +934,7 @@ function serializeSvg(
 async function svgToPngBlob(
   svg,
   {
-    backgroundColor = '#ffffff',
+    backgroundColor = TITECH_BRAND.colors.white,
     padding = DEFAULT_EXPORT_PADDING,
     scale = DEFAULT_PNG_SCALE,
   } = {},
@@ -1168,7 +1169,7 @@ function printElement(
           body {
             margin: 0;
             padding: 0;
-            background: #ffffff;
+            background: var(--color-white);
             color: #0f172a;
           }
 
@@ -1693,7 +1694,7 @@ const ChartExportButton = memo(
 
       pngScale = DEFAULT_PNG_SCALE,
 
-      pngBackground = '#ffffff',
+      pngBackground = TITECH_BRAND.colors.white,
 
       svgBackground = null,
 
@@ -2424,7 +2425,7 @@ const ChartExportButton = memo(
               --titech-export-surface:
                 var(
                   --titech-surface,
-                  #ffffff
+                  var(--color-white)
                 );
 
               --titech-export-surface-muted:
@@ -2583,7 +2584,7 @@ const ChartExportButton = memo(
                 var(--titech-export-primary);
               background:
                 var(--titech-export-primary);
-              color: #ffffff;
+              color: var(--color-white);
             }
 
             .titech-chart-export--primary

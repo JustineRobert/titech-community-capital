@@ -16,6 +16,7 @@
 // Defensive Data Normalization
 // ============================================================================
 
+import { TITECH_BRAND } from "../../branding/brand";
 import React, {
   memo,
   useCallback,
@@ -547,7 +548,7 @@ function normalizeHealth(payload) {
 const ProgressBar = memo(
   ({
     value = 0,
-    color = "#0058d8",
+    color = TITECH_BRAND.colors.electricBlue,
     label = "System utilization",
   }) => {
     const percentage =
@@ -1090,7 +1091,7 @@ function SystemHealth() {
             value={
               health.cpu?.usage
             }
-            color="#0058d8"
+            color={TITECH_BRAND.colors.electricBlue}
             label="CPU usage"
           />
         </HealthMetricCard>

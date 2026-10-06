@@ -858,7 +858,7 @@ const ChartLoadingSkeleton = memo(
                 --titech-skeleton-surface:
                   var(
                     --titech-surface,
-                    #ffffff
+                    var(--color-white)
                   );
 
                 --titech-skeleton-surface-muted:

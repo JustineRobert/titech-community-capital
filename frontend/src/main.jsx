@@ -123,7 +123,7 @@ const OFFICIAL_BRAND_NAME =
 
 const OFFICIAL_THEME_COLOR =
   TITECH_BRAND?.colorRoles?.primaryInteractive ||
-  '#0058D8';
+  TITECH_BRAND.colors.electricBlue;
 
 const OFFICIAL_BRAND_DATASET_KEY =
   'titechBrand';
@@ -484,7 +484,7 @@ function renderFatalBootstrapError(error) {
       'max-width:560px',
       'padding:32px',
       'box-sizing:border-box',
-      'background:#ffffff',
+      'background:var(--color-white)',
       'border:1px solid rgba(15,23,42,.12)',
       'border-radius:16px',
       'box-shadow:0 10px 30px rgba(15,23,42,.08)',
@@ -532,7 +532,7 @@ function renderFatalBootstrapError(error) {
       'border:0',
       'border-radius:8px',
       `background:${OFFICIAL_THEME_COLOR}`,
-      'color:#ffffff',
+      'color:var(--color-white)',
       'font-size:14px',
       'font-weight:600',
       'cursor:pointer',

@@ -61,6 +61,7 @@
  * ============================================================================
  */
 
+import { TITECH_BRAND } from "../branding/brand";
 import React, {
   memo,
   useCallback,
@@ -729,7 +730,7 @@ const CollectionPerformanceTooltip =
               '1px solid var(--titech-border, #e2e8f0)',
             borderRadius: 12,
             background:
-              'var(--titech-surface, #ffffff)',
+              'var(--titech-surface, var(--color-white))',
             color:
               'var(--titech-text-primary, #0f172a)',
             boxShadow:
@@ -985,7 +986,7 @@ const StatePanel = memo(
             marginBottom: 10,
             borderRadius: 12,
             background:
-              'var(--titech-surface, #ffffff)',
+              'var(--titech-surface, var(--color-white))',
             opacity: 0.58,
             fontSize: 22,
           }}
@@ -1366,7 +1367,7 @@ const CollectionPerformanceChart =
                       background:
                         'var(--titech-primary, #0f172a)',
                       color:
-                        '#ffffff',
+                        TITECH_BRAND.colors.white,
                       cursor:
                         'pointer',
                       font:
@@ -2057,7 +2058,7 @@ const ChartFrame = memo(
           borderRadius: 16,
           padding: 20,
           background:
-            'var(--titech-surface, #ffffff)',
+            'var(--titech-surface, var(--color-white))',
           color:
             'var(--titech-text-primary, #0f172a)',
         }}

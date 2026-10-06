@@ -664,13 +664,13 @@ function ExecutiveDashboard({
                   >
                     <stop
                       offset="0%"
-                      stopColor="#0058d8"
+                      stopColor={TITECH_BRAND.colors.electricBlue}
                       stopOpacity={0.35}
                     />
 
                     <stop
                       offset="100%"
-                      stopColor="#0058d8"
+                      stopColor={TITECH_BRAND.colors.electricBlue}
                       stopOpacity={0.03}
                     />
                   </linearGradient>
@@ -697,7 +697,7 @@ function ExecutiveDashboard({
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="#0058d8"
+                  stroke={TITECH_BRAND.colors.electricBlue}
                   strokeWidth={2}
                   fill="url(#executivePortfolioGradient)"
                   activeDot={{
@@ -877,7 +877,7 @@ function ExecutiveDashboard({
 
                 <Bar
                   dataKey="value"
-                  fill="#0058d8"
+                  fill={TITECH_BRAND.colors.electricBlue}
                   radius={[
                     6,
                     6,

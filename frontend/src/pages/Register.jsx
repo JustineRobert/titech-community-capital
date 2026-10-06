@@ -67,7 +67,7 @@ import BrandLogo from "../components/BrandLogo";
 // ============================================================================
 
 const LOGIN_ROUTE = '/login';
-const DEFAULT_SUCCESS_ROUTE = '/dashboard';
+const DEFAULT_SUCCESS_ROUTE = '/verify-email';
 
 const MAX_NAME_LENGTH = 100;
 const MAX_EMAIL_LENGTH = 254;
@@ -516,6 +516,7 @@ export default function Register() {
           email: normalizeEmail(values.email),
           password: values.password,
           tenantInviteCode: values.tenantInviteCode.trim(),
+          redirectAfterVerification: successRedirect,
         };
 
         const phone = normalizePhone(values.phone);

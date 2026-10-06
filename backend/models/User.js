@@ -133,9 +133,15 @@ const SALT_ROUNDS = Math.min(
  */
 
 export const USER_ROLES = Object.freeze([
+  "member",
+  "guest",
+  "group_admin",
+  "tenant_admin",
+  "platform_admin",
+  // Compatibility aliases retained for existing data and integrations.
   "user",
   "admin",
-  "group_admin",
+  "super_admin",
 ]);
 
 export const USER_STATUSES = Object.freeze([
@@ -883,7 +889,7 @@ const userSchema = new Schema(
     role: {
       type: String,
       enum: USER_ROLES,
-      default: "user",
+      default: "member",
       index: true,
     },
 

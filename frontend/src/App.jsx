@@ -37,6 +37,7 @@
  * ============================================================================
  */
 
+import { TITECH_BRAND } from "./branding/brand";
 import React, {
   Suspense,
   lazy,
@@ -240,7 +241,7 @@ function RouteFallback() {
             height: 32,
             margin: '0 auto 12px',
             border: '3px solid rgba(37, 99, 235, 0.2)',
-            borderTopColor: '#0058d8',
+            borderTopColor: TITECH_BRAND.colors.electricBlue,
             borderRadius: '50%',
             animation: 'titech-app-spin 0.8s linear infinite',
           }}
@@ -404,7 +405,7 @@ function ErrorFallback({ onReset }) {
             padding: '10px 16px',
             borderRadius: 8,
             border: 'none',
-            background: '#0058d8',
+            background: TITECH_BRAND.colors.electricBlue,
             color: '#fff',
             cursor: 'pointer',
             fontWeight: 600,

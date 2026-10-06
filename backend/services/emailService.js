@@ -681,29 +681,42 @@ function getEmailTemplate(name, data = {}) {
   }
 }
 
-async function sendEmailVerification(userId) {
+async function sendEmailVerification(userIdOrEmail, userName = null, verificationUrl = null) {
   const User = require('../models/User');
   const crypto = require('crypto');
 
-  const user = await User.findById(userId);
+  // Canonical email-controller contract: the token is already generated and
+  // persisted by User.generateVerificationToken(). Only delivery happens here.
+  if (verificationUrl && typeof userIdOrEmail === 'string') {
+    await sendEmail({
+      to: userIdOrEmail,
+      subject: 'Verify your TITech Community Capital email',
+      template: 'email_verification',
+      data: {
+        userName: userName || userIdOrEmail.split('@')[0],
+        verificationUrl,
+        expiresIn: '24 hours',
+      },
+    });
+    return { success: true, message: 'Verification email sent' };
+  }
+
+  const user = await User.findById(userIdOrEmail);
   if (!user) throw new Error('User not found');
-  if (user.isEmailVerified) throw new Error('Email already verified');
+  if (user.isEmailVerified || user.isVerified) throw new Error('Email already verified');
 
-  const token = crypto.randomBytes(20).toString('hex');
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  user.emailVerificationToken = tokenHash;
-  user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  await user.save();
+  const token = typeof user.generateVerificationToken === 'function'
+    ? user.generateVerificationToken()
+    : crypto.randomBytes(32).toString('hex');
+  await user.save({ validateBeforeSave: false });
 
-  const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}&id=${user._id}`;
-
+  const url = verificationUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
   await sendEmail({
     to: user.email,
-    subject: 'Please verify your email',
+    subject: 'Verify your TITech Community Capital email',
     template: 'email_verification',
-    data: { userName: user.name || user.email.split('@')[0], verificationUrl, expiresIn: '24 hours' },
+    data: { userName: user.name || user.email.split('@')[0], verificationUrl: url, expiresIn: '24 hours' },
   });
-
   return { success: true, message: 'Verification email sent' };
 }
 

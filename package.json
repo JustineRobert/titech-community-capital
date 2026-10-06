@@ -133,7 +133,9 @@
     "audit:theme": "node scripts/official-theme-audit.mjs",
     "titech:implementation-gate": "node scripts/titech-implementation-gate.mjs",
     "truth:platform": "node scripts/platform-truth.mjs",
-    "audit:runtime": "node scripts/runtime-auth-browser-audit.mjs"
+    "audit:runtime": "node scripts/runtime-auth-browser-audit.mjs",
+    "check:rbac": "node scripts/rbac-security-gate.mjs",
+    "rbac:gate": "node scripts/rbac-security-gate.mjs"
   },
   "dependencies": {}
 }

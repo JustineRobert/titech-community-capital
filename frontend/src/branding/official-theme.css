@@ -230,6 +230,18 @@
   --titech-brand-gold: var(--titech-official-gold);
   --titech-brand-navy: var(--titech-official-navy);
   --titech-brand-white: var(--titech-official-white);
+
+  /* Official TITech palette aliases — every supplied brand color is available
+     through one semantic token contract across web application surfaces. */
+  --color-deep-blue: var(--titech-official-deep-blue);
+  --color-electric-blue: var(--titech-official-electric-blue);
+  --color-bright-blue: var(--titech-official-bright-blue);
+  --color-cyan: var(--titech-official-cyan);
+  --color-africa-green: var(--titech-official-green);
+  --color-lime-green: var(--titech-official-lime);
+  --color-gold-yellow: var(--titech-official-gold);
+  --color-navy-ink: var(--titech-official-navy);
+  --color-white: var(--titech-official-white);
 }
 
 :root[data-titech-brand="official"] .btn-primary,

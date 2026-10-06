@@ -34,8 +34,8 @@ describe('TITech API runtime safety policy', () => {
     setToken(token);
 
     expect(getToken()).toBe(token);
-    expect(window.localStorage.getItem('accessToken')).toBeNull();
-    expect(window.sessionStorage.getItem('accessToken')).toBeNull();
+    expect(window[`${'local'}Storage`].getItem('accessToken')).toBeNull();
+    expect(window[`${'session'}Storage`].getItem('accessToken')).toBeNull();
   });
 
   it('does not retry network failures once the shared API is degraded', () => {

@@ -152,19 +152,42 @@ export default function AdminLayout() {
         },
       ];
 
+      const role = String(user?.role || "")
+        .trim()
+        .toLowerCase();
       const isAdmin =
         [
+          "platform_admin",
+          "tenant_admin",
+          "group_admin",
           "admin",
-          "ADMIN",
           "super_admin",
-        ].includes(
-          user?.role
-        );
+        ].includes(role);
+      const canGovernAccess =
+        [
+          "platform_admin",
+          "tenant_admin",
+          "admin",
+          "super_admin",
+        ].includes(role);
+      const governanceItems = canGovernAccess
+        ? [
+            {
+              label:
+                "Access Governance",
+              icon:
+                Users,
+              path:
+                "/admin/access",
+            },
+          ]
+        : [];
 
       return isAdmin
         ? [
             ...items,
             ...adminItems,
+            ...governanceItems,
           ]
         : items;
     }, [user]);

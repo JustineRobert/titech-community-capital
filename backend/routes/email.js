@@ -932,6 +932,20 @@ router.post(
  */
 
 router.post(
+  '/request-verification',
+
+  verificationRequestLimiter,
+
+  body('email').isEmail().normalizeEmail(),
+
+  handleValidationErrors,
+
+  asyncHandler(
+    emailController.sendVerificationEmailRequest,
+  ),
+);
+
+router.post(
   '/send-verification',
 
   verifyToken,

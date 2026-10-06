@@ -1,3 +1,4 @@
+import { TITECH_BRAND } from "../../branding/brand";
 import React, {
   useEffect,
   useState
@@ -220,7 +221,7 @@ const GoLiveReview = ({
       <section
         style={{
           background:
-            "#ffffff",
+            TITECH_BRAND.colors.white,
           border:
             "1px solid #e5e7eb",
           borderRadius:
@@ -281,7 +282,7 @@ const GoLiveReview = ({
       <section
         style={{
           background:
-            "#ffffff",
+            TITECH_BRAND.colors.white,
           border:
             "1px solid #e5e7eb",
           borderRadius:
@@ -372,7 +373,7 @@ const GoLiveReview = ({
       <section
         style={{
           background:
-            "#ffffff",
+            TITECH_BRAND.colors.white,
           border:
             "1px solid #e5e7eb",
           borderRadius:
@@ -447,11 +448,11 @@ const GoLiveReview = ({
         style={{
           background:
             reviewReady
-              ? "#0058d8"
+              ? TITECH_BRAND.colors.electricBlue
               : "#9ca3af",
 
           color:
-            "#ffffff",
+            TITECH_BRAND.colors.white,
 
           padding:
             "12px 24px",

@@ -1,0 +1,5 @@
+:root[data-titech-brand="official"] .titech-auth-page{min-height:100vh;display:grid;place-items:center;padding:2rem;background:var(--titech-color-background);color:var(--titech-color-text)}
+:root[data-titech-brand="official"] .titech-auth-card{width:min(100%,30rem);padding:2rem;background:var(--titech-color-surface);border:1px solid var(--titech-color-border);border-radius:1rem;box-shadow:0 1rem 3rem rgb(8 43 103 / .1)}
+:root[data-titech-brand="official"] .titech-auth-card form{display:grid;gap:.8rem;margin:1.5rem 0}
+:root[data-titech-brand="official"] .titech-auth-card input{padding:.8rem;border:1px solid var(--titech-color-border-strong);border-radius:.5rem;background:var(--titech-color-surface);color:var(--titech-color-text)}
+:root[data-titech-brand="official"] .titech-auth-card button{padding:.8rem 1rem;border:0;border-radius:.5rem;color:var(--titech-official-white);background:var(--titech-official-deep-blue);font-weight:700}

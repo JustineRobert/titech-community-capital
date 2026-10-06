@@ -834,7 +834,7 @@ function AdminDashboard({
                   >
                     <stop
                       offset="0%"
-                      stopColor="#0058d8"
+                      stopColor={TITECH_BRAND.colors.electricBlue}
                       stopOpacity={
                         0.4
                       }
@@ -842,7 +842,7 @@ function AdminDashboard({
 
                     <stop
                       offset="100%"
-                      stopColor="#0058d8"
+                      stopColor={TITECH_BRAND.colors.electricBlue}
                       stopOpacity={
                         0.05
                       }
@@ -878,7 +878,7 @@ function AdminDashboard({
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="#0058d8"
+                  stroke={TITECH_BRAND.colors.electricBlue}
                   fill={`url(#${chartId}-savings-gradient)`}
                   strokeWidth={2}
                   connectNulls
@@ -958,7 +958,7 @@ function AdminDashboard({
                 <Bar
                   dataKey="count"
                   name="Loans"
-                  fill="#0058d8"
+                  fill={TITECH_BRAND.colors.electricBlue}
                   radius={[
                     4,
                     4,

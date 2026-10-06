@@ -143,7 +143,7 @@ const STATUS_TONES = Object.freeze({
 const CSS = Object.freeze({
   primary: 'var(--titech-primary, #146c94)',
   primarySoft: 'var(--titech-primary-soft, rgba(20, 108, 148, 0.12))',
-  surface: 'var(--titech-surface, #ffffff)',
+  surface: 'var(--titech-surface, var(--color-white))',
   surfaceMuted: 'var(--titech-surface-muted, #f7f9fb)',
   border: 'var(--titech-border, #d9e1e8)',
   borderStrong: 'var(--titech-border-strong, #b8c5d0)',

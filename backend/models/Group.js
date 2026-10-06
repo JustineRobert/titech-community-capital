@@ -96,8 +96,19 @@ const GROUP_CAPABILITIES_DEFAULTS = Object.freeze({
 
 const MEMBER_ROLES = Object.freeze([
   "member",
+  "group_admin",
   "treasurer",
   "secretary",
+]);
+
+const MEMBERSHIP_STATUSES = Object.freeze([
+  "invited",
+  "pending",
+  "active",
+  "rejected",
+  "suspended",
+  "removed",
+  "reinstated",
 ]);
 
 const INVITATION_STATUSES = Object.freeze([
@@ -114,6 +125,7 @@ const GROUP_STATUSES = Object.freeze([
 
 const AUDIT_ACTIONS = Object.freeze([
   "created",
+  "member_join_requested",
   "updated",
   "member_added",
   "member_removed",
@@ -316,6 +328,40 @@ const memberRoleSchema = new Schema(
       default: "pending",
       lowercase: true,
       trim: true,
+    },
+
+    membershipOrigin: {
+      type: String,
+      enum: ["invited", "requested", "owner", "migrated"],
+      default: undefined,
+      lowercase: true,
+      trim: true,
+    },
+
+    membershipStatus: {
+      type: String,
+      enum: MEMBERSHIP_STATUSES,
+      required: true,
+      default: "pending",
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+
+    suspendedAt: {
+      type: Date,
+      default: null,
+    },
+
+    suspendedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    lastReinstatedAt: {
+      type: Date,
+      default: null,
     },
 
     acceptedAt: {
@@ -726,8 +772,10 @@ groupSchema.virtual("activeMemberCount").get(
     for (const membership of this.memberRoles) {
       if (
         membership?.userId &&
-        membership.invitationStatus ===
-          "accepted" &&
+        (membership.membershipStatus === "active" ||
+          membership.membershipStatus === "reinstated" ||
+          (!membership.membershipStatus && membership.invitationStatus === "accepted")) &&
+        membership.membershipStatus !== "suspended" &&
         !membership.removedAt
       ) {
         activeUsers.add(
@@ -821,8 +869,10 @@ groupSchema.pre(
             .filter(
               (membership) =>
                 membership &&
-                membership.invitationStatus ===
-                  "accepted" &&
+                (membership.membershipStatus === "active" ||
+                  membership.membershipStatus === "reinstated" ||
+                  (!membership.membershipStatus && membership.invitationStatus === "accepted")) &&
+                membership.membershipStatus !== "suspended" &&
                 !membership.removedAt
             )
             .map(
@@ -974,20 +1024,18 @@ groupSchema.methods.hasMember =
       return false;
     }
 
-    const normalizedUserId =
-      String(userId);
+    const normalizedUserId = String(userId);
 
     return (
       Array.isArray(this.memberRoles) &&
-      this.memberRoles.some(
-        (membership) =>
-          membership &&
-          membership.invitationStatus ===
-            "accepted" &&
-          !membership.removedAt &&
-          String(
-            membership.userId
-          ) === normalizedUserId
+      this.memberRoles.some((membership) =>
+        membership &&
+        String(membership.userId) === normalizedUserId &&
+        !membership.removedAt &&
+        membership.membershipStatus !== "suspended" &&
+        (membership.membershipStatus === "active" ||
+          membership.membershipStatus === "reinstated" ||
+          (!membership.membershipStatus && membership.invitationStatus === "accepted"))
       )
     );
   };
@@ -999,14 +1047,14 @@ groupSchema.methods.getMemberRole =
     }
 
     const membership =
-      this.memberRoles.find(
-        (entry) =>
-          entry &&
-          entry.invitationStatus ===
-            "accepted" &&
-          !entry.removedAt &&
-          String(entry.userId) ===
-            String(userId)
+      this.memberRoles.find((entry) =>
+        entry &&
+        String(entry.userId) === String(userId) &&
+        !entry.removedAt &&
+        entry.membershipStatus !== "suspended" &&
+        (entry.membershipStatus === "active" ||
+          entry.membershipStatus === "reinstated" ||
+          (!entry.membershipStatus && entry.invitationStatus === "accepted"))
       );
 
     return membership?.role || null;
@@ -1036,6 +1084,7 @@ groupSchema.methods.addMember =
       invitationStatus = "accepted",
       joinedAt = new Date(),
       acceptedAt = null,
+      membershipOrigin = invitationStatus === "accepted" ? "owner" : "invited",
     } = {}
   ) {
     const normalizedUserId =
@@ -1092,6 +1141,10 @@ groupSchema.methods.addMember =
         existing.acceptedAt =
           acceptedAt || joinedAt;
         existing.rejectedAt = null;
+        existing.membershipStatus = "active";
+        existing.suspendedAt = null;
+        existing.suspendedBy = null;
+        existing.lastReinstatedAt = new Date();
 
         return this;
       }
@@ -1124,6 +1177,17 @@ groupSchema.methods.addMember =
             ? new Date()
             : null,
 
+        membershipStatus:
+          invitationStatus === "accepted"
+            ? "active"
+            : invitationStatus === "rejected"
+              ? "rejected"
+              : "pending",
+
+        membershipOrigin,
+        suspendedAt: null,
+        suspendedBy: null,
+        lastReinstatedAt: null,
         removedAt: null,
         removedBy: null,
       };
@@ -1164,23 +1228,50 @@ groupSchema.methods.acceptInvitation =
       return this;
     }
 
-    if (
-      membership.invitationStatus !==
-      "pending"
-    ) {
+    if (membership.invitationStatus !== "pending" ||
+        (membership.membershipOrigin && membership.membershipOrigin !== "invited")) {
       throw new Error(
-        "Only pending invitations can be accepted."
+        "Only a pending invitation can be accepted by the invited user."
       );
     }
 
     membership.invitationStatus =
       "accepted";
 
+    membership.membershipStatus =
+      "active";
+
     membership.acceptedAt =
       acceptedAt;
 
     membership.rejectedAt = null;
+    membership.suspendedAt = null;
+    membership.suspendedBy = null;
 
+    return this;
+  };
+
+groupSchema.methods.approveMembership =
+  function approveMembership(
+    userId,
+    approvedAt = new Date()
+  ) {
+    const membership = this.getMembership(userId);
+    if (!membership) {
+      throw new Error("Membership record not found.");
+    }
+    if (membership.removedAt) {
+      throw new Error("Removed membership cannot be approved.");
+    }
+    if (membership.membershipStatus !== "pending" && membership.invitationStatus !== "pending") {
+      throw new Error("Only pending memberships can be approved.");
+    }
+    membership.invitationStatus = "accepted";
+    membership.membershipStatus = "active";
+    membership.acceptedAt = approvedAt;
+    membership.rejectedAt = null;
+    membership.suspendedAt = null;
+    membership.suspendedBy = null;
     return this;
   };
 
@@ -1208,6 +1299,9 @@ groupSchema.methods.rejectInvitation =
     }
 
     membership.invitationStatus =
+      "rejected";
+
+    membership.membershipStatus =
       "rejected";
 
     membership.rejectedAt =
@@ -1262,6 +1356,9 @@ groupSchema.methods.removeMember =
         "rejected";
     }
 
+    membership.membershipStatus =
+      "removed";
+
     if (
       this.managedBy &&
       String(this.managedBy) ===
@@ -1270,6 +1367,52 @@ groupSchema.methods.removeMember =
       this.managedBy = null;
     }
 
+    return this;
+  };
+
+groupSchema.methods.suspendMember =
+  function suspendMember(
+    userId,
+    suspendedBy = null,
+    suspendedAt = new Date()
+  ) {
+    const membership = this.getMembership(userId);
+    if (!membership || membership.removedAt) {
+      throw new Error("Active membership not found.");
+    }
+    if (
+      !(
+        membership.membershipStatus === "active" ||
+        membership.membershipStatus === "reinstated" ||
+        (!membership.membershipStatus && membership.invitationStatus === "accepted")
+      )
+    ) {
+      throw new Error("Only active memberships can be suspended.");
+    }
+    membership.membershipStatus = "suspended";
+    membership.suspendedAt = suspendedAt;
+    membership.suspendedBy = toObjectId(suspendedBy);
+    return this;
+  };
+
+groupSchema.methods.reinstateMember =
+  function reinstateMember(
+    userId,
+    reinstatedAt = new Date()
+  ) {
+    const membership = this.getMembership(userId);
+    if (!membership || membership.removedAt) {
+      throw new Error("Removed membership cannot be reinstated.");
+    }
+    if (membership.membershipStatus !== "suspended") {
+      throw new Error("Only suspended memberships can be reinstated.");
+    }
+    membership.membershipStatus = "reinstated";
+    membership.lastReinstatedAt = reinstatedAt;
+    membership.suspendedAt = null;
+    membership.suspendedBy = null;
+    membership.invitationStatus = "accepted";
+    membership.acceptedAt = membership.acceptedAt || reinstatedAt;
     return this;
   };
 
@@ -1299,8 +1442,10 @@ groupSchema.methods.changeMemberRole =
 
     if (
       !membership ||
-      membership.invitationStatus !==
-        "accepted" ||
+      !(membership.membershipStatus === "active" ||
+        membership.membershipStatus === "reinstated" ||
+        (!membership.membershipStatus && membership.invitationStatus === "accepted")) ||
+      membership.membershipStatus === "suspended" ||
       membership.removedAt
     ) {
       throw new Error(

@@ -2213,7 +2213,7 @@ const ChartFilters = memo(
               --titech-filter-surface:
                 var(
                   --titech-surface,
-                  #ffffff
+                  var(--color-white)
                 );
 
               --titech-filter-surface-muted:
@@ -2261,7 +2261,7 @@ const ChartFilters = memo(
               --titech-filter-on-primary:
                 var(
                   --titech-on-primary,
-                  #ffffff
+                  var(--color-white)
                 );
 
               --titech-filter-danger:

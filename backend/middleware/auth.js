@@ -34,6 +34,9 @@
 'use strict';
 
 import { createRequire } from 'node:module';
+import mongoose from 'mongoose';
+import { User } from '../models/User.js';
+import { getPermissionsForRoles, normalizeRole as normalizeCanonicalRole } from '../security/rbacPolicy.js';
 
 const require = createRequire(import.meta.url);
 
@@ -134,12 +137,10 @@ function normalizeId(value) {
 }
 
 function normalizeRole(value) {
-  const normalized =
-    normalizeString(value, null);
-
-  return normalized
-    ? normalized.toLowerCase()
-    : null;
+  const normalized = normalizeCanonicalRole(value);
+  if (normalized) return normalized;
+  const raw = normalizeString(value, null);
+  return raw ? raw.toLowerCase() : null;
 }
 
 function normalizeRoles(values) {
@@ -970,6 +971,55 @@ function normalizeUser(
       normalizeBoolean(
         source.isActive
       ),
+
+    securityVersion:
+      Number(source.securityVersion ?? decoded.securityVersion ?? 1),
+
+    sessionVersion:
+      Number(source.sessionVersion ?? decoded.sessionVersion ?? 1),
+  };
+}
+
+
+async function resolveAuthoritativeIdentity(decodedUser) {
+  if (!decodedUser?.id) return null;
+  if (mongoose.connection?.readyState !== 1) {
+    if (process.env.NODE_ENV === 'test') return decodedUser;
+    const error = new Error('Authentication database is unavailable.');
+    error.code = 'AUTH_IDENTITY_STORE_UNAVAILABLE';
+    throw error;
+  }
+
+  const persisted = await User.findById(decodedUser.id)
+    .select('_id name email role tenantId status isActive isVerified deletedAt security.securityVersion sessionMetrics.sessionVersion')
+    .lean()
+    .exec();
+
+  if (!persisted || persisted.deletedAt) {
+    const error = new Error('Authenticated account no longer exists.');
+    error.code = 'AUTH_ACCOUNT_NOT_FOUND';
+    throw error;
+  }
+  if (persisted.status !== 'active' || persisted.isActive === false) {
+    const error = new Error('Authenticated account is not active.');
+    error.code = 'AUTH_ACCOUNT_INACTIVE';
+    throw error;
+  }
+
+  const canonicalRole = normalizeCanonicalRole(persisted.role) || 'member';
+  return {
+    id: String(persisted._id),
+    _id: String(persisted._id),
+    name: persisted.name || null,
+    email: persisted.email || null,
+    role: canonicalRole,
+    roles: [canonicalRole],
+    permissions: getPermissionsForRoles([canonicalRole]),
+    tenantId: persisted.tenantId ? String(persisted.tenantId) : null,
+    isVerified: persisted.isVerified !== false,
+    isActive: persisted.isActive !== false,
+    securityVersion: Number(persisted.security?.securityVersion || 1),
+    sessionVersion: Number(persisted.sessionMetrics?.sessionVersion || 1),
   };
 }
 
@@ -1083,10 +1133,8 @@ async function authenticateRequest(
         }
       );
 
-    const user =
-      normalizeUser(
-        decoded
-      );
+    const decodedUser = normalizeUser(decoded);
+    const user = await resolveAuthoritativeIdentity(decodedUser);
 
     if (!user) {
       return sendAuthError(
@@ -1203,6 +1251,14 @@ async function authenticateRequest(
       );
     }
 
+    if (error?.code === 'AUTH_ACCOUNT_NOT_FOUND' || error?.code === 'AUTH_ACCOUNT_INACTIVE') {
+      return sendAuthError(res, 401, CODE.AUTH_REQUIRED, 'Authentication is no longer valid.', req);
+    }
+
+    if (error?.code === 'AUTH_IDENTITY_STORE_UNAVAILABLE') {
+      return sendAuthError(res, 503, 'AUTH_IDENTITY_STORE_UNAVAILABLE', 'Authentication service is temporarily unavailable.', req);
+    }
+
     if (
       error?.code ===
       CODE.AUTH_CONFIGURATION_INVALID
@@ -1305,10 +1361,12 @@ async function optionalAuth(
         token
       );
 
-    const user =
-      normalizeUser(
-        decoded
-      );
+    const user = normalizeUser(decoded);
+    if (user) {
+      user.role = normalizeCanonicalRole(user.role) || user.role;
+      user.roles = [user.role];
+      user.permissions = getPermissionsForRoles(user.roles);
+    }
 
     if (!user) {
       return next();

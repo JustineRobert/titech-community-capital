@@ -3,6 +3,7 @@
 import authModule from '../middleware/auth.js';
 import authRoutes from './auth.js';
 import groupRoutes from './groups.js';
+import rbacRoutes from './rbac.js';
 import emailRoutes from './email.js';
 import idempotencyModule from '../middleware/idempotency.js';
 import contributionsControllerModule from '../controllers/contributionsController.js';
@@ -1673,6 +1674,9 @@ function registerRoutes(
         '/api/auth',
         authRoutes,
     );
+
+    app.use('/api/rbac', rbacRoutes);
+    app.use('/api/v1/rbac', rbacRoutes);
 
     app.use(
         '/api/notifications',

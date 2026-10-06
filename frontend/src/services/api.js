@@ -1757,6 +1757,11 @@ export async function login(
   return response;
 }
 
+
+export async function requestEmailVerification(email) {
+  return authApi.post('/api/email/request-verification', { email });
+}
+
 export async function register(
   payload
 ) {

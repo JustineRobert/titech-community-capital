@@ -1,3 +1,4 @@
+import { TITECH_BRAND } from "../../branding/brand";
 import React, {
   useEffect,
   useState
@@ -12,7 +13,7 @@ import BrandLogo from "../../components/BrandLogo";
 
 const STATUS_COLORS = {
   DRAFT: "#6b7280",
-  VERIFICATION: "#0066e8",
+  VERIFICATION: TITECH_BRAND.colors.brightBlue,
   KYC_PENDING: "#f59e0b",
   KYC_APPROVED: "#10b981",
   SUBSCRIPTION: "#8b5cf6",
@@ -31,7 +32,7 @@ const DashboardCard = ({
     style={{
       padding: "20px",
       borderRadius: "12px",
-      background: "#ffffff",
+      background: TITECH_BRAND.colors.white,
       border: "1px solid #e5e7eb",
       borderLeft: `5px solid ${color}`,
       minHeight: "120px"
@@ -227,7 +228,7 @@ const OnboardingDashboard = () => {
           value={
             metrics?.totalSaccos || 0
           }
-          color="#0058d8"
+          color={TITECH_BRAND.colors.electricBlue}
         />
 
         <DashboardCard
@@ -280,7 +281,7 @@ const OnboardingDashboard = () => {
 
       <div
         style={{
-          background: "#ffffff",
+          background: TITECH_BRAND.colors.white,
           border: "1px solid #e5e7eb",
           borderRadius: "12px",
           padding: "20px",
@@ -316,7 +317,7 @@ const OnboardingDashboard = () => {
                   STATUS_COLORS[
                     status
                   ],
-                color: "#ffffff",
+                color: TITECH_BRAND.colors.white,
                 padding: "15px",
                 textAlign:
                   "center",
@@ -394,7 +395,7 @@ const OnboardingDashboard = () => {
 
       <div
         style={{
-          background: "#ffffff",
+          background: TITECH_BRAND.colors.white,
           border: "1px solid #e5e7eb",
           borderRadius: "12px",
           overflow: "hidden"

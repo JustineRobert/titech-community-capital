@@ -1070,7 +1070,7 @@ const FraudAnalyticsTooltip =
               '1px solid var(--titech-border, #e2e8f0)',
             borderRadius: 12,
             background:
-              'var(--titech-surface, #ffffff)',
+              'var(--titech-surface, var(--color-white))',
             color:
               'var(--titech-text-primary, #0f172a)',
             boxShadow:
@@ -2688,7 +2688,7 @@ function getFraudStyles() {
       --titech-fraud-surface:
         var(
           --titech-surface,
-          #ffffff
+          var(--color-white)
         );
 
       --titech-fraud-surface-muted:
@@ -3262,7 +3262,7 @@ function getFraudStyles() {
           --titech-fraud-primary
         );
       color:
-        #ffffff;
+        var(--color-white);
       font: inherit;
       font-size:
         10px;

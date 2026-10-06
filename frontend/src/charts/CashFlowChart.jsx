@@ -600,7 +600,7 @@ const CashFlowTooltipContent = memo(
           borderRadius: 12,
           padding: 14,
           background:
-            'var(--titech-surface, #ffffff)',
+            'var(--titech-surface, var(--color-white))',
           color:
             'var(--titech-text-primary, #0f172a)',
           boxShadow:
@@ -804,7 +804,7 @@ function CashFlowLoadingState({
           borderRadius: 16,
           padding: 20,
           background:
-            'var(--titech-surface, #ffffff)',
+            'var(--titech-surface, var(--color-white))',
         }}
       >
         <div
@@ -948,7 +948,7 @@ function CashFlowErrorState({
               background:
                 'var(--titech-primary, #0f172a)',
               color:
-                'var(--titech-on-primary, #ffffff)',
+                'var(--titech-on-primary, var(--color-white))',
               fontSize: 13,
               fontWeight: 700,
             }}
@@ -991,7 +991,7 @@ function CashFlowEmptyState({
           borderRadius: 16,
           padding: 20,
           background:
-            'var(--titech-surface, #ffffff)',
+            'var(--titech-surface, var(--color-white))',
         }}
       >
         <header
@@ -1317,7 +1317,7 @@ const CashFlowChart = memo(
             borderRadius: 16,
             padding: 20,
             background:
-              'var(--titech-surface, #ffffff)',
+              'var(--titech-surface, var(--color-white))',
             color:
               'var(--titech-text-primary, #0f172a)',
           }}

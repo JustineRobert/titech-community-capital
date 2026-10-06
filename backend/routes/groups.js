@@ -6,7 +6,7 @@ import authMiddleware from "../middleware/auth.js";
 import groupController from "../controllers/groupController.js";
 
 const router = express.Router({ caseSensitive: false, strict: false });
-const { authenticate, requireRole } = authMiddleware;
+const { authenticate, requirePermission } = authMiddleware;
 
 function asyncHandler(handler) {
   return (req, res, next) =>
@@ -130,14 +130,15 @@ router.get(
     })
 );
 
-router.post("/", writeLimiter, asyncHandler(groupController.createGroup));
+router.post('/', writeLimiter, requirePermission('GROUP_CREATE'), asyncHandler(groupController.createGroup));
 router.post(
   "/join/:id",
   writeLimiter,
+  requirePermission('MEMBERSHIP_REQUEST'),
   ...validateGroupId("id"),
   asyncHandler(groupController.joinGroup)
 );
-router.get("/", readLimiter, asyncHandler(groupController.getGroups));
+router.get("/", readLimiter, requirePermission('GROUP_VIEW'), asyncHandler(groupController.getGroups));
 router.get(
   "/:id",
   readLimiter,
@@ -155,6 +156,15 @@ router.delete(
   writeLimiter,
   ...validateGroupId("id"),
   asyncHandler(groupController.leaveGroup)
+);
+
+router.patch(
+  "/:groupId/members/:memberUserId",
+  writeLimiter,
+  ...validateGroupId("groupId"),
+  param("memberUserId").isMongoId(),
+  requirePermission('MEMBERSHIP_VIEW'),
+  asyncHandler(groupController.moderateMembership)
 );
 
 router.use((req, res) =>

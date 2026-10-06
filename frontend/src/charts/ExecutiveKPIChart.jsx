@@ -1019,7 +1019,7 @@ const KPISparklineTooltip =
               '1px solid var(--titech-border, #e2e8f0)',
             borderRadius: 8,
             background:
-              'var(--titech-surface, #ffffff)',
+              'var(--titech-surface, var(--color-white))',
             boxShadow:
               '0 10px 28px rgba(15, 23, 42, 0.12)',
             color:
@@ -2138,7 +2138,7 @@ function getExecutiveKPIStyles() {
       --titech-kpi-surface:
         var(
           --titech-surface,
-          #ffffff
+          var(--color-white)
         );
 
       --titech-kpi-surface-muted:
@@ -2799,7 +2799,7 @@ function getExecutiveKPIStyles() {
           --titech-kpi-primary
         );
       color:
-        #ffffff;
+        var(--color-white);
       font: inherit;
       font-size:
         10px;

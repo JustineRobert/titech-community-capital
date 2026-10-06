@@ -16,6 +16,7 @@ import logger from '../utils/logger.js';
 import { User } from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
 import TenantInvitation from '../models/TenantInvitation.js';
+import { normalizeRole as normalizeCanonicalRole } from '../security/rbacPolicy.js';
 
 const require = createRequire(import.meta.url);
 
@@ -165,13 +166,17 @@ function generateAccessToken(user) {
     id: userId,
     userId,
     tenantId,
-    role: user.role,
+    role: normalizeCanonicalRole(user.role) || 'member',
+    securityVersion: Number(user.security?.securityVersion || 1),
+    sessionVersion: Number(user.sessionMetrics?.sessionVersion || 1),
     user: {
       id: userId,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: normalizeCanonicalRole(user.role) || 'member',
       tenantId,
+      securityVersion: Number(user.security?.securityVersion || 1),
+      sessionVersion: Number(user.sessionMetrics?.sessionVersion || 1),
     },
   };
   const options = {
@@ -339,29 +344,15 @@ async function register(req, res) {
       }
     }
 
-    const accessToken = generateAccessToken(user);
-
-    const { token: refreshToken } =
-      await createRefreshToken(user._id, {
-        ip: req.ip,
-        ua:
-          req.headers?.['user-agent'] ||
-          req.get?.('User-Agent') ||
-          null,
-        ...deviceInfo,
-      });
-
-    setRefreshCookie(res, refreshToken);
-
     return res.status(201).json({
       success: true,
-      message: 'User registered successfully',
-      token: accessToken,
+      message: 'User registered successfully. Verify your email before signing in.',
+      verificationRequired: true,
       user: {
         id: user._id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: normalizeCanonicalRole(user.role) || 'member',
         tenantId: user.tenantId || null,
       },
     });
@@ -504,6 +495,14 @@ async function login(req, res) {
     if (user.status === 'disabled') {
       return res.status(403).json({
         message: 'Account disabled',
+      });
+    }
+
+    if (user.isVerified === false) {
+      return res.status(403).json({
+        success: false,
+        code: 'EMAIL_VERIFICATION_REQUIRED',
+        message: 'Verify your email address before signing in.',
       });
     }
 

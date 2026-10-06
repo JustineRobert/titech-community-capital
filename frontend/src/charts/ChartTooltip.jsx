@@ -1184,7 +1184,7 @@ const ChartTooltip = memo(
                 --titech-tooltip-surface:
                   var(
                     --titech-surface,
-                    #ffffff
+                    var(--color-white)
                   );
 
                 --titech-tooltip-surface-muted:

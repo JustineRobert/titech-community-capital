@@ -1735,7 +1735,7 @@ function getLegendStyles() {
       --titech-legend-surface:
         var(
           --titech-surface,
-          #ffffff
+          var(--color-white)
         );
 
       --titech-legend-surface-muted:

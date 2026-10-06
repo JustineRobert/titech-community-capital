@@ -74,6 +74,7 @@ import socket, {
 import {
   login as apiLogin,
   register as apiRegister,
+  requestEmailVerification,
   logout as apiLogout,
   refreshToken as apiRefreshToken,
   getToken,
@@ -1530,6 +1531,16 @@ export function AuthProvider({
             options
           );
 
+        // Registration remains anonymous until verification. Trigger the
+        // public, enumeration-resistant verification delivery flow.
+        if (typeof requestEmailVerification === 'function' && payload.email) {
+          try {
+            await requestEmailVerification(payload.email);
+          } catch (verificationError) {
+            devLog('warn', '[AUTH] Verification email delivery could not be confirmed', verificationError);
+          }
+        }
+
         if (
           !mountedRef.current ||
           sessionGenerationRef.current !==
@@ -1538,17 +1549,13 @@ export function AuthProvider({
           return null;
         }
 
-        const accessToken =
-          extractAccessToken(
-            response
-          );
+        const accessToken = extractAccessToken(response);
 
-        if (
-          !accessToken
-        ) {
-          throw new Error(
-            "Registration succeeded but no access token was returned."
-          );
+        // Secure registration does not create an authenticated session before
+        // email verification. Preserve the anonymous state intentionally.
+        if (!accessToken) {
+          toast.success("Registration successful. Check your email to verify your account.");
+          return response?.user ? normalizeUser(response) : null;
         }
 
         const profile =
@@ -1608,6 +1615,7 @@ export function AuthProvider({
         connectUserSocket,
         disconnectUserSocket,
         invalidateSession,
+        requestEmailVerification,
         scheduleRefresh,
         synchronizeTenant,
         updateAccessToken,

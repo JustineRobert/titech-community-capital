@@ -954,7 +954,7 @@ const ChartContainer = memo(
           {`
             .titech-chart-container {
               --titech-chart-surface:
-                var(--titech-surface, #ffffff);
+                var(--titech-surface, var(--color-white));
 
               --titech-chart-surface-muted:
                 var(--titech-surface-muted, #f8fafc);
@@ -975,7 +975,7 @@ const ChartContainer = memo(
                 var(--titech-primary, #0f172a);
 
               --titech-chart-on-primary:
-                var(--titech-on-primary, #ffffff);
+                var(--titech-on-primary, var(--color-white));
 
               --titech-chart-danger:
                 var(--titech-danger, #b91c1c);

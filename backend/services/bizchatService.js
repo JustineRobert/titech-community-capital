@@ -1,4 +1,4 @@
-const { roleHasPermission } = require('./rbacService');
+const getRbac = () => import('./rbacService.js');
 const auditService = require('./auditService');
 
 // Simple parser: extracts intent, amount, and target from plain English commands
@@ -27,6 +27,7 @@ async function executeCommand({ text, user }) {
 
   // permission checks
   if (cmd.intent === 'approve_loan') {
+    const { roleHasPermission } = await getRbac();
     const ok = await roleHasPermission(user.role, 'loans:approve');
     if (!ok) throw new Error('Forbidden');
     // call loan service
@@ -37,6 +38,7 @@ async function executeCommand({ text, user }) {
   }
 
   if (cmd.intent === 'send_money') {
+    const { roleHasPermission } = await getRbac();
     const ok = await roleHasPermission(user.role, 'transactions:write');
     if (!ok) throw new Error('Forbidden');
     const transactionService = require('../services/transactionService');

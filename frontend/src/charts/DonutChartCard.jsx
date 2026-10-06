@@ -634,7 +634,7 @@ const DonutTooltip = memo(
             '1px solid var(--titech-border, #e2e8f0)',
           borderRadius: 12,
           background:
-            'var(--titech-surface, #ffffff)',
+            'var(--titech-surface, var(--color-white))',
           color:
             'var(--titech-text-primary, #0f172a)',
           boxShadow:
@@ -1726,7 +1726,7 @@ const DonutChartCard = memo(
                     paddingAngle={
                       paddingAngle
                     }
-                    stroke="var(--titech-surface, #ffffff)"
+                    stroke="var(--titech-surface, var(--color-white))"
                     strokeWidth={
                       2
                     }
@@ -1941,7 +1941,7 @@ const DonutChartCard = memo(
                 --titech-donut-surface:
                   var(
                     --titech-surface,
-                    #ffffff
+                    var(--color-white)
                   );
 
                 --titech-donut-surface-muted:
@@ -2478,7 +2478,7 @@ const DonutChartCard = memo(
                     #0f172a
                   );
                 color:
-                  #ffffff;
+                  var(--color-white);
                 font: inherit;
                 font-size: 10px;
                 font-weight: 800;
