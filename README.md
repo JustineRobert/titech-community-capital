@@ -1509,3 +1509,29 @@ This repository is **not labelled production-approved from source presence alone
 The canonical deployment path is documented in `docs/deployment/TITECH_WEB_MOBILE_HOSTING_IMPLEMENTATION_2026-09-29.md`. Production images use Node.js 24.15.x, the React/Vite PWA is served by Nginx, the API is exposed under `/api/v1`, Socket.IO is same-origin, and TLS is terminated at the production edge. MongoDB and Redis are externalized from the production compose profile so financial state is not tied to a single local datastore.
 
 Run `npm run titech:hosting-gate` before packaging a release.
+
+## Enterprise evidence control — 2026-10-07
+
+**Status: SOURCE-HARDENED / PILOT-HARDENED — NOT PRODUCTION-APPROVED**
+
+Run the master evidence gate with:
+
+```bash
+npm run enterprise:master-gate
+```
+
+Strict release mode (intentionally blocks until external evidence exists):
+
+```bash
+npm run enterprise:master-gate:strict
+```
+
+Authoritative readiness artifacts:
+
+- `TITECH_MASTER_IMPLEMENTATION_REPORT_2026-10-07.md`
+- `TITECH_NOT_YET_PROVEN_2026-10-07.md`
+- `docs/evidence/production-readiness-matrix.csv`
+- `docs/regulatory/regulatory-boundary-memo.md`
+- `reports/titech-enterprise-master-gate.json`
+
+The repository does not treat source-level checks, mocked tests, provider adapters, or documentation as proof of live financial operations. External provider, infrastructure, security, regulatory, pilot and commercial evidence remain separate release gates.

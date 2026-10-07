@@ -1,0 +1,37 @@
+gate,capability,current_state,evidence_level,evidence_location,owner,risk,blocking,next_requirement,status
+0,Repository integrity,PASS,STATIC,TITECH_PLATFORM_TRUTH.md; docs/evidence/01-repository-baseline.md,Engineering,MEDIUM,NO,Continue legacy debt consolidation without touching critical path,PASS
+0,Critical financial imports,PASS,STATIC,reports/runtime-import-audit.json,Engineering,HIGH,NO,Maintain zero missing canonical imports,PASS
+0,Legacy import debt,WARN,STATIC,reports/runtime-import-audit.json; docs/evidence/legacy-runtime-debt-2026-10-05.md,Engineering,HIGH,NO,"Consolidate by authority map, not bulk rewrite",WARN
+0,Zero-byte inventory,WARN,STATIC,reports/architecture-debt-audit.json; docs/evidence/zero-byte-classification-2026-10-04.md,Engineering,MEDIUM,NO,Disposition in controlled backlog,WARN
+1,Target runtime,NOT_VERIFIED,RUNTIME,Local environment reports Node 22.16.0 / npm 10.9.2,DevOps,HIGH,YES,Execute clean on target runtime,NOT_VERIFIED
+1,Dependency installation,NOT_VERIFIED,RUNTIME,npm test/build blocked by missing node_modules in current environment,DevOps,HIGH,YES,Run npm ci under Node 24.15.x,NOT_VERIFIED
+1,Backend build,PASS,STATIC,npm backend build script + source gates,Engineering,MEDIUM,NO,Re-run after dependency install,PASS
+1,Frontend build artifact,NOT_VERIFIED,RUNTIME,Current `npm run build` blocked: vite not installed,Frontend,HIGH,YES,Build exact artifact and retain hash,NOT_VERIFIED
+1,Browser E2E,NOT_VERIFIED,E2E,docs/enterprise/e2e-strategy.md,QA,HIGH,YES,Run against built artifact,NOT_VERIFIED
+2,Golden Money Path,PASS,STATIC,reports/evidence/golden-money-path-proof.json; docs/evidence/06-golden-path-test-report.md,Financial Engineering,HIGH,NO,Add runtime dependency-backed evidence,PASS
+2,Double-entry invariant,PASS,UNIT/SOURCE,tests/unit/enterprise-financial-invariants.node.test.mjs,Financial Engineering,CRITICAL,NO,Run with full dependency stack,PASS
+2,Balance reconstruction,PASS,UNIT/SOURCE,tests/unit/enterprise-financial-invariants.node.test.mjs,Financial Engineering,CRITICAL,NO,Prove with persistent ledger integration,PASS
+2,Duplicate/replay safety,NOT_VERIFIED,INTEGRATION,docs/enterprise/financial-invariant-specification.md,Financial Engineering,CRITICAL,YES,MongoDB/Redis concurrency proof,NOT_VERIFIED
+2,Reversal/refund,NOT_VERIFIED,INTEGRATION,docs/enterprise/financial-invariant-specification.md,Financial Engineering,CRITICAL,YES,Runtime transaction + audit proof,NOT_VERIFIED
+3,MTN sandbox,NOT_VERIFIED,PROVIDER,docs/evidence/10-mtn-sandbox-proof.md; docs/enterprise/provider-contract-mtn.md,Provider Engineering,CRITICAL,YES,Execute controlled MTN sandbox transaction,NOT_VERIFIED
+3,Provider callback authenticity,PASS,SOURCE,docs/evidence/14-sast-report.md; source contract gate,Security,CRITICAL,NO,Prove in provider sandbox,PASS
+3,Provider production,NOT_VERIFIED,PROVIDER,docs/evidence/11-mtn-production-proof.md,Provider Engineering,CRITICAL,YES,Only after legal/partner approvals,NOT_VERIFIED
+4,Reconciliation matching,NOT_VERIFIED,RUNTIME,docs/enterprise/reconciliation-control-model.md,Financial Ops,CRITICAL,YES,Execute populated settlement window,NOT_VERIFIED
+4,Exception handling,PASS,SOURCE,docs/runbooks/reconciliation-exception-runbook.md,Financial Ops,HIGH,NO,Prove on real pilot exceptions,PASS
+5,Authentication/RBAC,PASS,SOURCE,docs/evidence/tenant-isolation-proof.md; RBAC validation artifacts,Security,CRITICAL,NO,Complete runtime/E2E authorization tests,PASS
+5,Secrets/logging,PASS,STATIC,security static gates + source audit,Security,HIGH,NO,Run live secret/DAST scans,PASS
+5,Independent security assessment,NOT_VERIFIED,EXTERNAL,docs/evidence/13-security-assessment.md,Security,CRITICAL,YES,Independent assessment required,NOT_VERIFIED
+5,Data protection,EXTERNAL_REQUIRED,LEGAL,docs/regulatory/data-processing-and-controller-processor-matrix.md,Privacy/Legal,CRITICAL,YES,Qualified Ugandan legal/privacy review,EXTERNAL_REQUIRED
+6,Regulatory boundary,EXTERNAL_REQUIRED,LEGAL,docs/regulatory/regulatory-boundary-memo.md,Legal/Compliance,CRITICAL,YES,Counsel + partner review,EXTERNAL_REQUIRED
+6,Regulatory monitoring,PASS,PROCESS,docs/regulatory/regulatory-change-monitoring.md,Compliance,MEDIUM,NO,Run monthly and pre-release,PASS
+6,Pilot regulatory checklist,PASS,PROCESS,docs/regulatory/pilot-regulatory-control-checklist.md,Compliance,HIGH,NO,Complete per pilot,PASS
+7,Pilot 01,NOT_VERIFIED,PILOT,docs/evidence/25-pilot-01-evidence.md,Commercial,CRITICAL,YES,Live pilot + acceptance,NOT_VERIFIED
+7,Pilot 02,NOT_VERIFIED,PILOT,docs/evidence/26-pilot-02-evidence.md,Commercial,HIGH,YES,Live pilot + acceptance,NOT_VERIFIED
+7,Pilot 03,NOT_VERIFIED,PILOT,docs/evidence/27-pilot-03-evidence.md,Commercial,HIGH,YES,Live pilot + acceptance,NOT_VERIFIED
+7,Pilot ROI,NOT_VERIFIED,PILOT,docs/commercial/roi-measurement-template.md,Commercial,CRITICAL,YES,Measured customer ROI,NOT_VERIFIED
+8,Paid customer,NOT_VERIFIED,COMMERCIAL,docs/evidence/28-first-paying-customer.md,Commercial,CRITICAL,YES,Invoice/payment evidence,NOT_VERIFIED
+8,Renewal/retention,NOT_VERIFIED,COMMERCIAL,docs/investor/evidence-room-index.md,Commercial,HIGH,YES,Renewal or paid continuation,NOT_VERIFIED
+8,Deployment repeatability,NOT_VERIFIED,OPERATIONAL,docs/ops/deployment-runbook.md,Operations,HIGH,YES,Run 2+ measured deployments,NOT_VERIFIED
+8,Backup/restore,NOT_VERIFIED,RECOVERY,docs/ops/backup-restore-runbook.md; docs/evidence/18-backup-restore-drill.md,SRE,CRITICAL,YES,Execute real restore and financial validation,NOT_VERIFIED
+8,Rollback,NOT_VERIFIED,RECOVERY,docs/ops/rollback-runbook.md; docs/evidence/21-rollback-proof.md,SRE,HIGH,YES,Execute real rollback,NOT_VERIFIED
+8,Production approval,BLOCKED,APPROVAL,scripts/production-approval-gate.mjs; reports/titech-enterprise-master-gate.json,Release Owner,CRITICAL,YES,All blocking evidence must be PASS and approval recorded,BLOCKED

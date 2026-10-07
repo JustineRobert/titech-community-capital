@@ -479,74 +479,10 @@ class LedgerEngine {
     }
 
     /**
-     * =========================================================
-     * Public API Skeleton
-     * =========================================================
+     * Public ledger API implementations are defined below, after the transaction
+     * infrastructure helpers. Keeping one implementation per method prevents
+     * accidental shadowing by an earlier placeholder declaration.
      */
-
-    async post() {
-
-        throw new LedgerEngineError(
-            'NOT_IMPLEMENTED',
-            'post() will be implemented in Milestone 1.1 Part 2.'
-        );
-    }
-
-    async preview() {
-
-        throw new LedgerEngineError(
-            'NOT_IMPLEMENTED',
-            'preview() will be implemented in Milestone 1.1 Part 2.'
-        );
-    }
-
-    async validate() {
-
-        throw new LedgerEngineError(
-            'NOT_IMPLEMENTED',
-            'validate() will be implemented in Milestone 1.1 Part 2.'
-        );
-    }
-
-    async reverse() {
-
-        throw new LedgerEngineError(
-            'NOT_IMPLEMENTED',
-            'reverse() will be implemented in Milestone 1.2.'
-        );
-    }
-
-    async replay() {
-
-        throw new LedgerEngineError(
-            'NOT_IMPLEMENTED',
-            'replay() will be implemented in Milestone 1.2.'
-        );
-    }
-
-    async verify() {
-
-        throw new LedgerEngineError(
-            'NOT_IMPLEMENTED',
-            'verify() will be implemented in Milestone 1.3.'
-        );
-    }
-
-    async rebuild() {
-
-        throw new LedgerEngineError(
-            'NOT_IMPLEMENTED',
-            'rebuild() will be implemented in Milestone 1.3.'
-        );
-    }
-
-    async closePeriod() {
-
-        throw new LedgerEngineError(
-            'NOT_IMPLEMENTED',
-            'closePeriod() will be implemented in Milestone 1.5.'
-        );
-    }
 
     /**
  * =========================================================
