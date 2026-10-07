@@ -58,7 +58,7 @@
     "build": "npm run build:frontend",
     "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
-    "check": "npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run rbac:gate && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check",
     "check:all": "npm run check && npm run test",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs",
@@ -141,7 +141,9 @@
     "verify:auth": "node scripts/verify-auth-contract.mjs",
     "verify:api": "node scripts/verify-api-contract.mjs",
     "verify:deployment": "node scripts/verify-deployment-contract.mjs",
-    "verify:production": "node scripts/verify-production-contract.mjs"
+    "verify:production": "node scripts/verify-production-contract.mjs",
+    "audit:frontend-runtime": "node scripts/frontend-runtime-audit.mjs",
+    "test:frontend-runtime": "node --test scripts/frontend-runtime-audit.test.mjs"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

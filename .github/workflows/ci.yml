@@ -46,6 +46,9 @@ jobs:
             backend/package-lock.json
             frontend/package-lock.json
 
+      - name: Frontend runtime ownership/configuration audit
+        run: npm run audit:frontend-runtime
+
       - name: Install dependencies (root + workspaces)
         run: |
           npm ci --include=dev
@@ -87,6 +90,9 @@ jobs:
           name: release-readiness
           path: reports/release-readiness.json
           retention-days: 14
+
+      - name: Frontend runtime regression tests
+        run: npm run test:frontend-runtime
 
       - name: Exact-money unit tests (sanity)
         run: node --test backend/tests/unit/financial/money.test.js

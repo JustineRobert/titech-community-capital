@@ -549,6 +549,16 @@ export default defineConfig(
        */
 
       resolve: {
+        /**
+         * Force one React identity across application and dependency graph.
+         * This prevents multiple React copies from creating invalid hook/runtime
+         * boundaries and removes an entire class of misleading browser errors.
+         */
+        dedupe: [
+          "react",
+          "react-dom",
+        ],
+
         alias: {
           "@": SRC_DIR,
 

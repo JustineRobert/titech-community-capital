@@ -7,6 +7,17 @@
 
 ---
 
+## ⚠️ Current Evidence-Backed Status — 2026-10-06
+
+The current engineering truth is maintained in `TITECH_PLATFORM_TRUTH.md`. The historical "production ready" labels in older documentation are not approval of the current release. Use these new evidence documents for the latest runtime, market, strategy and production-readiness position:
+
+- [Frontend Runtime Remediation](./evidence/TITECH_FRONTEND_RUNTIME_REMEDIATION_2026-10-06.md)
+- [Final Execution & Production-Readiness Report](./evidence/TITECH_FINAL_EXECUTION_REPORT_2026-10-06.md)
+- [Market & Breakthrough Assessment](./market-analysis/TITECH_MARKET_AND_BREAKTHROUGH_ASSESSMENT_2026-10-06.md)
+- [Five-Year Dominance Plan](./strategy/TITECH_5_YEAR_DOMINANCE_PLAN_2026-2031.md)
+- [Partner & Investor Map](./strategy/TITECH_PARTNER_INVESTOR_MAP_2026-10-06.md)
+- [90-Day Breakthrough Plan](./strategy/TITECH_90_DAY_BREAKTHROUGH_PLAN_2026-2027.md)
+
 ## 🎯 Start Here
 
 Choose your journey based on your role:
