@@ -1,6 +1,10 @@
 'use strict';
 
 import { createRequire } from 'node:module';
+import hooksModule from './hooks.js';
+import * as readinessModuleNamespace from './readinessState.js';
+import * as observabilityModuleNamespace from './observability.js';
+import loggerModuleNamespace from '../utils/logger.js';
 
 const require = createRequire(import.meta.url);
 
@@ -86,10 +90,7 @@ const require = createRequire(import.meta.url);
  * =============================================================================
  */
 
-const {
-  hooks,
-  lifecycle,
-} = require('./hooks');
+const { hooks, lifecycle } = hooksModule;
 
 /**
  * =============================================================================
@@ -97,45 +98,9 @@ const {
  * =============================================================================
  */
 
-let readinessModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  readinessModule = require('./readinessState');
-} catch {
-  readinessModule = null;
-}
-
-let observabilityModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  observabilityModule = require('./observability');
-} catch {
-  observabilityModule = null;
-}
-
-let loggerModule = null;
-
-try {
-  /**
-   * Prefer the canonical application logger.
-   *
-   * Compatibility is intentionally maintained with both:
-   *
-   *   backend/utils/logger
-   *   backend/bootstrap/logger
-   */
-  try {
-    // eslint-disable-next-line global-require
-    loggerModule = require('../utils/logger');
-  } catch {
-    // eslint-disable-next-line global-require
-    loggerModule = require('./logger');
-  }
-} catch {
-  loggerModule = null;
-}
+const readinessModule = readinessModuleNamespace;
+const observabilityModule = observabilityModuleNamespace;
+const loggerModule = loggerModuleNamespace;
 
 /**
  * =============================================================================

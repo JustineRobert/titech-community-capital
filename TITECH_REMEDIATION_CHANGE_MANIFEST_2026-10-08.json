@@ -1,0 +1,543 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "TITech Community Capital",
+  "date": "2026-10-08",
+  "repository": "https://github.com/JustineRobert/titech-community-capital",
+  "baselineArchive": "titech-community-capital-main(1).zip",
+  "deliveryArchive": "titech-community-capital-enterprise-auth-readiness-theme-remediated-2026-10-08.zip",
+  "counts": {
+    "baselineFiles": 3166,
+    "finalFiles": 3190,
+    "added": 29,
+    "deleted": 5,
+    "modified": 26
+  },
+  "addedFiles": [
+    {
+      "path": "TITECH_ENTERPRISE_REMEDIATION_RELEASE_2026-10-08.md",
+      "category": "Documentation / traceability",
+      "bytes": 2443,
+      "sha256": "f990d8d1de36ad567b6b22d3523fcd13b87b2b74e0b78b78c9aaaff4520cbbb2"
+    },
+    {
+      "path": "TITECH_REMEDIATION_CHANGE_MANIFEST_2026-10-08.json",
+      "category": "Other",
+      "bytes": 20954,
+      "sha256": null,
+      "selfManaged": true
+    },
+    {
+      "path": "TITECH_REMEDIATION_FILE_CHANGE_INDEX_2026-10-08.csv",
+      "category": "Other",
+      "bytes": 10382,
+      "sha256": "0ed3e56fb9586563afa79e4316b841a91ecc87278f9ee176d0ff82cd6da3332a"
+    },
+    {
+      "path": "backend/.env.production.example",
+      "category": "Other",
+      "bytes": 3553,
+      "sha256": "3b25b4e223c5818aa8f12dcc1b146f093604781aa062b890fdf2bd02ffa2dc44"
+    },
+    {
+      "path": "backend/bootstrap/database.cjs",
+      "category": "Bootstrap / readiness / configuration",
+      "bytes": 49961,
+      "sha256": "1fb76f5807b46c791055af42c5a9d45904dc495352ca14774e66e695c70b3b3a"
+    },
+    {
+      "path": "backend/config/db.cjs",
+      "category": "Bootstrap / readiness / configuration",
+      "bytes": 76027,
+      "sha256": "2669894af084461f92e3872c725c5f569fc84710a012bab0d96b9ec838aaef4a"
+    },
+    {
+      "path": "backend/config/redis.cjs",
+      "category": "Bootstrap / readiness / configuration",
+      "bytes": 69140,
+      "sha256": "41e1255243809fbdd5199e0259e3e613b23ef9a8dd89813dd0c941070b512114"
+    },
+    {
+      "path": "branding/official/TITech_Official_Logo_Transparent_Provided_2026-10-08.png",
+      "category": "Official TITech branding",
+      "bytes": 1266271,
+      "sha256": "f3736df3e46aca7941e71cd8d7cacd87fe7aceb79620d38c181c8ebce528dce5"
+    },
+    {
+      "path": "docs/API_READINESS_CONTRACT.md",
+      "category": "Documentation / traceability",
+      "bytes": 1996,
+      "sha256": "722654e599d5e2e4b4c7d5d621330364024b6d87c2ed345be899a22a3b782689"
+    },
+    {
+      "path": "docs/AUTHENTICATION_RUNTIME_FLOW.md",
+      "category": "Documentation / traceability",
+      "bytes": 1958,
+      "sha256": "ebe3e215c69b0b641df2227429a8400de40ca9998158ed7552719bcdb341867c"
+    },
+    {
+      "path": "docs/AUTH_FAILURE_MATRIX.md",
+      "category": "Documentation / traceability",
+      "bytes": 1402,
+      "sha256": "8d351338a81d1bc34289c18a503f265d33ecf28d7c21f3d1f7739ce63b5a53a9"
+    },
+    {
+      "path": "docs/AUTH_PRODUCTION_READINESS.md",
+      "category": "Documentation / traceability",
+      "bytes": 2433,
+      "sha256": "281c7560853789f765f630fceebccd18b50cb798ce583ce05c750ae3f5c3b0cb"
+    },
+    {
+      "path": "docs/LOGIN_AUTH_REMEDIATION.md",
+      "category": "Documentation / traceability",
+      "bytes": 6802,
+      "sha256": "edbbfc4ba7a9ab3a271896e820aa14dc87a4d53e8f6a58704b955da3ef5a9b5b"
+    },
+    {
+      "path": "docs/REMEDIATION_VERIFICATION_2026-10-08.md",
+      "category": "Documentation / traceability",
+      "bytes": 2086,
+      "sha256": "f9e88233a7684146b6b479f0eb17c7eb6cabd3696cd25760349fa00ff9d5cd25"
+    },
+    {
+      "path": "docs/TITECH_REMEDIATION_CHANGE_DISCOVERY_2026-10-08.md",
+      "category": "Documentation / traceability",
+      "bytes": 9206,
+      "sha256": "dad4a39f5422487af14fac815fa6cffb921a4d47493a6c4d7921ece65f4ca543"
+    },
+    {
+      "path": "frontend/.env.production.example",
+      "category": "Frontend runtime / production configuration",
+      "bytes": 585,
+      "sha256": "0a7d9a87e57987e5242c91fa3097430d8b1c996a88850bc8f56973e71ba2c5b3"
+    },
+    {
+      "path": "reports/REMEDIATION_EXECUTION_SUMMARY_2026-10-08.json",
+      "category": "Generated evidence",
+      "bytes": 1521,
+      "sha256": "a39977b679c90b4a15d40c34eadecdd7550e41b10cd2c4cba3e4b350975bed63"
+    },
+    {
+      "path": "reports/evidence/golden-money-path-proof.json",
+      "category": "Generated evidence",
+      "bytes": 1315,
+      "sha256": "02c0b0d206deb769d91ee58f941e7a3eda89a1d8649c511fb92bec9f5b6c7745"
+    },
+    {
+      "path": "reports/frontend-runtime-audit.json",
+      "category": "Generated evidence",
+      "bytes": 3267,
+      "sha256": "1bbefeaddc2328aef5dc996c2d4db6ef02723f15e34477c333acf435c17b391f"
+    },
+    {
+      "path": "reports/official-theme-audit.json",
+      "category": "Generated evidence",
+      "bytes": 4302,
+      "sha256": "06ed4354bfc6b96ec00f9f5aa60bb6d6f1c3ddfa7b82e1b1e04890afd555a338"
+    },
+    {
+      "path": "reports/rbac-security-gate.json",
+      "category": "Generated evidence",
+      "bytes": 2100,
+      "sha256": "a5098d30211a6bc9ee23e5874f3e01122b2ab0326c2a4548e5279ecdff96c22e"
+    },
+    {
+      "path": "reports/repository-completeness.json",
+      "category": "Generated evidence",
+      "bytes": 137421,
+      "sha256": "155bc34e7987b5557b1c6fb67e296ee873d44f35f59a3e21b47b8cd64dcef899"
+    },
+    {
+      "path": "reports/repository-sha256.json",
+      "category": "Generated evidence",
+      "bytes": 386387,
+      "sha256": "622f89ddb5baa10630752a3575d98f303b6c64ec43675e14879adc92af754638"
+    },
+    {
+      "path": "reports/runtime-import-audit.json",
+      "category": "Generated evidence",
+      "bytes": 33240,
+      "sha256": "8b86e6a233fd68b3d835d5b26374b191fcb5724d4e65a555138a6d8600f67bcb"
+    },
+    {
+      "path": "reports/security-static-gate.json",
+      "category": "Generated evidence",
+      "bytes": 367,
+      "sha256": "79c99598296cf95531c5b0ea5f830386c00265d4d2e288ea6992daaefcf612ad"
+    },
+    {
+      "path": "reports/startup-contract.json",
+      "category": "Generated evidence",
+      "bytes": 403,
+      "sha256": "d8caf88cf0efad854fb8e7d55b5a82d73b75ba83e1e2ab2d005859b4e5d76ed8"
+    },
+    {
+      "path": "reports/titech-enterprise-master-gate.json",
+      "category": "Generated evidence",
+      "bytes": 9389,
+      "sha256": "e05430a53e69a9f43528f309553174fc34fa2b7354a1facd90771bc782b8aefb"
+    },
+    {
+      "path": "reports/titech-enterprise-remediation-gate.json",
+      "category": "Generated evidence",
+      "bytes": 2485,
+      "sha256": "16515d811af839221300a9f42ad52f8bb3b4b27330b93625c71cc467382e9ddb"
+    },
+    {
+      "path": "scripts/verify-login-readiness-remediation.mjs",
+      "category": "Verification / release gates",
+      "bytes": 6607,
+      "sha256": "d5af84380127070baac26e896511b3ef3573aa8dc64e66ee837a13c6dcdea801"
+    }
+  ],
+  "deletedFiles": [
+    {
+      "path": "backend/PRODUCTION_IMPLEMENTATION_v2.js",
+      "category": "Other",
+      "bytes": 19086,
+      "sha256": "0351cc7fb1c8e66cfaa6a161e604c38e07e908208659983d36a0abfa7999a377"
+    },
+    {
+      "path": "backend/app.cjs",
+      "category": "Other",
+      "bytes": 25307,
+      "sha256": "691375dfce64eb4bf8b87ce3b8db8f781f8e8a068a81d77c4ee382eb644f13b1"
+    },
+    {
+      "path": "backend/bootstrap/database.js",
+      "category": "Bootstrap / readiness / configuration",
+      "bytes": 49959,
+      "sha256": "4169d7beaf13150987c6d2bc1c04647255b9c14a4c83fb56282c1304cdce5012"
+    },
+    {
+      "path": "backend/config/db.js",
+      "category": "Bootstrap / readiness / configuration",
+      "bytes": 76027,
+      "sha256": "2669894af084461f92e3872c725c5f569fc84710a012bab0d96b9ec838aaef4a"
+    },
+    {
+      "path": "backend/config/redis.js",
+      "category": "Bootstrap / readiness / configuration",
+      "bytes": 69140,
+      "sha256": "41e1255243809fbdd5199e0259e3e613b23ef9a8dd89813dd0c941070b512114"
+    }
+  ],
+  "modifiedFiles": [
+    {
+      "path": "backend/bootstrap/ApplicationBootstrap.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 93871,
+      "updatedBytes": 95127,
+      "baselineSha256": "ad3a8830ac5ae9f14959f2b262656b056c41140a485e459831190c4141b28b9c",
+      "updatedSha256": "03840f3b8916732ea7cc228253df067975265aeda985151b739d9c0c1315f3aa",
+      "diffAdditions": 36,
+      "diffDeletions": 0
+    },
+    {
+      "path": "backend/bootstrap/infrastructure.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 69598,
+      "updatedBytes": 69606,
+      "baselineSha256": "045ad82ead963f47f4c7e24753d31f4de4ccf8a1fb9ec5939ab0eeb0ceb5b04c",
+      "updatedSha256": "3dcbafb15d1d6a44b959192afcdc778475112744a4a82de20b870ed1e7deb3f3",
+      "diffAdditions": 2,
+      "diffDeletions": 2
+    },
+    {
+      "path": "backend/bootstrap/infrastructure/index.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 40977,
+      "updatedBytes": 43995,
+      "baselineSha256": "34fa18e6d59cf3e196f659e0ba4f1a9bfd2f7b71d734144d6f5464f6544eba1e",
+      "updatedSha256": "305a8375b9f0f83564f0f29e62a9abf835f397b4b61d74a235da7c75762b2d06",
+      "diffAdditions": 115,
+      "diffDeletions": 11
+    },
+    {
+      "path": "backend/bootstrap/middleware.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 34980,
+      "updatedBytes": 34974,
+      "baselineSha256": "75aa8bb8f6f2953fc9a46559b655c95425fcf0dd33767ca85680b7752e3aeb2f",
+      "updatedSha256": "8edbfdf31f8a781dfbcd166625705944e447e84815e081eadc5e2ec630a2fbc9",
+      "diffAdditions": 3,
+      "diffDeletions": 4
+    },
+    {
+      "path": "backend/bootstrap/server.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 66500,
+      "updatedBytes": 64535,
+      "baselineSha256": "bf1d6b37216a6cc63be9448ae3f47f142c72c2273434119122d884ab9a44c3c2",
+      "updatedSha256": "e74c4c06161896694a40db5edad0be4d5cd59f24135e72718d274641c32f1f13",
+      "diffAdditions": 44,
+      "diffDeletions": 205
+    },
+    {
+      "path": "backend/bootstrap/services.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 90351,
+      "updatedBytes": 89913,
+      "baselineSha256": "e578bd74625225e6f672238c025bfc5a7e4c640141b4a0f6a7cee572dc15214f",
+      "updatedSha256": "37776fe737fec39a367552e97ee865c003ff5fe50832412acf6274fa6e1b1596",
+      "diffAdditions": 8,
+      "diffDeletions": 43
+    },
+    {
+      "path": "backend/config/auth.config.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 960,
+      "updatedBytes": 1064,
+      "baselineSha256": "7258dd80a7fa58e247bd1d3a409711ea039e0472ca224619d95642e1e10f4862",
+      "updatedSha256": "8466eefa29a7411dfd5197345c187f3a888e11868d9683a219a693e88d1e6a8d",
+      "diffAdditions": 5,
+      "diffDeletions": 2
+    },
+    {
+      "path": "backend/controllers/authController.js",
+      "category": "Authentication / authorization",
+      "baselineBytes": 30724,
+      "updatedBytes": 31915,
+      "baselineSha256": "3fa78e6fed83d430b1e8e7e42bc45d3d030d0b045513ce5887fce9c788af42cc",
+      "updatedSha256": "da10ab84475cc0939f56b8e66d656815ef66ccc750b02a07fe7f70740ab7cf1d",
+      "diffAdditions": 39,
+      "diffDeletions": 1
+    },
+    {
+      "path": "backend/middleware/auth.js",
+      "category": "Authentication / authorization",
+      "baselineBytes": 41310,
+      "updatedBytes": 41384,
+      "baselineSha256": "e2571c441cd7d26641f71acb1e2a3b48b4f85ccc916a45996cb86ee36e127538",
+      "updatedSha256": "647ebb8691bbdacc6490c57ed8c395ae74a4bfffe0bf36f2785add07c763d6ff",
+      "diffAdditions": 2,
+      "diffDeletions": 0
+    },
+    {
+      "path": "backend/routes/index.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 42088,
+      "updatedBytes": 43470,
+      "baselineSha256": "826af1fa4c7256e01a38e5ebdb9b01f6daba22f787a84065aedd19d4631e4fc3",
+      "updatedSha256": "c19575709798e15c58b9f9128de7f43840f3db3c7a6369c1ca3775d4fe72b7fe",
+      "diffAdditions": 54,
+      "diffDeletions": 42
+    },
+    {
+      "path": "backend/routes/index.test.js",
+      "category": "Bootstrap / readiness / configuration",
+      "baselineBytes": 83544,
+      "updatedBytes": 83166,
+      "baselineSha256": "6a69a994af040649cd5757ed72a47fb5f754f480b7c5056d5c27718a731f105f",
+      "updatedSha256": "9670916b34957de5eded8015008df458f38fd843367467f0472f5cd9c1e2dcdc",
+      "diffAdditions": 8,
+      "diffDeletions": 23
+    },
+    {
+      "path": "backend/scripts/seed-admin.js",
+      "category": "Compatibility / canonical path references",
+      "baselineBytes": 2706,
+      "updatedBytes": 2710,
+      "baselineSha256": "6a14a4f077aef2620710957cb1e87fed5ebc647107e1e90e5f97124096a60d43",
+      "updatedSha256": "bdbcd3491f5232f06f08cc809953791cf97ea9e4159a307575ace13b2f3166b0",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "backend/scripts/seed-group.js",
+      "category": "Compatibility / canonical path references",
+      "baselineBytes": 4235,
+      "updatedBytes": 4239,
+      "baselineSha256": "2885a3fbf0b9e41da65efc699484a85e7077bbc7410eac5b8957d35235e1d64a",
+      "updatedSha256": "2ea3ae9004ce0fd0789c67aadd2e87db3189ef592ca40b716a6330ecebabb4e4",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "backend/services/airtel/auth.js",
+      "category": "Compatibility / canonical path references",
+      "baselineBytes": 12239,
+      "updatedBytes": 12243,
+      "baselineSha256": "54745057e65f151091d7cc5142dfa80ce6804e432ec59224b532a9b26278d4db",
+      "updatedSha256": "db08886a1619a7a4561f549a497d6bd8e26bee7718191154b98b83eb4e499307",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "backend/services/airtel/reconciliation.js",
+      "category": "Compatibility / canonical path references",
+      "baselineBytes": 14849,
+      "updatedBytes": 14853,
+      "baselineSha256": "4ce7c22ba82c0f135815fb1332e68c7b8337d17ed171c0dc68ea50b0b3ebb28a",
+      "updatedSha256": "7a3643f0734426617f58152f8f31467b53df52817ee61a867cf747bbf6562f6b",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "backend/services/airtel/webhooks.js",
+      "category": "Compatibility / canonical path references",
+      "baselineBytes": 12730,
+      "updatedBytes": 12734,
+      "baselineSha256": "a1afa58f54391304c2332b78b3f0ba1e8dea9b3903fb021671d28062db2ae965",
+      "updatedSha256": "1f44f6e4723c1f70610a91b132b949626dd4ccec950e28c008a6ed3dc3e41f15",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "backend/services/authService.js",
+      "category": "Authentication / authorization",
+      "baselineBytes": 12945,
+      "updatedBytes": 12980,
+      "baselineSha256": "f2ed9572b260b7357d6b7196b1c84177c6c58aaad45ecd36a0bdf17865cb7fb8",
+      "updatedSha256": "d11d40fcbda9ddc52661e67aa6060d8a66bd371354677eb0377df212f3b4ac09",
+      "diffAdditions": 1,
+      "diffDeletions": 0
+    },
+    {
+      "path": "backend/services/redis.cjs",
+      "category": "Compatibility / canonical path references",
+      "baselineBytes": 13433,
+      "updatedBytes": 13904,
+      "baselineSha256": "8ed2ff4c661db809c8a07b6b6f2b991c3bf2195643716b0e5cf13dc59e58fe0b",
+      "updatedSha256": "232e28989e5d06c1363ebf4875e217667771cf6d94075ce4d60dd18f911e61ce",
+      "diffAdditions": 21,
+      "diffDeletions": 0
+    },
+    {
+      "path": "backend/services/ussdSessionService.js",
+      "category": "Compatibility / canonical path references",
+      "baselineBytes": 10857,
+      "updatedBytes": 10861,
+      "baselineSha256": "8e3eb6b72ec079d22776c885a5b70373161cd706d78c7a7ebd3596fc74764749",
+      "updatedSha256": "bcd21be6e0ec84fd611f71eb13c81e42728475e3b8dda09db9be257ef02b131d",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "backend/src/infrastructure/monitoring/health.controller.js",
+      "category": "Compatibility / canonical path references",
+      "baselineBytes": 8333,
+      "updatedBytes": 8337,
+      "baselineSha256": "22af42c3f00d7abe243657d2e1548c5cee86a4dccdb34f7b614a09ce05971fc1",
+      "updatedSha256": "2499de5a1fecc12bbfd3587bbbb5fbaf029abf32fdb5c9839e123c4bc0394f04",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "docs/CHANGESET_FILE_INDEX_2026-09-21.csv",
+      "category": "Documentation / traceability",
+      "baselineBytes": 515647,
+      "updatedBytes": 515648,
+      "baselineSha256": "63bb66b6b183de6edbcea261e129b73e0eeb8f7187500ec3153c8cd2672a9284",
+      "updatedSha256": "4bcdc6f569c82f0eba0b8c533b9518daef30e0e9dd6bdeff4f616a18c40311e9",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "docs/TITECH_REMEDIATION_GATE_2026-09-27.json",
+      "category": "Documentation / traceability",
+      "baselineBytes": 82149,
+      "updatedBytes": 82150,
+      "baselineSha256": "d3cdc2ee09a16c0bf4ea756c634c944bb464209d081679d0b67c756986414980",
+      "updatedSha256": "0672d3776ec37975c80e0c323a59058d07a7b92fb2c817c3b4d344403bdf778f",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "docs/evidence/2026-10-07-source-tree-snapshot.json",
+      "category": "Documentation / traceability",
+      "baselineBytes": 592619,
+      "updatedBytes": 592620,
+      "baselineSha256": "cafa2de547995eac48976537d37e4aa9ec39a1dd1cb78e4e104cfde9b4776e70",
+      "updatedSha256": "5bc11488916a169094c0b14d62460cbc3cbc54caec8858050ccbc241676ece83",
+      "diffAdditions": 1,
+      "diffDeletions": 1
+    },
+    {
+      "path": "package.json",
+      "category": "Tooling / release scripts",
+      "baselineBytes": 8020,
+      "updatedBytes": 8105,
+      "baselineSha256": "22df2d9d6e2c30afe3a91a3054bb9646e52a52c083681b4820006f66d0e06bc6",
+      "updatedSha256": "82c4a4525228026d11e221bdc2947a74d4b7da23e67981b78560e9e0075b5729",
+      "diffAdditions": 1,
+      "diffDeletions": 0
+    },
+    {
+      "path": "scripts/official-theme-audit.mjs",
+      "category": "Verification / release gates",
+      "baselineBytes": 13814,
+      "updatedBytes": 14499,
+      "baselineSha256": "b9d876404e2d3ef89d739b1eebe7dc4e939514ea152a98266ab2d21853a736ed",
+      "updatedSha256": "ed62ed3c095b9fe24c23bbdf801432a751b3fa76663dc68e9179f3a8a9b2c88f",
+      "diffAdditions": 10,
+      "diffDeletions": 0
+    },
+    {
+      "path": "scripts/verify-runtime-contract.mjs",
+      "category": "Verification / release gates",
+      "baselineBytes": 2103,
+      "updatedBytes": 2605,
+      "baselineSha256": "9a3c6403436f268c87856d5d5f266cc5cd0a69e70290fbb977eac1ac5ed9a94f",
+      "updatedSha256": "9143bef23fc39dcbebf5644af687f5ce83086cd8a08f40173473fd08de3c88f3",
+      "diffAdditions": 13,
+      "diffDeletions": 2
+    }
+  ],
+  "architecturalDecisions": [
+    "No AuthV2/LoginV2 or parallel financial architecture introduced.",
+    "Existing HTTP/HTTPS/TLS server behavior was preserved while critical ESM import boundaries and the readiness/listener deadlock were corrected.",
+    "Readiness is fail-closed and database-aware; socket availability is separated from final application READY.",
+    "Canonical CJS database/config adapters use explicit .cjs filenames under the ESM package boundary.",
+    "Production in-memory authentication persistence is blocked unless explicitly enabled outside production.",
+    "Official nine-color TITech palette remains centralized through existing branding contracts; supplied transparent logo is retained as provenance."
+  ],
+  "verification": {
+    "criticalBackendExecutableSyntax": "PASS (backend JS/MJS/CJS excluding JSX-bearing test fixtures)",
+    "loginReadinessContract": "PASS",
+    "runtimeContract": "PASS",
+    "authenticationContract": "PASS",
+    "apiContract": "PASS",
+    "deploymentContract": "PASS",
+    "enterpriseContracts": "PASS",
+    "enterpriseCompleteness": "PASS",
+    "financialStatic": "PASS",
+    "rbacSecurity": "PASS",
+    "securityStatic": "PASS",
+    "startupContract": "PASS",
+    "officialThemeAudit": "PASS",
+    "frontendRuntimeAudit": "PASS_WITH_WARNINGS (no dist evidence)",
+    "runtimeImportAudit": "PASS for canonical financial surface; 214 legacy/non-critical missing local imports remain",
+    "enterpriseRemediation": "PASS_WITH_WARNINGS",
+    "enterpriseMaster": "PILOT_HARDENED_WITH_EXTERNAL_GATES_OPEN; productionApproved=false",
+    "fullJest": "NOT_EXECUTED \u2014 dependency tree unavailable",
+    "fullViteBuild": "NOT_EXECUTED \u2014 dependency tree unavailable",
+    "browserE2E": "NOT_EXECUTED \u2014 live backend unavailable",
+    "liveMongoRedis": "NOT_EXECUTED \u2014 services unavailable",
+    "providerSandboxLiveProof": "NOT_EXECUTED"
+  },
+  "environment": {
+    "node": "22.16.0",
+    "npm": "10.9.2",
+    "requiredNode": ">=24.15.0",
+    "requiredNpm": ">=11.0.0",
+    "docker": "unavailable"
+  },
+  "residualDebt": {
+    "repositoryCompleteness": {
+      "missingLocalImportEdges": 295,
+      "zeroByteFiles": 247
+    },
+    "runtimeImportAudit": {
+      "missingLocalImports": 214,
+      "canonicalFinancialMissingLocalImports": 0
+    },
+    "esmCjsAudit": {
+      "mixedFiles": 35,
+      "cjsToEsmBoundaries": 343,
+      "unresolvedRelativeRequires": 213
+    },
+    "note": "These findings are outside the canonical remediated authentication/financial surface and are recorded rather than hidden."
+  },
+  "productionApproval": "NOT APPROVED \u2014 external runtime/security/infrastructure evidence remains required",
+  "changeInventoryNote": "The manifest file is self-managed and therefore has no self-hash in addedFiles; verify the delivery archive SHA-256 separately."
+}

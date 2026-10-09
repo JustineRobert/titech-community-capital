@@ -1,6 +1,8 @@
 "use strict";
 
-import { createRequire } from "node:module";
+import { createRequire } from 'node:module';
+import crypto from 'node:crypto';
+import morgan from 'morgan';
 
 const require = createRequire(import.meta.url);
 
@@ -65,9 +67,6 @@ const require = createRequire(import.meta.url);
  *
  * =============================================================================
  */
-
-const crypto = require("crypto");
-const morgan = require("morgan");
 
 import dependenciesModule from "./dependencies.js";
 import configuration from "../config/index.js";

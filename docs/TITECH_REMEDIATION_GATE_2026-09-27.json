@@ -39,7 +39,7 @@
         "backend/bootstrap/app.js",
         "backend/bootstrap/context/BootstrapContext.js",
         "backend/bootstrap/context/index.js",
-        "backend/bootstrap/database.js",
+        "backend/bootstrap/database.cjs",
         "backend/bootstrap/dependencyRegistry.js",
         "backend/bootstrap/index.js",
         "backend/bootstrap/infrastructure/index.js",

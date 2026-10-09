@@ -15,7 +15,7 @@ const logger = require("../utils/logger");
 let redisClient = null;
 
 try {
-  redisClient = require("../config/redis");
+  redisClient = require("../config/redis.cjs");
 } catch (err) {
   // Redis optional for local development
 }

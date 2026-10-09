@@ -13,10 +13,13 @@ const configuration =
   Object.freeze({
     jwt: Object.freeze({
       accessSecret:
-        env.JWT_SECRET,
+        env.JWT_ACCESS_SECRET ||
+        env.JWT_SECRET ||
+        env.ACCESS_TOKEN_SECRET,
 
       refreshSecret:
-        env.JWT_REFRESH_SECRET,
+        env.JWT_REFRESH_SECRET ||
+        env.REFRESH_TOKEN_SECRET,
 
       issuer:
         env.JWT_ISSUER ||

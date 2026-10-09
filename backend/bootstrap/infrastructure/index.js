@@ -1,6 +1,9 @@
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import readinessState from "../readinessState.js";
 
 const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
 
 "use strict";
 
@@ -99,6 +102,7 @@ const require = createRequire(import.meta.url);
 
 const path = require("node:path");
 const fs = require("node:fs");
+const __dirname = path.dirname(__filename);
 
 
 /* =============================================================================
@@ -668,10 +672,12 @@ const ADAPTER_DEFINITIONS =
       ],
 
       paths: [
-        "../../infrastructure/database",
-        "../../infrastructure/db",
-        "../../../services/database",
-        "../../../services/db",
+        "bootstrap/database.cjs",
+        "config/db.cjs",
+        "infrastructure/database",
+        "infrastructure/db",
+        "services/database",
+        "services/db",
       ],
     },
 
@@ -692,10 +698,11 @@ const ADAPTER_DEFINITIONS =
       ],
 
       paths: [
-        "../../infrastructure/cache",
-        "../../infrastructure/redis",
-        "../../../services/cache",
-        "../../../services/redis",
+        "services/redis.cjs",
+        "config/redis.cjs",
+        "infrastructure/cache",
+        "infrastructure/redis",
+        "services/cache",
       ],
     },
 
@@ -872,6 +879,16 @@ function isAdapterEnabled(
   definition,
   configuration,
 ) {
+  const nested = definition.key === "database"
+    ? configuration?.database?.enabled
+    : definition.key === "cache"
+      ? configuration?.redis?.enabled ?? configuration?.cache?.enabled
+      : undefined;
+
+  if (nested !== undefined) {
+    return Boolean(nested);
+  }
+
   return readBoolean(
     configuration,
     definition.enabledKeys,
@@ -883,11 +900,31 @@ function isAdapterRequired(
   definition,
   configuration,
 ) {
-  return readBoolean(
+  const explicit = readBoolean(
     configuration,
     definition.requiredKeys,
     false,
   );
+
+  const nested = definition.key === "database"
+    ? configuration?.database?.required
+    : definition.key === "cache"
+      ? configuration?.redis?.required ?? configuration?.cache?.required
+      : undefined;
+
+  const environment = String(
+    getEnvironment({ configuration }),
+  ).trim().toLowerCase();
+
+  if (nested !== undefined) {
+    return Boolean(nested) || environment === "production" && definition.key === "database";
+  }
+
+  if (definition.key === "database" && environment === "production") {
+    return true;
+  }
+
+  return explicit;
 }
 
 
@@ -895,6 +932,59 @@ function isAdapterRequired(
  * ADAPTER REGISTRATION
  * =============================================================================
  */
+
+function registerDependencyReadinessCheck(
+  key,
+  adapter,
+  metadata = {},
+) {
+  if (!adapter || typeof readinessState?.registerCheck !== "function") {
+    return null;
+  }
+
+  const evaluator = async () => {
+    try {
+      if (typeof adapter.readiness === "function") {
+        const result = await adapter.readiness();
+        return typeof result === "object" ? Boolean(result.ready) : Boolean(result);
+      }
+      if (typeof adapter.isReady === "function") {
+        return Boolean(await adapter.isReady());
+      }
+      if (typeof adapter.health === "function") {
+        const result = await adapter.health();
+        return typeof result === "object" ? Boolean(result.ready ?? result.healthy) : Boolean(result);
+      }
+      if (key === "database" && adapter.isConnected && typeof adapter.isConnected === "function") {
+        return Boolean(await adapter.isConnected());
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const options = {
+    critical: key === "database" ? true : metadata.required === true,
+    timeoutMs: 5000,
+    description: `TITech ${key} readiness.`,
+    metadata: {
+      dependency: key,
+      source: metadata.source || null,
+    },
+  };
+
+  if (key === "database" && typeof readinessState.registerDatabaseCheck === "function") {
+    return readinessState.registerDatabaseCheck(evaluator, options);
+  }
+
+  if (key === "cache" && typeof readinessState.registerRedisCheck === "function") {
+    return readinessState.registerRedisCheck(evaluator, options);
+  }
+
+  if (typeof readinessState.registerCheck !== "function") return null;
+  return readinessState.registerCheck(key, evaluator, options);
+}
 
 function registerAdapter(
   key,
@@ -906,13 +996,21 @@ function registerAdapter(
     adapter,
   );
 
+  let state = "ready";
+  try {
+    if (adapter && typeof adapter.isReady === "function" && !adapter.isReady()) {
+      state = "degraded";
+    }
+  } catch {
+    state = "degraded";
+  }
+
   infrastructureStatus.set(
     key,
     {
       key,
 
-      state:
-        "ready",
+      state,
 
       initializedAt:
         new Date().toISOString(),
@@ -1281,6 +1379,12 @@ async function initializeAdapter(
         source:
           resolvedPath,
       },
+    );
+
+    registerDependencyReadinessCheck(
+      definition.key,
+      resolvedInstance,
+      { required, source: resolvedPath },
     );
 
     const durationMs =

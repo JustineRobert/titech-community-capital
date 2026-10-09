@@ -11,7 +11,7 @@
 */
 
 require('dotenv').config();
-const connectDB = require('../config/db');
+const connectDB = require('../config/db.cjs');
 const User = require('../models/User');
 const Group = require('../models/Group');
 

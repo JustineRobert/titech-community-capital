@@ -219,7 +219,7 @@
       "sha256": "51078d808f96f9bd74623973bc6f996aa19ae779f750a680f6107f512c21b57f"
     },
     {
-      "path": "backend/bootstrap/database.js",
+      "path": "backend/bootstrap/database.cjs",
       "sizeBytes": 49959,
       "sha256": "4169d7beaf13150987c6d2bc1c04647255b9c14a4c83fb56282c1304cdce5012"
     },

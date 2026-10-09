@@ -21,9 +21,24 @@ import { normalizeRole as normalizeCanonicalRole } from '../security/rbacPolicy.
 const require = createRequire(import.meta.url);
 
 const ACCESS_TOKEN_EXP = process.env.ACCESS_TOKEN_EXP || '15m';
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || process.env.JWT_SECRET;
+const ACCESS_TOKEN_SECRET =
+  process.env.JWT_ACCESS_SECRET ||
+  process.env.ACCESS_TOKEN_SECRET ||
+  process.env.JWT_SECRET;
 
 const REFRESH_TOKEN_DAYS = parseInt(process.env.REFRESH_TOKEN_DAYS || '30', 10);
+const NODE_ENV = String(process.env.NODE_ENV || 'development').trim().toLowerCase();
+const ALLOW_IN_MEMORY_AUTH_FALLBACK =
+  NODE_ENV !== 'production' &&
+  String(process.env.TITECH_ALLOW_IN_MEMORY_AUTH_FALLBACK || '').trim().toLowerCase() === 'true';
+
+function authStoreUnavailable(res) {
+  return res.status(503).json({
+    success: false,
+    message: 'Authentication service is temporarily unavailable.',
+    code: 'AUTH_STORE_UNAVAILABLE',
+  });
+}
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const REFRESH_COOKIE_PATH = '/api/auth';
 
@@ -189,6 +204,12 @@ function generateAccessToken(user) {
 
 async function createRefreshToken(userId, deviceInfo = {}) {
   if (!isMongoConnected()) {
+    if (!ALLOW_IN_MEMORY_AUTH_FALLBACK) {
+      const error = new Error('MongoDB is required for persistent authentication sessions.');
+      error.code = 'AUTH_STORE_UNAVAILABLE';
+      throw error;
+    }
+
     return createFallbackRefreshToken(userId, deviceInfo);
   }
 
@@ -222,6 +243,10 @@ async function createRefreshToken(userId, deviceInfo = {}) {
  */
 async function register(req, res) {
   try {
+    if (!isMongoConnected() && !ALLOW_IN_MEMORY_AUTH_FALLBACK) {
+      return authStoreUnavailable(res);
+    }
+
     const {
       email,
       password,
@@ -482,6 +507,10 @@ async function login(req, res) {
   try {
     const { email, password, deviceInfo } = req.body;
 
+    if (!isMongoConnected() && !ALLOW_IN_MEMORY_AUTH_FALLBACK) {
+      return authStoreUnavailable(res);
+    }
+
     let user = isMongoConnected()
       ? await User.findOne({ email: normalizeEmail(email) }).select('+password').exec()
       : await findFallbackUserByEmail(email);
@@ -621,6 +650,10 @@ async function refresh(req, res) {
     }
 
     const presentedHash = hashToken(presentedToken);
+
+    if (!isMongoConnected() && !ALLOW_IN_MEMORY_AUTH_FALLBACK) {
+      return authStoreUnavailable(res);
+    }
 
     if (!isMongoConnected()) {
       const dbToken = FALLBACK_REFRESH_TOKENS.get(presentedHash);
@@ -879,6 +912,11 @@ async function refresh(req, res) {
 async function logout(req, res) {
   try {
     const presented = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
+
+    if (presented && !isMongoConnected() && !ALLOW_IN_MEMORY_AUTH_FALLBACK) {
+      clearRefreshCookie(res);
+      return authStoreUnavailable(res);
+    }
 
     if (presented) {
       const presentedHash = hashToken(presented);

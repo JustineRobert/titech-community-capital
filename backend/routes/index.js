@@ -1356,59 +1356,71 @@ router.get(
             res,
         ) => {
             const readiness =
-                req.app?.locals
-                    ?.titechReadiness;
+                req.app?.locals?.titechReadiness;
 
-            let isReady =
-                true;
+            let isReady = false;
+            let readinessSnapshot = null;
 
-            if (
-                typeof readiness ===
-                'function'
-            ) {
+            if (typeof readiness === 'function') {
                 try {
+                    const result = await readiness();
                     isReady =
-                        Boolean(
-                            await readiness(),
-                        );
+                        typeof result === 'object' && result !== null
+                            ? result.ready === true
+                            : Boolean(result);
+                    readinessSnapshot =
+                        typeof result === 'object' && result !== null
+                            ? result
+                            : null;
                 } catch {
+                    isReady = false;
+                    readinessSnapshot = {
+                        code: 'READINESS_EVALUATION_FAILED',
+                        status: 'not_ready',
+                    };
+                }
+            } else {
+                try {
+                    const { default: readinessState } =
+                        await import('../bootstrap/readinessState.js');
+                    readinessSnapshot = readinessState?.getReadinessState?.() || null;
                     isReady =
-                        false;
+                        readinessSnapshot?.initialized === true &&
+                        readinessSnapshot?.ready === true;
+                } catch {
+                    isReady = false;
                 }
             }
 
+            const safeChecks =
+                readinessSnapshot?.checks &&
+                typeof readinessSnapshot.checks === 'object'
+                    ? Object.fromEntries(
+                        Object.entries(readinessSnapshot.checks).map(([name, check]) => [
+                            name,
+                            {
+                                ready: check?.ready === true,
+                                critical: check?.critical === true,
+                            },
+                        ]),
+                    )
+                    : undefined;
+
             return res
-                .status(
-                    isReady
-                        ? 200
-                        : 503,
-                )
+                .status(isReady ? 200 : 503)
                 .json({
-                    success:
-                        isReady,
-
-                    status:
-                        isReady
-                            ? 'ready'
-                            : 'not_ready',
-
-                    service:
-                        ROUTE_METADATA.service,
-
-                    application:
-                        ROUTE_METADATA.application,
-
-                    version:
-                        ROUTE_METADATA.version,
-
-                    requestId:
-                        req.requestId,
-
-                    correlationId:
-                        req.correlationId,
-
-                    timestamp:
-                        new Date().toISOString(),
+                    success: isReady,
+                    status: isReady ? 'ready' : 'not_ready',
+                    service: ROUTE_METADATA.service,
+                    application: ROUTE_METADATA.application,
+                    version: ROUTE_METADATA.version,
+                    requestId: req.requestId,
+                    correlationId: req.correlationId,
+                    ...(Array.isArray(readinessSnapshot?.blockers)
+                        ? { blockers: readinessSnapshot.blockers.slice(0, 25) }
+                        : {}),
+                    ...(safeChecks ? { checks: safeChecks } : {}),
+                    timestamp: new Date().toISOString(),
                 });
         },
     ),

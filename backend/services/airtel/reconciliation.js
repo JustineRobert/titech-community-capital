@@ -44,7 +44,7 @@ try {
 }
 
 try {
-  redis = require("../../config/redis");
+  redis = require("../../config/redis.cjs");
 } catch {
   redis = null;
 }

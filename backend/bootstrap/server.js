@@ -63,12 +63,17 @@
  */
 
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
+import * as hooksModuleNamespace from './hooks.js';
+import * as readinessModuleNamespace from './readinessState.js';
+import * as observabilityModuleNamespace from './observability.js';
+import * as loggerModuleNamespace from './logger.js';
 
 const require = createRequire(import.meta.url);
 
-const fs = require('node:fs');
-const http = require('node:http');
-const https = require('node:https');
+
 
 /**
  * -----------------------------------------------------------------------------
@@ -76,14 +81,7 @@ const https = require('node:https');
  * -----------------------------------------------------------------------------
  */
 
-let hooksModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  hooksModule = require('./hooks');
-} catch {
-  hooksModule = null;
-}
+const hooksModule = hooksModuleNamespace;
 
 const hooks =
   hooksModule?.hooks &&
@@ -102,14 +100,7 @@ const lifecycle =
  * -----------------------------------------------------------------------------
  */
 
-let readinessModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  readinessModule = require('./readinessState');
-} catch {
-  readinessModule = null;
-}
+const readinessModule = readinessModuleNamespace;
 
 /**
  * -----------------------------------------------------------------------------
@@ -117,14 +108,7 @@ try {
  * -----------------------------------------------------------------------------
  */
 
-let observabilityModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  observabilityModule = require('./observability');
-} catch {
-  observabilityModule = null;
-}
+const observabilityModule = observabilityModuleNamespace;
 
 /**
  * -----------------------------------------------------------------------------
@@ -147,14 +131,7 @@ try {
  * -----------------------------------------------------------------------------
  */
 
-let loggerModule = null;
-
-try {
-  // eslint-disable-next-line global-require
-  loggerModule = require('./logger');
-} catch {
-  loggerModule = null;
-}
+const loggerModule = loggerModuleNamespace;
 
 /**
  * =============================================================================
@@ -1179,6 +1156,8 @@ function emitObservabilityEvent(
 
 async function assertReadyToListen(
   required,
+  context = null,
+  bootstrap = null,
 ) {
   if (!required) {
     return true;
@@ -1188,187 +1167,45 @@ async function assertReadyToListen(
     throw new ServerBootstrapError(
       'HTTP server startup requires readiness validation, but readinessState is unavailable.',
       {
-        code:
-          'SERVER_READINESS_UNAVAILABLE',
-
-        phase:
-          'readiness',
+        code: 'SERVER_READINESS_UNAVAILABLE',
+        phase: 'readiness',
       },
     );
   }
 
-  try {
-    if (
-      typeof readinessModule.evaluate ===
-      'function'
-    ) {
-      await readinessModule.evaluate({
-        allowRecovery: true,
-      });
-    }
+  // The server is the final bootstrap phase. The application must bind its
+  // management/readiness endpoint even while dependencies are unavailable so
+  // callers can observe a truthful 503 rather than receiving ECONNREFUSED.
+  // Therefore pre-listen validation checks completed predecessor phases only.
+  const requiredPreServerPhases = [
+    'environment',
+    'configuration',
+    'logger',
+    'observability',
+    'readiness',
+    'resilience',
+    'infrastructure',
+    'services',
+    'middleware',
+    'routes',
+  ];
+  const missingPhases = requiredPreServerPhases.filter(
+    (phase) => context?.getPhaseState?.(phase) !== 'completed',
+  );
 
-    let ready = false;
-
-    if (
-      typeof readinessModule.isReady ===
-      'function'
-    ) {
-      ready =
-        readinessModule.isReady();
-    } else if (
-      typeof readinessModule
-        ?.readinessState
-        ?.isReady ===
-      'function'
-    ) {
-      ready =
-        readinessModule
-          .readinessState
-          .isReady();
-    } else if (
-      readinessModule?.ready === true
-    ) {
-      ready = true;
-    }
-
-    if (!ready) {
-      throw new ServerBootstrapError(
-        'TITech network server cannot listen because the application is not ready.',
-        {
-          code:
-            'SERVER_APPLICATION_NOT_READY',
-
-          phase:
-            'readiness',
-        },
-      );
-    }
-
-    return true;
-  } catch (error) {
-    if (
-      error instanceof
-      ServerBootstrapError
-    ) {
-      throw error;
-    }
-
+  if (missingPhases.length > 0) {
     throw new ServerBootstrapError(
-      'TITech readiness validation failed before network server startup.',
+      'TITech network server cannot listen because required bootstrap phases are incomplete.',
       {
-        code:
-          'SERVER_READINESS_CHECK_FAILED',
-
-        phase:
-          'readiness',
-
-        cause:
-          error,
-      },
-    );
-  }
-}
-
-/**
- * =============================================================================
- * TLS
- * =============================================================================
- */
-
-function readTlsFile(
-  filePath,
-  logicalName,
-) {
-  if (!filePath) {
-    throw new ServerBootstrapError(
-      `TLS ${logicalName} path is not configured.`,
-      {
-        code:
-          'SERVER_TLS_CONFIGURATION_MISSING',
-
-        phase:
-          'tls',
-
-        details: {
-          logicalName,
-        },
+        code: 'SERVER_PRELISTEN_BOOTSTRAP_INCOMPLETE',
+        phase: 'readiness',
+        details: { missingPhases },
       },
     );
   }
 
-  try {
-    return fs.readFileSync(
-      filePath,
-    );
-  } catch (error) {
-    throw new ServerBootstrapError(
-      `Unable to read TLS ${logicalName} file.`,
-      {
-        code:
-          'SERVER_TLS_FILE_READ_FAILED',
-
-        phase:
-          'tls',
-
-        cause:
-          error,
-
-        details: {
-          logicalName,
-
-          filePath,
-        },
-      },
-    );
-  }
-}
-
-function buildTlsOptions(tls) {
-  const key =
-    readTlsFile(
-      tls.keyPath,
-      'private key',
-    );
-
-  const cert =
-    readTlsFile(
-      tls.certPath,
-      'certificate',
-    );
-
-  const options = {
-    key,
-
-    cert,
-
-    requestCert:
-      Boolean(
-        tls.requestCert,
-      ),
-
-    rejectUnauthorized:
-      Boolean(
-        tls.rejectUnauthorized,
-      ),
-  };
-
-  if (tls.caPath) {
-    options.ca =
-      readTlsFile(
-        tls.caPath,
-        'CA certificate',
-      );
-  }
-
-  if (
-    tls.passphrase !==
-    undefined
-  ) {
-    options.passphrase =
-      tls.passphrase;
-  }
-
-  return options;
+  void bootstrap;
+  return true;
 }
 
 /**
@@ -2041,6 +1878,8 @@ async function startServer(
          */
         await assertReadyToListen(
           configuration.requireReadiness,
+          context,
+          options.bootstrap || null,
         );
 
         const startedTransports =

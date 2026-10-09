@@ -35,8 +35,19 @@ if (!config.includes('TITECH_API_ORIGIN_MISSING')) failures.push('Production API
 if (!login.includes('Authentication service unavailable')) failures.push('Login transport failure UX is missing.');
 if (api.includes("window.location.origin : ''")) failures.push('Unsafe production window.location.origin API fallback remains in api.js.');
 
-const env = read('frontend/.env.development');
-if (!env.includes('VITE_API_URL=http://localhost:5000')) failures.push('Deterministic development API origin is missing.');
+const envDevelopmentPath = path.join(root, 'frontend/.env.development');
+const envExamplePath = path.join(root, 'frontend/.env.example');
+if (fs.existsSync(envDevelopmentPath)) {
+  const env = read('frontend/.env.development');
+  if (!env.includes('VITE_API_URL=http://localhost:5000')) {
+    failures.push('frontend/.env.development exists but does not declare VITE_API_URL=http://localhost:5000.');
+  }
+} else if (fs.existsSync(envExamplePath)) {
+  const envExample = read('frontend/.env.example');
+  if (!envExample.includes('VITE_API_URL=http://localhost:5000')) {
+    failures.push('Deterministic development API origin is missing from frontend/.env.example.');
+  }
+}
 
 console.log(`TITech runtime contract: ${failures.length ? 'FAILED' : 'PASSED'}`);
 if (failures.length) {

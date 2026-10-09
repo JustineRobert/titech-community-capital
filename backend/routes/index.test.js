@@ -1206,31 +1206,16 @@ describe(
             'readiness endpoint',
             () => {
                 test(
-                    'returns ready by default',
+                    'fails closed when readiness is not wired',
                     async () => {
-                        const app =
-                            createTestApplication();
-
-                        const response =
-                            await request(
-                                app,
-                            )
-                                .get(
-                                    '/api/v1/ready',
-                                )
-                                .expect(
-                                    200,
-                                );
-
-                        expect(
-                            response.body,
-                        ).toEqual(
+                        const app = createTestApplication();
+                        const response = await request(app)
+                            .get('/api/v1/ready')
+                            .expect(503);
+                        expect(response.body).toEqual(
                             expect.objectContaining({
-                                success:
-                                    true,
-
-                                status:
-                                    'ready',
+                                success: false,
+                                status: 'not_ready',
                             }),
                         );
                     },

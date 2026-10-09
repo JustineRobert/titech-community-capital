@@ -16,7 +16,7 @@ try {
 
 try {
   redisClient =
-    require('../../config/redis');
+    require('../../config/redis.cjs');
 } catch {}
 
 class AirtelAuthService extends EventEmitter {

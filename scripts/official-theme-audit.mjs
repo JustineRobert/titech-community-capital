@@ -77,6 +77,16 @@ for (const [id, file, key] of [
 }
 
 const sourceHash = '8a82c0164b927cd1bba45179b7a817b12259567850fa14f71d0c9504facd2f21';
+const providedLogo = 'branding/official/TITech_Official_Logo_Transparent_Provided_2026-10-08.png';
+const providedLogoHash = 'f3736df3e46aca7941e71cd8d7cacd87fe7aceb79620d38c181c8ebce528dce5';
+if (!exists(providedLogo)) {
+  fail('provided-logo-provenance', `${providedLogo} is missing.`);
+} else {
+  const actualLogoHash = crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, providedLogo))).digest('hex');
+  if (actualLogoHash === providedLogoHash) pass('provided-logo-provenance', 'User-supplied official transparent logo asset is present and SHA-256 verified.');
+  else fail('provided-logo-provenance', `Provided official logo SHA-256 mismatch: ${actualLogoHash}`);
+}
+
 const reference = 'branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png';
 if (!exists(reference)) {
   fail('reference-image', `${reference} is missing.`);

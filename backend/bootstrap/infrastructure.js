@@ -160,7 +160,7 @@ const INFRASTRUCTURE_MODULES = Object.freeze({
     "../database/index",
     "../db/index",
     "../config/database",
-    "../config/db",
+    "../config/db.cjs",
     "../services/database",
     "../services/db",
     "../infrastructure/database",
@@ -173,7 +173,7 @@ const INFRASTRUCTURE_MODULES = Object.freeze({
   redis: Object.freeze([
     "../redis",
     "../redis/index",
-    "../config/redis",
+    "../config/redis.cjs",
     "../config/cache",
     "../services/redis",
     "../services/cache",

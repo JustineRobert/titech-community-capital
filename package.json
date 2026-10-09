@@ -145,6 +145,7 @@
     "audit:frontend-runtime": "node scripts/frontend-runtime-audit.mjs",
     "test:frontend-runtime": "node --test scripts/frontend-runtime-audit.test.mjs",
     "titech:enterprise-remediation": "node scripts/titech-enterprise-remediation-gate.mjs",
+    "verify:login-readiness": "node scripts/verify-login-readiness-remediation.mjs",
     "enterprise:master-gate": "node scripts/titech-enterprise-master-gate.mjs",
     "enterprise:master-gate:strict": "node scripts/titech-enterprise-master-gate.mjs --strict"
   },

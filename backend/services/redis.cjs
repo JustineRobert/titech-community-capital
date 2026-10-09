@@ -425,12 +425,33 @@ module.exports = {
   getStatus,
   waitForReady,
   createRateLimitStore,
+  initialize,
+  start: initialize,
+  shutdown,
+  stop: shutdown,
   events,
   // expose internal flag for diagnostics (read-only)
   get gracefullyDegraded() {
     return gracefullyDegraded;
   },
 };
+
+
+/**
+ * Bootstrap adapter lifecycle. The client is created once at module load; this
+ * hook makes that existing implementation discoverable without a second Redis
+ * client implementation.
+ */
+async function initialize(context = {}) {
+  if (context && typeof context === 'object') {
+    context.redis = module.exports;
+  }
+  return module.exports;
+}
+
+async function shutdown() {
+  return disconnect();
+}
 
 // ============================================================================
 // Graceful shutdown

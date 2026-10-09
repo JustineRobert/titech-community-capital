@@ -77,6 +77,7 @@ import {
   pathToFileURL,
 } from "node:url";
 
+
 import {
   BootstrapContext,
   createBootstrapContext,
@@ -3148,6 +3149,41 @@ class ApplicationBootstrap {
           },
         );
       }
+    }
+
+    if (application?.locals) {
+      application.locals.titechReadiness = async () => {
+        const bootstrapReady =
+          typeof this.context?.isReady === "function"
+            ? this.context.isReady()
+            : this.context?.getState?.() === "ready";
+
+        const database =
+          this.context?.container?.database ||
+          this.context?.infrastructure?.database;
+
+        let databaseReady = true;
+        let databaseBlocker = null;
+        if (!database && process.env.NODE_ENV !== "test") {
+          databaseReady = false;
+          databaseBlocker = "database_adapter_missing";
+        } else if (database && typeof database.isReady === "function") {
+          databaseReady = Boolean(await database.isReady());
+          if (!databaseReady) databaseBlocker = "database_not_ready";
+        }
+
+        const ready = Boolean(bootstrapReady && databaseReady);
+        return {
+          ready,
+          status: ready ? "ready" : "not_ready",
+          blockers: [
+            ...(!bootstrapReady ? ["application_not_ready"] : []),
+            ...(databaseBlocker ? [databaseBlocker] : []),
+          ],
+        };
+      };
+      application.locals.titechReadinessSource =
+        'BootstrapContext + database readiness';
     }
 
     const startFunction =

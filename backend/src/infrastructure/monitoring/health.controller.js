@@ -19,7 +19,7 @@ let redisClient = null;
 try {
 
     redisClient =
-        require("../../config/redis");
+        require("../../config/redis.cjs");
 
 } catch (_) {
 
