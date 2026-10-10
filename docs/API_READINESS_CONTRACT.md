@@ -79,3 +79,20 @@ production localhost API configuration
 unbounded readiness polling
 multiple independent readiness probes for the same purpose
 ```
+
+## Browser state interpretation — 2026-10-09 follow-up
+
+The canonical frontend connectivity state machine additionally distinguishes:
+
+- `API_UNAVAILABLE`: no HTTP response was received (for example, connection refused).
+- `OFFLINE`: the browser reports that the device is offline.
+- `API_DEGRADED`: an HTTP response was received but readiness was not confirmed; HTTP 503 is not login permission.
+- `HTTP_SERVER_ERROR`: an HTTP 5xx error other than the readiness-specific 503 was returned.
+- `REQUEST_TIMEOUT`: the readiness request exceeded its bounded timeout.
+- `REQUEST_CANCELLED`: a probe was cancelled and must not be interpreted as a successful check.
+- `API_REACHABLE`: the HTTP service responded, but readiness was not established.
+- `READY`: the canonical readiness endpoint returned a successful response whose `status` value is `ready`.
+
+A single-flight readiness probe owns the state transition. The low-level API request classifier returns result metadata without mutating shared connectivity state. An online/offline event cancels and invalidates the in-flight probe, so an old response cannot overwrite the newer browser/network state. A login call that reaches the API service directly performs one bounded readiness probe and refuses to send credentials unless the resulting state is genuinely `READY`.
+
+These states describe frontend transport/readiness observations; they do not certify database, Redis, credential store, JWT, refresh-token, tenancy, RBAC, or financial operations unless those are represented by the backend's actual readiness checks and separately verified.

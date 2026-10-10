@@ -104,10 +104,23 @@ requireContains('frontend/src/services/api.js', [
 requireContains('frontend/src/services/runtimeConnectivity.js', [
   'probePromise',
   'API_UNAVAILABLE',
+  'HTTP_SERVER_ERROR',
+  'REQUEST_TIMEOUT',
+  'REQUEST_CANCELLED',
+  'generation !== probeGeneration',
 ], 'Runtime connectivity');
 requireContains('frontend/src/services/api.js', [
   'new AbortController()',
+  'metadata: { connectivityProbe: true }',
+  'if (error?.config?.metadata?.connectivityProbe)',
+  'await probeApiReadiness({ force: true })',
+  'if (!connectivity.ready)',
 ], 'API request cancellation');
+requireContains('frontend/src/pages/Login.jsx', [
+  '!serviceReady',
+  'TITech responded with a server error.',
+  'The readiness check took too long.',
+], 'Login fail-closed readiness UX');
 
 requireContains('frontend/src/context/AuthContext.jsx', [
   'BroadcastChannel',
@@ -160,6 +173,23 @@ for (const file of ['frontend/.env.example', 'backend/.env.example']) {
   if (!exists(file)) failures.push(`Environment template missing: ${file}`);
 }
 if (exists('frontend/.env.example')) requireContains('frontend/.env.example', ['VITE_API_URL=http://localhost:5000'], 'Frontend development API contract');
+
+for (const file of ['frontend/.env.production.example', 'backend/.env.production.example']) {
+  if (!exists(file) || fs.statSync(path.join(root, file)).size === 0) {
+    failures.push(`Production environment template missing or empty: ${file}`);
+  }
+}
+if (exists('frontend/.env.production.example')) {
+  const assignments = read('frontend/.env.production.example')
+    .split(/\r?\n/)
+    .filter((line) => line.trim() && !line.trim().startsWith('#'));
+  const configuredOrigins = assignments.filter((line) => /^VITE_(API_URL|API_BASE_URL|SOCKET_URL)=/.test(line));
+  for (const line of configuredOrigins) {
+    if (/=(https?:\/\/)?(localhost|127\.0\.0\.1)(:|\/|$)/i.test(line)) {
+      failures.push(`Production frontend configuration must not target localhost: ${line.split('=')[0]}`);
+    }
+  }
+}
 
 console.log(`TITech login/readiness remediation contract: ${failures.length ? 'FAILED' : 'PASSED'}`);
 if (failures.length) {

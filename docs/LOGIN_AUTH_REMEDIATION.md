@@ -92,3 +92,16 @@ Therefore this package is a **remediated engineering delivery with production-ga
 **Why was `/api/v1/ready` unavailable?** A backend process that fails during bootstrap or never binds its HTTP listener makes the readiness endpoint unreachable. The remediation separates listener availability from final application READY and makes an available-but-not-ready service return truthful `503` status.
 
 **What evidence proves the correction?** The canonical static contracts now pass, the readiness test explicitly covers fail-closed behavior, the active duplicate runtime files are removed, the official-theme audit passes, and the enterprise remediation gate is `PASS_WITH_WARNINGS`. Live Node 24+/MongoDB/Redis/browser evidence remains a required next gate.
+
+## Incremental follow-up — 2026-10-09
+
+The 2026-10-09 delivery makes the following focused corrections to the supplied ZIP baseline:
+
+- Removed the active-root legacy duplicates `backend/PRODUCTION_IMPLEMENTATION_v2.js` and `backend/app.cjs`; historical copies remain under `.titech-remediation/archive/2026-10-07-legacy-duplicates/` for traceability.
+- Made the frontend readiness probe the sole owner of shared connectivity-state mutation. `checkApiHealth` and `checkApiReadiness` now report classified results; they do not independently change shared state while a probe may be stale or cancelled.
+- Added dedicated `HTTP_SERVER_ERROR`, `REQUEST_TIMEOUT`, and `REQUEST_CANCELLED` states to the shared connectivity machine, including `AbortSignal` propagation, single-flight deduplication, probe invalidation on online/offline changes, and protection against late results.
+- Tightened the login service and Login page to require confirmed readiness before credential submission. Unavailable, timeout and server-error states are described separately so a server-side 5xx is not misleadingly presented as a refused connection.
+- Added regression tests for 5xx/timeout/cancellation status separation, single-flight behavior, stale-result suppression after an offline event, and recovery to READY.
+- Added an updated change-discovery and verification report dated 2026-10-09. Live browser, Node 24.15+/npm 11+, database/Redis, provider sandbox and production-environment verification remain external gates.
+
+The original connection-refused evidence proves that the browser received no connection from `localhost:5000` for the readiness request. It does not, by itself, distinguish backend process failure from listener bind/port mismatch or an incorrect frontend origin. The current container cannot replay the user's machine's backend process or configuration, so that last distinction remains unconfirmed here.

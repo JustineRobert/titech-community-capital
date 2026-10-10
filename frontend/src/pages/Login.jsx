@@ -532,11 +532,23 @@ export default function Login() {
     }, []);
 
   const serviceState = apiConnectivity?.status || API_CONNECTIVITY_STATUS.CHECKING;
-  const serviceUnavailable =
-    serviceState === API_CONNECTIVITY_STATUS.API_UNAVAILABLE ||
-    serviceState === API_CONNECTIVITY_STATUS.OFFLINE;
-  const serviceDegraded =
-    serviceState === API_CONNECTIVITY_STATUS.API_DEGRADED;
+  const serviceReady =
+    serviceState === API_CONNECTIVITY_STATUS.READY && apiConnectivity?.ready === true;
+  const serviceOffline = serviceState === API_CONNECTIVITY_STATUS.OFFLINE;
+  const serviceUnreachable = serviceState === API_CONNECTIVITY_STATUS.API_UNAVAILABLE;
+  const serviceServerError = serviceState === API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR;
+  const serviceTimedOut = serviceState === API_CONNECTIVITY_STATUS.REQUEST_TIMEOUT;
+  const serviceUnavailable = [
+    API_CONNECTIVITY_STATUS.API_UNAVAILABLE,
+    API_CONNECTIVITY_STATUS.OFFLINE,
+    API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR,
+    API_CONNECTIVITY_STATUS.REQUEST_TIMEOUT,
+  ].includes(serviceState);
+  const serviceDegraded = [
+    API_CONNECTIVITY_STATUS.API_DEGRADED,
+    API_CONNECTIVITY_STATUS.API_REACHABLE,
+    API_CONNECTIVITY_STATUS.REQUEST_CANCELLED,
+  ].includes(serviceState);
 
   const handleServiceRetry = useCallback(async () => {
     try {
@@ -941,9 +953,11 @@ export default function Login() {
                   ? "unavailable"
                   : serviceDegraded
                     ? "degraded"
-                    : serviceState === API_CONNECTIVITY_STATUS.READY
+                    : serviceReady
                       ? "ready"
-                      : "checking"
+                      : serviceState === API_CONNECTIVITY_STATUS.CHECKING
+                        ? "checking"
+                        : "degraded"
               }`}
               role={serviceUnavailable ? "alert" : "status"}
               aria-live="polite"
@@ -952,23 +966,39 @@ export default function Login() {
               <div className="login-service-status__content">
                 <strong>
                   {serviceUnavailable
-                    ? "Authentication service unavailable"
+                    ? serviceOffline
+                      ? "Device offline"
+                      : serviceServerError
+                        ? "TITech service error"
+                        : serviceTimedOut
+                          ? "TITech readiness check timed out"
+                          : "Authentication service unavailable"
                     : serviceDegraded
                       ? "TITech services are temporarily degraded"
-                      : serviceState === API_CONNECTIVITY_STATUS.READY
+                      : serviceReady
                         ? "Authentication service ready"
-                        : "Checking TITech service availability"}
+                        : serviceState === API_CONNECTIVITY_STATUS.CHECKING
+                          ? "Checking TITech service availability"
+                          : "TITech readiness has not been confirmed"}
                 </strong>
                 <span>
                   {serviceUnavailable
-                    ? "Your password is not being rejected. The API cannot currently be reached."
+                    ? serviceOffline
+                      ? "Your device appears to be offline. Your password has not been sent."
+                      : serviceServerError
+                        ? "TITech responded with a server error. Sign-in remains disabled until readiness is restored."
+                        : serviceTimedOut
+                          ? "The readiness check took too long. Sign-in remains disabled until readiness is confirmed."
+                          : serviceUnreachable
+                            ? "TITech cannot currently be reached. Your password has not been sent."
+                            : "The authentication service is unavailable. Your password has not been sent."
                     : serviceDegraded
-                      ? "The API is reachable, but readiness dependencies are degraded. Login may still proceed when authentication is available."
-                      : serviceState === API_CONNECTIVITY_STATUS.READY
+                      ? "The API has not confirmed readiness. Sign-in stays disabled until required readiness checks pass."
+                      : serviceReady
                         ? "TITech API readiness has been confirmed."
                         : "We will verify API connectivity before restoring or starting your session."}
                 </span>
-                {serviceUnavailable && (
+                {!serviceReady && (
                   <button
                     type="button"
                     className="login-service-status__retry"
@@ -1246,6 +1276,7 @@ export default function Login() {
                       className="submit-btn"
                       disabled={
                         formDisabled ||
+                        !serviceReady ||
                         !isValid
                       }
                       aria-busy={
