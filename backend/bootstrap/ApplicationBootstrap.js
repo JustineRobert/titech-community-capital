@@ -3162,7 +3162,9 @@ class ApplicationBootstrap {
           this.context?.container?.database ||
           this.context?.infrastructure?.database;
 
-        let databaseReady = true;
+        // Database readiness must be explicitly proven. An adapter object with
+        // no readiness contract is not evidence that MongoDB is usable.
+        let databaseReady = process.env.NODE_ENV === "test" && !database;
         let databaseBlocker = null;
         if (!database && process.env.NODE_ENV !== "test") {
           databaseReady = false;
@@ -3170,6 +3172,19 @@ class ApplicationBootstrap {
         } else if (database && typeof database.isReady === "function") {
           databaseReady = Boolean(await database.isReady());
           if (!databaseReady) databaseBlocker = "database_not_ready";
+        } else if (database && typeof database.readiness === "function") {
+          const result = await database.readiness();
+          databaseReady =
+            typeof result === "object" && result !== null
+              ? result.ready === true
+              : Boolean(result);
+          if (!databaseReady) databaseBlocker = "database_not_ready";
+        } else if (database && typeof database.isConnected === "function") {
+          databaseReady = Boolean(await database.isConnected());
+          if (!databaseReady) databaseBlocker = "database_not_ready";
+        } else if (database) {
+          databaseReady = false;
+          databaseBlocker = "database_readiness_contract_missing";
         }
 
         const ready = Boolean(bootstrapReady && databaseReady);

@@ -55,7 +55,6 @@ try {
     }
 
 const ACCESS_TOKEN_SECRET =
-  process.env.JWT_ACCESS_SECRET ||
   process.env.JWT_SECRET ||
   process.env.ACCESS_TOKEN_SECRET;
 

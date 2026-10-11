@@ -1287,6 +1287,59 @@ describe(
                 );
 
                 test(
+                    "uses the readiness object explicit ready flag",
+                    async () => {
+                        const app = createTestApplication({
+                            readiness: async () => ({
+                                ready: true,
+                                status: 'ready',
+                                checks: {
+                                    database: { ready: true, critical: true },
+                                    redis: { ready: true, critical: false },
+                                },
+                                blockers: [],
+                            }),
+                        });
+
+                        const response = await request(app)
+                            .get('/api/v1/ready')
+                            .expect(200);
+
+                        expect(response.body.status).toBe('ready');
+                        expect(response.body.checks).toEqual({
+                            database: { ready: true, critical: true },
+                            redis: { ready: true, critical: false },
+                        });
+                    },
+                );
+
+                test(
+                    'fails closed for a readiness object without ready true',
+                    async () => {
+                        const app = createTestApplication({
+                            readiness: async () => ({
+                                status: 'ready',
+                                blockers: ['database_not_ready'],
+                                checks: {
+                                    database: { ready: false, critical: true },
+                                },
+                            }),
+                        });
+
+                        const response = await request(app)
+                            .get('/api/v1/ready')
+                            .expect(503);
+
+                        expect(response.body.status).toBe('not_ready');
+                        expect(response.body.blockers).toEqual(['database_not_ready']);
+                        expect(response.body.checks.database).toEqual({
+                            ready: false,
+                            critical: true,
+                        });
+                    },
+                );
+
+                test(
                     'returns 503 when readiness is false',
                     async () => {
                         const app =

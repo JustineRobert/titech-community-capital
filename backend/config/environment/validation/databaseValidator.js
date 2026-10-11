@@ -46,7 +46,7 @@
  *
  * Database connection ownership remains with:
  *
- *   backend/config/db.js
+ *   backend/config/db.cjs
  *
  * or the canonical database infrastructure/bootstrap subsystem.
  *

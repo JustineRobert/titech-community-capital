@@ -73,8 +73,6 @@ import * as loggerModuleNamespace from './logger.js';
 
 const require = createRequire(import.meta.url);
 
-
-
 /**
  * -----------------------------------------------------------------------------
  * Optional lifecycle infrastructure
@@ -1159,35 +1157,21 @@ async function assertReadyToListen(
   context = null,
   bootstrap = null,
 ) {
-  if (!required) {
-    return true;
-  }
+  if (!required) return true;
 
   if (!readinessModule) {
     throw new ServerBootstrapError(
       'HTTP server startup requires readiness validation, but readinessState is unavailable.',
-      {
-        code: 'SERVER_READINESS_UNAVAILABLE',
-        phase: 'readiness',
-      },
+      { code: 'SERVER_READINESS_UNAVAILABLE', phase: 'readiness' },
     );
   }
 
-  // The server is the final bootstrap phase. The application must bind its
-  // management/readiness endpoint even while dependencies are unavailable so
-  // callers can observe a truthful 503 rather than receiving ECONNREFUSED.
-  // Therefore pre-listen validation checks completed predecessor phases only.
+  // The server is the last bootstrap phase. Final READY is committed only
+  // after the socket binds, so pre-listen validation checks all required
+  // predecessor phases and explicit dependency checks without a deadlock.
   const requiredPreServerPhases = [
-    'environment',
-    'configuration',
-    'logger',
-    'observability',
-    'readiness',
-    'resilience',
-    'infrastructure',
-    'services',
-    'middleware',
-    'routes',
+    'environment', 'configuration', 'logger', 'observability', 'readiness',
+    'resilience', 'infrastructure', 'services', 'middleware', 'routes',
   ];
   const missingPhases = requiredPreServerPhases.filter(
     (phase) => context?.getPhaseState?.(phase) !== 'completed',
@@ -1204,15 +1188,13 @@ async function assertReadyToListen(
     );
   }
 
+  // A not-ready application must still bind its management/readiness endpoint.
+  // /api/v1/ready is the truthful gate used by clients and orchestrators.
+  // Pre-listen validation therefore checks bootstrap integrity only and avoids
+  // a readiness deadlock before the socket exists.
   void bootstrap;
   return true;
 }
-
-/**
- * =============================================================================
- * SOCKET TRACKING
- * =============================================================================
- */
 
 function trackSocket(socket) {
   if (!socket) {

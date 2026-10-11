@@ -1,72 +1,52 @@
-# TITech Community Capital Platform Truth
+# TITech Community Capital — Platform Truth
 
-## Release status
+## Current release decision
 
-**PRODUCTION_APPROVED: NO**
+**RELEASE DECISION: NOT READY** (11 October 2026 remediation run)  
+**PRODUCTION_APPROVED: NO**  
 **Production approval:** NO
-**Execution date:** 04 October 2026
-**Measured implementation environment:** Node 22.16.0 / npm 10.9.2; repository target remains Node >=24.15.0 / npm >=11.0.0
 
-**Current status:** PILOT READY — PRODUCTION GAPS REMAIN
+This source archive contains substantive authentication, tenant/RBAC, payment/provider, ledger, reconciliation and product foundations. The current run implemented a focused readiness/connectivity remediation and produced source/static/native-test evidence. It did **not** establish full operational readiness: the declared target Node/npm runtime was unavailable, project dependencies were not installed, dependency-backed tests and the production frontend build could not launch, and a live backend/DB/Redis/provider/browser E2E was not exercised. A static pass is not production approval.
 
-| Production approval | NO |
+## Current evidence snapshot — 11 October 2026
 
-This repository has meaningful engineering hardening and configurable infrastructure, but it is not production approved. The repository evidence confirms that the codebase has been repaired for syntax, repository structure and canonical financial surface integrity, while live-provider, security, recovery and compliance evidence remain outside the current environment; the canonical runtime-import and release-readiness gates now pass.
-
-## Evidence status
-
-| Gate | Status | Evidence |
+| Gate | Result | Source evidence / limitation |
 |---|---|---|
-| Repository audit | GREEN | Repository inventory and change traceability are present and reconciled to the current codebase. |
-| Syntax surface | GREEN | Enterprise gate parsed 2,294 executable JS/TS-family files with no syntax failures. |
-| Canonical financial surface | GREEN | Runtime import audit reports zero missing local imports and zero mixed ESM/CJS violations on the critical financial surface. |
-| Runtime import debt | AMBER | 249 non-critical missing local imports remain in legacy backend surfaces and require later consolidation. |
-| Node baseline | AMBER | Repository pins Node >=24.15.0; the current implementation environment is Node 22.16.0, so Node-24 execution remains to be proven. |
-| Security validation | AMBER | Security tooling is configured and documented, but full live SAST/dependency/secret/DAST validation is not evidenced in this environment. |
-| MongoDB / Redis / payments | AMBER | Infrastructure templates and service layers exist, but live database/provider integration and payment-sandbox proof are not complete here. |
-| Backup / restore | AMBER | Recovery processes are documented but not proven by a real restore drill in this environment. |
-| Deployment / rollback | AMBER | Kubernetes charts and deployment manifests exist, but actual cluster rollout and rollback evidence is not present. |
-| Regulatory / legal review | RED | External legal/regulatory approval is explicitly not complete. |
-| Production approval | RED | Not allowed without completed external evidence, live provider checks, security review and legal/regulatory review. |
+| Production approval | NO | Target-runtime, operational, external provider, security and customer/pilot gates are not proven. |
+| Repository source syntax | PASS (source/static) | Enterprise syntax gate parsed 2,348 executable JS/TS-family files under Node 22.16.0; this is below the declared target runtime. |
+| Login/readiness contract | PASS (source contract) | `node scripts/verify-login-readiness-remediation.mjs`; no live HTTP test available. |
+| Runtime contract | PASS (source contract) | `node scripts/verify-runtime-contract.mjs`. |
+| Runtime connectivity stale-result guard | PASS (native harness) | 5 scenarios: offline abort/stale READY, newer failure precedence, concurrent probe single-flight, timeout classification and HTTP 5xx classification. |
+| Official nine-color theme | PASS | `node scripts/official-theme-audit.mjs`; light/dark tokens, runtime wiring, brand assets and mobile palette validated by the existing audit. |
+| Financial static gate | PASS | 12 canonical financial files checked; this does not prove a financial transaction was operated. |
+| Enterprise contract gate | PASS | 11 control-plane contracts checked. |
+| Canonical financial import audit | PASS on audited critical financial surface | 214 legacy/non-critical missing local import findings remain for later consolidation. |
+| Frontend runtime audit | PASS_WITH_WARNINGS | 11 pass, 1 warning; React runtime needs a production artifact/clean browser confirmation; Adobe font extension warning is external unless ownership is proven. |
+| RBAC static gate | PASS | Live tenant boundaries / protected-resource authorization not run. |
+| Native Node unit checks | PASS | Money 3/3, control-plane 9/9, frontend runtime audit tests 2/2; connectivity harness adds 5 state scenarios. |
+| Backend syntax script | PASS | `npm --prefix backend run check:syntax`. |
+| Backend ESM import test | BLOCKED | Missing installed `pino` dependency. |
+| Backend Jest suite | BLOCKED | `backend/node_modules/jest/bin/jest.js` absent. |
+| Frontend Vitest suite | BLOCKED | `vitest` absent. |
+| Frontend production build | BLOCKED | `vite` absent. |
+| Lint | BLOCKED | `eslint` absent. |
+| Target runtime baseline | NOT MET | Available Node `v22.16.0`, npm `10.9.2`; repository requires Node `>=24.15.0`, npm `>=11.0.0`. |
+| Live server/readiness/login E2E | NOT RUN | No live HTTP listener proof, target DB/Redis or browser E2E was available. |
+| Provider/settlement/reconciliation | NOT PROVEN | No live provider/settlement source evidence from this run. |
+| Restore/rollback/security/legal/pilot | NOT PROVEN | External and operational gates remain open. |
 
-## 04 October 2026 implementation update
+## Product truth
 
-The uploaded repository was extended without creating a parallel bootstrap or financial engine. Bootstrap contract/state/restart tests now pass locally without third-party dependencies, and a first agriculture vertical slice is present behind tenant/RBAC boundaries. The agriculture settlement path delegates financial effects through the canonical `processFinancialOperation` / `executeFinancialOperation(TRANSACTION_CREATE)` boundary and writes the existing outbox/audit surfaces. The canonical runtime-import audit and release-readiness gate now pass for the critical financial surface. The official nine-color TITech theme audit remains PASS.
+- One-off contribution/savings, payment/provider, financial-operation, ledger and reconciliation code exists, but the complete real-infrastructure golden path remains **IMPLEMENTED_NOT_PROVEN / PARTIAL**.
+- The focused inventory did not find a dedicated persisted recurring-contribution plan/occurrence lifecycle; do not represent scheduled collection as implemented or enable recurring debits.
+- Fixed-deposit account fields and `FIXED_DEPOSIT` classification exist; a complete approved terms → cleared funding → accrual → maturity → payout/reinvestment → reconciliation product path was not proven.
+- Investment-purpose/category and internal optimizer/roadmap utilities exist; these are not customer investment-order, custody, holding, redemption or settlement proof.
+- Official TITech colors are already centralized through `branding/TITECH_OFFICIAL_THEME.json`, `frontend/src/branding/official-theme.css`, the theme runtime and the mobile palette. The official theme audit passed; this run did not rebrand the product.
 
-This update does not change the production-approval decision: Node 24.15.x/npm 11.x execution, live MongoDB/Redis, payment-provider, security, backup/restore, deployment, legal/regulatory, and pilot evidence are still required.
+## Required next release gate
 
-## Repository truth
+1. Use Node 24.15.x/npm 11.x; install dependencies from the checked-in lockfiles; run dependency-backed tests/build/lint.
+2. Start the actual backend with the intended non-secret environment configuration; capture the first startup error, bind host/port, process survival, `curl` outputs for `/api/v1/health` and `/api/v1/ready`, and recovery when MongoDB/Redis become unavailable/available.
+3. Demonstrate login → secure session → tenant/RBAC → protected resource → browser refresh/refresh → logout/revocation in a controlled browser, then execute financial provider/ledger/reconciliation proof before a controlled institutional pilot decision.
 
-The platform remains an engineering artifact for controlled pilot operation, not a production-approved financial infrastructure platform. The authoritative condition is therefore:
-
-> PILOT READY — PRODUCTION GAPS REMAIN
-
-## Hard blockers that remain
-
-1. Real MongoDB and Redis integration is not proven in this environment.
-2. Live MTN or other payment sandbox proof is not complete.
-3. Reconciliation, reversal and period-close invariants require live infrastructure-backed validation.
-4. Security and dependency validation is not fully executed and evidenced.
-5. Backup/restore and disaster-recovery drills are not executed.
-6. External legal/regulatory review is still required before production financial operations.
-
-## Production decision
-
-The platform may be treated as pilot-ready for controlled operational experiments and staged onboarding, but not as enterprise production infrastructure approved for live institutional financial operations.
-
-## 2026-10-04 Archive Truth Snapshot
-
-The current machine-generated source-of-truth inventory is:
-
-- `docs/evidence/platform-truth.json`
-- `docs/evidence/production-readiness.md`
-- `docs/evidence/financial-invariants.md`
-- `docs/evidence/provider-proof.md`
-- `docs/evidence/reconciliation-proof.md`
-- `docs/evidence/security-assessment.md`
-- `docs/evidence/backup-restore-proof.md`
-- `docs/evidence/tenant-isolation-proof.md`
-- `docs/evidence/pilot-readiness.md`
-- `docs/evidence/FINAL-IMPLEMENTATION-REPORT.md`
-
-Source-only evidence does not authorize `productionApproved=true`; runtime, provider, security, restore and pilot evidence remain separate gates.
+Refer to `docs/REMEDIATION_VERIFICATION_2026-10-11.md`, `docs/evidence/financial-products-baseline-2026-10-11.md`, the `reports/` log collection, and `TITECH_NOT_YET_PROVEN_2026-10-11.md` for detailed evidence and blockers.

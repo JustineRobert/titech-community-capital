@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital",
   "version": "1.0.0",
-  "description": "TITech Community Capital — Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
+  "description": "TITech Community Capital \u2014 Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
   "private": true,
   "keywords": [
     "TITech",
@@ -145,9 +145,10 @@
     "audit:frontend-runtime": "node scripts/frontend-runtime-audit.mjs",
     "test:frontend-runtime": "node --test scripts/frontend-runtime-audit.test.mjs",
     "titech:enterprise-remediation": "node scripts/titech-enterprise-remediation-gate.mjs",
-    "verify:login-readiness": "node scripts/verify-login-readiness-remediation.mjs",
     "enterprise:master-gate": "node scripts/titech-enterprise-master-gate.mjs",
-    "enterprise:master-gate:strict": "node scripts/titech-enterprise-master-gate.mjs --strict"
+    "enterprise:master-gate:strict": "node scripts/titech-enterprise-master-gate.mjs --strict",
+    "verify:login-readiness": "node scripts/verify-login-readiness-remediation.mjs",
+    "verify:runtime-connectivity": "node scripts/verify-runtime-connectivity-state.mjs"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

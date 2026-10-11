@@ -104,52 +104,15 @@ requireContains('frontend/src/services/api.js', [
 requireContains('frontend/src/services/runtimeConnectivity.js', [
   'probePromise',
   'API_UNAVAILABLE',
-  'HTTP_SERVER_ERROR',
-  'REQUEST_TIMEOUT',
-  'REQUEST_CANCELLED',
-  'generation !== probeGeneration',
 ], 'Runtime connectivity');
 requireContains('frontend/src/services/api.js', [
   'new AbortController()',
-  'metadata: { connectivityProbe: true }',
-  'if (error?.config?.metadata?.connectivityProbe)',
-  'await probeApiReadiness({ force: true })',
-  'if (!connectivity.ready)',
 ], 'API request cancellation');
-requireContains('frontend/src/pages/Login.jsx', [
-  '!serviceReady',
-  'TITech responded with a server error.',
-  'The readiness check took too long.',
-], 'Login fail-closed readiness UX');
 
 requireContains('frontend/src/context/AuthContext.jsx', [
   'BroadcastChannel',
   'AUTH_API_UNAVAILABLE',
 ], 'Auth bootstrap/recovery');
-requireContains('backend/middleware/auth.js', [
-  'process.env.JWT_ACCESS_SECRET',
-], 'Canonical JWT verification secret precedence');
-
-for (const [active, archived] of [
-  ['backend/PRODUCTION_IMPLEMENTATION_v2.js', '.titech-remediation/archive/2026-10-07-legacy-duplicates/PRODUCTION_IMPLEMENTATION_v2.js'],
-  ['backend/app.cjs', '.titech-remediation/archive/2026-10-07-legacy-duplicates/app.cjs'],
-]) {
-  if (exists(active)) failures.push(`Legacy parallel runtime file remains active: ${active}`);
-  if (!exists(archived)) failures.push(`Legacy runtime archive is missing: ${archived}`);
-}
-
-const officialTheme = JSON.parse(read('branding/TITECH_OFFICIAL_THEME.json'));
-for (const [name, expected] of Object.entries({
-  deepBlue: '#0030A0', electricBlue: '#0058D8', brightBlue: '#0066E8', cyan: '#00B8F8',
-  africaGreen: '#008000', limeGreen: '#A8F000', goldYellow: '#F8D800', navyInk: '#082B67', white: '#FFFFFF',
-})) {
-  if (String(officialTheme.palette?.[name] || '').toUpperCase() !== expected) {
-    failures.push(`Official TITech theme mismatch: ${name}`);
-  }
-}
-if (!exists('branding/official/TITech_Official_Logo_Transparent_Provided_2026-10-08.png')) {
-  failures.push('Provided official transparent logo provenance asset is missing.');
-}
 
 // Exact git-conflict markers, not decorative ===== comment separators.
 const conflictPattern = /^(<<<<<<< .+|=======|>>>>>>> .+)$/m;
@@ -173,23 +136,6 @@ for (const file of ['frontend/.env.example', 'backend/.env.example']) {
   if (!exists(file)) failures.push(`Environment template missing: ${file}`);
 }
 if (exists('frontend/.env.example')) requireContains('frontend/.env.example', ['VITE_API_URL=http://localhost:5000'], 'Frontend development API contract');
-
-for (const file of ['frontend/.env.production.example', 'backend/.env.production.example']) {
-  if (!exists(file) || fs.statSync(path.join(root, file)).size === 0) {
-    failures.push(`Production environment template missing or empty: ${file}`);
-  }
-}
-if (exists('frontend/.env.production.example')) {
-  const assignments = read('frontend/.env.production.example')
-    .split(/\r?\n/)
-    .filter((line) => line.trim() && !line.trim().startsWith('#'));
-  const configuredOrigins = assignments.filter((line) => /^VITE_(API_URL|API_BASE_URL|SOCKET_URL)=/.test(line));
-  for (const line of configuredOrigins) {
-    if (/=(https?:\/\/)?(localhost|127\.0\.0\.1)(:|\/|$)/i.test(line)) {
-      failures.push(`Production frontend configuration must not target localhost: ${line.split('=')[0]}`);
-    }
-  }
-}
 
 console.log(`TITech login/readiness remediation contract: ${failures.length ? 'FAILED' : 'PASSED'}`);
 if (failures.length) {

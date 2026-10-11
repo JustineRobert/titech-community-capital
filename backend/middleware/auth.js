@@ -485,7 +485,6 @@ function validateAuthConfiguration(
 //   resolved bootstrap/configuration object
 //
 // Compatibility:
-//   process.env.JWT_ACCESS_SECRET
 //   process.env.ACCESS_TOKEN_SECRET
 //   process.env.JWT_SECRET
 //
@@ -496,7 +495,6 @@ function validateAuthConfiguration(
 function resolveLegacyEnvironmentConfiguration() {
   const accessSecret =
     normalizeString(
-      process.env.JWT_ACCESS_SECRET ??
       process.env.ACCESS_TOKEN_SECRET ??
       process.env.JWT_SECRET ??
       null,

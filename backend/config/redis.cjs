@@ -7,7 +7,7 @@
  * =============================================================================
  *
  * File:
- *   backend/config/redis.js
+ *   backend/config/redis.cjs
  *
  * Purpose:
  *   Enterprise production-grade Redis configuration and policy boundary.

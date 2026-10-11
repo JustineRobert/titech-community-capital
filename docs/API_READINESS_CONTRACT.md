@@ -1,98 +1,33 @@
-# TITech Community Capital — API Readiness Contract
+# TITech API Readiness Contract
 
-## Endpoint
+**Contract date:** 11 October 2026  
+**Canonical path:** `GET /api/v1/ready`  
+**Related liveness/health path:** `GET /api/v1/health`
 
-`GET /api/v1/ready`
+## Readiness response rules
 
-## Semantics
+| Condition | HTTP | `status` | `success` |
+|---|---:|---|---|
+| Readiness evaluator reports `ready: true` | 200 | `ready` | `true` |
+| Evaluator absent or structured result does not explicitly set `ready: true` | 503 | `not_ready` | `false` |
+| Evaluator returns false | 503 | `not_ready` | `false` |
+| Evaluator throws or readiness cannot be evaluated | 503 | `not_ready` | `false` |
 
-**Liveness** asks whether the process is able to answer requests.  
-**Readiness** asks whether the service is operationally capable of serving the requests it claims to support.
+Boolean evaluators are retained for compatibility. A structured readiness callback must set `ready: true`; `status: "ready"` alone is not enough.
 
-A service may therefore be alive but not ready.
+The JSON body includes a service/application/version identifier, request/correlation identifiers when present and timestamp. Dependency `checks` are reduced to `{ready, critical}` flags; blocker entries are bounded and must be non-secret codes. Credentials, connection strings, raw errors and secret values must never be returned.
 
-## Ready response
+## Implementation source
 
-HTTP `200` is reserved for genuine readiness:
+- Route: `backend/routes/index.js`.
+- Bootstrap readiness callback: `backend/bootstrap/ApplicationBootstrap.js`.
+- Dependency/readiness registration: `backend/bootstrap/infrastructure/index.js` and `backend/bootstrap/readinessState.js`.
+- Contract tests: `backend/routes/index.test.js`.
 
-```json
-{
-  "success": true,
-  "status": "ready",
-  "service": "titech-community-capital-backend",
-  "version": "...",
-  "requestId": "...",
-  "correlationId": "...",
-  "timestamp": "..."
-}
-```
+## Consumer rules
 
-## Not-ready response
+The browser must distinguish a TCP/network failure from HTTP 503, other HTTP 5xx, timeout/cancellation and an actual ready response. One shared readiness probe is active at a time; transitions cancel the active request and invalidate its generation. Login submission is gated by a fresh `READY` preflight. Only the canonical readiness probe can transition the frontend to `READY`. A health endpoint responding successfully is not by itself proof that the service can authenticate or perform financial operations.
 
-HTTP `503` is used when the application has not established the required readiness contract:
+## Evidence and limitations
 
-```json
-{
-  "success": false,
-  "status": "not_ready",
-  "blockers": ["database_not_ready"],
-  "checks": {
-    "database": { "ready": false, "critical": true }
-  },
-  "timestamp": "..."
-}
-```
-
-Only safe operational information is exposed. Credentials, secrets, database URLs, Redis URLs, raw error stacks and internal implementation details are excluded.
-
-## Current implementation contract
-
-- No readiness callback wired → `not_ready`.
-- Readiness evaluator throws → `503`.
-- Database required but missing/unready → `503`.
-- Bootstrap context not READY → `503`.
-- Genuine READY state → `200`.
-- HTTP listener may bind before final application READY so orchestration can observe `503` rather than `ECONNREFUSED`.
-
-## Frontend interpretation
-
-The frontend distinguishes at least:
-
-```text
-CHECKING
-API_UNAVAILABLE
-DEGRADED
-READY
-REQUEST_TIMEOUT
-REQUEST_CANCELLED
-```
-
-A transport/readiness failure is not treated as invalid credentials and must not trigger automatic credential replay.
-
-## Prohibited behavior
-
-```text
-ready=true while required authentication storage is broken
-HTTP 200 used to hide a dependency failure
-wildcard credentialed CORS
-production localhost API configuration
-unbounded readiness polling
-multiple independent readiness probes for the same purpose
-```
-
-## Browser state interpretation — 2026-10-09 follow-up
-
-The canonical frontend connectivity state machine additionally distinguishes:
-
-- `API_UNAVAILABLE`: no HTTP response was received (for example, connection refused).
-- `OFFLINE`: the browser reports that the device is offline.
-- `API_DEGRADED`: an HTTP response was received but readiness was not confirmed; HTTP 503 is not login permission.
-- `HTTP_SERVER_ERROR`: an HTTP 5xx error other than the readiness-specific 503 was returned.
-- `REQUEST_TIMEOUT`: the readiness request exceeded its bounded timeout.
-- `REQUEST_CANCELLED`: a probe was cancelled and must not be interpreted as a successful check.
-- `API_REACHABLE`: the HTTP service responded, but readiness was not established.
-- `READY`: the canonical readiness endpoint returned a successful response whose `status` value is `ready`.
-
-A single-flight readiness probe owns the state transition. The low-level API request classifier returns result metadata without mutating shared connectivity state. An online/offline event cancels and invalidates the in-flight probe, so an old response cannot overwrite the newer browser/network state. A login call that reaches the API service directly performs one bounded readiness probe and refuses to send credentials unless the resulting state is genuinely `READY`.
-
-These states describe frontend transport/readiness observations; they do not certify database, Redis, credential store, JWT, refresh-token, tenancy, RBAC, or financial operations unless those are represented by the backend's actual readiness checks and separately verified.
+The source/static contract verifier passed; the enterprise syntax gate parsed the touched project source. The backend HTTP route has not been exercised against a running process in this environment because the target Node/npm runtime and dependency installation are unavailable. Live HTTP 200/503 behavior must be captured after the clean target-runtime install.

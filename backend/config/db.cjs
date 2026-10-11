@@ -7,7 +7,7 @@
  * =============================================================================
  *
  * File:
- *   backend/config/db.js
+ *   backend/config/db.cjs
  *
  * Purpose:
  *   Enterprise production-grade MongoDB/Mongoose connection configuration and
@@ -3910,7 +3910,7 @@ function registerBootstrapHooks(
           SERVICE_NAME,
 
         implementation:
-          "backend/config/db.js",
+          "backend/config/db.cjs",
       },
     },
   );

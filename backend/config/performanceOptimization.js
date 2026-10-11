@@ -39,7 +39,7 @@
  *
  * Canonical infrastructure ownership remains with:
  *
- *   backend/config/db.js
+ *   backend/config/db.cjs
  *   backend/bootstrap/infrastructure.js
  *   backend/config/cache.js
  *

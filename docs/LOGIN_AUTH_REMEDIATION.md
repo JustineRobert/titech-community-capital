@@ -1,107 +1,55 @@
-# TITech Community Capital — Login/Auth Runtime Remediation
+# TITech Community Capital — Login and API Readiness Remediation
 
-**Date:** 2026-10-08  
-**Baseline:** `titech-community-capital-main(1).zip`  
-**Scope:** browser startup → API configuration → connectivity → readiness → login → session → tenant/RBAC → protected resource
+**Evidence date:** 11 October 2026  
+**Decision:** **NOT READY for controlled-pilot or production approval from this run**  
+**Production approval:** NO  
+**Scope:** Browser connectivity, API readiness, startup/module boundaries, authentication request safety and truthful failure states.
 
-## Incident
+## Incident evidence and root-cause confidence
 
-The observed login symptom is rooted at the service-availability boundary. The browser repeatedly targeted `http://localhost:5000/api/v1/ready` and received `ERR_CONNECTION_REFUSED`, so the frontend correctly deferred authentication instead of pretending credentials were invalid.
+The supplied browser trace shows `GET http://localhost:5000/api/v1/ready` failing with `net::ERR_CONNECTION_REFUSED`. A refused connection means that, at the captured time, the browser could not establish a TCP connection to the configured host/port. The login POST was not confirmed in the trace, so that trace does **not** implicate credentials, account status, session creation, tenant resolution or RBAC.
 
-Source inspection found several independent startup/readiness hazards capable of producing that condition:
+The uploaded source also contained a concrete readiness correctness defect: the `/api/v1/ready` route initialized its local `isReady` flag to `true` before it had established that readiness was wired or successful. That could misreport service readiness even when no evaluator existed. The route in this working tree fails closed (`isReady = false`) and only treats a structured evaluator result as ready when `result.ready === true`; boolean readiness remains supported for compatibility.
 
-- Critical ESM bootstrap modules were loaded through CommonJS `require()` boundaries even though the backend package is ESM.
-- The canonical CJS database/config adapters used ambiguous `.js` names under an ESM package boundary.
-- The readiness route could fail open when the application did not wire a readiness callback.
-- The HTTP server's pre-listen readiness gate could require final READY before binding the socket, while the application only reaches final READY after the server phase completes.
-- JWT access-secret authority was split between `JWT_ACCESS_SECRET` and legacy names.
-- Authentication controller fallback could use in-memory user/session state unless explicitly prevented in production.
+The prior remediation archive also contained startup/module-boundary corrections: ESM modules now use ESM imports at the canonical bootstrap boundary, and CommonJS adapters are explicitly `.cjs` where appropriate. Those changes reduce a credible class of startup failure. However, the actual process could not be started in the target runtime in this environment, so it is **not proven** that those were the sole cause of the captured connection refusal. The remaining root-cause question is whether the deployed/local service failed during bootstrap, failed to bind its configured listener, or the frontend targeted the wrong host/port. The next operational run must capture the first backend startup error and listener/bind result.
 
-Historical project evidence also records backend startup failures involving unsafe JWT placeholder configuration and `require is not defined in ES module scope` during bootstrap imports.
+## Implemented in the working tree
 
-## Changes implemented
+- `/api/v1/ready` defaults to not-ready; absence or failure of a readiness evaluator cannot return a false success.
+- Readiness returns HTTP 200 only for `ready === true`; otherwise it returns HTTP 503 and the stable `not_ready` status. Boolean legacy evaluators remain supported.
+- Readiness detail is minimized to `ready`/`critical` flags for dependency checks and bounded blocker codes, not arbitrary dependency objects or secrets.
+- The bootstrap-provided readiness callback requires the application lifecycle to be ready and evaluates the database adapter through an explicit readiness contract. An adapter object without `isReady`, `readiness`, or `isConnected` is not treated as proof of database availability. Test-only no-database behavior remains isolated to `NODE_ENV=test`.
+- Runtime connectivity guards stale asynchronous probe results, so an older successful probe cannot override a browser-offline transition or a newer API failure.
+- Readiness/health response interceptors do not independently mark the API ready before the canonical readiness evaluator classifies the response. The readiness probe is single-flight, uses AbortController cancellation, invalidates stale generations, and distinguishes offline, connection failure, HTTP 503/not-ready, other HTTP 5xx, timeout and cancellation. The login form forces a fresh shared readiness check before sending credentials.
+- Added focused regression assertions for readiness objects and a dependency-free Node test harness for stale responses and single-flight connectivity probes.
+- Preserved the established `/api/auth/*` and `/api/v1/ready` contracts and the existing JWT/refresh-cookie model; no new auth system or V2 endpoints were introduced.
 
-### Runtime/bootstrap
+## Test evidence in this run
 
-- Replaced critical `require()` use with native ESM imports in `bootstrap/server.js`, while retaining `createRequire` only for the explicitly optional legacy runtime boundary.
-- Restored and preserved the existing TLS/HTTPS handling rather than replacing the server architecture.
-- Changed pre-listen readiness gating to verify completed predecessor bootstrap phases. The server can bind the management/readiness endpoint while the application is not ready, allowing `/api/v1/ready` to truthfully return `503` instead of `ECONNREFUSED`.
-- Bound `application.locals.titechReadiness` to the canonical `BootstrapContext` and actual database readiness.
+Passing source/static checks are logged under `reports/` and indexed by `reports/static-validation-results-2026-10-11.json`, `reports/runtime-validation-results-2026-10-11.json`, and `reports/additional-validation-results-2026-10-11.json`.
 
-### Readiness/API
+- Login/readiness remediation contract verifier: PASS.
+- Runtime configuration contract verifier: PASS.
+- Runtime connectivity state harness: PASS, 5 scenarios, including abort on offline transition and distinct timeout/HTTP 5xx outcomes.
+- Backend source syntax command: PASS.
+- Enterprise syntax gate: PASS, 2,348 executable JS/TS-family files parsed under Node 22.16.0.
+- Official theme audit: PASS.
+- Financial static gate: PASS, 12 canonical financial files checked.
+- Enterprise contract gate: PASS, 11 control-plane contracts checked.
+- Canonical financial runtime-import audit: PASS for audited critical surface; 214 legacy/non-critical missing local import findings remain.
+- RBAC static gate: PASS.
+- Native Node tests: money arithmetic 3/3 passed, control-plane 9/9 passed, frontend runtime audit unit tests 2/2 passed.
 
-- `/api/v1/ready` now defaults to not-ready and returns HTTP `503` until readiness is genuinely established.
-- Public readiness output is restricted to safe status/check metadata; secrets, connection strings and stack traces are not exposed.
-- Database readiness is registered with the existing readiness coordinator.
-- Infrastructure adapter discovery resolves from the actual backend repository root and uses the canonical database/Redis boundaries.
+Not proven: target Node 24.15.x/npm 11.x runtime; dependency-backed backend Jest tests; frontend Vitest tests; Vite production build; lint; live server listener; HTTP readiness against a running server; live MongoDB/Redis; browser E2E; real login/session/refresh/logout flow; tenant isolation against a live API; MTN/Airtel sandbox; production security review.
 
-### Authentication/session security
+The dependency-backed commands failed to launch because dependencies/binaries are not installed in this extracted archive (`jest`, `vitest`, `vite`, `eslint`; ESM import check could not find package `pino`). The local runtime is Node 22.16.0/npm 10.9.2, below the declared Node >=24.15.0/npm >=11.0.0 baseline. These are blockers, not passing tests.
 
-- `JWT_ACCESS_SECRET` is the preferred access-token secret throughout the canonical auth path, with legacy aliases retained only for compatibility.
-- Production cannot use process-memory authentication fallback.
-- Login/register/refresh/logout return a safe `AUTH_STORE_UNAVAILABLE` response when persistent authentication storage is required but unavailable.
-- Access credentials remain memory-only on the frontend; refresh/session credentials use the existing credentialed HttpOnly-cookie architecture.
-- Existing refresh-token rotation, reuse detection, logout/revocation, tenant resolution and RBAC boundaries were preserved.
+## Remaining P0/P1 actions
 
-### Module boundary repair
+1. Run under Node 24.15.x and npm 11.x after a clean lockfile-based install; capture the first bootstrap failure (if any), actual bind host/port, process survival and `curl` results for `/api/v1/ready` and `/api/v1/health`.
+2. Run backend integration and frontend E2E in a controlled environment with real MongoDB and Redis test instances; prove valid login → session → `/api/auth/me` or the actual protected resource → refresh → logout → rejection after logout.
+3. Prove server-side tenant/RBAC boundaries and failure recovery in E2E/security testing before any production claim.
 
-- `backend/bootstrap/database.js` → `backend/bootstrap/database.cjs`
-- `backend/config/db.js` → `backend/config/db.cjs`
-- `backend/config/redis.js` → `backend/config/redis.cjs`
-- Direct consumers were updated to use the explicit CJS boundaries.
-- Active-root duplicate `backend/PRODUCTION_IMPLEMENTATION_v2.js` and `backend/app.cjs` were removed; archived copies remain in `.titech-remediation/archive/2026-10-07-legacy-duplicates/`.
+## Scope deliberately not claimed
 
-### Branding
-
-The existing official TITech theme contract remains the single visual authority. The delivery verifies the nine official values across the root theme, web semantic token layer and mobile token layer and retains the supplied transparent logo as a provenance asset.
-
-## Verification performed
-
-Passed source/static checks include:
-
-- `node scripts/verify-login-readiness-remediation.mjs`
-- `node scripts/verify-runtime-contract.mjs`
-- `node scripts/verify-auth-contract.mjs`
-- `node scripts/verify-api-contract.mjs`
-- `node scripts/verify-deployment-contract.mjs`
-- `node scripts/enterprise-contract-contracts.mjs`
-- `node scripts/enterprise-completeness-gate.mjs`
-- `node scripts/financial-static-gate.mjs`
-- `node scripts/rbac-security-gate.mjs`
-- `node scripts/security-static-gate.mjs`
-- `node scripts/startup-contract.mjs`
-- `node scripts/official-theme-audit.mjs`
-- `node scripts/frontend-runtime-audit.mjs`
-- `node scripts/runtime-import-audit.mjs`
-- `node scripts/titech-enterprise-remediation-gate.mjs`
-
-These are source/contract proofs. They do not substitute for live infrastructure proof.
-
-## Verification boundary
-
-This delivery environment is running Node 22.16.0 and npm 10.9.2, while the repository requires Node 24.15.0+ and npm 11.0.0+. The full dependency tree was not available, MongoDB and Redis were not listening locally, Docker was unavailable, and a real browser E2E session could not be executed here.
-
-Therefore this package is a **remediated engineering delivery with production-gate prerequisites outstanding**, not a declaration of independent production approval.
-
-## Root-cause answer
-
-**What caused the login failure?** The browser could not establish connectivity to the backend on port 5000, so authentication bootstrap remained deferred. The source contains multiple startup defects capable of causing the backend not to become reachable, with ESM/CJS bootstrap loading and readiness/listener coupling being the most direct infrastructure risks identified in this baseline.
-
-**Why did the frontend report `API_UNAVAILABLE`?** Because the readiness request received a connection-refused transport error; that is correctly classified as service unavailability rather than credential rejection.
-
-**Why was `/api/v1/ready` unavailable?** A backend process that fails during bootstrap or never binds its HTTP listener makes the readiness endpoint unreachable. The remediation separates listener availability from final application READY and makes an available-but-not-ready service return truthful `503` status.
-
-**What evidence proves the correction?** The canonical static contracts now pass, the readiness test explicitly covers fail-closed behavior, the active duplicate runtime files are removed, the official-theme audit passes, and the enterprise remediation gate is `PASS_WITH_WARNINGS`. Live Node 24+/MongoDB/Redis/browser evidence remains a required next gate.
-
-## Incremental follow-up — 2026-10-09
-
-The 2026-10-09 delivery makes the following focused corrections to the supplied ZIP baseline:
-
-- Removed the active-root legacy duplicates `backend/PRODUCTION_IMPLEMENTATION_v2.js` and `backend/app.cjs`; historical copies remain under `.titech-remediation/archive/2026-10-07-legacy-duplicates/` for traceability.
-- Made the frontend readiness probe the sole owner of shared connectivity-state mutation. `checkApiHealth` and `checkApiReadiness` now report classified results; they do not independently change shared state while a probe may be stale or cancelled.
-- Added dedicated `HTTP_SERVER_ERROR`, `REQUEST_TIMEOUT`, and `REQUEST_CANCELLED` states to the shared connectivity machine, including `AbortSignal` propagation, single-flight deduplication, probe invalidation on online/offline changes, and protection against late results.
-- Tightened the login service and Login page to require confirmed readiness before credential submission. Unavailable, timeout and server-error states are described separately so a server-side 5xx is not misleadingly presented as a refused connection.
-- Added regression tests for 5xx/timeout/cancellation status separation, single-flight behavior, stale-result suppression after an offline event, and recovery to READY.
-- Added an updated change-discovery and verification report dated 2026-10-09. Live browser, Node 24.15+/npm 11+, database/Redis, provider sandbox and production-environment verification remain external gates.
-
-The original connection-refused evidence proves that the browser received no connection from `localhost:5000` for the readiness request. It does not, by itself, distinguish backend process failure from listener bind/port mismatch or an incorrect frontend origin. The current container cannot replay the user's machine's backend process or configuration, so that last distinction remains unconfirmed here.
+This remediation does not claim the full recurring-contribution workflow, fixed-deposit lifecycle, investment execution, live payment settlement, reconciliation closure or production approval. These require separate finance-path evidence, provider outcomes and external institutional/legal prerequisites, documented in `docs/evidence/financial-products-baseline-2026-10-11.md`.

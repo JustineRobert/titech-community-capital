@@ -215,7 +215,7 @@ const DATABASE_STATES =
 
 const IMPLEMENTATION_CANDIDATES =
   Object.freeze([
-    '../config/db',
+    '../config/db.cjs',
     '../config/database',
     '../database',
     '../database/index',

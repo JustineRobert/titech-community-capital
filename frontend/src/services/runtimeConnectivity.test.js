@@ -4,11 +4,8 @@ import {
   onApiConnectivityChange,
   probeApiConnectivity,
   setApiConnectivityDegraded,
-  setApiConnectivityCancelled,
   setApiConnectivityReady,
   setApiConnectivityReachable,
-  setApiConnectivityServerError,
-  setApiConnectivityTimeout,
   setApiConnectivityUnavailable,
   setBrowserConnectivity,
 } from './runtimeConnectivity.js';
@@ -66,57 +63,6 @@ describe('runtime connectivity state', () => {
     expect(result.ready).toBe(false);
   });
 
-  it('distinguishes HTTP 5xx from transport unavailability', () => {
-    const state = setApiConnectivityServerError({ status: 500, code: 'HTTP_SERVER_ERROR' });
-
-    expect(state.status).toBe(API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR);
-    expect(state.apiReachable).toBe(true);
-    expect(state.ready).toBe(false);
-  });
-
-  it('preserves timeout and cancellation as distinct states', () => {
-    expect(setApiConnectivityTimeout({ code: 'REQUEST_TIMEOUT' }).status)
-      .toBe(API_CONNECTIVITY_STATUS.REQUEST_TIMEOUT);
-    expect(setApiConnectivityCancelled({ code: 'REQUEST_CANCELLED' }).status)
-      .toBe(API_CONNECTIVITY_STATUS.REQUEST_CANCELLED);
-    expect(getApiConnectivityState().ready).toBe(false);
-  });
-
-  it('does not allow a late successful response to overwrite an offline transition', async () => {
-    let capturedSignal;
-    let releaseProbe;
-    const pending = probeApiConnectivity((signal) => {
-      capturedSignal = signal;
-      return new Promise((resolve) => {
-        releaseProbe = resolve;
-      });
-    }, { force: true });
-
-    // The state machine defers invoking the probe by one microtask.
-    await Promise.resolve();
-    expect(capturedSignal).toBeDefined();
-
-    setBrowserConnectivity(false);
-    expect(capturedSignal.aborted).toBe(true);
-    releaseProbe({ healthy: true, status: 200, latency: 2 });
-    await pending;
-
-    expect(getApiConnectivityState().status).toBe(API_CONNECTIVITY_STATUS.OFFLINE);
-    expect(getApiConnectivityState().ready).toBe(false);
-  });
-
-  it('recovers from API_UNAVAILABLE when a later readiness probe succeeds', async () => {
-    setApiConnectivityUnavailable({ code: 'TITECH_API_UNAVAILABLE' });
-
-    const state = await probeApiConnectivity(
-      async () => ({ healthy: true, status: 200, latency: 2 }),
-      { force: true },
-    );
-
-    expect(state.status).toBe(API_CONNECTIVITY_STATUS.READY);
-    expect(state.ready).toBe(true);
-  });
-
   it('deduplicates concurrent readiness probes', async () => {
     let calls = 0;
     let release;
@@ -133,6 +79,7 @@ describe('runtime connectivity state', () => {
 
     const first = probeApiConnectivity(probeFn, { force: true });
     const second = probeApiConnectivity(probeFn, { force: true });
+    await Promise.resolve(); // the probe intentionally begins in the next microtask
 
     expect(calls).toBe(1);
 
@@ -153,12 +100,13 @@ describe('runtime connectivity state', () => {
       return { healthy: true, status: 200, latency: 3 };
     };
 
-    await Promise.all([
+    const recovery = Promise.all([
       probeApiConnectivity(probe, { force: true }),
       probeApiConnectivity(probe, { force: true }),
     ]);
-
+    await Promise.resolve(); // verify coalescing after the deferred probe starts
     expect(calls).toBe(1);
+    await recovery;
   });
 
   it('coalesces forced recovery probes into one in-flight call', async () => {
@@ -168,12 +116,13 @@ describe('runtime connectivity state', () => {
       return { healthy: true, status: 200, latency: 3 };
     };
 
-    await Promise.all([
+    const recovery = Promise.all([
       probeApiConnectivity(probe, { force: true }),
       probeApiConnectivity(probe, { force: true }),
     ]);
-
+    await Promise.resolve(); // verify coalescing after the deferred probe starts
     expect(calls).toBe(1);
+    await recovery;
   });
 
   it('notifies subscribers and allows deterministic cleanup', () => {
@@ -190,4 +139,75 @@ describe('runtime connectivity state', () => {
     expect(seen).toContain(API_CONNECTIVITY_STATUS.API_DEGRADED);
     expect(seen.at(-1)).toBe(API_CONNECTIVITY_STATUS.API_DEGRADED);
   });
+
+
+  it('does not let an in-flight READY response overwrite an offline transition', async () => {
+    let release;
+    const pending = new Promise((resolve) => { release = resolve; });
+    const running = probeApiConnectivity(async () => {
+      await pending;
+      return { healthy: true, status: 200, latency: 9 };
+    }, { force: true });
+
+    setBrowserConnectivity(false);
+    release();
+    const result = await running;
+
+    expect(result.status).toBe(API_CONNECTIVITY_STATUS.OFFLINE);
+    expect(getApiConnectivityState().status).toBe(API_CONNECTIVITY_STATUS.OFFLINE);
+    expect(getApiConnectivityState().ready).toBe(false);
+  });
+
+  it('does not let an older readiness result overwrite a newer API failure', async () => {
+    let release;
+    const pending = new Promise((resolve) => { release = resolve; });
+    const running = probeApiConnectivity(async () => {
+      await pending;
+      return { healthy: true, status: 200, latency: 11 };
+    }, { force: true });
+
+    setApiConnectivityUnavailable({ code: 'NEWER_FAILURE', message: 'A newer request failed.' });
+    release();
+    const result = await running;
+
+    expect(result.status).toBe(API_CONNECTIVITY_STATUS.API_UNAVAILABLE);
+    expect(result.lastErrorCode).toBe('NEWER_FAILURE');
+    expect(result.ready).toBe(false);
+  });
+
+
+  it('aborts the active probe when the browser goes offline', async () => {
+    let release;
+    let requestSignal;
+    const pending = new Promise((resolve) => { release = resolve; });
+    const running = probeApiConnectivity(async (signal) => {
+      requestSignal = signal;
+      await pending;
+      return { healthy: true, status: 200, latency: 8 };
+    }, { force: true });
+
+    await Promise.resolve();
+    setBrowserConnectivity(false);
+    expect(requestSignal?.aborted).toBe(true);
+    release();
+    const state = await running;
+    expect(state.status).toBe(API_CONNECTIVITY_STATUS.OFFLINE);
+    expect(state.ready).toBe(false);
+  });
+
+  it('distinguishes a readiness timeout from an HTTP 5xx response', async () => {
+    const timedOut = await probeApiConnectivity(async () => ({
+      healthy: false, reachable: false, timeout: true, code: 'REQUEST_TIMEOUT', latency: 20,
+    }), { force: true });
+    expect(timedOut.status).toBe(API_CONNECTIVITY_STATUS.REQUEST_TIMEOUT);
+    expect(timedOut.ready).toBe(false);
+
+    const serverError = await probeApiConnectivity(async () => ({
+      healthy: false, reachable: false, serverError: true, status: 500, code: 'HTTP_SERVER_ERROR', latency: 4,
+    }), { force: true });
+    expect(serverError.status).toBe(API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR);
+    expect(serverError.lastHttpStatus).toBe(500);
+    expect(serverError.ready).toBe(false);
+  });
+
 });

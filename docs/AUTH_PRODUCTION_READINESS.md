@@ -1,43 +1,28 @@
-# TITech Community Capital — Authentication Production Readiness
+# Authentication Production Readiness Review
 
-## Current status
+**Review date:** 11 October 2026  
+**Decision:** NOT READY  
+**Production approval:** NO
 
-**SOURCE REMEDIATION: COMPLETE ON THE CANONICAL AUTH/READINESS PATH.**  
-**LIVE PRODUCTION APPROVAL: PENDING EXTERNAL RUNTIME AND SECURITY EVIDENCE.**
+## Source/static gates
 
-## Proven by source/static validation
+- Readiness route fail-closed source contract: PASS.
+- Runtime/API contract verifier: PASS.
+- Connectivity abort/stale-result/single-flight/classification harness: PASS (5 focused scenarios).
+- Enterprise syntax gate: PASS (2,348 JS/TS-family source files parsed under Node 22.16.0).
+- RBAC static gate: PASS.
+- Existing refresh-cookie, user and tenant claims logic retained; no new auth service or route family was added.
+- Official theme audit: PASS.
 
-- Canonical `/api/v1/ready` fail-closed behavior.
-- Deterministic API-origin contract.
-- Shared connectivity state and single-flight probe contract.
-- Request cancellation and bounded transport retry contract.
-- Memory-only access-token storage on the frontend boundary.
-- Credentialed refresh/session-cookie transport.
-- `JWT_ACCESS_SECRET` canonical precedence.
-- Production block on implicit in-memory authentication persistence.
-- ESM-safe canonical bootstrap boundaries.
-- Database readiness integrated into the application readiness contract.
-- Active duplicate legacy runtime files removed from the backend root and retained in the remediation archive.
-- Official TITech nine-color theme audit passes.
-- RBAC/security static gate passes.
-- Financial static gate passes.
-- Enterprise completeness/source-contract gates pass.
-- Exact conflict-marker scan passes.
+## Blocking proof gaps
 
-## Runtime gates still required
+- Local runtime is Node 22.16.0/npm 10.9.2 while repository baseline requires Node >=24.15.0/npm >=11.0.0.
+- No dependency directories are present. Backend Jest test runner, frontend Vitest, Vite and ESLint commands cannot launch; backend ESM module-import validation cannot resolve the `pino` dependency.
+- No backend listener/readiness HTTP capture was possible. Therefore the original `ERR_CONNECTION_REFUSED` has not been recreated or proven resolved in an operational process.
+- No complete browser E2E login/session/refresh/logout flow; the UI readiness gate is source-verified only.
+- No live tenant-mismatch, role/permission, rate-limit, CSRF/CORS, refresh reuse or revoked-session integration test.
+- MongoDB/Redis, provider sandbox, settlement/reconciliation, production deployment, backup/restore, independent security review and external legal/regulatory approvals remain external prerequisites.
 
-1. Run under Node 24.15.0+ and npm 11.0.0+.
-2. Install the repository lockfile/dependencies with CI-equivalent commands.
-3. Start real MongoDB and Redis in an environment matching the deployment topology.
-4. Prove `/api/v1/health` and `/api/v1/ready` under healthy, startup, dependency-loss and recovery conditions.
-5. Execute real `/api/auth/login`, refresh, logout and protected-resource flows.
-6. Execute browser E2E including backend outage and recovery.
-7. Prove actual tenant isolation and actual repository RBAC roles with server-side authorization tests.
-8. Run independent security validation for CSRF, CORS, session fixation, IDOR, refresh replay/race and rate limiting.
-9. Run production frontend/backend builds and CI.
-10. Perform deployment, rollback and backup/restore drills.
-11. Complete payment-provider sandbox/live proof and financial reconciliation evidence separately.
+## Release gate
 
-## Residual repository debt
-
-Repository-wide source scans still report legacy/non-canonical issues outside the repaired authentication/financial path, including unresolved import edges, mixed ESM/CJS boundaries and dormant zero-byte scaffolding. These remain explicitly recorded in generated reports and are not represented as completed production capabilities.
+Keep production enablement and live financial movement gated. Do not infer production approval from source audits or native unit tests. Upgrade to the declared runtime, perform a clean lockfile install, run backend/frontend suites, start the actual server, capture readiness plus protected-resource HTTP evidence, then run the browser/security/tenant/provider/recovery tests described in the project runbooks.

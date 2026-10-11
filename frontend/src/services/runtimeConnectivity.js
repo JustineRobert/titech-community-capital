@@ -1,8 +1,9 @@
 // ============================================================================
 // TITech Community Capital — Runtime connectivity state
 // ============================================================================
-// Single shared browser/API connectivity state machine.
-// It deliberately contains no Axios, React or authentication logic.
+// Single shared browser/API connectivity state machine. It deliberately
+// contains no Axios, React or authentication logic. One probe is active at a
+// time; connectivity transitions abort and invalidate older probes.
 // ============================================================================
 
 'use strict';
@@ -41,10 +42,13 @@ let state = Object.freeze({
 
 let probePromise = null;
 let probeController = null;
-let probeGeneration = 0;
 let lastProbeStartedAt = 0;
+let stateRevision = 0;
+let browserConnectivityGeneration = 0;
+let probeGeneration = 0;
 
 function emit(nextState) {
+  stateRevision += 1;
   state = Object.freeze({ ...state, ...nextState });
 
   for (const listener of listeners) {
@@ -58,25 +62,13 @@ function emit(nextState) {
   return state;
 }
 
-function checkedAt(metadata) {
-  return metadata.checkedAt || new Date().toISOString();
-}
-
-function latency(metadata) {
-  return Number.isFinite(metadata.latencyMs) ? metadata.latencyMs : null;
-}
-
-function statusCode(metadata) {
-  return Number.isFinite(metadata.status) ? metadata.status : null;
-}
-
 function invalidateActiveProbe() {
   probeGeneration += 1;
-  if (probeController) {
+  if (probeController && !probeController.signal.aborted) {
     try {
       probeController.abort();
     } catch {
-      // A cancellation failure must not block state transition.
+      // Aborting is best-effort; generation invalidation remains authoritative.
     }
   }
   probeController = null;
@@ -84,17 +76,22 @@ function invalidateActiveProbe() {
   lastProbeStartedAt = 0;
 }
 
+function validMetrics(metadata = {}) {
+  return {
+    lastCheckedAt: metadata.checkedAt || new Date().toISOString(),
+    lastLatencyMs: Number.isFinite(metadata.latencyMs) ? metadata.latencyMs : null,
+    lastHttpStatus: Number.isFinite(metadata.status) ? metadata.status : null,
+  };
+}
+
 export function getApiConnectivityState() {
   return state;
 }
 
 export function onApiConnectivityChange(listener) {
-  if (typeof listener !== 'function') {
-    return () => {};
-  }
+  if (typeof listener !== 'function') return () => {};
 
   listeners.add(listener);
-
   try {
     listener(state);
   } catch {
@@ -105,13 +102,12 @@ export function onApiConnectivityChange(listener) {
 }
 
 export function setBrowserConnectivity(online) {
-  const browserOnline = Boolean(online);
-
-  // Online/offline events invalidate any old result so a probe started for a
-  // previous network epoch cannot overwrite a newer OFFLINE/CHECKING state.
+  // Invalidate on every browser connectivity notification, including an
+  // 'online' event while already online. A prior probe must never win later.
   invalidateActiveProbe();
+  browserConnectivityGeneration += 1;
 
-  if (!browserOnline) {
+  if (!online) {
     return emit({
       browserOnline: false,
       apiReachable: false,
@@ -130,7 +126,6 @@ export function setBrowserConnectivity(online) {
     ready: false,
     lastErrorCode: null,
     lastErrorMessage: null,
-    lastHttpStatus: null,
   });
 }
 
@@ -140,9 +135,7 @@ export function setApiConnectivityReady(metadata = {}) {
     apiReachable: true,
     status: API_CONNECTIVITY_STATUS.READY,
     ready: true,
-    lastCheckedAt: checkedAt(metadata),
-    lastLatencyMs: latency(metadata),
-    lastHttpStatus: statusCode(metadata),
+    ...validMetrics(metadata),
     lastErrorCode: null,
     lastErrorMessage: null,
   });
@@ -157,9 +150,7 @@ export function setApiConnectivityReachable(metadata = {}) {
     apiReachable: true,
     status: API_CONNECTIVITY_STATUS.API_REACHABLE,
     ready: false,
-    lastCheckedAt: checkedAt(metadata),
-    lastLatencyMs: latency(metadata),
-    lastHttpStatus: statusCode(metadata),
+    ...validMetrics(metadata),
     lastErrorCode: metadata.code || null,
     lastErrorMessage: metadata.message || null,
   });
@@ -178,9 +169,7 @@ export function setApiConnectivityDegraded(metadata = {}) {
       ? API_CONNECTIVITY_STATUS.OFFLINE
       : API_CONNECTIVITY_STATUS.API_DEGRADED,
     ready: false,
-    lastCheckedAt: checkedAt(metadata),
-    lastLatencyMs: latency(metadata),
-    lastHttpStatus: statusCode(metadata),
+    ...validMetrics(metadata),
     lastErrorCode: metadata.code || (offline ? 'CLIENT_OFFLINE' : 'API_NOT_READY'),
     lastErrorMessage:
       metadata.message || (offline ? 'The browser reports that the device is offline.' : 'TITech API is degraded.'),
@@ -193,9 +182,7 @@ export function setApiConnectivityUnavailable(metadata = {}) {
     apiReachable: false,
     status: API_CONNECTIVITY_STATUS.API_UNAVAILABLE,
     ready: false,
-    lastCheckedAt: checkedAt(metadata),
-    lastLatencyMs: latency(metadata),
-    lastHttpStatus: statusCode(metadata),
+    ...validMetrics(metadata),
     lastErrorCode: metadata.code || 'TITECH_API_UNAVAILABLE',
     lastErrorMessage: metadata.message || 'TITech API is unavailable.',
   });
@@ -204,14 +191,10 @@ export function setApiConnectivityUnavailable(metadata = {}) {
 export function setApiConnectivityServerError(metadata = {}) {
   return emit({
     browserOnline: true,
-    // A received 5xx response proves the HTTP service was reached, but not
-    // that the application is ready to serve authentication or domain work.
-    apiReachable: Number.isFinite(metadata.status),
+    apiReachable: true,
     status: API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR,
     ready: false,
-    lastCheckedAt: checkedAt(metadata),
-    lastLatencyMs: latency(metadata),
-    lastHttpStatus: statusCode(metadata),
+    ...validMetrics(metadata),
     lastErrorCode: metadata.code || 'HTTP_SERVER_ERROR',
     lastErrorMessage: metadata.message || 'TITech API returned a server error.',
   });
@@ -220,66 +203,40 @@ export function setApiConnectivityServerError(metadata = {}) {
 export function setApiConnectivityTimeout(metadata = {}) {
   return emit({
     browserOnline: true,
-    apiReachable: Number.isFinite(metadata.status),
+    apiReachable: false,
     status: API_CONNECTIVITY_STATUS.REQUEST_TIMEOUT,
     ready: false,
-    lastCheckedAt: checkedAt(metadata),
-    lastLatencyMs: latency(metadata),
-    lastHttpStatus: statusCode(metadata),
+    ...validMetrics(metadata),
     lastErrorCode: metadata.code || 'REQUEST_TIMEOUT',
-    lastErrorMessage: metadata.message || 'TITech API readiness check timed out.',
+    lastErrorMessage: metadata.message || 'The TITech API request timed out.',
   });
 }
 
 export function setApiConnectivityCancelled(metadata = {}) {
   return emit({
-    browserOnline:
-      metadata.browserOnline !== undefined
-        ? Boolean(metadata.browserOnline)
-        : typeof navigator === 'undefined' || navigator.onLine !== false,
-    apiReachable: metadata.reachable === true,
     status: API_CONNECTIVITY_STATUS.REQUEST_CANCELLED,
     ready: false,
-    lastCheckedAt: checkedAt(metadata),
-    lastLatencyMs: latency(metadata),
-    lastHttpStatus: statusCode(metadata),
+    ...validMetrics(metadata),
     lastErrorCode: metadata.code || 'REQUEST_CANCELLED',
-    lastErrorMessage: metadata.message || 'TITech API readiness check was cancelled.',
+    lastErrorMessage: metadata.message || 'The TITech API request was cancelled.',
   });
 }
 
-function isCancellation(error) {
-  return error?.code === 'ERR_CANCELED' ||
-    error?.name === 'CanceledError' ||
-    error?.name === 'AbortError';
-}
-
-function isTimeout(error) {
-  return ['ECONNABORTED', 'ETIMEDOUT', 'ESOCKETTIMEDOUT', 'AUTH_TIMEOUT'].includes(
-    String(error?.code || '').toUpperCase(),
-  ) || /timeout|timed out/i.test(String(error?.message || ''));
-}
-
 /**
- * Execute one shared API availability/readiness probe. Multiple callers share
- * one in-flight request. Offline/online transitions cancel and invalidate the
- * prior probe, preventing late responses from restoring stale readiness.
+ * Execute one shared API availability/readiness probe.
+ * The probe receives (AbortSignal | undefined, { isCurrent }). The promise is
+ * assigned before the probe executes, so synchronous throws and rapid callers
+ * are both safely single-flight.
  */
-export function probeApiConnectivity(
-  probe,
-  { force = false, minIntervalMs = 5000 } = {},
-) {
+export function probeApiConnectivity(probe, { force = false, minIntervalMs = 5000 } = {}) {
   if (typeof probe !== 'function') {
     throw new TypeError('A connectivity probe function is required.');
   }
 
-  if (state.status === API_CONNECTIVITY_STATUS.OFFLINE) {
+  if (state.status === API_CONNECTIVITY_STATUS.OFFLINE || state.browserOnline === false) {
     return Promise.resolve(state);
   }
-
-  if (probePromise) {
-    return probePromise;
-  }
+  if (probePromise) return probePromise;
 
   const now = Date.now();
   if (!force && now - lastProbeStartedAt < minIntervalMs) {
@@ -287,8 +244,9 @@ export function probeApiConnectivity(
   }
 
   lastProbeStartedAt = now;
-  const generation = ++probeGeneration;
-  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const thisGeneration = ++probeGeneration;
+  const thisBrowserGeneration = browserConnectivityGeneration;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
   probeController = controller;
 
   emit({
@@ -298,100 +256,64 @@ export function probeApiConnectivity(
     lastErrorMessage: null,
   });
 
-  // Defer invoking the probe to ensure probePromise is assigned before any
-  // user-supplied probe can synchronously throw.
-  probePromise = Promise.resolve()
-    .then(() => probe(controller?.signal))
+  const thisRevision = stateRevision;
+  const isCurrent = () =>
+    thisGeneration === probeGeneration &&
+    thisBrowserGeneration === browserConnectivityGeneration &&
+    thisRevision === stateRevision &&
+    state.browserOnline !== false &&
+    !controller?.signal.aborted;
+
+  const activePromise = Promise.resolve()
+    .then(() => probe(controller?.signal, { isCurrent }))
     .then((result) => {
-      if (generation !== probeGeneration || state.status === API_CONNECTIVITY_STATUS.OFFLINE) {
-        return state;
-      }
-
-      if (result?.cancelled === true) {
-        return setApiConnectivityCancelled({
-          ...result,
-          checkedAt: new Date().toISOString(),
-        });
-      }
-      if (result?.timeout === true) {
-        return setApiConnectivityTimeout({
-          ...result,
-          checkedAt: new Date().toISOString(),
-        });
-      }
-      if (result?.serverError === true) {
-        return setApiConnectivityServerError({
-          ...result,
-          checkedAt: new Date().toISOString(),
-        });
-      }
-      if (result?.degraded === true) {
-        return setApiConnectivityDegraded({
-          ...result,
-          checkedAt: new Date().toISOString(),
-        });
-      }
-      if (result?.healthy === true) {
-        return setApiConnectivityReady({
-          status: result.status,
-          latencyMs: result.latency,
-          checkedAt: new Date().toISOString(),
-        });
-      }
-      if (result?.reachable === true) {
-        return setApiConnectivityReachable({
-          status: result.status,
-          latencyMs: result.latency,
-          code: result.code,
-          message: result.message,
-          checkedAt: new Date().toISOString(),
-        });
-      }
-      if (result?.offline === true) {
-        return setApiConnectivityDegraded({
-          ...result,
-          offline: true,
-          checkedAt: new Date().toISOString(),
-        });
-      }
-      if (result?.unavailable === true) {
-        return setApiConnectivityUnavailable({
-          ...result,
-          checkedAt: new Date().toISOString(),
-        });
-      }
-
-      return setApiConnectivityDegraded({
-        ...result,
-        checkedAt: new Date().toISOString(),
-      });
-    })
-    .catch((error) => {
-      if (generation !== probeGeneration || state.status === API_CONNECTIVITY_STATUS.OFFLINE) {
-        return state;
-      }
-
-      const metadata = {
-        status: error?.response?.status,
-        code: error?.code,
-        message: error?.message,
-        checkedAt: new Date().toISOString(),
+      if (!isCurrent() || result?.stale === true) return state;
+      const checkedAt = new Date().toISOString();
+      const details = {
+        status: result?.status,
+        latencyMs: result?.latency,
+        code: result?.code,
+        message: result?.message,
+        checkedAt,
       };
 
-      if (isCancellation(error)) return setApiConnectivityCancelled(metadata);
-      if (isTimeout(error)) return setApiConnectivityTimeout(metadata);
-      if (Number.isFinite(metadata.status) && metadata.status >= 500) {
-        return setApiConnectivityServerError(metadata);
+      if (result?.healthy === true) return setApiConnectivityReady(details);
+      if (result?.offline === true) return setApiConnectivityDegraded({ ...details, offline: true });
+      if (result?.cancelled === true) return setApiConnectivityCancelled(details);
+      if (result?.timeout === true) return setApiConnectivityTimeout(details);
+      if (result?.serverError === true) return setApiConnectivityServerError(details);
+      if (result?.degraded === true || result?.status === 503 || result?.notReady === true) {
+        return setApiConnectivityDegraded(details);
       }
-      if (Number.isFinite(metadata.status)) return setApiConnectivityDegraded(metadata);
-      return setApiConnectivityUnavailable(metadata);
+      if (result?.reachable === true) return setApiConnectivityReachable(details);
+      if (result?.unavailable === true) return setApiConnectivityUnavailable(details);
+      return setApiConnectivityDegraded(details);
     })
-    .finally(() => {
-      if (generation === probeGeneration) {
-        probePromise = null;
-        probeController = null;
-      }
+    .catch((error) => {
+      if (!isCurrent()) return state;
+      const latency = Date.now() - now;
+      const status = error?.response?.status;
+      const code = String(error?.code || '');
+      const cancelled = error?.name === 'AbortError' || code === 'ERR_CANCELED';
+      const timeout = code === 'ECONNABORTED' || code === 'ETIMEDOUT' || /timeout/i.test(error?.message || '');
+      const offline = error?.isOffline === true || (typeof navigator !== 'undefined' && navigator.onLine === false);
+      const details = { status, latencyMs: latency, code: error?.code, message: error?.message };
+
+      if (cancelled) return setApiConnectivityCancelled(details);
+      if (timeout) return setApiConnectivityTimeout(details);
+      if (offline) return setApiConnectivityDegraded({ ...details, offline: true });
+      if (status === 503) return setApiConnectivityDegraded({ ...details, code: 'API_NOT_READY' });
+      if (Number.isFinite(status) && status >= 500) return setApiConnectivityServerError(details);
+      return setApiConnectivityUnavailable(details);
     });
+
+  probePromise = activePromise.finally(() => {
+    // An old promise must not clear a newer probe after recovery/retry.
+    if (thisGeneration === probeGeneration) {
+      probePromise = null;
+      probeController = null;
+    }
+  });
 
   return probePromise;
 }
