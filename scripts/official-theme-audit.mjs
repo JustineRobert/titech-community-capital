@@ -122,6 +122,23 @@ if (!/matchMedia\s*\(/.test(themeJs) && !/prefers-color-scheme/.test(themeJs)) {
   fail('no-system-default', 'Theme runtime still contains system-preference coupling.');
 }
 
+const indexCss = read('frontend/src/index.css');
+if (!/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)/i.test(indexCss)) {
+  pass('explicit-theme-mode-css', 'Global styles do not override an explicit TITech light/dark preference using the operating-system color scheme.');
+} else {
+  fail('explicit-theme-mode-css', 'Global CSS still applies dark-mode styling from OS preference regardless of the explicit TITech theme setting.');
+}
+if (
+  /:root\[data-titech-brand="official"\] :is\(input, textarea, select\)/.test(officialCss) &&
+  /data-theme="dark"[^{}]*:is\(input, textarea, select\)/.test(officialCss) &&
+  /--titech-color-surface/.test(officialCss) &&
+  /--titech-color-text/.test(officialCss)
+) {
+  pass('platform-wide-semantic-theme', 'Shared form controls, surface primitives, tables and text use the official semantic theme tokens.');
+} else {
+  fail('platform-wide-semantic-theme', 'Official semantic tokens are not fully wired to common platform surfaces and controls.');
+}
+
 for (const [id, file, required] of [
   ['main-entry-theme-bootstrap', 'frontend/src/main.jsx', ["import { applyTheme, getInitialTheme } from './branding/theme';", 'applyTheme(getInitialTheme());']],
   ['index-entry-theme-bootstrap', 'frontend/src/index.js', ["import { applyTheme, getInitialTheme } from './branding/theme';", 'applyTheme(initialTheme);']],

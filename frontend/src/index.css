@@ -1113,51 +1113,28 @@ textarea {
 
 
 /* ============================================================================
-   27. DARK MODE FOUNDATION
+   27. EXPLICIT DARK MODE ADJUSTMENTS
    ============================================================================ */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --titech-color-background:
-      var(--titech-color-neutral-950);
+/*
+ * Theme selection is an explicit TITech user preference. Do not apply a dark
+ * form-control/table appearance merely because the operating system prefers
+ * dark mode: the user may have explicitly selected TITech light mode.
+ * Canonical surface/text tokens are declared in branding/official-theme.css.
+ */
 
-    --titech-color-surface:
-      var(--titech-color-neutral-900);
+:root[data-theme='dark'] input,
+:root[data-theme='dark'] textarea,
+:root[data-theme='dark'] select {
+  color-scheme: dark;
+}
 
-    --titech-color-surface-muted:
-      var(--titech-color-neutral-800);
+:root[data-theme='dark'] tbody tr:hover {
+  background: var(--titech-color-surface-muted);
+}
 
-    --titech-color-text:
-      var(--titech-color-neutral-100);
-
-    --titech-color-text-muted:
-      var(--titech-color-neutral-300);
-
-    --titech-color-text-subtle:
-      var(--titech-color-neutral-400);
-
-    --titech-color-border:
-      var(--titech-color-neutral-700);
-
-    --titech-color-border-strong:
-      var(--titech-color-neutral-600);
-  }
-
-  input,
-  textarea,
-  select {
-    color-scheme: dark;
-  }
-
-  tbody tr:hover {
-    background:
-      var(--titech-color-neutral-800);
-  }
-
-  .titech-surface {
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.25);
-  }
+:root[data-theme='dark'] .titech-surface {
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
 }
 
 

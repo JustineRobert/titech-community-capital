@@ -63,6 +63,38 @@ describe('runtime connectivity state', () => {
     expect(result.ready).toBe(false);
   });
 
+  it('classifies HTTP 404 as an endpoint/configuration error, not a transport outage', async () => {
+    const result = await probeApiConnectivity(async () => ({
+      healthy: false,
+      reachable: true,
+      endpointError: true,
+      status: 404,
+      code: 'API_ENDPOINT_MISCONFIGURED',
+    }), { force: true });
+
+    expect(result.status).toBe(API_CONNECTIVITY_STATUS.API_ENDPOINT_ERROR);
+    expect(result.apiReachable).toBe(true);
+    expect(result.ready).toBe(false);
+    expect(result.lastHttpStatus).toBe(404);
+    expect(result.lastErrorCode).toBe('API_ENDPOINT_MISCONFIGURED');
+  });
+
+  it('classifies readiness HTTP 401/403 as an HTTP/access contract error', async () => {
+    const result = await probeApiConnectivity(async () => ({
+      healthy: false,
+      reachable: true,
+      httpError: true,
+      status: 403,
+      code: 'API_READINESS_ACCESS_403',
+    }), { force: true });
+
+    expect(result.status).toBe(API_CONNECTIVITY_STATUS.API_HTTP_ERROR);
+    expect(result.apiReachable).toBe(true);
+    expect(result.ready).toBe(false);
+    expect(result.lastHttpStatus).toBe(403);
+    expect(result.lastErrorCode).toBe('API_READINESS_ACCESS_403');
+  });
+
   it('deduplicates concurrent readiness probes', async () => {
     let calls = 0;
     let release;

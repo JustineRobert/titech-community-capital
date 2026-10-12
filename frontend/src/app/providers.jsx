@@ -40,6 +40,7 @@ import React, {
   Suspense,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -289,6 +290,11 @@ function Bootstrap({
   const [apiConnectivity, setApiConnectivity] =
     useState(() => getApiConnectivity());
 
+  // Remember the last stable status logged. Poll attempts may move through
+  // CHECKING and return to the same outage state; those retries are not new
+  // operational incidents and should not flood the developer console.
+  const lastLoggedConnectivityStatusRef = useRef(null);
+
   // ========================================================================
   // Network State
   // ========================================================================
@@ -407,14 +413,21 @@ function Bootstrap({
   }, [online]);
 
   useEffect(() => {
-    if (!IS_DEV) {
+    if (!IS_DEV || apiConnectivity.status === API_CONNECTIVITY_STATUS.CHECKING) {
       return;
     }
 
-    console.info("[TITech Runtime] API connectivity", {
+    if (lastLoggedConnectivityStatusRef.current === apiConnectivity.status) {
+      return;
+    }
+
+    lastLoggedConnectivityStatusRef.current = apiConnectivity.status;
+    console.info("[TITech Runtime] API connectivity state changed", {
       status: apiConnectivity.status,
       ready: apiConnectivity.ready,
       latencyMs: apiConnectivity.lastLatencyMs,
+      httpStatus: apiConnectivity.lastHttpStatus,
+      code: apiConnectivity.lastErrorCode,
     });
   }, [apiConnectivity]);
 

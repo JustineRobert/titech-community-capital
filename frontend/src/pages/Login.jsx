@@ -537,10 +537,14 @@ export default function Login() {
     serviceState === API_CONNECTIVITY_STATUS.OFFLINE;
   const serviceTimedOut = serviceState === API_CONNECTIVITY_STATUS.REQUEST_TIMEOUT;
   const serviceServerError = serviceState === API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR;
+  const serviceEndpointError = serviceState === API_CONNECTIVITY_STATUS.API_ENDPOINT_ERROR;
+  const serviceHttpError = serviceState === API_CONNECTIVITY_STATUS.API_HTTP_ERROR;
   const serviceCancelled = serviceState === API_CONNECTIVITY_STATUS.REQUEST_CANCELLED;
   const serviceDegraded =
     serviceState === API_CONNECTIVITY_STATUS.API_DEGRADED ||
-    serviceState === API_CONNECTIVITY_STATUS.API_REACHABLE;
+    serviceState === API_CONNECTIVITY_STATUS.API_REACHABLE ||
+    serviceEndpointError ||
+    serviceHttpError;
   const serviceNeedsRetry = serviceUnavailable || serviceTimedOut || serviceServerError || serviceCancelled;
 
   const handleServiceRetry = useCallback(async () => {
@@ -600,8 +604,12 @@ export default function Login() {
               ? "TITech authentication readiness timed out. Please retry shortly."
               : readiness?.status === API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR
                 ? "TITech authentication service returned a server error. Please retry shortly."
-                : "TITech is temporarily unable to reach the authentication service. Please retry shortly.",
-            { autoClose: 5000 },
+                : readiness?.status === API_CONNECTIVITY_STATUS.API_ENDPOINT_ERROR
+                  ? "TITech readiness endpoint was not found. Check the API URL and backend route configuration. Your credentials have not been submitted."
+                  : readiness?.status === API_CONNECTIVITY_STATUS.API_HTTP_ERROR
+                    ? "TITech readiness endpoint rejected the readiness check. Check its public access configuration. Your credentials have not been submitted."
+                    : "TITech is temporarily unable to reach the authentication service. Please retry shortly.",
+            { autoClose: 6000 },
           );
           return;
         }
@@ -966,7 +974,7 @@ export default function Login() {
                       ? "ready"
                       : "checking"
               }`}
-              role={serviceUnavailable || serviceTimedOut || serviceServerError ? "alert" : "status"}
+              role={serviceUnavailable || serviceTimedOut || serviceServerError || serviceEndpointError || serviceHttpError ? "alert" : "status"}
               aria-live="polite"
             >
               <span className="login-service-status__dot" aria-hidden="true" />
@@ -976,8 +984,12 @@ export default function Login() {
                     ? "Authentication readiness timed out"
                     : serviceServerError
                       ? "Authentication service returned a server error"
-                      : serviceCancelled
-                        ? "Readiness check was cancelled"
+                      : serviceEndpointError
+                        ? "TITech readiness endpoint misconfigured"
+                        : serviceHttpError
+                          ? "TITech readiness endpoint returned an HTTP error"
+                          : serviceCancelled
+                            ? "Readiness check was cancelled"
                         : serviceUnavailable
                           ? "Authentication service unavailable"
                           : serviceDegraded
@@ -991,8 +1003,12 @@ export default function Login() {
                     ? "The readiness request did not complete in time. Your credentials have not been submitted."
                     : serviceServerError
                       ? "The API returned a server error. Your credentials have not been submitted."
-                      : serviceCancelled
-                        ? "The previous readiness request was cancelled. Retry to check the service again."
+                      : serviceEndpointError
+                        ? "The backend answered, but the configured readiness URL returned HTTP 404. Check VITE_API_READINESS_PATH and canonical route mounting; credentials have not been submitted."
+                        : serviceHttpError
+                          ? `The backend answered with HTTP ${apiConnectivity?.lastHttpStatus || "4xx"}. The public readiness endpoint must not require a user session; credentials have not been submitted.`
+                          : serviceCancelled
+                            ? "The previous readiness request was cancelled. Retry to check the service again."
                         : serviceUnavailable
                           ? "Your password is not being rejected. The API cannot currently be reached."
                           : serviceDegraded

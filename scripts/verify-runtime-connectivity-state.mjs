@@ -71,6 +71,27 @@ function deferred() {
   assert.equal(getApiConnectivityState().ready, true);
 }
 
+// HTTP routing/configuration and access failures mean the API answered;
+// they must not be mislabeled as a refused TCP/network connection.
+{
+  setBrowserConnectivity(true);
+  const endpointError = await probeApiConnectivity(async () => ({
+    endpointError: true, reachable: true, status: 404, code: 'API_ENDPOINT_MISCONFIGURED',
+  }), { force: true });
+  assert.equal(endpointError.status, API_CONNECTIVITY_STATUS.API_ENDPOINT_ERROR);
+  assert.equal(endpointError.apiReachable, true);
+  assert.equal(endpointError.ready, false);
+  assert.equal(endpointError.lastHttpStatus, 404);
+
+  const accessError = await probeApiConnectivity(async () => ({
+    httpError: true, reachable: true, status: 403, code: 'API_READINESS_ACCESS_403',
+  }), { force: true });
+  assert.equal(accessError.status, API_CONNECTIVITY_STATUS.API_HTTP_ERROR);
+  assert.equal(accessError.apiReachable, true);
+  assert.equal(accessError.ready, false);
+  assert.equal(accessError.lastHttpStatus, 403);
+}
+
 // Readiness timeout and HTTP 5xx stay distinct from network-unreachable state.
 {
   setBrowserConnectivity(true);
@@ -88,4 +109,4 @@ function deferred() {
   assert.equal(serverError.ready, false);
 }
 
-console.log('Runtime connectivity state verification: PASS (5 scenarios)');
+console.log('Runtime connectivity state verification: PASS (6 groups, including endpoint/access HTTP classification)');

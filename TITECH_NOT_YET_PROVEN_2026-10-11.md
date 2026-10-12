@@ -37,3 +37,14 @@ This is the current release-control register. It intentionally supersedes the da
 ## Evidence available from this run
 
 The focused source/static checks and native tests listed in `docs/REMEDIATION_VERIFICATION_2026-10-11.md` passed. They do not substitute for any item above. Current release decision remains **NOT READY**, and `PRODUCTION_APPROVED` remains **NO**.
+
+
+## 11 October implementation addendum
+
+The working package now contains pure recurrence-date rules (`backend/services/savings/recurrenceRules.js`) and exact-integer fixed-deposit simple-interest/date primitives (`backend/services/savings/fixedDepositRules.js`), covered by five dependency-free native tests. This is calculation-level evidence only. Persisted recurring plans, consent/mandates, unique durable occurrences, safe scheduled collections, provider/settlement handling and canonical ledger/receipt/outbox/audit/reconciliation remain unimplemented or unproven. The complete fixed-deposit account-opening/accrual/maturity/payout lifecycle and customer investment order/holding/redemption lifecycle remain missing and externally gated.
+
+Readiness connectivity state handling now distinguishes an endpoint/configuration HTTP 404 and access/other HTTP errors from connection refusal; a native source harness passes six scenario groups. The actual browser-to-backend flow and source of the original workstation connection refusal remain unproven: this execution container's own probe to `127.0.0.1:5000/api/v1/ready` was refused because no local listener was present.
+
+Official theme audit now passes 21/21 checks; 57 CSS files were scanned with zero hard-coded occurrences of official palette literals in non-brand CSS. The official palette remains the brand source of truth.
+
+Current runtime checks still use Node 22.16.0/npm 10.9.2, below the declared requirement Node >=24.15.0/npm >=11.0.0, and dependencies are absent. Backend Jest, frontend Vitest, frontend Vite build and ESLint did not launch. See `docs/evidence/implementation-handoff-2026-10-11.md` and `reports/current-run-validation-summary-2026-10-11.json` for exact results. Do not advance the release ladder based on these source/native results.

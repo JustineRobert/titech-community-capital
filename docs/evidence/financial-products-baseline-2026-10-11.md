@@ -35,3 +35,12 @@ institution/tenant + authenticated actor + policy/consent
 ```
 
 The above is the required design constraint, not a claim that every step is currently operationally proven. The first next financial implementation slice should wait until the P0 runtime/authentication gates are verified in the target runtime. Then select one collection rail and implement the whole recurring contribution slice through the existing canonical boundaries; do not wire a partially safe scheduler that can move real money.
+
+
+## Focused implementation addendum — 11 October 2026
+
+Two pure calculation modules were added after the initial inventory: `backend/services/savings/recurrenceRules.js` (deterministic, bounded recurrence-date preview for daily/weekly/fortnightly/monthly/quarterly schedules; month-end clamps to the last valid day while retaining the original anchor day) and `backend/services/savings/fixedDepositRules.js` (integer/BigInt simple-interest primitive for only explicitly configured supported terms plus explicit accrual-day inclusivity). Their dependency-free tests pass 5/5.
+
+This changes the state of those **rule primitives** to unit-verified, not the product-lifecycle states above. The recurring plan/occurrence product remains `MISSING`: there is still no complete persistence, mandate/consent, registered route, worker/lease, canonical payment/provider, settlement, transaction/journal, receipt/outbox/audit, reconciliation and exception-resolution chain. The full fixed-deposit lifecycle remains `MISSING`, because the new helpers do not create/open/fund/activate deposits, persist approved terms, accrue/post interest, run maturity events or pay out/reinvest. Investments remain contract-gated/disabled.
+
+See `docs/evidence/implementation-handoff-2026-10-11.md` for the actual work and validation boundary, and `docs/evidence/implementation-file-delta-2026-10-11.csv` for the source archive-relative change inventory.

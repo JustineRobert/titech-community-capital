@@ -128,6 +128,7 @@
     "audit:test-discovery": "node scripts/test-discovery-audit.mjs",
     "test:bootstrap": "npm --prefix backend run test:bootstrap",
     "test:financial": "npm --prefix backend run test:financial",
+    "test:financial:product-rules": "node --test scripts/financial-product-rules.test.mjs",
     "test:commercial": "npm --prefix backend run test:commercial",
     "test:chat": "npm --prefix backend run test:chat",
     "test:all": "npm --prefix backend run test:all",

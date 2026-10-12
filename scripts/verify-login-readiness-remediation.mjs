@@ -104,7 +104,14 @@ requireContains('frontend/src/services/api.js', [
 requireContains('frontend/src/services/runtimeConnectivity.js', [
   'probePromise',
   'API_UNAVAILABLE',
+  'API_ENDPOINT_ERROR',
+  'API_HTTP_ERROR',
 ], 'Runtime connectivity');
+requireContains('frontend/src/services/api.js', [
+  'API_ENDPOINT_MISCONFIGURED',
+  'endpointError: true',
+  'httpError: true',
+], 'Readiness HTTP classification');
 requireContains('frontend/src/services/api.js', [
   'new AbortController()',
 ], 'API request cancellation');

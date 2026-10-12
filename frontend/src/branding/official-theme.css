@@ -655,3 +655,83 @@
     forced-color-adjust: auto;
   }
 }
+
+
+/* ============================================================================
+   Platform-wide semantic theme application
+   ============================================================================
+   These base rules give shared controls and common surface primitives the
+   official TITech tokens. Feature-specific danger/success/pending states remain
+   semantic states and are not recolored as ordinary brand decoration.
+*/
+
+:root[data-titech-brand="official"] body,
+:root[data-titech-brand="official"] #root {
+  background-color: var(--titech-color-background);
+  color: var(--titech-color-text);
+}
+
+:root[data-titech-brand="official"] :is(input, textarea, select) {
+  color: var(--titech-color-text);
+  background-color: var(--titech-color-surface);
+  border-color: var(--titech-color-border-strong);
+  accent-color: var(--titech-official-electric-blue);
+}
+
+:root[data-titech-brand="official"][data-theme="light"] :is(input, textarea, select) {
+  color-scheme: light;
+}
+
+:root[data-titech-brand="official"][data-theme="dark"] :is(input, textarea, select) {
+  color-scheme: dark;
+}
+
+:root[data-titech-brand="official"] :is(
+  .card,
+  .panel,
+  .modal-content,
+  .modal-panel,
+  .dashboard-card,
+  .stat-card,
+  .content-card,
+  .form-card,
+  .dropdown-menu,
+  .popover,
+  .table-container,
+  .titech-surface,
+  .titech-brand-card
+) {
+  color: var(--titech-color-text);
+  background-color: var(--titech-color-surface);
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"] table {
+  color: var(--titech-color-text);
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"] :is(th, thead) {
+  color: var(--titech-color-text);
+  background-color: var(--titech-color-surface-muted);
+}
+
+:root[data-titech-brand="official"] :is(th, td) {
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"] button[type="submit"]:not(:disabled),
+:root[data-titech-brand="official"] :is(.btn-primary, .button-primary, .titech-brand-button--primary):not(:disabled) {
+  color: var(--titech-official-white);
+  border-color: transparent;
+  background: var(--titech-official-gradient-primary);
+}
+
+:root[data-titech-brand="official"] :is(button, input, textarea, select, [role="button"]):focus-visible {
+  outline-color: var(--titech-focus-color);
+  box-shadow: var(--titech-focus-ring);
+}
+
+:root[data-titech-brand="official"][data-theme="dark"] :is(.table, table) tbody tr:hover {
+  background-color: var(--titech-color-surface-muted);
+}

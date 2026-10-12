@@ -48,3 +48,9 @@ Full command lines and outputs are in `reports/*-2026-10-11.log`, with summaries
 ## Evidence boundary
 
 These results prove the listed source/static/native checks only. They do not prove a target-runtime HTTP listener, live `/api/v1/ready` output, full login success, a session surviving reload, refresh/revocation, cross-tenant denial, payment settlement, ledger reconciliation or production readiness.
+
+## Focused follow-up run — 11 October 2026
+
+A later same-day pass extends the record above. The connectivity native harness now passes six scenario groups including readiness 404 endpoint/configuration error and 403 access-error classification; the official theme audit passes 21/21 checks (57 CSS files scanned, zero hard-coded official palette literal occurrences in scanned non-brand CSS); the enterprise syntax gate parsed 2,354 JS/TS-family files under Node 22.16.0. New recurrence/date and fixed-deposit calculation primitives have 5/5 dependency-free unit tests passing. These primitives do not constitute persisted financial-product workflows.
+
+The latest rerun also attempted the full backend and frontend project tests/build/lint: Jest was absent (`backend/node_modules/jest/bin/jest.js`), Vitest and Vite were not found, and ESLint was not found. A curl probe to `127.0.0.1:5000/api/v1/ready` returned connection refused in this execution container (exit 7). This is not proof of the cause on the user's workstation. Exact logs are `reports/current-run-*-2026-10-11.log`; aggregate status is `reports/current-run-validation-summary-2026-10-11.json`. Release status remains **NOT READY**.

@@ -15,6 +15,10 @@ export const API_CONNECTIVITY_STATUS = Object.freeze({
   API_DEGRADED: 'API_DEGRADED',
   API_UNAVAILABLE: 'API_UNAVAILABLE',
   HTTP_SERVER_ERROR: 'HTTP_SERVER_ERROR',
+  // The API answered, but the configured readiness endpoint is not present.
+  API_ENDPOINT_ERROR: 'API_ENDPOINT_ERROR',
+  // The API answered with an unexpected 4xx; this is not a transport outage.
+  API_HTTP_ERROR: 'API_HTTP_ERROR',
   REQUEST_TIMEOUT: 'REQUEST_TIMEOUT',
   REQUEST_CANCELLED: 'REQUEST_CANCELLED',
   OFFLINE: 'OFFLINE',
@@ -200,6 +204,30 @@ export function setApiConnectivityServerError(metadata = {}) {
   });
 }
 
+export function setApiConnectivityEndpointError(metadata = {}) {
+  return emit({
+    browserOnline: true,
+    apiReachable: true,
+    status: API_CONNECTIVITY_STATUS.API_ENDPOINT_ERROR,
+    ready: false,
+    ...validMetrics(metadata),
+    lastErrorCode: metadata.code || 'API_ENDPOINT_MISCONFIGURED',
+    lastErrorMessage: metadata.message || 'TITech readiness endpoint was not found.',
+  });
+}
+
+export function setApiConnectivityHttpError(metadata = {}) {
+  return emit({
+    browserOnline: true,
+    apiReachable: true,
+    status: API_CONNECTIVITY_STATUS.API_HTTP_ERROR,
+    ready: false,
+    ...validMetrics(metadata),
+    lastErrorCode: metadata.code || 'API_READINESS_HTTP_ERROR',
+    lastErrorMessage: metadata.message || 'TITech readiness endpoint returned an unexpected HTTP error.',
+  });
+}
+
 export function setApiConnectivityTimeout(metadata = {}) {
   return emit({
     browserOnline: true,
@@ -282,6 +310,8 @@ export function probeApiConnectivity(probe, { force = false, minIntervalMs = 500
       if (result?.cancelled === true) return setApiConnectivityCancelled(details);
       if (result?.timeout === true) return setApiConnectivityTimeout(details);
       if (result?.serverError === true) return setApiConnectivityServerError(details);
+      if (result?.endpointError === true) return setApiConnectivityEndpointError(details);
+      if (result?.httpError === true) return setApiConnectivityHttpError(details);
       if (result?.degraded === true || result?.status === 503 || result?.notReady === true) {
         return setApiConnectivityDegraded(details);
       }
@@ -304,6 +334,8 @@ export function probeApiConnectivity(probe, { force = false, minIntervalMs = 500
       if (offline) return setApiConnectivityDegraded({ ...details, offline: true });
       if (status === 503) return setApiConnectivityDegraded({ ...details, code: 'API_NOT_READY' });
       if (Number.isFinite(status) && status >= 500) return setApiConnectivityServerError(details);
+      if (status === 404) return setApiConnectivityEndpointError({ ...details, code: 'API_ENDPOINT_MISCONFIGURED' });
+      if (Number.isFinite(status) && status >= 400) return setApiConnectivityHttpError({ ...details, code: 'API_READINESS_HTTP_ERROR' });
       return setApiConnectivityUnavailable(details);
     });
 

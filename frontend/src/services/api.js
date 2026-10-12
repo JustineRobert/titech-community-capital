@@ -2619,10 +2619,22 @@ export async function checkApiReadiness(signal, { isCurrent = () => true } = {})
         status, latency, code: 'HTTP_SERVER_ERROR', message: 'TITech API returned a server error.',
       };
     }
+    if (status === 404) {
+      return {
+        healthy: false, reachable: true, unavailable: false, endpointError: true,
+        status, latency, code: 'API_ENDPOINT_MISCONFIGURED',
+        message: 'TITech readiness endpoint was not found. Check the configured API path and route registration.',
+      };
+    }
     if (Number.isFinite(status) && status >= 400) {
       return {
-        healthy: false, reachable: true, unavailable: false, degraded: true,
-        status, latency, code: 'READINESS_HTTP_ERROR', message: 'TITech readiness endpoint returned an unexpected HTTP status.',
+        healthy: false, reachable: true, unavailable: false, httpError: true,
+        status, latency, code: status === 401 || status === 403
+          ? `API_READINESS_ACCESS_${status}`
+          : 'API_READINESS_HTTP_ERROR',
+        message: status === 401 || status === 403
+          ? 'TITech readiness endpoint unexpectedly requires authorization.'
+          : 'TITech readiness endpoint returned an unexpected HTTP status.',
       };
     }
 
