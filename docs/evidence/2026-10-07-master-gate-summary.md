@@ -1,12 +1,12 @@
 # TITech Enterprise Master Gate — 2026-10-07
 
-**Mode:** EVIDENCE REPORT
+**Mode:** STRICT RELEASE BLOCKING
 
-**Status:** PILOT_HARDENED_WITH_EXTERNAL_GATES_OPEN
+**Status:** BLOCKED
 
 **Production approved:** NO
 
-Observed runtime: Node v22.16.0 / npm 10.9.2.
+Observed runtime: Node v24.15.0 / npm unknown.
 
 Blocking rows remain external until verified with target-runtime, infrastructure, provider, security, recovery, regulatory, pilot and commercial evidence.
 
