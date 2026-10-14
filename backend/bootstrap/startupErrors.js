@@ -2316,11 +2316,25 @@ function aggregateStartupErrors(
 
 /**
  * =============================================================================
- * MODULE EXPORTS
+ * NATIVE ES MODULE EXPORTS
+ * =============================================================================
+ *
+ * This package declares "type": "module".
+ *
+ * Therefore this file must use native ESM exports rather than:
+ *
+ *   module.exports = ...
+ *   exports.name = ...
+ *
+ * The named exports preserve direct ESM imports. The frozen default export
+ * preserves the previous aggregate-object API for consumers that previously
+ * accessed properties on the CommonJS module.exports object.
+ *
+ * Keep this list synchronized with the actual declarations above.
  * =============================================================================
  */
 
-module.exports = Object.freeze({
+const startupErrors = Object.freeze({
   /**
    * Main classes.
    */
@@ -2386,3 +2400,75 @@ module.exports = Object.freeze({
   runtimeError,
   circularDependencyError,
 });
+
+/**
+ * Canonical named exports.
+ */
+export {
+  StartupError,
+  StartupAggregateError,
+
+  EnvironmentStartupError,
+  ConfigurationStartupError,
+  DependencyStartupError,
+  StartupTimeoutError,
+  DatabaseStartupError,
+  RedisStartupError,
+  QueueStartupError,
+  EventBusStartupError,
+  InfrastructureStartupError,
+  ResilienceStartupError,
+  ReadinessStartupError,
+  ServiceStartupError,
+  MiddlewareStartupError,
+  RouteStartupError,
+  ServerStartupError,
+  RuntimeStartupError,
+  CircularDependencyStartupError,
+
+  STARTUP_PHASES,
+  STARTUP_ERROR_CODES,
+  STARTUP_SEVERITIES,
+  STARTUP_CATEGORIES,
+  RETRYABILITY,
+
+  createStartupError,
+  normalizeStartupError,
+  startupErrorForPhase,
+  wrapStartup,
+  captureStartup,
+  aggregateStartupErrors,
+  isStartupError,
+
+  environmentError,
+  configurationError,
+  dependencyError,
+  timeoutError,
+  databaseError,
+  redisError,
+  queueError,
+  eventBusError,
+  infrastructureError,
+  resilienceError,
+  readinessError,
+  serviceError,
+  middlewareError,
+  routeError,
+  serverError,
+  runtimeError,
+  circularDependencyError,
+};
+
+/**
+ * Default aggregate export.
+ *
+ * Supported:
+ *
+ *   import startupErrors from "./startupErrors.js";
+ *
+ *   import {
+ *     StartupError,
+ *     STARTUP_PHASES,
+ *   } from "./startupErrors.js";
+ */
+export default startupErrors;

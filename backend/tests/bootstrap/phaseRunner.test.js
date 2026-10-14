@@ -34,6 +34,8 @@
  * =============================================================================
  */
 
+import { jest } from '@jest/globals';
+
 import {
   createBootstrapContext,
   PHASE_STATES,
