@@ -1,4 +1,4 @@
-# TITech Community Capital Ltd — Event Catalogue
+# TITech Capital LTD — Event Catalogue
 > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
 
 > **System:** Community Savings Platform
@@ -3556,7 +3556,7 @@ DependencyUnavailable
 # 79. Document Metadata
 
 **Document:** `docs/events/EVENT_CATALOGUE.md`
-**Organization:** TITech Community Capital Ltd
+**Organization:** TITech Capital LTD
 **Platform:** Community Savings Platform
 **Version:** `2.0`
 **Status:** Enterprise Production Architecture Reference

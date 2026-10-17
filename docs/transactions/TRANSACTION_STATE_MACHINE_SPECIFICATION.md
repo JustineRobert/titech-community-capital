@@ -1,4 +1,4 @@
-# TITech Community Capital Ltd — Transaction State Machine Specification
+# TITech Capital LTD — Transaction State Machine Specification
 
 > **System:** Community Savings Platform
 > **Document:** `docs/transactions/TRANSACTION_STATE_MACHINE_SPECIFICATION.md`
@@ -12,7 +12,7 @@
 
 # 1. Purpose
 
-This document defines the authoritative transaction state machine for the TITech Community Capital Ltd Community Savings Platform.
+This document defines the authoritative transaction state machine for the TITech Capital LTD Community Savings Platform.
 
 The transaction state machine governs the lifecycle of financially significant operations including:
 
@@ -3103,7 +3103,7 @@ docs/02-architecture/DEPENDENCY_MAP.md
 # 128. Document Metadata
 
 **Document:** `docs/transactions/TRANSACTION_STATE_MACHINE_SPECIFICATION.md`
-**Organization:** TITech Community Capital Ltd
+**Organization:** TITech Capital LTD
 **Platform:** Community Savings Platform
 **Domain:** Transaction State Management
 **Version:** `2.0`

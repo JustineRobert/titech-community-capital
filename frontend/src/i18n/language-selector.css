@@ -1,0 +1,83 @@
+.titech-language-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--titech-color-text, var(--titech-official-navy));
+}
+
+.titech-language-selector__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.titech-language-selector__select {
+  max-width: 12rem;
+  min-height: 2.5rem;
+  padding-block: 0.35rem;
+  padding-inline: 0.65rem 1.75rem;
+  border: 1px solid var(--titech-color-border-strong);
+  border-radius: 0.55rem;
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.titech-language-selector__select:focus-visible {
+  outline: 3px solid var(--titech-focus-color, var(--titech-official-electric-blue));
+  outline-offset: 2px;
+}
+
+.titech-language-selector__select option {
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+}
+
+.titech-auth-language-control {
+  position: absolute;
+  z-index: 20;
+  inset-block-start: 1rem;
+  inset-inline-end: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  max-width: calc(100% - 2rem);
+}
+
+.titech-auth-language-control .titech-language-selector {
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.7rem;
+  background: var(--titech-color-surface);
+  box-shadow: 0 4px 18px rgb(8 43 103 / 0.08);
+}
+
+[dir='rtl'] .titech-language-selector__select {
+  padding-inline: 1.75rem 0.65rem;
+}
+
+@media (max-width: 48rem) {
+  .titech-language-selector__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .titech-language-selector__select {
+    max-width: 9.5rem;
+  }
+
+  .titech-auth-language-control {
+    inset-block-start: 0.65rem;
+    inset-inline-end: 0.65rem;
+  }
+}

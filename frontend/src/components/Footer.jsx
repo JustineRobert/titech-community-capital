@@ -75,7 +75,7 @@ export const FOOTER_CONSTANTS = Object.freeze({
     'TITech Community Capital',
 
   COMPANY_LEGAL_NAME:
-    'TITech Community Capital LTD',
+    'TITech Capital LTD',
 
   COMPANY_DESCRIPTION:
     'Community financial infrastructure for a stronger, more inclusive Africa — connecting trusted records, payments, communities, capital and opportunity.',

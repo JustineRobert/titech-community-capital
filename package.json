@@ -42,7 +42,7 @@
     "url": "git+https://github.com/JustineRobert/titech-community-capital.git"
   },
   "license": "ISC",
-  "author": "Igune Justine Robert, TITech Community Capital LTD",
+  "author": "Igune Justine Robert, TITech Capital LTD",
   "type": "module",
   "main": "backend/server.js",
   "directories": {
@@ -58,7 +58,7 @@
     "build": "npm run build:frontend",
     "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
-    "check": "npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check",
+    "check": "npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run i18n:check && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check",
     "check:all": "npm run check && npm run test",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs",
@@ -107,7 +107,7 @@
     "test:backend:ci": "npm --prefix backend run test:ci",
     "test:backend:coverage": "npm --prefix backend run test:coverage",
     "test:backend:watch": "npm --prefix backend test -- --watch",
-    "test:ci": "npm run test:backend:ci && npm run test:frontend:ci",
+    "test:ci": "npm run test:i18n:native && npm run test:backend:ci && npm run test:frontend:ci",
     "test:control-plane": "npm --prefix backend run test:control-plane",
     "test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
     "test:e2e": "npm --prefix frontend run test:e2e",
@@ -149,7 +149,10 @@
     "enterprise:master-gate": "node scripts/titech-enterprise-master-gate.mjs",
     "enterprise:master-gate:strict": "node scripts/titech-enterprise-master-gate.mjs --strict",
     "verify:login-readiness": "node scripts/verify-login-readiness-remediation.mjs",
-    "verify:runtime-connectivity": "node scripts/verify-runtime-connectivity-state.mjs"
+    "verify:runtime-connectivity": "node scripts/verify-runtime-connectivity-state.mjs",
+    "i18n:check": "node scripts/i18n-validation.mjs",
+    "i18n:production-gate": "node scripts/i18n-production-gate.mjs",
+    "test:i18n:native": "node --test scripts/i18n-core.test.mjs"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

@@ -570,7 +570,7 @@ class OfflineReceiptService {
 
       issuer:
         config.issuer ||
-        'TITech Community Capital LTD',
+        'TITech Capital LTD',
     };
   }
 

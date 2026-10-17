@@ -1,0 +1,12 @@
+{
+  "payments.status.pending": "قيد الانتظار",
+  "payments.status.accepted": "تم قبول الطلب؛ ولم تتم تأكيد التسوية بعد.",
+  "payments.status.settled": "تمت التسوية",
+  "payments.status.failed": "فشل",
+  "payments.status.reversed": "تم العكس",
+  "payments.status.reconciliationRequired": "تتطلب العملية مطابقة السجلات",
+  "payments.status.queuedOffline": "تمت جدولة العملية دون اتصال؛ ولم يؤكدها الخادم بعد.",
+  "payments.errors.unknownOutcome": "نتيجة مزود الخدمة غير معروفة. تحقق من حالة المزود والمطابقة قبل إعادة المحاولة.",
+  "ledger.errors.unbalanced": "لا يمكن ترحيل هذه المعاملة لأن إجمالي المدين لا يساوي إجمالي الدائن.",
+  "consent.unapprovedTranslation": "لم تتم الموافقة على هذا الإفصاح باللغة المحددة. لا تسجل الموافقة حتى تتوفر نسخة معتمدة."
+}

@@ -3,10 +3,13 @@
   "schemaVersion": "1.0.0",
   "name": "TITech Official Platform Theme",
   "product": "TITech Community Capital",
-  "organization": "TITech Africa",
+  "organization": "TITech Capital LTD",
   "sourceReference": "branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png",
   "defaultTheme": "light",
-  "supportedThemes": ["light", "dark"],
+  "supportedThemes": [
+    "light",
+    "dark"
+  ],
   "palette": {
     "deepBlue": "#0030A0",
     "electricBlue": "#0058D8",
@@ -47,5 +50,6 @@
     "Keep financial/security status colors distinct from brand identity where accessibility or risk signaling requires it.",
     "Light is the deterministic default; dark is an explicit user-selected mode.",
     "The official TITech circular logo remains the primary product mark."
-  ]
+  ],
+  "organizationLegalName": "TITech Capital LTD"
 }

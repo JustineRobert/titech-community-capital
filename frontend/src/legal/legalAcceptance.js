@@ -1,6 +1,6 @@
  /**
   * ============================================================================
-  * TITech Community Capital Ltd
+  * TITech Capital LTD
   * Enterprise Legal Acceptance & Consent Module
   * ============================================================================
   *

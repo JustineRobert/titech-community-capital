@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD
  * African Community Finance Operating System (TITech)
  * ============================================================================
  *
@@ -53,7 +53,7 @@
  *
  * Naming Standard:
  * ----------------------------------------------------------------------------
- * TITech Community Capital LTD
+ * TITech Capital LTD
  *
  * Do not introduce TITech branding into frontend component identifiers,
  * metadata, user-facing labels, or registry names.
@@ -374,7 +374,7 @@ export const UI_ENVIRONMENT =
 
 export const UI_METADATA = Object.freeze({
   product: "TITech Community Capital",
-  organization: "TITech Africa",
+  organization: "TITech Capital LTD",
   system: "African Community Finance Operating System",
   namespace: "titech.ui",
 

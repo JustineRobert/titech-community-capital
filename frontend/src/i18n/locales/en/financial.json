@@ -1,0 +1,12 @@
+{
+  "payments.status.pending": "Pending",
+  "payments.status.accepted": "Request accepted; settlement is not yet confirmed.",
+  "payments.status.settled": "Settled",
+  "payments.status.failed": "Failed",
+  "payments.status.reversed": "Reversed",
+  "payments.status.reconciliationRequired": "Reconciliation required",
+  "payments.status.queuedOffline": "Queued offline; not yet confirmed by the server.",
+  "payments.errors.unknownOutcome": "The provider outcome is unknown. Check provider status and reconciliation before retrying.",
+  "ledger.errors.unbalanced": "This transaction cannot be posted because debits and credits do not balance.",
+  "consent.unapprovedTranslation": "This disclosure has not been approved in the selected language. Do not record consent until an approved version is available."
+}

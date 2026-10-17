@@ -1,7 +1,7 @@
 //writing{variant="document" id="74261"}
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Capital LTD
  * Enterprise Terms of Service Page
  * ============================================================================
  *
@@ -134,7 +134,7 @@ const CONTACT = Object.freeze({
     '+256782397907',
 
   address:
-    'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda',
+    'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
 });
 
 /* ============================================================================
@@ -1010,7 +1010,7 @@ export default function TermsOfService({
             <p>
               These Terms of Service (“Terms”)
               constitute an agreement between you
-              and TITech Community Capital Ltd
+              and TITech Capital LTD
               (“TITech Community Capital,” “TITech,”
               “we,” “us,” or “our”) concerning your
               access to and use of our services.

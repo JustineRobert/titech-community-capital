@@ -1,4 +1,4 @@
-# TITech Community Capital Ltd — Financial Ledger Specification
+# TITech Capital LTD — Financial Ledger Specification
 
 > **System:** Community Savings Platform
 > **Document:** `docs/finance/FINANCIAL_LEDGER_SPECIFICATION.md`
@@ -12,7 +12,7 @@
 
 # 1. Purpose
 
-This document defines the authoritative financial ledger architecture for the TITech Community Capital Ltd Community Savings Platform.
+This document defines the authoritative financial ledger architecture for the TITech Capital LTD Community Savings Platform.
 
 The ledger is the system of record for financial state.
 
@@ -3261,7 +3261,7 @@ All such changes must pass through the approved financial transaction and postin
 # 130. Document Metadata
 
 **Document:** `docs/finance/FINANCIAL_LEDGER_SPECIFICATION.md`
-**Organization:** TITech Community Capital Ltd
+**Organization:** TITech Capital LTD
 **Platform:** Community Savings Platform
 **Domain:** Financial Ledger / Accounting Core
 **Version:** `2.0`

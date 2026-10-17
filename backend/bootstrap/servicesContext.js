@@ -1,3 +1,4 @@
+
 'use strict';
 
 /**
@@ -13,75 +14,49 @@
  *   Enterprise production-grade dependency context for TITech application
  *   services.
  *
- * Architectural position:
+ * Architecture:
+ *   environment -> configuration -> logger -> observability -> readiness
+ *   -> resilience -> infrastructure -> services context -> application services
+ *   -> finance / ledger / payments / accounts -> routes
  *
- *   environment
- *       ↓
- *   configuration
- *       ↓
- *   logger
- *       ↓
- *   observability
- *       ↓
- *   readiness
- *       ↓
- *   resilience
- *       ↓
- *   infrastructure
- *       ↓
- *   servicesContext
- *       ↓
- *   application services
- *       ↓
- *   finance / ledger / payments / accounts
- *       ↓
- *   routes
+ * Responsibilities:
+ *   - Provide stable service-context identity.
+ *   - Maintain a controlled, mutable private dependency registry.
+ *   - Maintain one shared lifecycle state for contexts sharing the registry.
+ *   - Propagate service dependencies to scoped contexts.
+ *   - Propagate request, correlation, and tracing context through AsyncLocalStorage.
+ *   - Provide bounded diagnostics and sensitive-value redaction.
+ *   - Register the services-context bootstrap lifecycle hook.
  *
- * IMPORTANT:
+ * This module does NOT:
+ *   - implement financial operations or business rules;
+ *   - execute repository queries;
+ *   - create database or Redis connections;
+ *   - initialize queues or HTTP servers;
+ *   - authorize financial transactions;
+ *   - own application process termination.
  *
- *   This module provides DEPENDENCY CONTEXT.
- *
- *   It does NOT:
- *     - implement business rules;
- *     - implement financial operations;
- *     - execute repository queries;
- *     - create database connections;
- *     - create Redis connections;
- *     - initialize queues;
- *     - implement controllers;
- *     - authorize financial operations;
- *     - own application process termination.
+ * Module:
+ *   Native ES modules. backend/package.json declares "type": "module".
  *
  * =============================================================================
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import loggerBootstrap from './logger.js';
-import observabilityBootstrap from './observability.js';
-import readinessBootstrap from './readinessState.js';
-import resilienceBootstrap from './resilience.js';
-import hooksBootstrap from './hooks.js';
+
+import * as loggerModule from './logger.js';
+import * as observabilityModule from './observability.js';
+import * as readinessModule from './readinessState.js';
+import * as resilienceModule from './resilience.js';
+import * as hooksModule from './hooks.js';
 
 /**
  * =============================================================================
- * Optional integrations
+ * CONSTANTS
  * =============================================================================
  */
 
-const loggerModule = loggerBootstrap;
-const observabilityModule = observabilityBootstrap;
-const readinessModule = readinessBootstrap;
-const resilienceModule = resilienceBootstrap;
-const hooksModule = hooksBootstrap;
-
-/**
- * =============================================================================
- * Constants
- * =============================================================================
- */
-
-const COMPONENT =
-  'services-context';
+const COMPONENT = 'services-context';
 
 const SERVICE_NAME =
   process.env.OTEL_SERVICE_NAME ||
@@ -92,156 +67,82 @@ const APPLICATION_NAME =
   process.env.APP_NAME ||
   'TITech Community Capital';
 
-const DEFAULT_LIFECYCLE_STATE =
-  'initializing';
+const DEFAULT_LIFECYCLE_STATE = 'initializing';
 
-const DEFAULT_OPERATION =
-  null;
+const DEFAULT_OPERATION = null;
 
-const DEFAULT_BOOTSTRAP_TIMEOUT_MS =
-  30_000;
+const DEFAULT_BOOTSTRAP_TIMEOUT_MS = 30_000;
 
-/**
- * Private context marker.
- */
-const CONTEXT_MARKER =
-  Symbol('TITechServicesContext');
+const CONTEXT_MARKER = Symbol('TITechServicesContext');
 
-/**
- * Private registry marker.
- *
- * This registry is intentionally mutable internally while the public context
- * envelope remains immutable.
- */
-const REGISTRY_MARKER =
-  Symbol('TITechServicesContextRegistry');
+const REGISTRY_MARKER = Symbol('TITechServicesContextRegistry');
 
-/**
- * Per-async-operation service context.
- */
-const asyncContext =
-  new AsyncLocalStorage();
+const asyncContext = new AsyncLocalStorage();
 
-/**
- * =============================================================================
- * Errors
- * =============================================================================
- */
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'passwd',
+  'pwd',
+  'passcode',
+  'pin',
+  'otp',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'authorization',
+  'cookie',
+  'secret',
+  'apikey',
+  'clientsecret',
+  'privatekey',
+  'encryptionkey',
+  'jwt',
+  'jwtsecret',
+  'credentials',
+  'credential',
+]);
 
-class ServicesContextError extends Error {
-  constructor(
-    message,
-    options = {},
-  ) {
-    super(
-      typeof message ===
-        'string' &&
-      message.trim()
-        ? message
-        : 'TITech services context error.',
-    );
-
-    this.name =
-      'ServicesContextError';
-
-    this.code =
-      options.code ||
-      'SERVICES_CONTEXT_ERROR';
-
-    this.service =
-      options.service ||
-      null;
-
-    this.dependency =
-      options.dependency ||
-      null;
-
-    this.operation =
-      options.operation ||
-      null;
-
-    this.cause =
-      options.cause ||
-      null;
-
-    this.details =
-      Object.freeze({
-        ...(options.details ||
-          {}),
-      });
-
-    Error.captureStackTrace?.(
-      this,
-      ServicesContextError,
-    );
-  }
-}
-
-class DependencyNotFoundError
-  extends ServicesContextError {
-  constructor(
-    dependency,
-    service = null,
-  ) {
-    super(
-      `TITech service dependency "${dependency}" is not available.`,
-      {
-        code:
-          'SERVICE_DEPENDENCY_NOT_FOUND',
-
-        dependency,
-
-        service,
-      },
-    );
-  }
-}
-
-class ContextFrozenError
-  extends ServicesContextError {
-  constructor(
-    message =
-      'TITech services context is immutable.',
-  ) {
-    super(
-      message,
-      {
-        code:
-          'SERVICES_CONTEXT_IMMUTABLE',
-      },
-    );
-  }
-}
-
-class ContextLifecycleError
-  extends ServicesContextError {
-  constructor(
-    message,
-    options = {},
-  ) {
-    super(
-      message,
-      {
-        code:
-          options.code ||
-          'SERVICES_CONTEXT_LIFECYCLE_ERROR',
-
-        ...options,
-      },
-    );
-  }
-}
+const SENSITIVE_KEY_PATTERN =
+  /(password|passwd|passcode|secret|token|authorization|cookie|credential|privatekey|encryptionkey|apikey|jwtsecret)/i;
 
 /**
  * =============================================================================
- * Utility
+ * ERRORS
  * =============================================================================
  */
 
-function normalizeName(
-  value,
-  field = 'name',
-) {
+function isObjectLike(value) {
+  return (
+    value !== null &&
+    (
+      typeof value === 'object' ||
+      typeof value === 'function'
+    )
+  );
+}
+
+function isPlainObject(value) {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  try {
+    const prototype = Object.getPrototypeOf(value);
+
+    return (
+      prototype === Object.prototype ||
+      prototype === null
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isFunction(value) {
+  return typeof value === 'function';
+}
+
+function normalizeName(value, field = 'name') {
   if (
     typeof value !== 'string' ||
     value.trim() === ''
@@ -254,137 +155,204 @@ function normalizeName(
   return value.trim();
 }
 
-function isObjectLike(
-  value,
-) {
-  return (
-    value !== null &&
-    (
-      typeof value === 'object' ||
-      typeof value === 'function'
-    )
-  );
-}
-
-function isPlainObject(
-  value,
-) {
-  if (
-    !value ||
-    Object.prototype.toString.call(
-      value,
-    ) !== '[object Object]'
-  ) {
-    return false;
-  }
-
-  const prototype =
-    Object.getPrototypeOf(
-      value,
-    );
+function toPositiveInteger(value, fallback) {
+  const parsed = Number(value);
 
   return (
-    prototype ===
-      Object.prototype ||
-    prototype === null
-  );
+    Number.isSafeInteger(parsed) &&
+    parsed > 0
+  )
+    ? parsed
+    : fallback;
 }
 
-function isFunction(
-  value,
-) {
-  return typeof value ===
-    'function';
-}
-
-function toPositiveInteger(
-  value,
-  fallback,
-) {
-  const parsed =
-    Number(value);
-
-  if (
-    !Number.isInteger(
-      parsed,
-    ) ||
-    parsed <= 0
-  ) {
-    return fallback;
-  }
-
-  return parsed;
-}
-
-function elapsedMs(
-  startedAt,
-) {
+function elapsedMs(startedAt) {
   return (
     Number(
-      process.hrtime.bigint() -
-        startedAt,
-    ) /
-    1_000_000
+      process.hrtime.bigint() - startedAt,
+    ) / 1_000_000
   );
 }
 
-function safeError(
-  error,
-) {
+function safeError(error, depth = 0, seen = new WeakSet()) {
   if (!error) {
     return null;
   }
 
-  return Object.freeze({
-    name:
-      error.name ||
-      'Error',
+  if (
+    isObjectLike(error) &&
+    seen.has(error)
+  ) {
+    return {
+      name: 'Error',
+      code: null,
+      message: '[Circular error cause]',
+    };
+  }
 
-    code:
-      error.code ||
-      null,
+  if (isObjectLike(error)) {
+    seen.add(error);
+  }
+
+  const normalized = {
+    name: error.name || 'Error',
+
+    code: error.code ?? null,
 
     message:
-      error.message ||
-      String(error),
-  });
+      typeof error.message === 'string'
+        ? error.message
+        : String(error),
+  };
+
+  if (
+    depth < 3 &&
+    isObjectLike(error.cause) &&
+    error.cause !== error
+  ) {
+    normalized.cause =
+      safeError(
+        error.cause,
+        depth + 1,
+        seen,
+      );
+  }
+
+  return Object.freeze(normalized);
+}
+
+class ServicesContextError extends Error {
+  constructor(message, options = {}) {
+    super(
+      typeof message === 'string' &&
+      message.trim()
+        ? message
+        : 'TITech services context error.',
+      options.cause
+        ? { cause: options.cause }
+        : undefined,
+    );
+
+    this.name = 'ServicesContextError';
+
+    this.code =
+      options.code ||
+      'SERVICES_CONTEXT_ERROR';
+
+    this.service =
+      options.service ??
+      null;
+
+    this.dependency =
+      options.dependency ??
+      null;
+
+    this.operation =
+      options.operation ??
+      null;
+
+    this.cause =
+      options.cause ??
+      null;
+
+    this.details = Object.freeze(
+      isPlainObject(options.details)
+        ? sanitize(options.details)
+        : {},
+    );
+
+    Error.captureStackTrace?.(
+      this,
+      ServicesContextError,
+    );
+  }
+}
+
+class DependencyNotFoundError extends ServicesContextError {
+  constructor(dependency, service = null) {
+    super(
+      `TITech service dependency "${dependency}" is not available.`,
+      {
+        code: 'SERVICE_DEPENDENCY_NOT_FOUND',
+        dependency,
+        service,
+      },
+    );
+
+    this.name = 'DependencyNotFoundError';
+  }
+}
+
+class ContextFrozenError extends ServicesContextError {
+  constructor(
+    message = 'TITech services context is immutable.',
+  ) {
+    super(
+      message,
+      {
+        code: 'SERVICES_CONTEXT_IMMUTABLE',
+      },
+    );
+
+    this.name = 'ContextFrozenError';
+  }
+}
+
+class ContextLifecycleError extends ServicesContextError {
+  constructor(message, options = {}) {
+    super(
+      message,
+      {
+        code:
+          options.code ||
+          'SERVICES_CONTEXT_LIFECYCLE_ERROR',
+
+        ...options,
+      },
+    );
+
+    this.name = 'ContextLifecycleError';
+  }
 }
 
 /**
  * =============================================================================
- * Safe Diagnostics Sanitization
+ * SAFE DIAGNOSTICS SANITIZATION
  * =============================================================================
  */
 
-const SENSITIVE_KEYS =
-  new Set([
-    'password',
-    'passcode',
-    'pin',
-    'otp',
-    'token',
-    'accesstoken',
-    'refreshtoken',
-    'authorization',
-    'cookie',
-    'secret',
-    'apikey',
-    'clientsecret',
-    'privatekey',
-    'encryptionkey',
-    'jwt',
-    'jwtsecret',
-    'credentials',
-  ]);
+function normalizeSensitiveKey(key) {
+  return String(key)
+    .replace(/[_-]/g, '')
+    .toLowerCase();
+}
 
-function isSensitiveKey(
-  key,
-) {
-  return SENSITIVE_KEYS.has(
-    String(key)
-      .replace(/[_-]/g, '')
-      .toLowerCase(),
+function isSensitiveKey(key) {
+  const normalized = normalizeSensitiveKey(key);
+
+  return (
+    SENSITIVE_KEYS.has(normalized) ||
+    SENSITIVE_KEY_PATTERN.test(normalized) ||
+    normalized === 'pin' ||
+    normalized === 'otp' ||
+    normalized === 'jwt'
   );
+}
+
+function sanitizeString(value, options = {}) {
+  if (options.maskCredentials === false) {
+    return value;
+  }
+
+  return value
+    .replace(
+      /(mongodb(?:\+srv)?:\/\/)([^/\s:@]+)(?::[^@\s]*)?@/gi,
+      '$1***:***@',
+    )
+    .replace(
+      /([?&](?:password|passwd|pwd|secret|token|access_token|refresh_token|api_key|apikey|client_secret)=)[^&\s]*/gi,
+      '$1***',
+    );
 }
 
 function sanitize(
@@ -399,105 +367,60 @@ function sanitize(
     return value;
   }
 
-  if (
-    typeof value ===
-    'string'
-  ) {
-    if (
-      options.maskCredentials !==
-      false
-    ) {
-      return value
-        .replace(
-          /(mongodb(?:\+srv)?:\/\/)([^/\s:@]+)(?::[^@\s]*)?@/gi,
-          '$1***:***@',
-        )
-        .replace(
-          /([?&](?:password|passwd|pwd|secret|token|access_token)=)[^&\s]*/gi,
-          '$1***',
-        );
-    }
-
-    return value;
+  if (typeof value === 'string') {
+    return sanitizeString(value, options);
   }
 
   if (
-    typeof value !==
-      'object' &&
-    typeof value !==
-      'function'
+    typeof value !== 'object' &&
+    typeof value !== 'function'
   ) {
     return value;
   }
 
-  if (
-    seen.has(value)
-  ) {
+  if (seen.has(value)) {
     return '[Circular]';
   }
 
-  if (
-    value instanceof Date
-  ) {
-    return value.toISOString();
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime())
+      ? '[Invalid Date]'
+      : value.toISOString();
   }
 
-  if (
-    value instanceof Error
-  ) {
-    return safeError(
-      value,
-    );
-  }
-
-  if (
-    Array.isArray(value)
-  ) {
+  if (value instanceof Error) {
     seen.add(value);
 
-    return value.map(
-      entry =>
-        sanitize(
-          entry,
-          options,
-          seen,
-        ),
+    return safeError(value);
+  }
+
+  if (Array.isArray(value)) {
+    seen.add(value);
+
+    return value.map(entry =>
+      sanitize(
+        entry,
+        options,
+        seen,
+      ),
     );
   }
 
-  /**
-   * Never recursively inspect or clone live infrastructure objects in
-   * diagnostics. This is intentionally conservative.
+  /*
+   * Do not recursively inspect live infrastructure objects, database clients,
+   * HTTP clients, sockets, class instances, or other arbitrary objects.
    */
-  if (
-    !isPlainObject(value)
-  ) {
-    return `[${Object.prototype.toString.call(
-      value,
-    )}]`;
+  if (!isPlainObject(value)) {
+    return `[${Object.prototype.toString.call(value)}]`;
   }
 
   seen.add(value);
 
-  const result =
-    {};
+  const result = {};
 
-  for (
-    const [
-      key,
-      child,
-    ] of Object.entries(
-      value,
-    )
-  ) {
-    if (
-      isSensitiveKey(
-        key,
-      )
-    ) {
-      result[key] =
-        '[REDACTED]';
-
+  for (const [key, child] of Object.entries(value)) {
+    if (isSensitiveKey(key)) {
+      result[key] = '[REDACTED]';
       continue;
     }
 
@@ -512,75 +435,177 @@ function sanitize(
   return result;
 }
 
+function deepFreezeSanitized(value) {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Object.isFrozen(value)
+  ) {
+    return value;
+  }
+
+  for (const child of Object.values(value)) {
+    deepFreezeSanitized(child);
+  }
+
+  return Object.freeze(value);
+}
+
+function createSafeMetadataObject(value) {
+  if (!isPlainObject(value)) {
+    return Object.freeze({});
+  }
+
+  return Object.freeze({
+    ...value,
+  });
+}
+
 /**
  * =============================================================================
- * Registry
+ * REGISTRY
  * =============================================================================
  *
- * Critical design:
+ * The public ServicesContext instance remains frozen.
  *
- * The public ServicesContext is immutable.
- * The underlying dependency registry is intentionally mutable.
- *
- * This avoids replacing the root context object every time bootstrap registers
- * another service.
- *
- * Consumers therefore retain the same context identity while seeing newly
- * published dependencies.
+ * Its private registry is intentionally mutable. Contexts derived from the
+ * same registry share both the same dependency registry and the same lifecycle
+ * snapshot source.
+ * =============================================================================
  */
 
 class ServicesContextRegistry {
-  constructor(
-    options = {},
-  ) {
-    this.services =
-      new Map(
-        Object.entries(
-          options.services ||
-            {},
-        ),
-      );
+  constructor(options = {}) {
+    this.services = new Map(
+      Object.entries(
+        isPlainObject(options.services)
+          ? options.services
+          : {},
+      ),
+    );
 
-    this.infrastructure =
-      new Map(
-        Object.entries(
-          options.infrastructure ||
-            {},
-        ),
-      );
+    this.infrastructure = new Map(
+      Object.entries(
+        isPlainObject(options.infrastructure)
+          ? options.infrastructure
+          : {},
+      ),
+    );
 
-    this.container =
-      new Map(
-        Object.entries(
-          options.container ||
-            {},
-        ),
-      );
+    this.container = new Map(
+      Object.entries(
+        isPlainObject(options.container)
+          ? options.container
+          : {},
+      ),
+    );
 
-    this.revision =
-      0;
+    this.revision = 0;
 
-    this.updatedAt =
-      new Date();
+    this.updatedAt = new Date();
+
+    this._lifecycle = {
+      state:
+        typeof options.lifecycleState === 'string'
+          ? options.lifecycleState
+          : DEFAULT_LIFECYCLE_STATE,
+
+      ready:
+        options.ready === true,
+
+      degraded:
+        options.degraded === true,
+
+      updatedAt: new Date(),
+    };
   }
 
   _touch() {
-    this.revision +=
-      1;
+    this.revision += 1;
 
-    this.updatedAt =
-      new Date();
+    this.updatedAt = new Date();
   }
 
-  setService(
-    name,
-    value,
-  ) {
-    this.services.set(
-      normalizeName(
-        name,
-        'service',
+  getLifecycle() {
+    return Object.freeze({
+      state: this._lifecycle.state,
+
+      ready: this._lifecycle.ready,
+
+      degraded: this._lifecycle.degraded,
+
+      updatedAt: new Date(
+        this._lifecycle.updatedAt.getTime(),
       ),
+    });
+  }
+
+  setLifecycle(patch = {}) {
+    if (!isPlainObject(patch)) {
+      throw new ContextLifecycleError(
+        'Lifecycle update must be a plain object.',
+        {
+          code: 'SERVICES_CONTEXT_LIFECYCLE_INVALID',
+        },
+      );
+    }
+
+    const previous = this._lifecycle;
+
+    const state =
+      patch.state ??
+      previous.state;
+
+    const ready =
+      patch.ready ??
+      previous.ready;
+
+    const degraded =
+      patch.degraded ??
+      previous.degraded;
+
+    if (
+      typeof state !== 'string' ||
+      state.trim() === ''
+    ) {
+      throw new ContextLifecycleError(
+        'Lifecycle state must be a non-empty string.',
+        {
+          code: 'SERVICES_CONTEXT_LIFECYCLE_INVALID_STATE',
+        },
+      );
+    }
+
+    if (
+      typeof ready !== 'boolean' ||
+      typeof degraded !== 'boolean'
+    ) {
+      throw new ContextLifecycleError(
+        'Lifecycle ready and degraded values must be booleans.',
+        {
+          code: 'SERVICES_CONTEXT_LIFECYCLE_INVALID_FLAGS',
+        },
+      );
+    }
+
+    this._lifecycle = {
+      state: state.trim(),
+
+      ready,
+
+      degraded,
+
+      updatedAt: new Date(),
+    };
+
+    this._touch();
+
+    return this.getLifecycle();
+  }
+
+  setService(name, value) {
+    this.services.set(
+      normalizeName(name, 'service'),
       value,
     );
 
@@ -589,15 +614,10 @@ class ServicesContextRegistry {
     return value;
   }
 
-  removeService(
-    name,
-  ) {
+  removeService(name) {
     const removed =
       this.services.delete(
-        normalizeName(
-          name,
-          'service',
-        ),
+        normalizeName(name, 'service'),
       );
 
     if (removed) {
@@ -607,15 +627,9 @@ class ServicesContextRegistry {
     return removed;
   }
 
-  setInfrastructure(
-    name,
-    value,
-  ) {
+  setInfrastructure(name, value) {
     this.infrastructure.set(
-      normalizeName(
-        name,
-        'infrastructure',
-      ),
+      normalizeName(name, 'infrastructure'),
       value,
     );
 
@@ -624,15 +638,10 @@ class ServicesContextRegistry {
     return value;
   }
 
-  removeInfrastructure(
-    name,
-  ) {
+  removeInfrastructure(name) {
     const removed =
       this.infrastructure.delete(
-        normalizeName(
-          name,
-          'infrastructure',
-        ),
+        normalizeName(name, 'infrastructure'),
       );
 
     if (removed) {
@@ -642,15 +651,9 @@ class ServicesContextRegistry {
     return removed;
   }
 
-  setContainer(
-    name,
-    value,
-  ) {
+  setContainer(name, value) {
     this.container.set(
-      normalizeName(
-        name,
-        'container binding',
-      ),
+      normalizeName(name, 'container binding'),
       value,
     );
 
@@ -659,15 +662,10 @@ class ServicesContextRegistry {
     return value;
   }
 
-  removeContainer(
-    name,
-  ) {
+  removeContainer(name) {
     const removed =
       this.container.delete(
-        normalizeName(
-          name,
-          'container binding',
-        ),
+        normalizeName(name, 'container binding'),
       );
 
     if (removed) {
@@ -677,168 +675,133 @@ class ServicesContextRegistry {
     return removed;
   }
 
-  has(
-    dependency,
-  ) {
+  has(dependency) {
     return (
-      this.services.has(
-        dependency,
-      ) ||
-      this.container.has(
-        dependency,
-      ) ||
-      this.infrastructure.has(
-        dependency,
-      )
+      this.services.has(dependency) ||
+      this.container.has(dependency) ||
+      this.infrastructure.has(dependency)
     );
   }
 
-  get(
-    dependency,
-  ) {
-    if (
-      this.services.has(
-        dependency,
-      )
-    ) {
-      return this.services.get(
-        dependency,
-      );
+  get(dependency) {
+    if (this.services.has(dependency)) {
+      return this.services.get(dependency);
     }
 
-    if (
-      this.container.has(
-        dependency,
-      )
-    ) {
-      return this.container.get(
-        dependency,
-      );
+    if (this.container.has(dependency)) {
+      return this.container.get(dependency);
     }
 
-    if (
-      this.infrastructure.has(
-        dependency,
-      )
-    ) {
-      return this.infrastructure.get(
-        dependency,
-      );
+    if (this.infrastructure.has(dependency)) {
+      return this.infrastructure.get(dependency);
     }
 
     return undefined;
   }
 
-  snapshot(
-    options = {},
-  ) {
-    return Object.freeze({
-      revision:
-        this.revision,
+  snapshot(options = {}) {
+    const snapshot = {
+      revision: this.revision,
 
-      updatedAt:
-        this.updatedAt,
+      updatedAt: new Date(
+        this.updatedAt.getTime(),
+      ),
 
-      services:
-        Object.freeze(
-          Object.fromEntries(
-            [
-              ...this.services.keys(),
-            ].map(
-              name => [
-                name,
-                true,
-              ],
-            ),
-          ),
+      lifecycle: this.getLifecycle(),
+
+      services: Object.freeze(
+        Object.fromEntries(
+          [...this.services.keys()].map(name => [
+            name,
+            true,
+          ]),
         ),
+      ),
 
-      infrastructure:
-        Object.freeze(
-          Object.fromEntries(
-            [
-              ...this.infrastructure.keys(),
-            ].map(
-              name => [
-                name,
-                true,
-              ],
-            ),
-          ),
+      infrastructure: Object.freeze(
+        Object.fromEntries(
+          [...this.infrastructure.keys()].map(name => [
+            name,
+            true,
+          ]),
         ),
+      ),
 
-      container:
-        Object.freeze(
-          Object.fromEntries(
-            [
-              ...this.container.keys(),
-            ].map(
-              name => [
-                name,
-                true,
-              ],
-            ),
-          ),
+      container: Object.freeze(
+        Object.fromEntries(
+          [...this.container.keys()].map(name => [
+            name,
+            true,
+          ]),
         ),
+      ),
 
-      diagnostics:
-        options.includeValues
-          ? sanitize(
-              {
-                services:
-                  Object.fromEntries(
-                    this.services,
-                  ),
+      diagnostics: undefined,
+    };
 
-                infrastructure:
-                  Object.fromEntries(
-                    this.infrastructure,
-                  ),
-              },
-            )
-          : undefined,
-    });
+    if (options.includeValues === true) {
+      snapshot.diagnostics =
+        deepFreezeSanitized(
+          sanitize({
+            services: Object.fromEntries(this.services),
+
+            infrastructure:
+              Object.fromEntries(this.infrastructure),
+
+            container:
+              Object.fromEntries(this.container),
+          }),
+        );
+    }
+
+    return Object.freeze(snapshot);
   }
 }
 
 /**
  * =============================================================================
- * Services Context
+ * SERVICES CONTEXT
  * =============================================================================
  */
 
 class ServicesContext {
-  constructor(
-    options = {},
-  ) {
+  constructor(options = {}) {
     const registry =
       options.registry ||
       new ServicesContextRegistry({
-        services:
-          options.services,
+        services: options.services,
 
-        infrastructure:
-          options.infrastructure,
+        infrastructure: options.infrastructure,
 
-        container:
-          options.container,
+        container: options.container,
+
+        lifecycleState:
+          options.lifecycleState,
+
+        ready: options.ready,
+
+        degraded: options.degraded,
       });
+
+    if (
+      !(registry instanceof ServicesContextRegistry)
+    ) {
+      throw new TypeError(
+        'ServicesContext registry must be a ServicesContextRegistry instance.',
+      );
+    }
 
     Object.defineProperty(
       this,
       CONTEXT_MARKER,
       {
-        value:
-          true,
+        value: true,
 
-        enumerable:
-          false,
+        enumerable: false,
 
-        configurable:
-          false,
+        configurable: false,
 
-        writable:
-          false,
+        writable: false,
       },
     );
 
@@ -846,23 +809,23 @@ class ServicesContext {
       this,
       REGISTRY_MARKER,
       {
-        value:
-          registry,
+        value: registry,
 
-        enumerable:
-          false,
+        enumerable: false,
 
-        configurable:
-          false,
+        configurable: false,
 
-        writable:
-          false,
+        writable: false,
       },
     );
 
     this.createdAt =
-      options.createdAt ||
-      new Date();
+      options.createdAt instanceof Date
+        ? new Date(options.createdAt.getTime())
+        : new Date(
+            options.createdAt ??
+            Date.now(),
+          );
 
     this.service =
       options.service ||
@@ -916,87 +879,73 @@ class ServicesContext {
 
     this.request =
       createSafeMetadataObject(
-        options.request ||
-          {},
+        options.request || {},
       );
 
     this.correlation =
       createSafeMetadataObject(
-        options.correlation ||
-          {},
+        options.correlation || {},
       );
 
     this.trace =
       createSafeMetadataObject(
-        options.trace ||
-          {},
+        options.trace || {},
       );
+
+    this.signal =
+      options.signal ??
+      null;
 
     this.metadata =
       Object.freeze({
+        ...(isPlainObject(options.metadata)
+          ? options.metadata
+          : {}),
+
         component:
           COMPONENT,
 
         service:
+          options.metadata?.service ||
           SERVICE_NAME,
 
         application:
+          options.metadata?.application ||
           APPLICATION_NAME,
-
-        ...(options.metadata ||
-          {}),
       });
 
-    this.lifecycle =
-      Object.freeze({
-        state:
-          options.lifecycleState ||
-          DEFAULT_LIFECYCLE_STATE,
-
-        ready:
-          options.ready ??
-          false,
-
-        degraded:
-          options.degraded ??
-          false,
-      });
-
-    /**
-     * Public context is frozen.
+    /*
+     * Lifecycle is exposed by a prototype getter below.
      *
-     * Live dependencies themselves are NOT recursively frozen.
+     * It is deliberately NOT copied into a frozen own-property snapshot.
+     * The getter reads the shared registry so updates are visible in existing
+     * root and child contexts without replacing context identity.
      */
-    Object.freeze(
-      this,
-    );
+
+    Object.freeze(this);
   }
 
-  /* ===========================================================================
-   * Validation
-   * ========================================================================= */
+  get lifecycle() {
+    return this[REGISTRY_MARKER].getLifecycle();
+  }
 
-  static isContext(
-    value,
-  ) {
-    return Boolean(
-      value &&
-      value[CONTEXT_MARKER] ===
-        true,
-    );
+  static isContext(value) {
+    try {
+      return Boolean(
+        value &&
+        value[CONTEXT_MARKER] === true,
+      );
+    } catch {
+      return false;
+    }
   }
 
   assert() {
-    if (
-      !ServicesContext.isContext(
-        this,
-      )
-    ) {
+    if (!ServicesContext.isContext(this)) {
       throw new ServicesContextError(
         'Invalid TITech services context.',
         {
-          code:
-            'INVALID_SERVICES_CONTEXT',
+          code: 'INVALID_SERVICES_CONTEXT',
         },
       );
     }
@@ -1004,81 +953,35 @@ class ServicesContext {
     return true;
   }
 
-  /* ===========================================================================
-   * Registry
-   * ========================================================================= */
-
   get registryRevision() {
-    return this[
-      REGISTRY_MARKER
-    ].revision;
+    return this[REGISTRY_MARKER].revision;
   }
 
-  getRegistrySnapshot(
-    options = {},
-  ) {
-    return this[
-      REGISTRY_MARKER
-    ].snapshot(
-      options,
+  getRegistrySnapshot(options = {}) {
+    return this[REGISTRY_MARKER].snapshot(options);
+  }
+
+  has(dependency) {
+    return this[REGISTRY_MARKER].has(
+      normalizeName(dependency, 'dependency'),
     );
   }
 
-  /* ===========================================================================
-   * Dependency Lookup
-   * ========================================================================= */
-
-  has(
-    dependency,
-  ) {
-    const name =
-      normalizeName(
-        dependency,
-        'dependency',
-      );
-
-    return this[
-      REGISTRY_MARKER
-    ].has(
-      name,
+  get(dependency) {
+    return this[REGISTRY_MARKER].get(
+      normalizeName(dependency, 'dependency'),
     );
   }
 
-  get(
-    dependency,
-  ) {
+  require(dependency) {
     const name =
-      normalizeName(
-        dependency,
-        'dependency',
-      );
+      normalizeName(dependency, 'dependency');
 
-    return this[
-      REGISTRY_MARKER
-    ].get(
-      name,
-    );
-  }
-
-  require(
-    dependency,
-  ) {
-    const name =
-      normalizeName(
-        dependency,
-        'dependency',
-      );
-
-    const value =
-      this.get(
-        name,
-      );
+    const value = this.get(name);
 
     if (
-      value ===
-        undefined ||
-      value ===
-        null
+      value === undefined ||
+      value === null
     ) {
       throw new DependencyNotFoundError(
         name,
@@ -1089,59 +992,30 @@ class ServicesContext {
     return value;
   }
 
-  getOrDefault(
-    dependency,
-    fallback,
-  ) {
-    const value =
-      this.get(
-        dependency,
-      );
+  getOrDefault(dependency, fallback) {
+    const value = this.get(dependency);
 
-    return value ===
-      undefined
+    return value === undefined
       ? fallback
       : value;
   }
 
-  /* ===========================================================================
-   * Service Lookup
-   * ========================================================================= */
-
-  service(
-    name,
-  ) {
-    return this[
-      REGISTRY_MARKER
-    ].services.get(
-      normalizeName(
-        name,
-        'service',
-      ),
+  serviceByName(name) {
+    return this[REGISTRY_MARKER].services.get(
+      normalizeName(name, 'service'),
     );
   }
 
-  requireService(
-    name,
-  ) {
+  requireService(name) {
     const normalized =
-      normalizeName(
-        name,
-        'service',
-      );
+      normalizeName(name, 'service');
 
     const service =
-      this[
-        REGISTRY_MARKER
-      ].services.get(
-        normalized,
-      );
+      this[REGISTRY_MARKER].services.get(normalized);
 
     if (
-      service ===
-        undefined ||
-      service ===
-        null
+      service === undefined ||
+      service === null
     ) {
       throw new DependencyNotFoundError(
         normalized,
@@ -1152,57 +1026,30 @@ class ServicesContext {
     return service;
   }
 
-  hasService(
-    name,
-  ) {
-    return this[
-      REGISTRY_MARKER
-    ].services.has(
-      normalizeName(
-        name,
-        'service',
-      ),
+  hasService(name) {
+    return this[REGISTRY_MARKER].services.has(
+      normalizeName(name, 'service'),
     );
   }
 
-  /* ===========================================================================
-   * Infrastructure
-   * ========================================================================= */
-
-  infrastructureService(
-    name,
-  ) {
-    return this[
-      REGISTRY_MARKER
-    ].infrastructure.get(
-      normalizeName(
-        name,
-        'infrastructure',
-      ),
+  infrastructureService(name) {
+    return this[REGISTRY_MARKER].infrastructure.get(
+      normalizeName(name, 'infrastructure'),
     );
   }
 
-  requireInfrastructure(
-    name,
-  ) {
+  requireInfrastructure(name) {
     const normalized =
-      normalizeName(
-        name,
-        'infrastructure',
-      );
+      normalizeName(name, 'infrastructure');
 
     const resource =
-      this[
-        REGISTRY_MARKER
-      ].infrastructure.get(
+      this[REGISTRY_MARKER].infrastructure.get(
         normalized,
       );
 
     if (
-      resource ===
-        undefined ||
-      resource ===
-        null
+      resource === undefined ||
+      resource === null
     ) {
       throw new DependencyNotFoundError(
         normalized,
@@ -1213,52 +1060,27 @@ class ServicesContext {
     return resource;
   }
 
-  hasInfrastructure(
-    name,
-  ) {
-    return this[
-      REGISTRY_MARKER
-    ].infrastructure.has(
-      normalizeName(
-        name,
-        'infrastructure',
-      ),
+  hasInfrastructure(name) {
+    return this[REGISTRY_MARKER].infrastructure.has(
+      normalizeName(name, 'infrastructure'),
     );
   }
 
-  /* ===========================================================================
-   * Controlled Runtime Registration
-   * ===========================================================================
-   *
-   * These methods mutate only the private dependency registry.
-   * The ServicesContext identity remains stable.
-   * ========================================================================= */
-
-  registerService(
-    name,
-    service,
-  ) {
+  registerService(name, service) {
     if (
-      service ===
-        undefined ||
-      service ===
-        null
+      service === undefined ||
+      service === null
     ) {
       throw new ServicesContextError(
         `Cannot register empty TITech service "${name}".`,
         {
-          code:
-            'SERVICE_REGISTRATION_INVALID',
-
-          service:
-            name,
+          code: 'SERVICE_REGISTRATION_INVALID',
+          service: name,
         },
       );
     }
 
-    this[
-      REGISTRY_MARKER
-    ].setService(
+    this[REGISTRY_MARKER].setService(
       name,
       service,
     );
@@ -1266,41 +1088,25 @@ class ServicesContext {
     return service;
   }
 
-  unregisterService(
-    name,
-  ) {
-    return this[
-      REGISTRY_MARKER
-    ].removeService(
-      name,
-    );
+  unregisterService(name) {
+    return this[REGISTRY_MARKER].removeService(name);
   }
 
-  registerInfrastructure(
-    name,
-    resource,
-  ) {
+  registerInfrastructure(name, resource) {
     if (
-      resource ===
-        undefined ||
-      resource ===
-        null
+      resource === undefined ||
+      resource === null
     ) {
       throw new ServicesContextError(
         `Cannot register empty TITech infrastructure resource "${name}".`,
         {
-          code:
-            'INFRASTRUCTURE_REGISTRATION_INVALID',
-
-          dependency:
-            name,
+          code: 'INFRASTRUCTURE_REGISTRATION_INVALID',
+          dependency: name,
         },
       );
     }
 
-    this[
-      REGISTRY_MARKER
-    ].setInfrastructure(
+    this[REGISTRY_MARKER].setInfrastructure(
       name,
       resource,
     );
@@ -1308,23 +1114,25 @@ class ServicesContext {
     return resource;
   }
 
-  unregisterInfrastructure(
-    name,
-  ) {
-    return this[
-      REGISTRY_MARKER
-    ].removeInfrastructure(
-      name,
-    );
+  unregisterInfrastructure(name) {
+    return this[REGISTRY_MARKER].removeInfrastructure(name);
   }
 
-  registerContainerBinding(
-    name,
-    value,
-  ) {
-    this[
-      REGISTRY_MARKER
-    ].setContainer(
+  registerContainerBinding(name, value) {
+    if (
+      value === undefined ||
+      value === null
+    ) {
+      throw new ServicesContextError(
+        `Cannot register empty TITech container binding "${name}".`,
+        {
+          code: 'CONTAINER_BINDING_INVALID',
+          dependency: name,
+        },
+      );
+    }
+
+    this[REGISTRY_MARKER].setContainer(
       name,
       value,
     );
@@ -1332,41 +1140,21 @@ class ServicesContext {
     return value;
   }
 
-  unregisterContainerBinding(
-    name,
-  ) {
-    return this[
-      REGISTRY_MARKER
-    ].removeContainer(
-      name,
-    );
+  unregisterContainerBinding(name) {
+    return this[REGISTRY_MARKER].removeContainer(name);
   }
 
-  /* ===========================================================================
-   * Service-Scoped Context
-   * ========================================================================= */
-
-  forService(
-    service,
-    options = {},
-  ) {
+  forService(service, options = {}) {
     const name =
-      normalizeName(
-        service,
-        'service',
-      );
+      normalizeName(service, 'service');
 
     return createServicesContext({
-      parent:
-        this,
+      parent: this,
 
       registry:
-        this[
-          REGISTRY_MARKER
-        ],
+        this[REGISTRY_MARKER],
 
-      service:
-        name,
+      service: name,
 
       operation:
         options.operation ??
@@ -1375,12 +1163,15 @@ class ServicesContext {
       metadata: {
         ...this.metadata,
 
-        service:
-          name,
+        service: name,
 
         operation:
           options.operation ??
           null,
+
+        ...(isPlainObject(options.metadata)
+          ? options.metadata
+          : {}),
       },
 
       request:
@@ -1395,29 +1186,15 @@ class ServicesContext {
         options.trace ??
         this.trace,
 
-      lifecycleState:
-        options.lifecycleState ??
-        this.lifecycle.state,
-
-      ready:
-        options.ready ??
-        this.lifecycle.ready,
-
-      degraded:
-        options.degraded ??
-        this.lifecycle.degraded,
+      signal:
+        options.signal ??
+        this.signal,
     });
   }
 
-  forOperation(
-    operation,
-    options = {},
-  ) {
+  forOperation(operation, options = {}) {
     const name =
-      normalizeName(
-        operation,
-        'operation',
-      );
+      normalizeName(operation, 'operation');
 
     return this.forService(
       options.service ||
@@ -1426,206 +1203,88 @@ class ServicesContext {
       {
         ...options,
 
-        operation:
-          name,
+        operation: name,
       },
     );
   }
 
-  /* ===========================================================================
-   * Request / Correlation / Trace
-   * ========================================================================= */
-
-  withRequest(
-    request,
-  ) {
+  withRequest(request) {
     return createServicesContext({
-      parent:
-        this,
+      parent: this,
 
       registry:
-        this[
-          REGISTRY_MARKER
-        ],
-
-      service:
-        this.service,
-
-      operation:
-        this.operation,
+        this[REGISTRY_MARKER],
 
       request,
 
-      correlation:
-        this.correlation,
+      service: this.service,
 
-      trace:
-        this.trace,
+      operation: this.operation,
 
-      metadata: {
-        ...this.metadata,
-      },
-
-      lifecycleState:
-        this.lifecycle.state,
-
-      ready:
-        this.lifecycle.ready,
-
-      degraded:
-        this.lifecycle.degraded,
+      signal: this.signal,
     });
   }
 
-  withCorrelation(
-    correlation,
-  ) {
+  withCorrelation(correlation) {
     return createServicesContext({
-      parent:
-        this,
+      parent: this,
 
       registry:
-        this[
-          REGISTRY_MARKER
-        ],
-
-      service:
-        this.service,
-
-      operation:
-        this.operation,
-
-      request:
-        this.request,
+        this[REGISTRY_MARKER],
 
       correlation,
 
-      trace:
-        this.trace,
+      service: this.service,
 
-      metadata: {
-        ...this.metadata,
-      },
+      operation: this.operation,
 
-      lifecycleState:
-        this.lifecycle.state,
-
-      ready:
-        this.lifecycle.ready,
-
-      degraded:
-        this.lifecycle.degraded,
+      signal: this.signal,
     });
   }
 
-  withTrace(
-    trace,
-  ) {
+  withTrace(trace) {
     return createServicesContext({
-      parent:
-        this,
+      parent: this,
 
       registry:
-        this[
-          REGISTRY_MARKER
-        ],
-
-      service:
-        this.service,
-
-      operation:
-        this.operation,
-
-      request:
-        this.request,
-
-      correlation:
-        this.correlation,
+        this[REGISTRY_MARKER],
 
       trace,
 
-      metadata: {
-        ...this.metadata,
-      },
+      service: this.service,
 
-      lifecycleState:
-        this.lifecycle.state,
+      operation: this.operation,
 
-      ready:
-        this.lifecycle.ready,
-
-      degraded:
-        this.lifecycle.degraded,
+      signal: this.signal,
     });
   }
 
-  withSignal(
-    signal,
-  ) {
+  withSignal(signal) {
     return createServicesContext({
-      parent:
-        this,
+      parent: this,
 
       registry:
-        this[
-          REGISTRY_MARKER
-        ],
-
-      service:
-        this.service,
-
-      operation:
-        this.operation,
-
-      request:
-        this.request,
-
-      correlation:
-        this.correlation,
-
-      trace:
-        this.trace,
-
-      metadata: {
-        ...this.metadata,
-      },
-
-      lifecycleState:
-        this.lifecycle.state,
-
-      ready:
-        this.lifecycle.ready,
-
-      degraded:
-        this.lifecycle.degraded,
+        this[REGISTRY_MARKER],
 
       signal,
+
+      service: this.service,
+
+      operation: this.operation,
     });
   }
 
-  /* ===========================================================================
-   * Logger
-   * ========================================================================= */
-
-  childLogger(
-    bindings = {},
-  ) {
-    if (
-      !this.logger
-    ) {
+  childLogger(bindings = {}) {
+    if (!this.logger) {
       return null;
     }
 
-    if (
-      typeof this.logger.child !==
-      'function'
-    ) {
+    if (!isFunction(this.logger.child)) {
       return this.logger;
     }
 
     return this.logger.child({
-      component:
-        COMPONENT,
+      component: COMPONENT,
 
       service:
         this.service ||
@@ -1639,8 +1298,7 @@ class ServicesContext {
         this.request?.requestId,
 
       correlationId:
-        this.correlation
-          ?.correlationId,
+        this.correlation?.correlationId,
 
       traceId:
         this.trace?.traceId,
@@ -1652,31 +1310,18 @@ class ServicesContext {
     });
   }
 
-  /* ===========================================================================
-   * Observability
-   * ========================================================================= */
-
-  emit(
-    event,
-    payload = {},
-  ) {
-    if (
-      !this.observability
-    ) {
+  emit(event, payload = {}) {
+    if (!this.observability) {
       return null;
     }
 
     const normalizedEvent =
-      normalizeName(
-        event,
-        'event',
-      );
+      normalizeName(event, 'event');
 
     const data = {
       ...payload,
 
-      component:
-        COMPONENT,
+      component: COMPONENT,
 
       service:
         this.service ||
@@ -1690,8 +1335,7 @@ class ServicesContext {
         this.request?.requestId,
 
       correlationId:
-        this.correlation
-          ?.correlationId,
+        this.correlation?.correlationId,
 
       traceId:
         this.trace?.traceId,
@@ -1726,7 +1370,7 @@ class ServicesContext {
         );
       }
     } catch {
-      /**
+      /*
        * Observability must never become a business-operation failure.
        */
     }
@@ -1734,14 +1378,8 @@ class ServicesContext {
     return null;
   }
 
-  async instrument(
-    operation,
-    fn,
-    options = {},
-  ) {
-    if (
-      !isFunction(fn)
-    ) {
+  async instrument(operation, fn, options = {}) {
+    if (!isFunction(fn)) {
       throw new TypeError(
         'ServicesContext.instrument() requires a callback.',
       );
@@ -1755,69 +1393,39 @@ class ServicesContext {
 
     if (
       !child.observability ||
-      !isFunction(
-        child.observability.instrument,
-      )
+      !isFunction(child.observability.instrument)
     ) {
-      return fn(
-        child,
-      );
+      return fn(child);
     }
 
     return child.observability.instrument(
       operation,
       traceContext =>
         fn(
-          child.withTrace(
-            traceContext,
-          ),
+          child.withTrace(traceContext),
         ),
       options,
     );
   }
 
-  /* ===========================================================================
-   * Resilience
-   * ========================================================================= */
-
-  getResiliencePolicy(
-    name,
-  ) {
-    if (
-      !this.resilience
-    ) {
+  getResiliencePolicy(name) {
+    if (!this.resilience) {
       return undefined;
     }
 
-    if (
-      isFunction(
-        this.resilience.get,
-      )
-    ) {
-      return this.resilience.get(
-        name,
-      );
+    if (isFunction(this.resilience.get)) {
+      return this.resilience.get(name);
     }
 
-    if (
-      this.resilience.policies
-    ) {
-      return this.resilience.policies[
-        name
-      ];
+    if (this.resilience.policies) {
+      return this.resilience.policies[name];
     }
 
     return undefined;
   }
 
-  async executeResilient(
-    operation,
-    fn,
-    options = {},
-  ) {
-    if (
-      !isFunction(fn)
-    ) {
+  async executeResilient(operation, fn, options = {}) {
+    if (!isFunction(fn)) {
       throw new TypeError(
         'ServicesContext.executeResilient() requires a callback.',
       );
@@ -1829,95 +1437,133 @@ class ServicesContext {
         options,
       );
 
-    if (
-      !scoped.resilience
-    ) {
-      return fn(
-        scoped,
-      );
+    if (!scoped.resilience) {
+      if (options.requireResilience === true) {
+        throw new ServicesContextError(
+          `Resilience is required for operation "${operation}" but is unavailable.`,
+          {
+            code: 'SERVICE_RESILIENCE_REQUIRED',
+            service: scoped.service,
+            operation,
+          },
+        );
+      }
+
+      return fn(scoped);
     }
 
     if (
-      isFunction(
-        scoped.resilience.execute,
-      )
+      isFunction(scoped.resilience.execute)
     ) {
       return scoped.resilience.execute(
         operation,
-        () =>
-          fn(scoped),
+        () => fn(scoped),
         options,
       );
     }
 
     if (
-      isFunction(
-        scoped.resilience.run,
-      )
+      isFunction(scoped.resilience.run)
     ) {
       return scoped.resilience.run(
         operation,
-        () =>
-          fn(scoped),
+        () => fn(scoped),
         options,
       );
     }
 
     if (
-      isFunction(
-        scoped.resilience.withResilience,
-      )
+      isFunction(scoped.resilience.withResilience)
     ) {
       return scoped.resilience.withResilience(
         operation,
-        () =>
-          fn(scoped),
+        () => fn(scoped),
         options,
       );
     }
 
-    return fn(
-      scoped,
-    );
+    if (options.requireResilience === true) {
+      throw new ServicesContextError(
+        `Resilience is required for operation "${operation}" but the configured implementation exposes no supported execution method.`,
+        {
+          code: 'SERVICE_RESILIENCE_UNSUPPORTED',
+          service: scoped.service,
+          operation,
+        },
+      );
+    }
+
+    return fn(scoped);
   }
 
-  /* ===========================================================================
-   * Readiness
-   * ========================================================================= */
-
   isReady() {
-    if (
-      this.readiness
-    ) {
-      if (
-        isFunction(
-          this.readiness.isReady,
-        )
-      ) {
-        return Boolean(
-          this.readiness.isReady(),
-        );
-      }
+    const readiness = this.readiness;
 
-      if (
-        this.readiness.readinessState &&
-        isFunction(
-          this.readiness
-            .readinessState
-            .isReady,
-        )
-      ) {
-        return Boolean(
-          this.readiness
-            .readinessState
-            .isReady(),
-        );
+    if (readiness) {
+      const check =
+        isFunction(readiness.isReady)
+          ? readiness.isReady
+          : isFunction(readiness.readinessState?.isReady)
+            ? readiness.readinessState.isReady
+            : null;
+
+      if (check) {
+        try {
+          const result =
+            check.call(
+              isFunction(readiness.isReady)
+                ? readiness
+                : readiness.readinessState,
+            );
+
+          /*
+           * This is a synchronous API. A Promise must never count as ready.
+           */
+          if (
+            result &&
+            isFunction(result.then)
+          ) {
+            return false;
+          }
+
+          if (typeof result === 'boolean') {
+            return result;
+          }
+
+          if (isPlainObject(result)) {
+            if (
+              typeof result.ready === 'boolean'
+            ) {
+              return result.ready;
+            }
+
+            if (
+              typeof result.healthy === 'boolean'
+            ) {
+              return result.healthy;
+            }
+
+            const status =
+              String(result.status || '')
+                .trim()
+                .toLowerCase();
+
+            return (
+              status === 'ready' ||
+              status === 'healthy' ||
+              status === 'ok' ||
+              status === 'operational'
+            );
+          }
+
+          return false;
+        } catch {
+          return false;
+        }
       }
     }
 
-    return Boolean(
-      this.lifecycle.ready,
-    );
+    return this.lifecycle.ready === true;
   }
 
   async assertReady(
@@ -1926,26 +1572,21 @@ class ServicesContext {
       this.service ||
       'service-operation',
   ) {
-    if (
-      this.isReady()
-    ) {
+    if (this.isReady()) {
       return true;
     }
 
     throw new ServicesContextError(
       `TITech service "${operation}" cannot execute because the application is not ready.`,
       {
-        code:
-          'SERVICE_EXECUTION_NOT_READY',
+        code: 'SERVICE_EXECUTION_NOT_READY',
 
-        service:
-          this.service,
+        service: this.service,
 
         operation,
 
         details: {
-          lifecycle:
-            this.lifecycle,
+          lifecycle: this.lifecycle,
 
           registryRevision:
             this.registryRevision,
@@ -1954,21 +1595,11 @@ class ServicesContext {
     );
   }
 
-  /* ===========================================================================
-   * Configuration
-   * ========================================================================= */
-
-  getConfig(
-    path,
-    fallback,
-  ) {
+  getConfig(path, fallback) {
     if (
-      path ===
-        undefined ||
-      path ===
-        null ||
-      path ===
-        ''
+      path === undefined ||
+      path === null ||
+      path === ''
     ) {
       return this.config;
     }
@@ -1978,55 +1609,37 @@ class ServicesContext {
         .split('.')
         .filter(Boolean);
 
-    let current =
-      this.config;
+    let current = this.config;
 
-    for (
-      const segment of
-        segments
-    ) {
+    for (const segment of segments) {
       if (
         current === null ||
-        current ===
-          undefined
+        current === undefined
       ) {
         return fallback;
       }
 
-      current =
-        current[
-          segment
-        ];
+      current = current[segment];
     }
 
-    return current ===
-      undefined
+    return current === undefined
       ? fallback
       : current;
   }
 
-  requireConfig(
-    path,
-  ) {
-    const value =
-      this.getConfig(
-        path,
-      );
+  requireConfig(path) {
+    const value = this.getConfig(path);
 
     if (
-      value ===
-        undefined ||
-      value ===
-        null
+      value === undefined ||
+      value === null
     ) {
       throw new ServicesContextError(
         `Required TITech service configuration "${path}" is unavailable.`,
         {
-          code:
-            'SERVICE_CONFIGURATION_MISSING',
+          code: 'SERVICE_CONFIGURATION_MISSING',
 
-          service:
-            this.service,
+          service: this.service,
 
           details: {
             path,
@@ -2038,18 +1651,8 @@ class ServicesContext {
     return value;
   }
 
-  /* ===========================================================================
-   * Async Context
-   * ========================================================================= */
-
-  run(
-    callback,
-  ) {
-    if (
-      !isFunction(
-        callback,
-      )
-    ) {
+  run(callback) {
+    if (!isFunction(callback)) {
       throw new TypeError(
         'ServicesContext.run() requires a callback function.',
       );
@@ -2068,31 +1671,18 @@ class ServicesContext {
     );
   }
 
-  /* ===========================================================================
-   * Context Extension
-   * ========================================================================= */
-
-  extend(
-    bindings = {},
-  ) {
-    if (
-      !isPlainObject(
-        bindings,
-      )
-    ) {
+  extend(bindings = {}) {
+    if (!isPlainObject(bindings)) {
       throw new TypeError(
         'ServicesContext.extend() requires a plain object.',
       );
     }
 
     return createServicesContext({
-      parent:
-        this,
+      parent: this,
 
       registry:
-        this[
-          REGISTRY_MARKER
-        ],
+        this[REGISTRY_MARKER],
 
       service:
         bindings.service ??
@@ -2138,300 +1728,245 @@ class ServicesContext {
         bindings.trace ??
         this.trace,
 
-      metadata: {
-        ...this.metadata,
-        ...(bindings.metadata ||
-          {}),
-      },
-
-      lifecycleState:
-        bindings.lifecycleState ??
-        this.lifecycle.state,
-
-      ready:
-        bindings.ready ??
-        this.lifecycle.ready,
-
-      degraded:
-        bindings.degraded ??
-        this.lifecycle.degraded,
-
       signal:
         bindings.signal ??
         this.signal,
+
+      metadata: {
+        ...this.metadata,
+
+        ...(isPlainObject(bindings.metadata)
+          ? bindings.metadata
+          : {}),
+      },
     });
   }
 
-  /* ===========================================================================
-   * Diagnostics
-   * ========================================================================= */
-
-  snapshot(
-    options = {},
-  ) {
+  snapshot(options = {}) {
     return Object.freeze({
-      component:
-        COMPONENT,
+      component: COMPONENT,
 
-      application:
-        APPLICATION_NAME,
+      application: APPLICATION_NAME,
 
-      service:
-        this.service,
+      service: this.service,
 
-      operation:
-        this.operation,
+      operation: this.operation,
 
-      createdAt:
-        this.createdAt,
+      createdAt: new Date(
+        this.createdAt.getTime(),
+      ),
 
-      lifecycle:
-        Object.freeze({
-          ...this.lifecycle,
-        }),
+      lifecycle: this.lifecycle,
 
       registry:
-        this.getRegistrySnapshot(
-          options,
-        ),
+        this.getRegistrySnapshot(options),
 
       request:
-        sanitize(
-          this.request,
+        deepFreezeSanitized(
+          sanitize(this.request),
         ),
 
       correlation:
-        sanitize(
-          this.correlation,
+        deepFreezeSanitized(
+          sanitize(this.correlation),
         ),
 
       trace:
-        sanitize(
-          this.trace,
+        deepFreezeSanitized(
+          sanitize(this.trace),
         ),
 
       metadata:
-        sanitize(
-          this.metadata,
+        deepFreezeSanitized(
+          sanitize(this.metadata),
         ),
 
-      dependencies:
-        Object.freeze({
-          logger:
-            Boolean(
-              this.logger,
-            ),
+      dependencies: Object.freeze({
+        logger: Boolean(this.logger),
 
-          observability:
-            Boolean(
-              this.observability,
-            ),
+        observability: Boolean(this.observability),
 
-          readiness:
-            Boolean(
-              this.readiness,
-            ),
+        readiness: Boolean(this.readiness),
 
-          resilience:
-            Boolean(
-              this.resilience,
-            ),
-        }),
+        resilience: Boolean(this.resilience),
+      }),
     });
   }
 }
 
 /**
  * =============================================================================
- * Registry Facades
+ * REGISTRY FACADES
  * =============================================================================
- *
- * These facades expose controlled access to live dependency registries without
- * exposing Map mutation APIs directly.
  */
 
-function createRegistryFacade(
-  registry,
-  type,
-) {
-  const facade =
-    Object.create(
-      null,
-    );
+function createRegistryFacade(registry, type) {
+  const facade = Object.create(null);
 
   Object.defineProperties(
     facade,
     {
       get: {
-        value:
-          name =>
-            registry[
-              type
-            ].get(
-              normalizeName(
-                name,
-                type,
-              ),
-            ),
+        value: name =>
+          registry[type].get(
+            normalizeName(name, type),
+          ),
 
-        enumerable:
-          true,
+        enumerable: true,
       },
 
       has: {
-        value:
-          name =>
-            registry[
-              type
-            ].has(
-              normalizeName(
-                name,
-                type,
-              ),
-            ),
+        value: name =>
+          registry[type].has(
+            normalizeName(name, type),
+          ),
 
-        enumerable:
-          true,
+        enumerable: true,
       },
 
       keys: {
-        value:
-          () =>
-            Object.freeze([
-              ...registry[
-                type
-              ].keys(),
-            ]),
+        value: () =>
+          Object.freeze([
+            ...registry[type].keys(),
+          ]),
 
-        enumerable:
-          true,
+        enumerable: true,
       },
 
       size: {
-        get:
-          () =>
-            registry[
-              type
-            ].size,
+        get: () =>
+          registry[type].size,
 
-        enumerable:
-          true,
+        enumerable: true,
       },
     },
   );
 
-  return Object.freeze(
-    facade,
+  return Object.freeze(facade);
+}
+
+/**
+ * =============================================================================
+ * INTEGRATION RESOLVERS
+ * =============================================================================
+ *
+ * These resolvers support optional integrations. Resolution failures are
+ * captured in bounded diagnostics rather than silently disappearing.
+ *
+ * The statically imported local modules must still load successfully at the
+ * ESM module boundary.
+ * =============================================================================
+ */
+
+const integrationResolutionErrors = new Map();
+
+function recordIntegrationResolutionError(name, error) {
+  integrationResolutionErrors.set(
+    name,
+    safeError(error),
   );
 }
 
-/**
- =============================================================================
- * Metadata Object
- * =============================================================================
- *
- * We shallow-copy and freeze application metadata.
- *
- * We do NOT recursively freeze arbitrary request/infrastructure objects.
- */
-
-function createSafeMetadataObject(
-  value,
-) {
-  if (
-    !isPlainObject(
-      value,
-    )
-  ) {
-    return Object.freeze(
-      {},
-    );
-  }
-
-  return Object.freeze({
-    ...value,
-  });
+function clearIntegrationResolutionError(name) {
+  integrationResolutionErrors.delete(name);
 }
-
-/**
- * =============================================================================
- * Integration Resolvers
- * =============================================================================
- */
 
 function resolveLogger() {
   try {
-    return (
+    const logger =
       loggerModule?.getLogger?.() ||
       loggerModule?.logger ||
       loggerModule?.default ||
-      null
-    );
-  } catch {
+      null;
+
+    clearIntegrationResolutionError('logger');
+
+    return logger;
+  } catch (error) {
+    recordIntegrationResolutionError('logger', error);
+
     return null;
   }
 }
 
 function resolveObservability() {
   try {
-    return (
+    const observability =
       observabilityModule?.observability ||
       observabilityModule?.default ||
       observabilityModule ||
-      null
+      null;
+
+    clearIntegrationResolutionError('observability');
+
+    return observability;
+  } catch (error) {
+    recordIntegrationResolutionError(
+      'observability',
+      error,
     );
-  } catch {
+
     return null;
   }
 }
 
 function resolveReadiness() {
   try {
-    return (
+    const readiness =
       readinessModule?.readinessState ||
       readinessModule?.default ||
       readinessModule ||
-      null
-    );
-  } catch {
+      null;
+
+    clearIntegrationResolutionError('readiness');
+
+    return readiness;
+  } catch (error) {
+    recordIntegrationResolutionError('readiness', error);
+
     return null;
   }
 }
 
 function resolveResilience() {
   try {
-    return (
-      resilienceModule?.getResilience?.() ||
+    const registeredResilience =
+      resilienceModule?.getResilience?.();
+
+    const resilience =
+      registeredResilience ||
       resilienceModule?.resilience ||
       resilienceModule?.default ||
       resilienceModule ||
-      null
-    );
-  } catch {
+      null;
+
+    clearIntegrationResolutionError('resilience');
+
+    return resilience;
+  } catch (error) {
+    recordIntegrationResolutionError('resilience', error);
+
     return null;
   }
 }
 
 /**
  * =============================================================================
- * Factory
+ * FACTORY
  * =============================================================================
  */
 
-function createServicesContext(
-  options = {},
-) {
-  if (
-    options.parent
-  ) {
-    const parent =
-      options.parent;
+function createServicesContext(options = {}) {
+  if (!isPlainObject(options)) {
+    throw new TypeError(
+      'createServicesContext() requires a plain options object.',
+    );
+  }
 
-    if (
-      !ServicesContext.isContext(
-        parent,
-      )
-    ) {
+  if (options.parent) {
+    const parent = options.parent;
+
+    if (!ServicesContext.isContext(parent)) {
       throw new TypeError(
         'ServicesContext parent must be a valid ServicesContext.',
       );
@@ -2440,9 +1975,7 @@ function createServicesContext(
     return new ServicesContext({
       registry:
         options.registry ||
-        parent[
-          REGISTRY_MARKER
-        ],
+        parent[REGISTRY_MARKER],
 
       config:
         options.config ??
@@ -2488,23 +2021,17 @@ function createServicesContext(
         options.trace ??
         parent.trace,
 
+      signal:
+        options.signal ??
+        parent.signal,
+
       metadata: {
         ...parent.metadata,
-        ...(options.metadata ||
-          {}),
+
+        ...(isPlainObject(options.metadata)
+          ? options.metadata
+          : {}),
       },
-
-      lifecycleState:
-        options.lifecycleState ??
-        parent.lifecycle.state,
-
-      ready:
-        options.ready ??
-        parent.lifecycle.ready,
-
-      degraded:
-        options.degraded ??
-        parent.lifecycle.degraded,
 
       createdAt:
         options.createdAt ||
@@ -2512,30 +2039,30 @@ function createServicesContext(
     });
   }
 
-  return new ServicesContext(
-    options,
-  );
+  return new ServicesContext(options);
 }
 
 /**
  * =============================================================================
- * Root Context
+ * ROOT CONTEXT
  * =============================================================================
  */
 
-let rootContext =
-  null;
+let rootContext = null;
 
-/**
- * The root context is created once and retains its identity.
- */
-function createRootContext(
-  options = {},
-) {
-  if (
-    rootContext
-  ) {
+function createRootContext(options = {}) {
+  if (rootContext) {
+    /*
+     * Preserve root identity. Runtime dependency registration must use the
+     * controlled registration methods rather than replacing the root object.
+     */
     return rootContext;
+  }
+
+  if (!isPlainObject(options)) {
+    throw new TypeError(
+      'createRootContext() requires a plain options object.',
+    );
   }
 
   rootContext =
@@ -2547,19 +2074,20 @@ function createRootContext(
         'application',
 
       metadata: {
-        component:
-          COMPONENT,
+        component: COMPONENT,
 
-        service:
-          SERVICE_NAME,
+        service: SERVICE_NAME,
 
-        application:
-          APPLICATION_NAME,
+        application: APPLICATION_NAME,
 
-        ...(options.metadata ||
-          {}),
+        ...(isPlainObject(options.metadata)
+          ? options.metadata
+          : {}),
       },
     });
+
+  lifecycleState =
+    rootContext.lifecycle;
 
   return rootContext;
 }
@@ -2573,17 +2101,27 @@ function getRootContext() {
 
 /**
  * =============================================================================
- * Request Context
+ * REQUEST CONTEXT
  * =============================================================================
  */
 
-function createRequestContext(
-  options = {},
-) {
+function createRequestContext(options = {}) {
+  if (!isPlainObject(options)) {
+    throw new TypeError(
+      'createRequestContext() requires a plain options object.',
+    );
+  }
+
   const parent =
     options.parent ||
     getCurrentContext() ||
     getRootContext();
+
+  if (!ServicesContext.isContext(parent)) {
+    throw new TypeError(
+      'createRequestContext() requires a valid parent ServicesContext.',
+    );
+  }
 
   return createServicesContext({
     parent,
@@ -2607,32 +2145,33 @@ function createRequestContext(
     operation:
       options.operation ||
       null,
+
+    signal:
+      options.signal ??
+      parent.signal,
   });
 }
 
 /**
  * =============================================================================
- * Async Context
+ * ASYNC CONTEXT
  * =============================================================================
  */
 
-function runWithContext(
-  context,
-  callback,
-) {
-  if (
-    !ServicesContext.isContext(
-      context,
-    )
-  ) {
+function runWithContext(context, callback) {
+  if (!ServicesContext.isContext(context)) {
     throw new TypeError(
       'runWithContext() requires a valid ServicesContext instance.',
     );
   }
 
-  return context.run(
-    callback,
-  );
+  if (!isFunction(callback)) {
+    throw new TypeError(
+      'runWithContext() requires a callback function.',
+    );
+  }
+
+  return context.run(callback);
 }
 
 function getCurrentContext() {
@@ -2645,104 +2184,63 @@ function getCurrentContext() {
 
 /**
  * =============================================================================
- * Controlled Runtime Bindings
+ * CONTROLLED RUNTIME BINDINGS
  * =============================================================================
  */
 
-function addService(
-  name,
-  service,
-) {
-  const context =
-    getRootContext();
+function addService(name, service) {
+  const context = getRootContext();
 
-  context.registerService(
-    name,
-    service,
-  );
+  context.registerService(name, service);
 
   return context;
 }
 
-function removeService(
-  name,
-) {
-  const context =
-    getRootContext();
-
-  return context.unregisterService(
-    name,
-  );
+function removeService(name) {
+  return getRootContext().unregisterService(name);
 }
 
-function addInfrastructure(
-  name,
-  resource,
-) {
-  const context =
-    getRootContext();
+function addInfrastructure(name, resource) {
+  const context = getRootContext();
 
-  context.registerInfrastructure(
-    name,
-    resource,
-  );
+  context.registerInfrastructure(name, resource);
 
   return context;
 }
 
-function removeInfrastructure(
-  name,
-) {
-  const context =
-    getRootContext();
-
-  return context.unregisterInfrastructure(
-    name,
-  );
+function removeInfrastructure(name) {
+  return getRootContext().unregisterInfrastructure(name);
 }
 
-function addContainerBinding(
-  name,
-  value,
-) {
-  const context =
-    getRootContext();
+function addContainerBinding(name, value) {
+  const context = getRootContext();
 
-  context.registerContainerBinding(
-    name,
-    value,
-  );
+  context.registerContainerBinding(name, value);
 
   return context;
 }
 
 /**
  * =============================================================================
- * Lifecycle State
+ * LIFECYCLE STATE
  * =============================================================================
  */
 
-function updateLifecycle(
-  options = {},
-) {
-  const context =
-    getRootContext();
+let lifecycleState = null;
 
-  /**
-   * Public context identity remains stable.
-   *
-   * We update lifecycle through a private descriptor replacement approach:
-   * since the public object itself is frozen, lifecycle is represented through
-   * an internal runtime binding.
-   *
-   * For child contexts created after this operation, the latest lifecycle state
-   * can be requested via getLifecycleState().
-   */
+function updateLifecycle(options = {}) {
+  if (!isPlainObject(options)) {
+    throw new TypeError(
+      'updateLifecycle() requires a plain options object.',
+    );
+  }
 
-  lifecycleState =
-    {
+  const context = getRootContext();
+
+  const updated =
+    context[REGISTRY_MARKER].setLifecycle({
       state:
-        options.state ||
+        options.state ??
         context.lifecycle.state,
 
       ready:
@@ -2752,83 +2250,133 @@ function updateLifecycle(
       degraded:
         options.degraded ??
         context.lifecycle.degraded,
+    });
 
-      updatedAt:
-        new Date(),
-    };
+  lifecycleState = updated;
 
-  return Object.freeze({
-    ...lifecycleState,
-  });
+  return updated;
 }
 
-let lifecycleState =
-  null;
-
 function getLifecycleState() {
-  if (
-    lifecycleState
-  ) {
+  if (rootContext) {
+    return rootContext.lifecycle;
+  }
+
+  if (lifecycleState) {
     return Object.freeze({
       ...lifecycleState,
+
+      updatedAt:
+        lifecycleState.updatedAt instanceof Date
+          ? new Date(
+              lifecycleState.updatedAt.getTime(),
+            )
+          : lifecycleState.updatedAt,
     });
   }
 
-  return getRootContext()
-    .lifecycle;
+  return Object.freeze({
+    state: DEFAULT_LIFECYCLE_STATE,
+
+    ready: false,
+
+    degraded: false,
+
+    updatedAt: null,
+  });
 }
 
 /**
  * =============================================================================
- * Diagnostics
+ * DIAGNOSTICS
  * =============================================================================
  */
 
-function snapshot(
-  options = {},
-) {
-  return getRootContext()
-    .snapshot(
-      options,
+function snapshot(options = {}) {
+  return getRootContext().snapshot(options);
+}
+
+function getDiagnostics() {
+  return Object.freeze({
+    component: COMPONENT,
+
+    service: SERVICE_NAME,
+
+    application: APPLICATION_NAME,
+
+    rootContextCreated:
+      Boolean(rootContext),
+
+    lifecycle:
+      getLifecycleState(),
+
+    integrations:
+      Object.freeze(
+        Object.fromEntries(
+          integrationResolutionErrors,
+        ),
+      ),
+
+    registry:
+      rootContext
+        ? rootContext.getRegistrySnapshot()
+        : null,
+  });
+}
+
+/**
+ * =============================================================================
+ * RESET
+ * =============================================================================
+ */
+
+function resetRootContext(options = {}) {
+  if (!isPlainObject(options)) {
+    throw new TypeError(
+      'resetRootContext() requires a plain options object.',
     );
-}
+  }
 
-/**
- * =============================================================================
- * Reset
- * =============================================================================
- */
+  const currentLifecycle =
+    rootContext
+      ? rootContext.lifecycle
+      : lifecycleState;
 
-function resetRootContext(
-  options = {},
-) {
+  const activeStates = new Set([
+    'starting',
+    'running',
+    'ready',
+  ]);
+
   if (
-    options.requireStopped !==
-      false &&
-    lifecycleState?.state ===
-      'running'
+    options.requireStopped !== false &&
+    activeStates.has(currentLifecycle?.state)
   ) {
     throw new ContextLifecycleError(
-      'Cannot reset the TITech services context while the application is running.',
+      'Cannot reset the TITech services context while the application is active.',
       {
-        code:
-          'SERVICES_CONTEXT_RESET_NOT_ALLOWED',
+        code: 'SERVICES_CONTEXT_RESET_NOT_ALLOWED',
+
+        details: {
+          state:
+            currentLifecycle?.state,
+        },
       },
     );
   }
 
-  rootContext =
-    null;
+  rootContext = null;
 
-  lifecycleState =
-    null;
+  lifecycleState = null;
+
+  integrationResolutionErrors.clear();
 
   return true;
 }
 
 /**
  * =============================================================================
- * Bootstrap Lifecycle Integration
+ * BOOTSTRAP LIFECYCLE INTEGRATION
  * =============================================================================
  */
 
@@ -2836,15 +2384,43 @@ function registerBootstrapHooks(
   context = {},
   options = {},
 ) {
-  const { hooks, lifecycle } = hooksModule;
+  const hooks =
+    hooksModule?.hooks ||
+    hooksModule?.default?.hooks ||
+    null;
+
+  const lifecycle =
+    hooksModule?.lifecycle ||
+    hooksModule?.default?.lifecycle ||
+    null;
 
   if (
-    hooks.has(
-      COMPONENT,
-    )
+    !hooks ||
+    !isFunction(hooks.has) ||
+    !isFunction(lifecycle)
   ) {
-    return hooks.get(
-      COMPONENT,
+    throw new ContextLifecycleError(
+      'TITech bootstrap lifecycle integration is unavailable.',
+      {
+        code: 'SERVICES_CONTEXT_HOOKS_UNAVAILABLE',
+      },
+    );
+  }
+
+  try {
+    if (hooks.has(COMPONENT)) {
+      return isFunction(hooks.get)
+        ? hooks.get(COMPONENT)
+        : null;
+    }
+  } catch (error) {
+    throw new ContextLifecycleError(
+      'TITech services-context hook registry could not be inspected.',
+      {
+        code: 'SERVICES_CONTEXT_HOOK_REGISTRY_FAILED',
+
+        cause: error,
+      },
     );
   }
 
@@ -2852,26 +2428,26 @@ function registerBootstrapHooks(
     COMPONENT,
     {
       priority:
-        options.priority ??
-        -100,
+        Number.isInteger(options.priority)
+          ? options.priority
+          : -100,
 
       dependencies:
-        options.dependencies ||
-        [
-          'configuration',
-          'logger',
-          'observability',
-          'readiness',
-          'resilience',
-        ],
+        Array.isArray(options.dependencies)
+          ? [...options.dependencies]
+          : [
+              'configuration',
+              'logger',
+              'observability',
+              'readiness',
+              'resilience',
+            ],
 
       critical:
-        options.critical !==
-        false,
+        options.critical !== false,
 
       fatal:
-        options.fatal !==
-        false,
+        options.fatal !== false,
 
       timeoutMs:
         toPositiveInteger(
@@ -2889,6 +2465,7 @@ function registerBootstrapHooks(
           const created =
             createRootContext({
               config:
+                runtime.configuration ||
                 runtime.config,
 
               environment:
@@ -2924,25 +2501,29 @@ function registerBootstrapHooks(
                 {},
 
               metadata: {
-                bootstrap:
-                  true,
+                bootstrap: true,
               },
+
+              lifecycleState:
+                DEFAULT_LIFECYCLE_STATE,
+
+              ready: false,
+
+              degraded: false,
             });
 
-          lifecycleState =
-            {
-              state:
-                'ready',
+          /*
+           * This component has successfully created its dependency context.
+           * Application readiness remains false until the application lifecycle
+           * explicitly updates it.
+           */
+          updateLifecycle({
+            state: 'ready',
 
-              ready:
-                false,
+            ready: false,
 
-              degraded:
-                false,
-
-              updatedAt:
-                new Date(),
-            };
+            degraded: false,
+          });
 
           created.emit(
             'services-context.created',
@@ -2952,105 +2533,131 @@ function registerBootstrapHooks(
             },
           );
 
-          /**
-           * Publish stable context references into bootstrap context.
+          /*
+           * Publish references to the existing runtime context when possible.
+           * The BootstrapContext itself remains the lifecycle authority.
            */
           if (
             runtime &&
-            typeof runtime ===
-              'object'
+            typeof runtime === 'object'
           ) {
-            runtime.servicesContext =
-              created;
+            try {
+              if (
+                isFunction(runtime.setServicesContext)
+              ) {
+                runtime.setServicesContext(created);
+              } else {
+                runtime.servicesContext = created;
+              }
 
-            runtime.serviceContext =
-              created;
+              runtime.serviceContext = created;
 
-            runtime.servicesRegistry =
-              created[
-                REGISTRY_MARKER
-              ];
+              runtime.servicesRegistry =
+                created[REGISTRY_MARKER];
+            } catch (error) {
+              throw new ContextLifecycleError(
+                'TITech services context could not be published to the bootstrap runtime.',
+                {
+                  code: 'SERVICES_CONTEXT_PUBLICATION_FAILED',
+
+                  cause: error,
+                },
+              );
+            }
           }
 
           return created;
         },
 
+      /*
+       * This is the readiness of the services-context component itself.
+       * It must not depend on global application readiness, which could create
+       * a circular readiness dependency.
+       */
       ready:
-        async () => {
-          return Boolean(
-            rootContext,
-          );
-        },
+        async () =>
+          Boolean(rootContext),
 
       health:
-        async () => ({
-          status:
-            rootContext
-              ? 'healthy'
-              : 'unhealthy',
+        async () => {
+          const current =
+            getLifecycleState();
 
-          healthy:
-            Boolean(
-              rootContext,
-            ),
+          const stopped =
+            current.state === 'stopped';
 
-          component:
-            COMPONENT,
+          const failed =
+            current.state === 'failed';
 
-          service:
-            SERVICE_NAME,
+          const healthy =
+            Boolean(rootContext) &&
+            !stopped &&
+            !failed;
 
-          registryRevision:
-            rootContext
-              ? rootContext.registryRevision
-              : null,
+          return Object.freeze({
+            status:
+              !rootContext
+                ? 'unhealthy'
+                : failed
+                  ? 'unhealthy'
+                  : stopped
+                    ? 'stopped'
+                    : current.degraded
+                      ? 'degraded'
+                      : 'healthy',
 
-          context:
-            rootContext
-              ? rootContext.snapshot()
-              : null,
-        }),
+            healthy,
+
+            ready:
+              Boolean(rootContext),
+
+            component: COMPONENT,
+
+            service: SERVICE_NAME,
+
+            registryRevision:
+              rootContext
+                ? rootContext.registryRevision
+                : null,
+
+            lifecycle: current,
+
+            context:
+              rootContext
+                ? rootContext.snapshot()
+                : null,
+          });
+        },
 
       stop:
         async () => {
-          /**
-           * servicesContext owns dependency publication, not service shutdown.
+          /*
+           * ServicesContext owns dependency publication, not application
+           * service shutdown. services.js remains the service-shutdown
+           * authority.
            *
-           * services.js remains the authority for application service
-           * shutdown.
+           * Do not destroy the root context here; other shutdown participants
+           * may still need it.
            */
-          lifecycleState =
-            {
-              state:
-                'stopped',
+          updateLifecycle({
+            state: 'stopped',
 
-              ready:
-                false,
+            ready: false,
 
-              degraded:
-                false,
-
-              updatedAt:
-                new Date(),
-            };
+            degraded: false,
+          });
 
           rootContext?.emit(
             'services-context.stopped',
           );
 
-          /**
-           * Deliberately do NOT destroy the root context object here before
-           * services.js has completed its own shutdown sequence.
-           */
           return true;
         },
 
       metadata: {
-        component:
-          COMPONENT,
+        component: COMPONENT,
 
-        service:
-          SERVICE_NAME,
+        service: SERVICE_NAME,
 
         implementation:
           'backend/bootstrap/servicesContext.js',
@@ -3061,97 +2668,124 @@ function registerBootstrapHooks(
 
 /**
  * =============================================================================
- * Export Contract
+ * EXPORT CONTRACT
  * =============================================================================
  */
 
-const servicesContextModule =
-  Object.freeze({
-    /* Classes */
-    ServicesContext,
+const servicesContextModule = Object.freeze({
+  /* Classes */
+  ServicesContext,
 
-    ServicesContextRegistry,
+  ServicesContextRegistry,
 
-    ServicesContextError,
+  ServicesContextError,
 
-    DependencyNotFoundError,
+  DependencyNotFoundError,
 
-    ContextFrozenError,
+  ContextFrozenError,
 
-    ContextLifecycleError,
+  ContextLifecycleError,
 
-    /* Factory */
-    createServicesContext,
+  /* Factory */
+  createServicesContext,
 
-    createRootContext,
+  createRootContext,
 
-    getRootContext,
+  getRootContext,
 
-    createRequestContext,
+  createRequestContext,
 
-    /* Async context */
-    runWithContext,
+  /* Async context */
+  runWithContext,
 
-    getCurrentContext,
+  getCurrentContext,
 
-    /* Runtime service bindings */
-    addService,
+  /* Runtime service bindings */
+  addService,
 
-    removeService,
+  removeService,
 
-    addInfrastructure,
+  addInfrastructure,
 
-    removeInfrastructure,
+  removeInfrastructure,
 
-    addContainerBinding,
+  addContainerBinding,
 
-    /* Lifecycle */
-    registerBootstrapHooks,
+  /* Lifecycle */
+  registerBootstrapHooks,
 
-    updateLifecycle,
+  updateLifecycle,
 
-    getLifecycleState,
+  getLifecycleState,
 
-    /* Diagnostics */
-    snapshot,
+  /* Diagnostics */
+  snapshot,
 
-    /* Test/reset support */
-    resetRootContext,
+  getDiagnostics,
 
-    /* Metadata */
-    COMPONENT,
+  /* Test/reset support */
+  resetRootContext,
 
-    SERVICE_NAME,
+  /* Metadata */
+  COMPONENT,
 
-    APPLICATION_NAME,
-  });
+  SERVICE_NAME,
+
+  APPLICATION_NAME,
+});
 
 export default servicesContextModule;
 
 export {
   ServicesContext,
+
   ServicesContextRegistry,
+
   ServicesContextError,
+
   DependencyNotFoundError,
+
   ContextFrozenError,
+
   ContextLifecycleError,
+
   createServicesContext,
+
   createRootContext,
+
   getRootContext,
+
   createRequestContext,
+
   runWithContext,
+
   getCurrentContext,
+
   addService,
+
   removeService,
+
   addInfrastructure,
+
   removeInfrastructure,
+
   addContainerBinding,
+
   registerBootstrapHooks,
+
   updateLifecycle,
+
   getLifecycleState,
+
   snapshot,
+
+  getDiagnostics,
+
   resetRootContext,
+
   COMPONENT,
+
   SERVICE_NAME,
+
   APPLICATION_NAME,
 };

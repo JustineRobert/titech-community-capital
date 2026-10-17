@@ -117,7 +117,7 @@ const SERVICE_NAME =
   'auth';
 
 const APPLICATION_NAME =
-  'TITech Community Capital Ltd';
+  'TITech Community Capital';
 
 const REQUIRED_AUTH_HANDLERS =
   Object.freeze([

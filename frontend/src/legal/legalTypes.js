@@ -49,7 +49,7 @@
  * ----------------------------------------------------------------------------
  * This module validates SOFTWARE METADATA only.
  *
- * It does NOT determine whether TITech Community Capital Ltd is:
+ * It does NOT determine whether TITech Capital LTD is:
  *   - licensed;
  *   - authorized;
  *   - regulated;

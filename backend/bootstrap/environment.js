@@ -204,7 +204,7 @@ const DEFAULTS =
       'development',
 
     APP_NAME:
-      'TITech Community Capital LTD',
+      'TITech Community Capital',
 
     APP_SHORT_NAME:
       'TITech',
@@ -2822,7 +2822,7 @@ function buildEnvironment() {
     environment.app.name;
 
   environment.applicationLegalName =
-    'TITech Community Capital LTD';
+    'TITech Capital LTD';
 
   environment.serviceName =
     environment.app.serviceName;
@@ -3432,7 +3432,7 @@ function buildSafeMetadata(
       environment.app.name,
 
     applicationLegalName:
-      'TITech Community Capital LTD',
+      'TITech Capital LTD',
 
     serviceName:
       environment.app.serviceName,

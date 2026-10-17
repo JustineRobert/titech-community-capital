@@ -1,0 +1,394 @@
+.titech-navbar {
+  position: relative;
+  z-index: 30;
+  width: 100%;
+  background: var(--titech-color-surface, var(--titech-official-white));
+  color: var(--titech-color-text, var(--titech-official-navy));
+  border-block-end: 1px solid var(--titech-color-border);
+  box-shadow: 0 4px 18px rgb(8 43 103 / 0.06);
+}
+
+.titech-navbar__inner {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.65rem, 1.5vw, 1.4rem);
+  width: min(100%, 90rem);
+  min-height: 4.5rem;
+  margin-inline: auto;
+  padding-block: 0.55rem;
+  padding-inline: clamp(0.85rem, 2.5vw, 2rem);
+}
+
+.titech-navbar__brand {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  color: var(--titech-color-text);
+  text-decoration: none;
+}
+
+.titech-navbar__brand-mark {
+  display: grid;
+  width: 2.85rem;
+  height: 2.85rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+}
+
+.titech-navbar__logo {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.titech-navbar__brand-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.12;
+}
+
+.titech-navbar__brand-name {
+  color: var(--titech-official-deep-blue);
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: 0.015em;
+}
+
+.titech-navbar__brand-product {
+  margin-block-start: 0.18rem;
+  color: var(--titech-color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.titech-navbar__navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline-start: auto;
+}
+
+.titech-navbar__nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.6rem;
+  padding-block: 0.55rem;
+  padding-inline: 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  color: var(--titech-color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.titech-navbar__nav-link:hover,
+.titech-navbar__nav-link:focus-visible {
+  border-color: var(--titech-color-border);
+  background: var(--titech-color-surface-muted);
+  color: var(--titech-official-deep-blue);
+}
+
+.titech-navbar__nav-link--active {
+  background: var(--titech-primary-soft, rgb(0 48 160 / 0.12));
+  color: var(--titech-official-deep-blue);
+}
+
+.titech-navbar__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.titech-navbar__auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.titech-navbar__login-link,
+.titech-navbar__register-button,
+.titech-navbar__logout-button,
+.titech-navbar__user-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.55rem;
+  padding-block: 0.5rem;
+  padding-inline: 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.titech-navbar__login-link {
+  color: var(--titech-official-deep-blue);
+  background: transparent;
+}
+
+.titech-navbar__register-button,
+.titech-navbar__logout-button {
+  background: var(--titech-official-electric-blue);
+  color: var(--titech-official-white);
+}
+
+.titech-navbar__register-button:hover,
+.titech-navbar__logout-button:hover {
+  background: var(--titech-official-deep-blue);
+}
+
+.titech-navbar__user-wrapper {
+  position: relative;
+}
+
+.titech-navbar__user-trigger {
+  border-color: var(--titech-color-border);
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+}
+
+.titech-navbar__avatar {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--titech-official-deep-blue);
+  color: var(--titech-official-white);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.titech-navbar__avatar--large {
+  width: 2.6rem;
+  height: 2.6rem;
+}
+
+.titech-navbar__user-trigger-name {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titech-navbar__user-menu {
+  position: absolute;
+  z-index: 40;
+  inset-block-start: calc(100% + 0.45rem);
+  inset-inline-end: 0;
+  width: min(19rem, calc(100vw - 1.5rem));
+  padding: 0.5rem;
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.85rem;
+  background: var(--titech-color-surface);
+  box-shadow: 0 16px 42px rgb(8 43 103 / 0.16);
+}
+
+.titech-navbar__user-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.titech-navbar__user-meta strong,
+.titech-navbar__user-meta span {
+  overflow-wrap: anywhere;
+}
+
+.titech-navbar__user-meta span {
+  color: var(--titech-color-text-muted);
+  font-size: 0.8rem;
+}
+
+.titech-navbar__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 2.55rem;
+  padding-block: 0.55rem;
+  padding-inline: 0.7rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--titech-color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.titech-navbar__menu-item:hover,
+.titech-navbar__menu-item:focus-visible {
+  background: var(--titech-color-surface-muted);
+}
+
+.titech-navbar__menu-item--danger {
+  color: var(--titech-state-danger);
+}
+
+.titech-navbar__menu-divider,
+.titech-navbar__mobile-divider {
+  height: 1px;
+  margin-block: 0.4rem;
+  background: var(--titech-color-border);
+}
+
+.titech-navbar__logout-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  border-radius: 0.55rem;
+  background: var(--titech-danger-surface);
+  color: var(--titech-state-danger);
+  font-size: 0.82rem;
+}
+
+.titech-navbar__mobile-toggle {
+  display: none;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.65rem;
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+  cursor: pointer;
+}
+
+.titech-navbar__mobile-panel {
+  display: none;
+  padding-block: 0.75rem 1rem;
+  padding-inline: clamp(0.85rem, 3vw, 1.5rem);
+  border-block-start: 1px solid var(--titech-color-border);
+  background: var(--titech-color-surface);
+}
+
+.titech-navbar__mobile-navigation {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.titech-navbar__mobile-account,
+.titech-navbar__mobile-auth {
+  display: grid;
+  gap: 0.75rem;
+  padding-block-start: 0.25rem;
+}
+
+.titech-navbar__mobile-user {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.titech-navbar__mobile-logout,
+.titech-navbar__mobile-login,
+.titech-navbar__mobile-register {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.65rem;
+  background: var(--titech-color-surface);
+  color: var(--titech-official-deep-blue);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.titech-navbar__mobile-register {
+  border-color: var(--titech-official-electric-blue);
+  background: var(--titech-official-electric-blue);
+  color: var(--titech-official-white);
+}
+
+.titech-navbar__mobile-logout {
+  color: var(--titech-state-danger);
+}
+
+.titech-navbar button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.titech-navbar button:focus-visible,
+.titech-navbar a:focus-visible {
+  outline: 3px solid var(--titech-focus-color, var(--titech-official-electric-blue));
+  outline-offset: 2px;
+}
+
+@media (max-width: 70rem) {
+  .titech-navbar__inner {
+    gap: 0.65rem;
+  }
+
+  .titech-navbar__navigation {
+    gap: 0.1rem;
+  }
+
+  .titech-navbar__nav-link {
+    padding-inline: 0.55rem;
+  }
+
+  .titech-navbar__brand-product {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 56rem) {
+  .titech-navbar__navigation {
+    display: none;
+  }
+
+  .titech-navbar__actions {
+    margin-inline-start: auto;
+  }
+
+  .titech-language-selector--desktop {
+    display: none;
+  }
+
+  .titech-navbar__mobile-toggle {
+    display: inline-grid;
+  }
+
+  .titech-navbar__mobile-panel {
+    display: block;
+  }
+
+  .titech-language-selector--mobile {
+    display: flex;
+    padding-block: 0.35rem 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titech-navbar__nav-link {
+    transition: none;
+  }
+}

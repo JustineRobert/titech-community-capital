@@ -1,0 +1,12 @@
+{
+  "payments.status.pending": "En attente",
+  "payments.status.accepted": "Demande acceptée ; le règlement n’est pas encore confirmé.",
+  "payments.status.settled": "Réglé",
+  "payments.status.failed": "Échec",
+  "payments.status.reversed": "Annulé par une contre-opération",
+  "payments.status.reconciliationRequired": "Rapprochement requis",
+  "payments.status.queuedOffline": "Mis en attente hors ligne ; pas encore confirmé par le serveur.",
+  "payments.errors.unknownOutcome": "Le résultat du prestataire est inconnu. Vérifiez son statut et le rapprochement avant de réessayer.",
+  "ledger.errors.unbalanced": "Cette transaction ne peut pas être comptabilisée car les débits et les crédits ne sont pas équilibrés.",
+  "consent.unapprovedTranslation": "Cette information n’est pas approuvée dans la langue choisie. Ne recueillez pas le consentement avant de disposer d’une version approuvée."
+}

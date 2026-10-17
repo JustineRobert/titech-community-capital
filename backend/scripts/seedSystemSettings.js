@@ -66,7 +66,7 @@ const SETTINGS = [
     {
         key: 'SYSTEM_NAME',
         category: 'SYSTEM',
-        value: 'TITech Community Capital LTD'
+        value: 'TITech Community Capital'
     },
 
     {

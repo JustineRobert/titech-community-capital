@@ -67,6 +67,8 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "./BrandLogo";
+import LanguageSelector from "../i18n/LanguageSelector";
+import { useI18n } from "../i18n/I18nProvider";
 
 import "./Navbar.css";
 
@@ -203,6 +205,7 @@ function Navbar({
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
 
   const [mobileOpen, setMobileOpen] =
     useState(false);
@@ -402,7 +405,7 @@ function Navbar({
         );
 
         setLogoutError(
-          "Unable to sign out completely. Please try again.",
+          t("common.errors.logoutFailed"),
         );
       } finally {
         setLoggingOut(false);
@@ -414,6 +417,7 @@ function Navbar({
       closeAllMenus,
       navigate,
       currentPath,
+      t,
     ],
   );
 
@@ -454,7 +458,7 @@ function Navbar({
     >
       <nav
         className="titech-navbar__inner"
-        aria-label="Primary navigation"
+        aria-label={t("common.nav.primary")}
       >
         {/* ==================================================================
             Brand
@@ -463,7 +467,7 @@ function Navbar({
         <Link
           to={ROUTES.HOME}
           className="titech-navbar__brand"
-          aria-label="TITech Community Capital home"
+          aria-label={t("common.brand.home")}
           data-testid={`${testId}-brand`}
           onClick={handleNavigationClick}
         >
@@ -527,7 +531,7 @@ function Navbar({
                     focusable="false"
                   />
 
-                  <span>{label}</span>
+                  <span>{t(`common.nav.${id}`) || label}</span>
                 </NavLink>
               ),
             )}
@@ -539,6 +543,7 @@ function Navbar({
             ================================================================== */}
 
         <div className="titech-navbar__actions">
+          <LanguageSelector className="titech-language-selector--desktop" />
           {isAuthenticated ? (
             <>
               {showUserMenu ? (
@@ -560,7 +565,7 @@ function Navbar({
                     aria-expanded={
                       userMenuOpen
                     }
-                    aria-label={`Open account menu for ${userDisplayName}`}
+                    aria-label={t("common.nav.openAccountMenu", { name: userDisplayName })}
                     onClick={() =>
                       setUserMenuOpen(
                         (current) =>
@@ -645,7 +650,7 @@ function Navbar({
                         />
 
                         <span>
-                          Dashboard
+                          {t("common.nav.dashboard")}
                         </span>
                       </Link>
 
@@ -667,8 +672,8 @@ function Navbar({
 
                         <span>
                           {loggingOut
-                            ? "Signing out..."
-                            : "Sign out"}
+                            ? t("common.nav.signingOut")
+                            : t("common.nav.signOut")}
                         </span>
                       </button>
 
@@ -708,8 +713,8 @@ function Navbar({
 
                   <span>
                     {loggingOut
-                      ? "Signing out..."
-                      : "Logout"}
+                      ? t("common.nav.signingOut")
+                      : t("common.nav.logout")}
                   </span>
                 </button>
               )}
@@ -730,7 +735,7 @@ function Navbar({
                   focusable="false"
                 />
 
-                <span>Login</span>
+                <span>{t("common.nav.login")}</span>
               </Link>
 
               <Link
@@ -741,7 +746,7 @@ function Navbar({
                   handleNavigationClick
                 }
               >
-                Register
+                {t("common.nav.register")}
               </Link>
             </div>
           )}
@@ -755,8 +760,8 @@ function Navbar({
             className="titech-navbar__mobile-toggle"
             aria-label={
               mobileOpen
-                ? "Close navigation menu"
-                : "Open navigation menu"
+                ? t("common.nav.closeMenu")
+                : t("common.nav.openMenu")
             }
             aria-expanded={mobileOpen}
             aria-controls={`${testId}-mobile-menu`}
@@ -830,7 +835,7 @@ function Navbar({
                       focusable="false"
                     />
 
-                    <span>{label}</span>
+                    <span>{t(`common.nav.${id}`) || label}</span>
                   </NavLink>
                 ),
               )}
@@ -838,6 +843,7 @@ function Navbar({
           )}
 
           <div className="titech-navbar__mobile-divider" />
+          <LanguageSelector className="titech-language-selector--mobile" />
 
           {isAuthenticated ? (
             <div className="titech-navbar__mobile-account">
@@ -917,7 +923,7 @@ function Navbar({
                   focusable="false"
                 />
 
-                <span>Login</span>
+                <span>{t("common.nav.login")}</span>
               </Link>
 
               <Link
@@ -927,7 +933,7 @@ function Navbar({
                   handleNavigationClick
                 }
               >
-                Register
+                {t("common.nav.register")}
               </Link>
             </div>
           )}

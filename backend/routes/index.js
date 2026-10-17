@@ -24,7 +24,7 @@ import { param, validationResult } from 'express-validator';
 
 /**
  * =============================================================================
- * TITech Community Capital Ltd
+ * TITech Capital LTD
  * Enterprise API Route Registry
  * =============================================================================
  *
@@ -89,7 +89,7 @@ const APPLICATION_NAME =
     );
 
 const APPLICATION_LEGAL_NAME =
-    'TITech Community Capital Ltd';
+    'TITech Capital LTD';
 
 const API_PREFIX =
     '/api/v1';

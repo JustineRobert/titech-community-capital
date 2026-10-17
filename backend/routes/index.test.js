@@ -747,7 +747,7 @@ describe(
                                     'TITech Community Capital',
 
                                 applicationLegalName:
-                                    'TITech Community Capital Ltd',
+                                    'TITech Capital LTD',
 
                                 registry:
                                     'titech-api-v1',
@@ -1451,7 +1451,7 @@ describe(
                                     'TITech Community Capital',
 
                                 applicationLegalName:
-                                    'TITech Community Capital Ltd',
+                                    'TITech Capital LTD',
 
                                 registry:
                                     'titech-api-v1',

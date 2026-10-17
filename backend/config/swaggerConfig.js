@@ -154,7 +154,7 @@ const DEFAULTS =
 
         contact: {
             name:
-                'TITech Africa',
+                'TITech Capital LTD',
 
             email:
                 'support@titech.africa',

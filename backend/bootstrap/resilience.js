@@ -1,3 +1,4 @@
+
 'use strict';
 
 /**
@@ -34,9 +35,19 @@
  *   createRequire() is used only as a narrow compatibility bridge for
  *   confirmed legacy CommonJS resilience implementations.
  *
+ * Reliability requirements:
+ *   - Skip genuinely missing implementation candidates.
+ *   - Never hide a missing dependency inside an existing implementation.
+ *   - Preserve the original exception as a structured cause.
+ *   - Share concurrent implementation-resolution attempts.
+ *   - Fail readiness closed when the implementation reports an unknown state.
+ *   - Preserve lifecycle idempotency and transactional startup failure behavior.
+ *   - Prevent reset while implementation resolution or lifecycle work is active.
+ *
  * =============================================================================
  */
 
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import * as hooksModule from './hooks.js';
@@ -105,6 +116,32 @@ const FALSE_VALUES = new Set([
   'no',
   'off',
   'disabled',
+]);
+
+const READY_STATUSES = new Set([
+  'ready',
+  'healthy',
+  'ok',
+  'operational',
+]);
+
+const NOT_READY_STATUSES = new Set([
+  'unhealthy',
+  'not_ready',
+  'not-ready',
+  'failed',
+  'stopped',
+  'disabled',
+  'degraded',
+  'starting',
+  'pending',
+  'error',
+  'unavailable',
+  'unknown',
+  'timeout',
+  'timed_out',
+  'timed-out',
+  'initializing',
 ]);
 
 const LIFECYCLE_STATES = Object.freeze({
@@ -182,8 +219,7 @@ class ResilienceBootstrapError extends Error {
         : undefined,
     );
 
-    this.name =
-      'ResilienceBootstrapError';
+    this.name = 'ResilienceBootstrapError';
 
     this.code =
       options.code ||
@@ -229,6 +265,12 @@ let implementationPath = null;
 let implementationFormat = null;
 
 let lifecycleContract = null;
+
+/*
+ * A single-flight promise prevents concurrent callers from independently
+ * loading and selecting different resilience implementations.
+ */
+let resolutionPromise = null;
 
 let registered = false;
 
@@ -296,9 +338,7 @@ function asPositiveInteger(
     : fallback;
 }
 
-function normalizeDependencies(
-  value,
-) {
+function normalizeDependencies(value) {
   if (!Array.isArray(value)) {
     return [
       ...DEFAULT_DEPENDENCIES,
@@ -321,12 +361,22 @@ function normalizeDependencies(
       ];
 }
 
-function safeError(error) {
+/*
+ * Keep error serialization bounded and structured.
+ *
+ * Nested causes are useful for identifying the original module-loading
+ * exception. Only a small number of levels are included to avoid unbounded
+ * cause chains and accidental cycles.
+ *
+ * Stack traces are deliberately excluded from routine diagnostics because
+ * this serializer is also used by health and state APIs.
+ */
+function safeError(error, depth = 0) {
   if (!error) {
     return null;
   }
 
-  return {
+  const result = {
     name:
       error.name ||
       'Error',
@@ -336,8 +386,7 @@ function safeError(error) {
       null,
 
     message:
-      typeof error.message ===
-      'string'
+      typeof error.message === 'string'
         ? error.message
         : String(error),
 
@@ -345,17 +394,28 @@ function safeError(error) {
       error.phase ??
       null,
   };
+
+  if (
+    depth < 3 &&
+    error.cause &&
+    error.cause !== error
+  ) {
+    result.cause =
+      safeError(
+        error.cause,
+        depth + 1,
+      );
+  }
+
+  return result;
 }
 
 function setState(nextState) {
-  lifecycleState =
-    nextState;
+  lifecycleState = nextState;
 
-  lastTransitionAt =
-    nowIso();
+  lastTransitionAt = nowIso();
 
-  transitionSequence +=
-    1;
+  transitionSequence += 1;
 }
 
 /**
@@ -364,19 +424,15 @@ function setState(nextState) {
  * =============================================================================
  */
 
-function unwrapModule(
-  value,
-) {
+function unwrapModule(value) {
   if (!value) {
     return null;
   }
 
-  const defaultExport =
-    value.default;
+  const defaultExport = value.default;
 
   /*
-   * Prefer default exports only when they actually look like the canonical
-   * implementation.
+   * Prefer default exports only when a default value actually exists.
    */
   if (
     defaultExport !== undefined &&
@@ -398,8 +454,7 @@ function getNamedOrDefault(
 
   for (const name of names) {
     if (
-      moduleValue[name] !==
-      undefined
+      moduleValue[name] !== undefined
     ) {
       return moduleValue[name];
     }
@@ -410,13 +465,11 @@ function getNamedOrDefault(
 
   if (
     defaultExport &&
-    typeof defaultExport ===
-      'object'
+    typeof defaultExport === 'object'
   ) {
     for (const name of names) {
       if (
-        defaultExport[name] !==
-        undefined
+        defaultExport[name] !== undefined
       ) {
         return defaultExport[name];
       }
@@ -463,6 +516,13 @@ const observability =
  * =============================================================================
  * TIMEOUT
  * =============================================================================
+ *
+ * Important:
+ *   Promise.race bounds how long this adapter waits. It does not automatically
+ *   cancel an underlying operation.
+ *
+ *   The timeout timer intentionally remains referenced until the operation
+ *   completes or times out, ensuring the timer can fire when it is needed.
  */
 
 async function withTimeout(
@@ -486,29 +546,29 @@ async function withTimeout(
   const timeoutPromise =
     new Promise(
       (_resolve, reject) => {
-        timer =
-          setTimeout(
-            () => {
-              reject(
-                new ResilienceBootstrapError(
-                  `${label} timed out after ${normalizedTimeout}ms.`,
-                  {
-                    code:
-                      'RESILIENCE_OPERATION_TIMEOUT',
-                    phase:
-                      'lifecycle',
-                    details: {
-                      timeoutMs:
-                        normalizedTimeout,
-                    },
-                  },
-                ),
-              );
-            },
-            normalizedTimeout,
-          );
+        timer = setTimeout(
+          () => {
+            reject(
+              new ResilienceBootstrapError(
+                `${label} timed out after ${normalizedTimeout}ms.`,
+                {
+                  code:
+                    'RESILIENCE_OPERATION_TIMEOUT',
 
-        timer.unref?.();
+                  phase: 'lifecycle',
+
+                  details: {
+                    timeoutMs:
+                      normalizedTimeout,
+
+                    operation: label,
+                  },
+                },
+              ),
+            );
+          },
+          normalizedTimeout,
+        );
       },
     );
 
@@ -532,99 +592,94 @@ async function withTimeout(
  *
  * Native ESM is authoritative.
  *
- * CommonJS fallback is attempted only when the ESM loader reports a genuine
- * format/resolution incompatibility.
+ * CommonJS fallback is attempted only when the ESM loader reports a confirmed
+ * format or directory-resolution incompatibility.
  *
- * Import/runtime errors from an existing ESM implementation are NEVER silently
- * converted into CommonJS discovery failures.
+ * Discovery rules:
+ *   1. A genuinely absent candidate can be skipped.
+ *   2. A missing dependency inside an existing candidate is a real failure.
+ *   3. A syntax or initialization error is a real failure.
+ *   4. Empty or invalid exports are reported separately from import failures.
+ *   5. Concurrent resolution requests share one in-flight promise.
  */
 
+/*
+ * Candidate paths are local relative paths declared above.
+ *
+ * Do not identify a missing candidate by searching Node's error message for
+ * a relative string. Node may report an absolute Windows path, a file URL, or
+ * a dependency that the candidate itself imports.
+ *
+ * Instead, first verify whether the candidate path exists on disk. If it
+ * exists, ERR_MODULE_NOT_FOUND may describe a dependency of that candidate,
+ * and the loader must not silently skip it.
+ */
 function isMissingModuleError(
   error,
   candidate,
 ) {
   if (
-    error?.code !==
-    'ERR_MODULE_NOT_FOUND'
+    error?.code !== 'ERR_MODULE_NOT_FOUND'
   ) {
     return false;
   }
 
-  const message =
-    String(
-      error?.message || '',
-    );
+  try {
+    const candidateUrl =
+      new URL(
+        candidate,
+        import.meta.url,
+      );
 
-  return (
-    message.includes(candidate) ||
-    message.includes(
-      candidate.replace(
-        /^\.\//,
-        '',
-      ),
-    )
-  );
+    if (
+      candidateUrl.protocol !== 'file:'
+    ) {
+      return false;
+    }
+
+    return !existsSync(candidateUrl);
+  } catch {
+    /*
+     * An unrecognized candidate must not be silently classified as missing.
+     */
+    return false;
+  }
 }
 
-function isCjsFallbackEligible(
-  error,
-) {
+function isCjsFallbackEligible(error) {
   return CJS_FALLBACK_ERROR_CODES.has(
     error?.code,
   );
 }
 
-async function loadImplementationCandidate(
-  candidate,
-) {
+async function loadImplementationCandidate(candidate) {
+  let loadedEsm;
+
   let importError = null;
+
+  let useCommonJsFallback = false;
 
   /**
    * ---------------------------------------------------------------------------
-   * Native ESM
+   * Native ESM import
    * ---------------------------------------------------------------------------
+   *
+   * Only the import itself belongs in this catch block.
+   *
+   * Export normalization and validation happen afterwards so that an empty
+   * export is not incorrectly wrapped as a module-import failure.
    */
 
   try {
-    const loaded =
-      await import(candidate);
-
-    const normalized =
-      unwrapModule(
-        loaded,
-      );
-
-    if (!normalized) {
-      throw new ResilienceBootstrapError(
-        'TITech resilience implementation exported an empty value.',
-        {
-          code:
-            'RESILIENCE_IMPLEMENTATION_EMPTY',
-          phase:
-            'resolution',
-          details: {
-            candidate,
-            format: 'esm',
-          },
-        },
-      );
-    }
-
-    return {
-      implementation:
-        normalized,
-
-      format:
-        'esm',
-
-      path:
-        candidate,
-    };
+    loadedEsm = await import(candidate);
   } catch (error) {
     importError = error;
 
     /*
-     * Candidate does not exist. Discovery should continue.
+     * Candidate does not exist. Discovery may continue.
+     *
+     * An existing candidate with a missing transitive dependency is not
+     * classified as a discovery miss.
      */
     if (
       isMissingModuleError(
@@ -636,7 +691,7 @@ async function loadImplementationCandidate(
     }
 
     /*
-     * Real syntax/runtime/dependency failures must surface immediately.
+     * Genuine syntax, initialization and dependency failures must surface.
      */
     if (
       !isCjsFallbackEligible(error)
@@ -646,175 +701,263 @@ async function loadImplementationCandidate(
         {
           code:
             'RESILIENCE_IMPLEMENTATION_IMPORT_FAILED',
-          phase:
-            'resolution',
-          cause:
-            error,
+
+          phase: 'resolution',
+
+          cause: error,
+
           details: {
             candidate,
+
             importError:
               safeError(error),
           },
         },
       );
     }
+
+    useCommonJsFallback = true;
   }
 
   /**
    * ---------------------------------------------------------------------------
-   * Legacy CommonJS compatibility
+   * ESM export validation
    * ---------------------------------------------------------------------------
    */
 
-  try {
-    const resolvedPath =
-      require.resolve(
-        candidate,
-      );
-
-    const loaded =
-      require(
-        resolvedPath,
-      );
-
+  if (!useCommonJsFallback) {
     const normalized =
-      unwrapModule(
-        loaded,
-      );
+      unwrapModule(loadedEsm);
 
     if (!normalized) {
       throw new ResilienceBootstrapError(
-        'TITech legacy CommonJS resilience implementation exported an empty value.',
+        'TITech resilience implementation exported an empty value.',
         {
           code:
             'RESILIENCE_IMPLEMENTATION_EMPTY',
-          phase:
-            'resolution',
+
+          phase: 'resolution',
+
           details: {
             candidate,
-            format:
-              'commonjs',
+            format: 'esm',
           },
         },
       );
     }
 
     return {
-      implementation:
-        normalized,
+      implementation: normalized,
 
-      format:
-        'commonjs',
+      format: 'esm',
 
-      path:
-        candidate,
-
-      importError,
+      path: candidate,
     };
-  } catch (requireError) {
-    /*
-     * A missing CommonJS candidate is still just a discovery miss.
-     */
+  }
+
+  /**
+   * ---------------------------------------------------------------------------
+   * Legacy CommonJS compatibility
+   * ---------------------------------------------------------------------------
+   *
+   * Resolve the candidate separately from executing it.
+   *
+   * A missing candidate can be skipped when require.resolve() fails.
+   * Once a candidate has resolved successfully, a MODULE_NOT_FOUND error
+   * from require() is treated as an implementation/dependency failure.
+   */
+
+  let resolvedPath;
+
+  try {
+    resolvedPath =
+      require.resolve(candidate);
+  } catch (resolveError) {
     if (
-      requireError?.code ===
-        'MODULE_NOT_FOUND' ||
-      requireError?.code ===
-        'ERR_MODULE_NOT_FOUND'
+      resolveError?.code === 'MODULE_NOT_FOUND' ||
+      resolveError?.code === 'ERR_MODULE_NOT_FOUND'
     ) {
       return null;
     }
 
     throw new ResilienceBootstrapError(
-      'Failed to load a legacy CommonJS TITech resilience implementation.',
+      'Failed to resolve a legacy CommonJS TITech resilience implementation.',
       {
         code:
           'RESILIENCE_IMPLEMENTATION_LOAD_FAILED',
-        phase:
-          'resolution',
-        cause:
-          requireError,
+
+        phase: 'resolution',
+
+        cause: resolveError,
+
         details: {
           candidate,
 
           importError:
-            safeError(
-              importError,
-            ),
+            safeError(importError),
 
-          requireError:
-            safeError(
-              requireError,
-            ),
+          resolveError:
+            safeError(resolveError),
         },
       },
     );
   }
+
+  let loadedCommonJs;
+
+  try {
+    loadedCommonJs =
+      require(resolvedPath);
+  } catch (requireError) {
+    /*
+     * The candidate resolved successfully. A failure here may originate from
+     * a dependency imported by the implementation. Do not swallow it.
+     */
+    throw new ResilienceBootstrapError(
+      'Failed to load a legacy CommonJS TITech resilience implementation.',
+      {
+        code:
+          'RESILIENCE_IMPLEMENTATION_LOAD_FAILED',
+
+        phase: 'resolution',
+
+        cause: requireError,
+
+        details: {
+          candidate,
+
+          importError:
+            safeError(importError),
+
+          requireError:
+            safeError(requireError),
+        },
+      },
+    );
+  }
+
+  const normalized =
+    unwrapModule(loadedCommonJs);
+
+  if (!normalized) {
+    throw new ResilienceBootstrapError(
+      'TITech legacy CommonJS resilience implementation exported an empty value.',
+      {
+        code:
+          'RESILIENCE_IMPLEMENTATION_EMPTY',
+
+        phase: 'resolution',
+
+        details: {
+          candidate,
+          format: 'commonjs',
+        },
+      },
+    );
+  }
+
+  return {
+    implementation: normalized,
+
+    format: 'commonjs',
+
+    path: candidate,
+
+    importError:
+      safeError(importError),
+  };
 }
 
+/*
+ * Resolve the canonical implementation once per in-flight attempt.
+ *
+ * Successful resolutions are cached as before. Failed resolutions clear the
+ * in-flight promise so that a later explicit retry can attempt resolution
+ * again without requiring a process restart.
+ */
 async function resolveResilienceImplementation() {
   if (implementation) {
     return {
       implementation,
 
-      path:
-        implementationPath,
+      path: implementationPath,
 
-      format:
-        implementationFormat,
+      format: implementationFormat,
     };
   }
 
-  for (
-    const candidate of
-      IMPLEMENTATION_CANDIDATES
-  ) {
-    const resolved =
-      await loadImplementationCandidate(
-        candidate,
-      );
+  if (resolutionPromise) {
+    return resolutionPromise;
+  }
 
-    if (!resolved) {
-      continue;
+  const pendingResolution =
+    (async () => {
+      for (
+        const candidate of IMPLEMENTATION_CANDIDATES
+      ) {
+        const resolved =
+          await loadImplementationCandidate(
+            candidate,
+          );
+
+        if (!resolved) {
+          continue;
+        }
+
+        implementation =
+          resolved.implementation;
+
+        implementationPath =
+          resolved.path;
+
+        implementationFormat =
+          resolved.format;
+
+        lifecycleContract =
+          resolveLifecycleContract(
+            implementation,
+          );
+
+        return {
+          implementation,
+
+          path: implementationPath,
+
+          format: implementationFormat,
+        };
+      }
+
+      throw new ResilienceBootstrapError(
+        'No TITech resilience implementation could be resolved.',
+        {
+          code:
+            'RESILIENCE_IMPLEMENTATION_UNAVAILABLE',
+
+          phase: 'resolution',
+
+          details: {
+            candidates:
+              IMPLEMENTATION_CANDIDATES,
+          },
+        },
+      );
+    })();
+
+  resolutionPromise =
+    pendingResolution;
+
+  try {
+    return await pendingResolution;
+  } finally {
+    /*
+     * Never clear a newer resolution attempt accidentally.
+     */
+    if (
+      resolutionPromise === pendingResolution
+    ) {
+      resolutionPromise = null;
     }
-
-    implementation =
-      resolved.implementation;
-
-    implementationPath =
-      resolved.path;
-
-    implementationFormat =
-      resolved.format;
-
-    lifecycleContract =
-      resolveLifecycleContract(
-        implementation,
-      );
-
-    return {
-      implementation,
-
-      path:
-        implementationPath,
-
-      format:
-        implementationFormat,
-    };
   }
-
-  throw new ResilienceBootstrapError(
-    'No TITech resilience implementation could be resolved.',
-    {
-      code:
-        'RESILIENCE_IMPLEMENTATION_UNAVAILABLE',
-      phase:
-        'resolution',
-      details: {
-        candidates:
-          IMPLEMENTATION_CANDIDATES,
-      },
-    },
-  );
 }
 
 /**
@@ -832,8 +975,7 @@ function findMethod(
   }
 
   for (
-    const methodName of
-      methodNames
+    const methodName of methodNames
   ) {
     if (
       isFunction(
@@ -841,13 +983,10 @@ function findMethod(
       )
     ) {
       return {
-        name:
-          methodName,
+        name: methodName,
 
         fn:
-          target[
-            methodName
-          ].bind(target),
+          target[methodName].bind(target),
       };
     }
   }
@@ -855,9 +994,7 @@ function findMethod(
   return null;
 }
 
-function resolveLifecycleContract(
-  value,
-) {
+function resolveLifecycleContract(value) {
   const candidates = [
     value,
     value?.resilience,
@@ -875,8 +1012,7 @@ function resolveLifecycleContract(
   let snapshot = null;
 
   for (
-    const candidate of
-      candidates
+    const candidate of candidates
   ) {
     start ||=
       findMethod(
@@ -945,17 +1081,16 @@ function resolveLifecycleContract(
   };
 }
 
-function assertImplementation(
-  contract,
-) {
+function assertImplementation(contract) {
   if (!contract?.target) {
     throw new ResilienceBootstrapError(
       'TITech resilience implementation could not be resolved.',
       {
         code:
           'RESILIENCE_IMPLEMENTATION_UNAVAILABLE',
-        phase:
-          'resolution',
+
+        phase: 'resolution',
+
         details: {
           candidates:
             IMPLEMENTATION_CANDIDATES,
@@ -970,11 +1105,11 @@ function assertImplementation(
       {
         code:
           'RESILIENCE_IMPLEMENTATION_START_UNSUPPORTED',
-        phase:
-          'resolution',
+
+        phase: 'resolution',
+
         details: {
-          supported:
-            START_METHODS,
+          supported: START_METHODS,
         },
       },
     );
@@ -992,8 +1127,7 @@ function resolveEnabled(
   options = {},
 ) {
   if (
-    typeof options.enabled ===
-    'boolean'
+    typeof options.enabled === 'boolean'
   ) {
     return options.enabled;
   }
@@ -1008,34 +1142,26 @@ function resolveEnabled(
     {};
 
   const candidates = [
-    configuration?.resilience
-      ?.enabled,
+    configuration?.resilience?.enabled,
 
-    configuration?.infrastructure
-      ?.resilience
-      ?.enabled,
+    configuration?.infrastructure?.resilience?.enabled,
 
-    environment?.resilience
-      ?.enabled,
+    environment?.resilience?.enabled,
 
-    process.env
-      .RESILIENCE_ENABLED,
+    process.env.RESILIENCE_ENABLED,
   ];
 
   for (
-    const candidate of
-      candidates
+    const candidate of candidates
   ) {
     if (
-      typeof candidate ===
-      'boolean'
+      typeof candidate === 'boolean'
     ) {
       return candidate;
     }
 
     if (
-      candidate ===
-        undefined ||
+      candidate === undefined ||
       candidate === null
     ) {
       continue;
@@ -1047,17 +1173,13 @@ function resolveEnabled(
         .toLowerCase();
 
     if (
-      TRUE_VALUES.has(
-        normalized,
-      )
+      TRUE_VALUES.has(normalized)
     ) {
       return true;
     }
 
     if (
-      FALSE_VALUES.has(
-        normalized,
-      )
+      FALSE_VALUES.has(normalized)
     ) {
       return false;
     }
@@ -1070,18 +1192,22 @@ function resolveEnabled(
  * =============================================================================
  * READINESS / HEALTH NORMALIZATION
  * =============================================================================
+ *
+ * Fail-closed rules:
+ *   - Boolean false means not ready.
+ *   - Null and undefined mean not ready.
+ *   - Known failing statuses always override a claimed ready=true.
+ *   - Explicit ready/healthy booleans are honored unless the status explicitly
+ *     indicates that the subsystem is failing.
+ *   - Recognized healthy statuses can establish readiness when no explicit
+ *     boolean is supplied.
+ *   - Unknown objects and unsupported scalar types do not default to ready.
  */
 
-function normalizeReadinessResult(
-  result,
-) {
-  if (
-    typeof result ===
-    'boolean'
-  ) {
+function normalizeReadinessResult(result) {
+  if (typeof result === 'boolean') {
     return {
-      ready:
-        result,
+      ready: result,
 
       status:
         result
@@ -1095,66 +1221,61 @@ function normalizeReadinessResult(
     result === undefined
   ) {
     return {
-      ready:
-        false,
-
-      status:
-        'not_ready',
+      ready: false,
+      status: 'not_ready',
     };
   }
 
-  if (
-    typeof result ===
-    'object'
-  ) {
-    const explicitReady =
-      typeof result.ready ===
-      'boolean'
-        ? result.ready
+  if (!isObject(result)) {
+    return {
+      ready: false,
+      status: 'not_ready',
+    };
+  }
+
+  const rawStatus =
+    typeof result.status === 'string'
+      ? result.status.trim()
+      : '';
+
+  const normalizedStatus =
+    rawStatus.toLowerCase();
+
+  const explicitReady =
+    typeof result.ready === 'boolean'
+      ? result.ready
+      : typeof result.healthy === 'boolean'
+        ? result.healthy
         : null;
 
-    const status =
-      String(
-        result.status ||
-          '',
-      ).toLowerCase();
+  const explicitlyNotReady =
+    NOT_READY_STATUSES.has(
+      normalizedStatus,
+    );
 
-    const notReady =
-      new Set([
-        'unhealthy',
-        'not_ready',
-        'not-ready',
-        'failed',
-        'stopped',
-        'disabled',
-      ]).has(status);
+  const explicitlyReady =
+    READY_STATUSES.has(
+      normalizedStatus,
+    );
 
-    return {
-      ...result,
-
-      ready:
-        explicitReady ??
-        !notReady,
-
-      status:
-        result.status ||
-        (
-          explicitReady ===
-          true
-            ? 'ready'
-            : 'not_ready'
-        ),
-    };
-  }
+  const ready =
+    explicitlyNotReady
+      ? false
+      : explicitReady ??
+        explicitlyReady;
 
   return {
-    ready:
-      Boolean(result),
+    ...result,
+
+    ready,
 
     status:
-      Boolean(result)
-        ? 'ready'
-        : 'not_ready',
+      rawStatus ||
+      (
+        ready
+          ? 'ready'
+          : 'not_ready'
+      ),
   };
 }
 
@@ -1164,37 +1285,26 @@ async function readinessCheck(
 ) {
   if (!enabled) {
     return {
-      ready:
-        false,
-
-      status:
-        'disabled',
+      ready: false,
+      status: 'disabled',
     };
   }
 
   if (
-    lifecycleState ===
-    LIFECYCLE_STATES.FAILED
+    lifecycleState === LIFECYCLE_STATES.FAILED
   ) {
     return {
-      ready:
-        false,
-
-      status:
-        'not_ready',
+      ready: false,
+      status: 'not_ready',
     };
   }
 
   if (
-    lifecycleState !==
-    LIFECYCLE_STATES.STARTED
+    lifecycleState !== LIFECYCLE_STATES.STARTED
   ) {
     return {
-      ready:
-        false,
-
-      status:
-        'not_ready',
+      ready: false,
+      status: 'not_ready',
     };
   }
 
@@ -1205,12 +1315,13 @@ async function readinessCheck(
     );
 
   if (!contract?.ready) {
+    const ready = isReady();
+
     return {
-      ready:
-        isReady(),
+      ready,
 
       status:
-        isReady()
+        ready
           ? 'ready'
           : degraded
             ? 'degraded'
@@ -1220,18 +1331,17 @@ async function readinessCheck(
 
   const result =
     await withTimeout(
-      () =>
-        contract.ready.fn(),
+      () => contract.ready.fn(),
+
       asPositiveInteger(
         timeoutMs,
         DEFAULT_READINESS_TIMEOUT_MS,
       ),
+
       'TITech resilience readiness',
     );
 
-  return normalizeReadinessResult(
-    result,
-  );
+  return normalizeReadinessResult(result);
 }
 
 /**
@@ -1248,9 +1358,7 @@ function emitObservabilityEvent(
     const emitter =
       observability?.emitEvent;
 
-    if (
-      !isFunction(emitter)
-    ) {
+    if (!isFunction(emitter)) {
       return null;
     }
 
@@ -1259,26 +1367,20 @@ function emitObservabilityEvent(
         observability,
         event,
         {
-          component:
-            COMPONENT,
+          component: COMPONENT,
 
-          service:
-            SERVICE_NAME,
+          service: SERVICE_NAME,
 
-          state:
-            lifecycleState,
+          state: lifecycleState,
 
-          timestamp:
-            nowIso(),
+          timestamp: nowIso(),
 
           ...payload,
         },
       );
 
     if (
-      isFunction(
-        result?.catch,
-      )
+      isFunction(result?.catch)
     ) {
       void result.catch(
         () => undefined,
@@ -1302,8 +1404,7 @@ function emitObservabilityEvent(
 
 async function invokeStart(
   context = {},
-  timeoutMs =
-    DEFAULT_TIMEOUT_MS,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ) {
   const resolved =
     await resolveResilienceImplementation();
@@ -1314,36 +1415,31 @@ async function invokeStart(
       resolved.implementation,
     );
 
-  assertImplementation(
-    contract,
-  );
+  assertImplementation(contract);
 
-  lifecycleContract =
-    contract;
+  lifecycleContract = contract;
 
   return withTimeout(
     () =>
       contract.start.fn({
         ...context,
 
-        resilience:
-          implementation,
+        resilience: implementation,
 
-        component:
-          COMPONENT,
+        component: COMPONENT,
 
-        service:
-          SERVICE_NAME,
+        service: SERVICE_NAME,
       }),
+
     timeoutMs,
+
     'TITech resilience startup',
   );
 }
 
 async function invokeStop(
   context = {},
-  timeoutMs =
-    DEFAULT_TIMEOUT_MS,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ) {
   const contract =
     lifecycleContract ||
@@ -1364,16 +1460,15 @@ async function invokeStop(
       contract.stop.fn({
         ...context,
 
-        resilience:
-          implementation,
+        resilience: implementation,
 
-        component:
-          COMPONENT,
+        component: COMPONENT,
 
-        service:
-          SERVICE_NAME,
+        service: SERVICE_NAME,
       }),
+
     timeoutMs,
+
     'TITech resilience shutdown',
   );
 }
@@ -1404,8 +1499,7 @@ async function ensureStarted(
   }
 
   if (
-    lifecycleState ===
-      LIFECYCLE_STATES.STARTED &&
+    lifecycleState === LIFECYCLE_STATES.STARTED &&
     !failed
   ) {
     return implementation;
@@ -1448,8 +1542,7 @@ async function ensureStarted(
 
         enabled = true;
 
-        startedAt =
-          nowIso();
+        startedAt = nowIso();
 
         stoppedAt = null;
 
@@ -1459,9 +1552,7 @@ async function ensureStarted(
           LIFECYCLE_STATES.STARTED,
         );
 
-        if (
-          isObject(context)
-        ) {
+        if (isObject(context)) {
           context.resilience =
             implementation;
         }
@@ -1502,8 +1593,11 @@ async function ensureStarted(
 
         throw wrapError(
           error,
+
           'RESILIENCE_START_FAILED',
+
           'startup',
+
           'TITech resilience subsystem startup failed.',
         );
       }
@@ -1527,8 +1621,7 @@ async function ensureStopped(
   options = {},
 ) {
   if (
-    lifecycleState ===
-    LIFECYCLE_STATES.STOPPED
+    lifecycleState === LIFECYCLE_STATES.STOPPED
   ) {
     return true;
   }
@@ -1552,8 +1645,7 @@ async function ensureStopped(
 
     failed = false;
 
-    stoppedAt =
-      nowIso();
+    stoppedAt = nowIso();
 
     setState(
       LIFECYCLE_STATES.STOPPED,
@@ -1586,8 +1678,7 @@ async function ensureStopped(
 
         lastError = null;
 
-        stoppedAt =
-          nowIso();
+        stoppedAt = nowIso();
 
         setState(
           LIFECYCLE_STATES.STOPPED,
@@ -1619,8 +1710,11 @@ async function ensureStopped(
 
         throw wrapError(
           error,
+
           'RESILIENCE_STOP_FAILED',
+
           'shutdown',
+
           'TITech resilience subsystem shutdown failed.',
         );
       }
@@ -1646,9 +1740,7 @@ function registerReadinessDependency(
   const register =
     readinessBootstrapModule?.register;
 
-  if (
-    !isFunction(register)
-  ) {
+  if (!isFunction(register)) {
     return null;
   }
 
@@ -1657,9 +1749,7 @@ function registerReadinessDependency(
       isFunction(
         readinessBootstrapModule.has,
       ) &&
-      readinessBootstrapModule.has(
-        COMPONENT,
-      )
+      readinessBootstrapModule.has(COMPONENT)
     ) {
       return null;
     }
@@ -1673,14 +1763,18 @@ function registerReadinessDependency(
     return register.call(
       readinessBootstrapModule,
       {
-        name:
-          COMPONENT,
+        name: COMPONENT,
 
         severity:
           options.readinessSeverity ||
           'required',
 
+        /*
+         * Use effective resolved state. The effective configuration can
+         * disable resilience even when options.enabled is undefined.
+         */
         enabled:
+          enabled &&
           options.enabled !== false,
 
         timeoutMs:
@@ -1704,11 +1798,9 @@ function registerReadinessDependency(
             }),
 
         metadata: {
-          component:
-            COMPONENT,
+          component: COMPONENT,
 
-          service:
-            SERVICE_NAME,
+          service: SERVICE_NAME,
 
           implementation:
             implementationPath ||
@@ -1746,6 +1838,9 @@ function registerResilienceHooks(
   context = {},
   options = {},
 ) {
+  /*
+   * Preserve idempotent hook registration.
+   */
   if (
     hooks &&
     isFunction(hooks.has) &&
@@ -1759,8 +1854,7 @@ function registerResilienceHooks(
         : registrationResult;
 
     if (
-      lifecycleState ===
-      LIFECYCLE_STATES.IDLE
+      lifecycleState === LIFECYCLE_STATES.IDLE
     ) {
       setState(
         LIFECYCLE_STATES.REGISTERED,
@@ -1770,17 +1864,14 @@ function registerResilienceHooks(
     return registrationResult;
   }
 
-  if (
-    !isFunction(lifecycle)
-  ) {
+  if (!isFunction(lifecycle)) {
     throw new ResilienceBootstrapError(
       'TITech lifecycle registration function is unavailable.',
       {
         code:
           'RESILIENCE_LIFECYCLE_UNAVAILABLE',
 
-        phase:
-          'registration',
+        phase: 'registration',
       },
     );
   }
@@ -1805,12 +1896,15 @@ function registerResilienceHooks(
   /*
    * Resolution is intentionally speculative and non-blocking here.
    *
-   * The authoritative failure still occurs in ensureStarted().
+   * The authoritative failure still occurs during ensureStarted().
+   * Single-flight resolution ensures startup and speculative resolution share
+   * the same attempt.
    */
   if (enabled) {
     void resolveResilienceImplementation()
       .catch(error => {
         lastError = error;
+
         degraded = true;
 
         emitObservabilityEvent(
@@ -1844,11 +1938,9 @@ function registerResilienceHooks(
           options.critical !== false,
 
         metadata: {
-          component:
-            COMPONENT,
+          component: COMPONENT,
 
-          service:
-            SERVICE_NAME,
+          service: SERVICE_NAME,
 
           implementation:
             implementationPath ||
@@ -1857,8 +1949,7 @@ function registerResilienceHooks(
           bootstrap:
             'backend/bootstrap/resilience.js',
 
-          subsystem:
-            'resilience',
+          subsystem: 'resilience',
         },
 
         start:
@@ -1866,8 +1957,8 @@ function registerResilienceHooks(
             hookContext = {},
           ) => {
             /*
-             * Always resolve effective enabled state from the context that
-             * reaches the lifecycle manager.
+             * Resolve effective enabled state from the context that reaches
+             * the lifecycle manager.
              */
             const lifecycleEnabled =
               resolveEnabled(
@@ -1881,11 +1972,12 @@ function registerResilienceHooks(
 
             if (!lifecycleEnabled) {
               registered = true;
+
               degraded = false;
+
               failed = false;
 
-              stoppedAt =
-                nowIso();
+              stoppedAt = nowIso();
 
               setState(
                 LIFECYCLE_STATES.STOPPED,
@@ -1894,8 +1986,7 @@ function registerResilienceHooks(
               emitObservabilityEvent(
                 'resilience.disabled',
                 {
-                  reason:
-                    'configuration',
+                  reason: 'configuration',
                 },
               );
 
@@ -1925,18 +2016,23 @@ function registerResilienceHooks(
                 );
 
               /*
-               * Do not mark a healthy running subsystem as degraded merely
-               * because an external readiness probe transiently reports false.
+               * A false readiness result must not claim that the subsystem
+               * has recovered. Preserve failure and degradation information.
                */
-              degraded =
-                result.ready
-                  ? false
-                  : lifecycleState !==
-                      LIFECYCLE_STATES.STARTED;
+              if (!result.ready) {
+                degraded = true;
+              } else if (
+                lifecycleState ===
+                LIFECYCLE_STATES.STARTED &&
+                !failed
+              ) {
+                degraded = false;
+              }
 
               return result.ready;
             } catch (error) {
               lastError = error;
+
               degraded = true;
 
               return false;
@@ -1964,8 +2060,7 @@ function registerResilienceHooks(
   registered = true;
 
   if (
-    lifecycleState ===
-    LIFECYCLE_STATES.IDLE
+    lifecycleState === LIFECYCLE_STATES.IDLE
   ) {
     setState(
       LIFECYCLE_STATES.REGISTERED,
@@ -2012,10 +2107,10 @@ async function initialize(
 
   if (!enabled) {
     degraded = false;
+
     failed = false;
 
-    stoppedAt =
-      nowIso();
+    stoppedAt = nowIso();
 
     setState(
       LIFECYCLE_STATES.STOPPED,
@@ -2029,8 +2124,7 @@ async function initialize(
     emitObservabilityEvent(
       'resilience.disabled',
       {
-        reason:
-          'configuration',
+        reason: 'configuration',
       },
     );
 
@@ -2090,9 +2184,7 @@ async function stop(
  * =============================================================================
  */
 
-async function readiness(
-  options = {},
-) {
+async function readiness(options = {}) {
   try {
     const result =
       await readinessCheck(
@@ -2102,21 +2194,17 @@ async function readiness(
     return Object.freeze({
       ...result,
 
-      component:
-        COMPONENT,
+      component: COMPONENT,
 
-      service:
-        SERVICE_NAME,
+      service: SERVICE_NAME,
 
       enabled,
 
-      implementation:
-        implementationPath,
+      implementation: implementationPath,
 
       implementationFormat,
 
-      state:
-        lifecycleState,
+      state: lifecycleState,
 
       degraded,
 
@@ -2124,29 +2212,25 @@ async function readiness(
     });
   } catch (error) {
     lastError = error;
+
     degraded = true;
 
     return Object.freeze({
       ready: false,
 
-      status:
-        'unhealthy',
+      status: 'unhealthy',
 
-      component:
-        COMPONENT,
+      component: COMPONENT,
 
-      service:
-        SERVICE_NAME,
+      service: SERVICE_NAME,
 
       enabled,
 
-      implementation:
-        implementationPath,
+      implementation: implementationPath,
 
       implementationFormat,
 
-      state:
-        lifecycleState,
+      state: lifecycleState,
 
       degraded: true,
 
@@ -2158,9 +2242,7 @@ async function readiness(
   }
 }
 
-async function health(
-  options = {},
-) {
+async function health(options = {}) {
   const timeoutMs =
     asPositiveInteger(
       options.timeoutMs,
@@ -2174,14 +2256,13 @@ async function health(
         implementation,
       );
 
-    if (
-      contract?.health
-    ) {
+    if (contract?.health) {
       const result =
         await withTimeout(
-          () =>
-            contract.health.fn(),
+          () => contract.health.fn(),
+
           timeoutMs,
+
           'TITech resilience health',
         );
 
@@ -2191,20 +2272,15 @@ async function health(
             ? result
             : {
                 healthy:
-                  Boolean(
-                    result,
-                  ),
+                  Boolean(result),
               }
         ),
 
-        component:
-          COMPONENT,
+        component: COMPONENT,
 
-        service:
-          SERVICE_NAME,
+        service: SERVICE_NAME,
 
-        state:
-          lifecycleState,
+        state: lifecycleState,
 
         enabled,
 
@@ -2212,8 +2288,7 @@ async function health(
 
         failed,
 
-        ready:
-          isReady(),
+        ready: isReady(),
       });
     }
 
@@ -2237,22 +2312,17 @@ async function health(
         !failed &&
         !degraded,
 
-      ready:
-        isReady(),
+      ready: isReady(),
 
-      component:
-        COMPONENT,
+      component: COMPONENT,
 
-      service:
-        SERVICE_NAME,
+      service: SERVICE_NAME,
 
-      implementation:
-        implementationPath,
+      implementation: implementationPath,
 
       implementationFormat,
 
-      state:
-        lifecycleState,
+      state: lifecycleState,
 
       enabled,
 
@@ -2262,29 +2332,25 @@ async function health(
     });
   } catch (error) {
     lastError = error;
+
     degraded = true;
 
     return Object.freeze({
-      status:
-        'unhealthy',
+      status: 'unhealthy',
 
       healthy: false,
 
       ready: false,
 
-      component:
-        COMPONENT,
+      component: COMPONENT,
 
-      service:
-        SERVICE_NAME,
+      service: SERVICE_NAME,
 
-      implementation:
-        implementationPath,
+      implementation: implementationPath,
 
       implementationFormat,
 
-      state:
-        lifecycleState,
+      state: lifecycleState,
 
       enabled,
 
@@ -2304,24 +2370,18 @@ async function health(
  * =============================================================================
  */
 
-function middleware(
-  ...args
-) {
+function middleware(...args) {
   const contract =
     lifecycleContract ||
     resolveLifecycleContract(
       implementation,
     );
 
-  if (
-    !contract?.middleware
-  ) {
+  if (!contract?.middleware) {
     return null;
   }
 
-  return contract
-    .middleware
-    .fn(...args);
+  return contract.middleware.fn(...args);
 }
 
 /**
@@ -2337,42 +2397,31 @@ function snapshot() {
       implementation,
     );
 
-  let implementationState =
-    null;
+  let implementationState = null;
 
-  if (
-    contract?.snapshot
-  ) {
+  if (contract?.snapshot) {
     try {
       const result =
-        contract
-          .snapshot
-          .fn();
+        contract.snapshot.fn();
 
       /*
        * Snapshots exposed by the canonical implementation should preferably
        * remain synchronous for diagnostics.
        */
       if (
-        isFunction(
-          result?.then,
-        )
+        isFunction(result?.then)
       ) {
         implementationState = {
-          status:
-            'unavailable',
+          status: 'unavailable',
 
-          reason:
-            'async_snapshot_not_supported',
+          reason: 'async_snapshot_not_supported',
         };
       } else {
-        implementationState =
-          result;
+        implementationState = result;
       }
     } catch (error) {
       implementationState = {
-        status:
-          'unavailable',
+        status: 'unavailable',
 
         error:
           safeError(error),
@@ -2389,34 +2438,27 @@ function snapshot() {
 
 function getState() {
   return Object.freeze({
-    component:
-      COMPONENT,
+    component: COMPONENT,
 
-    service:
-      SERVICE_NAME,
+    service: SERVICE_NAME,
 
     registered,
 
     enabled,
 
-    state:
-      lifecycleState,
+    state: lifecycleState,
 
-    started:
-      isStarted(),
+    started: isStarted(),
 
-    stopped:
-      isStopped(),
+    stopped: isStopped(),
 
     degraded,
 
     failed,
 
-    ready:
-      isReady(),
+    ready: isReady(),
 
-    implementation:
-      implementationPath,
+    implementation: implementationPath,
 
     implementationFormat,
 
@@ -2429,9 +2471,7 @@ function getState() {
     transitionSequence,
 
     lastError:
-      safeError(
-        lastError,
-      ),
+      safeError(lastError),
   });
 }
 
@@ -2439,43 +2479,34 @@ function getDiagnostics() {
   return Object.freeze({
     ...getState(),
 
+    resolutionInProgress:
+      Boolean(resolutionPromise),
+
     implementationContract:
       lifecycleContract
         ? Object.freeze({
             start:
-              lifecycleContract
-                .start
-                ?.name ||
+              lifecycleContract.start?.name ||
               null,
 
             stop:
-              lifecycleContract
-                .stop
-                ?.name ||
+              lifecycleContract.stop?.name ||
               null,
 
             ready:
-              lifecycleContract
-                .ready
-                ?.name ||
+              lifecycleContract.ready?.name ||
               null,
 
             health:
-              lifecycleContract
-                .health
-                ?.name ||
+              lifecycleContract.health?.name ||
               null,
 
             middleware:
-              lifecycleContract
-                .middleware
-                ?.name ||
+              lifecycleContract.middleware?.name ||
               null,
 
             snapshot:
-              lifecycleContract
-                .snapshot
-                ?.name ||
+              lifecycleContract.snapshot?.name ||
               null,
           })
         : null,
@@ -2536,27 +2567,44 @@ function getResilience() {
  * =============================================================================
  * RESET
  * =============================================================================
+ *
+ * Reset is allowed only when there is no implementation resolution, startup,
+ * shutdown, or active lifecycle operation.
+ *
+ * This prevents an in-flight asynchronous operation from mutating state after
+ * reset has returned.
  */
 
 function reset() {
   if (
+    resolutionPromise ||
     startPromise ||
     stopPromise ||
-    lifecycleState ===
-      LIFECYCLE_STATES.STARTING ||
-    lifecycleState ===
-      LIFECYCLE_STATES.STARTED ||
-    lifecycleState ===
-      LIFECYCLE_STATES.STOPPING
+    lifecycleState === LIFECYCLE_STATES.STARTING ||
+    lifecycleState === LIFECYCLE_STATES.STARTED ||
+    lifecycleState === LIFECYCLE_STATES.STOPPING
   ) {
     throw new ResilienceBootstrapError(
-      'Cannot reset an active TITech resilience bootstrap.',
+      'Cannot reset an active TITech resilience bootstrap or implementation resolution.',
       {
         code:
           'RESILIENCE_RESET_NOT_ALLOWED',
 
-        phase:
-          'reset',
+        phase: 'reset',
+
+        details: {
+          resolutionInProgress:
+            Boolean(resolutionPromise),
+
+          startupInProgress:
+            Boolean(startPromise),
+
+          shutdownInProgress:
+            Boolean(stopPromise),
+
+          state:
+            lifecycleState,
+        },
       },
     );
   }
@@ -2568,6 +2616,12 @@ function reset() {
   implementationFormat = null;
 
   lifecycleContract = null;
+
+  /*
+   * resolutionPromise must already be settled and cleared because the guard
+   * above rejects reset while resolution is in progress.
+   */
+  resolutionPromise = null;
 
   registered = false;
 
@@ -2612,8 +2666,7 @@ function wrapError(
   message,
 ) {
   if (
-    error instanceof
-    ResilienceBootstrapError
+    error instanceof ResilienceBootstrapError
   ) {
     return error;
   }
@@ -2622,9 +2675,10 @@ function wrapError(
     message,
     {
       code,
+
       phase,
-      cause:
-        error,
+
+      cause: error,
     },
   );
 }

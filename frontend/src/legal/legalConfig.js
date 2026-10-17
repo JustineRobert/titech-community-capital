@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Capital LTD
  * Enterprise Legal Document Configuration
  * ============================================================================
  *
@@ -53,7 +53,7 @@
 
 export const LEGAL_BRAND = Object.freeze({
   name: 'TITech Community Capital',
-  legalName: 'TITech Community Capital Ltd',
+  legalName: 'TITech Capital LTD',
   shortName: 'TITech',
   platformName: 'TITech Community Capital',
   tagline: 'Community Finance Operating System',
@@ -119,11 +119,11 @@ export const LEGAL_CONTACTS = Object.freeze({
  * Canonical organization address.
  */
 export const LEGAL_ADDRESS = Object.freeze({
-  organization: 'TITech Community Capital Ltd',
+  organization: 'TITech Capital LTD',
   street: 'Plot 69-71 Jinja Road',
   city: 'Kampala',
   country: 'Uganda',
-  full: 'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda',
+  full: 'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
 });
 
 /* ============================================================================

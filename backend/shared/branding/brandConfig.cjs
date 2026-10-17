@@ -12,7 +12,7 @@ module.exports = Object.freeze({
   name: 'TITech',
   productName: 'Community Capital',
   fullName: 'TITech Community Capital',
-  legalName: 'TITech Community Capital LTD',
+  legalName: 'TITech Capital LTD',
   emailFromName: 'TITech Community Capital',
 
   tagline: 'Community Finance. Stronger Together.',

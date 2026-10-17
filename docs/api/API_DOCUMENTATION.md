@@ -1,4 +1,4 @@
-# TITech Community Capital Ltd
+# TITech Capital LTD
 
 # API Documentation
 

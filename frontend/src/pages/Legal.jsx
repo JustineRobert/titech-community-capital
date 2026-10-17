@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Capital LTD
  * Enterprise Legal Information Page
  * ============================================================================
  *
@@ -49,7 +49,7 @@
  * IMPORTANT:
  *   This component is a software presentation layer.
  *
- *   It does not determine whether TITech Community Capital Ltd is licensed,
+ *   It does not determine whether TITech Capital LTD is licensed,
  *   authorized, regulated, or legally permitted to perform a regulated
  *   financial activity.
  *
@@ -98,7 +98,7 @@ import './Legal.css';
  * ========================================================================== */
 
 const PAGE_CONFIG = Object.freeze({
-  organizationName: 'TITech Community Capital Ltd',
+  organizationName: 'TITech Capital LTD',
   platformName: 'TITech Community Capital Platform',
 
   /*

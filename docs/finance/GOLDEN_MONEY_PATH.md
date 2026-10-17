@@ -1,4 +1,4 @@
-# TITech Community Capital Ltd — Golden Money Path
+# TITech Capital LTD — Golden Money Path
 
 > **System:** Community Savings Platform
 > **Document:** `docs/finance/GOLDEN_MONEY_PATH.md`
@@ -12,7 +12,7 @@
 
 # 1. Purpose
 
-This document defines the **Golden Money Path** for TITech Community Capital Ltd.
+This document defines the **Golden Money Path** for TITech Capital LTD.
 
 The Golden Money Path is the canonical lifecycle through which money-related business operations move from:
 
@@ -3260,7 +3260,7 @@ silent overwrite
 # 113. Document Metadata
 
 **Document:** `docs/finance/GOLDEN_MONEY_PATH.md`
-**Organization:** TITech Community Capital Ltd
+**Organization:** TITech Capital LTD
 **Platform:** Community Savings Platform
 **Domain:** Financial Operations / Money Movement
 **Version:** `2.0`

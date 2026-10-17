@@ -1,4 +1,4 @@
-# TITech Community Capital Ltd — Payment Callback Security Specification
+# TITech Capital LTD — Payment Callback Security Specification
 > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
 
 > **System:** Community Savings Platform
@@ -14,7 +14,7 @@
 
 # 1. Purpose
 
-This document defines the production-grade security architecture for inbound payment callbacks, webhooks, notifications, and provider status messages received by the TITech Community Capital Ltd Community Savings Platform.
+This document defines the production-grade security architecture for inbound payment callbacks, webhooks, notifications, and provider status messages received by the TITech Capital LTD Community Savings Platform.
 
 Payment callbacks are security-critical because they may influence:
 
@@ -2863,7 +2863,7 @@ Bank settlement/webhook contract
 # 118. Document Metadata
 
 **Document:** `docs/security/PAYMENT_CALLBACK_SECURITY.md`
-**Organization:** TITech Community Capital Ltd
+**Organization:** TITech Capital LTD
 **Platform:** Community Savings Platform
 **Domain:** Payment Callback Security
 **Version:** `2.0`

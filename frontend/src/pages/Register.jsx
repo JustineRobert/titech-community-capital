@@ -61,6 +61,8 @@ import { useAuth } from '../context/AuthContext';
 
 import './Register.css';
 import BrandLogo from "../components/BrandLogo";
+import LanguageSelector from '../i18n/LanguageSelector';
+import { useI18n } from '../i18n/I18nProvider';
 
 // ============================================================================
 // Constants
@@ -77,12 +79,6 @@ const MAX_PASSWORD_LENGTH = 128;
 const REGISTRATION_TIMEOUT_MS = 30_000;
 
 const PASSWORD_SPECIAL_CHARACTERS = /[@$!%*?&^#()_+\-=]/;
-
-const GENERIC_REGISTRATION_ERROR =
-  'We could not create your account. Please review your details and try again.';
-
-const RATE_LIMIT_ERROR =
-  'Too many registration attempts. Please wait a moment and try again.';
 
 // ============================================================================
 // Redirect Security
@@ -156,96 +152,54 @@ const normalizePhone = (value) =>
     .trim()
     .replace(/\s+/g, '');
 
-const RegisterSchema = Yup.object({
+const createRegisterSchema = (t) => Yup.object({
   name: Yup.string()
     .trim()
-    .min(2, 'Full name must be at least 2 characters.')
-    .max(
-      MAX_NAME_LENGTH,
-      `Full name cannot exceed ${MAX_NAME_LENGTH} characters.`,
-    )
-    .required('Full name is required.'),
+    .min(2, t('auth.register.validation.nameMin', { min: 2 }))
+    .max(MAX_NAME_LENGTH, t('auth.register.validation.nameMax', { max: MAX_NAME_LENGTH }))
+    .required(t('auth.register.validation.nameRequired')),
 
   email: Yup.string()
     .trim()
     .lowercase()
-    .email('Please enter a valid email address.')
-    .max(
-      MAX_EMAIL_LENGTH,
-      'Email address is too long.',
-    )
-    .required('Email address is required.'),
+    .email(t('auth.register.validation.emailFormat'))
+    .max(MAX_EMAIL_LENGTH, t('auth.register.validation.emailTooLong'))
+    .required(t('auth.register.validation.emailRequired')),
 
   tenantInviteCode: Yup.string()
     .trim()
-    .min(32, 'Enter the tenant invitation code provided by your administrator.')
-    .max(128, 'Tenant invitation code is invalid.')
-    .required('A tenant invitation code is required to join an existing tenant.'),
+    .min(32, t('auth.register.validation.invitationMin', { min: 32 }))
+    .max(128, t('auth.register.validation.invitationInvalid'))
+    .required(t('auth.register.validation.invitationRequired')),
 
   phone: Yup.string()
     .nullable()
     .transform((value) => {
-      if (!value) {
-        return '';
-      }
-
+      if (!value) return '';
       return normalizePhone(value);
     })
     .test(
       'phone-format',
-      'Enter a valid international phone number, for example +256782397907.',
-      (value) => {
-        if (!value) {
-          return true;
-        }
-
-        return /^\+[1-9]\d{7,14}$/.test(value);
-      },
+      t('auth.register.validation.phoneFormat', { example: '+256782397907' }),
+      (value) => !value || /^\+[1-9]\d{7,14}$/.test(value),
     )
-    .max(
-      MAX_PHONE_LENGTH,
-      'Phone number is too long.',
-    ),
+    .max(MAX_PHONE_LENGTH, t('auth.register.validation.phoneTooLong')),
 
   password: Yup.string()
-    .required('Password is required.')
-    .min(
-      8,
-      'Password must be at least 8 characters.',
-    )
-    .max(
-      MAX_PASSWORD_LENGTH,
-      `Password cannot exceed ${MAX_PASSWORD_LENGTH} characters.`,
-    )
-    .matches(
-      /[A-Z]/,
-      'Password must contain at least one uppercase letter.',
-    )
-    .matches(
-      /[a-z]/,
-      'Password must contain at least one lowercase letter.',
-    )
-    .matches(
-      /\d/,
-      'Password must contain at least one number.',
-    )
-    .matches(
-      PASSWORD_SPECIAL_CHARACTERS,
-      'Password must contain at least one special character.',
-    ),
+    .required(t('auth.register.validation.passwordRequired'))
+    .min(8, t('auth.register.validation.passwordMin', { min: 8 }))
+    .max(MAX_PASSWORD_LENGTH, t('auth.register.validation.passwordMax', { max: MAX_PASSWORD_LENGTH }))
+    .matches(/[A-Z]/, t('auth.register.validation.passwordUppercase'))
+    .matches(/[a-z]/, t('auth.register.validation.passwordLowercase'))
+    .matches(/\d/, t('auth.register.validation.passwordNumber'))
+    .matches(PASSWORD_SPECIAL_CHARACTERS, t('auth.register.validation.passwordSpecial')),
 
   confirmPassword: Yup.string()
-    .required('Please confirm your password.')
-    .oneOf(
-      [Yup.ref('password')],
-      'Passwords do not match.',
-    ),
+    .required(t('auth.register.validation.confirmRequired'))
+    .oneOf([Yup.ref('password')], t('auth.register.validation.passwordsMismatch')),
 
   agreeTerms: Yup.boolean()
-    .oneOf(
-      [true],
-      'You must accept the Terms and Privacy Policy.',
-    ),
+    .oneOf([true], t('auth.register.validation.termsRequired')),
 });
 
 // ============================================================================
@@ -340,36 +294,23 @@ const getResponseMessage = (error) => {
  * Raw authentication/server errors should not be displayed directly because
  * they can expose implementation details or sensitive information.
  */
-const getRegistrationErrorMessage = (error) => {
+const getRegistrationErrorMessage = (error, t) => {
   const status = getResponseStatus(error);
-
-  if (status === 409) {
-    return 'An account with these details may already exist. Please sign in or use different details.';
-  }
-
-  if (status === 422) {
-    return 'Some registration details could not be accepted. Please review your information.';
-  }
-
-  if (status === 429) {
-    return RATE_LIMIT_ERROR;
-  }
-
-  if (status >= 500) {
-    return 'The registration service is temporarily unavailable. Please try again shortly.';
-  }
+  if (status === 409) return t('auth.register.errors.duplicate');
+  if (status === 422) return t('auth.register.errors.invalidDetails');
+  if (status === 429) return t('auth.register.errors.rateLimit');
+  if (typeof status === 'number' && status >= 500) return t('auth.register.errors.serviceUnavailable');
 
   const backendMessage = getResponseMessage(error).toLowerCase();
-
   if (
     backendMessage.includes('email already') ||
     backendMessage.includes('already registered') ||
     backendMessage.includes('already exists')
   ) {
-    return 'An account with this email may already exist. Please sign in instead.';
+    return t('auth.register.errors.emailDuplicate');
   }
 
-  return GENERIC_REGISTRATION_ERROR;
+  return t('auth.register.errors.generic');
 };
 
 // ============================================================================
@@ -383,6 +324,8 @@ export default function Register() {
   const {
     register,
   } = useAuth() ?? {};
+  const { t } = useI18n();
+  const registrationSchema = useMemo(() => createRegisterSchema(t), [t]);
 
   const componentId = useId();
 
@@ -475,7 +418,7 @@ export default function Register() {
 
       if (typeof register !== 'function') {
         const message =
-          'Registration service is currently unavailable. Please try again later.';
+          t('auth.register.errors.serviceUnavailableImmediate');
 
         setRegistrationError(message);
 
@@ -499,11 +442,11 @@ export default function Register() {
         registrationInProgressRef.current = false;
 
         setRegistrationError(
-          'Registration is taking longer than expected. Please check your connection and try again.',
+          t('auth.register.errors.timeout'),
         );
 
         toast.error(
-          'Registration is taking longer than expected.',
+          t('auth.register.errors.timeoutShort'),
           {
             toastId: 'titech-registration-timeout',
           },
@@ -536,7 +479,7 @@ export default function Register() {
         registrationInProgressRef.current = false;
 
         toast.success(
-          'Your TITech Community Capital account has been created successfully.',
+          t('auth.register.errors.success'),
           {
             autoClose: 3000,
             toastId: 'titech-registration-success',
@@ -556,12 +499,12 @@ export default function Register() {
         registrationInProgressRef.current = false;
 
         const message =
-          getRegistrationErrorMessage(error);
+          getRegistrationErrorMessage(error, t);
 
         setRegistrationError(message);
 
         if (getResponseStatus(error) === 429) {
-          toast.error(RATE_LIMIT_ERROR, {
+          toast.error(t('auth.register.errors.rateLimit'), {
             autoClose: 5000,
             toastId: 'titech-registration-rate-limit',
           });
@@ -593,6 +536,7 @@ export default function Register() {
       clearRegistrationTimeout,
       navigateAfterRegistration,
       register,
+      t,
     ],
   );
 
@@ -605,6 +549,9 @@ export default function Register() {
       className="register-page"
       aria-labelledby={`${componentId}-heading`}
     >
+      <div className="titech-auth-language-control">
+        <LanguageSelector />
+      </div>
       <div className="register-wrapper">
         {/* ====================================================================
             Brand / Features Panel
@@ -632,7 +579,7 @@ export default function Register() {
               />
 
               <span>
-                Secure financial platform
+                {t("auth.register.securePlatform")}
               </span>
             </div>
 
@@ -640,17 +587,16 @@ export default function Register() {
               id={`${componentId}-brand`}
               className="features-title"
             >
-              Community Finance. Stronger Together.
+              {t("auth.register.tagline")}
             </h1>
 
             <p className="features-subtitle">
-              Building trusted community financial infrastructure that connects
-              people, communities, capital and opportunity across Africa.
+              {t("auth.register.subtitle")}
             </p>
 
             <div
               className="feature-list"
-              aria-label="TITech Community Capital features"
+              aria-label={t("auth.login.featuresLabel")}
             >
               <div className="feature-item">
                 <CheckCircle2
@@ -748,7 +694,7 @@ export default function Register() {
                 confirmPassword: '',
                 agreeTerms: false,
               }}
-              validationSchema={RegisterSchema}
+              validationSchema={registrationSchema}
               onSubmit={handleRegister}
               validateOnBlur
               validateOnChange
@@ -792,7 +738,7 @@ export default function Register() {
                         />
 
                         <span>
-                          Full Name
+                          {t("auth.register.nameLabel")}
                         </span>
                       </label>
 
@@ -806,7 +752,7 @@ export default function Register() {
                             ? 'form-input--error'
                             : ''
                         }`}
-                        placeholder="Enter your full name"
+                        placeholder={t("auth.register.namePlaceholder")}
                         autoComplete="name"
                         maxLength={MAX_NAME_LENGTH}
                         aria-invalid={
@@ -854,7 +800,7 @@ export default function Register() {
                         />
 
                         <span>
-                          Email Address
+                          {t("auth.register.emailLabel")}
                         </span>
                       </label>
 
@@ -905,7 +851,7 @@ export default function Register() {
 
                     <div className="form-group">
                       <label htmlFor={`${componentId}-tenant-invite-code`}>
-                        Tenant invitation code
+                        {t("auth.register.tenantInviteCodeLabel")}
                       </label>
                       <Field
                         id={`${componentId}-tenant-invite-code`}
@@ -917,7 +863,7 @@ export default function Register() {
                             ? 'form-input--error'
                             : ''
                         }`}
-                        placeholder="Enter the code from your tenant administrator"
+                        placeholder={t("auth.register.tenantInviteCodePlaceholder")}
                         autoComplete="off"
                         maxLength={128}
                         aria-invalid={
@@ -965,7 +911,7 @@ export default function Register() {
                         />
 
                         <span>
-                          Phone Number
+                          {t("auth.register.phoneLabel")}
                           <span className="optional-label">
                             {' '}
                             (Optional)
@@ -1032,7 +978,7 @@ export default function Register() {
                         />
 
                         <span>
-                          Password
+                          {t("auth.register.passwordLabel")}
                         </span>
                       </label>
 
@@ -1051,7 +997,7 @@ export default function Register() {
                               ? 'form-input--error'
                               : ''
                           }`}
-                          placeholder="Create a strong password"
+                          placeholder={t("auth.register.passwordPlaceholder")}
                           autoComplete="new-password"
                           maxLength={
                             MAX_PASSWORD_LENGTH
@@ -1174,7 +1120,7 @@ export default function Register() {
                         />
 
                         <span>
-                          Confirm Password
+                          {t("auth.register.confirmPasswordLabel")}
                         </span>
                       </label>
 
@@ -1193,7 +1139,7 @@ export default function Register() {
                               ? 'form-input--error'
                               : ''
                           }`}
-                          placeholder="Re-enter your password"
+                          placeholder={t("auth.register.confirmPasswordPlaceholder")}
                           autoComplete="new-password"
                           maxLength={
                             MAX_PASSWORD_LENGTH
@@ -1340,12 +1286,12 @@ export default function Register() {
                           />
 
                           <span>
-                            Creating Account...
+                            {t("auth.register.submitting")}
                           </span>
                         </>
                       ) : (
                         <span>
-                          Create Account
+                          {t("auth.register.submit")}
                         </span>
                       )}
                     </button>
@@ -1355,9 +1301,9 @@ export default function Register() {
                     ======================================================== */}
 
                     <p className="login-link">
-                      Already have an account?{' '}
+                      {t("auth.register.haveAccount")}{' '}
                       <Link to={LOGIN_ROUTE}>
-                        Sign In
+                        {t("auth.register.signIn")}
                       </Link>
                     </p>
                   </Form>

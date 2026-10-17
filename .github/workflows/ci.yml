@@ -81,6 +81,12 @@ jobs:
       - name: Enterprise release readiness audit
         run: npm run release:gate
 
+      - name: Multilingual resource integrity gate
+        run: npm run i18n:check
+
+      - name: Multilingual core regression tests
+        run: npm run test:i18n:native
+
       - name: TITech 90-day implementation gate
         run: npm run titech:90-day-gate
 

@@ -149,7 +149,7 @@ const SERVICE_NAME =
   'TITech Email Service';
 
 const APPLICATION_NAME =
-  'TITech Community Capital Ltd';
+  'TITech Community Capital';
 
 const DEFAULT_BODY_LIMIT =
   process.env.TITECH_EMAIL_BODY_LIMIT ||

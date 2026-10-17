@@ -1,6 +1,6 @@
 /**
 * ============================================================================
-* TITech Community Capital Ltd
+* TITech Capital LTD
 * Enterprise Legal Disclaimer Page
 * ============================================================================
 *
@@ -126,7 +126,7 @@ phoneHref:
 '+256782397907',
 
 address:
-'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda',
+'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
 });
 
 /* ============================================================================

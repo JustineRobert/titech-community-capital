@@ -13,7 +13,7 @@ const configuration =
   Object.freeze({
     name:
       env.APP_NAME ||
-      'TITech Community Capital LTD',
+      'TITech Community Capital',
 
     shortName:
       env.APP_SHORT_NAME ||

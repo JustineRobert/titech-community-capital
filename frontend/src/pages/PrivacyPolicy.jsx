@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Capital LTD
  * Enterprise Privacy Policy Page
  * ============================================================================
  *
@@ -78,7 +78,7 @@ const PRIVACY_PHONE_DISPLAY = '+256 (394) 324760';
 const PRIVACY_PHONE_HREF = '+256394324760';
 
 const MAILING_ADDRESS =
-  'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda';
+  'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda';
 
 const POLICY_TITLE = 'Privacy Policy';
 
@@ -720,7 +720,7 @@ const PrivacyPolicy = () => {
 
               <p>
                 <strong>Organization:</strong>{' '}
-                TITech Community Capital Ltd
+                TITech Capital LTD
               </p>
             </div>
 
@@ -744,7 +744,7 @@ const PrivacyPolicy = () => {
               </h2>
 
               <p>
-                TITech Community Capital Ltd (
+                TITech Capital LTD (
                 <strong>
                   &quot;TITech Community Capital&quot;
                 </strong>

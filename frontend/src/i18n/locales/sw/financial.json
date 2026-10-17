@@ -1,0 +1,12 @@
+{
+  "payments.status.pending": "Inasubiri",
+  "payments.status.accepted": "Ombi limekubaliwa; malipo bado hayajathibitishwa kuwa yamekamilika.",
+  "payments.status.settled": "Malipo yamekamilishwa",
+  "payments.status.failed": "Imeshindwa",
+  "payments.status.reversed": "Imerejeshwa",
+  "payments.status.reconciliationRequired": "Upatanisho wa rekodi unahitajika",
+  "payments.status.queuedOffline": "Imewekwa kwenye foleni bila mtandao; seva bado haijathibitisha.",
+  "payments.errors.unknownOutcome": "Matokeo ya mtoa huduma hayajulikani. Kagua hali ya mtoa huduma na upatanisho kabla ya kujaribu tena.",
+  "ledger.errors.unbalanced": "Muamala hauwezi kuchapishwa kwa sababu jumla ya debiti na krediti hailingani.",
+  "consent.unapprovedTranslation": "Taarifa hii haijaidhinishwa katika lugha iliyochaguliwa. Usirekodi idhini hadi toleo lililoidhinishwa lipatikane."
+}

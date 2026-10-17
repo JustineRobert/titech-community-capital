@@ -70,5 +70,7 @@
       "global_css": "frontend/src/branding/official-theme.css",
       "mobile_tokens": "mobile/branding/titech-theme.tokens.json"
     }
-  }
+  },
+  "organization": "TITech Capital LTD",
+  "organization_display_name": "TITech Capital LTD"
 }

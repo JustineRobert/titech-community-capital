@@ -1,0 +1,2278 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index b477b1bb..a2747505 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -81,6 +81,12 @@ jobs:
+       - name: Enterprise release readiness audit
+         run: npm run release:gate
+ 
++      - name: Multilingual resource integrity gate
++        run: npm run i18n:check
++
++      - name: Multilingual core regression tests
++        run: npm run test:i18n:native
++
+       - name: TITech 90-day implementation gate
+         run: npm run titech:90-day-gate
+ 
+diff --git a/README.md b/README.md
+index 424313e8..ab07db05 100644
+--- a/README.md
++++ b/README.md
+@@ -16,6 +16,8 @@ See [`docs/brand/OFFICIAL_BRAND_STANDARD_2026-09-28.md`](docs/brand/OFFICIAL_BRA
+ 
+ TITech Community Capital connects savings groups, VSLAs/ROSCAs, SACCOs, cooperatives and community enterprises with trusted records, payment rails, reconciliation, risk intelligence, credit infrastructure and—subject to authorization and partner agreements—formal financial capital.
+ 
++> **17 October 2026 implementation snapshot:** The uploaded source archive has been updated with production environment-example files, official `TITech Capital LTD` organization metadata, preserved TITech nine-color branding, an English-default multilingual foundation (`en`, `sw`, `fr`, `ar`), an Arabic RTL selector, resource validation and evidence logs. This is an archive-local update, not a claim that GitHub `main` was pushed or a production deployment was completed. Swahili, French and Arabic remain draft translations pending human review; full route translation coverage, authenticated profile sync, dependency-backed builds and operational/financial external gates remain open. Production approval remains **NO**. See [`docs/evidence/FINAL-IMPLEMENTATION-REPORT-2026-10-17.md`](docs/evidence/FINAL-IMPLEMENTATION-REPORT-2026-10-17.md) and [`docs/evidence/2026-10-17-implementation-change-discovery.md`](docs/evidence/2026-10-17-implementation-change-discovery.md).
++
+ TITech is intentionally **not** positioned as a consumer wallet, generic SACCO ERP, payment provider, or balance-sheet lender. Account and wallet representations may exist as internal financial primitives; the architectural center is the provider-neutral financial infrastructure layer.
+ 
+ The core engineering path is:
+@@ -48,8 +50,8 @@ The product intent remains infrastructure-first: TITech connects savings groups,
+ 
+ **Status:** Active Development / Production Hardening
+ **Version:** 2.1
+-**Organization:** TITech Community Capital LTD
+-**Last Updated:** 03 October 2026
++**Organization:** TITech Capital LTD
++**Last Updated:** 17 October 2026
+ 
+ TITech has evolved beyond a basic community savings application toward a broader financial infrastructure platform incorporating:
+ 
+@@ -57,6 +59,10 @@ TITech has evolved beyond a basic community savings application toward a broader
+ 
+ Individual capabilities can have different implementation, testing, operational, security, and regulatory maturity. Repository implementation and verification artifacts remain the source of truth for actual production readiness.
+ 
++### Multilingual status (17 October 2026)
++
++The frontend has an initial English-default locale foundation with selectable Kiswahili, French and Arabic, an RTL document-direction switch for Arabic, locale-formatting helpers, and automated resource-key validation. The current catalog includes only the `common`, `auth`, and `financial` namespaces; computed 100% resource parity is limited to those catalog keys and does not represent whole-route coverage. Swahili, French and Arabic remain draft translations awaiting human review, so the production locale gate intentionally remains blocked. Authenticated server-side preference synchronization and comprehensive route, notification, report, offline, accessibility and visual RTL verification are still outstanding. See `docs/i18n/TITECH_MULTILINGUAL_ARCHITECTURE.md` and the dated implementation report under `docs/evidence/`.
++
+ ---
+ 
+ ## 🌍 Vision
+@@ -1485,7 +1491,7 @@ CONNECTED TO CAPITAL
+ **Version:** 2.1
+ **Status:** Active Development / Production Hardening
+ **Last Updated:** 03 October 2026
+-**Organization:** TITech Community Capital LTD
++**Organization:** TITech Capital LTD
+ 
+ ## 2026-09-22 Enterprise Control Plane Additions
+ 
+diff --git a/TITECH_PLATFORM_TRUTH.md b/TITECH_PLATFORM_TRUTH.md
+index 4f7d8943..e48f456b 100644
+--- a/TITECH_PLATFORM_TRUTH.md
++++ b/TITECH_PLATFORM_TRUTH.md
+@@ -55,3 +55,17 @@ Refer to `docs/REMEDIATION_VERIFICATION_2026-10-11.md`, `docs/evidence/financial
+ ## Run addendum — focused implementation evidence (11 October 2026)
+ 
+ The exact package delta versus the supplied ZIP is recorded in `docs/evidence/implementation-file-delta-2026-10-11.csv` and `.json`. Implementation details and per-file rationale are in `docs/evidence/implementation-handoff-2026-10-11.md`; command output is in `reports/current-run-*-2026-10-11.log`. New native tests pass 5/5, connectivity-state harness passes six scenario groups, the theme audit passes 21/21 checks and the syntax gate parsed 2,354 JS/TS-family files. The available runtime remains Node 22.16.0/npm 10.9.2, dependencies are not installed, and direct `127.0.0.1:5000/api/v1/ready` testing in this container was refused (curl exit 7). Backend Jest, Vitest, Vite build and ESLint therefore remain blocked. Release decision remains **NOT READY** and production approval remains **NO**.
++
++
++## Focused implementation addendum — 17 October 2026
++
++This addendum records changes made against the supplied `titech-community-capital-main.zip` archive. It is not a claim that the GitHub `main` branch was updated or that production approval was obtained. The ZIP comment contains source reference `ddd48d2980e14da82192c7c8a87cdb150380ac34`; that reference was not independently verified against live GitHub, and the extracted workspace did not provide a verified `.git` commit.
++
++- Added `backend/.env.production.example` and `frontend/.env.production.example`. The hosting gate now passes its previously failing missing/empty production-example check. Templates are intentionally not deployable without protected secret/infrastructure injection and real origin/mail configuration.
++- Added an initial dependency-free i18n foundation: English (`en`) default, `sw`, `fr`, and `ar`; Arabic `dir=rtl`; a language selector in the existing login, registration and navbar paths; local non-sensitive display-language persistence; cross-tab synchronization; `Intl` formatting helpers; translation resources and a source-key/resource validator.
++- Added native locale tests, wired resource validation/tests into root scripts and CI, added an explicit production translation approval gate, and generated `reports/i18n-coverage-2026-10-17.json`. Structural coverage is 157/157 keys per locale for `common`, `auth`, and `financial` only. This is not a whole-application translation coverage claim. `sw`, `fr`, and `ar` remain `draft_pending_linguistic_review`; the production locale gate correctly returns `BLOCKED`.
++- Updated canonical brand metadata, organization display/legal-name configuration, current product-positioning metadata and current user-facing legal entity references to `TITech Capital LTD`, while preserving `TITech Community Capital` as the product name and retaining the official supplied circular logo and nine-color theme. Repository labels do not independently prove company registration or regulatory authorization; the new identity note records that limitation.
++- The official theme audit passes all 21 existing checks across 59 CSS files and finds zero hard-coded official palette values in scanned non-brand CSS. The hosting gate passes. The enterprise syntax gate parsed 2,361 JS/TS-family files on the available Node runtime. Native i18n tests pass 9/9, product-rule tests pass 5/5, frontend runtime native tests pass 2/2, financial static gate passes 12 canonical files, and canonical financial import audit reports zero missing imports on its critical surface (209 legacy/non-critical local import findings remain).
++- **Important blockers remain:** available Node/npm are `v22.16.0` / `10.9.2`, below repository target `Node >=24.15.0` / `npm >=11.0.0`; `npm run check` exits 127 when ESLint is missing; frontend production build exits 127 because Vite is not installed; CI tests stop because backend Jest is absent. Live MongoDB/Redis persistence, browser E2E, provider settlement, independent penetration test, backup/restore, rollback, legal review and pilot evidence were not run. Authenticated backend locale preference synchronization and broad route/notification/report translation remain incomplete.
++
++**Release decision remains NOT READY; `PRODUCTION_APPROVED: NO`.** Full command results and file-level discovery are recorded in `docs/evidence/FINAL-IMPLEMENTATION-REPORT-2026-10-17.md` and `docs/evidence/2026-10-17-implementation-change-discovery.md`.
+diff --git a/backend/bootstrap/environment.js b/backend/bootstrap/environment.js
+index 621b3874..476784f2 100644
+--- a/backend/bootstrap/environment.js
++++ b/backend/bootstrap/environment.js
+@@ -204,7 +204,7 @@ const DEFAULTS =
+       'development',
+ 
+     APP_NAME:
+-      'TITech Community Capital LTD',
++      'TITech Community Capital',
+ 
+     APP_SHORT_NAME:
+       'TITech',
+@@ -2822,7 +2822,7 @@ function buildEnvironment() {
+     environment.app.name;
+ 
+   environment.applicationLegalName =
+-    'TITech Community Capital LTD';
++    'TITech Capital LTD';
+ 
+   environment.serviceName =
+     environment.app.serviceName;
+@@ -3432,7 +3432,7 @@ function buildSafeMetadata(
+       environment.app.name,
+ 
+     applicationLegalName:
+-      'TITech Community Capital LTD',
++      'TITech Capital LTD',
+ 
+     serviceName:
+       environment.app.serviceName,
+diff --git a/backend/config/app.config.js b/backend/config/app.config.js
+index 11ecb93f..8113f274 100644
+--- a/backend/config/app.config.js
++++ b/backend/config/app.config.js
+@@ -13,7 +13,7 @@ const configuration =
+   Object.freeze({
+     name:
+       env.APP_NAME ||
+-      'TITech Community Capital LTD',
++      'TITech Community Capital',
+ 
+     shortName:
+       env.APP_SHORT_NAME ||
+diff --git a/backend/config/index.js b/backend/config/index.js
+index b196cf68..a2e49ca3 100644
+--- a/backend/config/index.js
++++ b/backend/config/index.js
+@@ -59,7 +59,7 @@ const COMPONENT =
+   'configuration';
+ 
+ const APPLICATION_LEGAL_NAME =
+-  'TITech Community Capital LTD';
++  'TITech Capital LTD';
+ 
+ const DEFAULTS = Object.freeze({
+   api: Object.freeze({
+diff --git a/backend/config/swagger.js b/backend/config/swagger.js
+index 7ac7366f..85dcb0f3 100644
+--- a/backend/config/swagger.js
++++ b/backend/config/swagger.js
+@@ -423,7 +423,7 @@ const DEFAULTS =
+         metadata:
+             {
+                 organization:
+-                    'TITech Community Capital LTD',
++                    'TITech Capital LTD',
+ 
+                 platform:
+                     'TITech Community Capital Operating System',
+diff --git a/backend/config/swaggerConfig.js b/backend/config/swaggerConfig.js
+index 6a698c17..e973e033 100644
+--- a/backend/config/swaggerConfig.js
++++ b/backend/config/swaggerConfig.js
+@@ -154,7 +154,7 @@ const DEFAULTS =
+ 
+         contact: {
+             name:
+-                'TITech Africa',
++                'TITech Capital LTD',
+ 
+             email:
+                 'support@titech.africa',
+diff --git a/backend/legal/controllers/legalController.js b/backend/legal/controllers/legalController.js
+index 1800b62c..5d6c07a5 100644
+--- a/backend/legal/controllers/legalController.js
++++ b/backend/legal/controllers/legalController.js
+@@ -74,7 +74,7 @@ const SERVICE_NAME =
+ 'TITech Legal API';
+ 
+ const COMPANY_NAME =
+-'TITech Community Capital Ltd';
++'TITech Capital LTD';
+ 
+ const DEFAULT_COUNTRY_CODE =
+ 'UG';
+diff --git a/backend/middleware/resilience/gracefulDegradation.js b/backend/middleware/resilience/gracefulDegradation.js
+index ba20f121..111eade7 100644
+--- a/backend/middleware/resilience/gracefulDegradation.js
++++ b/backend/middleware/resilience/gracefulDegradation.js
+@@ -51,7 +51,7 @@ const MODULE_DESCRIPTION =
+     'Enterprise Graceful Degradation Engine';
+ 
+ const MODULE_AUTHOR =
+-    'TITech Community Capital Ltd';
++    'TITech Capital LTD';
+ 
+ const MODULE_NAMESPACE =
+     'middleware.resilience.gracefulDegradation';
+diff --git a/backend/modules/offline/services/offlineReceiptService.js b/backend/modules/offline/services/offlineReceiptService.js
+index 43177c62..ede2ae79 100644
+--- a/backend/modules/offline/services/offlineReceiptService.js
++++ b/backend/modules/offline/services/offlineReceiptService.js
+@@ -570,7 +570,7 @@ class OfflineReceiptService {
+ 
+       issuer:
+         config.issuer ||
+-        'TITech Community Capital LTD',
++        'TITech Capital LTD',
+     };
+   }
+ 
+diff --git a/backend/modules/payment/index.js b/backend/modules/payment/index.js
+index ccea5701..50d1a2f9 100644
+--- a/backend/modules/payment/index.js
++++ b/backend/modules/payment/index.js
+@@ -298,7 +298,7 @@ const PAYMENT_MODULE_METADATA = Object.freeze({
+     'Payment Processing',
+ 
+   organization:
+-    'TITech Community Capital Ltd',
++    'TITech Capital LTD',
+ 
+   platform:
+     'Community Savings Platform',
+diff --git a/backend/routes/auth.js b/backend/routes/auth.js
+index 9515d743..3221d652 100644
+--- a/backend/routes/auth.js
++++ b/backend/routes/auth.js
+@@ -117,7 +117,7 @@ const SERVICE_NAME =
+   'auth';
+ 
+ const APPLICATION_NAME =
+-  'TITech Community Capital Ltd';
++  'TITech Community Capital';
+ 
+ const REQUIRED_AUTH_HANDLERS =
+   Object.freeze([
+diff --git a/backend/routes/email.js b/backend/routes/email.js
+index bd294ad8..47166481 100644
+--- a/backend/routes/email.js
++++ b/backend/routes/email.js
+@@ -149,7 +149,7 @@ const SERVICE_NAME =
+   'TITech Email Service';
+ 
+ const APPLICATION_NAME =
+-  'TITech Community Capital Ltd';
++  'TITech Community Capital';
+ 
+ const DEFAULT_BODY_LIMIT =
+   process.env.TITECH_EMAIL_BODY_LIMIT ||
+diff --git a/backend/routes/index.js b/backend/routes/index.js
+index 4baff273..074e332a 100644
+--- a/backend/routes/index.js
++++ b/backend/routes/index.js
+@@ -24,7 +24,7 @@ import { param, validationResult } from 'express-validator';
+ 
+ /**
+  * =============================================================================
+- * TITech Community Capital Ltd
++ * TITech Capital LTD
+  * Enterprise API Route Registry
+  * =============================================================================
+  *
+@@ -89,7 +89,7 @@ const APPLICATION_NAME =
+     );
+ 
+ const APPLICATION_LEGAL_NAME =
+-    'TITech Community Capital Ltd';
++    'TITech Capital LTD';
+ 
+ const API_PREFIX =
+     '/api/v1';
+diff --git a/backend/routes/index.test.js b/backend/routes/index.test.js
+index a6d9d8a4..8dfaabd4 100644
+--- a/backend/routes/index.test.js
++++ b/backend/routes/index.test.js
+@@ -747,7 +747,7 @@ describe(
+                                     'TITech Community Capital',
+ 
+                                 applicationLegalName:
+-                                    'TITech Community Capital Ltd',
++                                    'TITech Capital LTD',
+ 
+                                 registry:
+                                     'titech-api-v1',
+@@ -1451,7 +1451,7 @@ describe(
+                                     'TITech Community Capital',
+ 
+                                 applicationLegalName:
+-                                    'TITech Community Capital Ltd',
++                                    'TITech Capital LTD',
+ 
+                                 registry:
+                                     'titech-api-v1',
+diff --git a/backend/runtime/context.js b/backend/runtime/context.js
+index 13b8ade2..4dc9125e 100644
+--- a/backend/runtime/context.js
++++ b/backend/runtime/context.js
+@@ -89,7 +89,7 @@ const SERVICE_NAME =
+     'titech-community-capital-backend';
+ 
+ const COMPANY_NAME =
+-    'TITech Community Capital LTD';
++    'TITech Capital LTD';
+ 
+ const PLATFORM_NAME =
+     'TITech Community Capital';
+diff --git a/backend/scripts/seedSystemSettings.js b/backend/scripts/seedSystemSettings.js
+index dc77e608..7603e11f 100644
+--- a/backend/scripts/seedSystemSettings.js
++++ b/backend/scripts/seedSystemSettings.js
+@@ -66,7 +66,7 @@ const SETTINGS = [
+     {
+         key: 'SYSTEM_NAME',
+         category: 'SYSTEM',
+-        value: 'TITech Community Capital LTD'
++        value: 'TITech Community Capital'
+     },
+ 
+     {
+diff --git a/backend/shared/branding/brandConfig.cjs b/backend/shared/branding/brandConfig.cjs
+index 1302970d..f5fd3fb6 100644
+--- a/backend/shared/branding/brandConfig.cjs
++++ b/backend/shared/branding/brandConfig.cjs
+@@ -12,7 +12,7 @@ module.exports = Object.freeze({
+   name: 'TITech',
+   productName: 'Community Capital',
+   fullName: 'TITech Community Capital',
+-  legalName: 'TITech Community Capital LTD',
++  legalName: 'TITech Capital LTD',
+   emailFromName: 'TITech Community Capital',
+ 
+   tagline: 'Community Finance. Stronger Together.',
+diff --git a/branding/BRAND_MANIFEST.json b/branding/BRAND_MANIFEST.json
+index 56e5a6c5..eb9212e6 100644
+--- a/branding/BRAND_MANIFEST.json
++++ b/branding/BRAND_MANIFEST.json
+@@ -70,5 +70,7 @@
+       "global_css": "frontend/src/branding/official-theme.css",
+       "mobile_tokens": "mobile/branding/titech-theme.tokens.json"
+     }
+-  }
++  },
++  "organization": "TITech Capital LTD",
++  "organization_display_name": "TITech Capital LTD"
+ }
+diff --git a/branding/TITECH_OFFICIAL_THEME.json b/branding/TITECH_OFFICIAL_THEME.json
+index 37f93c33..f84a97a3 100644
+--- a/branding/TITECH_OFFICIAL_THEME.json
++++ b/branding/TITECH_OFFICIAL_THEME.json
+@@ -3,10 +3,13 @@
+   "schemaVersion": "1.0.0",
+   "name": "TITech Official Platform Theme",
+   "product": "TITech Community Capital",
+-  "organization": "TITech Africa",
++  "organization": "TITech Capital LTD",
+   "sourceReference": "branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png",
+   "defaultTheme": "light",
+-  "supportedThemes": ["light", "dark"],
++  "supportedThemes": [
++    "light",
++    "dark"
++  ],
+   "palette": {
+     "deepBlue": "#0030A0",
+     "electricBlue": "#0058D8",
+@@ -47,5 +50,6 @@
+     "Keep financial/security status colors distinct from brand identity where accessibility or risk signaling requires it.",
+     "Light is the deterministic default; dark is an explicit user-selected mode.",
+     "The official TITech circular logo remains the primary product mark."
+-  ]
++  ],
++  "organizationLegalName": "TITech Capital LTD"
+ }
+diff --git a/docs/02-architecture/API_CATALOGUE.md b/docs/02-architecture/API_CATALOGUE.md
+index 30d5054f..20e5a994 100644
+--- a/docs/02-architecture/API_CATALOGUE.md
++++ b/docs/02-architecture/API_CATALOGUE.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise API Catalogue
+diff --git a/docs/02-architecture/ARCHITECTURE_MAP.md b/docs/02-architecture/ARCHITECTURE_MAP.md
+index 5005b6fc..9dd99201 100644
+--- a/docs/02-architecture/ARCHITECTURE_MAP.md
++++ b/docs/02-architecture/ARCHITECTURE_MAP.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise Architecture Map
+diff --git a/docs/02-architecture/DATA_MODEL_CATALOGUE.md b/docs/02-architecture/DATA_MODEL_CATALOGUE.md
+index bddd008a..8eb16f3a 100644
+--- a/docs/02-architecture/DATA_MODEL_CATALOGUE.md
++++ b/docs/02-architecture/DATA_MODEL_CATALOGUE.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise Data Model Catalogue
+diff --git a/docs/02-architecture/DEPENDENCY_MAP.md b/docs/02-architecture/DEPENDENCY_MAP.md
+index 5c7831bf..06d4bcb5 100644
+--- a/docs/02-architecture/DEPENDENCY_MAP.md
++++ b/docs/02-architecture/DEPENDENCY_MAP.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise Dependency Map
+diff --git a/docs/02-architecture/EVENT_CATALOGUE.md b/docs/02-architecture/EVENT_CATALOGUE.md
+index c5eb8893..55e8c023 100644
+--- a/docs/02-architecture/EVENT_CATALOGUE.md
++++ b/docs/02-architecture/EVENT_CATALOGUE.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise Event Catalogue
+diff --git a/docs/02-architecture/FINANCIAL_LEDGER_SPECIFICATION.md b/docs/02-architecture/FINANCIAL_LEDGER_SPECIFICATION.md
+index 20c43cec..d5300d06 100644
+--- a/docs/02-architecture/FINANCIAL_LEDGER_SPECIFICATION.md
++++ b/docs/02-architecture/FINANCIAL_LEDGER_SPECIFICATION.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise Financial Ledger Specification
+diff --git a/docs/02-architecture/MULTI_TENANT_ARCHITECTURE.md b/docs/02-architecture/MULTI_TENANT_ARCHITECTURE.md
+index 9c8d559e..7d4731c1 100644
+--- a/docs/02-architecture/MULTI_TENANT_ARCHITECTURE.md
++++ b/docs/02-architecture/MULTI_TENANT_ARCHITECTURE.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise Multi-Tenant Architecture
+diff --git a/docs/02-architecture/SECURITY_MODEL.md b/docs/02-architecture/SECURITY_MODEL.md
+index f29fbe0a..1af5f46f 100644
+--- a/docs/02-architecture/SECURITY_MODEL.md
++++ b/docs/02-architecture/SECURITY_MODEL.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise Security Model
+diff --git a/docs/02-architecture/TRANSACTION_STATE_MACHINE.md b/docs/02-architecture/TRANSACTION_STATE_MACHINE.md
+index 42edaeba..0403dda2 100644
+--- a/docs/02-architecture/TRANSACTION_STATE_MACHINE.md
++++ b/docs/02-architecture/TRANSACTION_STATE_MACHINE.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # Enterprise Transaction State Machine
+diff --git a/docs/PRODUCT_POSITIONING.md b/docs/PRODUCT_POSITIONING.md
+index 1c209866..dddddc5b 100644
+--- a/docs/PRODUCT_POSITIONING.md
++++ b/docs/PRODUCT_POSITIONING.md
+@@ -2,7 +2,7 @@
+ 
+ **Effective:** 2026-09-22  
+ **Product:** TITech Community Capital  
+-**Company:** TITech Africa / TITech Community Capital  
++**Company:** TITech Capital LTD  
+ **Primary market:** Uganda → East Africa → Africa → Emerging Markets → Global
+ 
+ ## Core position
+diff --git a/docs/api/API_CATALOGUE.md b/docs/api/API_CATALOGUE.md
+index 27b502af..9e36c16e 100644
+--- a/docs/api/API_CATALOGUE.md
++++ b/docs/api/API_CATALOGUE.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ # API Catalogue
+diff --git a/docs/api/API_DOCUMENTATION.md b/docs/api/API_DOCUMENTATION.md
+index 62ee81df..f31615bc 100644
+--- a/docs/api/API_DOCUMENTATION.md
++++ b/docs/api/API_DOCUMENTATION.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd
++# TITech Capital LTD
+ 
+ # API Documentation
+ 
+diff --git a/docs/api/API_REFERENCE_QUICK_START.md b/docs/api/API_REFERENCE_QUICK_START.md
+index 99c381d3..c7093de9 100644
+--- a/docs/api/API_REFERENCE_QUICK_START.md
++++ b/docs/api/API_REFERENCE_QUICK_START.md
+@@ -1,6 +1,6 @@
+ # API REFERENCE - Quick Start
+ 
+-> **TITech Community Capital Ltd — Community Savings Platform**
++> **TITech Capital LTD — Community Savings Platform**
+ >
+ > Production-oriented quick reference for authentication, loan management, administration, chat, referrals, health/observability, error handling, and API usage conventions.
+ >
+@@ -1645,7 +1645,7 @@ Breaking changes must not be introduced silently into an existing production API
+ # 📌 DOCUMENT METADATA
+ 
+ **Document:** `docs/api/API_REFERENCE_QUICK_START.md`
+-**Platform:** TITech Community Capital Ltd — Community Savings Platform
++**Platform:** TITech Capital LTD — Community Savings Platform
+ **API Version:** `2.0`
+ **Status:** Production Reference
+ **Last Updated:** `August 15, 2026`
+diff --git a/docs/api/BACKEND_API_SPECIFICATION.md b/docs/api/BACKEND_API_SPECIFICATION.md
+index 27fb6bd1..e78d9e5f 100644
+--- a/docs/api/BACKEND_API_SPECIFICATION.md
++++ b/docs/api/BACKEND_API_SPECIFICATION.md
+@@ -3,7 +3,7 @@
+ 
+ ## Help Center, FAQ & Community Forum
+ 
+-**TITech Community Capital Ltd — Community Savings Platform**
++**TITech Capital LTD — Community Savings Platform**
+ 
+ This document defines the production-grade backend API contract and implementation guidance for the Help Center, FAQ, and Community Forum capabilities.
+ 
+@@ -3366,7 +3366,7 @@ The API must fail closed for authorization and tenant-boundary checks.
+ # Document Metadata
+ 
+ **Document:** `docs/api/BACKEND_API_SPECIFICATION.md`
+-**Platform:** TITech Community Capital Ltd — Community Savings Platform
++**Platform:** TITech Capital LTD — Community Savings Platform
+ **Domain:** Help Center, FAQ & Community Forum
+ **API Version:** `1.x`
+ **Specification Status:** Production-Grade Backend API Specification
+diff --git a/docs/api/README.md b/docs/api/README.md
+index f38e5e94..9468c2d5 100644
+--- a/docs/api/README.md
++++ b/docs/api/README.md
+@@ -1,7 +1,7 @@
+ # Community Savings App Backend — API Catalogue
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+-**TITech Community Capital Ltd**
++**TITech Capital LTD**
+ **System:** Community Savings Platform Backend
+ **Document:** `docs/api/API_CATALOGUE.md`
+ **API Contract:** Production-Grade Catalogue
+@@ -14,7 +14,7 @@
+ 
+ ## 1. Purpose
+ 
+-This document is the central API catalogue for the TITech Community Capital Ltd Community Savings App backend.
++This document is the central API catalogue for the TITech Capital LTD Community Savings App backend.
+ 
+ It provides a production-oriented inventory of API domains, endpoint families, HTTP methods, access requirements, lifecycle expectations, security controls, observability requirements, and operational conventions.
+ 
+@@ -1976,7 +1976,7 @@ All health and graceful-shutdown controls are operational.
+ 
+ **Document:** `docs/api/API_CATALOGUE.md`
+ **System:** Community Savings App Backend
+-**Organization:** TITech Community Capital Ltd
++**Organization:** TITech Capital LTD
+ **API Prefix:** `/api`
+ **Default Development Port:** `5000`
+ **Primary Runtime:** Node.js
+diff --git a/docs/data/DATA_MODEL_CATALOGUE.md b/docs/data/DATA_MODEL_CATALOGUE.md
+index 3373496b..02251985 100644
+--- a/docs/data/DATA_MODEL_CATALOGUE.md
++++ b/docs/data/DATA_MODEL_CATALOGUE.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd — Data Model Catalogue
++# TITech Capital LTD — Data Model Catalogue
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ > **System:** Community Savings Platform
+@@ -12,7 +12,7 @@
+ 
+ # 1. Purpose
+ 
+-This document is the central catalogue of the TITech Community Capital Ltd Community Savings Platform data model.
++This document is the central catalogue of the TITech Capital LTD Community Savings Platform data model.
+ 
+ It defines the logical entities, ownership boundaries, relationships, lifecycle rules, immutability requirements, tenant isolation requirements, indexing expectations, audit requirements, and financial integrity rules used throughout the platform.
+ 
+@@ -3488,7 +3488,7 @@ Derived data is distinguishable from source-of-truth data.
+ # 62. Document Metadata
+ 
+ **Document:** `docs/data/DATA_MODEL_CATALOGUE.md`
+-**Organization:** TITech Community Capital Ltd
++**Organization:** TITech Capital LTD
+ **Platform:** Community Savings Platform
+ **Version:** `2.0`
+ **Status:** Enterprise Production Architecture Reference
+diff --git a/docs/events/EVENT_CATALOGUE.md b/docs/events/EVENT_CATALOGUE.md
+index 9e5449b7..d0141563 100644
+--- a/docs/events/EVENT_CATALOGUE.md
++++ b/docs/events/EVENT_CATALOGUE.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd — Event Catalogue
++# TITech Capital LTD — Event Catalogue
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ > **System:** Community Savings Platform
+@@ -3556,7 +3556,7 @@ DependencyUnavailable
+ # 79. Document Metadata
+ 
+ **Document:** `docs/events/EVENT_CATALOGUE.md`
+-**Organization:** TITech Community Capital Ltd
++**Organization:** TITech Capital LTD
+ **Platform:** Community Savings Platform
+ **Version:** `2.0`
+ **Status:** Enterprise Production Architecture Reference
+diff --git a/docs/evidence/FINAL-IMPLEMENTATION-REPORT.md b/docs/evidence/FINAL-IMPLEMENTATION-REPORT.md
+index b2214d99..4fb93710 100644
+--- a/docs/evidence/FINAL-IMPLEMENTATION-REPORT.md
++++ b/docs/evidence/FINAL-IMPLEMENTATION-REPORT.md
+@@ -5,6 +5,8 @@
+ **Repository target:** `https://github.com/JustineRobert/titech-community-capital`  
+ **Implementation mode:** repository-first / evidence-driven / no-false-completion
+ 
++> **Latest execution snapshot:** For the 17 October 2026 update against the supplied ZIP, use [`FINAL-IMPLEMENTATION-REPORT-2026-10-17.md`](FINAL-IMPLEMENTATION-REPORT-2026-10-17.md). The historical 5 October section below is preserved as point-in-time evidence and is not the latest file delta.
++
+ ## 2026-10-05 End-to-End Remediation Update
+ 
+ This update supersedes the earlier point-in-time metrics below where they conflict. The working tree was compared byte-for-byte with the uploaded archive and the following delta was applied:
+diff --git a/docs/finance/FINANCIAL_LEDGER_SPECIFICATION.md b/docs/finance/FINANCIAL_LEDGER_SPECIFICATION.md
+index 781414c0..a95a447a 100644
+--- a/docs/finance/FINANCIAL_LEDGER_SPECIFICATION.md
++++ b/docs/finance/FINANCIAL_LEDGER_SPECIFICATION.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd — Financial Ledger Specification
++# TITech Capital LTD — Financial Ledger Specification
+ 
+ > **System:** Community Savings Platform
+ > **Document:** `docs/finance/FINANCIAL_LEDGER_SPECIFICATION.md`
+@@ -12,7 +12,7 @@
+ 
+ # 1. Purpose
+ 
+-This document defines the authoritative financial ledger architecture for the TITech Community Capital Ltd Community Savings Platform.
++This document defines the authoritative financial ledger architecture for the TITech Capital LTD Community Savings Platform.
+ 
+ The ledger is the system of record for financial state.
+ 
+@@ -3261,7 +3261,7 @@ All such changes must pass through the approved financial transaction and postin
+ # 130. Document Metadata
+ 
+ **Document:** `docs/finance/FINANCIAL_LEDGER_SPECIFICATION.md`
+-**Organization:** TITech Community Capital Ltd
++**Organization:** TITech Capital LTD
+ **Platform:** Community Savings Platform
+ **Domain:** Financial Ledger / Accounting Core
+ **Version:** `2.0`
+diff --git a/docs/finance/GOLDEN_MONEY_PATH.md b/docs/finance/GOLDEN_MONEY_PATH.md
+index f59ca8d3..e2dae991 100644
+--- a/docs/finance/GOLDEN_MONEY_PATH.md
++++ b/docs/finance/GOLDEN_MONEY_PATH.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd — Golden Money Path
++# TITech Capital LTD — Golden Money Path
+ 
+ > **System:** Community Savings Platform
+ > **Document:** `docs/finance/GOLDEN_MONEY_PATH.md`
+@@ -12,7 +12,7 @@
+ 
+ # 1. Purpose
+ 
+-This document defines the **Golden Money Path** for TITech Community Capital Ltd.
++This document defines the **Golden Money Path** for TITech Capital LTD.
+ 
+ The Golden Money Path is the canonical lifecycle through which money-related business operations move from:
+ 
+@@ -3260,7 +3260,7 @@ silent overwrite
+ # 113. Document Metadata
+ 
+ **Document:** `docs/finance/GOLDEN_MONEY_PATH.md`
+-**Organization:** TITech Community Capital Ltd
++**Organization:** TITech Capital LTD
+ **Platform:** Community Savings Platform
+ **Domain:** Financial Operations / Money Movement
+ **Version:** `2.0`
+diff --git a/docs/security/PAYMENT_CALLBACK_SECURITY.md b/docs/security/PAYMENT_CALLBACK_SECURITY.md
+index c59e9753..0696b456 100644
+--- a/docs/security/PAYMENT_CALLBACK_SECURITY.md
++++ b/docs/security/PAYMENT_CALLBACK_SECURITY.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd — Payment Callback Security Specification
++# TITech Capital LTD — Payment Callback Security Specification
+ > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
+ 
+ > **System:** Community Savings Platform
+@@ -14,7 +14,7 @@
+ 
+ # 1. Purpose
+ 
+-This document defines the production-grade security architecture for inbound payment callbacks, webhooks, notifications, and provider status messages received by the TITech Community Capital Ltd Community Savings Platform.
++This document defines the production-grade security architecture for inbound payment callbacks, webhooks, notifications, and provider status messages received by the TITech Capital LTD Community Savings Platform.
+ 
+ Payment callbacks are security-critical because they may influence:
+ 
+@@ -2863,7 +2863,7 @@ Bank settlement/webhook contract
+ # 118. Document Metadata
+ 
+ **Document:** `docs/security/PAYMENT_CALLBACK_SECURITY.md`
+-**Organization:** TITech Community Capital Ltd
++**Organization:** TITech Capital LTD
+ **Platform:** Community Savings Platform
+ **Domain:** Payment Callback Security
+ **Version:** `2.0`
+diff --git a/docs/transactions/TRANSACTION_STATE_MACHINE_SPECIFICATION.md b/docs/transactions/TRANSACTION_STATE_MACHINE_SPECIFICATION.md
+index fbba2247..e55198dc 100644
+--- a/docs/transactions/TRANSACTION_STATE_MACHINE_SPECIFICATION.md
++++ b/docs/transactions/TRANSACTION_STATE_MACHINE_SPECIFICATION.md
+@@ -1,4 +1,4 @@
+-# TITech Community Capital Ltd — Transaction State Machine Specification
++# TITech Capital LTD — Transaction State Machine Specification
+ 
+ > **System:** Community Savings Platform
+ > **Document:** `docs/transactions/TRANSACTION_STATE_MACHINE_SPECIFICATION.md`
+@@ -12,7 +12,7 @@
+ 
+ # 1. Purpose
+ 
+-This document defines the authoritative transaction state machine for the TITech Community Capital Ltd Community Savings Platform.
++This document defines the authoritative transaction state machine for the TITech Capital LTD Community Savings Platform.
+ 
+ The transaction state machine governs the lifecycle of financially significant operations including:
+ 
+@@ -3103,7 +3103,7 @@ docs/02-architecture/DEPENDENCY_MAP.md
+ # 128. Document Metadata
+ 
+ **Document:** `docs/transactions/TRANSACTION_STATE_MACHINE_SPECIFICATION.md`
+-**Organization:** TITech Community Capital Ltd
++**Organization:** TITech Capital LTD
+ **Platform:** Community Savings Platform
+ **Domain:** Transaction State Management
+ **Version:** `2.0`
+diff --git a/frontend/index.html b/frontend/index.html
+index cf64dc0c..6ab16bca 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -1,5 +1,5 @@
+ <!doctype html>
+-<html lang="en">
++<html lang="en" dir="ltr">
+   <head>
+     <!-- ================================================================== -->
+     <!-- Document / Character Encoding                                      -->
+diff --git a/frontend/src/branding/brand.js b/frontend/src/branding/brand.js
+index 958c1f73..e56b4a13 100644
+--- a/frontend/src/branding/brand.js
++++ b/frontend/src/branding/brand.js
+@@ -174,7 +174,8 @@ export const TITECH_BRAND = Object.freeze({
+   name: 'TITech',
+   productName: 'Community Capital',
+   fullName: 'TITech Community Capital',
+-  legalName: 'TITech Community Capital LTD',
++  organizationName: 'TITech Capital LTD',
++  legalName: 'TITech Capital LTD',
+   tagline: TITECH_VISION.tagline,
+   mission: TITECH_VISION.mission,
+   vision: TITECH_VISION.vision2035,
+diff --git a/frontend/src/components/Footer.jsx b/frontend/src/components/Footer.jsx
+index a3efc2d8..9c6d9e93 100644
+--- a/frontend/src/components/Footer.jsx
++++ b/frontend/src/components/Footer.jsx
+@@ -75,7 +75,7 @@ export const FOOTER_CONSTANTS = Object.freeze({
+     'TITech Community Capital',
+ 
+   COMPANY_LEGAL_NAME:
+-    'TITech Community Capital LTD',
++    'TITech Capital LTD',
+ 
+   COMPANY_DESCRIPTION:
+     'Community financial infrastructure for a stronger, more inclusive Africa — connecting trusted records, payments, communities, capital and opportunity.',
+diff --git a/frontend/src/components/Navbar.jsx b/frontend/src/components/Navbar.jsx
+index a38c1d0e..ac50f22c 100644
+--- a/frontend/src/components/Navbar.jsx
++++ b/frontend/src/components/Navbar.jsx
+@@ -67,6 +67,8 @@ import {
+ 
+ import { useAuth } from "../context/AuthContext";
+ import BrandLogo from "./BrandLogo";
++import LanguageSelector from "../i18n/LanguageSelector";
++import { useI18n } from "../i18n/I18nProvider";
+ 
+ import "./Navbar.css";
+ 
+@@ -203,6 +205,7 @@ function Navbar({
+ 
+   const navigate = useNavigate();
+   const location = useLocation();
++  const { t } = useI18n();
+ 
+   const [mobileOpen, setMobileOpen] =
+     useState(false);
+@@ -402,7 +405,7 @@ function Navbar({
+         );
+ 
+         setLogoutError(
+-          "Unable to sign out completely. Please try again.",
++          t("common.errors.logoutFailed"),
+         );
+       } finally {
+         setLoggingOut(false);
+@@ -414,6 +417,7 @@ function Navbar({
+       closeAllMenus,
+       navigate,
+       currentPath,
++      t,
+     ],
+   );
+ 
+@@ -454,7 +458,7 @@ function Navbar({
+     >
+       <nav
+         className="titech-navbar__inner"
+-        aria-label="Primary navigation"
++        aria-label={t("common.nav.primary")}
+       >
+         {/* ==================================================================
+             Brand
+@@ -463,7 +467,7 @@ function Navbar({
+         <Link
+           to={ROUTES.HOME}
+           className="titech-navbar__brand"
+-          aria-label="TITech Community Capital home"
++          aria-label={t("common.brand.home")}
+           data-testid={`${testId}-brand`}
+           onClick={handleNavigationClick}
+         >
+@@ -527,7 +531,7 @@ function Navbar({
+                     focusable="false"
+                   />
+ 
+-                  <span>{label}</span>
++                  <span>{t(`common.nav.${id}`) || label}</span>
+                 </NavLink>
+               ),
+             )}
+@@ -539,6 +543,7 @@ function Navbar({
+             ================================================================== */}
+ 
+         <div className="titech-navbar__actions">
++          <LanguageSelector className="titech-language-selector--desktop" />
+           {isAuthenticated ? (
+             <>
+               {showUserMenu ? (
+@@ -560,7 +565,7 @@ function Navbar({
+                     aria-expanded={
+                       userMenuOpen
+                     }
+-                    aria-label={`Open account menu for ${userDisplayName}`}
++                    aria-label={t("common.nav.openAccountMenu", { name: userDisplayName })}
+                     onClick={() =>
+                       setUserMenuOpen(
+                         (current) =>
+@@ -645,7 +650,7 @@ function Navbar({
+                         />
+ 
+                         <span>
+-                          Dashboard
++                          {t("common.nav.dashboard")}
+                         </span>
+                       </Link>
+ 
+@@ -667,8 +672,8 @@ function Navbar({
+ 
+                         <span>
+                           {loggingOut
+-                            ? "Signing out..."
+-                            : "Sign out"}
++                            ? t("common.nav.signingOut")
++                            : t("common.nav.signOut")}
+                         </span>
+                       </button>
+ 
+@@ -708,8 +713,8 @@ function Navbar({
+ 
+                   <span>
+                     {loggingOut
+-                      ? "Signing out..."
+-                      : "Logout"}
++                      ? t("common.nav.signingOut")
++                      : t("common.nav.logout")}
+                   </span>
+                 </button>
+               )}
+@@ -730,7 +735,7 @@ function Navbar({
+                   focusable="false"
+                 />
+ 
+-                <span>Login</span>
++                <span>{t("common.nav.login")}</span>
+               </Link>
+ 
+               <Link
+@@ -741,7 +746,7 @@ function Navbar({
+                   handleNavigationClick
+                 }
+               >
+-                Register
++                {t("common.nav.register")}
+               </Link>
+             </div>
+           )}
+@@ -755,8 +760,8 @@ function Navbar({
+             className="titech-navbar__mobile-toggle"
+             aria-label={
+               mobileOpen
+-                ? "Close navigation menu"
+-                : "Open navigation menu"
++                ? t("common.nav.closeMenu")
++                : t("common.nav.openMenu")
+             }
+             aria-expanded={mobileOpen}
+             aria-controls={`${testId}-mobile-menu`}
+@@ -830,7 +835,7 @@ function Navbar({
+                       focusable="false"
+                     />
+ 
+-                    <span>{label}</span>
++                    <span>{t(`common.nav.${id}`) || label}</span>
+                   </NavLink>
+                 ),
+               )}
+@@ -838,6 +843,7 @@ function Navbar({
+           )}
+ 
+           <div className="titech-navbar__mobile-divider" />
++          <LanguageSelector className="titech-language-selector--mobile" />
+ 
+           {isAuthenticated ? (
+             <div className="titech-navbar__mobile-account">
+@@ -917,7 +923,7 @@ function Navbar({
+                   focusable="false"
+                 />
+ 
+-                <span>Login</span>
++                <span>{t("common.nav.login")}</span>
+               </Link>
+ 
+               <Link
+@@ -927,7 +933,7 @@ function Navbar({
+                   handleNavigationClick
+                 }
+               >
+-                Register
++                {t("common.nav.register")}
+               </Link>
+             </div>
+           )}
+diff --git a/frontend/src/components/ui/index.js b/frontend/src/components/ui/index.js
+index fd860cb8..a2797c31 100644
+--- a/frontend/src/components/ui/index.js
++++ b/frontend/src/components/ui/index.js
+@@ -2,7 +2,7 @@
+ 
+ /**
+  * ============================================================================
+- * TITech Community Capital LTD
++ * TITech Capital LTD
+  * African Community Finance Operating System (TITech)
+  * ============================================================================
+  *
+@@ -53,7 +53,7 @@
+  *
+  * Naming Standard:
+  * ----------------------------------------------------------------------------
+- * TITech Community Capital LTD
++ * TITech Capital LTD
+  *
+  * Do not introduce TITech branding into frontend component identifiers,
+  * metadata, user-facing labels, or registry names.
+@@ -374,7 +374,7 @@ export const UI_ENVIRONMENT =
+ 
+ export const UI_METADATA = Object.freeze({
+   product: "TITech Community Capital",
+-  organization: "TITech Africa",
++  organization: "TITech Capital LTD",
+   system: "African Community Finance Operating System",
+   namespace: "titech.ui",
+ 
+diff --git a/frontend/src/legal/Disclaimer.jsx b/frontend/src/legal/Disclaimer.jsx
+index 7321a314..13ced764 100644
+--- a/frontend/src/legal/Disclaimer.jsx
++++ b/frontend/src/legal/Disclaimer.jsx
+@@ -1,6 +1,6 @@
+ /**
+ * ============================================================================
+-* TITech Community Capital Ltd
++* TITech Capital LTD
+ * Enterprise Legal Disclaimer Page
+ * ============================================================================
+ *
+@@ -126,7 +126,7 @@ phoneHref:
+ '+256782397907',
+ 
+ address:
+-'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda',
++'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
+ });
+ 
+ /* ============================================================================
+diff --git a/frontend/src/legal/PrivacyPolicy.jsx b/frontend/src/legal/PrivacyPolicy.jsx
+index 74ae5c01..45ea653a 100644
+--- a/frontend/src/legal/PrivacyPolicy.jsx
++++ b/frontend/src/legal/PrivacyPolicy.jsx
+@@ -1,6 +1,6 @@
+ /**
+ * ============================================================================
+-* TITech Community Capital Ltd
++* TITech Capital LTD
+ * Enterprise Privacy Policy Page
+ * ============================================================================
+ *
+@@ -151,7 +151,7 @@ phoneHref:
+ '+256394324760',
+ 
+ address:
+-'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda',
++'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
+ });
+ 
+ /* ============================================================================
+@@ -1585,7 +1585,7 @@ DOCUMENT HEADER
+         </SectionHeading>
+ 
+         <p>
+-          TITech Community Capital Ltd
++          TITech Capital LTD
+           (“TITech Community Capital,”
+           “TITech,” “we,” “us,” or “our”)
+           respects your privacy and is
+diff --git a/frontend/src/legal/TermsOfService.jsx b/frontend/src/legal/TermsOfService.jsx
+index 26ef9e5d..678452e1 100644
+--- a/frontend/src/legal/TermsOfService.jsx
++++ b/frontend/src/legal/TermsOfService.jsx
+@@ -1,7 +1,7 @@
+ //writing{variant="document" id="74261"}
+ /**
+  * ============================================================================
+- * TITech Community Capital Ltd
++ * TITech Capital LTD
+  * Enterprise Terms of Service Page
+  * ============================================================================
+  *
+@@ -134,7 +134,7 @@ const CONTACT = Object.freeze({
+     '+256782397907',
+ 
+   address:
+-    'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda',
++    'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
+ });
+ 
+ /* ============================================================================
+@@ -1010,7 +1010,7 @@ export default function TermsOfService({
+             <p>
+               These Terms of Service (“Terms”)
+               constitute an agreement between you
+-              and TITech Community Capital Ltd
++              and TITech Capital LTD
+               (“TITech Community Capital,” “TITech,”
+               “we,” “us,” or “our”) concerning your
+               access to and use of our services.
+diff --git a/frontend/src/legal/documents/FinancialDisclaimer.jsx b/frontend/src/legal/documents/FinancialDisclaimer.jsx
+index d48df700..4b8afb93 100644
+--- a/frontend/src/legal/documents/FinancialDisclaimer.jsx
++++ b/frontend/src/legal/documents/FinancialDisclaimer.jsx
+@@ -1,7 +1,7 @@
+ /**
+ 
+ * ============================================================================
+-* TITech Community Capital Ltd
++* TITech Capital LTD
+ * Enterprise Financial Disclaimer Document
+ * ============================================================================
+ *
+@@ -57,7 +57,7 @@ import PropTypes from 'prop-types';
+ * ========================================================================== */
+ 
+ const ORGANIZATION_NAME =
+-'TITech Community Capital Ltd';
++'TITech Capital LTD';
+ 
+ const PLATFORM_NAME =
+ 'TITech Community Capital';
+diff --git a/frontend/src/legal/documents/GeneralDisclaimer.jsx b/frontend/src/legal/documents/GeneralDisclaimer.jsx
+index 54066da5..b7eeb8dc 100644
+--- a/frontend/src/legal/documents/GeneralDisclaimer.jsx
++++ b/frontend/src/legal/documents/GeneralDisclaimer.jsx
+@@ -1,7 +1,7 @@
+ /**
+ 
+ * ============================================================================
+-* TITech Community Capital Ltd
++* TITech Capital LTD
+ * Enterprise General Disclaimer Document
+ * ============================================================================
+ *
+@@ -55,7 +55,7 @@ import PropTypes from 'prop-types';
+ 
+ const FALLBACK_METADATA = Object.freeze({
+ organization:
+-'TITech Community Capital Ltd',
++'TITech Capital LTD',
+ 
+ platform:
+ 'TITech Community Capital',
+diff --git a/frontend/src/legal/documents/PrivacyPolicy.jsx b/frontend/src/legal/documents/PrivacyPolicy.jsx
+index e8731480..29b936fa 100644
+--- a/frontend/src/legal/documents/PrivacyPolicy.jsx
++++ b/frontend/src/legal/documents/PrivacyPolicy.jsx
+@@ -1,7 +1,7 @@
+ /**
+ 
+ * ============================================================================
+-* TITech Community Capital Ltd
++* TITech Capital LTD
+ * Enterprise Privacy Policy Document
+ * ============================================================================
+ *
+@@ -56,7 +56,7 @@ import PropTypes from 'prop-types';
+ 
+ const FALLBACK_METADATA = Object.freeze({
+ organization:
+-'TITech Community Capital Ltd',
++'TITech Capital LTD',
+ 
+ platform:
+ 'TITech Community Capital',
+diff --git a/frontend/src/legal/documents/TermsOfService.jsx b/frontend/src/legal/documents/TermsOfService.jsx
+index c802fcc0..d1231864 100644
+--- a/frontend/src/legal/documents/TermsOfService.jsx
++++ b/frontend/src/legal/documents/TermsOfService.jsx
+@@ -1,6 +1,6 @@
+ /**
+ * ============================================================================
+-* TITech Community Capital Ltd
++* TITech Capital LTD
+ * Enterprise Terms of Service Document
+ * ============================================================================
+ *
+@@ -56,7 +56,7 @@ import PropTypes from 'prop-types';
+ 
+ const FALLBACK_METADATA = Object.freeze({
+ organization:
+-'TITech Community Capital Ltd',
++'TITech Capital LTD',
+ 
+ platform:
+ 'TITech Community Capital',
+diff --git a/frontend/src/legal/index.js b/frontend/src/legal/index.js
+index 71236e1f..2b2a47ed 100644
+--- a/frontend/src/legal/index.js
++++ b/frontend/src/legal/index.js
+@@ -1,7 +1,7 @@
+ /**
+ 
+ * ============================================================================
+-* TITech Community Capital Ltd
++* TITech Capital LTD
+ * Enterprise Legal Module — Public API
+ * ============================================================================
+ *
+@@ -71,7 +71,7 @@
+ * It should expose stable, application-facing contracts while keeping
+ * implementation details inside their respective modules.
+ *
+-* This module does NOT determine whether TITech Community Capital Ltd is
++* This module does NOT determine whether TITech Capital LTD is
+ * licensed, authorized, regulated, or legally permitted to perform any
+ * regulated financial activity.
+ *
+diff --git a/frontend/src/legal/legalAcceptance.js b/frontend/src/legal/legalAcceptance.js
+index 947b16e1..1288e633 100644
+--- a/frontend/src/legal/legalAcceptance.js
++++ b/frontend/src/legal/legalAcceptance.js
+@@ -1,6 +1,6 @@
+  /**
+   * ============================================================================
+-  * TITech Community Capital Ltd
++  * TITech Capital LTD
+   * Enterprise Legal Acceptance & Consent Module
+   * ============================================================================
+   *
+diff --git a/frontend/src/legal/legalApi.js b/frontend/src/legal/legalApi.js
+index ef8e9fa7..790bdbd2 100644
+--- a/frontend/src/legal/legalApi.js
++++ b/frontend/src/legal/legalApi.js
+@@ -1,6 +1,6 @@
+ /**
+  * ============================================================================
+- * TITech Community Capital Ltd
++ * TITech Capital LTD
+  * Enterprise Legal API Client
+  * ============================================================================
+  *
+diff --git a/frontend/src/legal/legalConfig.js b/frontend/src/legal/legalConfig.js
+index bee0aa1e..7c265980 100644
+--- a/frontend/src/legal/legalConfig.js
++++ b/frontend/src/legal/legalConfig.js
+@@ -1,6 +1,6 @@
+ /**
+  * ============================================================================
+- * TITech Community Capital Ltd
++ * TITech Capital LTD
+  * Enterprise Legal Document Configuration
+  * ============================================================================
+  *
+@@ -53,7 +53,7 @@
+ 
+ export const LEGAL_BRAND = Object.freeze({
+   name: 'TITech Community Capital',
+-  legalName: 'TITech Community Capital Ltd',
++  legalName: 'TITech Capital LTD',
+   shortName: 'TITech',
+   platformName: 'TITech Community Capital',
+   tagline: 'Community Finance Operating System',
+@@ -119,11 +119,11 @@ export const LEGAL_CONTACTS = Object.freeze({
+  * Canonical organization address.
+  */
+ export const LEGAL_ADDRESS = Object.freeze({
+-  organization: 'TITech Community Capital Ltd',
++  organization: 'TITech Capital LTD',
+   street: 'Plot 69-71 Jinja Road',
+   city: 'Kampala',
+   country: 'Uganda',
+-  full: 'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda',
++  full: 'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
+ });
+ 
+ /* ============================================================================
+diff --git a/frontend/src/legal/legalConstants.js b/frontend/src/legal/legalConstants.js
+index 8942c1b1..363726b4 100644
+--- a/frontend/src/legal/legalConstants.js
++++ b/frontend/src/legal/legalConstants.js
+@@ -1,6 +1,6 @@
+ /**
+  * ============================================================================
+- * TITech Community Capital Ltd
++ * TITech Capital LTD
+  * Enterprise Legal System Constants
+  * ============================================================================
+  *
+@@ -82,7 +82,7 @@ export const LEGAL_SYSTEM = Object.freeze({
+   VERSION: '2.0.0',
+ 
+   ORGANIZATION:
+-    'TITech Community Capital Ltd',
++    'TITech Capital LTD',
+ 
+   BRAND:
+     'TITech Community Capital',
+diff --git a/frontend/src/legal/legalRoutes.js b/frontend/src/legal/legalRoutes.js
+index 7ddcefeb..fd182e22 100644
+--- a/frontend/src/legal/legalRoutes.js
++++ b/frontend/src/legal/legalRoutes.js
+@@ -1,6 +1,6 @@
+ /**
+  * ============================================================================
+- * TITech Community Capital Ltd
++ * TITech Capital LTD
+  * Enterprise Legal Route Registry
+  * ============================================================================
+  *
+diff --git a/frontend/src/legal/legalTypes.js b/frontend/src/legal/legalTypes.js
+index 7e211018..0f772b28 100644
+--- a/frontend/src/legal/legalTypes.js
++++ b/frontend/src/legal/legalTypes.js
+@@ -49,7 +49,7 @@
+  * ----------------------------------------------------------------------------
+  * This module validates SOFTWARE METADATA only.
+  *
+- * It does NOT determine whether TITech Community Capital Ltd is:
++ * It does NOT determine whether TITech Capital LTD is:
+  *   - licensed;
+  *   - authorized;
+  *   - regulated;
+diff --git a/frontend/src/main.jsx b/frontend/src/main.jsx
+index ae7ae0cb..9707c715 100644
+--- a/frontend/src/main.jsx
++++ b/frontend/src/main.jsx
+@@ -2,8 +2,8 @@
+ 
+ /**
+  * ============================================================================
+- * TITech Community Capital LTD
+- * TITech Community Capital Operating System
++ * Product: TITech Community Capital
++ * Organization: TITech Capital LTD
+  * ============================================================================
+  *
+  * File:
+@@ -74,6 +74,7 @@ import React from 'react';
+ import ReactDOM from 'react-dom/client';
+ 
+ import Providers from './app/providers';
++import { I18nProvider } from './i18n/I18nProvider';
+ import './index.css';
+ import './branding/brand.css';
+ import './branding/official-theme.css';
+@@ -165,6 +166,7 @@ function installApplicationDiagnostics() {
+ 
+     const applicationInfo = Object.freeze({
+       name: APP_NAME,
++      organization: TITECH_BRAND?.organizationName || 'TITech Capital LTD',
+       version: APP_VERSION,
+       environment: APP_ENVIRONMENT,
+       buildTime: BUILD_TIME,
+@@ -612,6 +614,10 @@ function applyOfficialBrandRuntime() {
+     rootElement.dataset.titechBrandName =
+       OFFICIAL_BRAND_NAME;
+ 
++    // Company identity is separate from the customer-facing product name.
++    rootElement.dataset.titechOrganizationName =
++      TITECH_BRAND?.organizationName || 'TITech Capital LTD';
++
+     // ------------------------------------------------------------------------
+     // Canonical deterministic theme runtime
+     // ------------------------------------------------------------------------
+@@ -639,6 +645,9 @@ function applyOfficialBrandRuntime() {
+ 
+       document.body.dataset.titechBrandName =
+         OFFICIAL_BRAND_NAME;
++
++      document.body.dataset.titechOrganizationName =
++        TITECH_BRAND?.organizationName || 'TITech Capital LTD';
+     }
+ 
+     // ------------------------------------------------------------------------
+@@ -921,9 +930,11 @@ function bootstrapApplication() {
+   try {
+     root.render(
+       <React.StrictMode>
+-        <Providers>
+-          <AppRoutes />
+-        </Providers>
++        <I18nProvider>
++          <Providers>
++            <AppRoutes />
++          </Providers>
++        </I18nProvider>
+       </React.StrictMode>
+     );
+   } catch (error) {
+diff --git a/frontend/src/pages/Legal.jsx b/frontend/src/pages/Legal.jsx
+index 6c242c5b..51b2887e 100644
+--- a/frontend/src/pages/Legal.jsx
++++ b/frontend/src/pages/Legal.jsx
+@@ -1,6 +1,6 @@
+ /**
+  * ============================================================================
+- * TITech Community Capital Ltd
++ * TITech Capital LTD
+  * Enterprise Legal Information Page
+  * ============================================================================
+  *
+@@ -49,7 +49,7 @@
+  * IMPORTANT:
+  *   This component is a software presentation layer.
+  *
+- *   It does not determine whether TITech Community Capital Ltd is licensed,
++ *   It does not determine whether TITech Capital LTD is licensed,
+  *   authorized, regulated, or legally permitted to perform a regulated
+  *   financial activity.
+  *
+@@ -98,7 +98,7 @@ import './Legal.css';
+  * ========================================================================== */
+ 
+ const PAGE_CONFIG = Object.freeze({
+-  organizationName: 'TITech Community Capital Ltd',
++  organizationName: 'TITech Capital LTD',
+   platformName: 'TITech Community Capital Platform',
+ 
+   /*
+diff --git a/frontend/src/pages/Login.jsx b/frontend/src/pages/Login.jsx
+index 2de6e401..3458a702 100644
+--- a/frontend/src/pages/Login.jsx
++++ b/frontend/src/pages/Login.jsx
+@@ -67,12 +67,13 @@ import { toast } from "react-toastify";
+ import { useAuth } from "../context/AuthContext";
+ import {
+   API_CONNECTIVITY_STATUS,
+-  getAuthenticationErrorMessage,
+   probeApiReadiness,
+ } from "../services/api.js";
+ 
+ import "./Login.css";
+ import BrandLogo from "../components/BrandLogo";
++import LanguageSelector from "../i18n/LanguageSelector";
++import { useI18n } from "../i18n/I18nProvider";
+ 
+ /* ============================================================================
+  * Constants
+@@ -98,12 +99,6 @@ const ROUTES = Object.freeze({
+   PRIVACY: "/privacy",
+ });
+ 
+-const DEFAULT_ERROR_MESSAGE =
+-  "Unable to sign in right now. Please try again.";
+-
+-const LOCKOUT_MESSAGE =
+-  "Too many unsuccessful attempts. Please try again later.";
+-
+ const EMAIL_MAX_LENGTH = 254;
+ const PASSWORD_MAX_LENGTH = 128;
+ 
+@@ -111,30 +106,21 @@ const PASSWORD_MAX_LENGTH = 128;
+  * Validation
+  * ========================================================================== */
+ 
+-const LoginSchema = Yup.object({
++const createLoginSchema = (t) => Yup.object({
+   email: Yup.string()
+     .trim()
+-    .email("Please enter a valid email address.")
+-    .required("Email address is required.")
+-    .max(
+-      EMAIL_MAX_LENGTH,
+-      "Email address is too long.",
+-    )
++    .email(t('auth.login.validation.emailFormat'))
++    .required(t('auth.login.validation.emailRequired'))
++    .max(EMAIL_MAX_LENGTH, t('auth.login.validation.emailTooLong'))
+     .matches(
+       /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+-      "Please enter a valid email address.",
++      t('auth.login.validation.emailFormat'),
+     ),
+ 
+   password: Yup.string()
+-    .required("Password is required.")
+-    .min(
+-      8,
+-      "Password must be at least 8 characters.",
+-    )
+-    .max(
+-      PASSWORD_MAX_LENGTH,
+-      "Password is too long.",
+-    ),
++    .required(t('auth.login.validation.passwordRequired'))
++    .min(8, t('auth.login.validation.passwordMin', { min: 8 }))
++    .max(PASSWORD_MAX_LENGTH, t('auth.login.validation.passwordTooLong')),
+ });
+ 
+ /* ============================================================================
+@@ -328,22 +314,19 @@ function isCredentialFailure(error) {
+     error?.response?.status === 401;
+ }
+ 
+-function getSafeLoginErrorMessage(error) {
+-  if (typeof error?.userMessage === "string" && error.userMessage.trim()) {
+-    return error.userMessage.trim();
+-  }
+-
+-  const serverMessage = error?.response?.data?.message;
++function getSafeLoginErrorMessage(error, t) {
++  const status = error?.response?.status ?? error?.status ?? null;
+ 
+-  if (
+-    typeof serverMessage === "string" &&
+-    serverMessage.trim().length > 0 &&
+-    serverMessage.length <= 300
+-  ) {
+-    return serverMessage.trim();
++  if (error?.authCategory === 'AUTH_INVALID_CREDENTIALS' || status === 401) {
++    return t('auth.login.errors.invalidCredentials');
+   }
+-
+-  return getAuthenticationErrorMessage(error) || DEFAULT_ERROR_MESSAGE;
++  if (status === 429) return t('auth.login.errors.rateLimit');
++  if (status === 403) return t('auth.login.errors.accessDenied');
++  if (typeof status === 'number' && status >= 500) {
++    return t('auth.login.errors.serviceUnavailable');
++  }
++  if (!error?.response) return t('auth.login.errors.connection');
++  return t('auth.login.errors.generic');
+ }
+ 
+ /* ============================================================================
+@@ -355,6 +338,8 @@ export default function Login() {
+   const location = useLocation();
+ 
+   const { login, apiConnectivity } = useAuth();
++  const { t } = useI18n();
++  const loginSchema = useMemo(() => createLoginSchema(t), [t]);
+ 
+   const mountedRef = useRef(false);
+ 
+@@ -566,7 +551,7 @@ export default function Login() {
+     ) => {
+       if (isLockedOut) {
+         toast.error(
+-          `${LOCKOUT_MESSAGE} Try again in ${lockoutMinutes} minute(s).`,
++          t('auth.login.errors.lockout', { minutes: lockoutMinutes }),
+           {
+             autoClose: 5000,
+           },
+@@ -601,14 +586,14 @@ export default function Login() {
+         if (!readiness?.ready) {
+           toast.error(
+             readiness?.status === API_CONNECTIVITY_STATUS.REQUEST_TIMEOUT
+-              ? "TITech authentication readiness timed out. Please retry shortly."
++              ? t('auth.login.errors.serviceTimeout')
+               : readiness?.status === API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR
+-                ? "TITech authentication service returned a server error. Please retry shortly."
++                ? t('auth.login.errors.serverError')
+                 : readiness?.status === API_CONNECTIVITY_STATUS.API_ENDPOINT_ERROR
+-                  ? "TITech readiness endpoint was not found. Check the API URL and backend route configuration. Your credentials have not been submitted."
++                  ? t('auth.login.errors.endpointMissing')
+                   : readiness?.status === API_CONNECTIVITY_STATUS.API_HTTP_ERROR
+-                    ? "TITech readiness endpoint rejected the readiness check. Check its public access configuration. Your credentials have not been submitted."
+-                    : "TITech is temporarily unable to reach the authentication service. Please retry shortly.",
++                    ? t('auth.login.errors.readinessDenied')
++                    : t('auth.login.errors.connection'),
+             { autoClose: 6000 },
+           );
+           return;
+@@ -636,7 +621,7 @@ export default function Login() {
+ 
+         if (!authenticatedUser) {
+           toast.error(
+-            DEFAULT_ERROR_MESSAGE,
++            t('auth.login.errors.generic'),
+             {
+               autoClose: 4000,
+             },
+@@ -646,7 +631,7 @@ export default function Login() {
+         }
+ 
+         toast.success(
+-          "Welcome back to TITech Community Capital.",
++          t('auth.login.errors.welcome'),
+           {
+             autoClose: 3000,
+           },
+@@ -685,15 +670,15 @@ export default function Login() {
+             persistLoginSecurityState(nextAttemptCount, nextLockout);
+ 
+             toast.error(
+-              "Too many unsuccessful attempts. Please try again in 15 minutes.",
++              t('auth.login.errors.lockout', { minutes: 15 }),
+               { autoClose: 5000 },
+             );
+           } else {
+             persistLoginSecurityState(nextAttemptCount);
+-            toast.error(getSafeLoginErrorMessage(error), { autoClose: 4000 });
++            toast.error(getSafeLoginErrorMessage(error, t), { autoClose: 4000 });
+           }
+         } else {
+-          toast.error(getSafeLoginErrorMessage(error), { autoClose: 5000 });
++          toast.error(getSafeLoginErrorMessage(error, t), { autoClose: 5000 });
+         }
+ 
+         /*
+@@ -734,6 +719,7 @@ export default function Login() {
+       navigate,
+       persistRememberPreference,
+       redirectPath,
++      t,
+     ],
+   );
+ 
+@@ -759,6 +745,9 @@ export default function Login() {
+       className="login-page"
+       aria-labelledby="login-heading"
+     >
++      <div className="titech-auth-language-control">
++        <LanguageSelector />
++      </div>
+       <div className="login-wrapper">
+         {/* ==================================================================
+          * Brand Panel
+@@ -789,19 +778,17 @@ export default function Login() {
+               id="brand-title"
+               className="brand-title"
+             >
+-              Community Finance. Stronger Together.
++              {t("auth.login.tagline")}
+             </h1>
+ 
+             <p className="brand-subtitle">
+-              To empower communities through innovative financial solutions,
+-              technology, and education, creating sustainable wealth and shared
+-              prosperity across Africa.
++              {t("auth.login.subtitle")}
+             </p>
+ 
+             <div
+               className="brand-features"
+               role="list"
+-              aria-label="TITech Community Capital benefits"
++              aria-label={t("auth.login.featuresLabel")}
+             >
+               <div
+                 className="feature"
+@@ -981,41 +968,41 @@ export default function Login() {
+               <div className="login-service-status__content">
+                 <strong>
+                   {serviceTimedOut
+-                    ? "Authentication readiness timed out"
++                    ? t('auth.login.status.timeoutTitle')
+                     : serviceServerError
+-                      ? "Authentication service returned a server error"
++                      ? t('auth.login.status.serverErrorTitle')
+                       : serviceEndpointError
+-                        ? "TITech readiness endpoint misconfigured"
++                        ? t('auth.login.status.endpointMissingTitle')
+                         : serviceHttpError
+-                          ? "TITech readiness endpoint returned an HTTP error"
++                          ? t('auth.login.status.httpErrorTitle')
+                           : serviceCancelled
+-                            ? "Readiness check was cancelled"
+-                        : serviceUnavailable
+-                          ? "Authentication service unavailable"
+-                          : serviceDegraded
+-                            ? "TITech services are temporarily degraded"
+-                            : serviceState === API_CONNECTIVITY_STATUS.READY
+-                              ? "Authentication service ready"
+-                              : "Checking TITech service availability"}
++                            ? t('auth.login.status.cancelledTitle')
++                            : serviceUnavailable
++                              ? t('auth.login.status.unavailableTitle')
++                              : serviceDegraded
++                                ? t('auth.login.status.degradedTitle')
++                                : serviceState === API_CONNECTIVITY_STATUS.READY
++                                  ? t('auth.login.status.readyTitle')
++                                  : t('auth.login.status.checkingTitle')}
+                 </strong>
+                 <span>
+                   {serviceTimedOut
+-                    ? "The readiness request did not complete in time. Your credentials have not been submitted."
++                    ? t('auth.login.status.timeoutDetails')
+                     : serviceServerError
+-                      ? "The API returned a server error. Your credentials have not been submitted."
++                      ? t('auth.login.status.serverErrorDetails')
+                       : serviceEndpointError
+-                        ? "The backend answered, but the configured readiness URL returned HTTP 404. Check VITE_API_READINESS_PATH and canonical route mounting; credentials have not been submitted."
++                        ? t('auth.login.status.endpointMissingDetails')
+                         : serviceHttpError
+-                          ? `The backend answered with HTTP ${apiConnectivity?.lastHttpStatus || "4xx"}. The public readiness endpoint must not require a user session; credentials have not been submitted.`
++                          ? t('auth.login.status.httpErrorDetails', { status: apiConnectivity?.lastHttpStatus || '4xx' })
+                           : serviceCancelled
+-                            ? "The previous readiness request was cancelled. Retry to check the service again."
+-                        : serviceUnavailable
+-                          ? "Your password is not being rejected. The API cannot currently be reached."
+-                          : serviceDegraded
+-                            ? "The API responded, but readiness is not confirmed. Sign-in remains gated until the service is ready."
+-                            : serviceState === API_CONNECTIVITY_STATUS.READY
+-                              ? "TITech API readiness has been confirmed."
+-                              : "We will verify API connectivity before restoring or starting your session."}
++                            ? t('auth.login.status.cancelledDetails')
++                            : serviceUnavailable
++                              ? t('auth.login.status.unavailableDetails')
++                              : serviceDegraded
++                                ? t('auth.login.status.degradedDetails')
++                                : serviceState === API_CONNECTIVITY_STATUS.READY
++                                  ? t('auth.login.status.readyDetails')
++                                  : t('auth.login.status.checkingDetails')}
+                 </span>
+                 {serviceNeedsRetry && (
+                   <button
+@@ -1024,7 +1011,7 @@ export default function Login() {
+                     onClick={handleServiceRetry}
+                     disabled={loading}
+                   >
+-                    Retry service check
++                    {t('auth.login.errors.retryServiceCheck')}
+                   </button>
+                 )}
+               </div>
+@@ -1035,7 +1022,7 @@ export default function Login() {
+                 initialValues
+               }
+               validationSchema={
+-                LoginSchema
++                loginSchema
+               }
+               onSubmit={
+                 handleLogin
+@@ -1078,7 +1065,7 @@ export default function Login() {
+                         />
+ 
+                         <span>
+-                          Email Address
++                          {t("auth.login.emailLabel")}
+                         </span>
+                       </label>
+ 
+@@ -1155,7 +1142,7 @@ export default function Login() {
+                         />
+ 
+                         <span>
+-                          Password
++                          {t("auth.login.passwordLabel")}
+                         </span>
+                       </label>
+ 
+@@ -1168,7 +1155,7 @@ export default function Login() {
+                               ? "text"
+                               : "password"
+                           }
+-                          placeholder="Enter your password"
++                          placeholder={t("auth.login.passwordPlaceholder")}
+                           autoComplete="current-password"
+                           maxLength={
+                             PASSWORD_MAX_LENGTH
+@@ -1267,7 +1254,7 @@ export default function Login() {
+                         />
+ 
+                         <span>
+-                          Remember my email
++                          {t("auth.login.rememberEmail")}
+                         </span>
+                       </label>
+ 
+@@ -1282,7 +1269,7 @@ export default function Login() {
+                             : 0
+                         }
+                       >
+-                        Forgot password?
++                        {t("auth.login.forgotPassword")}
+                       </Link>
+                     </div>
+ 
+@@ -1311,7 +1298,7 @@ export default function Login() {
+                           />
+ 
+                           <span>
+-                            Signing in…
++                            {t("auth.login.submitting")}
+                           </span>
+                         </span>
+                       ) : (
+@@ -1322,7 +1309,7 @@ export default function Login() {
+                           />
+ 
+                           <span>
+-                            Sign In
++                            {t("auth.login.submit")}
+                           </span>
+                         </>
+                       )}
+@@ -1333,14 +1320,14 @@ export default function Login() {
+                      * ====================================================== */}
+ 
+                     <p className="signup-link">
+-                      Don't have an account?{" "}
++                      {t("auth.login.noAccount")}{" "}
+                       <Link
+                         to={
+                           ROUTES.REGISTER
+                         }
+                         className="link-highlight"
+                       >
+-                        Create one now
++                        {t("auth.login.createAccount")}
+                       </Link>
+                     </p>
+                   </Form>
+diff --git a/frontend/src/pages/PrivacyPolicy.jsx b/frontend/src/pages/PrivacyPolicy.jsx
+index 480f65d4..d9558ee2 100644
+--- a/frontend/src/pages/PrivacyPolicy.jsx
++++ b/frontend/src/pages/PrivacyPolicy.jsx
+@@ -2,7 +2,7 @@
+ 
+ /**
+  * ============================================================================
+- * TITech Community Capital Ltd
++ * TITech Capital LTD
+  * Enterprise Privacy Policy Page
+  * ============================================================================
+  *
+@@ -78,7 +78,7 @@ const PRIVACY_PHONE_DISPLAY = '+256 (394) 324760';
+ const PRIVACY_PHONE_HREF = '+256394324760';
+ 
+ const MAILING_ADDRESS =
+-  'TITech Community Capital Ltd, Plot 69-71 Jinja Road, Kampala, Uganda';
++  'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda';
+ 
+ const POLICY_TITLE = 'Privacy Policy';
+ 
+@@ -720,7 +720,7 @@ const PrivacyPolicy = () => {
+ 
+               <p>
+                 <strong>Organization:</strong>{' '}
+-                TITech Community Capital Ltd
++                TITech Capital LTD
+               </p>
+             </div>
+ 
+@@ -744,7 +744,7 @@ const PrivacyPolicy = () => {
+               </h2>
+ 
+               <p>
+-                TITech Community Capital Ltd (
++                TITech Capital LTD (
+                 <strong>
+                   &quot;TITech Community Capital&quot;
+                 </strong>
+diff --git a/frontend/src/pages/Register.jsx b/frontend/src/pages/Register.jsx
+index 3e830bfa..e847cd35 100644
+--- a/frontend/src/pages/Register.jsx
++++ b/frontend/src/pages/Register.jsx
+@@ -61,6 +61,8 @@ import { useAuth } from '../context/AuthContext';
+ 
+ import './Register.css';
+ import BrandLogo from "../components/BrandLogo";
++import LanguageSelector from '../i18n/LanguageSelector';
++import { useI18n } from '../i18n/I18nProvider';
+ 
+ // ============================================================================
+ // Constants
+@@ -78,12 +80,6 @@ const REGISTRATION_TIMEOUT_MS = 30_000;
+ 
+ const PASSWORD_SPECIAL_CHARACTERS = /[@$!%*?&^#()_+\-=]/;
+ 
+-const GENERIC_REGISTRATION_ERROR =
+-  'We could not create your account. Please review your details and try again.';
+-
+-const RATE_LIMIT_ERROR =
+-  'Too many registration attempts. Please wait a moment and try again.';
+-
+ // ============================================================================
+ // Redirect Security
+ // ============================================================================
+@@ -156,96 +152,54 @@ const normalizePhone = (value) =>
+     .trim()
+     .replace(/\s+/g, '');
+ 
+-const RegisterSchema = Yup.object({
++const createRegisterSchema = (t) => Yup.object({
+   name: Yup.string()
+     .trim()
+-    .min(2, 'Full name must be at least 2 characters.')
+-    .max(
+-      MAX_NAME_LENGTH,
+-      `Full name cannot exceed ${MAX_NAME_LENGTH} characters.`,
+-    )
+-    .required('Full name is required.'),
++    .min(2, t('auth.register.validation.nameMin', { min: 2 }))
++    .max(MAX_NAME_LENGTH, t('auth.register.validation.nameMax', { max: MAX_NAME_LENGTH }))
++    .required(t('auth.register.validation.nameRequired')),
+ 
+   email: Yup.string()
+     .trim()
+     .lowercase()
+-    .email('Please enter a valid email address.')
+-    .max(
+-      MAX_EMAIL_LENGTH,
+-      'Email address is too long.',
+-    )
+-    .required('Email address is required.'),
++    .email(t('auth.register.validation.emailFormat'))
++    .max(MAX_EMAIL_LENGTH, t('auth.register.validation.emailTooLong'))
++    .required(t('auth.register.validation.emailRequired')),
+ 
+   tenantInviteCode: Yup.string()
+     .trim()
+-    .min(32, 'Enter the tenant invitation code provided by your administrator.')
+-    .max(128, 'Tenant invitation code is invalid.')
+-    .required('A tenant invitation code is required to join an existing tenant.'),
++    .min(32, t('auth.register.validation.invitationMin', { min: 32 }))
++    .max(128, t('auth.register.validation.invitationInvalid'))
++    .required(t('auth.register.validation.invitationRequired')),
+ 
+   phone: Yup.string()
+     .nullable()
+     .transform((value) => {
+-      if (!value) {
+-        return '';
+-      }
+-
++      if (!value) return '';
+       return normalizePhone(value);
+     })
+     .test(
+       'phone-format',
+-      'Enter a valid international phone number, for example +256782397907.',
+-      (value) => {
+-        if (!value) {
+-          return true;
+-        }
+-
+-        return /^\+[1-9]\d{7,14}$/.test(value);
+-      },
++      t('auth.register.validation.phoneFormat', { example: '+256782397907' }),
++      (value) => !value || /^\+[1-9]\d{7,14}$/.test(value),
+     )
+-    .max(
+-      MAX_PHONE_LENGTH,
+-      'Phone number is too long.',
+-    ),
++    .max(MAX_PHONE_LENGTH, t('auth.register.validation.phoneTooLong')),
+ 
+   password: Yup.string()
+-    .required('Password is required.')
+-    .min(
+-      8,
+-      'Password must be at least 8 characters.',
+-    )
+-    .max(
+-      MAX_PASSWORD_LENGTH,
+-      `Password cannot exceed ${MAX_PASSWORD_LENGTH} characters.`,
+-    )
+-    .matches(
+-      /[A-Z]/,
+-      'Password must contain at least one uppercase letter.',
+-    )
+-    .matches(
+-      /[a-z]/,
+-      'Password must contain at least one lowercase letter.',
+-    )
+-    .matches(
+-      /\d/,
+-      'Password must contain at least one number.',
+-    )
+-    .matches(
+-      PASSWORD_SPECIAL_CHARACTERS,
+-      'Password must contain at least one special character.',
+-    ),
++    .required(t('auth.register.validation.passwordRequired'))
++    .min(8, t('auth.register.validation.passwordMin', { min: 8 }))
++    .max(MAX_PASSWORD_LENGTH, t('auth.register.validation.passwordMax', { max: MAX_PASSWORD_LENGTH }))
++    .matches(/[A-Z]/, t('auth.register.validation.passwordUppercase'))
++    .matches(/[a-z]/, t('auth.register.validation.passwordLowercase'))
++    .matches(/\d/, t('auth.register.validation.passwordNumber'))
++    .matches(PASSWORD_SPECIAL_CHARACTERS, t('auth.register.validation.passwordSpecial')),
+ 
+   confirmPassword: Yup.string()
+-    .required('Please confirm your password.')
+-    .oneOf(
+-      [Yup.ref('password')],
+-      'Passwords do not match.',
+-    ),
++    .required(t('auth.register.validation.confirmRequired'))
++    .oneOf([Yup.ref('password')], t('auth.register.validation.passwordsMismatch')),
+ 
+   agreeTerms: Yup.boolean()
+-    .oneOf(
+-      [true],
+-      'You must accept the Terms and Privacy Policy.',
+-    ),
++    .oneOf([true], t('auth.register.validation.termsRequired')),
+ });
+ 
+ // ============================================================================
+@@ -340,36 +294,23 @@ const getResponseMessage = (error) => {
+  * Raw authentication/server errors should not be displayed directly because
+  * they can expose implementation details or sensitive information.
+  */
+-const getRegistrationErrorMessage = (error) => {
++const getRegistrationErrorMessage = (error, t) => {
+   const status = getResponseStatus(error);
+-
+-  if (status === 409) {
+-    return 'An account with these details may already exist. Please sign in or use different details.';
+-  }
+-
+-  if (status === 422) {
+-    return 'Some registration details could not be accepted. Please review your information.';
+-  }
+-
+-  if (status === 429) {
+-    return RATE_LIMIT_ERROR;
+-  }
+-
+-  if (status >= 500) {
+-    return 'The registration service is temporarily unavailable. Please try again shortly.';
+-  }
++  if (status === 409) return t('auth.register.errors.duplicate');
++  if (status === 422) return t('auth.register.errors.invalidDetails');
++  if (status === 429) return t('auth.register.errors.rateLimit');
++  if (typeof status === 'number' && status >= 500) return t('auth.register.errors.serviceUnavailable');
+ 
+   const backendMessage = getResponseMessage(error).toLowerCase();
+-
+   if (
+     backendMessage.includes('email already') ||
+     backendMessage.includes('already registered') ||
+     backendMessage.includes('already exists')
+   ) {
+-    return 'An account with this email may already exist. Please sign in instead.';
++    return t('auth.register.errors.emailDuplicate');
+   }
+ 
+-  return GENERIC_REGISTRATION_ERROR;
++  return t('auth.register.errors.generic');
+ };
+ 
+ // ============================================================================
+@@ -383,6 +324,8 @@ export default function Register() {
+   const {
+     register,
+   } = useAuth() ?? {};
++  const { t } = useI18n();
++  const registrationSchema = useMemo(() => createRegisterSchema(t), [t]);
+ 
+   const componentId = useId();
+ 
+@@ -475,7 +418,7 @@ export default function Register() {
+ 
+       if (typeof register !== 'function') {
+         const message =
+-          'Registration service is currently unavailable. Please try again later.';
++          t('auth.register.errors.serviceUnavailableImmediate');
+ 
+         setRegistrationError(message);
+ 
+@@ -499,11 +442,11 @@ export default function Register() {
+         registrationInProgressRef.current = false;
+ 
+         setRegistrationError(
+-          'Registration is taking longer than expected. Please check your connection and try again.',
++          t('auth.register.errors.timeout'),
+         );
+ 
+         toast.error(
+-          'Registration is taking longer than expected.',
++          t('auth.register.errors.timeoutShort'),
+           {
+             toastId: 'titech-registration-timeout',
+           },
+@@ -536,7 +479,7 @@ export default function Register() {
+         registrationInProgressRef.current = false;
+ 
+         toast.success(
+-          'Your TITech Community Capital account has been created successfully.',
++          t('auth.register.errors.success'),
+           {
+             autoClose: 3000,
+             toastId: 'titech-registration-success',
+@@ -556,12 +499,12 @@ export default function Register() {
+         registrationInProgressRef.current = false;
+ 
+         const message =
+-          getRegistrationErrorMessage(error);
++          getRegistrationErrorMessage(error, t);
+ 
+         setRegistrationError(message);
+ 
+         if (getResponseStatus(error) === 429) {
+-          toast.error(RATE_LIMIT_ERROR, {
++          toast.error(t('auth.register.errors.rateLimit'), {
+             autoClose: 5000,
+             toastId: 'titech-registration-rate-limit',
+           });
+@@ -593,6 +536,7 @@ export default function Register() {
+       clearRegistrationTimeout,
+       navigateAfterRegistration,
+       register,
++      t,
+     ],
+   );
+ 
+@@ -605,6 +549,9 @@ export default function Register() {
+       className="register-page"
+       aria-labelledby={`${componentId}-heading`}
+     >
++      <div className="titech-auth-language-control">
++        <LanguageSelector />
++      </div>
+       <div className="register-wrapper">
+         {/* ====================================================================
+             Brand / Features Panel
+@@ -632,7 +579,7 @@ export default function Register() {
+               />
+ 
+               <span>
+-                Secure financial platform
++                {t("auth.register.securePlatform")}
+               </span>
+             </div>
+ 
+@@ -640,17 +587,16 @@ export default function Register() {
+               id={`${componentId}-brand`}
+               className="features-title"
+             >
+-              Community Finance. Stronger Together.
++              {t("auth.register.tagline")}
+             </h1>
+ 
+             <p className="features-subtitle">
+-              Building trusted community financial infrastructure that connects
+-              people, communities, capital and opportunity across Africa.
++              {t("auth.register.subtitle")}
+             </p>
+ 
+             <div
+               className="feature-list"
+-              aria-label="TITech Community Capital features"
++              aria-label={t("auth.login.featuresLabel")}
+             >
+               <div className="feature-item">
+                 <CheckCircle2
+@@ -748,7 +694,7 @@ export default function Register() {
+                 confirmPassword: '',
+                 agreeTerms: false,
+               }}
+-              validationSchema={RegisterSchema}
++              validationSchema={registrationSchema}
+               onSubmit={handleRegister}
+               validateOnBlur
+               validateOnChange
+@@ -792,7 +738,7 @@ export default function Register() {
+                         />
+ 
+                         <span>
+-                          Full Name
++                          {t("auth.register.nameLabel")}
+                         </span>
+                       </label>
+ 
+@@ -806,7 +752,7 @@ export default function Register() {
+                             ? 'form-input--error'
+                             : ''
+                         }`}
+-                        placeholder="Enter your full name"
++                        placeholder={t("auth.register.namePlaceholder")}
+                         autoComplete="name"
+                         maxLength={MAX_NAME_LENGTH}
+                         aria-invalid={
+@@ -854,7 +800,7 @@ export default function Register() {
+                         />
+ 
+                         <span>
+-                          Email Address
++                          {t("auth.register.emailLabel")}
+                         </span>
+                       </label>
+ 
+@@ -905,7 +851,7 @@ export default function Register() {
+ 
+                     <div className="form-group">
+                       <label htmlFor={`${componentId}-tenant-invite-code`}>
+-                        Tenant invitation code
++                        {t("auth.register.tenantInviteCodeLabel")}
+                       </label>
+                       <Field
+                         id={`${componentId}-tenant-invite-code`}
+@@ -917,7 +863,7 @@ export default function Register() {
+                             ? 'form-input--error'
+                             : ''
+                         }`}
+-                        placeholder="Enter the code from your tenant administrator"
++                        placeholder={t("auth.register.tenantInviteCodePlaceholder")}
+                         autoComplete="off"
+                         maxLength={128}
+                         aria-invalid={
+@@ -965,7 +911,7 @@ export default function Register() {
+                         />
+ 
+                         <span>
+-                          Phone Number
++                          {t("auth.register.phoneLabel")}
+                           <span className="optional-label">
+                             {' '}
+                             (Optional)
+@@ -1032,7 +978,7 @@ export default function Register() {
+                         />
+ 
+                         <span>
+-                          Password
++                          {t("auth.register.passwordLabel")}
+                         </span>
+                       </label>
+ 
+@@ -1051,7 +997,7 @@ export default function Register() {
+                               ? 'form-input--error'
+                               : ''
+                           }`}
+-                          placeholder="Create a strong password"
++                          placeholder={t("auth.register.passwordPlaceholder")}
+                           autoComplete="new-password"
+                           maxLength={
+                             MAX_PASSWORD_LENGTH
+@@ -1174,7 +1120,7 @@ export default function Register() {
+                         />
+ 
+                         <span>
+-                          Confirm Password
++                          {t("auth.register.confirmPasswordLabel")}
+                         </span>
+                       </label>
+ 
+@@ -1193,7 +1139,7 @@ export default function Register() {
+                               ? 'form-input--error'
+                               : ''
+                           }`}
+-                          placeholder="Re-enter your password"
++                          placeholder={t("auth.register.confirmPasswordPlaceholder")}
+                           autoComplete="new-password"
+                           maxLength={
+                             MAX_PASSWORD_LENGTH
+@@ -1340,12 +1286,12 @@ export default function Register() {
+                           />
+ 
+                           <span>
+-                            Creating Account...
++                            {t("auth.register.submitting")}
+                           </span>
+                         </>
+                       ) : (
+                         <span>
+-                          Create Account
++                          {t("auth.register.submit")}
+                         </span>
+                       )}
+                     </button>
+@@ -1355,9 +1301,9 @@ export default function Register() {
+                     ======================================================== */}
+ 
+                     <p className="login-link">
+-                      Already have an account?{' '}
++                      {t("auth.register.haveAccount")}{' '}
+                       <Link to={LOGIN_ROUTE}>
+-                        Sign In
++                        {t("auth.register.signIn")}
+                       </Link>
+                     </p>
+                   </Form>
+diff --git a/frontend/src/pages/TermsOfService.jsx b/frontend/src/pages/TermsOfService.jsx
+index f9e5bff2..a99179f4 100644
+--- a/frontend/src/pages/TermsOfService.jsx
++++ b/frontend/src/pages/TermsOfService.jsx
+@@ -1490,7 +1490,7 @@ const TermsOfService = () => {
+ 
+                 <p>
+                   <strong>Address:</strong>{' '}
+-                  TITech Community Capital Ltd,
++                  TITech Capital LTD,
+                   Kampala, Uganda
+                 </p>
+ 
+diff --git a/package.json b/package.json
+index 260e12a3..9bf4ca9f 100644
+--- a/package.json
++++ b/package.json
+@@ -42,7 +42,7 @@
+     "url": "git+https://github.com/JustineRobert/titech-community-capital.git"
+   },
+   "license": "ISC",
+-  "author": "Igune Justine Robert, TITech Community Capital LTD",
++  "author": "Igune Justine Robert, TITech Capital LTD",
+   "type": "module",
+   "main": "backend/server.js",
+   "directories": {
+@@ -58,7 +58,7 @@
+     "build": "npm run build:frontend",
+     "build:backend": "npm --prefix backend run build",
+     "build:frontend": "npm --prefix frontend run build",
+-    "check": "npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check",
++    "check": "npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run i18n:check && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check",
+     "check:all": "npm run check && npm run test",
+     "check:conflicts": "node scripts/check-conflicts.js",
+     "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs",
+@@ -107,7 +107,7 @@
+     "test:backend:ci": "npm --prefix backend run test:ci",
+     "test:backend:coverage": "npm --prefix backend run test:coverage",
+     "test:backend:watch": "npm --prefix backend test -- --watch",
+-    "test:ci": "npm run test:backend:ci && npm run test:frontend:ci",
++    "test:ci": "npm run test:i18n:native && npm run test:backend:ci && npm run test:frontend:ci",
+     "test:control-plane": "npm --prefix backend run test:control-plane",
+     "test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
+     "test:e2e": "npm --prefix frontend run test:e2e",
+@@ -149,7 +149,10 @@
+     "enterprise:master-gate": "node scripts/titech-enterprise-master-gate.mjs",
+     "enterprise:master-gate:strict": "node scripts/titech-enterprise-master-gate.mjs --strict",
+     "verify:login-readiness": "node scripts/verify-login-readiness-remediation.mjs",
+-    "verify:runtime-connectivity": "node scripts/verify-runtime-connectivity-state.mjs"
++    "verify:runtime-connectivity": "node scripts/verify-runtime-connectivity-state.mjs",
++    "i18n:check": "node scripts/i18n-validation.mjs",
++    "i18n:production-gate": "node scripts/i18n-production-gate.mjs",
++    "test:i18n:native": "node --test scripts/i18n-core.test.mjs"
+   },
+   "devDependencies": {
+     "ts-node": "^10.9.2",

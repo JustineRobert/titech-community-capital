@@ -2,7 +2,7 @@
 
 **Effective:** 2026-09-22  
 **Product:** TITech Community Capital  
-**Company:** TITech Africa / TITech Community Capital  
+**Company:** TITech Capital LTD  
 **Primary market:** Uganda → East Africa → Africa → Emerging Markets → Global
 
 ## Core position

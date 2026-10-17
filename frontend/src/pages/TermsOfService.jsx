@@ -1490,7 +1490,7 @@ const TermsOfService = () => {
 
                 <p>
                   <strong>Address:</strong>{' '}
-                  TITech Community Capital Ltd,
+                  TITech Capital LTD,
                   Kampala, Uganda
                 </p>
 

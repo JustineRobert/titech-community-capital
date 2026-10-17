@@ -2,8 +2,8 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
- * TITech Community Capital Operating System
+ * Product: TITech Community Capital
+ * Organization: TITech Capital LTD
  * ============================================================================
  *
  * File:
@@ -74,6 +74,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 import Providers from './app/providers';
+import { I18nProvider } from './i18n/I18nProvider';
 import './index.css';
 import './branding/brand.css';
 import './branding/official-theme.css';
@@ -165,6 +166,7 @@ function installApplicationDiagnostics() {
 
     const applicationInfo = Object.freeze({
       name: APP_NAME,
+      organization: TITECH_BRAND?.organizationName || 'TITech Capital LTD',
       version: APP_VERSION,
       environment: APP_ENVIRONMENT,
       buildTime: BUILD_TIME,
@@ -612,6 +614,10 @@ function applyOfficialBrandRuntime() {
     rootElement.dataset.titechBrandName =
       OFFICIAL_BRAND_NAME;
 
+    // Company identity is separate from the customer-facing product name.
+    rootElement.dataset.titechOrganizationName =
+      TITECH_BRAND?.organizationName || 'TITech Capital LTD';
+
     // ------------------------------------------------------------------------
     // Canonical deterministic theme runtime
     // ------------------------------------------------------------------------
@@ -639,6 +645,9 @@ function applyOfficialBrandRuntime() {
 
       document.body.dataset.titechBrandName =
         OFFICIAL_BRAND_NAME;
+
+      document.body.dataset.titechOrganizationName =
+        TITECH_BRAND?.organizationName || 'TITech Capital LTD';
     }
 
     // ------------------------------------------------------------------------
@@ -921,9 +930,11 @@ function bootstrapApplication() {
   try {
     root.render(
       <React.StrictMode>
-        <Providers>
-          <AppRoutes />
-        </Providers>
+        <I18nProvider>
+          <Providers>
+            <AppRoutes />
+          </Providers>
+        </I18nProvider>
       </React.StrictMode>
     );
   } catch (error) {

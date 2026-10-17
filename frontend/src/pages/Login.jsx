@@ -67,12 +67,13 @@ import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 import {
   API_CONNECTIVITY_STATUS,
-  getAuthenticationErrorMessage,
   probeApiReadiness,
 } from "../services/api.js";
 
 import "./Login.css";
 import BrandLogo from "../components/BrandLogo";
+import LanguageSelector from "../i18n/LanguageSelector";
+import { useI18n } from "../i18n/I18nProvider";
 
 /* ============================================================================
  * Constants
@@ -98,12 +99,6 @@ const ROUTES = Object.freeze({
   PRIVACY: "/privacy",
 });
 
-const DEFAULT_ERROR_MESSAGE =
-  "Unable to sign in right now. Please try again.";
-
-const LOCKOUT_MESSAGE =
-  "Too many unsuccessful attempts. Please try again later.";
-
 const EMAIL_MAX_LENGTH = 254;
 const PASSWORD_MAX_LENGTH = 128;
 
@@ -111,30 +106,21 @@ const PASSWORD_MAX_LENGTH = 128;
  * Validation
  * ========================================================================== */
 
-const LoginSchema = Yup.object({
+const createLoginSchema = (t) => Yup.object({
   email: Yup.string()
     .trim()
-    .email("Please enter a valid email address.")
-    .required("Email address is required.")
-    .max(
-      EMAIL_MAX_LENGTH,
-      "Email address is too long.",
-    )
+    .email(t('auth.login.validation.emailFormat'))
+    .required(t('auth.login.validation.emailRequired'))
+    .max(EMAIL_MAX_LENGTH, t('auth.login.validation.emailTooLong'))
     .matches(
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-      "Please enter a valid email address.",
+      t('auth.login.validation.emailFormat'),
     ),
 
   password: Yup.string()
-    .required("Password is required.")
-    .min(
-      8,
-      "Password must be at least 8 characters.",
-    )
-    .max(
-      PASSWORD_MAX_LENGTH,
-      "Password is too long.",
-    ),
+    .required(t('auth.login.validation.passwordRequired'))
+    .min(8, t('auth.login.validation.passwordMin', { min: 8 }))
+    .max(PASSWORD_MAX_LENGTH, t('auth.login.validation.passwordTooLong')),
 });
 
 /* ============================================================================
@@ -328,22 +314,19 @@ function isCredentialFailure(error) {
     error?.response?.status === 401;
 }
 
-function getSafeLoginErrorMessage(error) {
-  if (typeof error?.userMessage === "string" && error.userMessage.trim()) {
-    return error.userMessage.trim();
+function getSafeLoginErrorMessage(error, t) {
+  const status = error?.response?.status ?? error?.status ?? null;
+
+  if (error?.authCategory === 'AUTH_INVALID_CREDENTIALS' || status === 401) {
+    return t('auth.login.errors.invalidCredentials');
   }
-
-  const serverMessage = error?.response?.data?.message;
-
-  if (
-    typeof serverMessage === "string" &&
-    serverMessage.trim().length > 0 &&
-    serverMessage.length <= 300
-  ) {
-    return serverMessage.trim();
+  if (status === 429) return t('auth.login.errors.rateLimit');
+  if (status === 403) return t('auth.login.errors.accessDenied');
+  if (typeof status === 'number' && status >= 500) {
+    return t('auth.login.errors.serviceUnavailable');
   }
-
-  return getAuthenticationErrorMessage(error) || DEFAULT_ERROR_MESSAGE;
+  if (!error?.response) return t('auth.login.errors.connection');
+  return t('auth.login.errors.generic');
 }
 
 /* ============================================================================
@@ -355,6 +338,8 @@ export default function Login() {
   const location = useLocation();
 
   const { login, apiConnectivity } = useAuth();
+  const { t } = useI18n();
+  const loginSchema = useMemo(() => createLoginSchema(t), [t]);
 
   const mountedRef = useRef(false);
 
@@ -566,7 +551,7 @@ export default function Login() {
     ) => {
       if (isLockedOut) {
         toast.error(
-          `${LOCKOUT_MESSAGE} Try again in ${lockoutMinutes} minute(s).`,
+          t('auth.login.errors.lockout', { minutes: lockoutMinutes }),
           {
             autoClose: 5000,
           },
@@ -601,14 +586,14 @@ export default function Login() {
         if (!readiness?.ready) {
           toast.error(
             readiness?.status === API_CONNECTIVITY_STATUS.REQUEST_TIMEOUT
-              ? "TITech authentication readiness timed out. Please retry shortly."
+              ? t('auth.login.errors.serviceTimeout')
               : readiness?.status === API_CONNECTIVITY_STATUS.HTTP_SERVER_ERROR
-                ? "TITech authentication service returned a server error. Please retry shortly."
+                ? t('auth.login.errors.serverError')
                 : readiness?.status === API_CONNECTIVITY_STATUS.API_ENDPOINT_ERROR
-                  ? "TITech readiness endpoint was not found. Check the API URL and backend route configuration. Your credentials have not been submitted."
+                  ? t('auth.login.errors.endpointMissing')
                   : readiness?.status === API_CONNECTIVITY_STATUS.API_HTTP_ERROR
-                    ? "TITech readiness endpoint rejected the readiness check. Check its public access configuration. Your credentials have not been submitted."
-                    : "TITech is temporarily unable to reach the authentication service. Please retry shortly.",
+                    ? t('auth.login.errors.readinessDenied')
+                    : t('auth.login.errors.connection'),
             { autoClose: 6000 },
           );
           return;
@@ -636,7 +621,7 @@ export default function Login() {
 
         if (!authenticatedUser) {
           toast.error(
-            DEFAULT_ERROR_MESSAGE,
+            t('auth.login.errors.generic'),
             {
               autoClose: 4000,
             },
@@ -646,7 +631,7 @@ export default function Login() {
         }
 
         toast.success(
-          "Welcome back to TITech Community Capital.",
+          t('auth.login.errors.welcome'),
           {
             autoClose: 3000,
           },
@@ -685,15 +670,15 @@ export default function Login() {
             persistLoginSecurityState(nextAttemptCount, nextLockout);
 
             toast.error(
-              "Too many unsuccessful attempts. Please try again in 15 minutes.",
+              t('auth.login.errors.lockout', { minutes: 15 }),
               { autoClose: 5000 },
             );
           } else {
             persistLoginSecurityState(nextAttemptCount);
-            toast.error(getSafeLoginErrorMessage(error), { autoClose: 4000 });
+            toast.error(getSafeLoginErrorMessage(error, t), { autoClose: 4000 });
           }
         } else {
-          toast.error(getSafeLoginErrorMessage(error), { autoClose: 5000 });
+          toast.error(getSafeLoginErrorMessage(error, t), { autoClose: 5000 });
         }
 
         /*
@@ -734,6 +719,7 @@ export default function Login() {
       navigate,
       persistRememberPreference,
       redirectPath,
+      t,
     ],
   );
 
@@ -759,6 +745,9 @@ export default function Login() {
       className="login-page"
       aria-labelledby="login-heading"
     >
+      <div className="titech-auth-language-control">
+        <LanguageSelector />
+      </div>
       <div className="login-wrapper">
         {/* ==================================================================
          * Brand Panel
@@ -789,19 +778,17 @@ export default function Login() {
               id="brand-title"
               className="brand-title"
             >
-              Community Finance. Stronger Together.
+              {t("auth.login.tagline")}
             </h1>
 
             <p className="brand-subtitle">
-              To empower communities through innovative financial solutions,
-              technology, and education, creating sustainable wealth and shared
-              prosperity across Africa.
+              {t("auth.login.subtitle")}
             </p>
 
             <div
               className="brand-features"
               role="list"
-              aria-label="TITech Community Capital benefits"
+              aria-label={t("auth.login.featuresLabel")}
             >
               <div
                 className="feature"
@@ -981,41 +968,41 @@ export default function Login() {
               <div className="login-service-status__content">
                 <strong>
                   {serviceTimedOut
-                    ? "Authentication readiness timed out"
+                    ? t('auth.login.status.timeoutTitle')
                     : serviceServerError
-                      ? "Authentication service returned a server error"
+                      ? t('auth.login.status.serverErrorTitle')
                       : serviceEndpointError
-                        ? "TITech readiness endpoint misconfigured"
+                        ? t('auth.login.status.endpointMissingTitle')
                         : serviceHttpError
-                          ? "TITech readiness endpoint returned an HTTP error"
+                          ? t('auth.login.status.httpErrorTitle')
                           : serviceCancelled
-                            ? "Readiness check was cancelled"
-                        : serviceUnavailable
-                          ? "Authentication service unavailable"
-                          : serviceDegraded
-                            ? "TITech services are temporarily degraded"
-                            : serviceState === API_CONNECTIVITY_STATUS.READY
-                              ? "Authentication service ready"
-                              : "Checking TITech service availability"}
+                            ? t('auth.login.status.cancelledTitle')
+                            : serviceUnavailable
+                              ? t('auth.login.status.unavailableTitle')
+                              : serviceDegraded
+                                ? t('auth.login.status.degradedTitle')
+                                : serviceState === API_CONNECTIVITY_STATUS.READY
+                                  ? t('auth.login.status.readyTitle')
+                                  : t('auth.login.status.checkingTitle')}
                 </strong>
                 <span>
                   {serviceTimedOut
-                    ? "The readiness request did not complete in time. Your credentials have not been submitted."
+                    ? t('auth.login.status.timeoutDetails')
                     : serviceServerError
-                      ? "The API returned a server error. Your credentials have not been submitted."
+                      ? t('auth.login.status.serverErrorDetails')
                       : serviceEndpointError
-                        ? "The backend answered, but the configured readiness URL returned HTTP 404. Check VITE_API_READINESS_PATH and canonical route mounting; credentials have not been submitted."
+                        ? t('auth.login.status.endpointMissingDetails')
                         : serviceHttpError
-                          ? `The backend answered with HTTP ${apiConnectivity?.lastHttpStatus || "4xx"}. The public readiness endpoint must not require a user session; credentials have not been submitted.`
+                          ? t('auth.login.status.httpErrorDetails', { status: apiConnectivity?.lastHttpStatus || '4xx' })
                           : serviceCancelled
-                            ? "The previous readiness request was cancelled. Retry to check the service again."
-                        : serviceUnavailable
-                          ? "Your password is not being rejected. The API cannot currently be reached."
-                          : serviceDegraded
-                            ? "The API responded, but readiness is not confirmed. Sign-in remains gated until the service is ready."
-                            : serviceState === API_CONNECTIVITY_STATUS.READY
-                              ? "TITech API readiness has been confirmed."
-                              : "We will verify API connectivity before restoring or starting your session."}
+                            ? t('auth.login.status.cancelledDetails')
+                            : serviceUnavailable
+                              ? t('auth.login.status.unavailableDetails')
+                              : serviceDegraded
+                                ? t('auth.login.status.degradedDetails')
+                                : serviceState === API_CONNECTIVITY_STATUS.READY
+                                  ? t('auth.login.status.readyDetails')
+                                  : t('auth.login.status.checkingDetails')}
                 </span>
                 {serviceNeedsRetry && (
                   <button
@@ -1024,7 +1011,7 @@ export default function Login() {
                     onClick={handleServiceRetry}
                     disabled={loading}
                   >
-                    Retry service check
+                    {t('auth.login.errors.retryServiceCheck')}
                   </button>
                 )}
               </div>
@@ -1035,7 +1022,7 @@ export default function Login() {
                 initialValues
               }
               validationSchema={
-                LoginSchema
+                loginSchema
               }
               onSubmit={
                 handleLogin
@@ -1078,7 +1065,7 @@ export default function Login() {
                         />
 
                         <span>
-                          Email Address
+                          {t("auth.login.emailLabel")}
                         </span>
                       </label>
 
@@ -1155,7 +1142,7 @@ export default function Login() {
                         />
 
                         <span>
-                          Password
+                          {t("auth.login.passwordLabel")}
                         </span>
                       </label>
 
@@ -1168,7 +1155,7 @@ export default function Login() {
                               ? "text"
                               : "password"
                           }
-                          placeholder="Enter your password"
+                          placeholder={t("auth.login.passwordPlaceholder")}
                           autoComplete="current-password"
                           maxLength={
                             PASSWORD_MAX_LENGTH
@@ -1267,7 +1254,7 @@ export default function Login() {
                         />
 
                         <span>
-                          Remember my email
+                          {t("auth.login.rememberEmail")}
                         </span>
                       </label>
 
@@ -1282,7 +1269,7 @@ export default function Login() {
                             : 0
                         }
                       >
-                        Forgot password?
+                        {t("auth.login.forgotPassword")}
                       </Link>
                     </div>
 
@@ -1311,7 +1298,7 @@ export default function Login() {
                           />
 
                           <span>
-                            Signing in…
+                            {t("auth.login.submitting")}
                           </span>
                         </span>
                       ) : (
@@ -1322,7 +1309,7 @@ export default function Login() {
                           />
 
                           <span>
-                            Sign In
+                            {t("auth.login.submit")}
                           </span>
                         </>
                       )}
@@ -1333,14 +1320,14 @@ export default function Login() {
                      * ====================================================== */}
 
                     <p className="signup-link">
-                      Don't have an account?{" "}
+                      {t("auth.login.noAccount")}{" "}
                       <Link
                         to={
                           ROUTES.REGISTER
                         }
                         className="link-highlight"
                       >
-                        Create one now
+                        {t("auth.login.createAccount")}
                       </Link>
                     </p>
                   </Form>

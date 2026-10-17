@@ -1,0 +1,38 @@
+{
+  "defaultLocale": "en",
+  "supportedLocales": [
+    "en",
+    "sw",
+    "fr",
+    "ar"
+  ],
+  "languages": [
+    {
+      "code": "en",
+      "nativeName": "English",
+      "direction": "ltr",
+      "status": "source"
+    },
+    {
+      "code": "sw",
+      "nativeName": "Kiswahili",
+      "direction": "ltr",
+      "status": "draft_pending_linguistic_review"
+    },
+    {
+      "code": "fr",
+      "nativeName": "Français",
+      "direction": "ltr",
+      "status": "draft_pending_linguistic_review"
+    },
+    {
+      "code": "ar",
+      "nativeName": "العربية",
+      "direction": "rtl",
+      "status": "draft_pending_linguistic_review"
+    }
+  ],
+  "sourceLocale": "en",
+  "releaseStatus": "internal_beta_not_production_approved",
+  "reviewPolicy": "Financial, security, consent, contractual, and compliance wording requires qualified human review before production use."
+}

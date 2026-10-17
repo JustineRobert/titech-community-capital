@@ -5,6 +5,8 @@
 **Repository target:** `https://github.com/JustineRobert/titech-community-capital`  
 **Implementation mode:** repository-first / evidence-driven / no-false-completion
 
+> **Latest execution snapshot:** For the 17 October 2026 update against the supplied ZIP, use [`FINAL-IMPLEMENTATION-REPORT-2026-10-17.md`](FINAL-IMPLEMENTATION-REPORT-2026-10-17.md). The historical 5 October section below is preserved as point-in-time evidence and is not the latest file delta.
+
 ## 2026-10-05 End-to-End Remediation Update
 
 This update supersedes the earlier point-in-time metrics below where they conflict. The working tree was compared byte-for-byte with the uploaded archive and the following delta was applied:

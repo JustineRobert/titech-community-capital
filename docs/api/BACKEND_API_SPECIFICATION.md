@@ -3,7 +3,7 @@
 
 ## Help Center, FAQ & Community Forum
 
-**TITech Community Capital Ltd — Community Savings Platform**
+**TITech Capital LTD — Community Savings Platform**
 
 This document defines the production-grade backend API contract and implementation guidance for the Help Center, FAQ, and Community Forum capabilities.
 
@@ -3366,7 +3366,7 @@ The API must fail closed for authorization and tenant-boundary checks.
 # Document Metadata
 
 **Document:** `docs/api/BACKEND_API_SPECIFICATION.md`
-**Platform:** TITech Community Capital Ltd — Community Savings Platform
+**Platform:** TITech Capital LTD — Community Savings Platform
 **Domain:** Help Center, FAQ & Community Forum
 **API Version:** `1.x`
 **Specification Status:** Production-Grade Backend API Specification

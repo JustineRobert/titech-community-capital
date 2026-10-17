@@ -1,7 +1,7 @@
 # Community Savings App Backend — API Catalogue
 > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
 
-**TITech Community Capital Ltd**
+**TITech Capital LTD**
 **System:** Community Savings Platform Backend
 **Document:** `docs/api/API_CATALOGUE.md`
 **API Contract:** Production-Grade Catalogue
@@ -14,7 +14,7 @@
 
 ## 1. Purpose
 
-This document is the central API catalogue for the TITech Community Capital Ltd Community Savings App backend.
+This document is the central API catalogue for the TITech Capital LTD Community Savings App backend.
 
 It provides a production-oriented inventory of API domains, endpoint families, HTTP methods, access requirements, lifecycle expectations, security controls, observability requirements, and operational conventions.
 
@@ -1976,7 +1976,7 @@ All health and graceful-shutdown controls are operational.
 
 **Document:** `docs/api/API_CATALOGUE.md`
 **System:** Community Savings App Backend
-**Organization:** TITech Community Capital Ltd
+**Organization:** TITech Capital LTD
 **API Prefix:** `/api`
 **Default Development Port:** `5000`
 **Primary Runtime:** Node.js

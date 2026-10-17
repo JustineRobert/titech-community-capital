@@ -1,4 +1,4 @@
-# TITech Community Capital Ltd — Data Model Catalogue
+# TITech Capital LTD — Data Model Catalogue
 > **STATUS NOTICE (2026-09-19):** This document is retained as historical/technical reference. Its completion or production claims are superseded by the current evidence in `TITECH_PLATFORM_TRUTH.md` and must not be treated as current production approval.
 
 > **System:** Community Savings Platform
@@ -12,7 +12,7 @@
 
 # 1. Purpose
 
-This document is the central catalogue of the TITech Community Capital Ltd Community Savings Platform data model.
+This document is the central catalogue of the TITech Capital LTD Community Savings Platform data model.
 
 It defines the logical entities, ownership boundaries, relationships, lifecycle rules, immutability requirements, tenant isolation requirements, indexing expectations, audit requirements, and financial integrity rules used throughout the platform.
 
@@ -3488,7 +3488,7 @@ Derived data is distinguishable from source-of-truth data.
 # 62. Document Metadata
 
 **Document:** `docs/data/DATA_MODEL_CATALOGUE.md`
-**Organization:** TITech Community Capital Ltd
+**Organization:** TITech Capital LTD
 **Platform:** Community Savings Platform
 **Version:** `2.0`
 **Status:** Enterprise Production Architecture Reference

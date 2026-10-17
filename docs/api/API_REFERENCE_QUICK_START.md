@@ -1,6 +1,6 @@
 # API REFERENCE - Quick Start
 
-> **TITech Community Capital Ltd — Community Savings Platform**
+> **TITech Capital LTD — Community Savings Platform**
 >
 > Production-oriented quick reference for authentication, loan management, administration, chat, referrals, health/observability, error handling, and API usage conventions.
 >
@@ -1645,7 +1645,7 @@ Breaking changes must not be introduced silently into an existing production API
 # 📌 DOCUMENT METADATA
 
 **Document:** `docs/api/API_REFERENCE_QUICK_START.md`
-**Platform:** TITech Community Capital Ltd — Community Savings Platform
+**Platform:** TITech Capital LTD — Community Savings Platform
 **API Version:** `2.0`
 **Status:** Production Reference
 **Last Updated:** `August 15, 2026`

@@ -16,6 +16,8 @@ See [`docs/brand/OFFICIAL_BRAND_STANDARD_2026-09-28.md`](docs/brand/OFFICIAL_BRA
 
 TITech Community Capital connects savings groups, VSLAs/ROSCAs, SACCOs, cooperatives and community enterprises with trusted records, payment rails, reconciliation, risk intelligence, credit infrastructure and—subject to authorization and partner agreements—formal financial capital.
 
+> **17 October 2026 implementation snapshot:** The uploaded source archive has been updated with production environment-example files, official `TITech Capital LTD` organization metadata, preserved TITech nine-color branding, an English-default multilingual foundation (`en`, `sw`, `fr`, `ar`), an Arabic RTL selector, resource validation and evidence logs. This is an archive-local update, not a claim that GitHub `main` was pushed or a production deployment was completed. Swahili, French and Arabic remain draft translations pending human review; full route translation coverage, authenticated profile sync, dependency-backed builds and operational/financial external gates remain open. Production approval remains **NO**. See [`docs/evidence/FINAL-IMPLEMENTATION-REPORT-2026-10-17.md`](docs/evidence/FINAL-IMPLEMENTATION-REPORT-2026-10-17.md) and [`docs/evidence/2026-10-17-implementation-change-discovery.md`](docs/evidence/2026-10-17-implementation-change-discovery.md).
+
 TITech is intentionally **not** positioned as a consumer wallet, generic SACCO ERP, payment provider, or balance-sheet lender. Account and wallet representations may exist as internal financial primitives; the architectural center is the provider-neutral financial infrastructure layer.
 
 The core engineering path is:
@@ -48,14 +50,18 @@ The product intent remains infrastructure-first: TITech connects savings groups,
 
 **Status:** Active Development / Production Hardening
 **Version:** 2.1
-**Organization:** TITech Community Capital LTD
-**Last Updated:** 03 October 2026
+**Organization:** TITech Capital LTD
+**Last Updated:** 17 October 2026
 
 TITech has evolved beyond a basic community savings application toward a broader financial infrastructure platform incorporating:
 
 **Community Finance + Financial Events + Ledger + Reconciliation + Payments + Consent + KYC/AML + Risk + Observability + Capital Connectivity**
 
 Individual capabilities can have different implementation, testing, operational, security, and regulatory maturity. Repository implementation and verification artifacts remain the source of truth for actual production readiness.
+
+### Multilingual status (17 October 2026)
+
+The frontend has an initial English-default locale foundation with selectable Kiswahili, French and Arabic, an RTL document-direction switch for Arabic, locale-formatting helpers, and automated resource-key validation. The current catalog includes only the `common`, `auth`, and `financial` namespaces; computed 100% resource parity is limited to those catalog keys and does not represent whole-route coverage. Swahili, French and Arabic remain draft translations awaiting human review, so the production locale gate intentionally remains blocked. Authenticated server-side preference synchronization and comprehensive route, notification, report, offline, accessibility and visual RTL verification are still outstanding. See `docs/i18n/TITECH_MULTILINGUAL_ARCHITECTURE.md` and the dated implementation report under `docs/evidence/`.
 
 ---
 
@@ -1485,7 +1491,7 @@ CONNECTED TO CAPITAL
 **Version:** 2.1
 **Status:** Active Development / Production Hardening
 **Last Updated:** 03 October 2026
-**Organization:** TITech Community Capital LTD
+**Organization:** TITech Capital LTD
 
 ## 2026-09-22 Enterprise Control Plane Additions
 
