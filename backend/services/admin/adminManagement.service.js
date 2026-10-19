@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD
  * Enterprise Administrative Management Service
  * =============================================================================
  *
@@ -62,7 +62,7 @@ const SERVICE_NAME =
     "adminManagement.service";
 
 const APPLICATION_NAME =
-    "TITech Community Capital LTD";
+    "TITech Capital LTD";
 
 /* =============================================================================
  * DEFAULTS / LIMITS

@@ -39,5 +39,7 @@
   "accessibility.languageSelector": "Chagua lugha ya kuonyesha",
   "errors.logoutFailed": "Imeshindikana kutoka kikamilifu. Tafadhali jaribu tena.",
   "errors.languageSaveFailed": "Lugha hii inatumika kwenye kifaa hiki, lakini haikuweza kuhifadhiwa kwenye kifaa.",
-  "brand.home": "Ukurasa wa mwanzo wa TITech Community Capital"
+  "brand.home": "Ukurasa wa mwanzo wa TITech Community Capital",
+  "nav.inclusiveOnboarding": "Usajili jumuishi",
+  "nav.retirementSupport": "Msaada wa kustaafu"
 }

@@ -2,13 +2,35 @@
 
 ## Current release decision
 
-**RELEASE DECISION: NOT READY** (11 October 2026 remediation run)  
+**RELEASE DECISION: NOT READY** (18 October 2026 focused implementation run)  
 **PRODUCTION_APPROVED: NO**  
 **Production approval:** NO
 
 This source archive contains substantive authentication, tenant/RBAC, payment/provider, ledger, reconciliation and product foundations. The current run implemented a focused readiness/connectivity remediation and produced source/static/native-test evidence. It did **not** establish full operational readiness: the declared target Node/npm runtime was unavailable, project dependencies were not installed, dependency-backed tests and the production frontend build could not launch, and a live backend/DB/Redis/provider/browser E2E was not exercised. A static pass is not production approval.
 
-## Current evidence snapshot — 11 October 2026
+## Current focused evidence snapshot — 18 October 2026
+
+| Gate | Result | Evidence and limits |
+|---|---|---|
+| Global production approval | **NO** | Pension integrations, live financial/provider proofs, target runtime, dependency-backed execution, legal/privacy review, independent security and operational recovery evidence remain outstanding. |
+| Retirement-support source implementation | Implemented in source; runtime not yet proven | New case, contribution-evidence and financial-support referral domain is mounted under the existing authenticated and tenant-authorized API. The capability flag remains disabled by default. |
+| Refugee-inclusive and insurance onboarding | Existing foundation retained and regression-checked | The existing alternative-credential, partner, licence, insurance, consent and private-document modules were preserved and their source-contract tests were rerun. This does not certify a live regulator or identity-provider integration. |
+| Targeted retirement + inclusive-onboarding tests | PASS — 31/31 | `node --test backend/tests/unit/retirement/*.test.mjs backend/tests/unit/inclusive-onboarding/*.test.mjs`; contract/unit tests only, not a database-backed integration or browser E2E run. |
+| Localization native tests | PASS — 9/9 | `node --test scripts/i18n-core.test.mjs`. |
+| Localization structural coverage | PASS — 24 checks; 420/420 keys per locale | English is canonical; Swahili, French and Arabic remain pending human/qualified privacy/legal translation review. Production-eligible remains false. |
+| Official theme audit | PASS — 21 checks | Nine-color official palette verified; 61 CSS files scanned; zero hardcoded official palette values in scanned non-brand CSS; supplied reference asset hash validated. |
+| Enterprise source syntax gate | PASS — 2,399 JS/TS-family files parsed | Available Node is 22.16.0; repository target remains Node >=24.15.0. Gate emits target-runtime warning. |
+| Conflict marker scan | PASS — 3,288 files scanned | No merge conflict markers found. |
+| Financial static gate | PASS — 12 canonical files checked | Static architecture check; no live financial transaction proof. |
+| Enterprise contract gate | PASS — 11 contracts checked | Contract evidence only. |
+| RBAC static gate | PASS | No live authenticated cross-tenant HTTP test in this environment. |
+| Runtime import audit | PASS on canonical financial surface; WARN overall | 0 missing imports and 0 mixed-module violations on the audited canonical financial surface; 209 legacy/non-critical missing local import findings remain. |
+| Frontend runtime audit | PASS with warning | No `frontend/dist` artifact in the source snapshot; production browser runtime remains unverified. |
+| Full backend/frontend test suites, lint and build | BLOCKED | Root/backend `node_modules` are absent. Node/npm are `v22.16.0`/`10.9.2`; repository requires Node >=24.15.0/npm >=11. Vite, Vitest, Jest and ESLint are not installed in this environment. |
+| Live MongoDB/Redis concurrency and index creation | NOT RUN | Index setup script is included but was not pointed at any database. |
+| Government/NSSF/NIRA/payroll/provider integration | NOT ESTABLISHED | No access agreements, live credentials, authoritative source contract or successful sandbox/production evidence supplied. |
+
+## Historical evidence snapshot — 11 October 2026
 
 | Gate | Result | Source evidence / limitation |
 |---|---|---|
@@ -41,7 +63,7 @@ This source archive contains substantive authentication, tenant/RBAC, payment/pr
 - The focused inventory did not find a dedicated persisted recurring-contribution plan/occurrence lifecycle. A pure recurrence-date utility now exists at `backend/services/savings/recurrenceRules.js`, tested 5 times together with fixed-deposit calculation primitives; neither utility persists instructions or moves money. Do not represent scheduled collection as implemented or enable recurring debits.
 - Fixed-deposit account fields and `FIXED_DEPOSIT` classification exist; `backend/services/savings/fixedDepositRules.js` adds exact-integer simple-interest/date primitives requiring explicit policy inputs. A complete approved terms → cleared funding → accrual → maturity → payout/reinvestment → reconciliation product path remains unproven/missing.
 - Investment-purpose/category and internal optimizer/roadmap utilities exist; these are not customer investment-order, custody, holding, redemption or settlement proof.
-- Official TITech colors remain centralized through `branding/TITECH_OFFICIAL_THEME.json`, `frontend/src/branding/official-theme.css`, the theme runtime and mobile palette. The global semantic style layer was extended; explicit light/dark selection is now audited. Official theme audit passed 21/21 checks across 57 CSS files with zero hard-coded official palette occurrences in scanned non-brand CSS. No rebrand was made.
+- Official TITech colors remain centralized through `branding/TITECH_OFFICIAL_THEME.json`, `frontend/src/branding/official-theme.css`, the theme runtime and mobile palette. The global semantic style layer was extended; explicit light/dark selection is now audited. Official theme audit passed 21/21 checks across 61 CSS files with zero hard-coded official palette occurrences in scanned non-brand CSS. No rebrand was made.
 
 ## Required next release gate
 
@@ -69,3 +91,33 @@ This addendum records changes made against the supplied `titech-community-capita
 - **Important blockers remain:** available Node/npm are `v22.16.0` / `10.9.2`, below repository target `Node >=24.15.0` / `npm >=11.0.0`; `npm run check` exits 127 when ESLint is missing; frontend production build exits 127 because Vite is not installed; CI tests stop because backend Jest is absent. Live MongoDB/Redis persistence, browser E2E, provider settlement, independent penetration test, backup/restore, rollback, legal review and pilot evidence were not run. Authenticated backend locale preference synchronization and broad route/notification/report translation remain incomplete.
 
 **Release decision remains NOT READY; `PRODUCTION_APPROVED: NO`.** Full command results and file-level discovery are recorded in `docs/evidence/FINAL-IMPLEMENTATION-REPORT-2026-10-17.md` and `docs/evidence/2026-10-17-implementation-change-discovery.md`.
+
+## Focused implementation addendum — 18 October 2026
+
+Source: the user-supplied `titech-community-capital-main(1).zip` snapshot in the conversation file library. This run edited that extracted snapshot. It did not edit or push to the live GitHub repository; `.git` was not present in the ZIP and access to GitHub failed DNS resolution in this environment. The delivery ZIP and change index are generated from this supplied baseline.
+
+### Implemented in the extracted repository
+
+- Added a retirement-support domain under `backend/modules/retirement/` for case management, privacy-policy gating, contributor/employee contribution evidence, remittance matching, separately recorded official scheme credit, and optional financial-support referral outcomes.
+- Mounted `/api/v1/retirement-support` through the established authenticated + tenant authorization route boundary and the existing capability flag. Added action permissions to the existing platform permission registry; no parallel authentication, tenancy or RBAC system was introduced.
+- Reused the existing KYC record for identity evidence, the existing secure-document service for private evidence, and the existing audit service. Raw scheme references are not persisted by this workflow; when optional deduplication is used, it requires a dedicated, exactly 32-byte base64 HMAC key. The fingerprint and active duplicate key are excluded from returned JSON.
+- Enforced a server-configured privacy-notice version and lawful processing-basis value for submitted cases and support applications. The feature flag stays `false`, notice version/basis are blank by default, and submissions fail closed until approved deployment configuration is provided. The UI acknowledgement is not treated as blanket data-sharing or marketing consent.
+- Kept contribution remittance comparison separate from official scheme-account credit and kept financial assistance as a referral/application workflow with **no ledger or payment movement**. No NSSF, government pension, NIRA or payroll integration is claimed.
+- Added a protected, localized `/retirement-support` frontend path, a navigation entry, accessible responsive forms and official theme-token styling; extended English/Swahili/French/Arabic resource files. Non-English privacy wording remains pending human review.
+- Added `backend/scripts/createRetirementSupportIndexes.js` and package scripts for the necessary index setup. Indexes have not been installed against a live database.
+- Tightened private-document read scope: a contribution-read permission by itself does not grant download access to retirement evidence.
+- Preserved the existing refugee-inclusive and insurance implementation, and corrected its source-contract test to recognize the new purpose-scoped private retirement document.
+
+### Exact runtime/static evidence captured for this run
+
+- 31/31 focused unit/contract tests passed for retirement and inclusive-onboarding suites.
+- 9/9 native internationalization tests passed.
+- Official theme audit: 21/21 checks passed; 61 CSS files scanned; no hardcoded official palette values found in scanned non-brand CSS.
+- Localization validator: 24 checks passed with 420/420 translation keys per locale; `sw`, `fr` and `ar` remain `PENDING_HUMAN_REVIEW`; production eligibility remains false.
+- Enterprise syntax gate passed for 2,399 JS/TS-family files; conflict scan passed for 3,288 files; financial static gate passed 12 canonical files; enterprise contract gate passed 11 contracts; RBAC static gate passed.
+- Runtime import audit passed on the canonical financial surface (0 missing local imports, 0 mixed-module violations there), while 209 legacy/non-critical missing local imports remain elsewhere.
+
+### Not proven / release blockers
+
+The installed runtime is Node `v22.16.0` and npm `10.9.2`, below the repository's declared Node `>=24.15.0` and npm `>=11.0.0` target. Dependencies are absent. The frontend production build, full backend Jest suite, frontend Vitest suite, lint, actual server startup, MongoDB/Redis persistence and concurrency, browser E2E, index creation, live integration, security testing, backup/restore, rollback, partner acceptance and legal/regulatory approvals were not executed. Status remains **NOT READY** and `PRODUCTION_APPROVED` remains **NO**.
+

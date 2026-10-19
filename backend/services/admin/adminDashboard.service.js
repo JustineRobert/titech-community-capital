@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD
  * Enterprise Administrative Dashboard Service
  * =============================================================================
  *
@@ -64,7 +64,7 @@ const SERVICE_NAME =
     "adminDashboard.service";
 
 const APPLICATION_NAME =
-    "TITech Community Capital LTD";
+    "TITech Capital LTD";
 
 const DEFAULT_CURRENCY =
     "UGX";

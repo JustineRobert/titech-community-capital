@@ -131,6 +131,14 @@ const AgricultureDashboard = lazy(
   () => import('./pages/agriculture/AgricultureDashboard')
 );
 
+const InclusiveOnboardingPage = lazy(
+  () => import('./pages/inclusive-onboarding/InclusiveOnboardingPage')
+);
+
+const RetirementSupportPage = lazy(
+  () => import('./pages/retirement-support/RetirementSupportPage')
+);
+
 const NotFound = lazy(
   () => import('./pages/NotFound')
 );
@@ -176,6 +184,8 @@ const ROUTES = Object.freeze({
   GROUP_DETAILS: '/groups/:groupId',
   CREATE_GROUP: '/create-group',
   AGRICULTURE: '/agriculture',
+  INCLUSIVE_ONBOARDING: '/inclusive-onboarding',
+  RETIREMENT_SUPPORT: '/retirement-support',
 
   ADMIN: '/admin',
   ADMIN_SETTINGS: '/admin/settings',
@@ -720,6 +730,24 @@ function ProtectedApplicationRoutes() {
         element={
           <ProtectedRoute>
             <CreateGroup />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.INCLUSIVE_ONBOARDING}
+        element={
+          <ProtectedRoute>
+            <InclusiveOnboardingPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.RETIREMENT_SUPPORT}
+        element={
+          <ProtectedRoute>
+            <RetirementSupportPage />
           </ProtectedRoute>
         }
       />

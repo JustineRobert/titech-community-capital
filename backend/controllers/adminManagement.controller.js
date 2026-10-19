@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD
  * Enterprise Administrative Management Controller
  * =============================================================================
  *
@@ -93,7 +93,7 @@ const CONTROLLER_NAME =
     "adminManagement.controller";
 
 const APPLICATION_NAME =
-    "TITech Community Capital LTD";
+    "TITech Capital LTD";
 
 /* =============================================================================
  * HTTP constants

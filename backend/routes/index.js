@@ -9,6 +9,11 @@ import idempotencyModule from '../middleware/idempotency.js';
 import contributionsControllerModule from '../controllers/contributionsController.js';
 import repaymentsControllerModule from '../controllers/repaymentsController.js';
 import consentRoutes from '../modules/consent/consent.routes.js';
+import refugeePartnerRoutes from '../modules/refugee-partners/refugeePartner.routes.js';
+import insuranceRoutes from '../modules/insurance/insurance.routes.js';
+import retirementRoutes from '../modules/retirement/retirement.routes.js';
+import secureDocumentRoutes from '../modules/secure-documents/secureDocument.routes.js';
+import identityOnboardingRoutes from '../modules/identity-onboarding/identityOnboarding.routes.js';
 import capitalRoutes from '../modules/capital/capital.routes.js';
 import operationsRoutes from '../modules/operations/operations.routes.js';
 import tenantMiddlewareModule from '../middleware/tenantMiddleware.js';
@@ -1134,6 +1139,41 @@ router.use(
  * invariants; this boundary adds action-based RBAC at the HTTP edge.
  * =============================================================================
  */
+
+router.use(
+    `${API_PREFIX}/documents`,
+    authenticate,
+    tenantAuthorization,
+    secureDocumentRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/participant-onboarding`,
+    authenticate,
+    tenantAuthorization,
+    identityOnboardingRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/refugee-partners`,
+    authenticate,
+    tenantAuthorization,
+    refugeePartnerRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/insurance`,
+    authenticate,
+    tenantAuthorization,
+    insuranceRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/retirement-support`,
+    authenticate,
+    tenantAuthorization,
+    retirementRoutes,
+);
 
 router.use(
     `${API_PREFIX}/consents`,

@@ -38,10 +38,12 @@ const { Schema } = mongoose;
 const KYC_STATUSES = Object.freeze([
   'PENDING',
   'UNDER_REVIEW',
+  'NEEDS_MORE_INFORMATION',
   'VERIFIED',
   'REJECTED',
   'EXPIRED',
   'SUSPENDED',
+  'APPEALED',
 ]);
 
 const KYC_RISK_LEVELS = Object.freeze([
@@ -52,9 +54,13 @@ const KYC_RISK_LEVELS = Object.freeze([
 
 const KYC_DOCUMENT_TYPES = Object.freeze([
   'NATIONAL_ID',
+  'REFUGEE_ID',
+  'ASYLUM_SEEKER_CERTIFICATE',
   'PASSPORT',
   'DRIVING_LICENCE',
   'VOTER_ID',
+  'OTHER_APPROVED_DOCUMENT',
+  // Legacy value is retained for backward-compatible persisted records.
   'OTHER',
 ]);
 
@@ -104,6 +110,50 @@ const kycDocumentSchema = new Schema(
       enum: KYC_DOCUMENT_TYPES,
       uppercase: true,
       trim: true,
+    },
+
+    issuingAuthority: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: null,
+    },
+
+    issuingCountry: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: 80,
+      default: null,
+    },
+
+    approvedDocumentPolicyReference: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: null,
+    },
+
+    /** Keyed HMAC fingerprint only; the underlying document number is never persisted. */
+    credentialIdentifierHash: {
+      type: String,
+      trim: true,
+      maxlength: 128,
+      select: false,
+      default: null,
+    },
+
+    /** Explicit provenance prevents a manual review from masquerading as provider verification. */
+    verificationMethod: {
+      type: String,
+      enum: [...VERIFICATION_METHODS, null],
+      default: null,
+    },
+
+    verifiedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
 
     /**
@@ -301,7 +351,7 @@ const kycSchema = new Schema(
      */
     nationalId: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
       maxlength: MAX_ID_LENGTH,
       select: false,
@@ -314,7 +364,7 @@ const kycSchema = new Schema(
      */
     nationalIdHash: {
       type: String,
-      required: true,
+      required: false,
       immutable: true,
       trim: true,
       maxlength: 128,
@@ -331,6 +381,33 @@ const kycSchema = new Schema(
       type: Boolean,
       required: true,
       default: false,
+    },
+
+    // -------------------------------------------------------------------------
+    // Credential workflow metadata
+    // -------------------------------------------------------------------------
+
+    primaryCredentialType: {
+      type: String,
+      enum: [...KYC_DOCUMENT_TYPES, null],
+      default: null,
+    },
+
+    submittedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    submittedAt: {
+      type: Date,
+      default: null,
+    },
+
+    assignedReviewerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
 
     // -------------------------------------------------------------------------
@@ -590,9 +667,17 @@ kycSchema.pre(
         );
       }
 
-      if (!this.nationalIdHash?.trim()) {
+      const hasProtectedNationalIdFingerprint = Boolean(this.nationalIdHash?.trim());
+      const hasApprovedCredentialDocument = Array.isArray(this.documents) && this.documents.some((document) =>
+        KYC_DOCUMENT_TYPES.includes(String(document.type || '').toUpperCase()) &&
+        String(document.documentReference || '').trim().length > 0
+      );
+
+      // Backward compatible: existing NIN records may use nationalIdHash;
+      // inclusive onboarding may instead use an approved, secured credential.
+      if (!hasProtectedNationalIdFingerprint && !hasApprovedCredentialDocument) {
         throw new Error(
-          'nationalIdHash is required for KYC records.'
+          'KYC requires a protected national-ID fingerprint or an approved credential document reference.'
         );
       }
 

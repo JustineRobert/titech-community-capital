@@ -61,6 +61,7 @@ import {
   UserCircle,
   LayoutDashboard,
   Users,
+  ShieldCheck,
   ChevronDown,
   AlertCircle,
 } from "lucide-react";
@@ -90,6 +91,18 @@ const NAVIGATION_ITEMS = Object.freeze([
     label: "Groups",
     to: "/groups",
     icon: Users,
+  },
+  {
+    id: "inclusiveOnboarding",
+    label: "Inclusive onboarding",
+    to: "/inclusive-onboarding",
+    icon: ShieldCheck,
+  },
+  {
+    id: "retirementSupport",
+    label: "Retirement support",
+    to: "/retirement-support",
+    icon: ShieldCheck,
   },
 ]);
 

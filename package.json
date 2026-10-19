@@ -107,7 +107,7 @@
     "test:backend:ci": "npm --prefix backend run test:ci",
     "test:backend:coverage": "npm --prefix backend run test:coverage",
     "test:backend:watch": "npm --prefix backend test -- --watch",
-    "test:ci": "npm run test:i18n:native && npm run test:backend:ci && npm run test:frontend:ci",
+    "test:ci": "npm run test:i18n:native && npm run test:retirement-support && npm run test:backend:ci && npm run test:frontend:ci",
     "test:control-plane": "npm --prefix backend run test:control-plane",
     "test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
     "test:e2e": "npm --prefix frontend run test:e2e",
@@ -152,7 +152,11 @@
     "verify:runtime-connectivity": "node scripts/verify-runtime-connectivity-state.mjs",
     "i18n:check": "node scripts/i18n-validation.mjs",
     "i18n:production-gate": "node scripts/i18n-production-gate.mjs",
-    "test:i18n:native": "node --test scripts/i18n-core.test.mjs"
+    "test:i18n:native": "node --test scripts/i18n-core.test.mjs",
+    "test:inclusive-onboarding": "node --test backend/tests/unit/inclusive-onboarding/*.test.mjs",
+    "db:indexes:inclusive-insurance": "npm --prefix backend run index:create:inclusive-insurance",
+    "test:retirement-support": "node --test backend/tests/unit/retirement/*.test.mjs",
+    "db:indexes:retirement-support": "npm --prefix backend run index:create:retirement-support"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

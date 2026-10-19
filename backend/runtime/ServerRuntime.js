@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD
  * Enterprise Server Runtime Orchestrator
  * =============================================================================
  *
@@ -2288,7 +2288,7 @@ class ServerRuntime extends EventEmitter {
             application:
                 runtimeContext?.APPLICATION
                     ?.company ||
-                "TITech Community Capital LTD",
+                "TITech Capital LTD",
 
             platform:
                 runtimeContext?.APPLICATION

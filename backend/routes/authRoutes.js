@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Capital LTD
  * Enterprise Development Authentication Routes
  * ============================================================================
  *
@@ -62,7 +62,7 @@ const ROUTER_VERSION =
   '2026.1';
 
 const APPLICATION_NAME =
-  'TITech Community Capital Ltd';
+  'TITech Capital LTD';
 
 const DEFAULT_ROLE =
   'AUDITOR';

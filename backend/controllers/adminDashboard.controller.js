@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD
  * Administrative Dashboard HTTP Controller
  * =============================================================================
  *
@@ -1921,7 +1921,7 @@ function getControllerMetadata() {
             CONTROLLER_NAME,
 
         application:
-            "TITech Community Capital LTD",
+            "TITech Capital LTD",
 
         domain:
             "administration",

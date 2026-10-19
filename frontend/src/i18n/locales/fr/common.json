@@ -39,5 +39,7 @@
   "accessibility.languageSelector": "Choisir la langue d’affichage",
   "errors.logoutFailed": "La déconnexion complète a échoué. Veuillez réessayer.",
   "errors.languageSaveFailed": "Cette langue est active sur cet appareil, mais la préférence n’a pas pu être enregistrée localement.",
-  "brand.home": "Accueil de TITech Community Capital"
+  "brand.home": "Accueil de TITech Community Capital",
+  "nav.inclusiveOnboarding": "Intégration inclusive",
+  "nav.retirementSupport": "Assistance à la retraite"
 }

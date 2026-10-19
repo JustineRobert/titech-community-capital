@@ -39,5 +39,7 @@
   "accessibility.languageSelector": "اختيار لغة العرض",
   "errors.logoutFailed": "تعذر تسجيل الخروج بالكامل. يرجى المحاولة مرة أخرى.",
   "errors.languageSaveFailed": "اللغة مفعلة على هذا الجهاز، لكن تعذر حفظ التفضيل محليًا.",
-  "brand.home": "الصفحة الرئيسية لـ TITech Community Capital"
+  "brand.home": "الصفحة الرئيسية لـ TITech Community Capital",
+  "nav.inclusiveOnboarding": "التسجيل الشامل",
+  "nav.retirementSupport": "دعم التقاعد"
 }

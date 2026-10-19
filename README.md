@@ -10,6 +10,8 @@ See [`docs/brand/OFFICIAL_BRAND_STANDARD_2026-09-28.md`](docs/brand/OFFICIAL_BRA
 
 > **Community Financial Infrastructure Layer for Africa's community economy.**
 
+> **18 October 2026 inclusive-onboarding update:** Organization legal name is **TITech Capital LTD**; the product name remains **TITech Community Capital**. The repository-local change adds an alternative-credential KYC path for approved refugee/asylum-seeker documents, private encrypted evidence handling, refugee-serving partner registration, insurance institution/licence workflows, insurer-owned product/enrolment/premium-obligation/claim references, multilingual UI resources, tests and operational/security documentation. All new capability flags are **OFF by default**. The new refugee/insurance scope is **not certified PILOT READY or production approved**: dependency-backed build, database/Redis integration, malware scanning, verified external providers, legal/regulatory and partner approvals, full offline assisted workflow and human language/RTL review remain outstanding. This update supersedes any earlier readiness statement for these new capabilities only; it does not certify a production deployment or claim that GitHub was modified. See [`docs/REFUGEE_INCLUSIVE_INSURANCE_IMPLEMENTATION.md`](docs/REFUGEE_INCLUSIVE_INSURANCE_IMPLEMENTATION.md), [`docs/REFUGEE_INCLUSIVE_INSURANCE_SECURITY_AND_PRIVACY.md`](docs/REFUGEE_INCLUSIVE_INSURANCE_SECURITY_AND_PRIVACY.md), [`docs/REFUGEE_INCLUSIVE_INSURANCE_RUNBOOK.md`](docs/REFUGEE_INCLUSIVE_INSURANCE_RUNBOOK.md) and [`docs/REFUGEE_INCLUSIVE_INSURANCE_CHANGE_DISCOVERY_2026-10-18.md`](docs/REFUGEE_INCLUSIVE_INSURANCE_CHANGE_DISCOVERY_2026-10-18.md).
+
 > STATUS NOTICE (2026-10-03): This repository is an enterprise production-hardening artifact. **Current certification: PILOT READY — PRODUCTION GAPS REMAIN.** Implementation, test, security, operational, provider, partner and regulatory evidence may have different maturity. `TITECH_PLATFORM_TRUTH.md` is the authoritative status source; `TITECH_ENTERPRISE_PRODUCTION_READINESS_CERTIFICATE.md` records the current evidence boundary.
 
 > **2026-10-03 Enterprise implementation update:** The repository has been re-baselined from the latest uploaded archive, the canonical runtime/financial boundaries have been remediated, six empty canonical finance tests have been implemented, and the official nine-color TITech theme is covered by a machine-readable theme contract plus audit tooling. Current certification remains **PILOT READY — PRODUCTION GAPS REMAIN**; external provider, infrastructure, security-assessment, legal/regulatory, pilot and commercial evidence is not fabricated or implied. See [`docs/evidence/2026-10-03-enterprise-implementation-change-discovery.md`](docs/evidence/2026-10-03-enterprise-implementation-change-discovery.md) and [`TITECH_ENTERPRISE_PRODUCTION_READINESS_CERTIFICATE.md`](TITECH_ENTERPRISE_PRODUCTION_READINESS_CERTIFICATE.md).
@@ -51,7 +53,7 @@ The product intent remains infrastructure-first: TITech connects savings groups,
 **Status:** Active Development / Production Hardening
 **Version:** 2.1
 **Organization:** TITech Capital LTD
-**Last Updated:** 17 October 2026
+**Last Updated:** 18 October 2026
 
 TITech has evolved beyond a basic community savings application toward a broader financial infrastructure platform incorporating:
 

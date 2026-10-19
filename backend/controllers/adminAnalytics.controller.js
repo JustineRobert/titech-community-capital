@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD
  * Enterprise Administrative Analytics Controller
  * =============================================================================
  *
@@ -67,7 +67,7 @@ const CONTROLLER_NAME =
     "adminAnalytics.controller";
 
 const APPLICATION_NAME =
-    "TITech Community Capital LTD";
+    "TITech Capital LTD";
 
 /* =============================================================================
  * HTTP STATUS
