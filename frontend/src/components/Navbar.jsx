@@ -60,6 +60,7 @@ import {
   LogOut,
   UserCircle,
   LayoutDashboard,
+  CalendarDays,
   Users,
   ShieldCheck,
   ChevronDown,
@@ -91,6 +92,12 @@ const NAVIGATION_ITEMS = Object.freeze([
     label: "Groups",
     to: "/groups",
     icon: Users,
+  },
+  {
+    id: "meetings",
+    label: "Meetings",
+    to: "/meetings",
+    icon: CalendarDays,
   },
   {
     id: "inclusiveOnboarding",

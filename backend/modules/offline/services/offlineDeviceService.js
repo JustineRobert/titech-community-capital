@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *
@@ -68,15 +68,9 @@
  * =============================================================================
  */
 
-const crypto = require('crypto');
-
-const OfflineDevice = require(
-  '../models/OfflineDevice',
-);
-
-const OfflineEvent = require(
-  '../models/OfflineEvent',
-);
+import crypto from 'node:crypto';
+import OfflineDevice from '../models/OfflineDevice.js';
+import OfflineEvent from '../models/OfflineEvent.js';
 
 // =============================================================================
 // Constants
@@ -1057,6 +1051,67 @@ class OfflineDeviceService {
 
       tenantId:
         normalizedTenantId,
+    };
+  }
+
+  // ===========================================================================
+  // Synchronization authorization
+  // ===========================================================================
+
+  /**
+   * Revalidate a device at the domain-service boundary. The HTTP middleware
+   * performs the same check before routing; doing it again here closes the gap
+   * between ingress authentication and event processing and observes revocation.
+   * The credential is only consumed in-process and is never returned or logged.
+   * This proves device-secret authentication, not a per-event public-key
+   * signature; production sync remains unready until verifyEventSignature and
+   * the registered-key lifecycle are integrated.
+   */
+  async validateDevice({
+    tenantId,
+    deviceId,
+    deviceToken,
+    deviceFingerprint,
+    keyId = null,
+    requireTrusted = true,
+    requireActive = true,
+    session = null,
+  } = {}) {
+    if (!deviceToken || !deviceFingerprint) {
+      throw createServiceError(
+        'Registered device credentials are required for synchronization.',
+        'OFFLINE_DEVICE_CREDENTIALS_REQUIRED',
+        401,
+      );
+    }
+
+    const result = await this.authenticateDevice({
+      tenantId,
+      deviceId,
+      deviceFingerprint,
+      deviceSecret: deviceToken,
+      keyId,
+      requireTrusted,
+      requireActive,
+      session,
+    });
+
+    const registeredDevice = result?.device;
+    const deviceSummary = registeredDevice ? Object.freeze({
+      id: registeredDevice._id ? String(registeredDevice._id) : null,
+      tenantId: result?.tenantId,
+      deviceId: result?.deviceId,
+      status: getDeviceState(registeredDevice),
+      trustStatus: getTrustState(registeredDevice),
+    }) : null;
+
+    return {
+      valid: result?.authenticated === true,
+      authenticated: result?.authenticated === true,
+      tenantId: result?.tenantId,
+      deviceId: result?.deviceId,
+      revoked: false,
+      device: deviceSummary,
     };
   }
 
@@ -2884,20 +2939,12 @@ const offlineDeviceService =
 // Exports
 // =============================================================================
 
-module.exports =
-  offlineDeviceService;
+export {
+  OfflineDeviceService,
+  SERVICE_NAME,
+  DEVICE_STATES,
+  TRUST_STATES,
+  SECURITY_EVENT_TYPES,
+};
 
-module.exports.OfflineDeviceService =
-  OfflineDeviceService;
-
-module.exports.SERVICE_NAME =
-  SERVICE_NAME;
-
-module.exports.DEVICE_STATES =
-  DEVICE_STATES;
-
-module.exports.TRUST_STATES =
-  TRUST_STATES;
-
-module.exports.SECURITY_EVENT_TYPES =
-  SECURITY_EVENT_TYPES;
+export default offlineDeviceService;

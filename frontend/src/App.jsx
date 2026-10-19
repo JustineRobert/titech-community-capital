@@ -91,6 +91,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 // ============================================================================
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const MeetingsPage = lazy(() => import('./pages/meetings/Meetings'));
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
@@ -179,6 +180,7 @@ const ROUTES = Object.freeze({
   LEGAL: '/legal',
 
   DASHBOARD: '/dashboard',
+  MEETINGS: '/meetings',
 
   GROUPS: '/groups',
   GROUP_DETAILS: '/groups/:groupId',
@@ -712,6 +714,15 @@ function ProtectedApplicationRoutes() {
         element={
           <ProtectedRoute>
             <GroupList />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.MEETINGS}
+        element={
+          <ProtectedRoute>
+            <MeetingsPage />
           </ProtectedRoute>
         }
       />

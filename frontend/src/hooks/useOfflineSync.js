@@ -131,9 +131,9 @@ const BASE_RETRY_DELAY = 2000;
 
 const MAX_RETRY_DELAY = 60 * 1000;
 
-const SYNC_ENDPOINT = '/api/offline/sync';
+const SYNC_ENDPOINT = '/api/v1/offline/sync';
 
-const STATUS_ENDPOINT = '/api/offline/status';
+const STATUS_ENDPOINT = '/api/v1/offline/sync/status';
 
 const SERVICE_WORKER_SYNC_TAG =
   'titech-offline-sync';

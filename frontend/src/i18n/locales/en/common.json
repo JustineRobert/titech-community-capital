@@ -41,5 +41,6 @@
   "errors.languageSaveFailed": "This language is active for this device, but the preference could not be saved locally.",
   "brand.home": "TITech Community Capital home",
   "nav.inclusiveOnboarding": "Inclusive onboarding",
-  "nav.retirementSupport": "Retirement support"
+  "nav.retirementSupport": "Retirement support",
+  "nav.meetings": "Meetings"
 }

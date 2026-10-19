@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *
@@ -92,7 +92,7 @@
  * =============================================================================
  */
 
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
 // =============================================================================
 // Constants
@@ -484,6 +484,27 @@ function hashEvent(
     );
 }
 
+// These fields describe delivery state in the browser's IndexedDB outbox. They
+// are intentionally outside the immutable event envelope hashed by the client.
+// No arbitrary field is discarded: unknown additions remain in the envelope and
+// consequently fail the hash comparison unless the client protocol is versioned.
+const MUTABLE_OFFLINE_DELIVERY_FIELDS = Object.freeze([
+  'status',
+  'attempts',
+  'createdAt',
+  'updatedAt',
+  'lastError',
+]);
+
+function canonicalClientEventEnvelope(event) {
+  const envelope = { ...event };
+  delete envelope.eventHash;
+  for (const field of MUTABLE_OFFLINE_DELIVERY_FIELDS) {
+    delete envelope[field];
+  }
+  return envelope;
+}
+
 function isFinancialEvent(
   event,
 ) {
@@ -560,6 +581,7 @@ class OfflineSyncService {
     auditService = null,
     eventBus = null,
     logger = null,
+    domainEventHandlers = {},
     config = {},
   } = {}) {
     this.OfflineEvent =
@@ -598,6 +620,14 @@ class OfflineSyncService {
     this.eventBus =
       eventBus;
 
+    // Domain handlers may be supplied by the canonical service container. The
+    // meeting handler is loaded lazily only when an eligible event arrives, so
+    // importing this orchestrator for non-meeting work does not eagerly load
+    // meeting models or make the optional meeting domain a bootstrap side effect.
+    this.domainEventHandlers = Object.freeze({
+      ...domainEventHandlers,
+    });
+
     this.logger =
       logger;
 
@@ -635,9 +665,9 @@ class OfflineSyncService {
             MAX_RETRY_DELAY_MS,
         ),
 
-      requireDeviceRegistration:
-        config.requireDeviceRegistration !==
-        false,
+      // Device registration is a mandatory security invariant. There is no
+      // configuration switch that makes an unregistered device trustworthy.
+      requireDeviceRegistration: true,
 
       requireEventHash:
         config.requireEventHash !==
@@ -902,16 +932,18 @@ class OfflineSyncService {
         512,
       );
 
-    const hashPayload = {
-      ...event,
-    };
-
-    delete hashPayload.eventHash;
-
-    const calculatedEventHash =
-      hashEvent(
-        hashPayload,
+    if (!Number.isInteger(event.eventVersion) || event.eventVersion !== 1) {
+      throw createServiceError(
+        'Unsupported offline event schema version.',
+        'OFFLINE_SYNC_EVENT_INVALID',
+        400,
+        { eventId, supportedEventVersion: 1 },
       );
+    }
+
+    const calculatedEventHash = hashEvent(
+      canonicalClientEventEnvelope(event),
+    );
 
     if (
       this.config.requireEventHash &&
@@ -982,118 +1014,49 @@ class OfflineSyncService {
       deviceId,
       deviceToken = null,
       deviceSignature = null,
+      deviceFingerprint = null,
+      deviceKeyId = null,
     },
   ) {
     if (
-      !this.config
-        .requireDeviceRegistration
+      !this.offlineDeviceService ||
+      typeof this.offlineDeviceService.validateDevice !== 'function'
     ) {
-      return {
-        valid: true,
-
-        deviceId,
-
-        tenantId,
-      };
+      throw createServiceError(
+        'Registered-device authorization is not configured.',
+        'OFFLINE_SYNC_DEVICE_INVALID',
+        503,
+      );
     }
 
-    if (
-      this.offlineDeviceService &&
-      typeof this.offlineDeviceService
-        .validateDevice ===
-        'function'
-    ) {
-      const result =
-        await this.offlineDeviceService
-          .validateDevice({
-            tenantId,
-            deviceId,
-            deviceToken,
-            deviceSignature,
-          });
+    const result = await this.offlineDeviceService.validateDevice({
+      tenantId,
+      deviceId,
+      deviceToken,
+      deviceSignature,
+      deviceFingerprint,
+      keyId: deviceKeyId,
+      requireTrusted: true,
+      requireActive: true,
+    });
 
-      if (
-        result === false ||
-        result?.valid === false
-      ) {
-        throw createServiceError(
-          'Offline device authorization failed.',
-          'OFFLINE_SYNC_DEVICE_INVALID',
-          403,
-        );
-      }
-
-      if (
-        result?.revoked
-      ) {
-        throw createServiceError(
-          'Offline device has been revoked.',
-          'OFFLINE_SYNC_DEVICE_REVOKED',
-          403,
-        );
-      }
-
-      return result;
+    if (result?.valid !== true || result?.authenticated !== true) {
+      throw createServiceError(
+        'Offline device authorization failed.',
+        'OFFLINE_SYNC_DEVICE_INVALID',
+        403,
+      );
     }
 
-    if (
-      this.OfflineDevice
-    ) {
-      const device =
-        await this.OfflineDevice.findOne({
-          tenantId,
-
-          deviceId,
-        }).lean();
-
-      if (!device) {
-        throw createServiceError(
-          'Offline device is not registered.',
-          'OFFLINE_SYNC_DEVICE_INVALID',
-          403,
-        );
-      }
-
-      if (
-        device.status ===
-          'REVOKED' ||
-        device.revoked ===
-          true
-      ) {
-        throw createServiceError(
-          'Offline device has been revoked.',
-          'OFFLINE_SYNC_DEVICE_REVOKED',
-          403,
-        );
-      }
-
-      if (
-        device.status ===
-          'SUSPENDED'
-      ) {
-        throw createServiceError(
-          'Offline device is suspended.',
-          'OFFLINE_SYNC_DEVICE_INVALID',
-          403,
-        );
-      }
-
-      return {
-        valid: true,
-
-        device,
-      };
+    if (result.revoked === true) {
+      throw createServiceError(
+        'Offline device has been revoked.',
+        'OFFLINE_SYNC_DEVICE_REVOKED',
+        403,
+      );
     }
 
-    /*
-     * Fail closed when device registration is required but no authorization
-     * mechanism has been configured.
-     */
-    throw createServiceError(
-      'Offline device authorization is not configured.',
-      'OFFLINE_SYNC_DEVICE_INVALID',
-      503,
-    );
+    return result;
   }
 
   // ===========================================================================
@@ -1329,100 +1292,73 @@ class OfflineSyncService {
     event,
     context,
   ) {
-    if (
-      !isFinancialEvent(
-        event,
-      )
-    ) {
-      return null;
-    }
+    if (!isFinancialEvent(event)) return null;
+
+    const idempotency = this.idempotencyStore;
+    const financial = this.financialService;
+    const atomicFinancialProcessor =
+      financial &&
+      financial.supportsAtomicOfflineSync === true &&
+      financial.persistsOfflineEventAtomically === true &&
+      financial.persistsReceiptAtomically === true &&
+      financial.usesDurableIdempotency === true &&
+      typeof financial.processOfflineEventAtomically === 'function';
+    const durableReservation =
+      idempotency &&
+      idempotency.isDurable === true &&
+      idempotency.supportsAtomicFinancialReservation === true &&
+      typeof idempotency.reserve === 'function';
 
     if (
-      !this.config
-        .financialOperationsRequireBoundary
-    ) {
-      if (
-        this.financialService &&
-        typeof this.financialService
-          .processOfflineEvent ===
-          'function'
-      ) {
-        return this.financialService
-          .processOfflineEvent(
-            event,
-            context,
-          );
-      }
-
-      return null;
-    }
-
-    if (
-      !this.transactionBoundary
+      !this.config.financialOperationsRequireBoundary ||
+      !this.transactionBoundary ||
+      typeof this.transactionBoundary.execute !== 'function' ||
+      !atomicFinancialProcessor ||
+      !durableReservation
     ) {
       throw createServiceError(
-        'Financial offline synchronization requires the TITech transaction boundary.',
+        'Offline financial processing is disabled until the canonical transaction boundary, atomic event/receipt persistence, and durable idempotency reservation adapter are registered.',
         'OFFLINE_SYNC_FINANCIAL_AUTHORIZATION_REQUIRED',
         503,
       );
     }
 
-    if (
-      typeof this.transactionBoundary
-        .execute !==
-      'function'
-    ) {
-      throw createServiceError(
-        'TITech financial transaction boundary is not correctly configured.',
-        'OFFLINE_SYNC_FINANCIAL_AUTHORIZATION_REQUIRED',
-        503,
-      );
-    }
-
-    return this.transactionBoundary.execute(
-      async ({
+    const result = await this.transactionBoundary.execute(
+      async ({ session }) => financial.processOfflineEventAtomically(event, {
+        ...context,
         session,
-      }) => {
-        if (
-          this.financialService &&
-          typeof this.financialService
-            .processOfflineEvent ===
-            'function'
-        ) {
-          return this.financialService
-            .processOfflineEvent(
-              event,
-              {
-                ...context,
-
-                session,
-              },
-            );
-        }
-
-        throw createServiceError(
-          'No financial offline event processor is configured.',
-          'OFFLINE_SYNC_FINANCIAL_AUTHORIZATION_REQUIRED',
-          503,
-        );
-      },
+        offlineEventModel: this.OfflineEvent,
+        offlineDeviceModel: this.OfflineDevice,
+        syncCursorModel: this.SyncCursor,
+        idempotencyStore: idempotency,
+        receiptService: this.receiptService,
+        reconciliationService: this.reconciliationService,
+      }),
       {
-        operation:
-          'OFFLINE_SYNC_FINANCIAL_EVENT',
-
-        tenantId:
-          event.tenantId,
-
-        deviceId:
-          event.deviceId,
-
-        eventId:
-          event.eventId,
-
-        idempotencyKey:
-          event.idempotencyKey,
+        operation: 'OFFLINE_SYNC_FINANCIAL_EVENT',
+        tenantId: event.tenantId,
+        deviceId: event.deviceId,
+        eventId: event.eventId,
+        idempotencyKey: event.idempotencyKey,
       },
     );
+
+    // The adapter owns the complete atomic outcome. A generic financial result
+    // is not enough to let the orchestrator write event/receipt state later.
+    if (
+      !result ||
+      result.atomicPersistenceComplete !== true ||
+      !result.event ||
+      !result.receipt
+    ) {
+      throw createServiceError(
+        'The offline financial adapter did not return its required atomic event and receipt result.',
+        'OFFLINE_SYNC_FINANCIAL_AUTHORIZATION_REQUIRED',
+        503,
+      );
+    }
+
+    return result;
   }
 
   // ===========================================================================
@@ -1679,38 +1615,88 @@ class OfflineSyncService {
     }
 
     /*
-     * Financial events are deliberately delegated to the transaction boundary.
-     * Non-financial events can be persisted directly.
+     * Domain operations must be applied before a non-financial event is
+     * acknowledged. Meeting minutes drafts use the canonical meeting model's
+     * atomic revision + operation-ID guard; unsupported meeting operations are
+     * rejected instead of being stored as though their business effect ran.
+     * Financial events remain delegated to the established transaction boundary.
      */
+    let domainResult = null;
+    if (validatedEvent.eventType === 'MEETING_UPDATED') {
+      if (validatedEvent.payload?.operation !== 'MINUTES_DRAFTED') {
+        throw createServiceError(
+          'This offline meeting operation is not supported.',
+          'MEETING_OFFLINE_OPERATION_UNSUPPORTED',
+          422,
+          { eventId: validatedEvent.eventId },
+        );
+      }
+      const actorId = context.actorId || context.userId;
+      if (!actorId || !validatedEvent.userId || String(validatedEvent.userId) !== String(actorId)) {
+        throw createServiceError(
+          'Offline meeting draft actor does not match the authenticated user.',
+          'OFFLINE_SYNC_ACTOR_MISMATCH',
+          403,
+          { eventId: validatedEvent.eventId },
+        );
+      }
+      let handler = this.domainEventHandlers.MEETING_UPDATED;
+      if (typeof handler !== 'function') {
+        try {
+          const meetingService = await import('../../meetings/meeting.service.js');
+          handler = meetingService.applyOfflineMeetingDraft;
+        } catch {
+          throw createServiceError(
+            'Offline meeting draft processing is unavailable.',
+            'OFFLINE_MEETING_HANDLER_NOT_CONFIGURED',
+            503,
+            { eventId: validatedEvent.eventId },
+          );
+        }
+      }
+      if (typeof handler !== 'function') {
+        throw createServiceError(
+          'Offline meeting draft processing is not configured.',
+          'OFFLINE_MEETING_HANDLER_NOT_CONFIGURED',
+          503,
+          { eventId: validatedEvent.eventId },
+        );
+      }
+      domainResult = await handler(validatedEvent, {
+        tenantId: validatedEvent.tenantId,
+        actorId: String(actorId),
+        requestId: context.requestId || null,
+        correlationId: context.correlationId || context.requestId || null,
+      });
+    }
+
     const financialResult =
       await this.processFinancialEvent(
         validatedEvent,
         context,
       );
 
-    const persistedEvent =
-      await this.persistEvent(
-        validatedEvent,
-        {
-          session:
-            context.session ||
-            null,
-
-          financialResult,
-        },
+    const isAtomicFinancialResult =
+      Boolean(
+        financialResult?.atomicPersistenceComplete === true &&
+        isFinancialEvent(validatedEvent),
       );
 
-    const receipt =
-      await this.generateReceipt(
-        persistedEvent,
-        {
+    const persistedEvent = isAtomicFinancialResult
+      ? financialResult.event
+      : await this.persistEvent(validatedEvent, {
+          session: context.session || null,
           financialResult,
+          domainResult,
+        });
 
-          session:
-            context.session ||
-            null,
-        },
-      );
+    const receipt = isAtomicFinancialResult
+      ? financialResult.receipt
+      : await this.generateReceipt(persistedEvent, {
+          financialResult,
+          domainResult,
+          session: context.session || null,
+        });
 
     const result = {
       status:
@@ -1723,6 +1709,7 @@ class OfflineSyncService {
         persistedEvent,
 
       financialResult,
+      domainResult,
 
       receipt:
         receipt?.receipt ||
@@ -1736,20 +1723,17 @@ class OfflineSyncService {
         false,
     };
 
+    // The atomic financial adapter writes its idempotency result inside the
+    // same authoritative transaction; never create a post-commit second write.
     if (
-      validatedEvent.idempotencyKey
+      validatedEvent.idempotencyKey &&
+      !isAtomicFinancialResult
     ) {
-      await this.saveIdempotentResult(
-        {
-          tenantId:
-            validatedEvent.tenantId,
-
-          idempotencyKey:
-            validatedEvent.idempotencyKey,
-
-          result,
-        },
-      );
+      await this.saveIdempotentResult({
+        tenantId: validatedEvent.tenantId,
+        idempotencyKey: validatedEvent.idempotencyKey,
+        result,
+      });
     }
 
     await this._audit(
@@ -1828,6 +1812,12 @@ class OfflineSyncService {
 
           deviceSignature:
             syncRequest.deviceSignature,
+
+          deviceFingerprint:
+            syncRequest.deviceFingerprint,
+
+          deviceKeyId:
+            syncRequest.deviceKeyId,
         },
       );
 
@@ -1847,6 +1837,14 @@ class OfflineSyncService {
     const results = [];
 
     const failures = [];
+    const {
+      deviceToken: _deviceToken,
+      deviceFingerprint: _deviceFingerprint,
+      deviceKeyId: _deviceKeyId,
+      deviceSignature: _deviceSignature,
+      request: _httpRequest,
+      ...safeSyncContext
+    } = syncRequest;
 
     /*
      * We intentionally process events sequentially.
@@ -1871,7 +1869,7 @@ class OfflineSyncService {
               this.processEvent(
                 event,
                 {
-                  ...syncRequest,
+                  ...safeSyncContext,
 
                   operationId,
 
@@ -2533,79 +2531,73 @@ class OfflineSyncService {
   // Health / Readiness
   // ===========================================================================
 
-  health() {
+  readiness() {
+    const idempotency = this.idempotencyStore;
+    const financial = this.financialService;
+    const checks = {
+      offlineEventModel: Boolean(this.OfflineEvent),
+      offlineDeviceModel: Boolean(this.OfflineDevice),
+      syncCursor: Boolean(this.SyncCursor),
+      durableIdempotencyReservation: Boolean(
+        idempotency &&
+        idempotency.isDurable === true &&
+        idempotency.supportsAtomicFinancialReservation === true &&
+        typeof idempotency.reserve === 'function' &&
+        typeof idempotency.get === 'function' &&
+        typeof idempotency.set === 'function',
+      ),
+      receiptService: Boolean(
+        this.receiptService &&
+        typeof this.receiptService.generateFromEvent === 'function',
+      ),
+      offlineDeviceService: Boolean(
+        this.offlineDeviceService &&
+        typeof this.offlineDeviceService.authenticateDevice === 'function' &&
+        typeof this.offlineDeviceService.validateDevice === 'function' &&
+        typeof this.offlineDeviceService.validateEventIntegrity === 'function' &&
+        typeof this.offlineDeviceService.verifyEventSignature === 'function',
+      ),
+      transactionBoundary: Boolean(
+        this.transactionBoundary &&
+        typeof this.transactionBoundary.execute === 'function',
+      ),
+      atomicOfflineFinancialProcessor: Boolean(
+        financial &&
+        financial.supportsAtomicOfflineSync === true &&
+        financial.persistsOfflineEventAtomically === true &&
+        financial.persistsReceiptAtomically === true &&
+        financial.usesDurableIdempotency === true &&
+        typeof financial.processOfflineEventAtomically === 'function',
+      ),
+      reconciliationService: Boolean(this.reconciliationService),
+    };
+    const blockers = Object.entries(checks)
+      .filter(([, configured]) => !configured)
+      .map(([name]) => name);
     return {
-      service:
-        SERVICE_NAME,
+      service: SERVICE_NAME,
+      version: SYNC_VERSION,
+      ready: blockers.length === 0,
+      status: blockers.length === 0 ? 'READY' : 'NOT_READY',
+      blockers,
+      dependencies: checks,
+    };
+  }
 
-      version:
-        SYNC_VERSION,
+  ready() {
+    return this.readiness().ready;
+  }
 
-      status:
-        'READY',
-
-      dependencies: {
-        offlineEventModel:
-          Boolean(
-            this.OfflineEvent,
-          ),
-
-        offlineDeviceModel:
-          Boolean(
-            this.OfflineDevice,
-          ),
-
-        syncCursor:
-          Boolean(
-            this.SyncCursor,
-          ),
-
-        idempotencyStore:
-          Boolean(
-            this.idempotencyStore,
-          ),
-
-        receiptService:
-          Boolean(
-            this.receiptService,
-          ),
-
-        transactionBoundary:
-          Boolean(
-            this.transactionBoundary,
-          ),
-
-        financialService:
-          Boolean(
-            this.financialService,
-          ),
-
-        reconciliationService:
-          Boolean(
-            this.reconciliationService,
-          ),
-      },
-
+  health() {
+    const readiness = this.readiness();
+    return {
+      ...readiness,
       configuration: {
-        maxBatchSize:
-          this.config
-            .maxBatchSize,
-
-        maxRetries:
-          this.config
-            .maxRetries,
-
-        requireDeviceRegistration:
-          this.config
-            .requireDeviceRegistration,
-
-        requireEventHash:
-          this.config
-            .requireEventHash,
-
-        financialOperationsRequireBoundary:
-          this.config
-            .financialOperationsRequireBoundary,
+        maxBatchSize: this.config.maxBatchSize,
+        maxRetries: this.config.maxRetries,
+        requireDeviceRegistration: this.config.requireDeviceRegistration,
+        requireEventHash: this.config.requireEventHash,
+        financialOperationsRequireBoundary: this.config.financialOperationsRequireBoundary,
       },
     };
   }
@@ -2622,14 +2614,10 @@ const offlineSyncService =
 // Exports
 // =============================================================================
 
-module.exports =
-  offlineSyncService;
+export {
+  OfflineSyncService,
+  SERVICE_NAME,
+  SYNC_VERSION,
+};
 
-module.exports.OfflineSyncService =
-  OfflineSyncService;
-
-module.exports.SERVICE_NAME =
-  SERVICE_NAME;
-
-module.exports.SYNC_VERSION =
-  SYNC_VERSION;
+export default offlineSyncService;

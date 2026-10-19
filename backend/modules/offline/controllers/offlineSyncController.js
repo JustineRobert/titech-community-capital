@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *
@@ -74,6 +74,7 @@
 
 import crypto from 'node:crypto';
 import offline from '../index.js';
+import offlineSyncService from '../services/offlineSyncService.js';
 
 const {
   MODULE_NAME,
@@ -93,7 +94,7 @@ const {
 
 const CONTROLLER_NAME = 'offlineSyncController';
 
-const DEFAULT_SYNC_PATH = '/api/offline/sync';
+const DEFAULT_SYNC_PATH = '/api/v1/offline/sync';
 
 const MAX_BODY_EVENTS = SYNC.MAX_BATCH_SIZE;
 
@@ -193,11 +194,14 @@ function getDeviceId(req) {
 }
 
 function getTenantId(req) {
+  // The tenant header is untrusted transport metadata. Only accept tenant
+  // context established by authentication and the canonical tenant middleware.
   return (
-    getHeader(req, HEADERS.TENANT_ID) ||
+    normalizeString(req?.tenant?.tenantId) ||
+    normalizeString(req?.tenantContext?.tenantId) ||
     normalizeString(req?.tenantId) ||
-    normalizeString(req?.user?.tenantId) ||
-    normalizeString(req?.auth?.tenantId)
+    normalizeString(req?.auth?.tenantId) ||
+    normalizeString(req?.user?.tenantId)
   );
 }
 
@@ -461,6 +465,14 @@ function validateRequestContext(req) {
   const errors = [];
 
   const tenantId = getTenantId(req);
+  const suppliedTenantId = getHeader(req, HEADERS.TENANT_ID);
+  if (suppliedTenantId && tenantId && suppliedTenantId !== tenantId) {
+    errors.push({
+      field: 'tenantId',
+      code: 'OFFLINE_SYNC_TENANT_MISMATCH',
+      message: 'Supplied tenant header does not match the authenticated tenant context.',
+    });
+  }
   const deviceId = getDeviceId(req);
   const userId = getAuthenticatedUserId(req);
   const idempotencyKey = getIdempotencyKey(req);
@@ -678,19 +690,8 @@ function resolveSyncService(req) {
     req?.app?.locals?.offlineSyncService ||
     services?.offline?.sync ||
     services?.offline?.syncService ||
-    req?.app?.locals?.offline?.sync;
-
-  if (!service) {
-    const error = new Error(
-      'Offline synchronization service is not configured.',
-    );
-
-    error.code = 'OFFLINE_SYNC_SERVICE_NOT_CONFIGURED';
-    error.statusCode = HTTP.SERVICE_UNAVAILABLE;
-    error.isOperational = true;
-
-    throw error;
-  }
+    req?.app?.locals?.offline?.sync ||
+    offlineSyncService;
 
   return service;
 }
@@ -706,9 +707,34 @@ async function executeSynchronization({
   context,
   req,
 }) {
+  // Supply the exact canonical service contract. Trusted tenant/user context
+  // comes from authenticated middleware; untrusted event fields are never used
+  // to establish it. Do not pass the Express request object into domain code:
+  // it contains authorization and device-secret headers.
   const payload = Object.freeze({
     events,
     cursor: cursor ?? null,
+    tenantId: context.tenantId,
+    deviceId: context.deviceId,
+    // Derived from the authenticated request, never copied from the event body.
+    actorId: context.userId,
+    userId: context.userId,
+    syncRequestId: context.requestId,
+    idempotencyKey: context.idempotencyKey,
+    correlationId: context.correlationId,
+    requestId: context.requestId,
+    receivedAt: context.receivedAt,
+    ip: context.ip,
+    userAgent: context.userAgent,
+    method: context.method,
+    path: context.path,
+  });
+  const safeRequestMetadata = Object.freeze({
+    requestId: context.requestId,
+    correlationId: context.correlationId,
+    method: context.method,
+    path: context.path,
+    receivedAt: context.receivedAt,
   });
 
   /*
@@ -729,15 +755,18 @@ async function executeSynchronization({
     return service.sync({
       ...payload,
       context,
-      request: req,
+      request: safeRequestMetadata,
     });
   }
 
   if (typeof service.synchronize === 'function') {
     return service.synchronize({
       ...payload,
+      deviceToken: getHeader(req, 'X-Device-Secret'),
+      deviceFingerprint: getHeader(req, 'X-Device-Fingerprint'),
+      deviceKeyId: getHeader(req, 'X-Device-Key-ID'),
       context,
-      request: req,
+      request: safeRequestMetadata,
     });
   }
 
@@ -745,7 +774,7 @@ async function executeSynchronization({
     return service.processBatch({
       ...payload,
       context,
-      request: req,
+      request: safeRequestMetadata,
     });
   }
 
@@ -1297,14 +1326,20 @@ async function health(req, res, next) {
         await service.health();
     }
 
-    return res.status(HTTP.OK).json({
-      success: true,
+    const serviceReady =
+      serviceHealth?.ready === true &&
+      serviceHealth?.status === 'READY';
+
+    return res.status(
+      serviceReady ? HTTP.OK : HTTP.SERVICE_UNAVAILABLE,
+    ).json({
+      success: serviceReady,
 
       responseVersion: RESPONSE_VERSION,
 
       module: MODULE_NAME,
 
-      status: 'UP',
+      status: serviceReady ? 'UP' : 'NOT_READY',
 
       service: serviceHealth,
 
@@ -1357,22 +1392,22 @@ async function readiness(req, res, next) {
     const service =
       resolveSyncService(req);
 
-    if (
+    const ready =
       typeof service.ready === 'function'
-    ) {
-      const ready =
-        await service.ready();
+        ? await service.ready()
+        : false;
+    const readiness = typeof service.readiness === 'function'
+      ? await service.readiness()
+      : null;
 
-      if (ready === false) {
-        return res.status(
-          HTTP.SERVICE_UNAVAILABLE,
-        ).json({
-          success: false,
-          module: MODULE_NAME,
-          status: 'NOT_READY',
-          code: 'OFFLINE_SYNC_NOT_READY',
-        });
-      }
+    if (ready !== true || readiness?.ready !== true || readiness?.status !== 'READY') {
+      return res.status(HTTP.SERVICE_UNAVAILABLE).json({
+        success: false,
+        module: MODULE_NAME,
+        status: 'NOT_READY',
+        code: 'OFFLINE_SYNC_NOT_READY',
+        blockers: Array.isArray(readiness?.blockers) ? readiness.blockers : ['readiness-contract-unavailable'],
+      });
     }
 
     return res.status(HTTP.OK).json({

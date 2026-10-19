@@ -258,7 +258,7 @@ const NEVER_CACHE_PATHS = Object.freeze([
   '/api/momo',
   '/api/mobile-money',
   '/api/mobilemoney',
-  '/api/offline/sync',
+  '/api/v1/offline/sync',
   '/api/offline/events',
   '/api/kyc',
   '/api/aml',

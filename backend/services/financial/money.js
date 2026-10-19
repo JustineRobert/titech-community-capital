@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD — TITech Community Capital
  * Exact Monetary Arithmetic Utility
  * =============================================================================
  *
@@ -21,7 +21,10 @@
  * =============================================================================
  */
 
-const DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
+// Accept leading zeroes as valid transport formatting, then normalize them
+// before arithmetic. Signs, exponents, separators and non-decimal strings remain
+// rejected so the financial surface stays fixed-point and non-negative.
+const DECIMAL_PATTERN = /^\d+(?:\.\d+)?$/;
 const MAX_DECIMAL_DIGITS = 34;
 
 function assertDecimal(value, field = 'amount') {

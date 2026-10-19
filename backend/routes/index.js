@@ -21,6 +21,7 @@ import { payrollApiRouter, payrollWebhookRouter } from '../modules/payroll/payro
 import LoansController from '../controllers/loansController.js';
 import groupWalletControllerModule from '../controllers/groupWalletController.js';
 import offlineSyncRoutes from '../modules/offline/routes/offline-sync.routes.js';
+import meetingsRoutes from '../modules/meetings/meetings.routes.js';
 import agricultureRoutes from '../modules/agriculture/routes/agriculture.routes.js';
 import notificationsRoutes from './notifications.js';
 import express from 'express';
@@ -1125,8 +1126,17 @@ router.post(
 );
 
 router.use(
-    '/api',
+    `${API_PREFIX}/offline`,
+    authenticate,
+    tenantAuthorization,
     offlineSyncRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/meetings`,
+    authenticate,
+    tenantAuthorization,
+    meetingsRoutes,
 );
 
 /**

@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *
@@ -40,8 +40,9 @@
  * =============================================================================
  */
 
-const mongoose = require('mongoose');
-const crypto = require('crypto');
+import mongoose from 'mongoose';
+import crypto from 'node:crypto';
+import OFFLINE_CONSTANTS from '../constants.js';
 
 // =============================================================================
 // Constants
@@ -51,9 +52,7 @@ const {
   Schema,
 } = mongoose;
 
-const {
-  DEVICE_STATUS,
-} = require('../constants');
+const { DEVICE_STATUS } = OFFLINE_CONSTANTS;
 
 const MODEL_NAME = 'OfflineDevice';
 
@@ -2111,18 +2110,12 @@ const OfflineDevice =
 // Public Exports
 // =============================================================================
 
-module.exports = OfflineDevice;
+export default OfflineDevice;
 
-// Expose schema for controlled migrations/tests without creating a second model.
-module.exports.schema =
-  OfflineDeviceSchema;
-
-// Expose immutable model metadata.
-module.exports.MODEL_NAME =
-  MODEL_NAME;
-
-module.exports.COLLECTION_NAME =
-  COLLECTION_NAME;
-
-module.exports.SCHEMA_VERSION =
-  SCHEMA_VERSION;
+// Expose schema and immutable metadata as named ESM exports.
+export {
+  OfflineDeviceSchema as schema,
+  MODEL_NAME,
+  COLLECTION_NAME,
+  SCHEMA_VERSION,
+};

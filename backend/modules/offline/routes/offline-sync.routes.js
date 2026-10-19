@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *
@@ -69,6 +69,10 @@
 
 import express from 'express';
 import offlineSyncController from '../controllers/offlineSyncController.js';
+import offlineDeviceService from '../services/offlineDeviceService.js';
+import offlineSyncService from '../services/offlineSyncService.js';
+import { requirePermission } from '../../../middleware/platformPermissions.js';
+import { requireCapabilityFlag } from '../../../middleware/capabilityFeatureFlag.js';
 
 const router = express.Router();
 
@@ -244,8 +248,10 @@ function captureSyncContext(
 ) {
   req.offlineContext = {
     tenantId:
-      req.get('X-Tenant-ID') ||
+      req.tenant?.tenantId ||
+      req.tenantContext?.tenantId ||
       req.tenantId ||
+      req.auth?.tenantId ||
       req.user?.tenantId ||
       null,
 
@@ -289,60 +295,124 @@ function captureSyncContext(
 // Security Middleware
 // =============================================================================
 
-/**
- * Authentication middleware.
- *
- * The canonical TITech authentication middleware should be registered in
- * app.locals.middleware/auth. We intentionally support several common aliases
- * so the route module remains decoupled from bootstrap naming.
- */
-const authenticate =
-  optionalMiddleware([
-    'authenticate',
-    'authentication',
-    'requireAuthentication',
-    'auth',
-    'jwtAuth',
-  ]);
+const requireOfflineSyncEnabled =
+  requireCapabilityFlag('TITECH_OFFLINE_SYNC_ENABLED');
 
-/**
- * Tenant context middleware.
- */
-const resolveTenant =
-  optionalMiddleware([
-    'resolveTenant',
-    'tenantContext',
-    'requireTenant',
-    'tenant',
-  ]);
+const requireOfflineReconciliationEnabled =
+  requireCapabilityFlag('TITECH_OFFLINE_RECONCILIATION_ENABLED');
 
-/**
- * Device authentication/trust middleware.
- *
- * Device trust decisions must ultimately be performed by the offline device
- * service. This middleware exists only when TITech has registered a transport
- * level device-authentication guard.
- */
-const authenticateDevice =
-  optionalMiddleware([
-    'authenticateDevice',
-    'requireDevice',
-    'deviceAuthentication',
-    'deviceAuth',
-  ]);
-
-/**
- * Authorization middleware.
- *
- * The route supports a dedicated offline synchronization authorization guard
- * when the application has registered one.
- */
 const authorizeOfflineSync =
-  optionalMiddleware([
-    'authorizeOfflineSync',
-    'requireOfflineSyncAccess',
-    'offlineSyncAuthorization',
-  ]);
+  requirePermission('offline:sync:submit');
+
+function requireOfflineSyncReady(req, res, next) {
+  const services = req.app?.locals?.services || {};
+  const service =
+    services.offlineSyncService ||
+    services.offline?.sync ||
+    services.offline?.syncService ||
+    req.app?.locals?.offlineSyncService ||
+    offlineSyncService;
+
+  return Promise.resolve(
+    typeof service.ready === 'function' ? service.ready() : false,
+  ).then(async (ready) => {
+    const readiness = typeof service.readiness === 'function'
+      ? await service.readiness()
+      : null;
+    const provenReady = ready === true &&
+      readiness?.ready === true &&
+      readiness?.status === 'READY' &&
+      Array.isArray(readiness?.blockers) &&
+      readiness.blockers.length === 0;
+    if (!provenReady) {
+      return res.status(503).json({
+        success: false,
+        error: {
+          code: 'OFFLINE_SYNC_NOT_READY',
+          message: 'Offline synchronization cannot process events until its required persistence, device-registration signature verification, durable idempotency, receipt, reconciliation and atomic financial dependencies are configured and proven ready.',
+        },
+        blockers: Array.isArray(readiness?.blockers) ? readiness.blockers : ['service-readiness-not-proven'],
+        requestId: req.requestId || null,
+        correlationId: req.correlationId || req.requestId || null,
+      });
+    }
+    return next();
+  }).catch(next);
+}
+
+/**
+ * Authoritative tenant/device binding. The X-Tenant-ID header is never used to
+ * select a tenant; it is checked only as a consistency assertion against the
+ * server-authenticated context established by the canonical route registry.
+ */
+function authenticateDevice(req, res, next) {
+  const tenantId =
+    req.tenant?.tenantId ||
+    req.tenantContext?.tenantId ||
+    req.tenantId ||
+    req.auth?.tenantId ||
+    req.user?.tenantId ||
+    null;
+  const suppliedTenantId = req.get('X-Tenant-ID');
+  if (!tenantId) {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'TENANT_CONTEXT_REQUIRED', message: 'Authenticated tenant context is required.' },
+      requestId: req.requestId || null,
+      correlationId: req.correlationId || req.requestId || null,
+    });
+  }
+  if (suppliedTenantId && suppliedTenantId !== String(tenantId)) {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'OFFLINE_SYNC_TENANT_MISMATCH', message: 'Tenant header does not match authenticated tenant context.' },
+      requestId: req.requestId || null,
+      correlationId: req.correlationId || req.requestId || null,
+    });
+  }
+
+  const deviceId = req.get('X-Device-ID') || req.deviceId || null;
+  const deviceFingerprint = req.get('X-Device-Fingerprint') || null;
+  const deviceSecret = req.get('X-Device-Secret') || null;
+  const keyId = req.get('X-Device-Key-ID') || null;
+  if (!deviceId || !deviceFingerprint || !deviceSecret) {
+    return res.status(401).json({
+      success: false,
+      error: { code: 'OFFLINE_DEVICE_CREDENTIALS_REQUIRED', message: 'Registered device credentials are required.' },
+      requestId: req.requestId || null,
+      correlationId: req.correlationId || req.requestId || null,
+    });
+  }
+
+  const services = req.app?.locals?.services || {};
+  const service =
+    typeof services.offlineDeviceService?.authenticateDevice === 'function'
+      ? services.offlineDeviceService
+      : offlineDeviceService;
+
+  return Promise.resolve(service.authenticateDevice({
+    tenantId: String(tenantId),
+    deviceId,
+    deviceFingerprint,
+    deviceSecret,
+    keyId,
+    requireTrusted: true,
+    requireActive: true,
+  })).then((result) => {
+    if (!result?.authenticated || String(result.tenantId) !== String(tenantId)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'OFFLINE_DEVICE_NOT_AUTHORIZED', message: 'Device is not authorized for this tenant.' },
+        requestId: req.requestId || null,
+        correlationId: req.correlationId || req.requestId || null,
+      });
+    }
+    req.offlineDevice = result.device;
+    req.deviceId = result.deviceId;
+    req.offlineDeviceAuthenticated = true;
+    return next();
+  }).catch(next);
+}
 
 // =============================================================================
 // Observability Middleware
@@ -375,17 +445,9 @@ const tracingMiddleware =
 
 const commonMiddleware = [
   ensureCorrelationId,
-
   requestLogger,
-
   tracingMiddleware,
-
   metricsMiddleware,
-
-  authenticate,
-
-  resolveTenant,
-
   captureSyncContext,
 ];
 
@@ -396,7 +458,7 @@ const commonMiddleware = [
 /**
  * Push a batch of offline events.
  *
- * POST /api/offline/sync
+ * POST /api/v1/offline/sync
  *
  * Responsibilities delegated to controller/service:
  *
@@ -421,9 +483,10 @@ router.post(
 
   ...commonMiddleware,
 
-  authenticateDevice,
-
+  requireOfflineSyncEnabled,
+  requireOfflineSyncReady,
   authorizeOfflineSync,
+  authenticateDevice,
 
   asyncRoute(
     offlineSyncController.sync ||
@@ -439,7 +502,7 @@ router.post(
  * Compatibility endpoint for clients that explicitly identify the operation
  * as event synchronization.
  *
- * POST /api/offline/events/sync
+ * POST /api/v1/offline/events/sync
  *
  * This intentionally delegates to the same controller as /sync.
  */
@@ -448,9 +511,10 @@ router.post(
 
   ...commonMiddleware,
 
-  authenticateDevice,
-
+  requireOfflineSyncEnabled,
+  requireOfflineSyncReady,
   authorizeOfflineSync,
+  authenticateDevice,
 
   asyncRoute(
     offlineSyncController.sync ||
@@ -465,7 +529,7 @@ router.post(
 /**
  * Synchronization status.
  *
- * GET /api/offline/sync/status
+ * GET /api/v1/offline/sync/status
  *
  * Intended for:
  *
@@ -480,9 +544,9 @@ router.get(
 
   ...commonMiddleware,
 
-  authenticateDevice,
-
+  requireOfflineSyncReady,
   authorizeOfflineSync,
+  authenticateDevice,
 
   asyncRoute(
     offlineSyncController.status ||
@@ -498,7 +562,7 @@ router.get(
 /**
  * Explicit reconciliation request.
  *
- * POST /api/offline/sync/reconcile
+ * POST /api/v1/offline/sync/reconcile
  *
  * This endpoint does NOT automatically resolve financial conflicts.
  *
@@ -510,9 +574,11 @@ router.post(
 
   ...commonMiddleware,
 
-  authenticateDevice,
-
+  requireOfflineSyncEnabled,
+  requireOfflineReconciliationEnabled,
+  requireOfflineSyncReady,
   authorizeOfflineSync,
+  authenticateDevice,
 
   asyncRoute(
     offlineSyncController.reconcile ||
@@ -528,7 +594,7 @@ router.post(
 /**
  * Offline synchronization subsystem health.
  *
- * GET /api/offline/sync/health
+ * GET /api/v1/offline/sync/health
  *
  * Intended for application-level health checks.
  *
@@ -555,7 +621,7 @@ router.get(
 /**
  * Offline synchronization subsystem readiness.
  *
- * GET /api/offline/sync/readiness
+ * GET /api/v1/offline/sync/readiness
  *
  * Used to determine whether the offline synchronization subsystem can safely
  * process traffic.

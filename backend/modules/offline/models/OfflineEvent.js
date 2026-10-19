@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *
@@ -62,8 +62,8 @@
  * =============================================================================
  */
 
-const mongoose = require('mongoose');
-const crypto = require('crypto');
+import mongoose from 'mongoose';
+import crypto from 'node:crypto';
 
 const {
   Schema,
@@ -93,6 +93,8 @@ const EVENT_TYPES = Object.freeze([
   'MEETING_CREATED',
   'MEETING_OPENED',
   'MEETING_CLOSED',
+  'MEETING_STARTED',
+  'MEETING_UPDATED',
 
   'MEMBER_CHECKED_IN',
   'MEMBER_CHECKED_OUT',
@@ -2945,37 +2947,18 @@ const OfflineEvent =
 // Public Exports
 // =============================================================================
 
-module.exports = OfflineEvent;
+export default OfflineEvent;
 
-module.exports.schema =
-  OfflineEventSchema;
-
-module.exports.MODEL_NAME =
-  MODEL_NAME;
-
-module.exports.COLLECTION_NAME =
-  COLLECTION_NAME;
-
-module.exports.SCHEMA_VERSION =
-  SCHEMA_VERSION;
-
-module.exports.EVENT_TYPES =
-  EVENT_TYPES;
-
-module.exports.EVENT_CATEGORIES =
-  EVENT_CATEGORIES;
-
-module.exports.PROCESSING_STATUSES =
-  PROCESSING_STATUSES;
-
-module.exports.SYNC_STATUSES =
-  SYNC_STATUSES;
-
-module.exports.SIGNATURE_STATUSES =
-  SIGNATURE_STATUSES;
-
-module.exports.CONFLICT_TYPES =
-  CONFLICT_TYPES;
-
-module.exports.RISK_LEVELS =
-  RISK_LEVELS;
+export {
+  OfflineEventSchema as schema,
+  MODEL_NAME,
+  COLLECTION_NAME,
+  SCHEMA_VERSION,
+  EVENT_TYPES,
+  EVENT_CATEGORIES,
+  PROCESSING_STATUSES,
+  SYNC_STATUSES,
+  SIGNATURE_STATUSES,
+  CONFLICT_TYPES,
+  RISK_LEVELS,
+};

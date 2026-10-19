@@ -1,7 +1,7 @@
 # TITech Community Capital — RBAC + Official Theme Change Manifest
 
 Date: 2026-10-06
-Input archive: `titech-community-capital-main(4).zip`
+Input archive: `titech-community-capital-main.zip`
 
 ## Exact repository delta
 

@@ -158,9 +158,8 @@ test('comparison is consistent when operand order is reversed', () => {
     const forward = compare(left, right);
     const reverse = compare(right, left);
 
-    assert.equal(
-      forward,
-      -reverse,
+    assert.ok(
+      (forward === 0 && reverse === 0) || forward === -reverse,
       `Comparison must be antisymmetric for ${left} and ${right}`,
     );
   }

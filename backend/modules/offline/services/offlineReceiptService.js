@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Capital LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *
@@ -68,7 +68,7 @@
  * =============================================================================
  */
 
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
 // =============================================================================
 // Constants
@@ -1955,17 +1955,11 @@ const offlineReceiptService =
 // Exports
 // =============================================================================
 
-module.exports =
-  offlineReceiptService;
+export {
+  OfflineReceiptService,
+  SERVICE_NAME,
+  RECEIPT_VERSION,
+  RECEIPT_PREFIX,
+};
 
-module.exports.OfflineReceiptService =
-  OfflineReceiptService;
-
-module.exports.SERVICE_NAME =
-  SERVICE_NAME;
-
-module.exports.RECEIPT_VERSION =
-  RECEIPT_VERSION;
-
-module.exports.RECEIPT_PREFIX =
-  RECEIPT_PREFIX;
+export default offlineReceiptService;
