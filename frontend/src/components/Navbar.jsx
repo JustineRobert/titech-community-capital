@@ -111,6 +111,12 @@ const NAVIGATION_ITEMS = Object.freeze([
     to: "/retirement-support",
     icon: ShieldCheck,
   },
+  {
+    id: "educationSupport",
+    label: "Education support",
+    to: "/education-support",
+    icon: ShieldCheck,
+  },
 ]);
 
 const ROUTES = Object.freeze({

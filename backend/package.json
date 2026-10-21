@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital-backend",
   "version": "1.0.0",
-  "description": "TITech Community Capital backend — enterprise community-finance control plane for tenancy, identity, financial events, ledger, provider-neutral payments, settlement/reconciliation, consent, risk governance, operations and capital connectivity.",
+  "description": "TITech Community Capital backend \u2014 enterprise community-finance control plane for tenancy, identity, financial events, ledger, provider-neutral payments, settlement/reconciliation, consent, risk governance, operations and capital connectivity.",
   "private": true,
   "type": "module",
   "main": "./server.js",
@@ -101,7 +101,8 @@
     "health": "node scripts/healthcheck.js",
     "test:otp": "node --test tests/unit/services/otpService.test.cjs",
     "index:create:inclusive-insurance": "node scripts/createInclusiveInsuranceIndexes.js",
-    "index:create:retirement-support": "node scripts/createRetirementSupportIndexes.js"
+    "index:create:retirement-support": "node scripts/createRetirementSupportIndexes.js",
+    "index:create:education-campaigns": "node scripts/createEducationCampaignIndexes.js"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

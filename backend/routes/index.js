@@ -16,6 +16,8 @@ import secureDocumentRoutes from '../modules/secure-documents/secureDocument.rou
 import identityOnboardingRoutes from '../modules/identity-onboarding/identityOnboarding.routes.js';
 import capitalRoutes from '../modules/capital/capital.routes.js';
 import operationsRoutes from '../modules/operations/operations.routes.js';
+import educationCampaignRoutes from '../modules/education/educationCampaign.routes.js';
+import educationCampaignPublicRoutes from '../modules/education/educationCampaign.public.routes.js';
 import tenantMiddlewareModule from '../middleware/tenantMiddleware.js';
 import { payrollApiRouter, payrollWebhookRouter } from '../modules/payroll/payroll.routes.js';
 import LoansController from '../controllers/loansController.js';
@@ -1162,6 +1164,20 @@ router.use(
     authenticate,
     tenantAuthorization,
     identityOnboardingRoutes,
+);
+
+// Published campaign reading is a narrow allowlisted public DTO; the same
+// capability flag remains fail-closed and no donation/payment actions exist.
+router.use(
+    `${API_PREFIX}/education/campaigns/public`,
+    educationCampaignPublicRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/education/campaigns`,
+    authenticate,
+    tenantAuthorization,
+    educationCampaignRoutes,
 );
 
 router.use(

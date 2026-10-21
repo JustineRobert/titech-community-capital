@@ -1,0 +1,92 @@
+.titech-education-page {
+  width: min(100% - 2rem, 76rem);
+  margin-inline: auto;
+  padding-block: clamp(1.25rem, 4vw, 3rem) 4rem;
+  color: var(--titech-color-text);
+}
+.titech-education-hero {
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-dialog, 1.25rem);
+  background: linear-gradient(135deg, var(--titech-color-surface), var(--titech-color-surface-muted));
+  box-shadow: var(--titech-ui-shadow-card);
+}
+.titech-education-hero h1 { margin: .35rem 0 .65rem; color: var(--titech-brand-deep-blue); font-size: clamp(1.65rem, 4vw, 2.35rem); line-height: 1.2; }
+.titech-education-hero p { max-width: 68ch; line-height: 1.65; }
+.titech-education-eyebrow { margin: 0; color: var(--titech-brand-electric-blue); font-size: .78rem; font-weight: 800; letter-spacing: .045em; }
+.titech-education-hero__actions, .titech-education-actions, .titech-education-form__actions, .titech-education-section-heading { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+.titech-education-hero__actions { margin-top: 1.25rem; }
+.titech-education-button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.7rem; padding: .62rem .9rem; border: 1px solid transparent; border-radius: var(--titech-ui-radius-control, .75rem); font: inherit; font-weight: 750; text-decoration: none; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease; }
+.titech-education-button:focus-visible { outline: 3px solid var(--titech-focus-color); outline-offset: 2px; }
+.titech-education-button:disabled { cursor: not-allowed; opacity: .55; }
+.titech-education-button--primary { color: var(--titech-brand-white); background: var(--titech-brand-electric-blue); }
+.titech-education-button--primary:hover:not(:disabled) { background: var(--titech-brand-deep-blue); }
+.titech-education-button--secondary { color: var(--titech-brand-deep-blue); border-color: var(--titech-color-border-strong); background: var(--titech-color-surface); }
+.titech-education-button--secondary:hover:not(:disabled) { background: var(--titech-color-surface-muted); }
+.titech-education-button--danger { color: var(--titech-brand-white); background: var(--titech-state-danger); }
+.titech-education-note { margin-block: 1rem; padding: 1rem 1.1rem; border-inline-start: 4px solid var(--titech-brand-cyan); border-radius: .5rem; background: var(--titech-color-surface-muted); line-height: 1.6; }
+.titech-education-note p { margin-bottom: 0; }
+.titech-education-message { margin-block: 1rem; padding: .9rem 1rem; border-radius: .75rem; background: var(--titech-color-surface-muted); }
+.titech-education-message--error { border-inline-start: 4px solid var(--titech-state-danger); }
+.titech-education-message--success { border-inline-start: 4px solid var(--titech-state-success); }
+.titech-education-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1rem; margin-top: 1.25rem; }
+.titech-education-card { min-width: 0; padding: clamp(1rem, 2vw, 1.4rem); border: 1px solid var(--titech-color-border); border-radius: var(--titech-ui-radius-card, 1rem); background: var(--titech-color-surface); box-shadow: var(--titech-ui-shadow-card); }
+.titech-education-card h2, .titech-education-card h3 { margin-top: .4rem; color: var(--titech-brand-deep-blue); line-height: 1.3; overflow-wrap: anywhere; }
+.titech-education-card p { line-height: 1.55; overflow-wrap: anywhere; }
+.titech-education-card__top { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: .5rem; }
+.titech-education-pill { display: inline-flex; padding: .25rem .55rem; border-radius: 999px; background: var(--titech-color-surface-muted); color: var(--titech-brand-deep-blue); font-size: .78rem; font-weight: 750; }
+.titech-education-community { color: var(--titech-color-text-muted); font-size: .8rem; }
+.titech-education-partner { font-size: .9rem; }
+.titech-education-card__facts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem 1rem; margin-block: 1rem; padding-block: .8rem; border-block: 1px solid var(--titech-color-border); }
+.titech-education-card__facts strong { text-align: end; font-variant-numeric: tabular-nums; }
+.titech-education-empty { margin-block: 1.25rem; padding: 1.5rem; border: 1px dashed var(--titech-color-border-strong); border-radius: 1rem; text-align: center; color: var(--titech-color-text-muted); }
+.titech-education-detail { margin-top: 1.25rem; }
+.titech-education-detail__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: .85rem; }
+.titech-education-detail__grid div { min-width: 0; padding: .75rem; border: 1px solid var(--titech-color-border); border-radius: .65rem; }
+.titech-education-detail__grid dt { color: var(--titech-color-text-muted); font-size: .83rem; font-weight: 700; }
+.titech-education-detail__grid dd { margin: .3rem 0 0; overflow-wrap: anywhere; line-height: 1.5; }
+.titech-education-budget-list { padding-inline-start: 1.25rem; }
+.titech-education-budget-list li { display: flex; justify-content: space-between; gap: 1rem; padding-block: .55rem; border-bottom: 1px solid var(--titech-color-border); }
+.titech-education-no-payment { color: var(--titech-color-text-muted); font-weight: 700; }
+.titech-education-form-card { margin-top: 1.25rem; }
+.titech-education-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.titech-education-form label, .titech-education-review-panel label { display: flex; min-width: 0; flex-direction: column; gap: .4rem; font-weight: 650; }
+.titech-education-form label span, .titech-education-review-panel label span { font-size: .9rem; line-height: 1.4; }
+.titech-education-form input, .titech-education-form select, .titech-education-form textarea, .titech-education-review-panel textarea, .titech-education-budget-editor input, .titech-education-budget-editor select { box-sizing: border-box; width: 100%; min-height: 2.7rem; padding: .65rem .7rem; border: 1px solid var(--titech-color-border-strong); border-radius: .65rem; color: var(--titech-color-text); background: var(--titech-color-surface); font: inherit; }
+.titech-education-form textarea, .titech-education-review-panel textarea { min-height: 5rem; resize: vertical; }
+.titech-education-form input:focus-visible, .titech-education-form select:focus-visible, .titech-education-form textarea:focus-visible, .titech-education-review-panel textarea:focus-visible { outline: 3px solid var(--titech-focus-color); outline-offset: 1px; }
+.titech-education-form__wide { grid-column: 1 / -1; }
+.titech-education-form__wide h3 { margin-block: .3rem .8rem; color: var(--titech-brand-deep-blue); }
+.titech-education-budget-editor { display: grid; grid-template-columns: minmax(8rem, .8fr) minmax(10rem, 1.3fr) minmax(7rem, .6fr) auto; align-items: end; gap: .65rem; margin-block: .7rem; padding: .75rem; border: 1px solid var(--titech-color-border); border-radius: .75rem; }
+.titech-education-section-heading { justify-content: space-between; margin-block: 2rem .75rem; }
+.titech-education-section-heading h2 { margin: 0; color: var(--titech-brand-deep-blue); }
+.titech-education-managed-card { margin-block: .75rem; }
+.titech-education-managed-card__heading { display: flex; justify-content: space-between; align-items: start; gap: 1rem; }
+.titech-education-managed-card__heading h3 { margin-block: 0 .25rem; }
+.titech-education-managed-card__heading p { margin-block: .25rem; color: var(--titech-color-text-muted); }
+.titech-education-status { display: inline-flex; flex: 0 0 auto; padding: .25rem .55rem; border-radius: 999px; color: var(--titech-color-text); background: var(--titech-color-surface-muted); font-size: .77rem; font-weight: 800; }
+.titech-education-status--approved, .titech-education-status--published { color: var(--titech-state-success); background: var(--titech-success-surface); }
+.titech-education-status--rejected, .titech-education-status--closed { color: var(--titech-state-danger); background: var(--titech-danger-surface); }
+.titech-education-status--submitted, .titech-education-status--paused { color: var(--titech-state-warning); background: var(--titech-warning-surface); }
+.titech-education-managed-card__dates { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; color: var(--titech-color-text-muted); font-size: .88rem; }
+.titech-education-review-panel { display: grid; gap: .8rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--titech-color-border); border-radius: .8rem; background: var(--titech-color-surface-muted); }
+.titech-education-review-panel h4 { margin: 0; color: var(--titech-brand-deep-blue); }
+.titech-education-check { display: flex !important; flex-direction: row !important; align-items: start; gap: .6rem !important; font-weight: 500 !important; }
+.titech-education-check input { width: 1.15rem; min-height: 1.15rem; margin-top: .15rem; accent-color: var(--titech-brand-electric-blue); flex: 0 0 auto; }
+.titech-education-safety-copy { border-inline-start: 3px solid var(--titech-brand-gold); padding-inline-start: .8rem; }
+@media (max-width: 720px) {
+  .titech-education-page { width: min(100% - 1rem, 76rem); }
+  .titech-education-form { grid-template-columns: 1fr; }
+  .titech-education-form__wide { grid-column: auto; }
+  .titech-education-budget-editor { grid-template-columns: 1fr; }
+  .titech-education-managed-card__heading { flex-direction: column; }
+  .titech-education-budget-list li { flex-direction: column; gap: .2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .titech-education-button { transition: none; }
+}
+
+.titech-education-reason-field { display: flex; width: min(100%, 52rem); flex-direction: column; gap: .4rem; margin-block: .75rem; font-weight: 650; }
+.titech-education-reason-field span { font-size: .9rem; }
+.titech-education-reason-field textarea { box-sizing: border-box; width: 100%; padding: .65rem .7rem; border: 1px solid var(--titech-color-border-strong); border-radius: .65rem; background: var(--titech-color-surface); color: var(--titech-color-text); font: inherit; resize: vertical; }
+.titech-education-reason-field textarea:focus-visible { outline: 3px solid var(--titech-focus-color); outline-offset: 1px; }

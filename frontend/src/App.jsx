@@ -140,6 +140,14 @@ const RetirementSupportPage = lazy(
   () => import('./pages/retirement-support/RetirementSupportPage')
 );
 
+const EducationSupportPage = lazy(
+  () => import('./pages/education-support/EducationSupportPage')
+);
+
+const EducationCampaignManagerPage = lazy(
+  () => import('./pages/education-support/EducationCampaignManagerPage')
+);
+
 const NotFound = lazy(
   () => import('./pages/NotFound')
 );
@@ -188,6 +196,8 @@ const ROUTES = Object.freeze({
   AGRICULTURE: '/agriculture',
   INCLUSIVE_ONBOARDING: '/inclusive-onboarding',
   RETIREMENT_SUPPORT: '/retirement-support',
+  EDUCATION_SUPPORT: '/education-support',
+  EDUCATION_CAMPAIGN_MANAGER: '/education-support/manage',
 
   ADMIN: '/admin',
   ADMIN_SETTINGS: '/admin/settings',
@@ -689,6 +699,11 @@ function PublicRoutes() {
         path={ROUTES.LEGAL}
         element={<Legal />}
       />
+
+      <Route
+        path={ROUTES.EDUCATION_SUPPORT}
+        element={<EducationSupportPage />}
+      />
     </>
   );
 }
@@ -768,6 +783,15 @@ function ProtectedApplicationRoutes() {
         element={
           <ProtectedRoute>
             <AgricultureDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.EDUCATION_CAMPAIGN_MANAGER}
+        element={
+          <ProtectedRoute>
+            <EducationCampaignManagerPage />
           </ProtectedRoute>
         }
       />
