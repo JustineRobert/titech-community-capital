@@ -4,6 +4,12 @@
 
 All new workflow feature flags are `false`. Leave them off until the specific purpose has documented approval. `GET /api/v1/insurance/readiness` reports missing profile/licence/storage/feature/integration and approval conditions. Live premium processing and payout processing are hard-coded unavailable because a canonical insurance-specific financial adapter is not registered.
 
+## Participant scope and non-discrimination
+
+The participant workflow is intended to support eligible people from both refugee and host communities through authorised, tenant-scoped institutional programmes. It retains national ID, refugee ID, asylum-seeker certificates, passports, and other explicitly policy-approved credentials. The system must not treat refugee status, nationality, preferred language, or absence of a national ID as an automatic risk score or rejection reason. Identity verification, programme eligibility, financial capability, and insurance eligibility are separate decisions with separate evidence and access controls.
+
+A refugee-serving organisation profile is a registration submission, not proof of official status. An insurer profile or uploaded licence is not authority to operate until an independent authorised reviewer records a real verification source, activity scope, territory, expiry, and the applicable approval evidence. Do not infer consent, coverage, a premium payment, a claim decision, or a payout from the existence of a database record.
+
 ## Prepare a development environment
 
 1. Use Node.js `>=24.15.0` and npm `>=11.0.0` as required by repository metadata; do not treat the local Node 22 check as supported runtime evidence.

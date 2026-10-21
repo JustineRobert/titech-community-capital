@@ -121,3 +121,19 @@ Source: the user-supplied `titech-community-capital-main(1).zip` snapshot in the
 
 The installed runtime is Node `v22.16.0` and npm `10.9.2`, below the repository's declared Node `>=24.15.0` and npm `>=11.0.0` target. Dependencies are absent. The frontend production build, full backend Jest suite, frontend Vitest suite, lint, actual server startup, MongoDB/Redis persistence and concurrency, browser E2E, index creation, live integration, security testing, backup/restore, rollback, partner acceptance and legal/regulatory approvals were not executed. Status remains **NOT READY** and `PRODUCTION_APPROVED` remains **NO**.
 
+
+## Capacity and inclusive-workflow addendum — 21 October 2026
+
+This addendum records the current supplied ZIP remediation; it does not imply the remote GitHub repository was modified. The archive comment contains source reference `da6569b35ab34c913630aae9dbc953ae52a11684`, but the archive does not contain `.git`, so the branch/commit was not independently verified against GitHub.
+
+- Added a bounded, read-only k6 capacity workload for existing health/readiness, participant status, refugee-serving partner status, and insurance read routes. It requires explicit environment/target/approval controls for runs above 10 virtual users, rejects production targets, and does not perform business mutations.
+- Added a Node built-in contract suite and static gate, and wired both into the root `check` and `test:ci` commands. The first-stage workload has **not** been executed because k6 is not installed, the runtime dependencies are absent, and no operational server/staging target was available.
+- Clarified the inclusive-onboarding UI scope for refugee and host-community participants in English, Swahili, French, and Arabic. Added locale-scope tests. Translated copy remains pending qualified linguistic/legal review; i18n parity does not imply translation approval.
+- Added production environment *examples* for the backend and frontend. Critical server endpoints and secrets are intentionally blank, capability flags are false, and the examples must not be deployed unchanged. The hosting static artifact gate now passes, but that is not an actual deployment test.
+- Preserved `TITech Community Capital` as product identity, `TITech Capital LTD` as configured organization identity, and the existing official logo and centralized nine-color theme.
+
+Focused evidence from this run: inclusive-onboarding policy/contract suite 23/23 passed; performance contract tests 8/8 passed; native locale tests 9/9 passed; localization validator passed with 489/489 keys per locale; official theme audit passed across 62 non-brand CSS files with zero hard-coded official-palette occurrences in those files; RBAC, financial static (12 canonical files), 11 enterprise control-plane contracts, syntax, implementation and hosting static gates passed. The canonical financial import surface still has zero missing local imports, while the wider backend inventory reports 209 legacy/non-critical missing local imports.
+
+**Not proven:** k6 load results, actual concurrency or request throughput, a full dependency-backed build/test run, live server readiness, MongoDB/Redis concurrency/failover, financial-write stress and reconciliation, offline burst recovery, authenticated-session capacity, backup restore/rollback, independent security review, partner onboarding/insurer approval, legal/privacy/regulatory approval, pilot acceptance or production approval. The available Node/npm remain `v22.16.0` / `10.9.2`, below the repository target `Node >=24.15.0` / `npm >=11.0.0`. Production approval remains **NO**.
+
+See `docs/scalability/TITECH_CAPACITY_VALIDATION_PLAN.md`, `tests/performance/README.md`, and `docs/reports/TITECH_CAPACITY_AND_INCLUSIVE_WORKFLOW_VALIDATION_2026-10-21.md` for run instructions, measured local gate results, limitations and the next release gate.

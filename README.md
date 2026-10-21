@@ -1061,6 +1061,11 @@ The `docs/` directory contains project documentation.
 
 * [`docs/GIT_COMMIT_GUIDE.md`](docs/GIT_COMMIT_GUIDE.md)
 * [`docs/RELEASE_NOTES.md`](docs/RELEASE_NOTES.md)
+* [Global scalability implementation master prompt](docs/scalability/TITECH_GLOBAL_SCALABILITY_MASTER_PROMPT_2026-10-21.md)
+* [Capacity validation plan](docs/scalability/TITECH_CAPACITY_VALIDATION_PLAN.md)
+* [Read-only k6 performance workload and safety contract](tests/performance/README.md)
+* [Inclusive onboarding and insurance runbook](docs/REFUGEE_INCLUSIVE_INSURANCE_RUNBOOK.md)
+* [21 October 2026 implementation and verification report](docs/reports/TITECH_CAPACITY_AND_INCLUSIVE_WORKFLOW_VALIDATION_2026-10-21.md)
 
 ### Platform & Legal
 
