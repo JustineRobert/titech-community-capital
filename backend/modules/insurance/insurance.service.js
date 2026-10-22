@@ -2,7 +2,7 @@ import InsuranceInstitutionProfile from './models/InsuranceInstitutionProfile.js
 import Tenant from '../../models/Tenant.js';
 import KYC from '../../models/KYC.js';
 import mongoose from 'mongoose';
-import { isPrivateDocumentStorageConfigured } from '../secure-documents/secureDocument.service.js';
+import { isPrivateDocumentMalwareScannerConfigured, isPrivateDocumentStorageConfigured } from '../secure-documents/secureDocument.service.js';
 import InsuranceProduct from './models/InsuranceProduct.js';
 import InsuranceEnrolment from './models/InsuranceEnrolment.js';
 import InsurancePremium from './models/InsurancePremium.js';
@@ -336,6 +336,7 @@ export async function getInsuranceOperationalReadiness(inputContext = {}) {
   const profile = await InsuranceInstitutionProfile.findOne({ tenantId: ctx.tenantId }).select('licenceStatus licenceExpiresAt onboardingStatus integrationStatus').lean();
   const operational = profile ? (() => { try { assertLicenceOperational(profile); return true; } catch { return false; } })() : false;
   const privateDocumentStorageConfigured = isPrivateDocumentStorageConfigured();
+  const documentMalwareScannerConfigured = isPrivateDocumentMalwareScannerConfigured();
   const refugeeOnboardingEnabled = process.env.TITECH_REFUGEE_ONBOARDING_ENABLED === 'true';
   const insuranceOnboardingEnabled = process.env.TITECH_INSURANCE_ONBOARDING_ENABLED === 'true';
   const insuranceOperationsEnabled = process.env.TITECH_INSURANCE_OPERATIONS_ENABLED === 'true';
@@ -343,6 +344,7 @@ export async function getInsuranceOperationalReadiness(inputContext = {}) {
     ...(!operational ? ['CURRENT_VERIFIED_INSURANCE_LICENCE_REQUIRED'] : []),
     ...(profile?.integrationStatus !== 'TESTS_PASSED' ? ['INTEGRATION_TEST_EVIDENCE_REQUIRED'] : []),
     ...(!privateDocumentStorageConfigured ? ['PRIVATE_ENCRYPTED_DOCUMENT_STORAGE_NOT_CONFIGURED'] : []),
+    ...(!documentMalwareScannerConfigured ? ['DOCUMENT_MALWARE_SCANNER_NOT_CONFIGURED'] : []),
     ...(!refugeeOnboardingEnabled ? ['REFUGEE_ONBOARDING_FEATURE_FLAG_DISABLED'] : []),
     ...(!insuranceOnboardingEnabled ? ['INSURANCE_ONBOARDING_FEATURE_FLAG_DISABLED'] : []),
     ...(!insuranceOperationsEnabled ? ['INSURANCE_OPERATIONS_FEATURE_FLAG_DISABLED'] : []),
@@ -356,6 +358,7 @@ export async function getInsuranceOperationalReadiness(inputContext = {}) {
     onboardingStatus: profile?.onboardingStatus || 'NOT_STARTED',
     integrationStatus: profile?.integrationStatus || 'NOT_CONFIGURED',
     privateDocumentStorageConfigured,
+    documentMalwareScannerConfigured,
     refugeeOnboardingEnabled,
     insuranceOnboardingEnabled,
     insuranceOperationsEnabled,

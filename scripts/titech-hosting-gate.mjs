@@ -43,6 +43,49 @@ for (const rel of requiredFiles) {
 }
 if (!failures.length) pass('required-artifacts', 'Hosting and theme implementation artifacts are present and non-zero.');
 
+// Production examples are contracts, not deployable secrets. Keep them safe by
+// requiring external database/cache endpoints, explicit hardening defaults and
+// disabled high-risk capabilities until their independent gates pass.
+const backendProductionEnvPath = path.join(ROOT, 'backend/.env.production.example');
+const frontendProductionEnvPath = path.join(ROOT, 'frontend/.env.production.example');
+if (fs.existsSync(backendProductionEnvPath) && fs.statSync(backendProductionEnvPath).size > 0) {
+  const backendEnv = fs.readFileSync(backendProductionEnvPath, 'utf8');
+  const requiredBackendLines = [
+    'NODE_ENV=production',
+    'PORT=5000',
+    'HOST=0.0.0.0',
+    'ALLOW_INSECURE_AUTH=false',
+    'COOKIE_HTTP_ONLY=true',
+    'COOKIE_SECURE=true',
+    'AUDIT_ENABLED=true',
+    'AUDIT_FAIL_CLOSED=true',
+    'CACHE_KEY_PREFIX=titech:',
+    'TITECH_REFUGEE_ONBOARDING_ENABLED=false',
+    'TITECH_INSURANCE_OPERATIONS_ENABLED=false',
+    'TITECH_INSURANCE_LIVE_PREMIUM_PROCESSING_ENABLED=false',
+    'TITECH_PRIVATE_DOCUMENT_STORAGE_PATH=/var/lib/titech/private-documents',
+    'TITECH_DOCUMENT_MALWARE_SCANNER_HOST=__SET_PRIVATE_CLAMD_HOST__',
+    'TITECH_DOCUMENT_MALWARE_SCANNER_PORT=3310',
+    'TITECH_USSD_ENABLED=false',
+    'TITECH_OFFLINE_SYNC_ENABLED=false',
+  ];
+  const backendEnvLines = backendEnv.split(/\r?\n/).map((entry) => entry.trim());
+  const missing = requiredBackendLines.filter((line) => !backendEnvLines.includes(line));
+  const missingSecureEndpoints = ['MONGO_URI=mongodb+srv://', 'REDIS_URL=rediss://'].filter((prefix) => !backendEnvLines.some((line) => line.startsWith(prefix)));
+  if (missing.length || missingSecureEndpoints.length) fail('backend-production-env', `backend/.env.production.example is missing required safe contract line(s): ${[...missing, ...missingSecureEndpoints].join(', ')}`);
+  else if (/MONGO_URI=.*localhost|REDIS_URL=.*localhost/i.test(backendEnv)) fail('backend-production-env', 'Production backend template must not point MongoDB or Redis to localhost.');
+  else if (!['JWT_SECRET=__SET_UNIQUE_JWT_SECRET_IN_SECRET_MANAGER__', 'JWT_REFRESH_SECRET=__SET_DISTINCT_REFRESH_SECRET_IN_SECRET_MANAGER__', 'SESSION_SECRET=__SET_UNIQUE_SESSION_SECRET_IN_SECRET_MANAGER__'].every((line) => backendEnv.includes(line))) fail('backend-production-env', 'Production backend template must use clearly unconfigured secret-manager placeholders.');
+  else pass('backend-production-env', 'Production backend template uses external TLS endpoints, hardened defaults, placeholder secrets and fail-closed capability flags.');
+}
+if (fs.existsSync(frontendProductionEnvPath) && fs.statSync(frontendProductionEnvPath).size > 0) {
+  const frontendEnv = fs.readFileSync(frontendProductionEnvPath, 'utf8');
+  const requiredFrontendLines = ['VITE_API_URL=/api/v1', 'VITE_API_READINESS_PATH=/api/v1/ready', 'VITE_API_HEALTH_PATH=/api/v1/health', 'VITE_SOCKET_URL=/'];
+  const missing = requiredFrontendLines.filter((line) => !frontendEnv.split(/\r?\n/).some((entry) => entry.trim() === line));
+  if (missing.length) fail('frontend-production-env', `frontend/.env.production.example is missing required runtime contract line(s): ${missing.join(', ')}`);
+  else if (/VITE_[A-Z0-9_]*(?:SECRET|TOKEN|API_KEY)=/i.test(frontendEnv)) fail('frontend-production-env', 'Frontend build environment must not define public-bundle secrets or credentials.');
+  else pass('frontend-production-env', 'Frontend production template routes through the same-origin edge and exposes no credentials.');
+}
+
 const brand = JSON.parse(fs.readFileSync(path.join(ROOT, 'branding/BRAND_MANIFEST.json'), 'utf8'));
 const palette = Object.values(brand.visual_identity_reference ?? {}).map(String).map(x => x.toUpperCase());
 const requiredColors = ['#0030A0','#0058D8','#0066E8','#00B8F8','#008000','#A8F000','#F8D800','#082B67','#FFFFFF'];
@@ -55,10 +98,10 @@ if (manifest.display !== 'standalone' || !manifest.icons?.length) fail('pwa-mani
 else pass('pwa-manifest', 'PWA manifest declares standalone display and app icons.');
 
 const prodCompose = fs.readFileSync(path.join(ROOT, 'docker/docker-compose.prod.yml'), 'utf8');
-for (const token of ['backend:', 'frontend:', 'edge:', 'TITECH_DOMAIN', 'TITECH_TLS_DIR']) {
+for (const token of ['backend:', 'frontend:', 'edge:', 'TITECH_DOMAIN', 'TITECH_TLS_DIR', 'TITECH_PRIVATE_DOCUMENTS_DIR', '/var/lib/titech/private-documents']) {
   if (!prodCompose.includes(token)) fail(`compose:${token}`, `Production compose is missing ${token}`);
 }
-if (!failures.some(x => x.includes('Production compose'))) pass('production-compose', 'Production compose contains backend, frontend, edge, domain and TLS contracts.');
+if (!failures.some(x => x.includes('Production compose'))) pass('production-compose', 'Production compose contains backend, frontend, edge, domain, TLS and persistent private-document storage contracts.');
 
 const edge = fs.readFileSync(path.join(ROOT, 'nginx/production.conf.template'), 'utf8');
 for (const token of ['Strict-Transport-Security', 'Content-Security-Policy', '/api/', '/socket.io/', 'return 301 https']) {

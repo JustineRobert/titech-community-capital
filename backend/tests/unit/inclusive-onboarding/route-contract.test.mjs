@@ -66,3 +66,16 @@ test('private compliance evidence upload permits only the relevant NGO and insur
   assert.match(controller, /TITECH_REFUGEE_PARTNER_ONBOARDING_ENABLED/);
   assert.match(controller, /TITECH_INSURANCE_OPERATIONS_ENABLED/);
 });
+
+
+test('private evidence uploads fail closed before persistence unless malware screening returns clean', async () => {
+  const documentService = await read('../../../modules/secure-documents/secureDocument.service.js');
+  const scanner = await read('../../../modules/secure-documents/documentMalwareScan.js');
+  const insuranceService = await read('../../../modules/insurance/insurance.service.js');
+  const scanCall = documentService.indexOf('await scanDocumentBuffer(buffer)');
+  const firstPersistenceCall = documentService.indexOf('await SecureDocument.create(');
+  assert.ok(scanCall >= 0, 'document service must invoke the scanner');
+  assert.ok(firstPersistenceCall > scanCall, 'scanning must complete before document persistence');
+  assert.match(scanner, /DOCUMENT_MALWARE_SCANNER_NOT_CONFIGURED/);
+  assert.match(insuranceService, /DOCUMENT_MALWARE_SCANNER_NOT_CONFIGURED/);
+});

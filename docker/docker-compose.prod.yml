@@ -20,6 +20,14 @@ services:
       PORT: 5000
     expose:
       - "5000"
+    # Private identity/licence/claim documents must survive container replacement.
+    # Configure this operator-managed encrypted host path and grant UID 1000 write
+    # access to it before deployment; Compose intentionally fails if it is absent.
+    volumes:
+      - type: bind
+        source: ${TITECH_PRIVATE_DOCUMENTS_DIR:?Set TITECH_PRIVATE_DOCUMENTS_DIR to an encrypted persistent host directory}
+        target: /var/lib/titech/private-documents
+        read_only: false
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s

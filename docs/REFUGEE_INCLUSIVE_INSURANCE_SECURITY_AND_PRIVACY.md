@@ -23,7 +23,7 @@ Trust boundaries include the participant browser, assisted-onboarding worker, re
 | Forged verification or reviewer self-approval | Explicit service transition checks, actor attribution, submission-actor exclusion | Independent access review; integration tests against production identity context |
 | Cross-tenant record access | Tenant-filtered lookups and canonical tenant route boundary | Authenticated adversarial API tests with multiple test tenants and real database |
 | Document at-rest exposure | AES-256-GCM encrypted files outside public web root; key external to DB | Production secret manager, filesystem permissions/backup encryption and restore test |
-| Malicious file upload | Size/type allowlist and file-signature checks | Malware scanning/content disarm, hardening, storage capacity alerts, routine patching |
+| Malicious file upload | Size/type allowlist, file-signature checks, and a fail-closed ClamAV INSTREAM adapter that runs before persistence | Deployed scanner availability/health, safe scanner test-signature proof, malware event monitoring, content-disarm decision, storage capacity alerts and routine patching |
 | Document IDOR | Tenant-scoped opaque references and purpose-specific read permissions | End-to-end positive/negative tests for each role and file purpose |
 | Consent spoofing | Consent service requires active purpose, recipient, categories and matching subject | Review consent capture UX/content, legal basis and withdrawal/expiry behavior end to end |
 | Licence document mistaken for approval | Uploaded evidence leaves licence pending; controlled reviewer/source/reason needed | Official register verification runbook and regulator/partner evidence |

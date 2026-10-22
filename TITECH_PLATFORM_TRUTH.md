@@ -2,33 +2,41 @@
 
 ## Current release decision
 
-**RELEASE DECISION: NOT READY** (18 October 2026 focused implementation run)  
+**RELEASE DECISION: NOT READY** (22 October 2026 archive-local remediation run)  
 **PRODUCTION_APPROVED: NO**  
 **Production approval:** NO
 
 This source archive contains substantive authentication, tenant/RBAC, payment/provider, ledger, reconciliation and product foundations. The current run implemented a focused readiness/connectivity remediation and produced source/static/native-test evidence. It did **not** establish full operational readiness: the declared target Node/npm runtime was unavailable, project dependencies were not installed, dependency-backed tests and the production frontend build could not launch, and a live backend/DB/Redis/provider/browser E2E was not exercised. A static pass is not production approval.
 
-## Current focused evidence snapshot — 18 October 2026
+## Current focused evidence snapshot — 22 October 2026
+
+The uploaded archive's ZIP comment contains identifier `4e9ba9e52776121d496e22e0e29a6240aa3255c3`; it has no `.git` metadata, so a Git branch/commit or remote push cannot be verified. The execution container has Node `v22.16.0` and npm `10.9.2`, below the repository's target Node `>=24.15.0` and npm `>=11.0.0`. Root/backend/frontend dependencies were not installed. GitHub DNS/network access failed. This report separates checks that actually ran from checks blocked by those limits.
 
 | Gate | Result | Evidence and limits |
 |---|---|---|
-| Global production approval | **NO** | Pension integrations, live financial/provider proofs, target runtime, dependency-backed execution, legal/privacy review, independent security and operational recovery evidence remain outstanding. |
-| Retirement-support source implementation | Implemented in source; runtime not yet proven | New case, contribution-evidence and financial-support referral domain is mounted under the existing authenticated and tenant-authorized API. The capability flag remains disabled by default. |
-| Refugee-inclusive and insurance onboarding | Existing foundation retained and regression-checked | The existing alternative-credential, partner, licence, insurance, consent and private-document modules were preserved and their source-contract tests were rerun. This does not certify a live regulator or identity-provider integration. |
-| Targeted retirement + inclusive-onboarding tests | PASS — 31/31 | `node --test backend/tests/unit/retirement/*.test.mjs backend/tests/unit/inclusive-onboarding/*.test.mjs`; contract/unit tests only, not a database-backed integration or browser E2E run. |
-| Localization native tests | PASS — 9/9 | `node --test scripts/i18n-core.test.mjs`. |
-| Localization structural coverage | PASS — 24 checks; 420/420 keys per locale | English is canonical; Swahili, French and Arabic remain pending human/qualified privacy/legal translation review. Production-eligible remains false. |
-| Official theme audit | PASS — 21 checks | Nine-color official palette verified; 61 CSS files scanned; zero hardcoded official palette values in scanned non-brand CSS; supplied reference asset hash validated. |
-| Enterprise source syntax gate | PASS — 2,399 JS/TS-family files parsed | Available Node is 22.16.0; repository target remains Node >=24.15.0. Gate emits target-runtime warning. |
-| Conflict marker scan | PASS — 3,288 files scanned | No merge conflict markers found. |
-| Financial static gate | PASS — 12 canonical files checked | Static architecture check; no live financial transaction proof. |
-| Enterprise contract gate | PASS — 11 contracts checked | Contract evidence only. |
-| RBAC static gate | PASS | No live authenticated cross-tenant HTTP test in this environment. |
-| Runtime import audit | PASS on canonical financial surface; WARN overall | 0 missing imports and 0 mixed-module violations on the audited canonical financial surface; 209 legacy/non-critical missing local import findings remain. |
-| Frontend runtime audit | PASS with warning | No `frontend/dist` artifact in the source snapshot; production browser runtime remains unverified. |
-| Full backend/frontend test suites, lint and build | BLOCKED | Root/backend `node_modules` are absent. Node/npm are `v22.16.0`/`10.9.2`; repository requires Node >=24.15.0/npm >=11. Vite, Vitest, Jest and ESLint are not installed in this environment. |
-| Live MongoDB/Redis concurrency and index creation | NOT RUN | Index setup script is included but was not pointed at any database. |
-| Government/NSSF/NIRA/payroll/provider integration | NOT ESTABLISHED | No access agreements, live credentials, authoritative source contract or successful sandbox/production evidence supplied. |
+| Global release decision | **NOT READY** | `productionApproved: false`; 23 of 24 blocking readiness rows remain unresolved. The master gate status is `PILOT_HARDENED_WITH_EXTERNAL_GATES_OPEN`; this is not pilot authorization or production approval. |
+| Production environment templates | **PASS — source contract** | Added `backend/.env.production.example` and `frontend/.env.production.example`. Hosting gate validates external MongoDB/Redis examples, production-safe cookie/audit defaults, placeholder-only secrets, same-origin frontend routing, disabled high-risk capabilities and document storage/scanner settings. Templates still require deployment-owner provisioning and review. |
+| Login transport contract | **PASS — source contract** | `scripts/verify-runtime-contract.mjs` validates the actual localized connection/service/timeout translation keys rather than searching for one literal English sentence. This resolves a brittle static false negative; it is not a live login test. |
+| Private document malware scanning | **IMPLEMENTED + NATIVE PROTOCOL TESTED; LIVE SCANNER NOT VERIFIED** | `backend/modules/secure-documents/documentMalwareScan.js` uses ClamAV `INSTREAM`, bounded input/timeout and explicit-clean verdict; missing, unreachable or invalid scanner fails closed before private-document storage. New tests pass 4/4 against a local protocol test server. A real clamd endpoint, EICAR signature test, deployed alerting and end-to-end upload proof remain required. |
+| Private document durability | **CONFIGURATION CONTRACT PASS; OPERATIONAL PROOF OPEN** | Production compose requires an explicit persistent host directory mounted at `/var/lib/titech/private-documents`; the runbook documents owner/permissions and recovery considerations. No Docker CLI, encrypted production host path, backup, restore or key-recovery drill was available here. |
+| Official TITech theme | **PASS — static audit** | Nine canonical palette values, mobile tokens and reference-artifact checksum pass the audit; 63 non-brand CSS files were scanned and no hard-coded official palette occurrences were found. Theme authority remains `branding/TITECH_OFFICIAL_THEME.json`; colors/logo were not rebranded. |
+| Source syntax | **PASS WITH RUNTIME WARNING** | `scripts/enterprise-gate.mjs --syntax` parsed 2,427 JavaScript/TypeScript-family files under Node 22.16.0, below the repository target. |
+| Focused dependency-free tests | **PASS — 73/73** | Inclusive onboarding 24/24; private document malware-scanner protocol 4/4; retirement support 16/16; education campaigns 10/10; performance contract 8/8; i18n native 9/9; frontend runtime harness 2/2. These are focused tests; they are not the complete application, database, payment-provider, security or production suite. |
+| Localization structure | **PASS — 32 structural checks** | English, Swahili, French and Arabic each contain 581/581 keys. Swahili/French/Arabic are pending qualified human review; RTL, accessibility, privacy/legal language and end-user comprehension remain unproven. |
+| Financial static gate | **PASS — static only** | Twelve canonical financial files checked. No transaction-capable MongoDB replica set, Redis duplicate/concurrency run, live journal posting, reversal, or authoritative settlement reconciliation was executed. |
+| Enterprise contract gate | **PASS — static only** | Eleven control-plane contracts checked. |
+| RBAC gate | **PASS — static only** | Repository RBAC gate passes; no live authenticated cross-tenant HTTP/E2E run was available. |
+| Runtime import audit | **PASS on canonical financial surface / WARN overall** | Zero missing imports and zero mixed-module violations on the canonical financial surface. The broader backend inventory still reports 209 missing local imports requiring classification/remediation. |
+| Runtime, auth, API, deployment contracts | **PASS — source contract** | `verify-runtime-contract`, `verify-auth-contract`, `verify-api-contract`, and `verify-deployment-contract` pass. Production transport verification correctly remains blocked without `TITECH_PRODUCTION_API_ORIGIN`. |
+| Hosting and implementation gates | **PASS — source/static contract** | Hosting gate validates production env templates, brand contract, PWA manifest, production compose storage mount and edge-security settings; implementation gate passes. Neither means a Docker image or deployment actually ran. |
+| Backend build script | **PASS — no-compilation script only** | Repository backend script exits zero by printing that the Node backend requires no compilation. It is not a substitute for importing and starting the backend with installed dependencies. |
+| Full dependency install, Jest/Vitest, lint, frontend build and browser E2E | **BLOCKED / NOT RUN** | Required Node/npm runtime and dependencies are absent. `npm run check` exits 127 at missing `eslint`; `npm test` exits 1 with missing backend Jest; `npm run build:frontend` exits 127 with missing `vite`. No successful clean install or browser E2E is claimed. |
+| MongoDB/Redis and financial integration | **NOT RUN** | No configured disposable transaction-capable MongoDB replica set, Redis integration environment or real financial dependency evidence was available. |
+| MTN sandbox/provider settlement and production approval | **EXTERNAL BLOCKED** | No credentialed sandbox run, authoritative settlement reconciliation, production provider approval or live payment was performed. Providers remain disabled in production templates. |
+| Security, recovery, regulatory and commercial proof | **EXTERNAL / OPERATIONAL BLOCKED** | Independent penetration testing, real restore/rollback drills, current qualified Ugandan legal/privacy review, required institutional authorization, operational pilots, ROI and paying-customer evidence remain outstanding. |
+| Current PDPO annual compliance-report notice | **OFFICIAL NOTICE VERIFIED; TITech APPLICABILITY UNCONFIRMED** | PDPO official Knowledge Center notice updated 25 August 2026 says all registered controllers, collectors and processors must submit annual Data Protection and Privacy Compliance Reports by 23 November 2026. TITech must confirm its own registration classification/status and reporting period directly with PDPO; this archive change is not a filing or legal opinion. Source: https://pdpo.go.ug/knowledge-center. |
+
+The hosting/runtime contract fixes and private-document scanner guard improve the source implementation and its safety posture. They do not close the separate target-runtime, dependency-backed, financial-integrity, provider, external security, recovery, legal, institutional or commercial gates. See [`docs/evidence/implementation-handoff-2026-10-22.md`](docs/evidence/implementation-handoff-2026-10-22.md) for per-file rationale and test evidence. The previous readiness certificate and historical reports remain retained for traceability but must not override this current decision.
 
 ## Historical evidence snapshot — 11 October 2026
 

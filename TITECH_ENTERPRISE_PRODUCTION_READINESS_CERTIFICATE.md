@@ -1,3 +1,5 @@
+> **STATUS NOTICE — 22 October 2026:** This is a historical 03 October snapshot, not a current certification. It is superseded by [`TITECH_PLATFORM_TRUTH.md`](TITECH_PLATFORM_TRUTH.md) and [`docs/evidence/implementation-handoff-2026-10-22.md`](docs/evidence/implementation-handoff-2026-10-22.md). Current decision is **NOT READY; PRODUCTION_APPROVED: NO**. No production approval or deployment is implied by this archived certificate.
+
 # TITech Community Capital — Enterprise Production Infrastructure Readiness Certificate
 
 **Release:** `2026-10-03-enterprise-remediated`

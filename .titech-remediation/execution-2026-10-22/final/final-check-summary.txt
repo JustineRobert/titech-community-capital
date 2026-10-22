@@ -1,0 +1,11 @@
+TITech Community Capital — 2026-10-22 final archive-local verification summary
+
+Environment: Node v22.16.0; npm 10.9.2. Target runtime declared in repository: Node >=24.15.0; npm >=11.0.0.
+Source archive has no .git; no remote push/deploy took place. Dependencies absent. Reports generated under reports/ are local gate outputs and intentionally excluded from the portable ZIP; native command logs are kept alongside this summary.
+
+PASS: malware scan protocol tests 4/4; inclusive onboarding tests 24/24; retirement support 16/16; education campaigns 10/10; performance contract 8/8; i18n native tests 9/9; frontend runtime harness 2/2. Total focused native tests: 73/73.
+PASS: official theme audit; runtime contract; auth/API/deployment source contracts; financial static gate (12 canonical files); enterprise contracts (11); RBAC static gate; canonical financial import surface; conflict scan; implementation gate; hosting gate; syntax parser (2,427 JS/TS-family files); i18n validation (32 checks); changed JavaScript syntax checks; PyYAML parse plus persistent-mount structure assertion.
+PASS: `npm run build:backend` only as a script-level no-compilation validation; not a backend runtime startup.
+BLOCKED: `npm run check` exit 127 at missing eslint; `npm test` exit 1 due missing backend Jest; `npm run build:frontend` exit 127 due missing vite; production contract exits 1 because `TITECH_PRODUCTION_API_ORIGIN` is not configured (no production request performed).
+Master gate: audit mode records 38 matrix rows, 24 blocking rows, 23 unresolved and productionApproved=false. Strict mode correctly exits 1 and reports BLOCKED. Master gate label PILOT_HARDENED_WITH_EXTERNAL_GATES_OPEN is an internal audit label, not a real pilot or production certification.
+External evidence still required: target runtime clean dependency installation; real MongoDB replica-set/Redis financial integration and concurrency; browser E2E; live ClamAV clean/infected-file and upload-path tests; durable encrypted volume plus backup/restore/key recovery; Docker build/startup/rollback; MTN sandbox, settlement and reconciliation; independent security assessment; qualified legal/regulatory review; institutional pilots, ROI, paying customer/retention; explicit production approval.

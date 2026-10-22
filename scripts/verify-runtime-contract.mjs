@@ -32,7 +32,9 @@ for (const needle of ["'/api/auth/login'", "'/api/auth/refresh'", "'/api/auth/lo
 if (!routes.includes('`${API_PREFIX}/health`') || !routes.includes('`${API_PREFIX}/ready`')) failures.push('Health/readiness route contract is incomplete.');
 if (!server.includes('TITECH_BACKEND_STARTUP_FAILED')) failures.push('Backend startup failure diagnostic contract is missing.');
 if (!config.includes('TITECH_API_ORIGIN_MISSING')) failures.push('Production API-origin fail-closed contract is missing.');
-if (!login.includes('Authentication service unavailable')) failures.push('Login transport failure UX is missing.');
+const hasLocalizedTransportFailureUx = /t\(['\"]auth\.login\.errors\.(?:connection|serviceUnavailable|serviceTimeout)['\"]\)/.test(login)
+  && login.includes('function getSafeLoginErrorMessage');
+if (!hasLocalizedTransportFailureUx) failures.push('Login transport failure UX is missing: expected safe localized connection/service-unavailable messaging.');
 if (api.includes("window.location.origin : ''")) failures.push('Unsafe production window.location.origin API fallback remains in api.js.');
 
 const envDevelopmentPath = path.join(root, 'frontend/.env.development');

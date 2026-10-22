@@ -4,6 +4,7 @@ import path from 'node:path';
 import { mkdir, readFile, rename, rm, writeFile, chmod } from 'node:fs/promises';
 import SecureDocument, { SECURE_DOCUMENT_PURPOSES } from './secureDocument.model.js';
 import { createAuditLog } from '../audit/audit.service.js';
+import { isDocumentMalwareScannerConfigured, scanDocumentBuffer } from './documentMalwareScan.js';
 
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png']);
@@ -107,6 +108,9 @@ async function appendAudit({ tenantId, actorId, action, documentReference, purpo
 
 export async function storePrivateDocument({ tenantId, subjectId, actorId, purpose, mimeType, buffer, requestId, correlationId }) {
   const normalized = validateUpload({ tenantId, subjectId, actorId, purpose, mimeType, buffer });
+  // Screen untrusted identity/licence/claim evidence before encryption or disk writes.
+  // Scanner failure or an absent scanner prevents both file and metadata creation.
+  await scanDocumentBuffer(buffer);
   const { key, root } = resolveConfiguration();
   const documentReference = `doc_${crypto.randomUUID()}`;
   const tenantDir = path.join(root, tenantDirectoryName(tenantId));
@@ -186,6 +190,10 @@ export async function readPrivateDocument({ tenantId, documentReference, actorId
 
 export function isPrivateDocumentStorageConfigured() {
   try { resolveConfiguration(); return true; } catch { return false; }
+}
+
+export function isPrivateDocumentMalwareScannerConfigured() {
+  return isDocumentMalwareScannerConfigured();
 }
 
 export const PRIVATE_DOCUMENT_LIMITS = Object.freeze({ maxBytes: MAX_DOCUMENT_BYTES, supportedMimeTypes: Object.freeze([...ALLOWED_MIME_TYPES]), encryptionVersion: ENCRYPTION_VERSION });

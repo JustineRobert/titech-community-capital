@@ -16,11 +16,12 @@ A refugee-serving organisation profile is a registration submission, not proof o
 2. Install from the committed lockfiles with the repository's documented clean-install procedure.
 3. Configure an isolated MongoDB database plus the existing platform dependencies. Never point tests at production data.
 4. Generate two distinct high-entropy 32-byte keys for document AES and identifier HMAC using an approved secret manager or a local secure mechanism. Store only secret-manager references in deployment config. Do not print key material into console output or commits.
-5. Set `TITECH_PRIVATE_DOCUMENT_STORAGE_PATH` to a restricted directory outside all served static roots; apply least-privilege filesystem ownership and encrypted backups.
-6. Keep all feature flags off until isolated tests and policy approvals pass.
-7. Run `npm run db:indexes:inclusive-insurance` against the isolated test database and inspect index creation/duplicate errors.
-8. Run `npm run test:inclusive-onboarding`, then the complete existing platform gates and dependency-backed backend/frontend test suites.
-9. Validate UI with keyboard-only navigation, screen reader, mobile/low-bandwidth conditions, and Arabic RTL. Confirm all non-English legal/consent terms have human review before any real use.
+5. Set `TITECH_PRIVATE_DOCUMENTS_DIR` in the deployment environment to an operator-managed, durable, encrypted host directory. The production Compose contract mounts it at `/var/lib/titech/private-documents` and fails closed if it is absent; grant the container `node` UID 1000 access only to that directory. Set `TITECH_PRIVATE_DOCUMENT_STORAGE_PATH=/var/lib/titech/private-documents`; keep it outside all served static roots and include it in encrypted backups/restore drills.
+6. Configure `TITECH_DOCUMENT_MALWARE_SCANNER_HOST` and its private clamd endpoint/port through the deployment secret/configuration manager. The upload path uses ClamAV `INSTREAM` and fails closed if the scanner is unconfigured, unreachable, times out or does not return an explicit clean verdict. Do not expose clamd to the public Internet. Actual scanner availability and malware test-file evidence remain deployment gates.
+7. Keep all feature flags off until isolated tests and policy approvals pass.
+8. Run `npm run db:indexes:inclusive-insurance` against the isolated test database and inspect index creation/duplicate errors.
+9. Run `npm run test:inclusive-onboarding`, then the complete existing platform gates and dependency-backed backend/frontend test suites.
+10. Validate UI with keyboard-only navigation, screen reader, mobile/low-bandwidth conditions, and Arabic RTL. Confirm all non-English legal/consent terms have human review before any real use.
 
 ## Controlled onboarding procedure
 
@@ -52,6 +53,8 @@ A refugee-serving organisation profile is a registration submission, not proof o
 ## Private evidence storage diagnostics
 
 - `DOCUMENT_STORAGE_NOT_CONFIGURED`: verify a base64 32-byte AES key is configured in the secret manager and the private path is set for production.
+- `DOCUMENT_MALWARE_SCANNER_NOT_CONFIGURED` / `DOCUMENT_MALWARE_SCAN_UNAVAILABLE`: uploads fail closed; provision the trusted internal ClamAV endpoint and verify service health before enabling uploads.
+- `DOCUMENT_MALWARE_DETECTED`: keep the upload rejected, preserve the security event and follow the incident procedure; do not bypass the scan.
 - `DOCUMENT_CONTENT_UNAVAILABLE`: check private storage mount, file existence, tenant directory, filesystem access and backup/restore; do not disclose filesystem paths or document data to participants.
 - `DOCUMENT_INTEGRITY_FAILURE`: suspend access to the affected reference, preserve audit evidence, alert security operations and investigate. Do not retry with unverified content.
 - `CAPABILITY_DISABLED`: expected safe state while the relevant environment flag is false; do not override the flag to resolve authorization or compliance errors.
