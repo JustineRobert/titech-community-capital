@@ -1,0 +1,41 @@
+$ npm run i18n:check
+UTC_START=2026-10-22T18:41:29.539262+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 i18n:check
+> node scripts/i18n-validation.mjs
+
+{
+  "status": "PASS",
+  "productionEligible": false,
+  "checks": 32,
+  "failures": [],
+  "coverage": {
+    "en": {
+      "percent": 100,
+      "translatedKeys": 581,
+      "totalKeys": 581,
+      "review": "CANONICAL_SOURCE_LOCALE"
+    },
+    "sw": {
+      "percent": 100,
+      "translatedKeys": 581,
+      "totalKeys": 581,
+      "review": "PENDING_HUMAN_REVIEW"
+    },
+    "fr": {
+      "percent": 100,
+      "translatedKeys": 581,
+      "totalKeys": 581,
+      "review": "PENDING_HUMAN_REVIEW"
+    },
+    "ar": {
+      "percent": 100,
+      "translatedKeys": 581,
+      "totalKeys": 581,
+      "review": "PENDING_HUMAN_REVIEW"
+    }
+  },
+  "report": "reports/i18n-coverage-2026-10-17.json"
+}

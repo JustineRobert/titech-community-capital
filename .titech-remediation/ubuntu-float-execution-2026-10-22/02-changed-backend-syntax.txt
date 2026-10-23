@@ -1,0 +1,4 @@
+$ bash -lc for f in backend/routes/index.js backend/middleware/platformPermissions.js backend/modules/audit/audit.service.js backend/modules/ubuntu-float/domain/ubuntuFloatRules.js backend/modules/ubuntu-float/domain/capabilities.js backend/modules/ubuntu-float/models/UbuntuFloatAgent.js backend/modules/ubuntu-float/models/UbuntuFloatPositionObservation.js backend/modules/ubuntu-float/models/UbuntuFloatAdvanceApplication.js backend/modules/ubuntu-float/services/ubuntuFloatService.js backend/modules/ubuntu-float/controllers/ubuntuFloatController.js backend/modules/ubuntu-float/ubuntuFloat.routes.js; do node --check "$f" || exit 1; done
+UTC_START=2026-10-22T18:41:18.596416+00:00
+EXIT_CODE=0
+

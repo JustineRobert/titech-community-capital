@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital",
   "version": "1.0.0",
-  "description": "TITech Community Capital — Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
+  "description": "TITech Community Capital \u2014 Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
   "private": true,
   "keywords": [
     "TITech",
@@ -107,7 +107,7 @@
     "test:backend:ci": "npm --prefix backend run test:ci",
     "test:backend:coverage": "npm --prefix backend run test:coverage",
     "test:backend:watch": "npm --prefix backend test -- --watch",
-    "test:ci": "npm run test:i18n:native && npm run test:document-malware-scan && npm run test:education-campaigns && npm run test:performance-contract && npm run test:retirement-support && npm run test:backend:ci && npm run test:frontend:ci",
+    "test:ci": "npm run test:i18n:native && npm run test:document-malware-scan && npm run test:ubuntu-float && npm run test:inclusive-onboarding && npm run test:education-campaigns && npm run test:performance-contract && npm run test:retirement-support && npm run test:backend:ci && npm run test:frontend:ci",
     "test:control-plane": "npm --prefix backend run test:control-plane",
     "test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
     "test:e2e": "npm --prefix frontend run test:e2e",
@@ -161,7 +161,9 @@
     "test:performance-contract": "node --test tests/performance/performance-contract.test.mjs",
     "test:education-campaigns": "node --test backend/tests/unit/education/*.test.mjs",
     "db:indexes:education-campaigns": "npm --prefix backend run index:create:education-campaigns",
-    "test:document-malware-scan": "node --test scripts/document-malware-scan.test.mjs"
+    "test:document-malware-scan": "node --test scripts/document-malware-scan.test.mjs",
+    "db:indexes:ubuntu-float": "npm --prefix backend run index:create:ubuntu-float",
+    "test:ubuntu-float": "node --test backend/tests/unit/ubuntu-float/*.test.mjs"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

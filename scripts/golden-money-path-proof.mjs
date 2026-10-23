@@ -24,7 +24,7 @@ const evidence = await runGoldenMoneyPathReferenceProof();
 const output = {
   generatedAt: new Date().toISOString(),
   repository: 'https://github.com/JustineRobert/titech-community-capital',
-  evidenceClass: 'TESTED',
+  evidenceClass: evidence.status === 'PASS' ? 'TESTED' : 'FAILED',
   verificationScope: 'dependency-free-reference-harness',
   evidence,
   limitations: [
@@ -38,3 +38,4 @@ const file = path.join(reportDir, 'golden-money-path-proof.json');
 fs.writeFileSync(file, `${JSON.stringify(output, null, 2)}\n`);
 console.log(`Golden Money Path proof: ${evidence.status}`);
 console.log(`Evidence: ${path.relative(root, file)}`);
+if (evidence.status !== 'PASS') process.exitCode = 1;

@@ -2,13 +2,22 @@
 
 ## Current release decision
 
-**RELEASE DECISION: NOT READY** (22 October 2026 archive-local remediation run)  
+**RELEASE DECISION: NOT READY** (23 October 2026 archive-local implementation and verification run)  
 **PRODUCTION_APPROVED: NO**  
 **Production approval:** NO
 
-This source archive contains substantive authentication, tenant/RBAC, payment/provider, ledger, reconciliation and product foundations. The current run implemented a focused readiness/connectivity remediation and produced source/static/native-test evidence. It did **not** establish full operational readiness: the declared target Node/npm runtime was unavailable, project dependencies were not installed, dependency-backed tests and the production frontend build could not launch, and a live backend/DB/Redis/provider/browser E2E was not exercised. A static pass is not production approval.
+This source archive preserves the existing TITech Community Capital authentication, tenant/RBAC, provider, ledger, reconciliation, refugee/host-community, insurance and official theme foundations. The 23 October local update adds a feature-gated UbuntuFloat Core agent registry and explicitly unverified manual position-attestation path, production environment templates, explicit index setup, native policy/route-contract tests and change-evidence documents. It does **not** establish full operational readiness: the declared target Node/npm runtime is unavailable, project dependencies are not installed, dependency-backed tests and production frontend build cannot launch, and live database/Redis/provider/browser E2E has not been exercised. A static pass is not production approval.
 
-## Current focused evidence snapshot — 22 October 2026
+## Current focused evidence snapshot — 23 October 2026
+
+- Runtime observed: Node `v22.16.0`, npm `10.9.2`; declared requirement: Node `>=24.15.0`, npm `>=11.0.0`.
+- New UbuntuFloat policy and route-contract tests: **12/12 passed** under native Node test runner.
+- Selected native suites: **104/104 passed** (UbuntuFloat 12, inclusive onboarding 24, retirement 16, education 10, document malware scanner 4, performance contract 8, i18n 9, frontend runtime 2, financial product rules 5, platform control-plane 14). Golden Money Path reference proof and source-contract smoke checks also exit successfully.
+- Official theme audit, implementation gate, financial static gate, enterprise control-plane contract gate, RBAC gate, hosting gate and JS/TS syntax gate pass in the current archive-local run.
+- Hosting gate was repaired by adding production environment templates and aligning the gate with both canonical refugee-onboarding flags plus the new fail-closed UbuntuFloat flags. The deterministic Golden Money Path reference harness was also corrected to scope invariants to the primary payment and block repeat provider-create requests after an unknown outcome; this remains simulator evidence.
+- These results are source/static/native test evidence, not full backend/frontend dependency-backed build evidence, live database transaction proof, external provider settlement proof, legal authorization or production approval. See [`docs/evidence/implementation-handoff-2026-10-23.md`](docs/evidence/implementation-handoff-2026-10-23.md) for the exact file inventory and limitations.
+
+## Historical focused evidence snapshot — 22 October 2026
 
 The uploaded archive's ZIP comment contains identifier `4e9ba9e52776121d496e22e0e29a6240aa3255c3`; it has no `.git` metadata, so a Git branch/commit or remote push cannot be verified. The execution container has Node `v22.16.0` and npm `10.9.2`, below the repository's target Node `>=24.15.0` and npm `>=11.0.0`. Root/backend/frontend dependencies were not installed. GitHub DNS/network access failed. This report separates checks that actually ran from checks blocked by those limits.
 

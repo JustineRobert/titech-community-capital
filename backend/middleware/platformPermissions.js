@@ -25,6 +25,10 @@
 
 const ROLE_PERMISSIONS = Object.freeze({
   PLATFORM_ADMIN: '*',
+  AGENT_NETWORK_ADMIN: new Set(['ubuntu-float:agent:read', 'ubuntu-float:agent:create', 'ubuntu-float:agent:evidence:submit', 'ubuntu-float:position:read', 'ubuntu-float:position:attest']),
+  AGENT_NETWORK_REVIEWER: new Set(['ubuntu-float:agent:read', 'ubuntu-float:agent:review', 'ubuntu-float:position:read']),
+  FLOAT_OPERATIONS_OFFICER: new Set(['ubuntu-float:agent:read', 'ubuntu-float:position:read', 'ubuntu-float:position:attest']),
+  FLOAT_AUDITOR: new Set(['ubuntu-float:agent:read', 'ubuntu-float:position:read']),
   TENANT_ADMIN: new Set([
     'consent:read', 'consent:grant', 'consent:withdraw',
     'capital:share:read', 'capital:share:create', 'capital:share:revoke',

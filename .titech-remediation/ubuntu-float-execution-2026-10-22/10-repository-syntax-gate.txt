@@ -1,0 +1,14 @@
+$ npm run validate:syntax
+UTC_START=2026-10-22T18:41:22.085061+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 validate:syntax
+> node scripts/enterprise-gate.mjs --syntax
+
+Syntax gate: PASS (2440 executable JS/TS-family files parsed).
+
+Warnings:
+- Local runtime is Node 22.16.0; repository gate targets Node 24.15.x.
+
+Enterprise gate: PASS

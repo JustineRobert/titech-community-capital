@@ -112,6 +112,21 @@ class InMemoryGoldenMoneyPath {
 
   submit(paymentId) {
     const payment = this._payment(paymentId);
+    // An unknown or already-pending provider outcome must be resolved by status
+    // query/reconciliation. Never issue another external create request as a retry.
+    if (payment.providerReference && [STATES.UNKNOWN, STATES.PENDING_PROVIDER].includes(payment.status)) {
+      this._audit(payment, 'PROVIDER_RETRY_BLOCKED_UNKNOWN_OUTCOME');
+      this._trace(payment, 'PROVIDER_RETRY_BLOCKED_UNKNOWN_OUTCOME', {
+        providerReference: payment.providerReference,
+      });
+      return {
+        outcome: 'UNKNOWN',
+        providerReference: payment.providerReference,
+        providerStatus: payment.providerStatus || 'UNKNOWN',
+        retryBlocked: true,
+      };
+    }
+
     payment.status = STATES.PENDING_PROVIDER;
     const providerResponse = this.provider.createPayment({
       paymentId: payment.paymentId,
@@ -352,6 +367,20 @@ async function runGoldenMoneyPathReferenceProof() {
   const restarted = harness.restart();
   const providerReference = restarted.payments.get(start.paymentId).providerReference;
 
+  // A timeout must lead to status lookup, not a second payment-initiation call.
+  const retryAfterTimeout = restarted.submit(start.paymentId);
+  assert.deepEqual(retryAfterTimeout, {
+    outcome: 'UNKNOWN',
+    providerReference,
+    providerStatus: 'PENDING',
+    retryBlocked: true,
+  });
+  assert.equal(
+    simulator.createPaymentRequests.filter((request) => request.paymentId === start.paymentId).length,
+    1,
+    'an unknown payment outcome must not trigger a second provider-create request',
+  );
+
   simulator.setMode('SUCCESS');
   const queried = simulator.queryPayment({ providerReference });
   assert.equal(queried.outcome, 'PENDING');
@@ -460,27 +489,40 @@ async function runGoldenMoneyPathReferenceProof() {
     assert.ok(eventsByType.has(required), `audit must contain ${required}`);
   }
 
+  const startProviderRecords = [...simulator.payments.values()].filter(
+    (record) => record.paymentId === start.paymentId,
+  );
+  const startProviderCreateRequests = simulator.createPaymentRequests.filter(
+    (request) => request.paymentId === start.paymentId,
+  );
+  const startOriginalLedgerPostings = restarted.ledger.filter(
+    (entry) => entry.paymentId === start.paymentId && !entry.reversalOf,
+  );
+  const guarantees = {
+    exactlyOneOriginalPayment: startProviderRecords.length === 1,
+    exactlyOneOriginalLedgerPosting: startOriginalLedgerPostings.length === 1,
+    duplicateCallbackSafe: restarted.ledger.filter((entry) => entry.paymentId === start.paymentId && !entry.reversalOf).length === 1,
+    timeoutDoesNotDuplicateProviderPayment: startProviderCreateRequests.length === 1 && retryAfterTimeout.retryBlocked === true,
+    restartRecoveredState: Boolean(restarted.payments.get(start.paymentId)),
+    ledgerBalanced: netDebit === netCredit,
+    tenantIsolationEnforced: true,
+    idempotencyConflictDetected: true,
+    offlineReplayIdempotent: true,
+    reconciliationMismatchHeld: true,
+    auditComplete: true,
+  };
+
   return {
-    status: 'PASS',
-    scenario: 'UGX 50,000 provider-timeout → restart → status-confirmation → duplicate-callback → ledger → settlement → reconciliation → receipt → reversal',
-    guarantees: {
-      exactlyOneOriginalPayment: restarted.ledger.filter((entry) => !entry.reversalOf).length === 1,
-      exactlyOneOriginalLedgerPosting: restarted.ledger.filter((entry) => !entry.reversalOf).length === 1,
-      duplicateCallbackSafe: true,
-      timeoutDoesNotDuplicateProviderPayment: simulator.payments.size === 2,
-      restartRecoveredState: Boolean(restarted.payments.get(start.paymentId)),
-      ledgerBalanced: netDebit === netCredit,
-      tenantIsolationEnforced: true,
-      idempotencyConflictDetected: true,
-      offlineReplayIdempotent: true,
-      reconciliationMismatchHeld: true,
-      auditComplete: true,
-    },
+    status: Object.values(guarantees).every(Boolean) ? 'PASS' : 'FAIL',
+    scenario: 'UGX 50,000 provider-timeout → restart → blocked re-initiation → status-confirmation → duplicate-callback → ledger → settlement → reconciliation → receipt → reversal',
+    guarantees,
     metrics: {
-      ledgerPostings: restarted.ledger.length,
+      totalLedgerPostingsAcrossHarnessScenarios: restarted.ledger.length,
+      originalLedgerPostingsForPrimaryScenario: startOriginalLedgerPostings.length,
       auditEvents: restarted.audit.length,
       traceEvents: restarted.trace.length,
-      providerPayments: simulator.payments.size,
+      providerPaymentsAcrossHarnessScenarios: simulator.payments.size,
+      providerCreateRequestsForPrimaryScenario: startProviderCreateRequests.length,
     },
   };
 }

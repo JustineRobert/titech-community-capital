@@ -15,6 +15,7 @@ class ReferenceProviderSimulator {
     this.provider = provider;
     this.currency = currency;
     this.payments = new Map();
+    this.createPaymentRequests = [];
     this.callbacks = [];
     this.nextReference = 1;
     this.mode = 'SUCCESS';
@@ -34,6 +35,8 @@ class ReferenceProviderSimulator {
     if (!paymentId || !idempotencyKey || !tenantId) {
       throw new Error('provider simulator requires payment identity');
     }
+
+    this.createPaymentRequests.push({ paymentId, idempotencyKey, tenantId });
 
     const existing = [...this.payments.values()].find(
       (payment) => payment.idempotencyKey === idempotencyKey,

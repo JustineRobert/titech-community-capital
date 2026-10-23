@@ -1,0 +1,9 @@
+$ npm run check:conflicts
+UTC_START=2026-10-22T18:41:20.263005+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 check:conflicts
+> node scripts/check-conflicts.js
+
+No merge conflict markers found (3382 files scanned).

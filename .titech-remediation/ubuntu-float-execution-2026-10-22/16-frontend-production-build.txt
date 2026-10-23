@@ -1,0 +1,13 @@
+$ npm run build:frontend
+UTC_START=2026-10-22T18:41:31.907801+00:00
+EXIT_CODE=127
+
+
+> titech-community-capital@1.0.0 build:frontend
+> npm --prefix frontend run build
+
+
+> titech-community-capital-frontend@1.0.0 build
+> vite build
+
+sh: 1: vite: not found

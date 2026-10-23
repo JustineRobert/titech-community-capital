@@ -1,0 +1,9 @@
+$ npm run check:enterprise-contracts
+UTC_START=2026-10-22T18:41:19.457627+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 check:enterprise-contracts
+> node scripts/enterprise-contract-contracts.mjs
+
+Enterprise contract gate: PASS (11 control-plane contracts checked).

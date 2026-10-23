@@ -16,6 +16,7 @@ import secureDocumentRoutes from '../modules/secure-documents/secureDocument.rou
 import identityOnboardingRoutes from '../modules/identity-onboarding/identityOnboarding.routes.js';
 import capitalRoutes from '../modules/capital/capital.routes.js';
 import operationsRoutes from '../modules/operations/operations.routes.js';
+import ubuntuFloatRoutes from '../modules/ubuntu-float/ubuntuFloat.routes.js';
 import educationCampaignRoutes from '../modules/education/educationCampaign.routes.js';
 import educationCampaignPublicRoutes from '../modules/education/educationCampaign.public.routes.js';
 import tenantMiddlewareModule from '../middleware/tenantMiddleware.js';
@@ -1220,6 +1221,15 @@ router.use(
     authenticate,
     tenantAuthorization,
     operationsRoutes,
+);
+
+// UbuntuFloat is a gated capability inside the canonical TITech application.
+// It uses existing authentication, tenant isolation, audit and RBAC boundaries.
+router.use(
+    `${API_PREFIX}/ubuntu-float`,
+    authenticate,
+    tenantAuthorization,
+    ubuntuFloatRoutes,
 );
 
 /**

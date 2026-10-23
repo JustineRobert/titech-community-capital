@@ -1,0 +1,9 @@
+$ npm run check:financial
+UTC_START=2026-10-22T18:41:19.242393+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 check:financial
+> node scripts/financial-static-gate.mjs
+
+Financial static gate: PASS (12 canonical files checked).

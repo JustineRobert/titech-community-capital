@@ -1,0 +1,84 @@
+$ npm run test:ubuntu-float
+UTC_START=2026-10-22T18:41:18.158142+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 test:ubuntu-float
+> node --test backend/modules/ubuntu-float/tests/ubuntuFloatRules.test.js backend/modules/ubuntu-float/tests/ubuntuFloatPermissions.test.js backend/modules/ubuntu-float/tests/ubuntuFloatSecurityContract.test.js
+
+TAP version 13
+# Subtest: applicant roles receive only the self-scoped advance capabilities
+ok 1 - applicant roles receive only the self-scoped advance capabilities
+  ---
+  duration_ms: 2.679032
+  type: 'test'
+  ...
+# Subtest: tenant administrators and head-office operators do not receive unimplemented approval/disbursement permissions
+ok 2 - tenant administrators and head-office operators do not receive unimplemented approval/disbursement permissions
+  ---
+  duration_ms: 0.602777
+  type: 'test'
+  ...
+# Subtest: money amount validation accepts exact positive integer minor-unit strings only
+ok 3 - money amount validation accepts exact positive integer minor-unit strings only
+  ---
+  duration_ms: 2.785998
+  type: 'test'
+  ...
+# Subtest: float-position observations allow zero but not negative or fractional amounts
+ok 4 - float-position observations allow zero but not negative or fractional amounts
+  ---
+  duration_ms: 0.35142
+  type: 'test'
+  ...
+# Subtest: currency codes normalize to uppercase and reject malformed codes
+ok 5 - currency codes normalize to uppercase and reject malformed codes
+  ---
+  duration_ms: 0.191386
+  type: 'test'
+  ...
+# Subtest: agent hierarchy requires a root head office and a parent above each child
+ok 6 - agent hierarchy requires a root head office and a parent above each child
+  ---
+  duration_ms: 0.866202
+  type: 'test'
+  ...
+# Subtest: advance notice requires explicit acknowledgement and a non-empty version
+ok 7 - advance notice requires explicit acknowledgement and a non-empty version
+  ---
+  duration_ms: 0.43168
+  type: 'test'
+  ...
+# Subtest: advance application status contract includes unknown settlement and refuses to equate it to success
+ok 8 - advance application status contract includes unknown settlement and refuses to equate it to success
+  ---
+  duration_ms: 1.008592
+  type: 'test'
+  ...
+# Subtest: live money-moving capabilities remain hard-disabled even when application flags are true
+ok 9 - live money-moving capabilities remain hard-disabled even when application flags are true
+  ---
+  duration_ms: 0.806702
+  type: 'test'
+  ...
+# Subtest: UbuntuFloat route registry preserves canonical authentication and tenant scope
+ok 10 - UbuntuFloat route registry preserves canonical authentication and tenant scope
+  ---
+  duration_ms: 1.697341
+  type: 'test'
+  ...
+# Subtest: UbuntuFloat does not expose a disbursement, collection, savings-recovery or live-transfer mutation route
+ok 11 - UbuntuFloat does not expose a disbursement, collection, savings-recovery or live-transfer mutation route
+  ---
+  duration_ms: 2.193783
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 256.338336

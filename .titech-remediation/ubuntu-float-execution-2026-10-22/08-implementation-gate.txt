@@ -1,0 +1,18 @@
+$ npm run titech:implementation-gate
+UTC_START=2026-10-22T18:41:20.067072+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 titech:implementation-gate
+> node scripts/titech-implementation-gate.mjs
+
+{
+  "generatedAt": "2026-10-22T18:41:20.248Z",
+  "status": "PASS",
+  "checks": {
+    "canonicalBootstrap": "backend/bootstrap/app.js re-exports ApplicationBootstrap.js",
+    "bootstrapCompatibility": "legacy imports are isolated behind explicit createRequire boundaries",
+    "officialTheme": "all nine canonical palette values are present in the brand contract"
+  },
+  "failures": []
+}

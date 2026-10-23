@@ -1,0 +1,16 @@
+$ npm run check:runtime-imports
+UTC_START=2026-10-22T18:41:30.359332+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 check:runtime-imports
+> node scripts/runtime-import-audit.mjs
+
+TITech runtime import audit
+Backend source files scanned: 2019
+Missing local imports: 209
+Missing local imports on canonical financial surface: 0
+Mixed-module violations on canonical financial surface: 0
+Report: reports/runtime-import-audit.json
+WARN: 209 legacy/non-critical missing local imports require later consolidation.
+Runtime import audit: PASS for canonical financial surface.

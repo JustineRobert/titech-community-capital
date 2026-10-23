@@ -1,0 +1,126 @@
+{
+  "generatedAtUtc": "2026-10-22T18:41:44.858903+00:00",
+  "node": "v22.16.0",
+  "npm": "10.9.2",
+  "results": [
+    {
+      "name": "UbuntuFloat domain/security tests",
+      "command": "npm run test:ubuntu-float",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/01-ubuntufloat-domain-security-tests.txt",
+      "summary": "# cancelled 0 | # skipped 0 | # todo 0 | # duration_ms 256.338336"
+    },
+    {
+      "name": "Changed backend syntax",
+      "command": "bash -lc for f in backend/routes/index.js backend/middleware/platformPermissions.js backend/modules/audit/audit.service.js backend/modules/ubuntu-float/domain/ubuntuFloatRules.js backend/modules/ubuntu-float/domain/capabilities.js backend/modules/ubuntu-float/models/UbuntuFloatAgent.js backend/modules/ubuntu-float/models/UbuntuFloatPositionObservation.js backend/modules/ubuntu-float/models/UbuntuFloatAdvanceApplication.js backend/modules/ubuntu-float/services/ubuntuFloatService.js backend/modules/ubuntu-float/controllers/ubuntuFloatController.js backend/modules/ubuntu-float/ubuntuFloat.routes.js; do node --check \"$f\" || exit 1; done",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/02-changed-backend-syntax.txt",
+      "summary": ""
+    },
+    {
+      "name": "Official theme audit",
+      "command": "npm run audit:theme",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/03-official-theme-audit.txt",
+      "summary": "      \"message\": \"Chart components resolve colors through the centralized TITech theme contract rather than hard-coded fallback literals.\" |     } |   ] | }"
+    },
+    {
+      "name": "Financial static gate",
+      "command": "npm run check:financial",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/04-financial-static-gate.txt",
+      "summary": "> titech-community-capital@1.0.0 check:financial | > node scripts/financial-static-gate.mjs |  | Financial static gate: PASS (12 canonical files checked)."
+    },
+    {
+      "name": "Enterprise contract gate",
+      "command": "npm run check:enterprise-contracts",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/05-enterprise-contract-gate.txt",
+      "summary": "> titech-community-capital@1.0.0 check:enterprise-contracts | > node scripts/enterprise-contract-contracts.mjs |  | Enterprise contract gate: PASS (11 control-plane contracts checked)."
+    },
+    {
+      "name": "RBAC security gate",
+      "command": "npm run rbac:gate",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/06-rbac-security-gate.txt",
+      "summary": "> titech-community-capital@1.0.0 rbac:gate | > node scripts/rbac-security-gate.mjs |  | RBAC security gate: PASS"
+    },
+    {
+      "name": "Hosting gate",
+      "command": "npm run titech:hosting-gate",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/07-hosting-gate.txt",
+      "summary": "      \"message\": \"Production edge configuration contains HTTPS, API, websocket and browser security controls.\" |     } |   ] | }"
+    },
+    {
+      "name": "Implementation gate",
+      "command": "npm run titech:implementation-gate",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/08-implementation-gate.txt",
+      "summary": "    \"officialTheme\": \"all nine canonical palette values are present in the brand contract\" |   }, |   \"failures\": [] | }"
+    },
+    {
+      "name": "Source conflict scan",
+      "command": "npm run check:conflicts",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/09-source-conflict-scan.txt",
+      "summary": "> titech-community-capital@1.0.0 check:conflicts | > node scripts/check-conflicts.js |  | No merge conflict markers found (3382 files scanned)."
+    },
+    {
+      "name": "Repository syntax gate",
+      "command": "npm run validate:syntax",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/10-repository-syntax-gate.txt",
+      "summary": "Warnings: | - Local runtime is Node 22.16.0; repository gate targets Node 24.15.x. |  | Enterprise gate: PASS"
+    },
+    {
+      "name": "Native i18n tests",
+      "command": "npm run test:i18n:native",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/11-native-i18n-tests.txt",
+      "summary": "# cancelled 0 | # skipped 0 | # todo 0 | # duration_ms 134.279259"
+    },
+    {
+      "name": "i18n validation",
+      "command": "npm run i18n:check",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/12-i18n-validation.txt",
+      "summary": "    } |   }, |   \"report\": \"reports/i18n-coverage-2026-10-17.json\" | }"
+    },
+    {
+      "name": "Frontend runtime source audit",
+      "command": "npm run audit:frontend-runtime",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/13-frontend-runtime-source-audit.txt",
+      "summary": "      ] |     } |   ] | }"
+    },
+    {
+      "name": "Performance contract gate",
+      "command": "npm run check:performance-contract",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/14-performance-contract-gate.txt",
+      "summary": "  \"artifact\": \"TITech read-only capacity-test contract\", |   \"checks\": \"required files, confirmed endpoint paths, thresholds, bounded profiles and safety guards are present\", |   \"failures\": [] | }"
+    },
+    {
+      "name": "Runtime imports audit",
+      "command": "npm run check:runtime-imports",
+      "exitCode": 0,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/15-runtime-imports-audit.txt",
+      "summary": "Mixed-module violations on canonical financial surface: 0 | Report: reports/runtime-import-audit.json | WARN: 209 legacy/non-critical missing local imports require later consolidation. | Runtime import audit: PASS for canonical financial surface."
+    },
+    {
+      "name": "Frontend production build",
+      "command": "npm run build:frontend",
+      "exitCode": 127,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/16-frontend-production-build.txt",
+      "summary": "> titech-community-capital-frontend@1.0.0 build | > vite build |  | sh: 1: vite: not found"
+    },
+    {
+      "name": "Repository lint and format aggregate",
+      "command": "npm run check",
+      "exitCode": 127,
+      "log": ".titech-remediation/ubuntu-float-execution-2026-10-22/17-repository-lint-and-format-aggregate.txt",
+      "summary": "> titech-community-capital-backend@1.0.0 lint | > eslint . |  | sh: 1: eslint: not found"
+    }
+  ]
+}

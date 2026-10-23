@@ -1,0 +1,108 @@
+.ubuntu-float-page {
+  width: min(1240px, calc(100% - 2rem));
+  margin: 1.5rem auto 3rem;
+  color: var(--titech-color-text);
+}
+.ubuntu-float-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.ubuntu-float-header-mark,
+.ubuntu-float-card-icon,
+.ubuntu-float-readiness-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--titech-brand-electric-blue);
+  background: var(--titech-color-surface-muted);
+  border-radius: var(--titech-ui-radius-card);
+}
+.ubuntu-float-header-mark { width: 3.5rem; height: 3.5rem; }
+.ubuntu-float-heading { flex: 1; min-width: 0; }
+.ubuntu-float-heading h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.15; }
+.ubuntu-float-eyebrow { margin: 0 0 .4rem; color: var(--titech-brand-electric-blue); font-size: .78rem; font-weight: 800; letter-spacing: .045em; text-transform: uppercase; }
+.ubuntu-float-subtitle { margin: .55rem 0 0; color: var(--titech-color-text-muted); line-height: 1.55; }
+.ubuntu-float-identity { margin: .35rem 0 0; font-size: .9rem; font-weight: 700; }
+.ubuntu-float-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-height: var(--titech-ui-control-height);
+  border: 1px solid var(--titech-color-border-strong);
+  border-radius: var(--titech-ui-radius-control);
+  padding: .55rem .8rem;
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ubuntu-float-refresh:disabled { cursor: wait; opacity: .65; }
+.ubuntu-float-readiness {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: .8rem 1rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--titech-color-border);
+  border-inline-start: 4px solid var(--titech-state-warning);
+  border-radius: var(--titech-ui-radius-card);
+  background: var(--titech-color-surface);
+}
+.ubuntu-float-readiness.is-enabled { border-inline-start-color: var(--titech-state-success); }
+.ubuntu-float-readiness-icon { width: 2.75rem; height: 2.75rem; }
+.ubuntu-float-readiness h2 { margin: 0; font-size: 1.02rem; }
+.ubuntu-float-readiness p { margin: .35rem 0 0; color: var(--titech-color-text-muted); line-height: 1.5; }
+.ubuntu-float-readiness small { color: var(--titech-color-text-muted); text-align: end; font-weight: 750; }
+.ubuntu-float-capability-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.ubuntu-float-card {
+  min-width: 0;
+  margin-bottom: 1rem;
+  padding: clamp(1rem, 2.5vw, 1.35rem);
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-card);
+  background: var(--titech-color-surface);
+  box-shadow: var(--titech-ui-shadow-card);
+}
+.ubuntu-float-capability-grid .ubuntu-float-card { margin-bottom: 0; }
+.ubuntu-float-card-heading { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-bottom: .9rem; }
+.ubuntu-float-card-icon { width: 2.65rem; height: 2.65rem; }
+.ubuntu-float-card h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
+.ubuntu-float-card p { color: var(--titech-color-text-muted); line-height: 1.55; }
+.ubuntu-float-card p:last-child { margin-bottom: 0; }
+.ubuntu-float-status { display: inline-flex; align-items: center; gap: .4rem; max-width: 75%; color: var(--titech-color-text-muted); font-size: .74rem; font-weight: 750; text-align: end; }
+.ubuntu-float-status > span { width: .52rem; height: .52rem; flex: 0 0 auto; border-radius: 50%; background: var(--titech-state-warning); }
+.ubuntu-float-status.is-enabled > span { background: var(--titech-state-success); }
+.ubuntu-float-reason { padding: .65rem .75rem; border-radius: var(--titech-ui-radius-control); background: var(--titech-warning-surface); font-size: .85rem; }
+.ubuntu-float-meta { font-size: .82rem; }
+.ubuntu-float-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .5rem; color: var(--titech-brand-electric-blue); }
+.ubuntu-float-section-heading h2 { color: var(--titech-color-text); margin: 0; font-size: 1.1rem; }
+.ubuntu-float-provider-list { display: grid; }
+.ubuntu-float-provider-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem 1rem; padding: .85rem 0; border-top: 1px solid var(--titech-color-border); }
+.ubuntu-float-provider-row > span { font-weight: 700; }
+.ubuntu-float-provider-row > strong { color: var(--titech-state-warning); font-size: .8rem; text-align: end; }
+.ubuntu-float-provider-row > small { grid-column: 1 / -1; color: var(--titech-color-text-muted); line-height: 1.45; }
+.ubuntu-float-guardrails { padding: 1rem 1.1rem; border: 1px solid var(--titech-color-border); border-radius: var(--titech-ui-radius-card); background: var(--titech-color-surface-muted); }
+.ubuntu-float-guardrails h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
+.ubuntu-float-guardrails p { margin: 0; color: var(--titech-color-text-muted); line-height: 1.55; }
+.ubuntu-float-guardrails ul { margin: .75rem 0 0; padding-inline-start: 1.25rem; display: grid; gap: .4rem; }
+.ubuntu-float-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; margin-top: 1rem; color: var(--titech-color-text-muted); font-size: .8rem; }
+.ubuntu-float-message { padding: .8rem 1rem; margin-bottom: 1rem; border: 1px solid var(--titech-color-border); border-radius: var(--titech-ui-radius-control); color: var(--titech-color-text-muted); background: var(--titech-color-surface); }
+.ubuntu-float-message.is-error { border-color: var(--titech-danger-border); background: var(--titech-danger-surface); color: var(--titech-state-danger); }
+@media (max-width: 780px) {
+  .ubuntu-float-header { flex-wrap: wrap; }
+  .ubuntu-float-refresh { margin-inline-start: auto; }
+  .ubuntu-float-capability-grid { grid-template-columns: 1fr; }
+  .ubuntu-float-readiness { grid-template-columns: auto 1fr; }
+  .ubuntu-float-readiness small { grid-column: 1 / -1; text-align: start; }
+}
+@media (max-width: 440px) {
+  .ubuntu-float-page { width: min(100% - 1rem, 1240px); margin-top: .75rem; }
+  .ubuntu-float-header-mark { width: 2.9rem; height: 2.9rem; }
+  .ubuntu-float-provider-row { grid-template-columns: 1fr; }
+  .ubuntu-float-provider-row > strong { text-align: start; }
+}

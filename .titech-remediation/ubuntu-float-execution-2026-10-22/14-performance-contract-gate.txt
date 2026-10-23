@@ -1,0 +1,14 @@
+$ npm run check:performance-contract
+UTC_START=2026-10-22T18:41:30.162042+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 check:performance-contract
+> node scripts/performance-contract-gate.mjs
+
+{
+  "status": "PASS",
+  "artifact": "TITech read-only capacity-test contract",
+  "checks": "required files, confirmed endpoint paths, thresholds, bounded profiles and safety guards are present",
+  "failures": []
+}

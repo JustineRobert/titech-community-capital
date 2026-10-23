@@ -1,0 +1,72 @@
+$ npm run test:i18n:native
+UTC_START=2026-10-22T18:41:29.200170+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 test:i18n:native
+> node --test scripts/i18n-core.test.mjs
+
+TAP version 13
+# Subtest: English remains the default and invalid stored locales fall back safely
+ok 1 - English remains the default and invalid stored locales fall back safely
+  ---
+  duration_ms: 1.870175
+  type: 'test'
+  ...
+# Subtest: locale normalization accepts regional variants without inventing unsupported languages
+ok 2 - locale normalization accepts regional variants without inventing unsupported languages
+  ---
+  duration_ms: 0.178955
+  type: 'test'
+  ...
+# Subtest: Arabic is RTL and the other initial locales are LTR
+ok 3 - Arabic is RTL and the other initial locales are LTR
+  ---
+  duration_ms: 0.310898
+  type: 'test'
+  ...
+# Subtest: translation returns locale content with parameter interpolation
+ok 4 - translation returns locale content with parameter interpolation
+  ---
+  duration_ms: 0.552528
+  type: 'test'
+  ...
+# Subtest: missing locale keys use English fallback without returning undefined
+ok 5 - missing locale keys use English fallback without returning undefined
+  ---
+  duration_ms: 0.295482
+  type: 'test'
+  ...
+# Subtest: completely unknown translation keys do not leak raw identifiers
+ok 6 - completely unknown translation keys do not leak raw identifiers
+  ---
+  duration_ms: 0.12042
+  type: 'test'
+  ...
+# Subtest: locale number and currency formatting are presentation-only
+ok 7 - locale number and currency formatting are presentation-only
+  ---
+  duration_ms: 20.308848
+  type: 'test'
+  ...
+# Subtest: invalid dates fail safely and valid dates format deterministically
+ok 8 - invalid dates fail safely and valid dates format deterministically
+  ---
+  duration_ms: 9.81335
+  type: 'test'
+  ...
+# Subtest: financial state keys explicitly distinguish request accepted from settled
+ok 9 - financial state keys explicitly distinguish request accepted from settled
+  ---
+  duration_ms: 3.329321
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 134.279259

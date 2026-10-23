@@ -511,8 +511,8 @@ function asPositiveInteger(
 ) {
   const parsed =
     value === undefined ||
-    value === null ||
-    value === ""
+      value === null ||
+      value === ""
       ? fallback
       : Number(value);
 
@@ -545,8 +545,8 @@ function elapsedMs(
     startedAt instanceof Date
       ? startedAt.getTime()
       : Number(
-          startedAt,
-        );
+        startedAt,
+      );
 
   if (
     !Number.isFinite(
@@ -559,7 +559,7 @@ function elapsedMs(
   return Math.max(
     0,
     Date.now() -
-      timestamp,
+    timestamp,
   );
 }
 
@@ -569,7 +569,7 @@ function freezeCopy(
   if (
     !value ||
     typeof value !==
-      "object"
+    "object"
   ) {
     return value;
   }
@@ -625,10 +625,10 @@ function safeError(
 
     cause:
       error.cause &&
-      error.cause !== error
+        error.cause !== error
         ? safeError(
-            error.cause,
-          )
+          error.cause,
+        )
         : null,
   };
 }
@@ -639,7 +639,7 @@ function isObject(
   return Boolean(
     value &&
     typeof value ===
-      "object" &&
+    "object" &&
     !Array.isArray(
       value,
     ),
@@ -665,7 +665,7 @@ function resolveLocalModulePath(
 ) {
   if (
     typeof candidate !==
-      "string" ||
+    "string" ||
     !candidate.trim()
   ) {
     return null;
@@ -680,9 +680,9 @@ function resolveLocalModulePath(
     )
       ? normalizedCandidate
       : path.resolve(
-          baseDirectory,
-          normalizedCandidate,
-        );
+        baseDirectory,
+        normalizedCandidate,
+      );
 
   const candidates = [
     absolute,
@@ -711,7 +711,7 @@ function resolveLocalModulePath(
 
   for (
     const filePath of
-      candidates
+    candidates
   ) {
     try {
       if (
@@ -809,7 +809,7 @@ function unwrapModule(
   if (
     value &&
     typeof value ===
-      "object" &&
+    "object" &&
     "default" in value
   ) {
     const defaultValue =
@@ -817,7 +817,7 @@ function unwrapModule(
 
     if (
       typeof defaultValue ===
-        "function"
+      "function"
     ) {
       return defaultValue;
     }
@@ -825,7 +825,7 @@ function unwrapModule(
     if (
       defaultValue &&
       typeof defaultValue ===
-        "object"
+      "object"
     ) {
       const namedExports =
         Object.keys(
@@ -838,20 +838,20 @@ function unwrapModule(
 
       if (
         namedExports.length ===
-          0
+        0
       ) {
         return defaultValue;
       }
 
       const hasLifecycleShape =
         typeof defaultValue.initialize ===
-          "function" ||
+        "function" ||
         typeof defaultValue.start ===
-          "function" ||
+        "function" ||
         typeof defaultValue.bootstrap ===
-          "function" ||
+        "function" ||
         typeof defaultValue.setup ===
-          "function";
+        "function";
 
       if (
         hasLifecycleShape
@@ -1303,7 +1303,7 @@ class ApplicationBootstrap {
   ) {
     const source =
       options &&
-      typeof options ===
+        typeof options ===
         "object"
         ? options
         : {};
@@ -1331,65 +1331,65 @@ class ApplicationBootstrap {
 
       requireApplication:
         source.requireApplication !==
-        undefined
+          undefined
           ? asBoolean(
-              source.requireApplication,
-              DEFAULTS.requireApplication,
-            )
+            source.requireApplication,
+            DEFAULTS.requireApplication,
+          )
           : DEFAULTS.requireApplication,
 
       autoDiscoverPhases:
         source.autoDiscoverPhases !==
-        undefined
+          undefined
           ? asBoolean(
-              source.autoDiscoverPhases,
-              DEFAULTS.autoDiscoverPhases,
-            )
+            source.autoDiscoverPhases,
+            DEFAULTS.autoDiscoverPhases,
+          )
           : DEFAULTS.autoDiscoverPhases,
 
       startServer:
         source.startServer !==
-        undefined
+          undefined
           ? asBoolean(
-              source.startServer,
-              DEFAULTS.startServer,
-            )
+            source.startServer,
+            DEFAULTS.startServer,
+          )
           : DEFAULTS.startServer,
 
       registerServerHooks:
         source.registerServerHooks !==
-        undefined
+          undefined
           ? asBoolean(
-              source.registerServerHooks,
-              DEFAULTS.registerServerHooks,
-            )
+            source.registerServerHooks,
+            DEFAULTS.registerServerHooks,
+          )
           : DEFAULTS.registerServerHooks,
 
       failOnOptionalPhaseError:
         source.failOnOptionalPhaseError !==
-        undefined
+          undefined
           ? asBoolean(
-              source.failOnOptionalPhaseError,
-              DEFAULTS.failOnOptionalPhaseError,
-            )
+            source.failOnOptionalPhaseError,
+            DEFAULTS.failOnOptionalPhaseError,
+          )
           : DEFAULTS.failOnOptionalPhaseError,
 
       allowPartialShutdown:
         source.allowPartialShutdown !==
-        undefined
+          undefined
           ? asBoolean(
-              source.allowPartialShutdown,
-              DEFAULTS.allowPartialShutdown,
-            )
+            source.allowPartialShutdown,
+            DEFAULTS.allowPartialShutdown,
+          )
           : DEFAULTS.allowPartialShutdown,
 
       allowRestart:
         source.allowRestart !==
-        undefined
+          undefined
           ? asBoolean(
-              source.allowRestart,
-              DEFAULTS.allowRestart,
-            )
+            source.allowRestart,
+            DEFAULTS.allowRestart,
+          )
           : DEFAULTS.allowRestart,
 
       maxEventListeners:
@@ -1461,8 +1461,8 @@ class ApplicationBootstrap {
         suppliedContext,
       )
         ? {
-            ...suppliedContext,
-          }
+          ...suppliedContext,
+        }
         : {};
 
     if (
@@ -1498,7 +1498,7 @@ class ApplicationBootstrap {
         applicationAvailable:
           Boolean(
             this.application ||
-              this.context.application,
+            this.context.application,
           ),
       },
     );
@@ -1519,8 +1519,8 @@ class ApplicationBootstrap {
         suppliedContext,
       )
         ? {
-            ...suppliedContext,
-          }
+          ...suppliedContext,
+        }
         : {};
 
     if (
@@ -1626,7 +1626,7 @@ class ApplicationBootstrap {
     if (
       !application ||
       typeof application !==
-        "function"
+      "function"
     ) {
       throw new ApplicationBootstrapError(
         "A valid Express-compatible application is required.",
@@ -1649,7 +1649,7 @@ class ApplicationBootstrap {
     if (
       !logger ||
       typeof logger !==
-        "object"
+      "object"
     ) {
       return this.logger;
     }
@@ -1726,7 +1726,7 @@ class ApplicationBootstrap {
   registerDefaultPhases() {
     for (
       const definition of
-        DEFAULT_PHASES
+      DEFAULT_PHASES
     ) {
       this.registerPhase(
         definition,
@@ -1749,7 +1749,7 @@ class ApplicationBootstrap {
 
     for (
       const phase of
-        phases
+      phases
     ) {
       this.registerPhase(
         phase,
@@ -1765,7 +1765,7 @@ class ApplicationBootstrap {
     if (
       !definition ||
       typeof definition !==
-        "object"
+      "object"
     ) {
       throw new ApplicationBootstrapError(
         "Bootstrap phase definition must be an object.",
@@ -1779,7 +1779,7 @@ class ApplicationBootstrap {
     const name =
       String(
         definition.name ||
-          "",
+        "",
       ).trim();
 
     if (
@@ -1804,19 +1804,19 @@ class ApplicationBootstrap {
         definition.dependencies,
       )
         ? [
-            ...new Set(
-              definition.dependencies
-                .map(
-                  dependency =>
-                    String(
-                      dependency,
-                    ).trim(),
-                )
-                .filter(
-                  Boolean,
-                ),
-            ),
-          ]
+          ...new Set(
+            definition.dependencies
+              .map(
+                dependency =>
+                  String(
+                    dependency,
+                  ).trim(),
+              )
+              .filter(
+                Boolean,
+              ),
+          ),
+        ]
         : [];
 
     const normalized = {
@@ -1848,25 +1848,25 @@ class ApplicationBootstrap {
 
       start:
         typeof definition.start ===
-        "function"
+          "function"
           ? definition.start
           : null,
 
       stop:
         typeof definition.stop ===
-        "function"
+          "function"
           ? definition.stop
           : null,
 
       health:
         typeof definition.health ===
-        "function"
+          "function"
           ? definition.health
           : null,
 
       readiness:
         typeof definition.readiness ===
-        "function"
+          "function"
           ? definition.readiness
           : null,
 
@@ -1881,7 +1881,7 @@ class ApplicationBootstrap {
       metadata:
         freezeCopy(
           definition.metadata ||
-            {},
+          {},
         ),
     };
 
@@ -1929,9 +1929,9 @@ class ApplicationBootstrap {
       state &&
       (
         state.status ===
-          "starting" ||
+        "starting" ||
         state.status ===
-          "started"
+        "started"
       )
     ) {
       throw new ApplicationBootstrapError(
@@ -2087,12 +2087,12 @@ class ApplicationBootstrap {
 
     const candidates =
       PHASE_MODULE_CANDIDATES[
-        phaseName
+      phaseName
       ] || [];
 
     for (
       const candidate of
-        candidates
+      candidates
     ) {
       const resolved =
         this.resolveCandidate(
@@ -2124,7 +2124,7 @@ class ApplicationBootstrap {
   ) {
     for (
       const name of
-        names
+      names
     ) {
       if (
         typeof module?.[name] ===
@@ -2368,7 +2368,7 @@ class ApplicationBootstrap {
 
         for (
           const dependency of
-            definition.dependencies
+          definition.dependencies
         ) {
           if (
             !byName.has(
@@ -2418,7 +2418,7 @@ class ApplicationBootstrap {
           right,
         ) =>
           left.priority -
-            right.priority ||
+          right.priority ||
           left.name.localeCompare(
             right.name,
           ),
@@ -2426,7 +2426,7 @@ class ApplicationBootstrap {
 
     for (
       const definition of
-        sorted
+      sorted
     ) {
       visit(
         definition.name,
@@ -2446,7 +2446,7 @@ class ApplicationBootstrap {
   ) {
     for (
       const dependency of
-        definition.dependencies
+      definition.dependencies
     ) {
       const state =
         this.phaseStates.get(
@@ -2755,7 +2755,7 @@ class ApplicationBootstrap {
     if (
       !result ||
       typeof result !==
-        "object"
+      "object"
     ) {
       return;
     }
@@ -2794,7 +2794,7 @@ class ApplicationBootstrap {
     if (
       result.context &&
       typeof result.context ===
-        "object"
+      "object"
     ) {
       const allowedContextFields = new Set([
         "environment",
@@ -2820,12 +2820,31 @@ class ApplicationBootstrap {
           continue;
         }
 
+
         if (field === "application") {
-          if (result.context.application) {
-            this.setApplication(result.context.application);
+          const contextApplication =
+            result.context.application;
+
+          if (contextApplication) {
+            if (!this.application) {
+              this.setApplication(contextApplication);
+            } else if (
+              this.application !== contextApplication
+            ) {
+              throw new ApplicationBootstrapError(
+                "A bootstrap phase attempted to replace the active Express application.",
+                {
+                  code: "APPLICATION_REPLACEMENT_ATTEMPT",
+                },
+              );
+            } else if (this.context) {
+              this.context.application = this.application;
+            }
           }
+
           continue;
         }
+
 
         if (field === "logger") {
           if (result.context.logger) {
@@ -2914,7 +2933,7 @@ class ApplicationBootstrap {
     phaseName,
   ) {
     switch (
-      phaseName
+    phaseName
     ) {
       case "environment":
         return Boolean(
@@ -3089,11 +3108,11 @@ class ApplicationBootstrap {
       serverModule;
 
     const serverOptions =
-      {
-        ...(this.options
-          .serverOptions ||
-          {}),
-      };
+    {
+      ...(this.options
+        .serverOptions ||
+        {}),
+    };
 
     serverOptions.app =
       application;
@@ -3126,7 +3145,7 @@ class ApplicationBootstrap {
 
     if (
       typeof serverModule.registerServerHooks ===
-        "function" &&
+      "function" &&
       this.options.registerServerHooks
     ) {
       try {
@@ -3309,11 +3328,11 @@ class ApplicationBootstrap {
 
     if (
       stopFunction ===
-        serverModule.stop ||
+      serverModule.stop ||
       stopFunction ===
-        serverModule.shutdown ||
+      serverModule.shutdown ||
       stopFunction ===
-        serverModule.close
+      serverModule.close
     ) {
       result =
         await stopFunction(
@@ -3615,7 +3634,7 @@ class ApplicationBootstrap {
     try {
       for (
         const definition of
-          order
+        order
       ) {
         if (
           signal?.aborted
@@ -3709,7 +3728,7 @@ class ApplicationBootstrap {
       ) {
         this.assertApplication(
           this.application ||
-            this.context?.application,
+          this.context?.application,
         );
       }
 
@@ -4005,9 +4024,9 @@ class ApplicationBootstrap {
 
     for (
       const definition of
-        [
-          ...completedDefinitions,
-        ].reverse()
+      [
+        ...completedDefinitions,
+      ].reverse()
     ) {
       try {
         if (
@@ -4096,7 +4115,7 @@ class ApplicationBootstrap {
     if (
       !state ||
       state.status !==
-        "started"
+      "started"
     ) {
       return true;
     }
@@ -4132,8 +4151,8 @@ class ApplicationBootstrap {
           ),
         Math.min(
           definition.timeoutMs ||
-            this.options
-              .shutdownTimeoutMs,
+          this.options
+            .shutdownTimeoutMs,
           this.options
             .shutdownTimeoutMs,
         ),
@@ -4321,18 +4340,18 @@ class ApplicationBootstrap {
       this.resolvePhaseOrder().filter(
         definition =>
           definition.name !==
-            "server" &&
+          "server" &&
           this.phaseStates.get(
             definition.name,
           )?.status ===
-            "started",
+          "started",
       );
 
     for (
       const definition of
-        [
-          ...completedDefinitions,
-        ].reverse()
+      [
+        ...completedDefinitions,
+      ].reverse()
     ) {
       try {
         await this.stopPhase(
@@ -4424,8 +4443,8 @@ class ApplicationBootstrap {
         durationMs:
           this.startedAt
             ? elapsedMs(
-                this.startedAt,
-              )
+              this.startedAt,
+            )
             : 0,
       },
     );
@@ -4444,7 +4463,7 @@ class ApplicationBootstrap {
 
     for (
       const definition of
-        this.resolvePhaseOrder()
+      this.resolvePhaseOrder()
     ) {
       const state =
         this.phaseStates.get(
@@ -4455,9 +4474,9 @@ class ApplicationBootstrap {
         !state ||
         (
           state.status !==
-            "started" &&
+          "started" &&
           state.status !==
-            "failed"
+          "failed"
         )
       ) {
         continue;
@@ -4505,11 +4524,11 @@ class ApplicationBootstrap {
           definition.name
         ] =
           typeof result ===
-          "boolean"
+            "boolean"
             ? {
-                ready:
-                  result,
-              }
+              ready:
+                result,
+            }
             : result;
       } catch (error) {
         phaseResults[
@@ -4541,7 +4560,7 @@ class ApplicationBootstrap {
 
             const result =
               phaseResults[
-                definition.name
+              definition.name
               ];
 
             if (
@@ -4554,7 +4573,7 @@ class ApplicationBootstrap {
             if (
               result &&
               result.ready ===
-                false
+              false
             ) {
               return true;
             }
@@ -4568,7 +4587,7 @@ class ApplicationBootstrap {
       !this.stopping &&
       !this.failed &&
       failedRequired.length ===
-        0;
+      0;
 
     return {
       ready,
@@ -4609,7 +4628,7 @@ class ApplicationBootstrap {
 
     for (
       const definition of
-        this.resolvePhaseOrder()
+      this.resolvePhaseOrder()
     ) {
       const state =
         this.phaseStates.get(
@@ -4620,9 +4639,9 @@ class ApplicationBootstrap {
         !state ||
         (
           state.status !==
-            "started" &&
+          "started" &&
           state.status !==
-            "failed"
+          "failed"
         )
       ) {
         continue;
@@ -4695,9 +4714,9 @@ class ApplicationBootstrap {
           result &&
           (
             result.status ===
-              "unhealthy" ||
+            "unhealthy" ||
             result.healthy ===
-              false
+            false
           ),
       );
 
@@ -4706,7 +4725,7 @@ class ApplicationBootstrap {
         !this.started
           ? "degraded"
           : unhealthy ||
-              this.failed
+            this.failed
             ? "unhealthy"
             : "healthy",
 
@@ -5068,7 +5087,7 @@ class ApplicationBootstrap {
 
     for (
       const definition of
-        this.phaseDefinitions.values()
+      this.phaseDefinitions.values()
     ) {
       this.phaseStates.set(
         definition.name,
@@ -5171,7 +5190,7 @@ class ApplicationBootstrap {
 
     for (
       const definition of
-        this.phaseDefinitions.values()
+      this.phaseDefinitions.values()
     ) {
       this.phaseStates.set(
         definition.name,
@@ -5332,27 +5351,27 @@ function getBootstrapState() {
   return (
     defaultBootstrap
       ?.getSnapshot() || {
-        application:
-          DEFAULT_APPLICATION_NAME,
+      application:
+        DEFAULT_APPLICATION_NAME,
 
-        component:
-          COMPONENT,
+      component:
+        COMPONENT,
 
-        service:
-          DEFAULT_SERVICE_NAME,
+      service:
+        DEFAULT_SERVICE_NAME,
 
-        version:
-          VERSION,
+      version:
+        VERSION,
 
-        started:
-          false,
+      started:
+        false,
 
-        stopped:
-          false,
+      stopped:
+        false,
 
-        failed:
-          false,
-      }
+      failed:
+        false,
+    }
   );
 }
 

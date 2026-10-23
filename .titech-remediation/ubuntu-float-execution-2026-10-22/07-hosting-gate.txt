@@ -1,0 +1,50 @@
+$ npm run titech:hosting-gate
+UTC_START=2026-10-22T18:41:19.872841+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 titech:hosting-gate
+> node scripts/titech-hosting-gate.mjs
+
+{
+  "generatedAt": "2026-10-22T18:41:20.053Z",
+  "status": "PASS",
+  "failures": [],
+  "checks": [
+    {
+      "id": "required-artifacts",
+      "status": "PASS",
+      "message": "Hosting and theme implementation artifacts are present and non-zero."
+    },
+    {
+      "id": "backend-production-env",
+      "status": "PASS",
+      "message": "Production backend template uses external TLS endpoints, hardened defaults, placeholder secrets and fail-closed capability flags."
+    },
+    {
+      "id": "frontend-production-env",
+      "status": "PASS",
+      "message": "Frontend production template routes through the same-origin edge and exposes no credentials."
+    },
+    {
+      "id": "brand-palette",
+      "status": "PASS",
+      "message": "Official TITech palette is complete in the canonical brand manifest."
+    },
+    {
+      "id": "pwa-manifest",
+      "status": "PASS",
+      "message": "PWA manifest declares standalone display and app icons."
+    },
+    {
+      "id": "production-compose",
+      "status": "PASS",
+      "message": "Production compose contains backend, frontend, edge, domain, TLS and persistent private-document storage contracts."
+    },
+    {
+      "id": "edge-security",
+      "status": "PASS",
+      "message": "Production edge configuration contains HTTPS, API, websocket and browser security controls."
+    }
+  ]
+}

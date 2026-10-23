@@ -23,7 +23,7 @@ function permittedUpload(req, purpose) {
     INSURANCE_LICENCE: ['insurance:institution:submit', 'insurance:licence:evidence:submit'],
     INSURANCE_CLAIM: ['insurance:claims:create'],
     CONSENT_EVIDENCE: ['consent:grant', 'participant:assisted-onboarding:create'],
-    OTHER_COMPLIANCE_EVIDENCE: ['refugee-partner:submit', 'insurance:institution:submit', 'insurance:licence:evidence:submit', 'insurance:product:activate', 'participant:kyc:review'],
+    OTHER_COMPLIANCE_EVIDENCE: ['refugee-partner:submit', 'ubuntu-float:agent:evidence:submit', 'insurance:institution:submit', 'insurance:licence:evidence:submit', 'insurance:product:activate', 'participant:kyc:review'],
     RETIREMENT_SUPPORT_EVIDENCE: ['retirement:case:create:own', 'retirement:case:create', 'retirement:case:review'],
   };
   return (permissionByPurpose[String(purpose || '').trim().toUpperCase()] || []).some((permission) => hasPermission(req.user, permission));
@@ -57,6 +57,7 @@ export async function uploadPrivateDocument(req, res) {
               ? true
               : purpose === 'OTHER_COMPLIANCE_EVIDENCE' && (
                 (hasPermission(req.user, 'refugee-partner:submit') && capabilityEnabled('TITECH_REFUGEE_PARTNER_ONBOARDING_ENABLED'))
+                || (hasPermission(req.user, 'ubuntu-float:agent:evidence:submit') && capabilityEnabled('TITECH_UBUNTFLOAT_CORE_ENABLED'))
                 || ((hasPermission(req.user, 'insurance:institution:submit') || hasPermission(req.user, 'insurance:licence:evidence:submit')) && capabilityEnabled('TITECH_INSURANCE_ONBOARDING_ENABLED'))
                 || (hasPermission(req.user, 'insurance:product:activate') && capabilityEnabled('TITECH_INSURANCE_OPERATIONS_ENABLED'))
                 || (hasPermission(req.user, 'participant:kyc:review') && capabilityEnabled('TITECH_REFUGEE_ONBOARDING_ENABLED'))
@@ -64,7 +65,7 @@ export async function uploadPrivateDocument(req, res) {
     if (!allowedByCapability) return res.status(503).json({ success: false, error: { code: 'CAPABILITY_DISABLED', message: 'Private evidence uploads for this workflow are disabled until the related capability is configured and approved.' }, requestId: req.requestId || null });
     if (!permittedUpload(req, purpose)) return res.status(403).json({ success: false, error: { code: 'DOCUMENT_UPLOAD_PERMISSION_DENIED', message: 'The actor is not authorised to upload this document purpose.' } });
     const requestedSubject = String(req.get('x-titech-document-subject') || actor).trim();
-    if (requestedSubject !== actor && !hasPermission(req.user, 'participant:assisted-onboarding:create') && !hasPermission(req.user, 'insurance:institution:submit') && !hasPermission(req.user, 'retirement:case:create')) {
+    if (requestedSubject !== actor && !hasPermission(req.user, 'participant:assisted-onboarding:create') && !hasPermission(req.user, 'insurance:institution:submit') && !hasPermission(req.user, 'retirement:case:create') && !(hasPermission(req.user, 'ubuntu-float:agent:evidence:submit') && capabilityEnabled('TITECH_UBUNTFLOAT_CORE_ENABLED'))) {
       return res.status(403).json({ success: false, error: { code: 'DOCUMENT_SUBJECT_SCOPE_DENIED', message: 'The actor cannot upload evidence for this subject.' } });
     }
     const result = await storePrivateDocument({

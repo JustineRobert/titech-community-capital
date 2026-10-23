@@ -1,0 +1,114 @@
+$ npm run audit:frontend-runtime
+UTC_START=2026-10-22T18:41:29.845542+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 audit:frontend-runtime
+> node scripts/frontend-runtime-audit.mjs
+
+{
+  "generatedAt": "2026-10-22T18:41:30.144Z",
+  "status": "PASS_WITH_WARNINGS",
+  "summary": {
+    "checks": 12,
+    "pass": 11,
+    "warn": 1,
+    "fail": 0
+  },
+  "conclusions": {
+    "adobeCleanChromeExtensionWarning": "EXTERNAL_UNLESS_TITECH_EXTENSION_OWNERSHIP_IS_PROVEN",
+    "reactRuntimeError": "BUNDLE_OR_RUNTIME_CONTEXT_MUST_BE_PROVEN_WITH_PRODUCTION_ARTIFACT_AND_CLEAN_BROWSER_PROFILE"
+  },
+  "results": [
+    {
+      "id": "html-module-entry",
+      "status": "PASS",
+      "message": "TITech must bootstrap through the module-based Vite entrypoint.",
+      "evidence": [
+        "frontend/index.html"
+      ]
+    },
+    {
+      "id": "html-no-react-cdn",
+      "status": "PASS",
+      "message": "The app must not depend on a CDN/UMD React global.",
+      "evidence": [
+        "frontend/index.html"
+      ]
+    },
+    {
+      "id": "vite-react-plugin",
+      "status": "PASS",
+      "message": "Vite must use the canonical React plugin with the automatic JSX runtime.",
+      "evidence": [
+        "frontend/vite.config.js"
+      ]
+    },
+    {
+      "id": "vite-no-react-externalization",
+      "status": "PASS",
+      "message": "React and ReactDOM must not be externalized into an assumed browser global.",
+      "evidence": [
+        "frontend/vite.config.js"
+      ]
+    },
+    {
+      "id": "vite-react-dedupe",
+      "status": "PASS",
+      "message": "React and ReactDOM are explicitly deduplicated to prevent multiple-runtime identity defects.",
+      "evidence": [
+        "frontend/vite.config.js"
+      ]
+    },
+    {
+      "id": "vite-no-global-react-definition",
+      "status": "PASS",
+      "message": "Vite must not manufacture a global React dependency as a workaround.",
+      "evidence": [
+        "frontend/vite.config.js"
+      ]
+    },
+    {
+      "id": "nginx-index-cache-policy",
+      "status": "PASS",
+      "message": "The HTML application shell must revalidate so new HTML cannot be paired with stale hashed JavaScript.",
+      "evidence": [
+        "frontend/nginx.conf"
+      ]
+    },
+    {
+      "id": "nginx-service-worker-cache-policy",
+      "status": "PASS",
+      "message": "The service-worker script must revalidate so deployment updates cannot remain pinned to an old worker.",
+      "evidence": [
+        "frontend/nginx.conf"
+      ]
+    },
+    {
+      "id": "source-react-imports",
+      "status": "PASS",
+      "message": "No source module uses the React namespace without a React import.",
+      "evidence": []
+    },
+    {
+      "id": "extension-ownership",
+      "status": "PASS",
+      "message": "No TITech-owned Chrome extension manifest or source reference was found in the repository snapshot.",
+      "evidence": []
+    },
+    {
+      "id": "font-warning-safety",
+      "status": "PASS",
+      "message": "TITech source contains no chrome-extension:// font dependency; browser-extension AdobeClean font warnings must remain externally classified unless an installed TITech extension proves ownership.",
+      "evidence": []
+    },
+    {
+      "id": "dist-present",
+      "status": "WARN",
+      "message": "No frontend/dist directory exists in the supplied source snapshot; production bundle runtime evidence cannot be claimed here.",
+      "evidence": [
+        "frontend/dist"
+      ]
+    }
+  ]
+}

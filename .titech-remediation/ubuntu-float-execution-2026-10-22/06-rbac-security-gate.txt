@@ -1,0 +1,9 @@
+$ npm run rbac:gate
+UTC_START=2026-10-22T18:41:19.676504+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 rbac:gate
+> node scripts/rbac-security-gate.mjs
+
+RBAC security gate: PASS

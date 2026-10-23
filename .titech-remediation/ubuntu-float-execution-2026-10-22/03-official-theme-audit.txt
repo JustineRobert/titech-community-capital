@@ -1,0 +1,148 @@
+$ npm run audit:theme
+UTC_START=2026-10-22T18:41:18.971935+00:00
+EXIT_CODE=0
+
+
+> titech-community-capital@1.0.0 audit:theme
+> node scripts/official-theme-audit.mjs
+
+{
+  "generatedAt": "2026-10-22T18:41:19.228Z",
+  "status": "PASS",
+  "palette": {
+    "deepBlue": "#0030A0",
+    "electricBlue": "#0058D8",
+    "brightBlue": "#0066E8",
+    "cyan": "#00B8F8",
+    "africaGreen": "#008000",
+    "limeGreen": "#A8F000",
+    "goldYellow": "#F8D800",
+    "navyInk": "#082B67",
+    "white": "#FFFFFF"
+  },
+  "frontendThemeCoverage": {
+    "cssFilesScanned": 64,
+    "hardcodedOfficialCssOccurrences": 0,
+    "hardcodedOfficialCssFiles": [],
+    "hardcodedOfficialCssByRole": {
+      "deepBlue": 0,
+      "electricBlue": 0,
+      "brightBlue": 0,
+      "cyan": 0,
+      "africaGreen": 0,
+      "limeGreen": 0,
+      "goldYellow": 0,
+      "navyInk": 0,
+      "white": 0
+    },
+    "inlineScriptOfficialColorOccurrences": 0,
+    "inlineScriptOfficialColorFiles": []
+  },
+  "checks": [
+    {
+      "id": "manifest-json",
+      "status": "PASS",
+      "message": "branding/BRAND_MANIFEST.json is valid JSON."
+    },
+    {
+      "id": "manifest-visual-identity",
+      "status": "PASS",
+      "message": "All nine official palette values match the supplied reference contract."
+    },
+    {
+      "id": "manifest-platform-theme",
+      "status": "PASS",
+      "message": "All nine official palette values match the supplied reference contract."
+    },
+    {
+      "id": "root-theme-contract",
+      "status": "PASS",
+      "message": "Root official theme contract contains all nine palette values and explicit light/dark modes."
+    },
+    {
+      "id": "mobile-tokens",
+      "status": "PASS",
+      "message": "Mobile token palette matches the official TITech palette."
+    },
+    {
+      "id": "reference-image",
+      "status": "PASS",
+      "message": "Supplied theme reference image is present and SHA-256 verified."
+    },
+    {
+      "id": "js-token-bridge-contract",
+      "status": "PASS",
+      "message": "JavaScript/JSX color consumers have a centralized official chart palette and semantic state-color bridge."
+    },
+    {
+      "id": "brand-js-palette",
+      "status": "PASS",
+      "message": "frontend/src/branding/brand.js exposes all official palette values."
+    },
+    {
+      "id": "brand-css-palette",
+      "status": "PASS",
+      "message": "frontend/src/branding/brand.css exposes all official palette values."
+    },
+    {
+      "id": "official-theme-css-palette",
+      "status": "PASS",
+      "message": "frontend/src/branding/official-theme.css exposes all official palette values."
+    },
+    {
+      "id": "theme-runtime-contract",
+      "status": "PASS",
+      "message": "Theme runtime uses deterministic light default with explicit light/dark values."
+    },
+    {
+      "id": "no-system-default",
+      "status": "PASS",
+      "message": "Theme runtime does not consult OS/browser system preference as the default contract."
+    },
+    {
+      "id": "explicit-theme-mode-css",
+      "status": "PASS",
+      "message": "Global styles do not override an explicit TITech light/dark preference using the operating-system color scheme."
+    },
+    {
+      "id": "platform-wide-semantic-theme",
+      "status": "PASS",
+      "message": "Shared form controls, surface primitives, tables and text use the official semantic theme tokens."
+    },
+    {
+      "id": "main-entry-theme-bootstrap",
+      "status": "PASS",
+      "message": "frontend/src/main.jsx is wired to the canonical official theme contract."
+    },
+    {
+      "id": "index-entry-theme-bootstrap",
+      "status": "PASS",
+      "message": "frontend/src/index.js is wired to the canonical official theme contract."
+    },
+    {
+      "id": "theme-tests",
+      "status": "PASS",
+      "message": "frontend/src/branding/__tests__/theme.test.js is wired to the canonical official theme contract."
+    },
+    {
+      "id": "frontend-css-token-coverage",
+      "status": "PASS",
+      "message": "All 64 non-brand frontend CSS files consume the centralized TITech brand token layer rather than hard-coding official palette hex values."
+    },
+    {
+      "id": "frontend-theme-entrypoints",
+      "status": "PASS",
+      "message": "Web/PWA startup, semantic brand CSS and theme runtime entrypoints are present."
+    },
+    {
+      "id": "legacy-brand-css-literals",
+      "status": "PASS",
+      "message": "Known legacy brand literals are routed through centralized TITech semantic tokens."
+    },
+    {
+      "id": "chart-fallback-colors",
+      "status": "PASS",
+      "message": "Chart components resolve colors through the centralized TITech theme contract rather than hard-coded fallback literals."
+    }
+  ]
+}

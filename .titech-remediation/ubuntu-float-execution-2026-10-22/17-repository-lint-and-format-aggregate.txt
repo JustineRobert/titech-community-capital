@@ -1,0 +1,424 @@
+$ npm run check
+UTC_START=2026-10-22T18:41:32.200469+00:00
+EXIT_CODE=127
+
+
+> titech-community-capital@1.0.0 check
+> npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run check:performance-contract && npm run i18n:check && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check
+
+
+> titech-community-capital@1.0.0 check:conflicts
+> node scripts/check-conflicts.js
+
+No merge conflict markers found (3392 files scanned).
+
+> titech-community-capital@1.0.0 titech:implementation-gate
+> node scripts/titech-implementation-gate.mjs
+
+{
+  "generatedAt": "2026-10-22T18:41:34.388Z",
+  "status": "PASS",
+  "checks": {
+    "canonicalBootstrap": "backend/bootstrap/app.js re-exports ApplicationBootstrap.js",
+    "bootstrapCompatibility": "legacy imports are isolated behind explicit createRequire boundaries",
+    "officialTheme": "all nine canonical palette values are present in the brand contract"
+  },
+  "failures": []
+}
+
+> titech-community-capital@1.0.0 titech:hosting-gate
+> node scripts/titech-hosting-gate.mjs
+
+{
+  "generatedAt": "2026-10-22T18:41:34.571Z",
+  "status": "PASS",
+  "failures": [],
+  "checks": [
+    {
+      "id": "required-artifacts",
+      "status": "PASS",
+      "message": "Hosting and theme implementation artifacts are present and non-zero."
+    },
+    {
+      "id": "backend-production-env",
+      "status": "PASS",
+      "message": "Production backend template uses external TLS endpoints, hardened defaults, placeholder secrets and fail-closed capability flags."
+    },
+    {
+      "id": "frontend-production-env",
+      "status": "PASS",
+      "message": "Frontend production template routes through the same-origin edge and exposes no credentials."
+    },
+    {
+      "id": "brand-palette",
+      "status": "PASS",
+      "message": "Official TITech palette is complete in the canonical brand manifest."
+    },
+    {
+      "id": "pwa-manifest",
+      "status": "PASS",
+      "message": "PWA manifest declares standalone display and app icons."
+    },
+    {
+      "id": "production-compose",
+      "status": "PASS",
+      "message": "Production compose contains backend, frontend, edge, domain, TLS and persistent private-document storage contracts."
+    },
+    {
+      "id": "edge-security",
+      "status": "PASS",
+      "message": "Production edge configuration contains HTTPS, API, websocket and browser security controls."
+    }
+  ]
+}
+
+> titech-community-capital@1.0.0 validate:syntax
+> node scripts/enterprise-gate.mjs --syntax
+
+Syntax gate: PASS (2440 executable JS/TS-family files parsed).
+
+Warnings:
+- Local runtime is Node 22.16.0; repository gate targets Node 24.15.x.
+
+Enterprise gate: PASS
+
+> titech-community-capital@1.0.0 check:financial
+> node scripts/financial-static-gate.mjs
+
+Financial static gate: PASS (12 canonical files checked).
+
+> titech-community-capital@1.0.0 check:enterprise-contracts
+> node scripts/enterprise-contract-contracts.mjs
+
+Enterprise contract gate: PASS (11 control-plane contracts checked).
+
+> titech-community-capital@1.0.0 check:runtime-imports
+> node scripts/runtime-import-audit.mjs
+
+TITech runtime import audit
+Backend source files scanned: 2019
+Missing local imports: 209
+Missing local imports on canonical financial surface: 0
+Mixed-module violations on canonical financial surface: 0
+Report: reports/runtime-import-audit.json
+WARN: 209 legacy/non-critical missing local imports require later consolidation.
+Runtime import audit: PASS for canonical financial surface.
+
+> titech-community-capital@1.0.0 audit:theme
+> node scripts/official-theme-audit.mjs
+
+{
+  "generatedAt": "2026-10-22T18:41:43.377Z",
+  "status": "PASS",
+  "palette": {
+    "deepBlue": "#0030A0",
+    "electricBlue": "#0058D8",
+    "brightBlue": "#0066E8",
+    "cyan": "#00B8F8",
+    "africaGreen": "#008000",
+    "limeGreen": "#A8F000",
+    "goldYellow": "#F8D800",
+    "navyInk": "#082B67",
+    "white": "#FFFFFF"
+  },
+  "frontendThemeCoverage": {
+    "cssFilesScanned": 64,
+    "hardcodedOfficialCssOccurrences": 0,
+    "hardcodedOfficialCssFiles": [],
+    "hardcodedOfficialCssByRole": {
+      "deepBlue": 0,
+      "electricBlue": 0,
+      "brightBlue": 0,
+      "cyan": 0,
+      "africaGreen": 0,
+      "limeGreen": 0,
+      "goldYellow": 0,
+      "navyInk": 0,
+      "white": 0
+    },
+    "inlineScriptOfficialColorOccurrences": 0,
+    "inlineScriptOfficialColorFiles": []
+  },
+  "checks": [
+    {
+      "id": "manifest-json",
+      "status": "PASS",
+      "message": "branding/BRAND_MANIFEST.json is valid JSON."
+    },
+    {
+      "id": "manifest-visual-identity",
+      "status": "PASS",
+      "message": "All nine official palette values match the supplied reference contract."
+    },
+    {
+      "id": "manifest-platform-theme",
+      "status": "PASS",
+      "message": "All nine official palette values match the supplied reference contract."
+    },
+    {
+      "id": "root-theme-contract",
+      "status": "PASS",
+      "message": "Root official theme contract contains all nine palette values and explicit light/dark modes."
+    },
+    {
+      "id": "mobile-tokens",
+      "status": "PASS",
+      "message": "Mobile token palette matches the official TITech palette."
+    },
+    {
+      "id": "reference-image",
+      "status": "PASS",
+      "message": "Supplied theme reference image is present and SHA-256 verified."
+    },
+    {
+      "id": "js-token-bridge-contract",
+      "status": "PASS",
+      "message": "JavaScript/JSX color consumers have a centralized official chart palette and semantic state-color bridge."
+    },
+    {
+      "id": "brand-js-palette",
+      "status": "PASS",
+      "message": "frontend/src/branding/brand.js exposes all official palette values."
+    },
+    {
+      "id": "brand-css-palette",
+      "status": "PASS",
+      "message": "frontend/src/branding/brand.css exposes all official palette values."
+    },
+    {
+      "id": "official-theme-css-palette",
+      "status": "PASS",
+      "message": "frontend/src/branding/official-theme.css exposes all official palette values."
+    },
+    {
+      "id": "theme-runtime-contract",
+      "status": "PASS",
+      "message": "Theme runtime uses deterministic light default with explicit light/dark values."
+    },
+    {
+      "id": "no-system-default",
+      "status": "PASS",
+      "message": "Theme runtime does not consult OS/browser system preference as the default contract."
+    },
+    {
+      "id": "explicit-theme-mode-css",
+      "status": "PASS",
+      "message": "Global styles do not override an explicit TITech light/dark preference using the operating-system color scheme."
+    },
+    {
+      "id": "platform-wide-semantic-theme",
+      "status": "PASS",
+      "message": "Shared form controls, surface primitives, tables and text use the official semantic theme tokens."
+    },
+    {
+      "id": "main-entry-theme-bootstrap",
+      "status": "PASS",
+      "message": "frontend/src/main.jsx is wired to the canonical official theme contract."
+    },
+    {
+      "id": "index-entry-theme-bootstrap",
+      "status": "PASS",
+      "message": "frontend/src/index.js is wired to the canonical official theme contract."
+    },
+    {
+      "id": "theme-tests",
+      "status": "PASS",
+      "message": "frontend/src/branding/__tests__/theme.test.js is wired to the canonical official theme contract."
+    },
+    {
+      "id": "frontend-css-token-coverage",
+      "status": "PASS",
+      "message": "All 64 non-brand frontend CSS files consume the centralized TITech brand token layer rather than hard-coding official palette hex values."
+    },
+    {
+      "id": "frontend-theme-entrypoints",
+      "status": "PASS",
+      "message": "Web/PWA startup, semantic brand CSS and theme runtime entrypoints are present."
+    },
+    {
+      "id": "legacy-brand-css-literals",
+      "status": "PASS",
+      "message": "Known legacy brand literals are routed through centralized TITech semantic tokens."
+    },
+    {
+      "id": "chart-fallback-colors",
+      "status": "PASS",
+      "message": "Chart components resolve colors through the centralized TITech theme contract rather than hard-coded fallback literals."
+    }
+  ]
+}
+
+> titech-community-capital@1.0.0 check:performance-contract
+> node scripts/performance-contract-gate.mjs
+
+{
+  "status": "PASS",
+  "artifact": "TITech read-only capacity-test contract",
+  "checks": "required files, confirmed endpoint paths, thresholds, bounded profiles and safety guards are present",
+  "failures": []
+}
+
+> titech-community-capital@1.0.0 i18n:check
+> node scripts/i18n-validation.mjs
+
+{
+  "status": "PASS",
+  "productionEligible": false,
+  "checks": 32,
+  "failures": [],
+  "coverage": {
+    "en": {
+      "percent": 100,
+      "translatedKeys": 581,
+      "totalKeys": 581,
+      "review": "CANONICAL_SOURCE_LOCALE"
+    },
+    "sw": {
+      "percent": 100,
+      "translatedKeys": 581,
+      "totalKeys": 581,
+      "review": "PENDING_HUMAN_REVIEW"
+    },
+    "fr": {
+      "percent": 100,
+      "translatedKeys": 581,
+      "totalKeys": 581,
+      "review": "PENDING_HUMAN_REVIEW"
+    },
+    "ar": {
+      "percent": 100,
+      "translatedKeys": 581,
+      "totalKeys": 581,
+      "review": "PENDING_HUMAN_REVIEW"
+    }
+  },
+  "report": "reports/i18n-coverage-2026-10-17.json"
+}
+
+> titech-community-capital@1.0.0 audit:frontend-runtime
+> node scripts/frontend-runtime-audit.mjs
+
+{
+  "generatedAt": "2026-10-22T18:41:44.173Z",
+  "status": "PASS_WITH_WARNINGS",
+  "summary": {
+    "checks": 12,
+    "pass": 11,
+    "warn": 1,
+    "fail": 0
+  },
+  "conclusions": {
+    "adobeCleanChromeExtensionWarning": "EXTERNAL_UNLESS_TITECH_EXTENSION_OWNERSHIP_IS_PROVEN",
+    "reactRuntimeError": "BUNDLE_OR_RUNTIME_CONTEXT_MUST_BE_PROVEN_WITH_PRODUCTION_ARTIFACT_AND_CLEAN_BROWSER_PROFILE"
+  },
+  "results": [
+    {
+      "id": "html-module-entry",
+      "status": "PASS",
+      "message": "TITech must bootstrap through the module-based Vite entrypoint.",
+      "evidence": [
+        "frontend/index.html"
+      ]
+    },
+    {
+      "id": "html-no-react-cdn",
+      "status": "PASS",
+      "message": "The app must not depend on a CDN/UMD React global.",
+      "evidence": [
+        "frontend/index.html"
+      ]
+    },
+    {
+      "id": "vite-react-plugin",
+      "status": "PASS",
+      "message": "Vite must use the canonical React plugin with the automatic JSX runtime.",
+      "evidence": [
+        "frontend/vite.config.js"
+      ]
+    },
+    {
+      "id": "vite-no-react-externalization",
+      "status": "PASS",
+      "message": "React and ReactDOM must not be externalized into an assumed browser global.",
+      "evidence": [
+        "frontend/vite.config.js"
+      ]
+    },
+    {
+      "id": "vite-react-dedupe",
+      "status": "PASS",
+      "message": "React and ReactDOM are explicitly deduplicated to prevent multiple-runtime identity defects.",
+      "evidence": [
+        "frontend/vite.config.js"
+      ]
+    },
+    {
+      "id": "vite-no-global-react-definition",
+      "status": "PASS",
+      "message": "Vite must not manufacture a global React dependency as a workaround.",
+      "evidence": [
+        "frontend/vite.config.js"
+      ]
+    },
+    {
+      "id": "nginx-index-cache-policy",
+      "status": "PASS",
+      "message": "The HTML application shell must revalidate so new HTML cannot be paired with stale hashed JavaScript.",
+      "evidence": [
+        "frontend/nginx.conf"
+      ]
+    },
+    {
+      "id": "nginx-service-worker-cache-policy",
+      "status": "PASS",
+      "message": "The service-worker script must revalidate so deployment updates cannot remain pinned to an old worker.",
+      "evidence": [
+        "frontend/nginx.conf"
+      ]
+    },
+    {
+      "id": "source-react-imports",
+      "status": "PASS",
+      "message": "No source module uses the React namespace without a React import.",
+      "evidence": []
+    },
+    {
+      "id": "extension-ownership",
+      "status": "PASS",
+      "message": "No TITech-owned Chrome extension manifest or source reference was found in the repository snapshot.",
+      "evidence": []
+    },
+    {
+      "id": "font-warning-safety",
+      "status": "PASS",
+      "message": "TITech source contains no chrome-extension:// font dependency; browser-extension AdobeClean font warnings must remain externally classified unless an installed TITech extension proves ownership.",
+      "evidence": []
+    },
+    {
+      "id": "dist-present",
+      "status": "WARN",
+      "message": "No frontend/dist directory exists in the supplied source snapshot; production bundle runtime evidence cannot be claimed here.",
+      "evidence": [
+        "frontend/dist"
+      ]
+    }
+  ]
+}
+
+> titech-community-capital@1.0.0 rbac:gate
+> node scripts/rbac-security-gate.mjs
+
+RBAC security gate: PASS
+
+> titech-community-capital@1.0.0 lint
+> npm run lint:backend && npm run lint:frontend
+
+
+> titech-community-capital@1.0.0 lint:backend
+> npm --prefix backend run lint
+
+
+> titech-community-capital-backend@1.0.0 lint
+> eslint .
+
+sh: 1: eslint: not found

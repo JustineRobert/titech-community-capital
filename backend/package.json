@@ -102,7 +102,8 @@
     "test:otp": "node --test tests/unit/services/otpService.test.cjs",
     "index:create:inclusive-insurance": "node scripts/createInclusiveInsuranceIndexes.js",
     "index:create:retirement-support": "node scripts/createRetirementSupportIndexes.js",
-    "index:create:education-campaigns": "node scripts/createEducationCampaignIndexes.js"
+    "index:create:education-campaigns": "node scripts/createEducationCampaignIndexes.js",
+    "index:create:ubuntu-float": "node scripts/createUbuntuFloatIndexes.js"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
