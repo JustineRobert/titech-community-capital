@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# TITech Community Capital LTD
+# TITech Capital LTD
 # File: backend/backup/scripts/backup-db.sh
 # Enterprise Database Backup Script
 # =============================================================================

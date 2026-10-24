@@ -363,7 +363,7 @@ const BUILD_INFORMATION =
         author:
 
             packageJson.author ||
-            "TITech Community Capital LTD",
+            "TITech Capital LTD",
 
         license:
 
@@ -523,7 +523,7 @@ const APPLICATION =
     Object.freeze({
 
         company:
-            "TITech Community Capital LTD",
+            "TITech Capital LTD",
 
         platform:
             "African Community Finance Operating System",

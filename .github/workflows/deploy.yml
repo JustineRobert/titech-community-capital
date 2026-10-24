@@ -1,5 +1,5 @@
 ################################################################################
-# TITech Community Capital LTD
+# TITech Capital LTD
 # Enterprise Deployment Pipeline
 #
 # File:
@@ -190,7 +190,7 @@ env:
 
   APP_NAME: titech-community-capital
 
-  COMPANY_NAME: TITech Community Capital LTD
+  COMPANY_NAME: TITech Capital LTD
 
   ORGANIZATION: titech
 
@@ -1100,7 +1100,7 @@ jobs:
 
           labels: |
             org.opencontainers.image.title=TITech Community Capital Backend
-            org.opencontainers.image.vendor=TITech Community Capital LTD
+            org.opencontainers.image.vendor=TITech Capital LTD
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
@@ -1127,7 +1127,7 @@ jobs:
 
           labels: |
             org.opencontainers.image.title=TITech Community Capital Frontend
-            org.opencontainers.image.vendor=TITech Community Capital LTD
+            org.opencontainers.image.vendor=TITech Capital LTD
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 

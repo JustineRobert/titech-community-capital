@@ -3396,7 +3396,7 @@ const middlewareMetadata = Object.freeze({
     }),
 
     owner:
-        'TITech Community Capital LTD'
+        'TITech Capital LTD'
 
 });
 

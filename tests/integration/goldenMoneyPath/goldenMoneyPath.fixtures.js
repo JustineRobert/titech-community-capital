@@ -923,7 +923,7 @@ function tenant(
         DEFAULTS.tenantId,
 
       name:
-        'TITech Community Capital Ltd - Test Tenant',
+        'TITech Capital LTD - Test Tenant',
 
       slug:
         'titech-golden-money-path-test',
@@ -987,7 +987,7 @@ function secondaryTenant(
       DEFAULTS.secondaryTenantId,
 
     name:
-      'TITech Community Capital Ltd - Secondary Test Tenant',
+      'TITech Capital LTD - Secondary Test Tenant',
 
     slug:
       'titech-golden-money-path-test-secondary',
