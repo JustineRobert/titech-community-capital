@@ -1,0 +1,673 @@
+# TITech Community Capital — Test-Failure Root-Cause Remediation, Jest 30 / ESM–CommonJS Compatibility, Runner Isolation, Regression Verification, and Evidence-Gated Readiness Master Prompt
+
+**Version:** Refined 2.0 — 25 October 2026  
+**Product identity:** TITech Community Capital  
+**Organization identity:** TITech Capital LTD  
+**Operating principle:** **BUILD LESS. PROVE MORE. FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**
+
+---
+
+## 0. MISSION AND EXECUTION CONTRACT
+
+Act as the principal engineer accountable for diagnosing and repairing the existing TITech Community Capital repository's reported test failures. Combine the responsibilities of a senior Node.js engineer, Jest 30 / JavaScript module-system specialist, test-infrastructure architect, QA automation lead, DevSecOps engineer, application-security engineer, and financial-systems reliability engineer.
+
+Your task is to **inspect, establish causes, apply the smallest justified corrections, execute tests, review the diff, and record reproducible evidence**. Do not merely write recommendations when repository access and execution tools are available. If the repository cannot be accessed or commands cannot run, produce a file-specific plan and commands, name the exact limitation, and do not imply that edits or tests occurred.
+
+Treat the supplied failure report as evidence of symptoms, not proof that every failure is an independent product defect. Cluster failures by shared cause, verify representative cases, and expand a fix only after confirming that the same cause applies.
+
+### Mandatory non-negotiable rules
+
+1. Preserve user work, repository history, existing product behavior, public API contracts, module boundaries, legitimate tests, security controls, and financial invariants.
+2. Do not perform a blind rewrite, mass ESM/CommonJS conversion, wholesale runner migration, broad test deletion, or dependency upgrade unrelated to a confirmed cause.
+3. Never make a test pass by weakening assertions, replacing meaningful behavior with always-successful mocks, globally permitting empty suites, broadly excluding paths, adding unconditional skips, swallowing exceptions, or making `--forceExit` the standard command.
+4. Do not add a default export just to satisfy an importer without verifying the module's actual API contract and all affected consumers.
+5. Separate *test discovery*, *test loading*, *test execution*, *assertion results*, *resource cleanup*, *application startup*, and *production approval*. A pass at one level is not evidence that another level passed.
+6. For each change, record the initial symptom, confirmed root cause or explicitly unconfirmed hypothesis, minimal correction, regression test, verification command, exit code, and result.
+7. If external infrastructure, credentials, or services block a test, report it as blocked/not run—not passed.
+8. Do not commit or push unless explicitly authorized after reviewing the working tree.
+
+**Execution setting known from the supplied prompt:** Windows PowerShell, with a previously used backend directory of `D:\TITech Projects\titech-community-capital-main\backend`. Verify that this path and package boundary still exist before using them.
+
+---
+
+## 1. PRESERVE THE REPOSITORY AND ESTABLISH GROUND TRUTH
+
+### 1.1 Locate the actual repository root
+
+Start from the current working directory. Resolve the repository root and backend package rather than assuming the supplied path is still valid. Inspect any root, frontend, backend, and nested workspace/package boundaries that could affect module classification or test execution.
+
+From the verified backend directory, run the relevant subset of:
+
+```powershell
+git rev-parse --show-toplevel
+git status --short
+git branch --show-current
+git log -5 --oneline
+node --version
+npm --version
+npm run
+npm ls jest @jest/globals babel-jest vitest mocha --depth=0
+```
+
+Run `npx jest --version` only after confirming the intended package manager, installed dependencies, and local Jest binary. Prefer the repository's locked local dependency; do not silently download a different runner through an unpinned `npx` invocation.
+
+Inspect, when present:
+
+- Backend and root `package.json`, workspaces, package-lock files, `.npmrc`, Node engine constraints, scripts, and `type` fields.
+- Every relevant Jest, Mocha, and Vitest configuration file and any inline `package.json` Jest configuration.
+- Babel/SWC/TypeScript transforms, custom transformers, `NODE_OPTIONS`, and any runner launch wrapper.
+- `rootDir`, `roots`, `projects`, `testMatch`, `testRegex`, `testPathIgnorePatterns`, `moduleNameMapper`, `moduleFileExtensions`, `extensionsToTreatAsEsm`, `transform`, `transformIgnorePatterns`, `injectGlobals`, `setupFiles`, `setupFilesAfterEnv`, `globalSetup`, `globalTeardown`, and test environments.
+- CI workflows and documented commands; compare local scripts to CI rather than creating a new execution path unnecessarily.
+- Test utilities, mocks, fixtures, teardown helpers, database setup, Redis setup, HTTP server setup, and provider test doubles.
+
+### 1.2 Protect pre-existing changes
+
+Before editing, record the branch, commit, dirty/staged/untracked state, and relevant generated files. Do not overwrite a developer's changes, reset the working tree, delete lockfiles, or run destructive cleanup such as `git reset --hard` or `git clean -fdx`. Avoid running formatters over unrelated files. Review the diff after every coherent batch of changes.
+
+### 1.3 Preserve the reported baseline as supplied
+
+The attached report states the following baseline. These numbers are **reported, not independently re-run or verified**:
+
+| Measure | Supplied result |
+|---|---:|
+| Suites discovered/reported | 155 |
+| Failed suites | 143 |
+| Passed suites | 12 |
+| Tests reported | 524 |
+| Failed tests | 417 |
+| Passed tests | 106 |
+| Skipped tests | 1 |
+| Elapsed time | 1,368.024 seconds |
+| Open-handle warning | Reported |
+
+The suite counts reconcile (`143 + 12 = 155`), and the test counts reconcile (`417 + 106 + 1 = 524`). Still preserve the original report as a separate baseline. If a rerun produces different counts because of changed discovery, environment, caching, or transient failures, document a **new measured baseline** rather than rewriting the supplied figures.
+
+Create an evidence folder using the repository's existing convention, or a clearly named ignored/local artifact directory if appropriate. Save raw command output and machine-readable test results where supported; do not commit secrets, tokens, PII, database dumps, or sensitive environment data.
+
+**Gate 0:** Repository, package boundaries, current dirty state, runner versions, exact baseline source, and available infrastructure are recorded before source edits.
+
+---
+
+## 2. CREATE ONE FAILURE REGISTER BEFORE BROAD REMEDIATION
+
+Build a CSV, JSON, Markdown table, or existing project-standard report with at least these columns:
+
+- Failure ID and exact test path.
+- Owning package and intended runner.
+- File module format and effective test execution format.
+- Exact error text and first relevant stack frame.
+- Classification: discovery, parser/syntax, transformation, module loading, mock initialization, missing export, resolution/path, empty suite, assertion, environment, teardown/open handle, or external dependency.
+- Root-cause status: **confirmed**, **probable**, **unconfirmed**, or **environment-blocked**.
+- Other failures believed to share the cause, with evidence for grouping.
+- Smallest proposed fix.
+- Required regression test and command.
+- Result, exit code, and evidence artifact.
+- Remaining risk and owner/next action.
+
+Do not label a cause confirmed merely because a proposed fix seems plausible. Use the full stack trace and relevant source/configuration. Prioritize high-fan-out initialization and module-loading failures, but fix no larger set of files than the evidence supports.
+
+First run targeted diagnostic commands and tests for representative cases. Avoid repeatedly re-running the full baseline-duration test suite while known high-fan-out blockers remain.
+
+**Gate 1:** Every listed failure category has a traceable investigation and each failure is either linked to a confirmed shared root cause or remains explicitly unconfirmed.
+
+---
+
+## 3. REMEDIATE THE REPORTED FAILURE CLUSTERS
+
+### 3.1 `tests/helpers/mockLocalStorage.js` parser failure
+
+Reported context points near line 1,579 of `tests/helpers/mockLocalStorage.js`, with the corresponding test `tests/helpers/__tests__/mockLocalStorage.test.cjs` failing around line 66. The supplied excerpt does **not** include the full parser message or enough context to identify the invalid token. Do not guess or edit based on the caret alone.
+
+Required procedure:
+
+1. Retrieve the complete failure header, error type, parser message, caret, and surrounding stack trace from the original output.
+2. Inspect at least lines 1,535–1,615 of the helper and the corresponding test around line 66. Search the entire helper for repeated blocks and mismatched opening/closing syntax.
+3. Determine whether the failure is a true source syntax defect, a transform/parser mismatch, a test runner interpreting the file in the wrong format, or a failure in imported code rather than this helper.
+4. Run a syntax check in the intended Node/package context and then load the helper through the actual runner. `node --check` is useful but does not prove Jest can load the file through its configured transform and module runtime.
+5. Apply the smallest syntax/configuration correction. Retain the helper's existing exports, storage semantics, and callers; do not delete a large trailing section to silence the parser.
+6. Extend `mockLocalStorage.test.cjs` with a focused regression assertion for the repaired behavior if the defect warrants one.
+
+**Required evidence:** The full error is classified; the helper passes the applicable syntax/module check; and the targeted test executes and asserts meaningful storage behavior.
+
+### 3.2 `ReferenceError: require is not defined`
+
+The report identifies failures in, among other paths:
+
+- `services/commercial/stage01dServiceLoader.js:22`
+- `modules/transactions/repositories/DistributedTransactionRepository.test.js:40`
+- `modules/finance/__tests__/repayment.int.test.js:31`
+- `modules/finance/tests/ledgerService.test.js:40`
+- `modules/finance/tests/ledgerService.mocha.test.js:32`
+- `tests/unit/utils.test.js:116`
+- `utils/validateInput.js:31`
+- `tests/unit/systemSettingService.test.js:58`
+- `services/systemSettingService.js:70`
+- `modules/mtnMomoService.js:59`
+- `modules/airtelMoneyService.js:68`
+- `routes/index.test.js:50`
+- Several tests importing the server, Mongoose models, or application services.
+
+Do not assume all occurrences have the same cause. For each representative failure, distinguish whether `require` is referenced by (a) the test file, (b) the production module under test, (c) a setup/mock/transform file, or (d) a dependency. Capture the first frame where the wrong module context becomes observable.
+
+Verify the nearest applicable `package.json` and nested package boundaries for each affected file. Node treats `.mjs` as ESM and `.cjs` as CommonJS; `.js` is governed by the nearest package's `type` field and, in applicable Node versions, syntax detection. Jest can also transform source, so confirm its actual runtime mode rather than applying Node's extension rules alone.
+
+For intentional CommonJS modules, preserve `require`, `module.exports`, and `exports`. For intentional ESM modules, use valid ESM imports/exports. Use `createRequire(import.meta.url)` only when genuine CommonJS loading from ESM is required and the target package supports the path. Use `import()` from CommonJS for ESM dependencies when its asynchronous behavior and initialization order are handled correctly. Do not blanket-replace every `require`, add `createRequire` everywhere, or change the package-wide `type` field without checking all affected consumers, scripts, tests, and nested package boundaries.
+
+Inspect Jest's transform output/configuration and how the test command is launched. If native ESM is intended, validate the ESM setup against the **installed Jest 30 version and actual Node runtime**, including `--experimental-vm-modules` where required and a transform that either is disabled or emits ESM as intended. Keep configuration changes limited to the files/extensions and test projects that require them.
+
+**Required evidence:** The affected file's intended format is documented; the actual loader/transform path is identified; and targeted tests pass without changing unrelated modules to a different system.
+
+### 3.3 `ReferenceError: jest is not defined`
+
+Reported tests include:
+
+- `modules/onboarding/__tests__/onboarding.integration.test.js:70`
+- `tests/unit/loanWorkflowService.test.js:9`
+- `tests/unit/loan.controller.test.js:7`
+- `tests/unit/contribution.controller.test.js:7`
+- `tests/unit/auth.controller.test.js:7`
+
+First inspect the effective Jest configuration, especially `injectGlobals`, the runner assigned to each file, transforms, and the file's actual module format. The error is not automatically proof that the file is ESM.
+
+For a test genuinely executing as ESM, import Jest's API explicitly, normally:
+
+```javascript
+import { jest } from '@jest/globals';
+```
+
+If `injectGlobals` is deliberately disabled, use explicit imports in the actual supported format or correct only the intended configuration. For a CommonJS test, preserve the configured and supported Jest API pattern. Do not add ESM imports into files meant to be CommonJS or change all tests mechanically.
+
+For ESM tests, static imports execute before the test body, so CommonJS-style `jest.mock` hoisting assumptions may not work. Where necessary, use `jest.unstable_mockModule()` and dynamically import the module **after** registering the mock; keep in mind that this Jest API is explicitly unstable and must be verified against the installed version. For CommonJS modules, use the appropriate `jest.mock()` approach. Check module-cache behavior, import order, factory shape, async initialization, and teardown.
+
+**Required evidence:** The global/API cause is confirmed, the test runs in its intended environment, and mocked behavior is verified without skipping actual initialization or assertions.
+
+### 3.4 Missing default exports
+
+Reported errors include:
+
+```text
+services/complianceService.js does not provide an export named 'default'
+../controllers/rbacController.js does not provide an export named 'default'
+```
+
+Affected test references include `tests/unit/loanWorkflowService.test.cjs` and `tests/integration/groups.journey.test.js`.
+
+Inspect the actual source and **all material consumers**, including re-export files, route registries, tests, mocks, and service/controller imports. Record each module's current named exports, default export (if any), intended API contract, and caller assumptions.
+
+Then choose the narrowest consistent correction:
+
+- Correct a caller that incorrectly expects a default export when the established contract is named exports; or
+- Add/restore an export only if the documented and existing production contract establishes that it is missing; or
+- Repair a mismatched mock or re-export that masks the real contract.
+
+Do not add an empty default export, export an arbitrary object, or change exports only to make one import pass. Preserve legitimate named-export consumers. Add an API/export contract test and tests for material consumers, including route/service behavior where applicable.
+
+**Required evidence:** The source and intended API agree, every affected caller resolves the same canonical implementation, and relevant consumers pass regression tests.
+
+### 3.5 `Your test suite must contain at least one test`
+
+The reported files include:
+
+- `tests/commercial/stage01d/stage01d.shadowRead.test.cjs`
+- `tests/commercial/stage01d/stage01d.reconciliation.test.cjs`
+- `tests/commercial/stage01d/stage01d.behavioralParity.test.cjs`
+- `tests/commercial/models/commercial.models.test.js`
+- `tests/commercial/compatibility/billingRuntime.test.js`
+- `modules/ubuntu-float/tests/ubuntuFloatSecurityContract.test.js`
+- `modules/ubuntu-float/tests/ubuntuFloatRules.test.js`
+- `modules/ubuntu-float/tests/ubuntuFloatPermissions.test.js`
+- `modules/meetings/providers/dailyProvider.test.js`
+- Numerous `tests/chat/` files
+- `tests/bootstrap/BootstrapContext.test.cjs`
+- `modules/meetings/meeting.policy.test.js`
+
+For every such file, inspect its content and the actual Jest output. Establish whether it truly has no test registrations or whether imports/transforms/conditional setup fail before registration. Determine whether the file is a Jest test, a helper/template, a test owned by another runner, or an obsolete artifact.
+
+Check for valid `test`/`it`/`test.each` declarations; tests wrapped in conditions; async registrations; `describe` callbacks that mistakenly perform asynchronous registration; import side effects; required environment variables; wrong runner selection; and file patterns that accidentally collect helpers or another runner's tests.
+
+Assign one evidence-backed disposition to each file:
+
+- **Restore:** meaningful coverage was deleted or never added; reinstate it.
+- **Repair:** intended tests fail to register due to import, setup, transform, conditional, or initialization defects.
+- **Reclassify:** the file belongs to another runner or is a helper and must be assigned/excluded by a narrow, documented discovery rule.
+- **Retire:** prove the test is obsolete/redundant, identify replacement coverage, and document the decision in the change register.
+
+Never “repair” an empty suite by inserting a dummy `expect(true).toBe(true)`, unconditional passing assertion, `test.skip`, blanket empty-suite allowance, or a broad exclusion. If behavior is unfinished, add acceptance tests for the currently implemented contract and clearly label unimplemented behavior; never claim the intended feature is covered when it is not.
+
+**Required evidence:** Every discovered test file has a meaningful test, a documented non-test/other-runner disposition, or an approved retirement with replacement coverage. No unexplained empty suite is hidden.
+
+### 3.6 Incorrect controller/model import paths
+
+Reported resolution failures include:
+
+```text
+Cannot find module '../controllers/loanController'
+from 'tests/unit/loan.controller.test.cjs'
+
+Cannot find module '../controllers/contributionController'
+from 'tests/unit/contribution.controller.test.cjs'
+```
+
+Calculate each specifier relative to the file that imports it. Locate the actual implementation and inspect canonical imports used in production routes. Check whether a relative path accidentally points under `tests/`, whether the module is absent, whether case/singular/plural/extension differs, or whether an alias/resolver is expected but not configured. Check Windows versus Linux/CI capitalization behavior.
+
+Fix the reference to the canonical implementation or implement a genuinely missing module only when repository contracts establish that it should exist. Do not create duplicate controllers to accommodate a bad test path. Independently validate the corrected resolution and assert that the test imports the intended source—not a stub, stale copy, or unrelated file.
+
+Preserve validation, response contracts, tenant authorization, permissions, and auditing.
+
+### 3.7 Jest, Mocha, and Vitest ownership
+
+The report contains potentially overlapping patterns, including:
+
+```text
+tests/unit/utils.test.cjs
+tests/unit/utils.test.js
+modules/finance/tests/ledgerService.mocha.test.js
+tests/linkedEntityValidator.test.js
+tests/linkedEntityValidator.test.cjs
+```
+
+It also contains a Vitest-specific error stating that Vitest cannot be imported into a CommonJS module using `require()`.
+
+Inventory every test and the APIs it actually uses before deciding runner ownership. Identify the runner from configuration and test APIs, not from filenames alone. A `.mocha.test.js` suffix is not itself proof that Jest should exclude it unless the configured discovery contract says so; establish the contract explicitly.
+
+Retain the existing runner architecture if it is coherent. If multiple runners are genuinely required, define explicit, non-overlapping commands and discovery rules; do not force every suite into one runner simply for cosmetic consistency. Conversely, do not keep multiple runners unnecessarily if the repository already has a supported migration plan.
+
+- Jest tests must run through the configured Jest project(s).
+- Mocha tests must run through the repository's Mocha configuration and lifecycle.
+- Vitest tests must run through Vitest's supported execution model, with its APIs imported/used as supported by that version; do not `require('vitest')` from a CommonJS test to obtain Vitest APIs.
+
+Use project-specific test patterns or `projects` when appropriate. Ensure each file is assigned to one intended runner unless there is an explicit reason for a test to be executed in more than one configuration (for example, a deliberately maintained cross-format compatibility test). Do not silently drop tests from aggregate CI. The aggregate command must invoke all runner-owned suites that are part of the supported test contract and preserve their separate counts.
+
+Do not replace Jest APIs with `vi` or Mocha assertions mechanically. Mocking, lifecycle hooks, fake timers, async behavior, module isolation, and teardown must be adapted deliberately if a migration is authorized.
+
+**Required evidence:** Publish an inventory/manifest of file path → owning runner → command/configuration; show that each intended test family is discovered by the correct runner and not accidentally loaded by another.
+
+### 3.8 Duplicate and case-variant files
+
+Investigate the reported families without assuming redundancy:
+
+```text
+tests/unit/utils.test.js
+tests/unit/utils.test.cjs
+
+tests/unit/systemSettingService.test.js
+tests/unit/systemSettingService.test.cjs
+
+tests/unit/loanWorkflowService.test.js
+tests/unit/loanWorkflowService.test.cjs
+
+tests/unit/loan.controller.test.js
+tests/unit/loan.controller.test.cjs
+
+tests/integration/systemSetting.test.js
+tests/integration/systemSetting.test.cjs
+
+tests/integration/payment.test.js
+tests/integration/payment.test.cjs
+
+tests/chat/messageModel.test.js
+tests/chat/Message.model.test.js
+```
+
+Compare the assertions, inputs, module formats, mocks, fixtures, coverage contribution, and intended runner. Determine whether each pair is a meaningful test of separate module formats, duplicated migration residue, or a case-only collision. Windows may not expose the same case-sensitive path problems as Linux CI.
+
+Keep separate tests when they demonstrate distinct supported behavior. Consolidate only after proving the coverage overlap and documenting what replaces any retired tests. Check whether Git records case-only renames correctly; do not use an unreviewed rename that disappears or collides on a case-insensitive filesystem.
+
+---
+
+## 4. BUILD A VERIFIED MODULE/RUNNER COMPATIBILITY MAP
+
+Before broad configuration changes, produce a matrix with at least:
+
+| Dimension | Evidence required |
+|---|---|
+| Package boundary | Nearest `package.json`, workspace and `type` field |
+| Source format | Intended ESM or CommonJS contract for each affected source file |
+| Test format | Effective runtime format for `.js`, `.cjs`, and `.mjs` tests under the selected runner |
+| Transform | Transformer, input format, emitted format, and reason the transform is required |
+| Globals | Effective `injectGlobals` and any explicit API imports |
+| Mocking | Supported mock API and import/initialization order for each format |
+| Discovery | Exact pattern/project for each runner; helper and build output exclusions |
+| Resolution | Relative paths, aliases, extensions and canonical source target |
+| Runtime | Actual Node/npm/runner versions and launch flags |
+| CI parity | Corresponding workflow command and environmental differences |
+
+Do not assume that every file in a package with `"type": "module"` should be converted together. Do not assume a `.cjs` file will fail with `require is not defined`; if this occurs, determine whether a transform or wrapper changed its execution context. Do not add `.js` to `extensionsToTreatAsEsm` without checking Jest 30's package-type behavior and validation rules. Avoid unnecessary transforms and broad transform exceptions.
+
+If native ESM is required by the established design, confirm from Jest 30's documentation that the configured transform emits ESM or is disabled where appropriate, and use `--experimental-vm-modules` only where required by the actual runtime/Jest version. Verify the exact Windows launch syntax. Do not copy flags mechanically from a different Jest major version.
+
+Document the supported rules for future tests. The chosen architecture must be based on the repository, not on a predetermined desire to use ESM or CommonJS.
+
+**Gate 2:** Every affected test and source module has an understood format and test-runner owner. Config changes are justified by this map.
+
+---
+
+## 5. EXECUTION PHASES AND EXIT GATES
+
+### Phase A — Baseline and protection
+
+- Identify the actual root and package boundaries.
+- Capture Git state, versions, scripts, configs, full failing output, and available infrastructure.
+- Preserve pre-existing modifications.
+
+**Exit gate:** Baseline artifacts and protected working-tree state are recorded.
+
+### Phase B — Failure clustering and discovery
+
+- Produce the failure register.
+- List all tests discovered by each runner and compare to the intended manifest.
+- Separate load errors, parser errors, failed assertions, empty suites, environment failures and open handles.
+
+**Exit gate:** Failure clusters and runner ownership are known or explicitly uncertain; no source-wide fix has been applied based only on guesses.
+
+### Phase C — Minimal fixes to high-fan-out causes
+
+- Repair confirmed parser, module classification, transform, global injection, and mocking setup problems.
+- Validate each fix with the smallest targeted test and a direct load/syntax test where useful.
+- Expand a fix to additional files only after matching root-cause evidence.
+
+**Exit gate:** Representative failures no longer reproduce under their intended runner, or blockers are precisely documented.
+
+### Phase D — Export and resolution contracts
+
+- Correct confirmed default/named export mismatches.
+- Correct paths to canonical implementations.
+- Verify route/service consumers and avoid duplicate implementations.
+
+**Exit gate:** Targeted consumers import the intended modules and contract assertions pass.
+
+### Phase E — Meaningful test coverage and runner separation
+
+- Restore/repair meaningful tests.
+- Reclassify helpers/other-runner tests with narrow, documented rules.
+- Retire redundant files only with reviewable replacement-coverage evidence.
+- Make aggregate scripts include each supported runner explicitly.
+
+**Exit gate:** No unexplained empty test suite or silent test exclusion remains; runner manifests match the intended contract.
+
+### Phase F — Domain regression
+
+- Run affected unit tests, subsystem suites, integration tests, and security/financial regressions in ascending scope.
+- Verify bootstrap and API behavior where module changes affect them.
+
+**Exit gate:** Every affected subsystem has captured outcomes; any missing external infrastructure is marked blocked.
+
+### Phase G — Resource lifecycle/open handles
+
+Investigate the reported Jest open-handle warning only after identifying the relevant tests and resources. Potential resources include Mongoose/MongoDB connections or memory servers, Redis clients, HTTP servers, Socket.IO clients/servers, timers, intervals, event listeners, queues, workers, scheduled jobs, open streams, and provider simulators.
+
+Ensure each test owns and closes resources it creates, including error paths. Register teardown through the runner's correct lifecycle. Do not close shared resources in a way that races with other tests. Use `--runInBand` and `--detectOpenHandles` on a focused subset to diagnose; do not treat the option as proof of a leak by itself. Avoid `--forceExit` as a normal workaround.
+
+**Exit gate:** The representative test process exits normally without unexplained lingering handles, or remaining handle warnings are identified with owner and cause.
+
+### Phase H — Full verification and evidence reconciliation
+
+- Run each runner's intended command, targeted suites, affected subsystems, then the aggregate verification command.
+- Capture exit codes, discovered/executed/pass/fail/skip counts, skipped files, warnings, open-handle evidence and environment prerequisites.
+- Compare against the supplied baseline and any separately reproduced baseline.
+- Review `git diff`, `git diff --check`, and `git status --short`; inspect unintended changes.
+
+**Exit gate:** Every final claim links to a captured command/output or a reproducible artifact.
+
+---
+
+## 6. VERIFICATION COMMAND PROTOCOL (POWERSHELL)
+
+Use only commands supported by the actual package. First inspect scripts with `npm run` and configuration before selecting commands. Run from the package that owns the scripts.
+
+### 6.1 Effective environment/configuration
+
+```powershell
+node --version
+npm --version
+npm run
+npx jest --version
+npx jest --showConfig
+npx jest --listTests
+```
+
+Use the repository's locked local binary and package manager where possible. If `npx` may fetch a missing package, first verify the local dependency and lockfile. If there are Jest projects, list/configure them explicitly and preserve each project's counts. Produce JSON discovery/results artifacts where the installed runner supports them.
+
+### 6.2 Focused syntax and load checks
+
+After checking package/module context, run targeted commands such as:
+
+```powershell
+node --check tests/helpers/mockLocalStorage.js
+node --check services/commercial/stage01dServiceLoader.js
+node --check services/complianceService.js
+node --check controllers/rbacController.js
+```
+
+These are examples, not guaranteed commands for every repository layout. Adjust paths and format flags according to verified facts. A syntax check does not establish module loading, dependency resolution, Jest mocking, or behavioral correctness.
+
+### 6.3 Targeted test probes
+
+Use these as initial probes **only if their actual owner is Jest**; otherwise invoke the correct runner:
+
+```powershell
+npx jest tests/helpers/__tests__/mockLocalStorage.test.cjs --runInBand
+npx jest tests/commercial/stage01d/stage01d.behavioralParity.test.cjs --runInBand
+npx jest tests/unit/loanWorkflowService.test.cjs --runInBand
+npx jest tests/integration/groups.journey.test.js --runInBand
+npx jest tests/unit/loan.controller.test.cjs --runInBand
+npx jest tests/unit/contribution.controller.test.cjs --runInBand
+npx jest tests/linkedEntityValidator.test.js --runInBand
+```
+
+Do not interpret the test's failure under the wrong runner as a product defect. Do not conclude a test is fixed merely because it disappears from Jest output; explain the runner disposition and run it through its intended command.
+
+For each specific runner, use the inspected script/config. An example of the *shape* of separate verification is:
+
+```powershell
+npm run test:unit -- --runInBand
+npm run test:integration -- --runInBand
+npm run test:commercial -- --runInBand
+npm run test:mocha
+npm run test:vitest
+```
+
+These script names are illustrative only. Do **not** add or invoke names that do not exist. Update scripts only after agreeing on the runner map and ensuring the aggregate CI command still covers all supported suites.
+
+### 6.4 Open-handle diagnostics
+
+Begin with a narrow representative set, for example:
+
+```powershell
+npx jest tests/integration/groups.journey.test.js --runInBand --detectOpenHandles
+```
+
+Then extend to a subset that reproduces the warning. If the repository requires a database or Redis service, document whether it was available and whether the test actually ran. Do not start, stop or delete shared infrastructure without inspecting the project setup and local environment.
+
+### 6.5 Final command evidence
+
+For every executed command record:
+
+- Exact working directory and command line.
+- Node/npm/runner versions relevant to the result.
+- Exit code.
+- Suite and test counts: discovered, executed, passed, failed, skipped/todo as the runner reports them.
+- Load errors and tests not executed.
+- Warnings and handle diagnostics.
+- Whether external dependencies were real, mocked, unavailable, or simulated.
+- Path to the raw log / JSON report.
+
+Do not copy counts from a different command into the final full-suite result. A focused suite pass does not imply that the aggregate suite passed.
+
+---
+
+## 7. TITech SECURITY AND FINANCIAL REGRESSION REQUIREMENTS
+
+The platform is financial technology infrastructure. Test-infrastructure changes must not weaken the real application contract to make tests green.
+
+### Authentication, authorization, privacy and tenancy
+
+Where affected paths touch these controls, preserve and test applicable behavior:
+
+- JWT/session verification and access revocation.
+- Server-enforced roles and permissions; client-provided role values must not grant access.
+- Institution/tenant isolation and cross-tenant denial.
+- Input validation and safe failure responses.
+- Audit events for security-sensitive actions.
+- Privacy and consent enforcement where relevant.
+
+### Payment and ledger invariants
+
+Where affected paths touch financial workflows, verify the established lifecycle and contracts, including as applicable:
+
+- Provider callback/status authenticity and validation.
+- Payment idempotency and safe handling of duplicate requests/callbacks.
+- Correct state transitions; unknown/timeout outcomes must not be silently treated as failure or success.
+- Atomic business transaction and ledger posting where the architecture requires it.
+- Double-entry debit/credit equality and currency-safe arithmetic.
+- Reversal and compensation correctness.
+- Audit traceability, settlement evidence, reconciliation of duplicate/missing/mismatched/late transactions, and period-close controls.
+
+Use deterministic mocks for unit isolation where appropriate, but do not replace the real financial service with an always-successful mock to bypass assertions. Contract/integration tests must still prove the boundary they claim to verify. Distinguish provider simulation from real provider-sandbox evidence.
+
+### Bootstrap, readiness and resilience
+
+If tests cover bootstrap/startup, preserve dependency order, server lifecycle, route registration, middleware ordering, readiness behavior and graceful shutdown. Do not skip bootstrap phases merely because they make tests harder to load. A passing import/syntax test does not prove that the server starts, dependencies become ready, routes register, or the service is operational.
+
+**Gate 3:** Review whether each source/config/test change could weaken security, tenant isolation, payment safety, ledger correctness, auditability, or startup behavior. Any relevant regression tests must pass or remain an explicit blocker.
+
+---
+
+## 8. REGRESSION TEST QUALITY STANDARDS
+
+For each fix add or preserve an assertion that proves the defect cannot silently return. Examples:
+
+- **Parser/syntax:** parser check plus real targeted suite execution.
+- **Module classification:** actual test runner loads module in intended format.
+- **Jest global:** test uses correct API in its real environment.
+- **Mock ordering:** mocked dependency is registered before dynamically importing the ESM consumer where required.
+- **Export contract:** named/default export assertions and tests for affected consumers.
+- **Path resolution:** canonical source module is loaded; no accidental stub/duplicate is used.
+- **Empty suite:** actual meaningful test registrations and business-relevant assertions exist.
+- **Runner classification:** manifest proves ownership and the assigned runner executes the tests.
+- **Duplicate/case variant:** coverage comparison and cross-platform path checks are recorded.
+- **Open handles:** test owns/cleans resources and the process exits normally under diagnostic execution.
+- **Financial regression:** applicable authorization, idempotency, ledger, reversal, settlement or reconciliation invariants are asserted.
+
+Keep tests deterministic and isolated. Use existing conventions for database, Redis and provider dependencies. Do not invent production credentials, access external services unnecessarily, or store secrets in logs. Prefer controlled clocks, unique test data and explicit teardown where compatible with project conventions.
+
+---
+
+## 9. REQUIRED DELIVERABLES
+
+Use existing documentation conventions and avoid redundant files. Produce or update the relevant items below.
+
+### A. Root-cause report
+
+Separate confirmed causes, probable causes, unconfirmed hypotheses and environment blockers. For every high-fan-out cluster, list evidence showing why the cases are related. Include causes explicitly ruled out so subsequent work does not repeat speculation.
+
+### B. Change register
+
+For every modified file record: path, original defect/risk, exact correction, why it is the smallest appropriate fix, regression test, command/result, and any residual risk. Include configuration, scripts, source, test, fixture and documentation changes.
+
+### C. Test-runner/module map
+
+Document package boundaries, supported ESM/CommonJS conventions, Jest project(s), Mocha/Vitest ownership if applicable, discovery patterns, mock APIs, transforms, launch flags, and commands for each verification level.
+
+### D. Before/after results
+
+Preserve this supplied baseline column exactly as reported and fill actual results from the final captured run:
+
+| Measure | Supplied baseline (not independently verified) | Final observed result |
+|---|---:|---:|
+| Suites | 155 | Capture actual |
+| Passed suites | 12 | Capture actual |
+| Failed suites | 143 | Capture actual |
+| Tests | 524 | Capture actual |
+| Passed tests | 106 | Capture actual |
+| Failed tests | 417 | Capture actual |
+| Skipped tests | 1 | Capture actual |
+| Empty-suite errors | Multiple reported | Capture actual |
+| Module-loading errors | Multiple reported | Capture actual |
+| Missing/wrong exports or paths | Multiple reported | Capture actual |
+| Open-handle warning | Reported | Capture actual |
+
+If discovery ownership changes, add a clear explanation and per-runner breakdown. Do not compare incomparable totals without explaining the changed scope.
+
+### E. Verification report
+
+Separate syntax checks, import/module-load checks, unit tests, integration tests, security/financial regression tests, runner-discovery checks, resource cleanup, operational startup checks, and production approval. Include exact commands and evidence locations. Mark unexecuted work `NOT RUN`; mark dependency/credential blocks `BLOCKED`; mark unsupported claims `NOT VERIFIED`.
+
+### F. Residual-risk register
+
+For each remaining issue record severity, affected functionality, reproduction steps, blocker category, current evidence, required next step, and whether it affects pilot/production readiness. Separate defects in code from absent external infrastructure or credentials.
+
+---
+
+## 10. ACCEPTANCE CRITERIA
+
+Mark **test-remediation complete** only when evidence demonstrates all applicable criteria below:
+
+1. The full `mockLocalStorage.js` diagnostic is understood, and the parser/transform/runtime cause is corrected or transparently unresolved.
+2. Each representative `require is not defined` failure has a proven module-context cause and is repaired at the correct boundary.
+3. `jest is not defined` cases use the correct API/global setup for the actual runner and file format.
+4. Missing default/named exports are resolved according to real module contracts and affected consumers are regression-tested.
+5. Controller/model paths resolve to canonical implementations; cross-platform capitalization is checked.
+6. Each empty-suite failure has a meaningful restored/repair test, a documented other-runner/helper disposition, or an evidence-backed retirement with replacement coverage.
+7. Jest, Mocha and Vitest ownership is explicit; no unintended runner overlap or silent omission remains.
+8. Duplicate and case-variant tests have evidence-based treatment and coverage is not lost silently.
+9. Targeted regressions and all affected subsystem tests execute under the intended runner.
+10. The agreed aggregate command covers all supported test families and has a captured final result.
+11. Relevant resource cleanup is verified; unexplained open handles are resolved or explicitly outstanding.
+12. Security, tenant isolation, payment safety, ledger invariants, auditability and startup behavior have not been weakened to achieve green tests.
+13. No test is hidden using broad exclusions, dummy assertions, empty-suite suppression, unconditional skips, swallowed exceptions, or routine forced process exit.
+14. The final Git diff preserves pre-existing work, contains no unexplained unrelated changes, and passes `git diff --check`.
+15. Remaining failures, environment blockers and limitations are reported without relabeling them as passes.
+
+**Zero test failures is not sufficient on its own.** A trustworthy result requires correct test discovery, meaningful assertions, complete runner coverage, reproducible evidence, and protection of the application contracts.
+
+---
+
+## 11. AUTONOMOUS WORKING METHOD
+
+Proceed without asking the user to repeat facts already present. For each coherent repair batch:
+
+1. Inspect the source/configuration and full error.
+2. State the root-cause hypothesis in the failure register.
+3. Validate the hypothesis using a targeted reproduction or inspection.
+4. Make the smallest evidence-supported change.
+5. Run the targeted regression test.
+6. Inspect output and Git diff.
+7. Update the register and proceed only when the exit gate is met or the blocker is documented.
+
+If new evidence disproves a hypothesis, revise the register. Do not mechanically apply an earlier proposed fix. Prefer a narrow, well-supported fix that resolves a failure cluster over a broad change that merely changes the error message or removes the suite from discovery.
+
+If repository access is unavailable, do **not** claim that code was edited, tests passed, or the result was verified. In that case, deliver the precise file-specific remediation plan, ready-to-run commands, and list of evidence that must be captured by the repository operator.
+
+---
+
+## 12. REQUIRED FINAL RESPONSE FORMAT
+
+Report results in the following order:
+
+1. **Execution status:** Completed, partially completed, or blocked, with evidence.
+2. **Repository baseline:** Root, branch/commit, dirty state, runtime/runner versions, and whether the baseline was rerun.
+3. **Confirmed root causes:** Separate from probable/unconfirmed hypotheses.
+4. **Changes made:** Exact paths and concise explanation.
+5. **Verification:** Commands, working directories, exit codes, counts, logs and actual outcomes.
+6. **Before/after comparison:** Preserve the supplied baseline and explain any change in discovery scope.
+7. **Security/financial regression assessment:** What was actually tested and what remains unverified.
+8. **Outstanding defects and blockers:** Severity, affected functionality, evidence, and next action.
+9. **Git readiness:** Working-tree state, diff check, and a proposed commit message; do not commit or push without authorization.
+10. **Readiness verdict:** State separately whether syntax-validated, module-load-validated, test-validated, integration-validated, operationally validated, security-assessed, and production-approved. Use **NOT VERIFIED** or **BLOCKED** wherever sufficient evidence is absent.
+
+### Final operating principle
+
+**BUILD LESS. PROVE MORE. Fix root causes; preserve the architecture; keep tests meaningful; record the evidence; never claim a result that was not measured.**
+
+---
+
+## TECHNICAL REFERENCES FOR THE EXECUTOR
+
+Use these official documents to confirm the installed-version-specific behavior before changing configuration:
+
+- Jest 30 ECMAScript Modules: https://jestjs.io/docs/30.0/ecmascript-modules
+- Jest 30 configuration: https://jestjs.io/docs/30.0/configuration
+- Node.js packages and module classification: https://nodejs.org/api/packages.html
+
+Jest's ESM support is documented as experimental. Validate any ESM-specific configuration and mocking APIs against the repository's installed Jest version and runtime rather than assuming behavior from another major release.

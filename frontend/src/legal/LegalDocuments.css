@@ -1,0 +1,128 @@
+.titech-legal-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  color: var(--titech-brand-navy, #082b67);
+  background: var(--titech-color-page, #f4f8ff);
+  font-family: inherit;
+}
+
+.titech-legal-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1rem clamp(1rem, 4vw, 3.5rem);
+  border-bottom: 1px solid rgb(8 43 103 / 0.12);
+  background: var(--titech-color-surface, #fff);
+}
+
+.titech-legal-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.titech-legal-logo {
+  display: block;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.titech-legal-theme-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--titech-brand-deep-blue), var(--titech-brand-electric-blue), var(--titech-brand-bright-blue), var(--titech-brand-cyan), var(--titech-brand-green), var(--titech-brand-lime), var(--titech-brand-gold));
+}
+.titech-legal-brand strong,
+.titech-legal-brand small { display: block; }
+.titech-legal-brand strong { font-size: 0.98rem; }
+.titech-legal-brand small { margin-top: 0.125rem; color: var(--titech-color-text-muted, #475569); font-size: 0.75rem; }
+
+.titech-legal-nav,
+.titech-legal-footer nav,
+.titech-legal-inline-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.25rem;
+}
+
+.titech-legal-nav a,
+.titech-legal-footer a,
+.titech-legal-inline-links a,
+.titech-legal-card a {
+  color: var(--titech-brand-electric-blue, #0058d8);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.08em;
+}
+
+.titech-legal-nav a { font-size: 0.9rem; font-weight: 650; }
+.titech-legal-main { width: min(100% - 2rem, 64rem); margin: 0 auto; padding: 1.5rem 0 3rem; flex: 1; }
+.titech-legal-card { padding: clamp(1.25rem, 4vw, 3rem); border: 1px solid rgb(0 48 160 / 0.12); border-radius: var(--titech-ui-radius-card, 16px); background: var(--titech-color-surface, #fff); box-shadow: var(--titech-ui-shadow-card, 0 10px 30px rgb(11 31 58 / 0.08)); }
+.titech-legal-eyebrow { margin: 0 0 0.5rem; color: var(--titech-brand-electric-blue, #0058d8); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+.titech-legal-card h1 { margin: 0; color: var(--titech-brand-deep-blue, #0030a0); font-size: clamp(2rem, 5vw, 3rem); line-height: 1.12; letter-spacing: -0.035em; }
+.titech-legal-lead { max-width: 54rem; margin: 1rem 0 1.5rem; color: var(--titech-color-text-muted, #475569); font-size: 1.08rem; line-height: 1.7; }
+.titech-legal-breadcrumbs { display: flex; gap: 0.5rem; margin: 0 0 1rem; color: var(--titech-color-text-muted, #475569); font-size: 0.88rem; }
+.titech-legal-meta { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; margin: 1.5rem 0 2rem; padding: 1rem 0; border-block: 1px solid rgb(8 43 103 / 0.12); }
+.titech-legal-meta div { min-width: 9rem; }
+.titech-legal-meta dt { color: var(--titech-color-text-muted, #475569); font-size: 0.75rem; font-weight: 700; }
+.titech-legal-meta dd { margin: 0.25rem 0 0; font-size: 0.9rem; font-weight: 700; overflow-wrap: anywhere; }
+.titech-legal-sections { display: grid; gap: 1.6rem; }
+.titech-legal-sections section { scroll-margin-top: 1rem; }
+.titech-legal-sections h2,
+.titech-legal-related h2 { margin: 0 0 0.65rem; color: var(--titech-brand-deep-blue, #0030a0); font-size: 1.25rem; line-height: 1.35; }
+.titech-legal-sections p,
+.titech-legal-sections li { max-width: 72ch; color: var(--titech-color-text, #17365f); font-size: 0.98rem; line-height: 1.75; overflow-wrap: anywhere; }
+.titech-legal-sections p { margin: 0.5rem 0; }
+.titech-legal-sections ul { padding-left: 1.35rem; }
+.titech-legal-related { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid rgb(8 43 103 / 0.12); }
+.titech-legal-related p { line-height: 1.8; }
+.titech-legal-smallprint { margin: 2rem 0 0; color: var(--titech-color-text-muted, #475569); font-size: 0.85rem; line-height: 1.65; }
+.titech-legal-draft-notice { margin: 0 0 1rem; padding: 1rem 1.125rem; border: 1px solid #b45309; border-left-width: 5px; border-radius: 0.75rem; color: #713f12; background: #fffbeb; }
+.titech-legal-draft-notice strong { display: block; margin-bottom: 0.3rem; }
+.titech-legal-draft-notice p { margin: 0; font-size: 0.92rem; line-height: 1.55; }
+.titech-legal-link-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 1.75rem; }
+.titech-legal-link-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.7rem; padding: 1.25rem; border: 1px solid rgb(0 88 216 / 0.18); border-radius: var(--titech-ui-radius-card, 16px); color: var(--titech-color-text, #17365f) !important; text-decoration: none; background: linear-gradient(180deg, #fff, #f4f8ff); transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease; }
+.titech-legal-link-card:nth-child(1) { border-top: 3px solid var(--titech-brand-electric-blue); }
+.titech-legal-link-card:nth-child(2) { border-top: 3px solid var(--titech-brand-green); }
+.titech-legal-link-card:nth-child(3) { border-top: 3px solid var(--titech-brand-gold); }
+.titech-legal-link-card:hover { transform: translateY(-2px); border-color: var(--titech-brand-electric-blue, #0058d8); box-shadow: var(--titech-ui-shadow-card); }
+.titech-legal-link-card:focus-visible,
+.titech-legal-nav a:focus-visible,
+.titech-legal-footer a:focus-visible,
+.titech-legal-inline-links a:focus-visible,
+.titech-legal-card a:focus-visible { outline: 3px solid var(--titech-brand-cyan, #00b8f8); outline-offset: 3px; }
+.titech-legal-link-card__title { color: var(--titech-brand-deep-blue, #0030a0); font-weight: 800; font-size: 1.05rem; }
+.titech-legal-link-card__action { margin-top: auto; color: var(--titech-brand-electric-blue, #0058d8); font-weight: 750; }
+.titech-legal-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1.25rem clamp(1rem, 4vw, 3.5rem); border-top: 1px solid rgb(8 43 103 / 0.12); color: var(--titech-color-text-muted, #475569); background: var(--titech-color-surface, #fff); font-size: 0.82rem; }
+.titech-legal-footer nav { gap: 0.65rem 1rem; }
+.titech-legal-consent { display: grid; gap: 0.8rem; min-width: 0; margin: 1rem 0; padding: 1rem; border: 1px solid rgb(8 43 103 / 0.18); border-radius: var(--titech-ui-radius-card, 16px); }
+.titech-legal-consent legend { padding-inline: 0.35rem; color: var(--titech-brand-navy, #082b67); font-weight: 750; }
+.titech-legal-consent__item { display: grid; grid-template-columns: 1.125rem minmax(0, 1fr); align-items: start; gap: 0.65rem; line-height: 1.55; }
+.titech-legal-consent__item input { width: 1rem; height: 1rem; margin-top: 0.22rem; accent-color: var(--titech-brand-electric-blue, #0058d8); }
+.titech-legal-consent__item a { color: var(--titech-brand-electric-blue, #0058d8); font-weight: 650; text-underline-offset: 0.15em; }
+.titech-legal-consent__note { margin: 0; color: var(--titech-color-text-muted, #475569); font-size: 0.82rem; line-height: 1.55; }
+.titech-legal-inline-links { justify-content: center; margin-top: 1rem; font-size: 0.85rem; }
+
+@media (max-width: 760px) {
+  .titech-legal-header { align-items: flex-start; flex-direction: column; }
+  .titech-legal-nav { gap: 0.65rem 1rem; }
+  .titech-legal-link-grid { grid-template-columns: 1fr; }
+  .titech-legal-meta { display: grid; grid-template-columns: 1fr; }
+  .titech-legal-footer { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titech-legal-link-card { transition: none; }
+  .titech-legal-link-card:hover { transform: none; }
+}

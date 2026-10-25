@@ -1,0 +1,24 @@
+diff --git a/branding/TITECH_OFFICIAL_THEME.json b/branding/TITECH_OFFICIAL_THEME.json
+--- a/branding/TITECH_OFFICIAL_THEME.json
++++ b/branding/TITECH_OFFICIAL_THEME.json
+@@ -2,7 +2,7 @@
+   "schemaVersion": "1.0.0",
+   "name": "TITech Official Platform Theme",
+   "product": "TITech Community Capital",
+-  "organization": "TITech Africa",
++  "organization": "TITech Capital LTD",
+   "sourceReference": "branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png",
+   "defaultTheme": "light",
+   "supportedThemes": ["light", "dark"],
+diff --git a/frontend/src/branding/brand.js b/frontend/src/branding/brand.js
+--- a/frontend/src/branding/brand.js
++++ b/frontend/src/branding/brand.js
+@@ -162,7 +162,7 @@ export const TITECH_BRAND = Object.freeze({
+   name: 'TITech',
+   productName: 'Community Capital',
+   fullName: 'TITech Community Capital',
+-  legalName: 'TITech Community Capital LTD',
++  legalName: 'TITech Capital LTD',
+   tagline: TITECH_VISION.tagline,
+   mission: TITECH_VISION.mission,
+   vision: TITECH_VISION.vision2035,

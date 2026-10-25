@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "all required overlay files exist",
+      "status": "PASS",
+      "detail": "complete"
+    },
+    {
+      "name": "three legal routes declared",
+      "status": "PASS",
+      "detail": "legalContent.js"
+    },
+    {
+      "name": "draft status retained",
+      "status": "PASS",
+      "detail": "must not imply legal approval"
+    },
+    {
+      "name": "server-side acceptance warning included",
+      "status": "PASS",
+      "detail": "backend integration gate"
+    },
+    {
+      "name": "official logo asset reference preserved",
+      "status": "PASS",
+      "detail": "uses known official transparent logo asset"
+    },
+    {
+      "name": "official design tokens used by new CSS",
+      "status": "PASS",
+      "detail": "brand palette roles referenced"
+    },
+    {
+      "name": "test runner-specific frontend test files present",
+      "status": "PASS",
+      "detail": "Vitest/RTL tests included"
+    },
+    {
+      "name": "official palette recorded in docs",
+      "status": "PASS",
+      "detail": "#0030A0, #0058D8, #0066E8, #00B8F8, #008000, #A8F000, #F8D800, #082B67, #FFFFFF"
+    }
+  ],
+  "missing": []
+}
