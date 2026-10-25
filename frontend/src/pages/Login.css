@@ -16,12 +16,12 @@
  */
 
 .login-page {
-  --login-primary: var(--titech-brand-green);
-  --login-primary-dark: var(--titech-brand-deep-blue);
-  --login-primary-darker: var(--titech-brand-deep-blue);
+  --login-primary: var(--titech-official-electric-blue, var(--titech-brand-electric-blue));
+  --login-primary-dark: var(--titech-official-deep-blue, var(--titech-brand-deep-blue));
+  --login-primary-darker: var(--titech-official-deep-blue, var(--titech-brand-deep-blue));
   --login-primary-light: color-mix(in srgb, var(--titech-brand-cyan) 18%, var(--titech-brand-white));
   --login-primary-soft: color-mix(in srgb, var(--titech-brand-cyan) 8%, var(--titech-brand-white));
-  --login-secondary: var(--titech-brand-electric-blue);
+  --login-secondary: var(--titech-official-bright-blue, var(--titech-brand-bright-blue));
   --login-success: #15803d;
   --login-success-bg: #f0fdf4;
   --login-success-border: #bbf7d0;
@@ -32,7 +32,7 @@
   --login-danger-dark: #991b1b;
   --login-danger-bg: #fef2f2;
   --login-danger-border: #fecaca;
-  --login-text: var(--titech-brand-navy, #0f172a);
+  --login-text: var(--titech-official-navy, var(--titech-brand-navy));
   --login-text-secondary: var(--titech-color-text-muted, #475569);
   --login-text-muted: var(--titech-color-text-subtle, #64748b);
   --login-text-subtle: var(--titech-color-text-subtle, #64748b);
@@ -53,8 +53,8 @@
   --login-radius-md: 12px;
   --login-radius-lg: 18px;
   --login-radius-xl: 24px;
-  --login-focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.18);
-  --login-focus-ring-strong: 0 0 0 4px rgba(15, 118, 110, 0.28);
+  --login-focus-ring: var(--titech-focus-ring, 0 0 0 3px rgb(0 88 216 / 0.24));
+  --login-focus-ring-strong: 0 0 0 4px rgb(0 88 216 / 0.32);
   --login-transition-fast: 120ms ease;
   --login-transition: 160ms ease;
   --login-transition-slow: 240ms ease;

@@ -32,6 +32,12 @@ import React, {
 } from 'react';
 
 import { Link } from 'react-router-dom';
+import {
+  LEGAL_ADDRESS,
+  LEGAL_CONTACTS,
+  LEGAL_LAST_UPDATED,
+  LEGAL_VERSION,
+} from '../legal/legalConfig';
 
 import {
   AlertCircle,
@@ -51,12 +57,9 @@ import './LegalPages.css';
  * Constants
  * ========================================================================== */
 
-const LEGAL_LAST_UPDATED = 'January 15, 2026';
-const LEGAL_VERSION = '1.0';
-
-const CONTACT_EMAIL = 'legal@titechcommunity.app';
-const CONTACT_PHONE = '+256394324760';
-const CONTACT_PHONE_DISPLAY = '+256 (394) 324760';
+const CONTACT_EMAIL = LEGAL_CONTACTS.legal.email;
+const CONTACT_PHONE = LEGAL_CONTACTS.legal.phoneHref;
+const CONTACT_PHONE_DISPLAY = LEGAL_CONTACTS.legal.phoneDisplay;
 
 const SECTION_IDS = Object.freeze([
   'section-1',
@@ -501,7 +504,7 @@ const TermsOfService = () => {
             }}
           >
             {[
-              ['Status', 'Enterprise-ready governance'],
+              ['Publication status', 'Pending legal/compliance review'],
               ['Jurisdiction', 'Uganda · applicable cross-border requirements'],
               ['Operating model', 'Auditable financial infrastructure'],
             ].map(([label, value]) => (
@@ -1490,8 +1493,7 @@ const TermsOfService = () => {
 
                 <p>
                   <strong>Address:</strong>{' '}
-                  TITech Capital LTD,
-                  Kampala, Uganda
+                  {LEGAL_ADDRESS.full}
                 </p>
 
                 <p>

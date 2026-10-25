@@ -87,6 +87,7 @@ const ROUTES = Object.freeze({
   VERIFY_EMAIL: '/verify-email',
   ACCESS_GOVERNANCE: '/admin/access',
 
+  LEGAL: '/legal',
   TERMS: '/terms',
   PRIVACY: '/privacy',
 
@@ -248,6 +249,11 @@ const ResetPassword =
     () => import('../pages/ResetPassword'),
     'ResetPassword'
   );
+
+const Legal = lazyWithRecovery(
+  () => import('../pages/Legal'),
+  'Legal'
+);
 
 const TermsOfService =
   lazyWithRecovery(
@@ -548,6 +554,11 @@ function ApplicationRouteTree() {
       {/*
        * Legal documents remain public even when the user is authenticated.
        */}
+
+      <Route
+        path={ROUTES.LEGAL}
+        element={<Legal />}
+      />
 
       <Route
         path={ROUTES.TERMS}

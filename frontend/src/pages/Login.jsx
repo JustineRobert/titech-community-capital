@@ -95,6 +95,7 @@ const ROUTES = Object.freeze({
   DASHBOARD: "/dashboard",
   REGISTER: "/register",
   FORGOT_PASSWORD: "/forgot-password",
+  LEGAL: "/legal",
   TERMS: "/terms",
   PRIVACY: "/privacy",
 });
@@ -1340,24 +1341,18 @@ export default function Login() {
            * Legal Footer
            * ================================================================== */}
 
-          <p className="login-footer">
-            By signing in, you agree to
-            TITech Community Capital's{" "}
-            <Link
-              to={ROUTES.TERMS}
-              className="footer-link"
-            >
+          <nav className="login-footer" aria-label="Legal information">
+            <span>TITech Community Capital is a product of TITech Capital LTD. Review the public legal information:</span>{" "}
+            <Link to={ROUTES.LEGAL} className="footer-link">
+              Legal Information
+            </Link>{" · "}
+            <Link to={ROUTES.TERMS} className="footer-link">
               Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link
-              to={ROUTES.PRIVACY}
-              className="footer-link"
-            >
+            </Link>{" · "}
+            <Link to={ROUTES.PRIVACY} className="footer-link">
               Privacy Policy
             </Link>
-            .
-          </p>
+          </nav>
 
           <p
             className="login-security-note"

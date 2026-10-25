@@ -1585,10 +1585,23 @@ class ApplicationBootstrap {
       application,
     );
 
-    if (
+    const currentApplication =
+      this.application ||
+      this.context?.application ||
+      null;
+
+    const lifecycleActive =
       this.started ||
       this.starting ||
-      this.stopping
+      this.stopping;
+
+    // The lock protects identity, not initial construction: during bootstrap,
+    // middleware may create the first canonical Express instance. Bind that
+    // instance once, and keep rejecting any attempt to substitute it later.
+    if (
+      lifecycleActive &&
+      currentApplication &&
+      currentApplication !== application
     ) {
       throw new ApplicationBootstrapError(
         "The Express application cannot be replaced while the application lifecycle is active.",

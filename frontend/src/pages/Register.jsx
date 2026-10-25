@@ -1230,7 +1230,7 @@ export default function Register() {
                         />
 
                         <span>
-                          I agree to the{' '}
+                          I confirm that I have read and agree to the{' '}
                           <Link
                             to="/terms"
                             target="_blank"
@@ -1238,15 +1238,22 @@ export default function Register() {
                           >
                             Terms of Service
                           </Link>{' '}
-                          and{' '}
+                          and acknowledge the{' '}
                           <Link
                             to="/privacy"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
                             Privacy Policy
-                          </Link>
-                          .
+                          </Link>. Review the{' '}
+                          <Link
+                            to="/legal"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Legal Information hub
+                          </Link>{' '}
+                          for important service and financial limitations.
                         </span>
                       </label>
 
@@ -1320,13 +1327,17 @@ export default function Register() {
 
       <footer className="register-footer">
         <p>
-          © {new Date().getFullYear()} TITech
-          Community Capital. All rights reserved.
+          © {new Date().getFullYear()} TITech Capital LTD. All rights reserved.
         </p>
 
         <p>
-          Your security, privacy, and financial
-          wellbeing matter to us.
+          <Link to="/legal">Legal Information</Link>{' · '}
+          <Link to="/terms">Terms of Service</Link>{' · '}
+          <Link to="/privacy">Privacy Policy</Link>
+        </p>
+
+        <p>
+          TITech Community Capital is technology infrastructure. Feature availability, payment services, and regulated activities depend on applicable law and authorized institutional/provider arrangements.
         </p>
       </footer>
     </main>

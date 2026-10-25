@@ -50,6 +50,12 @@ import React, {
 } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
+  LEGAL_ADDRESS,
+  LEGAL_CONTACTS,
+  LEGAL_LAST_UPDATED,
+  LEGAL_VERSION,
+} from '../legal/legalConfig';
+import {
   ArrowUp,
   FileText,
   Home,
@@ -63,22 +69,21 @@ import './LegalPages.css';
 // Constants
 // ============================================================================
 
-const PRIVACY_POLICY_VERSION = '1.0';
-const LAST_UPDATED = 'January 15, 2026';
+const PRIVACY_POLICY_VERSION = LEGAL_VERSION;
+const LAST_UPDATED = LEGAL_LAST_UPDATED;
 
 const SCROLL_TOP_THRESHOLD = 300;
 const SECTION_SCROLL_OFFSET = 24;
 const DEEP_LINK_DELAY = 50;
 const FOCUS_DELAY = 250;
 
-const PRIVACY_EMAIL = 'privacy@titechcommunity.app';
-const DPO_EMAIL = 'dpo@titechcommunity.app';
+const PRIVACY_EMAIL = LEGAL_CONTACTS.privacy.email;
+const DPO_EMAIL = LEGAL_CONTACTS.dataProtection.email;
 
-const PRIVACY_PHONE_DISPLAY = '+256 (394) 324760';
-const PRIVACY_PHONE_HREF = '+256394324760';
+const PRIVACY_PHONE_DISPLAY = LEGAL_CONTACTS.privacy.phoneDisplay;
+const PRIVACY_PHONE_HREF = LEGAL_CONTACTS.privacy.phoneHref;
 
-const MAILING_ADDRESS =
-  'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda';
+const MAILING_ADDRESS = LEGAL_ADDRESS.full;
 
 const POLICY_TITLE = 'Privacy Policy';
 

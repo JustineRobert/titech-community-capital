@@ -31,12 +31,12 @@
    * The fallback values keep this page self-contained while allowing the
    * platform-wide TITech theme to override these tokens globally.
    */
-  --titech-brand-navy: #08204a;
+  --titech-brand-navy: var(--titech-official-navy, #08204a);
 
   --titech-primary: var(--titech-brand-electric-blue);
   --titech-primary-hover: var(--titech-brand-deep-blue);
-  --titech-primary-active: #002780;
-  --titech-primary-soft: #edf7ff;
+  --titech-primary-active: var(--titech-official-deep-blue, #002780);
+  --titech-primary-soft: var(--titech-color-surface-muted, #eef6ff);
 
   --titech-success: #16a34a;
   --titech-success-soft: #f0fdf4;
@@ -57,7 +57,7 @@
 
   --titech-surface: var(--titech-color-surface, var(--titech-brand-white));
   --titech-surface-muted: var(--titech-color-background, #f8fafc);
-  --titech-background: #f3f6fa;
+  --titech-background: var(--titech-color-background, #f6faff);
 
   --titech-radius-xs: 4px;
   --titech-radius-sm: 6px;

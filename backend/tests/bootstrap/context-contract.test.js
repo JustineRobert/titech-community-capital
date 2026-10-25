@@ -118,6 +118,57 @@ test('BootstrapContext ESM barrel exposes the canonical contract', async () => {
   );
 });
 
+test('ApplicationBootstrap accepts the first middleware-created app but locks its identity afterward', async () => {
+  const { ApplicationBootstrap } = await import(
+    '../../bootstrap/ApplicationBootstrap.js'
+  );
+
+  const canonicalApplication = function canonicalExpressApplication() {};
+  const phases = createDeterministicPhaseDefinitions().map((phase) => {
+    if (phase.name !== 'middleware') return phase;
+    return {
+      ...phase,
+      start: async () => ({
+        context: {
+          middleware: { status: 'ready', phase: 'middleware' },
+          application: canonicalApplication,
+        },
+      }),
+    };
+  });
+
+  const bootstrap = new ApplicationBootstrap({
+    startServer: false,
+    requireApplication: true,
+    phases,
+  });
+
+  try {
+    await bootstrap.initialize();
+    assert.equal(bootstrap.getApplication(), null);
+
+    const result = await bootstrap.start();
+
+    assert.equal(result.started, true);
+    assert.equal(bootstrap.getApplication(), canonicalApplication);
+    assert.equal(bootstrap.context.application, canonicalApplication);
+    assert.equal(bootstrap.isReady(), true);
+
+    assert.throws(
+      () => bootstrap.setApplication(function replacementApplication() {}),
+      (error) => error?.code === 'APPLICATION_LOCKED',
+      'a different Express application must not replace the canonical instance during an active lifecycle',
+    );
+
+    assert.doesNotThrow(
+      () => bootstrap.setApplication(canonicalApplication),
+      'idempotently binding the canonical app must not be treated as replacement',
+    );
+  } finally {
+    await shutdownBootstrap(bootstrap, 'application-lock-regression-cleanup');
+  }
+});
+
 test('BootstrapContext protects state and enforces forward phase order', async () => {
   const { createBootstrapContext } = await import(
     '../../bootstrap/context/index.js'

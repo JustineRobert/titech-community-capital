@@ -95,6 +95,7 @@
     "test:financial:contracts": "npm run test:control-plane",
     "check:enterprise-contracts": "node ../scripts/enterprise-contract-contracts.mjs",
     "test:bootstrap": "npm test -- --testPathPatterns=tests/bootstrap",
+    "test:bootstrap:lock-regression": "node --test tests/bootstrap/application-lock-regression.test.mjs",
     "test:financial": "npm test -- --testPathPatterns=tests/unit/financial",
     "test:chat": "npm test -- --testPathPatterns=tests/chat",
     "test:all": "npm test -- --ci",
