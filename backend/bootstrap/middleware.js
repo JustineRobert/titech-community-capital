@@ -70,6 +70,7 @@ const require = createRequire(import.meta.url);
 
 import dependenciesModule from "./dependencies.js";
 import configuration from "../config/index.js";
+import { resolveCanonicalApplication } from "./resolveCanonicalApplication.js";
 
 const {
     dependencies
@@ -1711,13 +1712,9 @@ function getMiddlewareDiagnostics() {
 
 function initialize(
     context = {},
+    bootstrap = null,
 ) {
-    const application =
-        context.application ||
-        context.bootstrap?.application ||
-        express();
-
-    context.application = application;
+    const application = resolveCanonicalApplication(context, express, bootstrap);
 
     return {
         context: {

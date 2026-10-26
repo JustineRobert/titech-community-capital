@@ -73,6 +73,7 @@ import {
 import "./Login.css";
 import BrandLogo from "../components/BrandLogo";
 import LanguageSelector from "../i18n/LanguageSelector";
+import { LegalDocumentLinks } from "../legal/LegalDocuments.jsx";
 import { useI18n } from "../i18n/I18nProvider";
 
 /* ============================================================================
@@ -1341,18 +1342,10 @@ export default function Login() {
            * Legal Footer
            * ================================================================== */}
 
-          <nav className="login-footer" aria-label="Legal information">
-            <span>TITech Community Capital is a product of TITech Capital LTD. Review the public legal information:</span>{" "}
-            <Link to={ROUTES.LEGAL} className="footer-link">
-              Legal Information
-            </Link>{" · "}
-            <Link to={ROUTES.TERMS} className="footer-link">
-              Terms of Service
-            </Link>{" · "}
-            <Link to={ROUTES.PRIVACY} className="footer-link">
-              Privacy Policy
-            </Link>
-          </nav>
+          <div className="login-footer">
+            <span>TITech Community Capital is a product of TITech Capital LTD. Review the public legal information:</span>
+            <LegalDocumentLinks className="login-footer__legal-links" />
+          </div>
 
           <p
             className="login-security-note"

@@ -1754,3 +1754,37 @@
     margin-top: 4px;
   }
 }
+/* Draft policy status must remain visible and use the official theme palette. */
+.register-legal-draft-notice {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--titech-brand-gold);
+  border-left: 4px solid var(--titech-brand-electric-blue);
+  border-radius: var(--titech-ui-radius-card, 12px);
+  color: var(--titech-brand-navy);
+  background: var(--titech-color-surface, #fff);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.register-legal-draft-notice strong {
+  color: var(--titech-brand-deep-blue);
+}
+
+.register-footer__legal-links {
+  margin-top: 0;
+  gap: 0.45rem 0.75rem;
+  font-size: inherit;
+}
+
+.register-footer__legal-links a {
+  color: var(--titech-brand-electric-blue);
+  text-underline-offset: 0.16em;
+}
+
+.register-footer__legal-links a:focus-visible {
+  outline: 3px solid var(--titech-brand-cyan);
+  outline-offset: 3px;
+}

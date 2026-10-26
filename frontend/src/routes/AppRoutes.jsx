@@ -251,21 +251,19 @@ const ResetPassword =
   );
 
 const Legal = lazyWithRecovery(
-  () => import('../pages/Legal'),
+  () => import('../legal/LegalDocuments.jsx').then((module) => ({ default: module.LegalIndexPage })),
   'Legal'
 );
 
-const TermsOfService =
-  lazyWithRecovery(
-    () => import('../pages/TermsOfService'),
-    'TermsOfService'
-  );
+const TermsOfService = lazyWithRecovery(
+  () => import('../legal/LegalDocuments.jsx').then((module) => ({ default: module.TermsOfServicePage })),
+  'TermsOfService'
+);
 
-const PrivacyPolicy =
-  lazyWithRecovery(
-    () => import('../pages/PrivacyPolicy'),
-    'PrivacyPolicy'
-  );
+const PrivacyPolicy = lazyWithRecovery(
+  () => import('../legal/LegalDocuments.jsx').then((module) => ({ default: module.PrivacyPolicyPage })),
+  'PrivacyPolicy'
+);
 
 const Settings = lazyWithRecovery(
   () => import('../pages/Settings'),

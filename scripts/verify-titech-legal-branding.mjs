@@ -39,10 +39,13 @@ for (const relativePath of ['package.json', 'backend/package.json']) {
   check(`${relativePath} does not use stale corporate suffix`, !String(parsed?.author ?? '').includes('TITech Community Capital LTD'), `author=${JSON.stringify(parsed?.author)}`);
 }
 
-const legalContent = read('frontend/src/legal/legalContent.js');
-check('legal content module exists', legalContent !== null, 'frontend/src/legal/legalContent.js');
-check('legal content is visibly gated as draft', Boolean(legalContent?.includes("LEGAL_PUBLICATION_STATUS = 'draft'")), 'must remain draft until approvals are verified');
-check('legal docs include all three required route paths', ['/legal', '/terms', '/privacy'].every((route) => legalContent?.includes(`'${route}'`)), 'legal paths');
+const legalContentText = read('shared/legal/legalDocuments.json');
+let legalContent = null;
+if (legalContentText) { try { legalContent = JSON.parse(legalContentText); } catch { /* checked below */ } }
+check('canonical shared legal source parses', Boolean(legalContent), 'shared/legal/legalDocuments.json');
+check('legal content remains visibly gated as draft', legalContent?.status === 'draft', `status=${JSON.stringify(legalContent?.status)}`);
+check('canonical operator and product identities are consistent', legalContent?.organizationName === 'TITech Capital LTD' && legalContent?.productName === 'TITech Community Capital', 'organizationName/productName');
+check('canonical legal documents include all required routes', ['/legal', '/terms', '/privacy'].every((route) => Object.values(legalContent?.documents || {}).some((document) => document.path === route)), 'legal paths');
 
 const report = { status: failures.length ? 'FAIL' : 'PASS', checkedAt: new Date().toISOString(), checks, failures };
 console.log(JSON.stringify(report, null, 2));

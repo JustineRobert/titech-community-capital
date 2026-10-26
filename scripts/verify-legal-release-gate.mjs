@@ -25,16 +25,19 @@ function allFiles(dir, predicate = () => true) {
 }
 function contents(files) { return files.map((file) => fs.readFileSync(file, 'utf8')).join('\n'); }
 
-const legalContent = read('frontend/src/legal/legalContent.js');
-record('LEGAL-01', Boolean(legalContent), 'Legal content module exists');
-record('LEGAL-02', Boolean(legalContent && /LEGAL_PUBLICATION_STATUS\s*=\s*'approved'/.test(legalContent)), 'Publication status must be explicitly approved only after documented sign-off');
-record('LEGAL-03', Boolean(legalContent && !/NOT YET VERIFIED|TO BE SET ONLY AFTER|not approved for production publication/i.test(legalContent)), 'No unresolved placeholders or draft notices may remain in production content');
+const legalContentText = read('shared/legal/legalDocuments.json');
+let legalContent = null;
+if (legalContentText) { try { legalContent = JSON.parse(legalContentText); } catch { /* reported as blocked */ } }
+record('LEGAL-01', Boolean(legalContent), 'Canonical shared legal content parses');
+record('LEGAL-02', legalContent?.status === 'approved', 'Publication status must be explicitly approved only after documented sign-off');
+record('LEGAL-03', Boolean(legalContent?.status === 'approved' && !/NOT YET VERIFIED|TO BE SET ONLY AFTER|not approved for production publication|draft/i.test(JSON.stringify(legalContent))), 'No unresolved placeholders or draft notices may remain in production content');
 
 const routeCandidates = allFiles('frontend/src/routes', (file) => /AppRoutes\.(jsx?|tsx?)$/.test(file));
 const routeText = routeCandidates.length ? contents(routeCandidates) : '';
-for (const route of ['/legal', '/terms', '/privacy']) {
-  const hasPathRegistration = new RegExp(`(?:path\\s*[:=]\\s*['\"]${route.replaceAll('/', '\\/')}['\"]|['\"]${route.replaceAll('/', '\\/')}['\"]\\s*:)`).test(routeText);
-  record(`ROUTE-${route}`, hasPathRegistration, `Canonical route registration for ${route}; inspect the real route config if the parser does not recognise its format`);
+for (const [route, constant] of [['/legal', 'LEGAL'], ['/terms', 'TERMS'], ['/privacy', 'PRIVACY']]) {
+  const hasConstant = new RegExp(`${constant}:\\s*['\"]${route.replaceAll('/', '\\/')}['\"]`).test(routeText);
+  const hasRouteBinding = routeText.includes(`path={ROUTES.${constant}}`);
+  record(`ROUTE-${route}`, hasConstant && hasRouteBinding, `Canonical constant and Route binding for ${route}`);
 }
 
 const nonLegalFrontendFiles = allFiles('frontend/src', (file) => /\.(jsx?|tsx?)$/.test(file) && !file.includes(`${path.sep}legal${path.sep}`));
@@ -42,12 +45,36 @@ const authText = contents(nonLegalFrontendFiles);
 record('AUTH-01', authText.includes('LegalDocumentLinks'), 'Existing login page includes legal links outside the legal module');
 record('AUTH-02', authText.includes('LegalConsentFields'), 'Existing registration page includes the terms/privacy acceptance fragment');
 
-const backendFiles = allFiles('backend', (file) => /\.(jsx?|cjs|mjs|ts)$/.test(file));
-const backendText = contents(backendFiles);
-record('API-01', /acceptedTerms|termsAccepted/.test(backendText), 'Canonical backend registration validates required terms acceptance');
-record('API-02', /acknowledgedPrivacy|privacyAcknowledged/.test(backendText), 'Canonical backend registration validates privacy notice acknowledgement separately');
-record('API-03', /termsVersion|acceptedTermsVersion/.test(backendText) && /privacyVersion|acknowledgedPrivacyVersion/.test(backendText), 'Server-side acceptance stores exact policy versions');
-record('API-04', /audit/i.test(backendText) && /acceptedTerms|termsAccepted/.test(backendText), 'Acceptance is included in canonical audit/consent evidence (manual review required even if token matches)');
+const authController = read('backend/controllers/authController.js') || '';
+const acceptanceIntegrationNotReady =
+  legalContent?.acceptanceIntegrationStatus !== 'verified' ||
+  legalContent?.productionRegistrationEnabled !== true ||
+  /CANONICAL_LEGAL_ACCEPTANCE_INTEGRATION_READY\s*=\s*false/.test(authController);
+record(
+  'API-01',
+  /LEGAL_PUBLICATION_BLOCKED/.test(authController) && /LEGAL_ACCEPTANCE_INTEGRATION_BLOCKED/.test(authController),
+  'Production registration fails closed while publication or canonical acceptance integration is unavailable'
+);
+record(
+  'API-02',
+  false,
+  'Separate Terms and Privacy consent are present in the UI, but direct server-side acceptance validation is not integrated in the canonical auth path; production remains blocked'
+);
+record(
+  'API-03',
+  false,
+  'No registration acceptance record is claimed: canonical legal document/version persistence has not been integrated and verified against the existing legal subsystem'
+);
+record(
+  'API-04',
+  false,
+  'Registration acceptance audit evidence is not yet proven; the legacy unmounted legal service is intentionally not wired into canonical auth'
+);
+record(
+  'API-05',
+  acceptanceIntegrationNotReady && legalContent?.productionRegistrationEnabled === false,
+  'Shared legal source explicitly disables production registration until a later verified canonical acceptance integration'
+);
 
 const summary = {
   gate: 'TITech legal publication readiness',

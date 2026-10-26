@@ -1548,3 +1548,15 @@
   cursor: not-allowed;
 }
 
+
+/* Legal pages are shared with the canonical public legal-document components. */
+.login-footer__legal-links {
+  gap: 0.45rem 1rem;
+  margin-top: 0.55rem;
+  font-size: inherit;
+}
+
+.login-footer__legal-links a {
+  color: var(--login-primary);
+  text-underline-offset: 0.16em;
+}

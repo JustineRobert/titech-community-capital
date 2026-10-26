@@ -19,6 +19,9 @@ import TenantInvitation from '../models/TenantInvitation.js';
 import { normalizeRole as normalizeCanonicalRole } from '../security/rbacPolicy.js';
 
 const require = createRequire(import.meta.url);
+const canonicalLegalContent = require('../../shared/legal/legalDocuments.json');
+// Enable only in a later change that integrates and tests canonical legal acceptance persistence.
+const CANONICAL_LEGAL_ACCEPTANCE_INTEGRATION_READY = false;
 
 const ACCESS_TOKEN_EXP = process.env.ACCESS_TOKEN_EXP || '15m';
 const ACCESS_TOKEN_SECRET =
@@ -243,6 +246,32 @@ async function createRefreshToken(userId, deviceInfo = {}) {
  */
 async function register(req, res) {
   try {
+    // Production registration stays fail-closed until the canonical legal
+    // publication workflow is approved and acceptance persistence is integrated
+    // with the existing audited legal subsystem. Do not attach the legacy,
+    // unmounted legacy legal service to the canonical auth flow.
+    const publicationApproved = canonicalLegalContent.status === 'approved';
+    const acceptanceIntegrationReady =
+      canonicalLegalContent.acceptanceIntegrationStatus === 'verified' &&
+      canonicalLegalContent.productionRegistrationEnabled === true &&
+      CANONICAL_LEGAL_ACCEPTANCE_INTEGRATION_READY === true;
+
+    if (NODE_ENV === 'production' && !publicationApproved) {
+      return res.status(503).json({
+        success: false,
+        code: 'LEGAL_PUBLICATION_BLOCKED',
+        message: 'Account creation is unavailable until the Terms of Service and Privacy Policy are reviewed and approved for publication.',
+      });
+    }
+
+    if (NODE_ENV === 'production' && !acceptanceIntegrationReady) {
+      return res.status(503).json({
+        success: false,
+        code: 'LEGAL_ACCEPTANCE_INTEGRATION_BLOCKED',
+        message: 'Account creation is unavailable until legal acceptance is persisted and audited through the canonical legal subsystem.',
+      });
+    }
+
     if (!isMongoConnected() && !ALLOW_IN_MEMORY_AUTH_FALLBACK) {
       return authStoreUnavailable(res);
     }
@@ -344,12 +373,33 @@ async function register(req, res) {
         });
         await saveFallbackUser(user);
       }
+
     } catch (error) {
+      if (user) {
+        try {
+          if (isMongoConnected()) {
+            await User.deleteOne({ _id: user._id });
+          } else {
+            FALLBACK_USERS.delete(normalizedEmail);
+          }
+        } catch (cleanupError) {
+          logger.error('[AuthController] Registration rollback could not remove the provisional user record.', {
+            code: cleanupError?.code || 'REGISTRATION_USER_ROLLBACK_FAILED',
+          });
+        }
+      }
+
       if (tenantInvitation) {
-        await TenantInvitation.updateOne(
-          { _id: tenantInvitation._id, uses: { $gt: 0 } },
-          { $inc: { uses: -1 } }
-        );
+        try {
+          await TenantInvitation.updateOne(
+            { _id: tenantInvitation._id, uses: { $gt: 0 } },
+            { $inc: { uses: -1 } }
+          );
+        } catch (invitationRollbackError) {
+          logger.error('[AuthController] Registration rollback could not restore the tenant invitation use count.', {
+            code: invitationRollbackError?.code || 'REGISTRATION_INVITATION_ROLLBACK_FAILED',
+          });
+        }
       }
 
       throw error;

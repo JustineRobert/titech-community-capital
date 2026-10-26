@@ -63,6 +63,9 @@ import './Register.css';
 import BrandLogo from "../components/BrandLogo";
 import LanguageSelector from '../i18n/LanguageSelector';
 import { useI18n } from '../i18n/I18nProvider';
+import { LegalConsentFields } from '../legal/LegalConsentFields.jsx';
+import { LegalDocumentLinks } from '../legal/LegalDocuments.jsx';
+import { LEGAL_DOCUMENT_VERSION, LEGAL_PUBLICATION_STATUS } from '../legal/legalContent.js';
 
 // ============================================================================
 // Constants
@@ -79,6 +82,10 @@ const MAX_PASSWORD_LENGTH = 128;
 const REGISTRATION_TIMEOUT_MS = 30_000;
 
 const PASSWORD_SPECIAL_CHARACTERS = /[@$!%*?&^#()_+\-=]/;
+
+// Draft legal text is never treated as approved in a production frontend build.
+const legalRegistrationReleaseBlocked =
+  Boolean(import.meta.env?.PROD) && LEGAL_PUBLICATION_STATUS !== 'approved';
 
 // ============================================================================
 // Redirect Security
@@ -198,8 +205,11 @@ const createRegisterSchema = (t) => Yup.object({
     .required(t('auth.register.validation.confirmRequired'))
     .oneOf([Yup.ref('password')], t('auth.register.validation.passwordsMismatch')),
 
-  agreeTerms: Yup.boolean()
-    .oneOf([true], t('auth.register.validation.termsRequired')),
+  acceptedTerms: Yup.boolean()
+    .oneOf([true], 'You must agree to the Terms of Service.'),
+
+  acknowledgedPrivacy: Yup.boolean()
+    .oneOf([true], 'You must acknowledge the Privacy Policy.'),
 });
 
 // ============================================================================
@@ -412,6 +422,13 @@ export default function Register() {
         return;
       }
 
+      if (legalRegistrationReleaseBlocked) {
+        const message = 'Account creation is disabled in this production build until the Terms of Service and Privacy Policy receive formal approval.';
+        setRegistrationError(message);
+        toast.error(message, { toastId: 'titech-legal-publication-blocked' });
+        return;
+      }
+
       if (registrationInProgressRef.current) {
         return;
       }
@@ -460,6 +477,10 @@ export default function Register() {
           password: values.password,
           tenantInviteCode: values.tenantInviteCode.trim(),
           redirectAfterVerification: successRedirect,
+          acceptedTerms: values.acceptedTerms === true,
+          acknowledgedPrivacy: values.acknowledgedPrivacy === true,
+          termsVersion: LEGAL_DOCUMENT_VERSION,
+          privacyVersion: LEGAL_DOCUMENT_VERSION,
         };
 
         const phone = normalizePhone(values.phone);
@@ -684,6 +705,19 @@ export default function Register() {
               </div>
             )}
 
+            {LEGAL_PUBLICATION_STATUS !== 'approved' && (
+              <div
+                className="register-legal-draft-notice"
+                role="status"
+                aria-live="polite"
+              >
+                <strong>Legal documents are still drafts.</strong>
+                <span>
+                  Production account creation remains blocked until legal review, verified operator details and publication approval are complete.
+                </span>
+              </div>
+            )}
+
             <Formik
               initialValues={{
                 name: '',
@@ -692,7 +726,8 @@ export default function Register() {
                 phone: '',
                 password: '',
                 confirmPassword: '',
-                agreeTerms: false,
+                acceptedTerms: false,
+                acknowledgedPrivacy: false,
               }}
               validationSchema={registrationSchema}
               onSubmit={handleRegister}
@@ -704,6 +739,7 @@ export default function Register() {
                 errors,
                 touched,
                 isSubmitting,
+                setFieldValue,
               }) => {
                 const passwordStrength =
                   calculatePasswordStrength(
@@ -1212,68 +1248,24 @@ export default function Register() {
                     </div>
 
                     {/* ========================================================
-                        Terms
+                        Legal acceptance (separate terms and privacy fields)
                     ======================================================== */}
 
-                    <div className="form-group">
-                      <label className="checkbox-label">
-                        <Field
-                          type="checkbox"
-                          name="agreeTerms"
-                          className="terms-checkbox"
-                          aria-invalid={
-                            touched.agreeTerms &&
-                            Boolean(
-                              errors.agreeTerms,
-                            )
-                          }
-                        />
+                    <LegalConsentFields
+                      termsAccepted={values.acceptedTerms}
+                      onTermsAcceptedChange={(accepted) => setFieldValue('acceptedTerms', accepted)}
+                      privacyAcknowledged={values.acknowledgedPrivacy}
+                      onPrivacyAcknowledgedChange={(acknowledged) => setFieldValue('acknowledgedPrivacy', acknowledged)}
+                      disabled={legalRegistrationReleaseBlocked || isBusy}
+                    />
 
-                        <span>
-                          I confirm that I have read and agree to the{' '}
-                          <Link
-                            to="/terms"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Terms of Service
-                          </Link>{' '}
-                          and acknowledge the{' '}
-                          <Link
-                            to="/privacy"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Privacy Policy
-                          </Link>. Review the{' '}
-                          <Link
-                            to="/legal"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Legal Information hub
-                          </Link>{' '}
-                          for important service and financial limitations.
-                        </span>
-                      </label>
-
-                      {touched.agreeTerms &&
-                        errors.agreeTerms && (
-                          <div
-                            className="field-error"
-                            role="alert"
-                          >
-                            <AlertCircle
-                              size={14}
-                              aria-hidden="true"
-                            />
-
-                            <span>
-                              {errors.agreeTerms}
-                            </span>
-                          </div>
-                        )}
-                    </div>
+                    {((touched.acceptedTerms && errors.acceptedTerms) ||
+                      (touched.acknowledgedPrivacy && errors.acknowledgedPrivacy)) ? (
+                        <div className="field-error" role="alert" aria-live="polite">
+                          <AlertCircle size={14} aria-hidden="true" />
+                          <span>{touched.acceptedTerms && errors.acceptedTerms ? errors.acceptedTerms : errors.acknowledgedPrivacy}</span>
+                        </div>
+                      ) : null}
 
                     {/* ========================================================
                         Submit
@@ -1282,8 +1274,8 @@ export default function Register() {
                     <button
                       type="submit"
                       className="submit-btn"
-                      disabled={isBusy}
-                      aria-busy={isBusy}
+                      disabled={isBusy || legalRegistrationReleaseBlocked}
+                      aria-busy={isBusy || legalRegistrationReleaseBlocked}
                     >
                       {isBusy ? (
                         <>
@@ -1330,11 +1322,7 @@ export default function Register() {
           © {new Date().getFullYear()} TITech Capital LTD. All rights reserved.
         </p>
 
-        <p>
-          <Link to="/legal">Legal Information</Link>{' · '}
-          <Link to="/terms">Terms of Service</Link>{' · '}
-          <Link to="/privacy">Privacy Policy</Link>
-        </p>
+        <LegalDocumentLinks className="register-footer__legal-links" />
 
         <p>
           TITech Community Capital is technology infrastructure. Feature availability, payment services, and regulated activities depend on applicable law and authorized institutional/provider arrangements.
