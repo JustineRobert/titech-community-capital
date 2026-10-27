@@ -56,6 +56,7 @@
     "test:auth:smoke": "npm test -- --runInBand --runTestsByPath tests/integration/auth.test.js --testNamePattern=dashboard.profile",
     "test:commercial": "npm test -- --testPathPatterns=tests/commercial",
     "test:providers": "npm test -- --testPathPatterns=tests/providers --runInBand",
+    "test:db-helpers": "node --test tests/helpers/db.test.mjs",
     "test:financial:money": "node --test tests/unit/financial/money.test.js",
     "test:ci": "npm test -- --ci --runInBand --coverage --detectOpenHandles",
     "test:changed": "npm test -- --changedSince=HEAD",

@@ -1,1750 +1,1259 @@
-"use strict";
-
-function safeStringify(value) {
-  try { return JSON.stringify(value); } catch { return String(value); }
-}
-
-function setSessionValue(key, value) {
-  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, safeStringify(value));
-}
-
-function getSessionValue(key) {
-  if (typeof sessionStorage === 'undefined') return null;
-  const value = sessionStorage.getItem(key);
-  try { return value === null ? null : JSON.parse(value); } catch { return value; }
-}
-
-function removeSessionValue(key) {
-  if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(key);
-}
-
 /**
- * ============================================================================
- * TITech Community Capital LTD
- * Local Storage Test Helper
- * ============================================================================
+ * TITech Community Capital — Local Storage Test Helper
  *
- * Enterprise Testing Utility
+ * File: backend/tests/helpers/mockLocalStorage.js
  *
- * Features
- * ----------------------------------------------------------------------------
- * ✅ localStorage Mock
- * ✅ sessionStorage Mock
- * ✅ Auth Session Helpers
- * ✅ Tenant Helpers
- * ✅ Permission Helpers
- * ✅ Theme Helpers
- * ✅ Loan Draft Helpers
- * ✅ Savings Draft Helpers
- * ✅ Member Draft Helpers
- * ✅ Onboarding Helpers
- * ✅ Reset Utilities
- * ✅ Jest Compatible
- * ✅ Vitest Compatible
- * ✅ Browser Compatible
- * ✅ Frontend Integration Test Ready
- * ============================================================================
+ * Native ESM module with a Node.js CommonJS interoperability export.
+ * Compatible with Jest/Vitest and browser-like test environments.
  */
 
 const STORAGE_KEYS = Object.freeze({
-
-    ACCESS_TOKEN:
-        "accessToken",
-
-    REFRESH_TOKEN:
-        "refreshToken",
-
-    USER:
-        "user",
-
-    TENANT:
-        "tenant",
-
-    PERMISSIONS:
-        "permissions",
-
-    THEME:
-        "theme",
-
-    AUTH_STATE:
-        "authState",
-
-    LOAN_DRAFT:
-        "loanDraft",
-
-    MEMBER_DRAFT:
-        "memberDraft",
-
-    SAVINGS_DRAFT:
-        "savingsDraft",
-
-    ONBOARDING_PROGRESS:
-        "onboardingProgress"
+  ACCESS_TOKEN: 'accessToken',
+  REFRESH_TOKEN: 'refreshToken',
+  USER: 'user',
+  TENANT: 'tenant',
+  PERMISSIONS: 'permissions',
+  THEME: 'theme',
+  AUTH_STATE: 'authState',
+  LOAN_DRAFT: 'loanDraft',
+  MEMBER_DRAFT: 'memberDraft',
+  SAVINGS_DRAFT: 'savingsDraft',
+  ONBOARDING_PROGRESS: 'onboardingProgress',
 });
+
+const SUPPORTED_THEMES = Object.freeze(['light', 'dark', 'system']);
+const originalStorageDescriptors = new Map();
+
+/* ============================================================================
+   SAFE SERIALIZATION
+============================================================================ */
+
+/**
+ * Convert a value to JSON without allowing serialization errors to escape.
+ */
+function safeStringify(value, fallback) {
+  const defaultFallback = () => {
+    try {
+      return String(value);
+    } catch {
+      return '[unserializable value]';
+    }
+  };
+
+  try {
+    const serialized = JSON.stringify(value);
+
+    if (serialized !== undefined) {
+      return serialized;
+    }
+
+    return fallback === undefined ? defaultFallback() : fallback;
+  } catch {
+    return fallback === undefined ? defaultFallback() : fallback;
+  }
+}
+
+/**
+ * Safely parse JSON.
+ */
+function safeParse(value, fallback = null) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'object') {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    if (
+      typeof process !== 'undefined' &&
+      process.env?.NODE_ENV === 'test' &&
+      process.env?.DEBUG_STORAGE === 'true'
+    ) {
+      console.warn('[mockLocalStorage] Failed to parse JSON', {
+        value,
+        error: error?.message ?? String(error),
+      });
+    }
+
+    return fallback;
+  }
+}
 
 /* ============================================================================
    STORAGE FACTORY
 ============================================================================ */
 
+/**
+ * Create a minimal Web Storage-compatible in-memory store.
+ */
 function createStorageMock() {
+  let store = Object.create(null);
 
-    let store = {};
+  return {
+    getItem(key) {
+      const normalizedKey = String(key);
 
-    return {
+      return Object.prototype.hasOwnProperty.call(store, normalizedKey)
+        ? store[normalizedKey]
+        : null;
+    },
 
-        getItem(key) {
+    setItem(key, value) {
+      store[String(key)] = String(value);
+    },
 
-            return Object.prototype
-                .hasOwnProperty.call(
-                    store,
-                    key
-                )
-                ? store[key]
-                : null;
-        },
+    removeItem(key) {
+      delete store[String(key)];
+    },
 
-        setItem(
-            key,
-            value
-        ) {
+    clear() {
+      store = Object.create(null);
+    },
 
-            store[key] =
-                String(value);
-        },
+    key(index) {
+      if (!Number.isInteger(index) || index < 0) {
+        return null;
+      }
 
-        removeItem(key) {
+      return Object.keys(store)[index] ?? null;
+    },
 
-            delete store[key];
-        },
+    get length() {
+      return Object.keys(store).length;
+    },
 
-        clear() {
-
-            store = {};
-        },
-
-        key(index) {
-
-            return Object.keys(
-                store
-            )[index] || null;
-        },
-
-        get length() {
-
-            return Object.keys(
-                store
-            ).length;
-        },
-
-        dump() {
-
-            return {
-                ...store
-            };
-        }
-    };
+    dump() {
+      return { ...store };
+    },
+  };
 }
 
 /* ============================================================================
    MOCK INSTANCES
 ============================================================================ */
 
-const localStorageMock =
-    createStorageMock();
+const localStorageMock = createStorageMock();
+const sessionStorageMock = createStorageMock();
 
-const sessionStorageMock =
-    createStorageMock();
+/**
+ * Get browser/Jest storage when available, otherwise use the in-memory mock.
+ */
+function getStorageObject(kind) {
+  const property =
+    kind === 'session' ? 'sessionStorage' : 'localStorage';
 
-/* ============================================================================
-   INSTALL HELPERS
-============================================================================ */
+  const fallback =
+    kind === 'session' ? sessionStorageMock : localStorageMock;
 
-function installStorageMocks() {
+  try {
+    const candidate = globalThis[property];
 
-    Object.defineProperty(
-        global,
-        "localStorage",
-        {
-            value:
-                localStorageMock,
-            writable: true
-        }
-    );
+    if (
+      candidate &&
+      typeof candidate.getItem === 'function' &&
+      typeof candidate.setItem === 'function' &&
+      typeof candidate.removeItem === 'function'
+    ) {
+      return candidate;
+    }
+  } catch {
+    // Browser storage may throw when the origin or browsing context is restricted.
+  }
 
-    Object.defineProperty(
-        global,
-        "sessionStorage",
-        {
-            value:
-                sessionStorageMock,
-            writable: true
-        }
-    );
-}
-
-function uninstallStorageMocks() {
-
-    delete global.localStorage;
-    delete global.sessionStorage;
+  return fallback;
 }
 
 /* ============================================================================
-   RESET HELPERS
-============================================================================ */
-
-function resetStorage() {
-
-    localStorageMock.clear();
-
-    sessionStorageMock.clear();
-}
-
-/* ============================================================================
-   AUTH HELPERS
+   INSTALL AND RESTORE MOCKS
 ============================================================================ */
 
 /**
- * Store authenticated user session
+ * Install localStorage and sessionStorage mocks.
+ *
+ * Existing global property descriptors are saved so they can be restored.
+ */
+function installStorageMocks() {
+  const definitions = {
+    localStorage: localStorageMock,
+    sessionStorage: sessionStorageMock,
+  };
+
+  for (const [property, value] of Object.entries(definitions)) {
+    if (!originalStorageDescriptors.has(property)) {
+      originalStorageDescriptors.set(
+        property,
+        Object.getOwnPropertyDescriptor(globalThis, property),
+      );
+    }
+
+    Object.defineProperty(globalThis, property, {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value,
+    });
+  }
+
+  return {
+    localStorage: localStorageMock,
+    sessionStorage: sessionStorageMock,
+  };
+}
+
+/**
+ * Restore original global storage descriptors.
+ */
+function uninstallStorageMocks() {
+  for (const property of ['localStorage', 'sessionStorage']) {
+    if (!originalStorageDescriptors.has(property)) {
+      continue;
+    }
+
+    const descriptor = originalStorageDescriptors.get(property);
+
+    if (descriptor) {
+      Object.defineProperty(globalThis, property, descriptor);
+    } else {
+      delete globalThis[property];
+    }
+
+    originalStorageDescriptors.delete(property);
+  }
+}
+
+/**
+ * Reset the in-memory mock stores without clearing real browser storage.
+ */
+function resetStorage() {
+  localStorageMock.clear();
+  sessionStorageMock.clear();
+}
+
+/* ============================================================================
+   SESSION STORAGE HELPERS
+============================================================================ */
+
+function setSessionValue(key, value) {
+  try {
+    getStorageObject('session').setItem(
+      String(key),
+      safeStringify(value, 'null'),
+    );
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getSessionValue(key) {
+  try {
+    const value = getStorageObject('session').getItem(String(key));
+
+    if (value === null) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  } catch {
+    return null;
+  }
+}
+
+function removeSessionValue(key) {
+  try {
+    getStorageObject('session').removeItem(String(key));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* ============================================================================
+   GENERIC LOCAL STORAGE HELPERS
+============================================================================ */
+
+/**
+ * Store a value safely in localStorage.
+ */
+function setStorageValue(key, value) {
+  try {
+    getStorageObject('local').setItem(
+      String(key),
+      safeStringify(value, 'null'),
+    );
+
+    return true;
+  } catch (error) {
+    if (
+      typeof process !== 'undefined' &&
+      process.env?.NODE_ENV === 'test' &&
+      process.env?.DEBUG_STORAGE === 'true'
+    ) {
+      console.error('[mockLocalStorage] Failed to store value', {
+        key: String(key),
+        error: error?.message ?? String(error),
+      });
+    }
+
+    return false;
+  }
+}
+
+/**
+ * Retrieve a value safely from localStorage.
+ */
+function getStorageValue(key, fallback = null) {
+  try {
+    return safeParse(
+      getStorageObject('local').getItem(String(key)),
+      fallback,
+    );
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Remove a value from localStorage.
+ */
+function removeStorageValue(key) {
+  try {
+    getStorageObject('local').removeItem(String(key));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check whether a key exists in localStorage.
+ */
+function storageHasKey(key) {
+  try {
+    return getStorageObject('local').getItem(String(key)) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get all current localStorage keys.
+ */
+function getStorageKeys() {
+  const storage = getStorageObject('local');
+  const keys = [];
+
+  try {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+
+      if (key !== null && key !== undefined) {
+        keys.push(key);
+      }
+    }
+  } catch {
+    return [];
+  }
+
+  return keys;
+}
+
+/**
+ * Count localStorage items.
+ */
+function getStorageSize() {
+  try {
+    return getStorageObject('local').length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Clear known TITech application keys only.
+ */
+function clearApplicationStorage() {
+  let succeeded = true;
+
+  for (const key of Object.values(STORAGE_KEYS)) {
+    if (!removeStorageValue(key)) {
+      succeeded = false;
+    }
+  }
+
+  return succeeded;
+}
+
+/**
+ * Export a snapshot of localStorage.
+ */
+function exportStorage() {
+  const storage = getStorageObject('local');
+  const snapshot = {};
+
+  for (const key of getStorageKeys()) {
+    try {
+      snapshot[key] = storage.getItem(key);
+    } catch {
+      // Omit a key if the storage provider fails during export.
+    }
+  }
+
+  return snapshot;
+}
+
+/* ============================================================================
+   AUTHENTICATION HELPERS
+============================================================================ */
+
+/**
+ * Store an authenticated user session.
  */
 function setAuthSession({
+  accessToken,
+  refreshToken,
+  user,
+} = {}) {
+  const storage = getStorageObject('local');
+  let succeeded = true;
 
-    accessToken,
+  try {
+    if (accessToken === undefined || accessToken === null) {
+      storage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+    } else {
+      storage.setItem(STORAGE_KEYS.ACCESS_TOKEN, String(accessToken));
+    }
 
-    refreshToken,
+    if (refreshToken === undefined || refreshToken === null) {
+      storage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+    } else {
+      storage.setItem(STORAGE_KEYS.REFRESH_TOKEN, String(refreshToken));
+    }
+  } catch {
+    succeeded = false;
+  }
 
-    user
+  if (!setStorageValue(STORAGE_KEYS.USER, user)) {
+    succeeded = false;
+  }
 
-}) {
-
-    localStorage.setItem(
-        STORAGE_KEYS.ACCESS_TOKEN,
-        accessToken
-    );
-
-    localStorage.setItem(
-        STORAGE_KEYS.REFRESH_TOKEN,
-        refreshToken
-    );
-
-    setStorageValue(
-        STORAGE_KEYS.USER,
-        user
-    );
+  return succeeded;
 }
 
 /**
- * Retrieve authenticated session
+ * Retrieve the current authentication session.
  */
 function getAuthSession() {
+  const storage = getStorageObject('local');
 
-    return {
+  let accessToken = null;
+  let refreshToken = null;
 
-        accessToken:
-            localStorage.getItem(
-                STORAGE_KEYS.ACCESS_TOKEN
-            ),
+  try {
+    accessToken = storage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    refreshToken = storage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+  } catch {
+    // Return a consistent empty session if storage access fails.
+  }
 
-        refreshToken:
-            localStorage.getItem(
-                STORAGE_KEYS.REFRESH_TOKEN
-            ),
-
-        user:
-            getStorageValue(
-                STORAGE_KEYS.USER
-            )
-    };
+  return {
+    accessToken,
+    refreshToken,
+    user: getStorageValue(STORAGE_KEYS.USER),
+  };
 }
 
 /**
- * Determine whether a user is authenticated
+ * Determine whether an access token is present.
  */
 function isAuthenticated() {
+  const token = getAuthSession().accessToken;
 
-    return Boolean(
-        localStorage.getItem(
-            STORAGE_KEYS.ACCESS_TOKEN
-        )
-    );
+  return typeof token === 'string' && token.length > 0;
 }
 
 /**
- * Clear authentication state
+ * Clear authentication state.
  */
 function clearAuthSession() {
+  const storage = getStorageObject('local');
+  let succeeded = removeStorageValue(STORAGE_KEYS.USER);
 
-    removeStorageValue(
-        STORAGE_KEYS.USER
-    );
+  for (const key of [
+    STORAGE_KEYS.ACCESS_TOKEN,
+    STORAGE_KEYS.REFRESH_TOKEN,
+  ]) {
+    try {
+      storage.removeItem(key);
+    } catch {
+      succeeded = false;
+    }
+  }
 
-    localStorage.removeItem(
-        STORAGE_KEYS.ACCESS_TOKEN
-    );
-
-    localStorage.removeItem(
-        STORAGE_KEYS.REFRESH_TOKEN
-    );
+  return succeeded;
 }
 
 /**
- * Verify auth-related storage exists
+ * Check whether both an access token and user record exist.
  */
 function hasAuthSession() {
-
-    return (
-        storageHasKey(
-            STORAGE_KEYS.ACCESS_TOKEN
-        ) &&
-        storageHasKey(
-            STORAGE_KEYS.USER
-        )
-    );
+  return (
+    storageHasKey(STORAGE_KEYS.ACCESS_TOKEN) &&
+    storageHasKey(STORAGE_KEYS.USER)
+  );
 }
+
 /* ============================================================================
    TENANT HELPERS
 ============================================================================ */
 
-/**
- * Store active tenant
- */
-function setTenant(
-    tenant
-) {
-
-    setStorageValue(
-        STORAGE_KEYS.TENANT,
-        tenant
-    );
+function setTenant(tenant) {
+  return setStorageValue(STORAGE_KEYS.TENANT, tenant);
 }
 
-/**
- * Retrieve active tenant
- */
 function getTenant() {
-
-    return getStorageValue(
-        STORAGE_KEYS.TENANT
-    );
+  return getStorageValue(STORAGE_KEYS.TENANT);
 }
 
-/**
- * Remove active tenant
- */
 function clearTenant() {
-
-    removeStorageValue(
-        STORAGE_KEYS.TENANT
-    );
+  return removeStorageValue(STORAGE_KEYS.TENANT);
 }
 
-/**
- * Check whether tenant exists
- */
 function hasTenant() {
-
-    return storageHasKey(
-        STORAGE_KEYS.TENANT
-    );
+  return storageHasKey(STORAGE_KEYS.TENANT);
 }
 
 /* ============================================================================
    PERMISSION HELPERS
 ============================================================================ */
 
-/**
- * Store user permissions
- */
-function setPermissions(
-    permissions = []
-) {
-
-    setStorageValue(
-        STORAGE_KEYS.PERMISSIONS,
-        permissions
-    );
+function setPermissions(permissions = []) {
+  return setStorageValue(STORAGE_KEYS.PERMISSIONS, permissions);
 }
 
-/**
- * Get user permissions
- */
 function getPermissions() {
+  const permissions = getStorageValue(STORAGE_KEYS.PERMISSIONS, []);
 
-    return (
-        getStorageValue(
-            STORAGE_KEYS.PERMISSIONS
-        ) || []
-    );
+  return Array.isArray(permissions) ? permissions : [];
 }
 
-/**
- * Clear all permissions
- */
 function clearPermissions() {
-
-    removeStorageValue(
-        STORAGE_KEYS.PERMISSIONS
-    );
+  return removeStorageValue(STORAGE_KEYS.PERMISSIONS);
 }
 
-/**
- * Check whether permissions exist
- */
 function hasPermissions() {
-
-    return storageHasKey(
-        STORAGE_KEYS.PERMISSIONS
-    );
+  return storageHasKey(STORAGE_KEYS.PERMISSIONS);
 }
 
-/**
- * Check if user has a specific permission
- */
-function hasPermission(
-    permission
-) {
-
-    return getPermissions()
-        .includes(permission);
+function hasPermission(permission) {
+  return getPermissions().includes(permission);
 }
 
-/**
- * Check if user has all specified permissions
- */
-function hasAllPermissions(
-    permissions = []
-) {
-
-    const userPermissions =
-        getPermissions();
-
-    return permissions.every(
-        permission =>
-            userPermissions.includes(
-                permission
-            )
-    );
+function hasAllPermissions(permissions = []) {
+  return (
+    Array.isArray(permissions) &&
+    permissions.every((permission) =>
+      getPermissions().includes(permission),
+    )
+  );
 }
 
-/**
- * Check if user has at least one permission
- */
-function hasAnyPermission(
-    permissions = []
-) {
-
-    const userPermissions =
-        getPermissions();
-
-    return permissions.some(
-        permission =>
-            userPermissions.includes(
-                permission
-            )
-    );
+function hasAnyPermission(permissions = []) {
+  return (
+    Array.isArray(permissions) &&
+    permissions.some((permission) =>
+      getPermissions().includes(permission),
+    )
+  );
 }
+
 /* ============================================================================
    THEME HELPERS
 ============================================================================ */
 
 /**
- * Supported application themes
+ * Store a supported application theme.
  */
-const SUPPORTED_THEMES = Object.freeze([
-    "light",
-    "dark",
-    "system"
-]);
+function setTheme(theme = 'light') {
+  if (!SUPPORTED_THEMES.includes(theme)) {
+    throw new Error(`Unsupported theme: ${theme}`);
+  }
 
-/**
- * Store active theme
- */
-function setTheme(
-    theme = "light"
-) {
-
-    if (
-        !SUPPORTED_THEMES.includes(
-            theme
-        )
-    ) {
-
-        throw new Error(
-            `Unsupported theme: ${theme}`
-        );
-    }
-
-    localStorage.setItem(
-        STORAGE_KEYS.THEME,
-        theme
-    );
+  try {
+    getStorageObject('local').setItem(STORAGE_KEYS.THEME, theme);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Get active theme
+ * Get the active theme.
+ *
+ * The system theme falls back to light for this test helper.
  */
 function getTheme() {
+  let storedTheme;
 
-    const storedTheme =
-        localStorage.getItem(
-            STORAGE_KEYS.THEME
-        );
+  try {
+    storedTheme = getStorageObject('local').getItem(STORAGE_KEYS.THEME);
+  } catch {
+    return 'light';
+  }
 
-    return SUPPORTED_THEMES.includes(
-        storedTheme
-    ) && storedTheme !== "system"
-        ? storedTheme
-        : "light";
+  return SUPPORTED_THEMES.includes(storedTheme) && storedTheme !== 'system'
+    ? storedTheme
+    : 'light';
 }
 
-/**
- * Clear theme preference
- */
 function clearTheme() {
-
-    localStorage.removeItem(
-        STORAGE_KEYS.THEME
-    );
+  return removeStorageValue(STORAGE_KEYS.THEME);
 }
 
-/**
- * Check whether theme preference exists
- */
 function hasTheme() {
-
-    return storageHasKey(
-        STORAGE_KEYS.THEME
-    );
+  return storageHasKey(STORAGE_KEYS.THEME);
 }
 
-/**
- * Toggle between light and dark themes
- */
 function toggleTheme() {
+  const nextTheme = getTheme() === 'dark' ? 'light' : 'dark';
 
-    const currentTheme =
-        getTheme();
+  setTheme(nextTheme);
 
-    const nextTheme =
-        currentTheme === "dark"
-            ? "light"
-            : "dark";
-
-    setTheme(
-        nextTheme
-    );
-
-    return nextTheme;
+  return nextTheme;
 }
 
 /* ============================================================================
-   SAFE JSON UTILITIES
+   DRAFT METADATA AND EXPIRY HELPERS
 ============================================================================ */
 
-/**
- * Safely parse JSON without crashing tests
- *
- * @param {*} value
- * @param {*} fallback
- * @returns {*}
- */
-function safeParse(
-    value,
-    fallback = null
-) {
+function createDraftMetadata(draftType) {
+  const metadata = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+  };
 
-    if (
-        value === undefined ||
-        value === null ||
-        value === ""
-    ) {
+  if (draftType) {
+    metadata.draftType = draftType;
+  }
 
-        return fallback;
-    }
-
-    /**
-     * Value already parsed
-     */
-    if (
-        typeof value === "object"
-    ) {
-
-        return value;
-    }
-
-    /**
-     * Non-string primitive
-     */
-    if (
-        typeof value !== "string"
-    ) {
-
-        return fallback;
-    }
-
-    try {
-
-        return JSON.parse(
-            value
-        );
-
-    } catch (error) {
-
-        /**
-         * Optional debug mode
-         */
-        if (
-            process.env.NODE_ENV === "test" &&
-            process.env.DEBUG_STORAGE === "true"
-        ) {
-
-            console.warn(
-                "[mockLocalStorage] Failed to parse JSON",
-                {
-                    value,
-                    error:
-                        error.message
-                }
-            );
-        }
-
-        return fallback;
-    }
-}
-/* ============================================================================
-   GENERIC LOCAL STORAGE HELPERS
-============================================================================ */
-
-/**
- * Store value safely in localStorage
- */
-function setStorageValue(
-    key,
-    value
-) {
-
-    try {
-
-        localStorage.setItem(
-            key,
-            safeStringify(
-                value,
-                "null"
-            )
-        );
-
-        return true;
-
-    } catch (error) {
-
-        if (
-            process.env.NODE_ENV === "test" &&
-            process.env.DEBUG_STORAGE === "true"
-        ) {
-
-            console.error(
-                "[mockLocalStorage] Failed to store value",
-                {
-                    key,
-                    error:
-                        error.message
-                }
-            );
-        }
-
-        return false;
-    }
+  return metadata;
 }
 
 /**
- * Retrieve value safely from localStorage
+ * Return true if a draft timestamp has expired.
  */
-function getStorageValue(
-    key,
-    fallback = null
-) {
-
-    try {
-
-        return safeParse(
-            localStorage.getItem(key),
-            fallback
-        );
-
-    } catch {
-
-        return fallback;
-    }
-}
-
-/**
- * Remove value from localStorage
- */
-function removeStorageValue(
-    key
-) {
-
-    localStorage.removeItem(
-        key
+function timestampIsExpired(timestamp, maxAgeHours) {
+  if (!Number.isFinite(maxAgeHours) || maxAgeHours < 0) {
+    throw new RangeError(
+      'maxAgeHours must be a finite, non-negative number',
     );
+  }
 
+  if (
+    timestamp === undefined ||
+    timestamp === null ||
+    timestamp === ''
+  ) {
     return true;
+  }
+
+  const milliseconds =
+    timestamp instanceof Date
+      ? timestamp.getTime()
+      : typeof timestamp === 'number'
+        ? timestamp
+        : Date.parse(timestamp);
+
+  if (!Number.isFinite(milliseconds)) {
+    return true;
+  }
+
+  return Date.now() - milliseconds > maxAgeHours * 60 * 60 * 1000;
+}
+
+function getDraftTimestamp(storageKey) {
+  const draft = getStorageValue(storageKey);
+
+  return draft?._metadata?.savedAt ?? null;
 }
 
 /**
- * Check if key exists
+ * Store a draft together with its metadata.
  */
-function storageHasKey(
-    key
-) {
+function saveDraft(storageKey, draft, draftType) {
+  const safeDraft =
+    draft && typeof draft === 'object' && !Array.isArray(draft)
+      ? draft
+      : {};
 
-    return (
-        localStorage.getItem(key)
-        !== null
-    );
+  return setStorageValue(storageKey, {
+    ...safeDraft,
+    _metadata: createDraftMetadata(draftType),
+  });
 }
 
 /**
- * Get all storage keys
+ * Update a draft without discarding unrelated existing fields.
  */
-function getStorageKeys() {
+function updateDraft(storageKey, updates, draftType) {
+  const existing = getStorageValue(storageKey, {});
 
-    const keys = [];
+  const safeExisting =
+    existing &&
+    typeof existing === 'object' &&
+    !Array.isArray(existing)
+      ? existing
+      : {};
 
-    for (
-        let i = 0;
-        i < localStorage.length;
-        i++
-    ) {
+  const safeUpdates =
+    updates &&
+    typeof updates === 'object' &&
+    !Array.isArray(updates)
+      ? updates
+      : {};
 
-        const key =
-            localStorage.key(i);
+  saveDraft(
+    storageKey,
+    {
+      ...safeExisting,
+      ...safeUpdates,
+    },
+    draftType,
+  );
 
-        if (key) {
-
-            keys.push(key);
-        }
-    }
-
-    return keys;
-}
-
-/**
- * Count items in storage
- */
-function getStorageSize() {
-
-    return localStorage.length;
-}
-
-/**
- * Clear only known application keys
- */
-function clearApplicationStorage() {
-
-    Object.values(
-        STORAGE_KEYS
-    ).forEach(key => {
-
-        localStorage.removeItem(
-            key
-        );
-
-    });
-}
-
-/**
- * Export entire storage snapshot
- * Useful for Jest assertions
- */
-function exportStorage() {
-
-    const snapshot = {};
-
-    getStorageKeys()
-        .forEach(key => {
-
-            snapshot[key] =
-                localStorage.getItem(
-                    key
-                );
-
-        });
-
-    return snapshot;
+  return getStorageValue(storageKey);
 }
 
 /* ============================================================================
    LOAN DRAFT HELPERS
 ============================================================================ */
 
-/**
- * Save loan draft
- */
-function saveLoanDraft(
-    draft
-) {
-
-    setStorageValue(
-        STORAGE_KEYS.LOAN_DRAFT,
-        {
-            ...draft,
-
-            _metadata: {
-
-                version: 1,
-
-                savedAt:
-                    new Date().toISOString()
-            }
-        }
-    );
-
-    return true;
+function saveLoanDraft(draft) {
+  return saveDraft(STORAGE_KEYS.LOAN_DRAFT, draft);
 }
 
-/**
- * Retrieve loan draft
- */
 function getLoanDraft() {
-
-    return getStorageValue(
-        STORAGE_KEYS.LOAN_DRAFT,
-        null
-    );
+  return getStorageValue(STORAGE_KEYS.LOAN_DRAFT);
 }
 
-/**
- * Remove loan draft
- */
 function clearLoanDraft() {
-
-    removeStorageValue(
-        STORAGE_KEYS.LOAN_DRAFT
-    );
-
-    return true;
+  return removeStorageValue(STORAGE_KEYS.LOAN_DRAFT);
 }
 
-/**
- * Check if draft exists
- */
 function hasLoanDraft() {
-
-    return storageHasKey(
-        STORAGE_KEYS.LOAN_DRAFT
-    );
+  return storageHasKey(STORAGE_KEYS.LOAN_DRAFT);
 }
 
-/**
- * Get draft save timestamp
- */
 function getLoanDraftTimestamp() {
-
-    const draft =
-        getLoanDraft();
-
-    return draft?._metadata?.savedAt || null;
+  return getDraftTimestamp(STORAGE_KEYS.LOAN_DRAFT);
 }
 
-/**
- * Check whether loan draft is expired
- *
- * Default:
- * 7 days
- */
-function isLoanDraftExpired(
-    maxAgeHours = 168
-) {
-
-    const timestamp =
-        getLoanDraftTimestamp();
-
-    if (!timestamp) {
-        return true;
-    }
-
-    const draftTime =
-        new Date(timestamp);
-
-    const now =
-        new Date();
-
-    const diffHours =
-        (
-            now.getTime() -
-            draftTime.getTime()
-        ) /
-        (1000 * 60 * 60);
-
-    return diffHours >
-        maxAgeHours;
+function isLoanDraftExpired(maxAgeHours = 168) {
+  return timestampIsExpired(
+    getLoanDraftTimestamp(),
+    maxAgeHours,
+  );
 }
 
-/**
- * Update existing draft
- */
-function updateLoanDraft(
-    updates = {}
-) {
-
-    const existing =
-        getLoanDraft() || {};
-
-    saveLoanDraft({
-
-        ...existing,
-
-        ...updates
-    });
-
-    return getLoanDraft();
+function updateLoanDraft(updates = {}) {
+  return updateDraft(STORAGE_KEYS.LOAN_DRAFT, updates);
 }
 
 /* ============================================================================
    MEMBER DRAFT HELPERS
 ============================================================================ */
 
-/**
- * Save member onboarding draft
- */
-function saveMemberDraft(
-    draft
-) {
-
-    setStorageValue(
-        STORAGE_KEYS.MEMBER_DRAFT,
-        {
-            ...draft,
-
-            _metadata: {
-
-                version: 1,
-
-                savedAt:
-                    new Date().toISOString(),
-
-                draftType:
-                    "MEMBER"
-            }
-        }
-    );
-
-    return true;
+function saveMemberDraft(draft) {
+  return saveDraft(STORAGE_KEYS.MEMBER_DRAFT, draft, 'MEMBER');
 }
 
-/**
- * Get member draft
- */
 function getMemberDraft() {
-
-    return getStorageValue(
-        STORAGE_KEYS.MEMBER_DRAFT,
-        null
-    );
+  return getStorageValue(STORAGE_KEYS.MEMBER_DRAFT);
 }
 
-/**
- * Remove member draft
- */
 function clearMemberDraft() {
-
-    removeStorageValue(
-        STORAGE_KEYS.MEMBER_DRAFT
-    );
-
-    return true;
+  return removeStorageValue(STORAGE_KEYS.MEMBER_DRAFT);
 }
 
-/**
- * Check if member draft exists
- */
 function hasMemberDraft() {
-
-    return storageHasKey(
-        STORAGE_KEYS.MEMBER_DRAFT
-    );
+  return storageHasKey(STORAGE_KEYS.MEMBER_DRAFT);
 }
 
-/**
- * Update member draft
- */
-function updateMemberDraft(
-    updates = {}
-) {
-
-    const existing =
-        getMemberDraft() || {};
-
-    saveMemberDraft({
-
-        ...existing,
-
-        ...updates
-    });
-
-    return getMemberDraft();
+function updateMemberDraft(updates = {}) {
+  return updateDraft(
+    STORAGE_KEYS.MEMBER_DRAFT,
+    updates,
+    'MEMBER',
+  );
 }
 
-/**
- * Get draft timestamp
- */
 function getMemberDraftTimestamp() {
-
-    const draft =
-        getMemberDraft();
-
-    return draft?._metadata?.savedAt || null;
+  return getDraftTimestamp(STORAGE_KEYS.MEMBER_DRAFT);
 }
 
-/**
- * Check whether draft has expired
- *
- * Default retention:
- * 7 days (168 hours)
- */
-function isMemberDraftExpired(
-    maxAgeHours = 168
-) {
-
-    const timestamp =
-        getMemberDraftTimestamp();
-
-    if (!timestamp) {
-
-        return true;
-    }
-
-    const savedDate =
-        new Date(timestamp);
-
-    const now =
-        new Date();
-
-    const ageHours =
-        (
-            now.getTime() -
-            savedDate.getTime()
-        ) /
-        (1000 * 60 * 60);
-
-    return ageHours >
-        maxAgeHours;
+function isMemberDraftExpired(maxAgeHours = 168) {
+  return timestampIsExpired(
+    getMemberDraftTimestamp(),
+    maxAgeHours,
+  );
 }
 
 /* ============================================================================
    SAVINGS DRAFT HELPERS
 ============================================================================ */
 
-/**
- * Save savings transaction / account draft
- */
-function saveSavingsDraft(
-    draft
-) {
-
-    setStorageValue(
-        STORAGE_KEYS.SAVINGS_DRAFT,
-        {
-            ...draft,
-
-            _metadata: {
-
-                version: 1,
-
-                savedAt:
-                    new Date().toISOString(),
-
-                draftType:
-                    "SAVINGS"
-            }
-        }
-    );
-
-    return true;
+function saveSavingsDraft(draft) {
+  return saveDraft(STORAGE_KEYS.SAVINGS_DRAFT, draft, 'SAVINGS');
 }
 
-/**
- * Get savings draft
- */
 function getSavingsDraft() {
-
-    return getStorageValue(
-        STORAGE_KEYS.SAVINGS_DRAFT,
-        null
-    );
+  return getStorageValue(STORAGE_KEYS.SAVINGS_DRAFT);
 }
 
-/**
- * Remove savings draft
- */
 function clearSavingsDraft() {
-
-    removeStorageValue(
-        STORAGE_KEYS.SAVINGS_DRAFT
-    );
-
-    return true;
+  return removeStorageValue(STORAGE_KEYS.SAVINGS_DRAFT);
 }
 
-/**
- * Check whether a savings draft exists
- */
 function hasSavingsDraft() {
-
-    return storageHasKey(
-        STORAGE_KEYS.SAVINGS_DRAFT
-    );
+  return storageHasKey(STORAGE_KEYS.SAVINGS_DRAFT);
 }
 
-/**
- * Update existing savings draft
- */
-function updateSavingsDraft(
-    updates = {}
-) {
-
-    const existing =
-        getSavingsDraft() || {};
-
-    saveSavingsDraft({
-
-        ...existing,
-
-        ...updates
-    });
-
-    return getSavingsDraft();
+function updateSavingsDraft(updates = {}) {
+  return updateDraft(
+    STORAGE_KEYS.SAVINGS_DRAFT,
+    updates,
+    'SAVINGS',
+  );
 }
 
-/**
- * Get draft timestamp
- */
 function getSavingsDraftTimestamp() {
-
-    const draft =
-        getSavingsDraft();
-
-    return (
-        draft?._metadata?.savedAt ||
-        null
-    );
+  return getDraftTimestamp(STORAGE_KEYS.SAVINGS_DRAFT);
 }
 
-/**
- * Determine whether draft is expired
- *
- * Default retention:
- * 7 days = 168 hours
- */
-function isSavingsDraftExpired(
-    maxAgeHours = 168
-) {
-
-    const timestamp =
-        getSavingsDraftTimestamp();
-
-    if (!timestamp) {
-
-        return true;
-    }
-
-    const savedDate =
-        new Date(timestamp);
-
-    const now =
-        new Date();
-
-    const ageHours =
-        (
-            now.getTime() -
-            savedDate.getTime()
-        ) /
-        (1000 * 60 * 60);
-
-    return ageHours >
-        maxAgeHours;
+function isSavingsDraftExpired(maxAgeHours = 168) {
+  return timestampIsExpired(
+    getSavingsDraftTimestamp(),
+    maxAgeHours,
+  );
 }
 
 /* ============================================================================
    ONBOARDING HELPERS
 ============================================================================ */
 
-/**
- * Save onboarding progress
- */
-function setOnboardingProgress(
-    progress
-) {
+function setOnboardingProgress(progress) {
+  const safeProgress =
+    progress &&
+    typeof progress === 'object' &&
+    !Array.isArray(progress)
+      ? progress
+      : {};
 
-    setStorageValue(
-        STORAGE_KEYS.ONBOARDING_PROGRESS,
-        {
-            ...progress,
-
-            _metadata: {
-
-                version: 1,
-
-                savedAt:
-                    new Date().toISOString(),
-
-                progressType:
-                    "ONBOARDING"
-            }
-        }
-    );
-
-    return true;
+  return setStorageValue(STORAGE_KEYS.ONBOARDING_PROGRESS, {
+    ...safeProgress,
+    _metadata: createDraftMetadata('ONBOARDING'),
+  });
 }
 
-/**
- * Get onboarding progress
- */
 function getOnboardingProgress() {
-
-    return getStorageValue(
-        STORAGE_KEYS.ONBOARDING_PROGRESS,
-        null
-    );
+  return getStorageValue(STORAGE_KEYS.ONBOARDING_PROGRESS);
 }
 
-/**
- * Update onboarding progress
- */
-function updateOnboardingProgress(
-    updates = {}
-) {
+function updateOnboardingProgress(updates = {}) {
+  const existing = getOnboardingProgress();
 
-    const existing =
-        getOnboardingProgress() || {};
+  const safeExisting =
+    existing &&
+    typeof existing === 'object' &&
+    !Array.isArray(existing)
+      ? existing
+      : {};
 
-    setOnboardingProgress({
+  const safeUpdates =
+    updates &&
+    typeof updates === 'object' &&
+    !Array.isArray(updates)
+      ? updates
+      : {};
 
-        ...existing,
+  setOnboardingProgress({
+    ...safeExisting,
+    ...safeUpdates,
+  });
 
-        ...updates
-    });
-
-    return getOnboardingProgress();
+  return getOnboardingProgress();
 }
 
-/**
- * Clear onboarding progress
- */
 function clearOnboardingProgress() {
-
-    removeStorageValue(
-        STORAGE_KEYS.ONBOARDING_PROGRESS
-    );
-
-    return true;
+  return removeStorageValue(STORAGE_KEYS.ONBOARDING_PROGRESS);
 }
 
-/**
- * Check if onboarding progress exists
- */
 function hasOnboardingProgress() {
-
-    return storageHasKey(
-        STORAGE_KEYS.ONBOARDING_PROGRESS
-    );
+  return storageHasKey(STORAGE_KEYS.ONBOARDING_PROGRESS);
 }
 
-/**
- * Get onboarding timestamp
- */
 function getOnboardingTimestamp() {
+  return getDraftTimestamp(STORAGE_KEYS.ONBOARDING_PROGRESS);
+}
 
-    const progress =
-        getOnboardingProgress();
-
-    return (
-        progress?._metadata?.savedAt ||
-        null
-    );
+function isOnboardingProgressExpired(maxAgeHours = 720) {
+  return timestampIsExpired(
+    getOnboardingTimestamp(),
+    maxAgeHours,
+  );
 }
 
 /**
- * Determine if onboarding progress is stale
- *
- * Default retention:
- * 30 days
- */
-function isOnboardingProgressExpired(
-    maxAgeHours = 720
-) {
-
-    const timestamp =
-        getOnboardingTimestamp();
-
-    if (!timestamp) {
-
-        return true;
-    }
-
-    const savedDate =
-        new Date(timestamp);
-
-    const now =
-        new Date();
-
-    const ageHours =
-        (
-            now.getTime() -
-            savedDate.getTime()
-        ) /
-        (1000 * 60 * 60);
-
-    return ageHours >
-        maxAgeHours;
-}
-
-/**
- * Calculate onboarding completion percentage
+ * Calculate onboarding completion percentage.
  */
 function getOnboardingCompletionPercentage() {
+  const progress = getOnboardingProgress();
 
-    const progress =
-        getOnboardingProgress();
+  if (!progress || !Array.isArray(progress.completedSteps)) {
+    return 0;
+  }
 
-    if (
-        !progress ||
-        !Array.isArray(
-            progress.completedSteps
-        )
-    ) {
+  const totalSteps = Number(progress.totalSteps);
 
-        return 0;
-    }
+  if (!Number.isFinite(totalSteps) || totalSteps <= 0) {
+    return 0;
+  }
 
-    const totalSteps =
-        progress.totalSteps || 1;
+  const completedCount = new Set(progress.completedSteps).size;
 
-    return Math.round(
-        (
-            progress.completedSteps.length /
-            totalSteps
-        ) * 100
-    );
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round((completedCount / totalSteps) * 100),
+    ),
+  );
 }
 
 /* ============================================================================
-   TEST UTILITIES
+   TEST DATA FACTORIES
 ============================================================================ */
 
-/**
- * Create mock authenticated user
- */
-function createMockUser(
-    overrides = {}
-) {
-
-    return {
-
-        id:
-            "test-user-id",
-
-        tenantId:
-            "tenant-001",
-
-        firstName:
-            "Justine",
-
-        lastName:
-            "Igune",
-
-        email:
-            "test@titech.co.ug",
-
-        phone:
-            "+256772123456",
-
-        role:
-            "MEMBER",
-
-        permissions: [],
-
-        isActive:
-            true,
-
-        createdAt:
-            new Date().toISOString(),
-
-        ...overrides
-    };
+function createMockUser(overrides = {}) {
+  return {
+    id: 'test-user-id',
+    tenantId: 'tenant-001',
+    firstName: 'Justine',
+    lastName: 'Igune',
+    email: 'test@titech.co.ug',
+    phone: '+256772123456',
+    role: 'MEMBER',
+    permissions: [],
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  };
 }
 
-/**
- * Create mock SACCO tenant
- */
-function createMockTenant(
-    overrides = {}
-) {
-
-    return {
-
-        id:
-            "tenant-001",
-
-        code:
-            "TITECH001",
-
-        name:
-            "TITech Demo SACCO",
-
-        country:
-            "UG",
-
-        currency:
-            "UGX",
-
-        isActive:
-            true,
-
-        createdAt:
-            new Date().toISOString(),
-
-        ...overrides
-    };
+function createMockTenant(overrides = {}) {
+  return {
+    id: 'tenant-001',
+    code: 'TITECH001',
+    name: 'TITech Demo SACCO',
+    country: 'UG',
+    currency: 'UGX',
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  };
 }
 
-/**
- * Create mock admin
- */
-function createMockAdmin(
-    overrides = {}
-) {
-
-    return createMockUser({
-
-        role:
-            "ADMIN",
-
-        permissions: [
-            "LOAN_APPROVE",
-            "LOAN_REJECT",
-            "MEMBER_CREATE",
-            "MEMBER_UPDATE",
-            "TENANT_MANAGE"
-        ],
-
-        ...overrides
-    });
+function createMockAdmin(overrides = {}) {
+  return createMockUser({
+    role: 'ADMIN',
+    permissions: [
+      'LOAN_APPROVE',
+      'LOAN_REJECT',
+      'MEMBER_CREATE',
+      'MEMBER_UPDATE',
+      'TENANT_MANAGE',
+    ],
+    ...overrides,
+  });
 }
 
-/**
- * Create mock loan officer
- */
-function createMockLoanOfficer(
-    overrides = {}
-) {
-
-    return createMockUser({
-
-        role:
-            "LOAN_OFFICER",
-
-        permissions: [
-            "LOAN_CREATE",
-            "LOAN_APPROVE",
-            "LOAN_VIEW"
-        ],
-
-        ...overrides
-    });
+function createMockLoanOfficer(overrides = {}) {
+  return createMockUser({
+    role: 'LOAN_OFFICER',
+    permissions: [
+      'LOAN_CREATE',
+      'LOAN_APPROVE',
+      'LOAN_VIEW',
+    ],
+    ...overrides,
+  });
 }
 
-/**
- * Create mock treasurer
- */
-function createMockTreasurer(
-    overrides = {}
-) {
-
-    return createMockUser({
-
-        role:
-            "TREASURER",
-
-        permissions: [
-            "SAVINGS_CREATE",
-            "SAVINGS_APPROVE",
-            "REPORT_VIEW"
-        ],
-
-        ...overrides
-    });
+function createMockTreasurer(overrides = {}) {
+  return createMockUser({
+    role: 'TREASURER',
+    permissions: [
+      'SAVINGS_CREATE',
+      'SAVINGS_APPROVE',
+      'REPORT_VIEW',
+    ],
+    ...overrides,
+  });
 }
 
-/**
- * Create mock loan draft
- */
-function createMockLoanDraft(
-    overrides = {}
-) {
-
-    return {
-
-        amount:
-            500000,
-
-        interestRate:
-            12,
-
-        repaymentPeriod:
-            12,
-
-        loanType:
-            "PERSONAL",
-
-        ...overrides
-    };
+function createMockLoanDraft(overrides = {}) {
+  return {
+    amount: 500000,
+    interestRate: 12,
+    repaymentPeriod: 12,
+    loanType: 'PERSONAL',
+    ...overrides,
+  };
 }
 
-/**
- * Create mock member draft
- */
-function createMockMemberDraft(
-    overrides = {}
-) {
-
-    return {
-
-        firstName:
-            "John",
-
-        lastName:
-            "Doe",
-
-        email:
-            "john@example.com",
-
-        phone:
-            "+256700000000",
-
-        ...overrides
-    };
+function createMockMemberDraft(overrides = {}) {
+  return {
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john@example.com',
+    phone: '+256700000000',
+    ...overrides,
+  };
 }
 
-/**
- * Create mock savings draft
- */
-function createMockSavingsDraft(
-    overrides = {}
-) {
-
-    return {
-
-        amount:
-            100000,
-
-        frequency:
-            "MONTHLY",
-
-        accountType:
-            "SAVINGS",
-
-        ...overrides
-    };
+function createMockSavingsDraft(overrides = {}) {
+  return {
+    amount: 100000,
+    frequency: 'MONTHLY',
+    accountType: 'SAVINGS',
+    ...overrides,
+  };
 }
 
-/**
- * Create onboarding progress
- */
-function createMockOnboardingProgress(
-    overrides = {}
-) {
-
-    return {
-
-        currentStep:
-            2,
-
-        totalSteps:
-            5,
-
-        completedSteps: [
-            1,
-            2
-        ],
-
-        ...overrides
-    };
+function createMockOnboardingProgress(overrides = {}) {
+  return {
+    currentStep: 2,
+    totalSteps: 5,
+    completedSteps: [1, 2],
+    ...overrides,
+  };
 }
 
 /* ============================================================================
-   EXPORTS
+   PUBLIC API
 ============================================================================ */
 
-module.exports = {
+const mockLocalStorageHelpers = {
+  STORAGE_KEYS,
+  SUPPORTED_THEMES,
 
-    /**
-     * Storage Constants
-     */
-    STORAGE_KEYS,
+  localStorageMock,
+  sessionStorageMock,
 
-    /**
-     * Storage Mocks
-     */
-    localStorageMock,
-    sessionStorageMock,
+  installStorageMocks,
+  uninstallStorageMocks,
+  resetStorage,
 
-    /**
-     * Mock Installation
-     */
-    installStorageMocks,
-    uninstallStorageMocks,
-    resetStorage,
+  safeParse,
+  safeStringify,
 
-    /**
-     * Safe Utilities
-     */
-    safeParse,
-    safeStringify,
+  setStorageValue,
+  getStorageValue,
+  removeStorageValue,
+  storageHasKey,
+  getStorageKeys,
+  getStorageSize,
+  clearApplicationStorage,
+  exportStorage,
 
-    /**
-     * Generic Storage Helpers
-     */
-    setStorageValue,
-    getStorageValue,
-    removeStorageValue,
+  setSessionValue,
+  getSessionValue,
+  removeSessionValue,
 
-    storageHasKey,
-    getStorageKeys,
-    getStorageSize,
+  setAuthSession,
+  getAuthSession,
+  clearAuthSession,
+  isAuthenticated,
+  hasAuthSession,
 
-    clearApplicationStorage,
-    exportStorage,
+  setTenant,
+  getTenant,
+  clearTenant,
+  hasTenant,
 
-    /**
-     * Session Storage Helpers
-     */
-    setSessionValue,
-    getSessionValue,
-    removeSessionValue,
+  setPermissions,
+  getPermissions,
+  clearPermissions,
+  hasPermissions,
+  hasPermission,
+  hasAllPermissions,
+  hasAnyPermission,
 
-    /**
-     * Authentication Helpers
-     */
-    setAuthSession,
-    getAuthSession,
-    clearAuthSession,
+  setTheme,
+  getTheme,
+  clearTheme,
+  hasTheme,
+  toggleTheme,
 
-    isAuthenticated,
-    hasAuthSession,
+  saveLoanDraft,
+  getLoanDraft,
+  clearLoanDraft,
+  hasLoanDraft,
+  updateLoanDraft,
+  getLoanDraftTimestamp,
+  isLoanDraftExpired,
 
-    /**
-     * Tenant Helpers
-     */
-    setTenant,
-    getTenant,
+  saveMemberDraft,
+  getMemberDraft,
+  clearMemberDraft,
+  hasMemberDraft,
+  updateMemberDraft,
+  getMemberDraftTimestamp,
+  isMemberDraftExpired,
 
-    clearTenant,
-    hasTenant,
+  saveSavingsDraft,
+  getSavingsDraft,
+  clearSavingsDraft,
+  hasSavingsDraft,
+  updateSavingsDraft,
+  getSavingsDraftTimestamp,
+  isSavingsDraftExpired,
 
-    /**
-     * Permission Helpers
-     */
-    setPermissions,
-    getPermissions,
+  setOnboardingProgress,
+  getOnboardingProgress,
+  updateOnboardingProgress,
+  clearOnboardingProgress,
+  hasOnboardingProgress,
+  getOnboardingTimestamp,
+  isOnboardingProgressExpired,
+  getOnboardingCompletionPercentage,
 
-    clearPermissions,
-    hasPermissions,
-
-    hasPermission,
-    hasAllPermissions,
-    hasAnyPermission,
-
-    /**
-     * Theme Helpers
-     */
-    SUPPORTED_THEMES,
-
-    setTheme,
-    getTheme,
-
-    clearTheme,
-
-    hasTheme,
-
-    toggleTheme,
-
-    /**
-     * Loan Draft Helpers
-     */
-    saveLoanDraft,
-    getLoanDraft,
-
-    clearLoanDraft,
-    hasLoanDraft,
-
-    updateLoanDraft,
-
-    getLoanDraftTimestamp,
-
-    isLoanDraftExpired,
-
-    /**
-     * Member Draft Helpers
-     */
-    saveMemberDraft,
-    getMemberDraft,
-
-    clearMemberDraft,
-    hasMemberDraft,
-
-    updateMemberDraft,
-
-    getMemberDraftTimestamp,
-
-    isMemberDraftExpired,
-
-    /**
-     * Savings Draft Helpers
-     */
-    saveSavingsDraft,
-    getSavingsDraft,
-
-    clearSavingsDraft,
-    hasSavingsDraft,
-
-    updateSavingsDraft,
-
-    getSavingsDraftTimestamp,
-
-    isSavingsDraftExpired,
-
-    /**
-     * Onboarding Helpers
-     */
-    setOnboardingProgress,
-    getOnboardingProgress,
-
-    updateOnboardingProgress,
-
-    clearOnboardingProgress,
-
-    hasOnboardingProgress,
-
-    getOnboardingTimestamp,
-
-    isOnboardingProgressExpired,
-
-    getOnboardingCompletionPercentage,
-
-    /**
-     * Test Factories
-     */
-    createMockUser,
-    createMockTenant,
-
-    createMockAdmin,
-    createMockLoanOfficer,
-    createMockTreasurer,
-
-    createMockLoanDraft,
-    createMockMemberDraft,
-    createMockSavingsDraft,
-
-    createMockOnboardingProgress
+  createMockUser,
+  createMockTenant,
+  createMockAdmin,
+  createMockLoanOfficer,
+  createMockTreasurer,
+  createMockLoanDraft,
+  createMockMemberDraft,
+  createMockSavingsDraft,
+  createMockOnboardingProgress,
 };
+
+/* ============================================================================
+   ESM EXPORTS
+============================================================================ */
+
+export {
+  STORAGE_KEYS,
+  SUPPORTED_THEMES,
+
+  localStorageMock,
+  sessionStorageMock,
+
+  installStorageMocks,
+  uninstallStorageMocks,
+  resetStorage,
+
+  safeParse,
+  safeStringify,
+
+  setStorageValue,
+  getStorageValue,
+  removeStorageValue,
+  storageHasKey,
+  getStorageKeys,
+  getStorageSize,
+  clearApplicationStorage,
+  exportStorage,
+
+  setSessionValue,
+  getSessionValue,
+  removeSessionValue,
+
+  setAuthSession,
+  getAuthSession,
+  clearAuthSession,
+  isAuthenticated,
+  hasAuthSession,
+
+  setTenant,
+  getTenant,
+  clearTenant,
+  hasTenant,
+
+  setPermissions,
+  getPermissions,
+  clearPermissions,
+  hasPermissions,
+  hasPermission,
+  hasAllPermissions,
+  hasAnyPermission,
+
+  setTheme,
+  getTheme,
+  clearTheme,
+  hasTheme,
+  toggleTheme,
+
+  saveLoanDraft,
+  getLoanDraft,
+  clearLoanDraft,
+  hasLoanDraft,
+  updateLoanDraft,
+  getLoanDraftTimestamp,
+  isLoanDraftExpired,
+
+  saveMemberDraft,
+  getMemberDraft,
+  clearMemberDraft,
+  hasMemberDraft,
+  updateMemberDraft,
+  getMemberDraftTimestamp,
+  isMemberDraftExpired,
+
+  saveSavingsDraft,
+  getSavingsDraft,
+  clearSavingsDraft,
+  hasSavingsDraft,
+  updateSavingsDraft,
+  getSavingsDraftTimestamp,
+  isSavingsDraftExpired,
+
+  setOnboardingProgress,
+  getOnboardingProgress,
+  updateOnboardingProgress,
+  clearOnboardingProgress,
+  hasOnboardingProgress,
+  getOnboardingTimestamp,
+  isOnboardingProgressExpired,
+  getOnboardingCompletionPercentage,
+
+  createMockUser,
+  createMockTenant,
+  createMockAdmin,
+  createMockLoanOfficer,
+  createMockTreasurer,
+  createMockLoanDraft,
+  createMockMemberDraft,
+  createMockSavingsDraft,
+  createMockOnboardingProgress,
+};
+
+export default mockLocalStorageHelpers;
+
+// Node.js versions with ESM/CommonJS interoperability support expose this
+// object directly to CommonJS require() consumers.
+export { mockLocalStorageHelpers as 'module.exports' };

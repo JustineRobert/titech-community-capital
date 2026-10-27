@@ -433,7 +433,7 @@ function assertValidPhase(phase) {
   if (!BOOTSTRAP_PHASES.includes(phase)) {
     throw new Error(
       `Unknown TITech bootstrap phase "${phase}". ` +
-        `Expected one of: ${BOOTSTRAP_PHASES.join(", ")}`,
+      `Expected one of: ${BOOTSTRAP_PHASES.join(", ")}`,
     );
   }
 }
@@ -487,8 +487,8 @@ function createAbortController() {
     signal: {
       aborted: false,
       reason: undefined,
-      addEventListener() {},
-      removeEventListener() {},
+      addEventListener() { },
+      removeEventListener() { },
     },
 
     abort(reason) {
@@ -569,7 +569,7 @@ export class BootstrapContext {
 
           throw new TypeError(
             `TITech BootstrapContext.state is read-only. ` +
-              `Use an approved lifecycle transition instead; attempted value "${state}".`,
+            `Use an approved lifecycle transition instead; attempted value "${state}".`,
           );
         },
       },
@@ -819,7 +819,7 @@ export class BootstrapContext {
 
     const allowedTransitions =
       LIFECYCLE_TRANSITIONS[
-        currentState
+      currentState
       ] || [];
 
     if (
@@ -861,19 +861,19 @@ export class BootstrapContext {
   isReady() {
     return (
       this.getState() ===
-        CONTEXT_STATES.READY &&
+      CONTEXT_STATES.READY &&
       this.runtime.ready === true &&
       this.runtime.acceptingTraffic ===
-        true &&
+      true &&
       this.runtime.shuttingDown ===
-        false
+      false
     );
   }
 
   isShuttingDown() {
     return (
       this.getState() ===
-        CONTEXT_STATES.SHUTTING_DOWN ||
+      CONTEXT_STATES.SHUTTING_DOWN ||
       this.runtime.shuttingDown === true
     );
   }
@@ -903,7 +903,7 @@ export class BootstrapContext {
     return [
       ...(
         LIFECYCLE_TRANSITIONS[
-          this.getState()
+        this.getState()
         ] || []
       ),
     ];
@@ -921,7 +921,7 @@ export class BootstrapContext {
     ) {
       throw new Error(
         `Cannot start TITech bootstrap context from state "${this.getState()}". ` +
-          "Create a new BootstrapContext for another bootstrap attempt.",
+        "Create a new BootstrapContext for another bootstrap attempt.",
       );
     }
 
@@ -998,10 +998,10 @@ export class BootstrapContext {
     this.runtime.startupDurationMs =
       this.startedAt
         ? Math.max(
-            0,
-            this.readyAt.getTime() -
-              this.startedAt.getTime(),
-          )
+          0,
+          this.readyAt.getTime() -
+          this.startedAt.getTime(),
+        )
         : null;
 
     this.recordEvent(
@@ -1073,9 +1073,9 @@ export class BootstrapContext {
         phase:
           phase
             ? sanitizeString(
-                phase,
-                MAX_PHASE_NAME_LENGTH,
-              )
+              phase,
+              MAX_PHASE_NAME_LENGTH,
+            )
             : null,
 
         error:
@@ -1121,11 +1121,11 @@ export class BootstrapContext {
 
     if (
       currentState !==
-        CONTEXT_STATES.STARTING &&
+      CONTEXT_STATES.STARTING &&
       currentState !==
-        CONTEXT_STATES.READY &&
+      CONTEXT_STATES.READY &&
       currentState !==
-        CONTEXT_STATES.FAILED
+      CONTEXT_STATES.FAILED
     ) {
       throw new Error(
         `Cannot begin TITech shutdown from state "${currentState}".`,
@@ -1210,10 +1210,10 @@ export class BootstrapContext {
     this.runtime.shutdownDurationMs =
       this.shutdownAt
         ? Math.max(
-            0,
-            this.stoppedAt.getTime() -
-              this.shutdownAt.getTime(),
-          )
+          0,
+          this.stoppedAt.getTime() -
+          this.shutdownAt.getTime(),
+        )
         : null;
 
     this.runtime.degraded =
@@ -1276,7 +1276,7 @@ export class BootstrapContext {
     if (nextPhase !== phase) {
       throw new Error(
         `TITech bootstrap phase "${phase}" is not the next canonical phase. ` +
-          `Expected "${nextPhase}".`,
+        `Expected "${nextPhase}".`,
       );
     }
 
@@ -1314,11 +1314,11 @@ export class BootstrapContext {
 
     if (
       record.state ===
-        PHASE_STATES.COMPLETED ||
+      PHASE_STATES.COMPLETED ||
       record.state ===
-        PHASE_STATES.FAILED ||
+      PHASE_STATES.FAILED ||
       record.state ===
-        PHASE_STATES.SKIPPED
+      PHASE_STATES.SKIPPED
     ) {
       throw new Error(
         `TITech bootstrap phase "${phase}" has already reached state "${record.state}".`,
@@ -1404,10 +1404,10 @@ export class BootstrapContext {
     record.durationMs =
       record.startedAt
         ? Math.max(
-            0,
-            timestamp.getTime() -
-              record.startedAt.getTime(),
-          )
+          0,
+          timestamp.getTime() -
+          record.startedAt.getTime(),
+        )
         : null;
 
     record.metadata = {
@@ -1443,9 +1443,9 @@ export class BootstrapContext {
 
     if (
       record.state !==
-        PHASE_STATES.RUNNING &&
+      PHASE_STATES.RUNNING &&
       record.state !==
-        PHASE_STATES.PENDING
+      PHASE_STATES.PENDING
     ) {
       throw new Error(
         `Cannot fail TITech bootstrap phase "${phase}" from state "${record.state}".`,
@@ -1463,10 +1463,10 @@ export class BootstrapContext {
     record.durationMs =
       record.startedAt
         ? Math.max(
-            0,
-            timestamp.getTime() -
-              record.startedAt.getTime(),
-          )
+          0,
+          timestamp.getTime() -
+          record.startedAt.getTime(),
+        )
         : null;
 
     record.error =
@@ -1610,8 +1610,8 @@ export class BootstrapContext {
       error:
         record.error
           ? {
-              ...record.error,
-            }
+            ...record.error,
+          }
           : null,
 
       metadata:
@@ -1873,10 +1873,10 @@ export class BootstrapContext {
         normalizedName,
       ) &&
       this.container[
-        normalizedName
+      normalizedName
       ] !== null &&
       this.container[
-        normalizedName
+      normalizedName
       ] !== undefined
     );
   }
@@ -1935,14 +1935,14 @@ export class BootstrapContext {
 
     throw new Error(
       "None of the required TITech bootstrap dependencies are available: " +
-        names
-          .map((name) =>
-            sanitizeString(
-              name,
-              MAX_DEPENDENCY_NAME_LENGTH,
-            ),
-          )
-          .join(", "),
+      names
+        .map((name) =>
+          sanitizeString(
+            name,
+            MAX_DEPENDENCY_NAME_LENGTH,
+          ),
+        )
+        .join(", "),
     );
   }
 
@@ -1978,8 +1978,7 @@ export class BootstrapContext {
         name,
         MAX_HOOK_NAME_LENGTH,
       ) ||
-      `shutdown-hook-${
-        this.shutdownHooks.length + 1
+      `shutdown-hook-${this.shutdownHooks.length + 1
       }`;
 
     if (
@@ -2095,9 +2094,9 @@ export class BootstrapContext {
 
     if (
       hook.status ===
-        "running" ||
+      "running" ||
       hook.status ===
-        "completed"
+      "completed"
     ) {
       throw new Error(
         `Cannot unregister TITech shutdown hook "${normalizedName}" after execution has begun.`,
@@ -2168,9 +2167,9 @@ export class BootstrapContext {
     for (const hook of this.shutdownHooks) {
       if (
         hook.status ===
-          "completed" ||
+        "completed" ||
         hook.status ===
-          "failed"
+        "failed"
       ) {
         continue;
       }
@@ -2267,7 +2266,7 @@ export class BootstrapContext {
             reject(
               new Error(
                 timeoutMessage ||
-                  "TITech shutdown hook timed out.",
+                "TITech shutdown hook timed out.",
               ),
             );
           }, normalizedTimeout);
@@ -2384,9 +2383,9 @@ export class BootstrapContext {
 
         return (
           state ===
-            PHASE_STATES.COMPLETED ||
+          PHASE_STATES.COMPLETED ||
           state ===
-            PHASE_STATES.SKIPPED
+          PHASE_STATES.SKIPPED
         );
       },
     );
@@ -2414,9 +2413,9 @@ export class BootstrapContext {
         encounteredPending &&
         (
           state ===
-            PHASE_STATES.COMPLETED ||
+          PHASE_STATES.COMPLETED ||
           state ===
-            PHASE_STATES.SKIPPED
+          PHASE_STATES.SKIPPED
         )
       ) {
         throw new Error(
@@ -2455,7 +2454,7 @@ export class BootstrapContext {
 
     for (
       const dependency of
-        mandatoryDependencies
+      mandatoryDependencies
     ) {
       if (
         !this.hasDependency(
@@ -2468,19 +2467,14 @@ export class BootstrapContext {
       }
     }
 
-    if (
-      missingDependencies.length > 0
-    ) {
-      const error =
-        new Error(
-          "TITech runtime readiness validation failed.",
-        );
+    if (missingDependencies.length > 0) {
+      const error = new Error(
+        `TITech runtime readiness validation failed. ` +
+        `Missing dependencies: ${missingDependencies.join(", ")}.`,
+      );
 
-      error.code =
-        "BOOTSTRAP_CONTEXT_NOT_READY";
-
-      error.missingDependencies =
-        missingDependencies;
+      error.code = "BOOTSTRAP_CONTEXT_NOT_READY";
+      error.missingDependencies = [...missingDependencies];
 
       throw error;
     }
@@ -2495,9 +2489,9 @@ export class BootstrapContext {
 
           return (
             state !==
-              PHASE_STATES.COMPLETED &&
+            PHASE_STATES.COMPLETED &&
             state !==
-              PHASE_STATES.SKIPPED
+            PHASE_STATES.SKIPPED
           );
         },
       );
@@ -2567,7 +2561,7 @@ export class BootstrapContext {
       this.history.splice(
         0,
         this.history.length -
-          this.historyLimit,
+        this.historyLimit,
       );
     }
 
@@ -2624,8 +2618,8 @@ export class BootstrapContext {
       error:
         hook.error
           ? {
-              ...hook.error,
-            }
+            ...hook.error,
+          }
           : null,
     };
   }
@@ -2657,17 +2651,17 @@ export class BootstrapContext {
         this.stoppedAt,
 
       runtime:
-        {
-          ...this.runtime,
-        },
+      {
+        ...this.runtime,
+      },
 
       application:
-        {
-          available:
-            Boolean(
-              this.application,
-            ),
-        },
+      {
+        available:
+          Boolean(
+            this.application,
+          ),
+      },
 
       phases:
         Object.entries(
@@ -2693,8 +2687,8 @@ export class BootstrapContext {
               error:
                 record.error
                   ? {
-                      ...record.error,
-                    }
+                    ...record.error,
+                  }
                   : null,
 
               metadata:
@@ -2730,62 +2724,62 @@ export class BootstrapContext {
         this.isBootstrapComplete(),
 
       dependencies:
-        {
-          environment:
-            this.hasDependency(
-              "environment",
-            ),
+      {
+        environment:
+          this.hasDependency(
+            "environment",
+          ),
 
-          configuration:
-            this.hasDependency(
-              "configuration",
-            ),
+        configuration:
+          this.hasDependency(
+            "configuration",
+          ),
 
-          logger:
-            this.hasDependency(
-              "logger",
-            ),
+        logger:
+          this.hasDependency(
+            "logger",
+          ),
 
-          observability:
-            this.hasDependency(
-              "observability",
-            ),
+        observability:
+          this.hasDependency(
+            "observability",
+          ),
 
-          readiness:
-            this.hasDependency(
-              "readiness",
-            ),
+        readiness:
+          this.hasDependency(
+            "readiness",
+          ),
 
-          resilience:
-            this.hasDependency(
-              "resilience",
-            ),
+        resilience:
+          this.hasDependency(
+            "resilience",
+          ),
 
-          infrastructure:
-            this.hasDependency(
-              "infrastructure",
-            ),
+        infrastructure:
+          this.hasDependency(
+            "infrastructure",
+          ),
 
-          services:
-            this.hasDependency(
-              "services",
-            ),
+        services:
+          this.hasDependency(
+            "services",
+          ),
 
-          middleware:
-            this.hasDependency(
-              "middleware",
-            ),
+        middleware:
+          this.hasDependency(
+            "middleware",
+          ),
 
-          routes:
-            this.hasDependency(
-              "routes",
-            ),
+        routes:
+          this.hasDependency(
+            "routes",
+          ),
 
-          httpServer:
-            this.hasDependency(
-              "httpServer",
-            ),
-        },
+        httpServer:
+          this.hasDependency(
+            "httpServer",
+          ),
+      },
 
       containerDependencies:
         Object.keys(
@@ -2802,24 +2796,24 @@ export class BootstrapContext {
         this.historyLimit,
 
       signal:
-        {
-          aborted:
-            this.signal.aborted,
+      {
+        aborted:
+          this.signal.aborted,
 
-          reason:
-            this.signal.aborted
-              ? sanitizeString(
-                  this.signal.reason,
-                  MAX_REASON_LENGTH,
-                )
-              : null,
-        },
+        reason:
+          this.signal.aborted
+            ? sanitizeString(
+              this.signal.reason,
+              MAX_REASON_LENGTH,
+            )
+            : null,
+      },
 
       error:
         this.error
           ? {
-              ...this.error,
-            }
+            ...this.error,
+          }
           : null,
 
       metadata:

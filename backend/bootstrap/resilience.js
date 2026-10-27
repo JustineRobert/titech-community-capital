@@ -619,7 +619,7 @@ function isMissingModuleError(
   candidate,
 ) {
   if (
-    error?.code !== 'ERR_MODULE_NOT_FOUND'
+    !['ERR_MODULE_NOT_FOUND', 'MODULE_NOT_FOUND'].includes(error?.code)
   ) {
     return false;
   }

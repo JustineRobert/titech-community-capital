@@ -1,275 +1,253 @@
-"use strict";
 
 /**
- * ============================================================
+ * ============================================================================
  * TITech Community Capital LTD
- * API Error
- * ============================================================
- * Enterprise Grade Error Handling
+ * File: backend/errors/ApiError.js
+ * Standardized API Error — Native ESM
+ * ============================================================================
  *
  * Features:
  * - Standardized API errors
  * - HTTP status support
- * - Error codes
+ * - Stable error codes
  * - Validation errors
  * - Loan workflow errors
  * - Payment provider errors
- * - Correlation IDs
- * - Structured logging
- * - Jest-friendly
+ * - Correlation metadata
+ * - Consistent JSON serialization
+ * - CommonJS interoperability for supported Node.js runtimes
  *
- * ============================================================
+ * Module strategy:
+ * - Application source uses native ESM.
+ * - Supports default, named HttpStatus and individual named exports.
+ * - The class is available as both a named and default export.
+ * - CommonJS interoperability is declared exactly once.
+ * ============================================================================
  */
 
+import * as httpStatusModule from '../constants/httpStatus.js';
+
+/**
+ * Support the existing HTTP status module's available export shape.
+ */
 const HttpStatus =
-    require("../constants/httpStatus");
+  httpStatusModule.default ??
+  httpStatusModule.HttpStatus ??
+  httpStatusModule;
 
+/**
+ * Standardized application error for API and domain operations.
+ *
+ * Existing constructor signature:
+ * new ApiError(message, status, code, details, metadata)
+ */
 class ApiError extends Error {
+  constructor(
+    message,
+    status = HttpStatus.INTERNAL_SERVER_ERROR,
+    code = 'INTERNAL_ERROR',
+    details = null,
+    metadata = {},
+  ) {
+    super(message);
 
-    constructor(
-        message,
-        status = HttpStatus.INTERNAL_SERVER_ERROR,
-        code = "INTERNAL_ERROR",
-        details = null,
-        metadata = {}
-    ) {
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.details = details;
+    this.metadata = metadata;
+    this.timestamp = new Date().toISOString();
 
-        super(message);
-
-        this.name = this.constructor.name;
-
-        this.status = status;
-
-        this.code = code;
-
-        this.details = details;
-
-        this.metadata = metadata;
-
-        this.timestamp =
-            new Date().toISOString();
-
-        Error.captureStackTrace(
-            this,
-            this.constructor
-        );
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, this.constructor);
     }
+  }
 
-    /**
-     * ==========================================
-     * SERIALIZE
-     * ==========================================
-     */
-    toJSON() {
+  /**
+   * Serialize using TITech's established API response structure.
+   */
+  toJSON() {
+    return {
+      success: false,
+      error: {
+        name: this.name,
+        code: this.code,
+        message: this.message,
+        status: this.status,
+        details: this.details,
+        metadata: this.metadata,
+        timestamp: this.timestamp,
+      },
+    };
+  }
 
-        return {
+  /**
+   * Validation error.
+   */
+  static validation(
+    message = 'Validation failed',
+    details = null,
+  ) {
+    return new ApiError(
+      message,
+      HttpStatus.BAD_REQUEST,
+      'VALIDATION_ERROR',
+      details,
+    );
+  }
 
-            success: false,
+  /**
+   * Authentication error.
+   */
+  static unauthorized(message = 'Unauthorized') {
+    return new ApiError(
+      message,
+      HttpStatus.UNAUTHORIZED,
+      'UNAUTHORIZED',
+    );
+  }
 
-            error: {
+  /**
+   * Authorization error.
+   */
+  static forbidden(message = 'Access denied') {
+    return new ApiError(
+      message,
+      HttpStatus.FORBIDDEN,
+      'FORBIDDEN',
+    );
+  }
 
-                name: this.name,
+  /**
+   * Resource not found.
+   */
+  static notFound(message = 'Resource not found') {
+    return new ApiError(
+      message,
+      HttpStatus.NOT_FOUND,
+      'NOT_FOUND',
+    );
+  }
 
-                code: this.code,
+  /**
+   * Conflict error.
+   */
+  static conflict(message = 'Conflict detected') {
+    return new ApiError(
+      message,
+      HttpStatus.CONFLICT,
+      'CONFLICT',
+    );
+  }
 
-                message: this.message,
+  /**
+   * Payment failure.
+   */
+  static paymentFailed(
+    message = 'Payment failed',
+    details = null,
+  ) {
+    return new ApiError(
+      message,
+      HttpStatus.PAYMENT_REQUIRED ??
+        HttpStatus.BAD_REQUEST,
+      'PAYMENT_FAILED',
+      details,
+    );
+  }
 
-                status: this.status,
+  /**
+   * Insufficient funds.
+   */
+  static insufficientFunds(
+    message = 'Insufficient funds',
+  ) {
+    return new ApiError(
+      message,
+      HttpStatus.INSUFFICIENT_FUNDS ??
+        HttpStatus.PAYMENT_REQUIRED ??
+        HttpStatus.UNPROCESSABLE_ENTITY ??
+        HttpStatus.BAD_REQUEST,
+      'INSUFFICIENT_FUNDS',
+    );
+  }
 
-                details: this.details,
+  /**
+   * Rate-limit error.
+   */
+  static rateLimitExceeded(
+    message = 'Too many requests',
+  ) {
+    return new ApiError(
+      message,
+      HttpStatus.TOO_MANY_REQUESTS,
+      'RATE_LIMIT_EXCEEDED',
+    );
+  }
 
-                metadata: this.metadata,
+  /**
+   * Loan eligibility error.
+   */
+  static loanNotEligible(
+    message = 'Member not eligible for loan',
+    details = null,
+  ) {
+    return new ApiError(
+      message,
+      HttpStatus.LOAN_NOT_ELIGIBLE ??
+        HttpStatus.UNPROCESSABLE_ENTITY ??
+        HttpStatus.BAD_REQUEST,
+      'LOAN_NOT_ELIGIBLE',
+      details,
+    );
+  }
 
-                timestamp: this.timestamp
-            }
-        };
-    }
+  /**
+   * Duplicate transaction.
+   */
+  static duplicateTransaction(transactionId) {
+    return new ApiError(
+      `Duplicate transaction detected: ${transactionId}`,
+      HttpStatus.CONFLICT,
+      'DUPLICATE_TRANSACTION',
+    );
+  }
 
-    /**
-     * ==========================================
-     * VALIDATION ERROR
-     * ==========================================
-     */
-    static validation(
-        message = "Validation failed",
-        details = null
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.BAD_REQUEST,
-            "VALIDATION_ERROR",
-            details
-        );
-    }
-
-    /**
-     * ==========================================
-     * AUTHENTICATION ERROR
-     * ==========================================
-     */
-    static unauthorized(
-        message = "Unauthorized"
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.UNAUTHORIZED,
-            "UNAUTHORIZED"
-        );
-    }
-
-    /**
-     * ==========================================
-     * FORBIDDEN
-     * ==========================================
-     */
-    static forbidden(
-        message = "Access denied"
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.FORBIDDEN,
-            "FORBIDDEN"
-        );
-    }
-
-    /**
-     * ==========================================
-     * NOT FOUND
-     * ==========================================
-     */
-    static notFound(
-        message = "Resource not found"
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.NOT_FOUND,
-            "NOT_FOUND"
-        );
-    }
-
-    /**
-     * ==========================================
-     * CONFLICT
-     * ==========================================
-     */
-    static conflict(
-        message = "Conflict detected"
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.CONFLICT,
-            "CONFLICT"
-        );
-    }
-
-    /**
-     * ==========================================
-     * PAYMENT FAILURE
-     * ==========================================
-     */
-    static paymentFailed(
-        message = "Payment failed",
-        details = null
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.PAYMENT_REQUIRED,
-            "PAYMENT_FAILED",
-            details
-        );
-    }
-
-    /**
-     * ==========================================
-     * INSUFFICIENT FUNDS
-     * ==========================================
-     */
-    static insufficientFunds(
-        message = "Insufficient funds"
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.INSUFFICIENT_FUNDS ||
-                HttpStatus.PAYMENT_REQUIRED,
-            "INSUFFICIENT_FUNDS"
-        );
-    }
-
-    /**
-     * ==========================================
-     * RATE LIMITING
-     * ==========================================
-     */
-    static rateLimitExceeded(
-        message = "Too many requests"
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.TOO_MANY_REQUESTS,
-            "RATE_LIMIT_EXCEEDED"
-        );
-    }
-
-    /**
-     * ==========================================
-     * LOAN NOT ELIGIBLE
-     * ==========================================
-     */
-    static loanNotEligible(
-        message = "Member not eligible for loan",
-        details = null
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.LOAN_NOT_ELIGIBLE ||
-                HttpStatus.BAD_REQUEST,
-            "LOAN_NOT_ELIGIBLE",
-            details
-        );
-    }
-
-    /**
-     * ==========================================
-     * DUPLICATE TRANSACTION
-     * ==========================================
-     */
-    static duplicateTransaction(
-        transactionId
-    ) {
-
-        return new ApiError(
-            `Duplicate transaction detected: ${transactionId}`,
-            HttpStatus.CONFLICT,
-            "DUPLICATE_TRANSACTION"
-        );
-    }
-
-    /**
-     * ==========================================
-     * INTERNAL ERROR
-     * ==========================================
-     */
-    static internal(
-        message = "Internal server error",
-        details = null
-    ) {
-
-        return new ApiError(
-            message,
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "INTERNAL_ERROR",
-            details
-        );
-    }
+  /**
+   * Internal application error.
+   */
+  static internal(
+    message = 'Internal server error',
+    details = null,
+  ) {
+    return new ApiError(
+      message,
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'INTERNAL_ERROR',
+      details,
+    );
+  }
 }
 
-module.exports = ApiError;
+/* ============================================================================
+ * Public API
+ * ========================================================================== */
+
+/**
+ * Native ESM:
+ *   import ApiError from '../errors/ApiError.js';
+ *   import { ApiError } from '../errors/ApiError.js';
+ */
+export { ApiError };
+export default ApiError;
+
+/**
+ * CommonJS interoperability for supported Node.js runtimes.
+ *
+ * Preserve the legacy class-returning interface:
+ *   const ApiError = require('../errors/ApiError.js');
+ *
+ * Node.js must support the special ESM export name "module.exports".
+ * Verify Jest interoperability separately.
+ */
+export { ApiError as 'module.exports' };

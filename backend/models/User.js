@@ -8,69 +8,19 @@
  *   backend/models/User.js
  *
  * Purpose:
- *   Enterprise identity, authentication, authorization, security, KYC/AML,
- *   MFA, mobile-money, referral and tenant-aware user persistence.
+ *   Identity, authentication, authorization, security, KYC/AML, MFA,
+ *   mobile-money, referrals and tenant-aware user persistence.
  *
- * Architecture:
- *
- *   Tenant
- *      │
- *      └── User
- *           ├── Authentication
- *           ├── Authorization
- *           ├── Security
- *           ├── KYC / AML
- *           ├── MFA
- *           ├── Mobile Money
- *           ├── Referral
- *           └── Audit Metadata
- *
- * SECURITY PRINCIPLES
- * ----------------------------------------------------------------------------
- * - Native ESM; compatible with package.json "type": "module".
- * - Passwords are never returned by default.
- * - Passwords are hashed using bcrypt.
- * - Password reset and verification tokens are stored only as SHA-256 hashes.
- * - MFA secrets and backup codes are protected with select:false.
- * - Tenant isolation is represented directly on the user.
- * - Referral counters are server-controlled.
- * - Sensitive authentication fields are excluded from JSON serialization.
- * - Authentication state transitions are explicit.
- * - Password changes update security/session metadata.
- * - Duplicate email/referral identifiers are prevented by indexes.
- * - No financial balance is stored directly on User.
- * - User.bonus is retained only for legacy compatibility and is NOT a ledger.
- *
- * IMPORTANT
- * ----------------------------------------------------------------------------
- * Financial balances MUST NOT be implemented on this model.
- *
- * Use:
- *   Savings / Account / Ledger / Transaction
- *
- * for authoritative financial state.
- *
- * Password reset architecture:
- * ----------------------------------------------------------------------------
- * TITech may use the dedicated PasswordResetToken model/service for modern
- * reset-token lifecycle management.
- *
- * The legacy User reset-token fields/methods are intentionally retained for
- * backward compatibility with existing consumers and migration paths.
- *
- * Email verification:
- * ----------------------------------------------------------------------------
- * `isVerified` is the canonical user field.
- *
- * `security.emailVerifiedAt` stores the verification timestamp.
- *
- * Do not introduce a second `isEmailVerified` field.
- *
- * Tenant identity:
- * ----------------------------------------------------------------------------
- * `tenantId` remains Schema.Types.ObjectId(ref: "Tenant").
- *
- * Services/controllers must preserve ObjectId semantics when querying MongoDB.
+ * Security invariants:
+ *   - Native ESM.
+ *   - Passwords are bcrypt-hashed before persistence.
+ *   - Password reset and verification tokens are stored as SHA-256 hashes.
+ *   - Sensitive authentication fields use select:false.
+ *   - Tenant identity remains ObjectId(ref: "Tenant").
+ *   - Email identity is globally unique.
+ *   - Referral identity is unique when present.
+ *   - No authoritative financial balance is stored on User.
+ *   - Legacy bonus is not a financial ledger.
  *
  * ============================================================================
  */
@@ -104,13 +54,9 @@ const DEFAULT_LOCK_MINUTES = 15;
 
 const MAX_NAME_LENGTH = 100;
 const MAX_EMAIL_LENGTH = 254;
-
 const MAX_IP_LENGTH = 128;
 const MAX_USER_AGENT_LENGTH = 1024;
 
-/**
- * Never allow an invalid environment value to weaken password hashing.
- */
 const configuredBcryptRounds = Number.parseInt(
   process.env.BCRYPT_ROUNDS || String(DEFAULT_BCRYPT_ROUNDS),
   10
@@ -138,7 +84,6 @@ export const USER_ROLES = Object.freeze([
   "group_admin",
   "tenant_admin",
   "platform_admin",
-  // Compatibility aliases retained for existing data and integrations.
   "user",
   "admin",
   "super_admin",
@@ -198,9 +143,7 @@ function normalizeName(value) {
     return value;
   }
 
-  return value
-    .trim()
-    .replace(/\s+/g, " ");
+  return value.trim().replace(/\s+/g, " ");
 }
 
 function normalizePhone(value) {
@@ -230,13 +173,6 @@ function isValidObjectId(value) {
   return mongoose.Types.ObjectId.isValid(value);
 }
 
-/**
- * bcrypt hashes currently supported by this model.
- *
- * $2a$...
- * $2b$...
- * $2y$...
- */
 function isBcryptHash(value) {
   return (
     typeof value === "string" &&
@@ -244,16 +180,6 @@ function isBcryptHash(value) {
   );
 }
 
-/**
- * Strong application-level password validation.
- *
- * Existing authentication endpoints should continue to apply their own
- * request-level password policy. This schema validation prevents obviously
- * weak passwords from being persisted through direct model usage.
- *
- * Bcrypt hashes are explicitly accepted because save/query middleware may
- * encounter an already-hashed internal value.
- */
 function isStrongPassword(value) {
   if (typeof value !== "string") {
     return false;
@@ -278,9 +204,6 @@ function isStrongPassword(value) {
   );
 }
 
-/**
- * Constant-time comparison for SHA-256 token hashes.
- */
 function safeTokenCompare(storedHash, suppliedTokenHash) {
   if (
     typeof storedHash !== "string" ||
@@ -322,62 +245,99 @@ function maskMobileMoneyAccount(value) {
   return `****${value.slice(-4)}`;
 }
 
-/**
- * Query updates must never be able to bypass password hashing through an
- * aggregation/update pipeline.
- */
-function pipelineContainsPasswordUpdate(updatePipeline) {
-  if (!Array.isArray(updatePipeline)) {
-    return false;
-  }
-
-  for (const stage of updatePipeline) {
-    if (!stage || typeof stage !== "object") {
-      continue;
-    }
-
-    const setOperation = stage.$set || stage.$addFields;
-
-    if (
-      setOperation &&
-      typeof setOperation === "object" &&
-      hasOwn(setOperation, "password")
-    ) {
-      return true;
-    }
-
-    if (
-      stage.$replaceWith &&
-      typeof stage.$replaceWith === "object" &&
-      hasOwn(stage.$replaceWith, "password")
-    ) {
-      return true;
-    }
-
-    if (
-      stage.$replaceRoot &&
-      typeof stage.$replaceRoot === "object"
-    ) {
-      const replacement = stage.$replaceRoot.newRoot;
-
-      if (
-        replacement &&
-        typeof replacement === "object" &&
-        hasOwn(replacement, "password")
-      ) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+function isPasswordFieldPath(path) {
+  return (
+    typeof path === "string" &&
+    (
+      path === "password" ||
+      path.endsWith(".password")
+    )
+  );
 }
 
 /**
- * Normalize query-update password location.
+ * Recursively find password field paths in update documents and aggregation
+ * update pipelines. The recursive check is defensive: a password field can
+ * otherwise be hidden inside nested replacement or expression objects.
+ */
+function collectPasswordMutationPaths(
+  value,
+  prefix = "",
+  visited = new Set(),
+  paths = []
+) {
+  if (
+    value === null ||
+    typeof value !== "object"
+  ) {
+    return paths;
+  }
+
+  if (visited.has(value)) {
+    return paths;
+  }
+
+  visited.add(value);
+
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      collectPasswordMutationPaths(
+        value[index],
+        `${prefix}[${index}]`,
+        visited,
+        paths
+      );
+    }
+
+    return paths;
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+
+    if (isPasswordFieldPath(key) || isPasswordFieldPath(path)) {
+      paths.push(path);
+    }
+
+    collectPasswordMutationPaths(
+      child,
+      path,
+      visited,
+      paths
+    );
+  }
+
+  return paths;
+}
+
+function pipelineContainsPasswordUpdate(updatePipeline) {
+  return (
+    Array.isArray(updatePipeline) &&
+    collectPasswordMutationPaths(updatePipeline).length > 0
+  );
+}
+
+function getPasswordMutationLocations(update) {
+  if (
+    !update ||
+    typeof update !== "object"
+  ) {
+    return [];
+  }
+
+  return collectPasswordMutationPaths(update);
+}
+
+/**
+ * Only top-level replacement and $set password assignments are supported by
+ * the hashing middleware. Other password operators are rejected.
  */
 function extractPasswordFromUpdate(update) {
-  if (!update || typeof update !== "object" || Array.isArray(update)) {
+  if (
+    !update ||
+    typeof update !== "object" ||
+    Array.isArray(update)
+  ) {
     return undefined;
   }
 
@@ -391,12 +351,139 @@ function extractPasswordFromUpdate(update) {
   if (
     update.$set &&
     typeof update.$set === "object" &&
+    !Array.isArray(update.$set) &&
     typeof update.$set.password === "string"
   ) {
     return update.$set.password;
   }
 
   return undefined;
+}
+
+function pathsOverlap(left, right) {
+  return (
+    left === right ||
+    left.startsWith(`${right}.`) ||
+    right.startsWith(`${left}.`)
+  );
+}
+
+/**
+ * Prevent password middleware from creating conflicting updates to the
+ * security/session fields it manages itself.
+ */
+function assertPasswordMetadataPathsAvailable(update) {
+  const protectedPaths = [
+    "security.lastPasswordChange",
+    "security.securityVersion",
+    "sessionMetrics.sessionVersion",
+  ];
+
+  for (const [operator, payload] of Object.entries(update)) {
+    if (
+      !operator.startsWith("$") ||
+      !payload ||
+      typeof payload !== "object" ||
+      Array.isArray(payload)
+    ) {
+      continue;
+    }
+
+    for (const path of Object.keys(payload)) {
+      const overlaps = protectedPaths.some(
+        (protectedPath) =>
+          pathsOverlap(path, protectedPath)
+      );
+
+      if (!overlaps) {
+        continue;
+      }
+
+      /**
+       * A caller-supplied increment of the version fields is allowed. The
+       * middleware will add its own increment to the requested amount.
+       */
+      if (
+        operator === "$inc" &&
+        (
+          path === "security.securityVersion" ||
+          path === "sessionMetrics.sessionVersion"
+        )
+      ) {
+        continue;
+      }
+
+      throw new Error(
+        `Password updates cannot directly modify ${path}; ` +
+        "the password security middleware owns this field."
+      );
+    }
+  }
+}
+
+/**
+ * Prepare a newly inserted user password. This is shared by insertMany
+ * middleware so it does not persist plaintext passwords without save hooks.
+ */
+async function prepareInsertedPassword(document) {
+  if (
+    !document ||
+    typeof document !== "object"
+  ) {
+    throw new TypeError(
+      "User insertMany entries must be objects."
+    );
+  }
+
+  if (
+    typeof document.password !== "string" ||
+    document.password.length === 0
+  ) {
+    throw new Error(
+      "A password must be supplied when inserting a user."
+    );
+  }
+
+  if (!isBcryptHash(document.password)) {
+    if (!isStrongPassword(document.password)) {
+      throw new Error(
+        "Password must be 12-128 characters and contain uppercase, " +
+        "lowercase, number and special character."
+      );
+    }
+
+    document.password = await bcrypt.hash(
+      document.password,
+      SALT_ROUNDS
+    );
+  }
+
+  const now = new Date();
+
+  const security =
+    document.security &&
+    typeof document.security === "object"
+      ? document.security
+      : {};
+
+  security.lastPasswordChange =
+    security.lastPasswordChange || now;
+
+  security.securityVersion =
+    Number(security.securityVersion || 1) + 1;
+
+  document.security = security;
+
+  const sessionMetrics =
+    document.sessionMetrics &&
+    typeof document.sessionMetrics === "object"
+      ? document.sessionMetrics
+      : {};
+
+  sessionMetrics.sessionVersion =
+    Number(sessionMetrics.sessionVersion || 1) + 1;
+
+  document.sessionMetrics = sessionMetrics;
 }
 
 /**
@@ -567,11 +654,6 @@ const amlSchema = new Schema(
  * ============================================================================
  * MFA SCHEMA
  * ============================================================================
- *
- * Sensitive values intentionally use select:false.
- *
- * Encryption-at-rest for MFA secrets should additionally be handled by the
- * security/application infrastructure where supported.
  */
 
 const mfaSchema = new Schema(
@@ -818,12 +900,6 @@ const referralsSchema = new Schema(
 
 const userSchema = new Schema(
   {
-    /**
-     * ========================================================================
-     * BASIC INFORMATION
-     * ========================================================================
-     */
-
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -860,7 +936,8 @@ const userSchema = new Schema(
           );
         },
         message:
-          "Password must be 12-128 characters and contain uppercase, lowercase, number and special character",
+          "Password must be 12-128 characters and contain uppercase, " +
+          "lowercase, number and special character",
       },
     },
 
@@ -879,12 +956,6 @@ const userSchema = new Schema(
         message: "Phone must be in valid E.164 format",
       },
     },
-
-    /**
-     * ========================================================================
-     * AUTHORIZATION
-     * ========================================================================
-     */
 
     role: {
       type: String,
@@ -907,21 +978,14 @@ const userSchema = new Schema(
     },
 
     /**
-     * Canonical email verification state.
-     *
-     * Do not add a second `isEmailVerified` field.
+     * Canonical email verification field.
+     * Do not introduce a duplicate isEmailVerified field.
      */
     isVerified: {
       type: Boolean,
       default: false,
       index: true,
     },
-
-    /**
-     * ========================================================================
-     * TENANT
-     * ========================================================================
-     */
 
     tenantId: {
       type: Schema.Types.ObjectId,
@@ -931,22 +995,10 @@ const userSchema = new Schema(
       default: null,
     },
 
-    /**
-     * ========================================================================
-     * PROFILE
-     * ========================================================================
-     */
-
     profile: {
       type: profileSchema,
       default: () => ({}),
     },
-
-    /**
-     * ========================================================================
-     * KYC / AML
-     * ========================================================================
-     */
 
     kyc: {
       type: kycSchema,
@@ -958,37 +1010,15 @@ const userSchema = new Schema(
       default: () => ({}),
     },
 
-    /**
-     * ========================================================================
-     * MFA
-     * ========================================================================
-     */
-
     mfa: {
       type: mfaSchema,
       default: () => ({}),
     },
 
-    /**
-     * ========================================================================
-     * MOBILE MONEY
-     * ========================================================================
-     */
-
     mobileMoney: {
       type: mobileMoneySchema,
       default: () => ({}),
     },
-
-    /**
-     * ========================================================================
-     * EMAIL VERIFICATION TOKENS
-     * ========================================================================
-     *
-     * Legacy-compatible User-level token mechanism.
-     *
-     * Modern verification flows may use a dedicated token service/model.
-     */
 
     verificationToken: {
       type: String,
@@ -1001,19 +1031,8 @@ const userSchema = new Schema(
       type: Date,
       default: null,
       select: false,
-      index: true,
+      // Index declared once below with an explicit schema index.
     },
-
-    /**
-     * ========================================================================
-     * PASSWORD RESET TOKENS
-     * ========================================================================
-     *
-     * Legacy-compatible User-level reset mechanism.
-     *
-     * The dedicated PasswordResetToken model remains preferred for modern
-     * lifecycle management where already integrated.
-     */
 
     resetPasswordToken: {
       type: String,
@@ -1026,14 +1045,8 @@ const userSchema = new Schema(
       type: Date,
       default: null,
       select: false,
-      index: true,
+      // Index declared once below with an explicit schema index.
     },
-
-    /**
-     * ========================================================================
-     * SECURITY
-     * ========================================================================
-     */
 
     failedLoginAttempts: {
       type: Number,
@@ -1068,26 +1081,6 @@ const userSchema = new Schema(
       default: () => ({}),
     },
 
-    /**
-     * ========================================================================
-     * REFERRALS
-     * ========================================================================
-     *
-     * User owns referral identity/statistics only.
-     *
-     * Referral financial rewards MUST be issued through:
-     *
-     *   Referral
-     *      ↓
-     *   ReferralReward
-     *      ↓
-     *   ReferralRewardService
-     *      ↓
-     *   Transaction / Ledger
-     *
-     * Do not use `bonus` as an authoritative financial balance.
-     */
-
     referralCode: {
       type: String,
       sparse: true,
@@ -1098,17 +1091,14 @@ const userSchema = new Schema(
       set: normalizeReferralCode,
     },
 
+    /**
+     * Legacy compatibility only.
+     * This is not an authoritative financial balance.
+     */
     bonus: {
       type: Number,
       default: 0,
       min: 0,
-
-      /**
-       * Legacy compatibility field.
-       *
-       * Financial applications must NOT use this as the authoritative
-       * reward balance.
-       */
       immutable: false,
     },
 
@@ -1116,12 +1106,6 @@ const userSchema = new Schema(
       type: referralsSchema,
       default: () => ({}),
     },
-
-    /**
-     * ========================================================================
-     * AUDIT
-     * ========================================================================
-     */
 
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -1135,23 +1119,11 @@ const userSchema = new Schema(
       default: null,
     },
 
-    /**
-     * ========================================================================
-     * SOFT DELETE
-     * ========================================================================
-     */
-
     deletedAt: {
       type: Date,
       default: null,
       index: true,
     },
-
-    /**
-     * ========================================================================
-     * MODEL VERSION
-     * ========================================================================
-     */
 
     schemaVersion: {
       type: Number,
@@ -1176,9 +1148,6 @@ const userSchema = new Schema(
         delete ret._id;
         delete ret.__v;
 
-        /**
-         * Authentication/security secrets.
-         */
         delete ret.password;
         delete ret.resetPasswordToken;
         delete ret.resetPasswordExpires;
@@ -1187,26 +1156,14 @@ const userSchema = new Schema(
         delete ret.failedLoginAttempts;
         delete ret.lockUntil;
         delete ret.passwordHistory;
-
-        /**
-         * Security telemetry should not be exposed by generic user JSON.
-         *
-         * Administrative/security endpoints should explicitly project it.
-         */
         delete ret.security;
         delete ret.sessionMetrics;
 
-        /**
-         * MFA secrets.
-         */
         if (ret.mfa) {
           delete ret.mfa.secret;
           delete ret.mfa.backupCodes;
         }
 
-        /**
-         * Mobile-money account numbers are masked in public JSON.
-         */
         if (
           ret.mobileMoney &&
           typeof ret.mobileMoney.accountNumber === "string"
@@ -1240,7 +1197,6 @@ const userSchema = new Schema(
         delete ret.failedLoginAttempts;
         delete ret.lockUntil;
         delete ret.passwordHistory;
-
         delete ret.security;
         delete ret.sessionMetrics;
 
@@ -1273,9 +1229,8 @@ const userSchema = new Schema(
 
 userSchema.virtual("isLocked").get(function isLocked() {
   return Boolean(
-    this.lockUntil &&
-      this.lockUntil instanceof Date &&
-      this.lockUntil.getTime() > Date.now()
+    this.lockUntil instanceof Date &&
+    this.lockUntil.getTime() > Date.now()
   );
 });
 
@@ -1286,8 +1241,8 @@ userSchema.virtual("isSoftDeleted").get(function isSoftDeleted() {
 userSchema.virtual("requiresKyc").get(function requiresKyc() {
   return Boolean(
     this.kyc &&
-      this.kyc.level !== "none" &&
-      this.kyc.status !== "approved"
+    this.kyc.level !== "none" &&
+    this.kyc.status !== "approved"
   );
 });
 
@@ -1295,116 +1250,123 @@ userSchema.virtual("isAuthenticationAllowed").get(
   function isAuthenticationAllowed() {
     return Boolean(
       this.isActive === true &&
-        this.status === "active" &&
-        this.deletedAt === null &&
-        !this.isCurrentlyLocked()
+      this.status === "active" &&
+      this.deletedAt == null &&
+      !this.isCurrentlyLocked()
     );
   }
 );
 
 /**
  * ============================================================================
- * PASSWORD HASHING
+ * DOCUMENT PASSWORD HASHING
  * ============================================================================
  *
- * Handles direct document password changes:
+ * Preferred workflow:
  *
+ *   const user = new User(...);
  *   user.password = newPassword;
  *   await user.save();
+ */
+
+userSchema.pre("save", async function passwordHashMiddleware() {
+  if (!this.isModified("password")) {
+    return;
+  }
+
+  if (
+    typeof this.password !== "string" ||
+    this.password.length === 0
+  ) {
+    throw new Error("Password cannot be empty.");
+  }
+
+  const previousPasswordHash = this.isNew
+    ? null
+    : this.get("password", null);
+
+  const alreadyHashed = isBcryptHash(this.password);
+
+  if (!alreadyHashed && !isStrongPassword(this.password)) {
+    throw new Error(
+      "Password must be 12-128 characters and contain uppercase, " +
+      "lowercase, number and special character."
+    );
+  }
+
+  if (
+    previousPasswordHash &&
+    previousPasswordHash !== this.password
+  ) {
+    this.passwordHistory =
+      this.passwordHistory || [];
+
+    this.passwordHistory.push({
+      hash: previousPasswordHash,
+      changedAt: new Date(),
+    });
+
+    if (
+      this.passwordHistory.length >
+      PASSWORD_HISTORY_LIMIT
+    ) {
+      this.passwordHistory =
+        this.passwordHistory.slice(
+          -PASSWORD_HISTORY_LIMIT
+        );
+    }
+  }
+
+  if (!alreadyHashed) {
+    this.password = await bcrypt.hash(
+      this.password,
+      SALT_ROUNDS
+    );
+  }
+
+  if (!this.security) {
+    this.security = {};
+  }
+
+  this.security.lastPasswordChange = new Date();
+
+  this.security.securityVersion =
+    Number(this.security.securityVersion || 1) + 1;
+
+  if (!this.sessionMetrics) {
+    this.sessionMetrics = {};
+  }
+
+  this.sessionMetrics.sessionVersion =
+    Number(this.sessionMetrics.sessionVersion || 1) + 1;
+});
+
+/**
+ * ============================================================================
+ * insertMany PASSWORD SAFEGUARD
+ * ============================================================================
  *
- * Password-history-sensitive operations should use the document workflow.
+ * Mongoose insertMany() does not run the normal save middleware for each
+ * inserted document. This hook hashes and validates passwords explicitly.
  */
 
 userSchema.pre(
-  "save",
-  async function passwordHashMiddleware(next) {
-    if (!this.isModified("password")) {
-      return next();
-    }
-
-    try {
-      if (
-        typeof this.password !== "string" ||
-        this.password.length === 0
-      ) {
-        return next(
-          new Error("Password cannot be empty.")
+  "insertMany",
+  function hashInsertManyPasswords(next, documents) {
+    (async () => {
+      if (!Array.isArray(documents)) {
+        throw new TypeError(
+          "insertMany requires an array of user documents."
         );
       }
 
-      const previousPasswordHash = this.isNew
-        ? null
-        : this.get("password", null);
-
-      const alreadyHashed = isBcryptHash(this.password);
-
-      /**
-       * Password history records the previous hash.
-       *
-       * `password` is select:false, therefore callers that require robust
-       * password-history tracking on existing documents should load:
-       *
-       *   .select("+password +passwordHistory")
-       */
-      if (
-        previousPasswordHash &&
-        previousPasswordHash !== this.password
-      ) {
-        this.passwordHistory =
-          this.passwordHistory || [];
-
-        this.passwordHistory.push({
-          hash: previousPasswordHash,
-          changedAt: new Date(),
-        });
-
-        if (
-          this.passwordHistory.length >
-          PASSWORD_HISTORY_LIMIT
-        ) {
-          this.passwordHistory =
-            this.passwordHistory.slice(
-              -PASSWORD_HISTORY_LIMIT
-            );
-        }
+      for (const document of documents) {
+        await prepareInsertedPassword(document);
       }
-
-      if (!alreadyHashed) {
-        this.password =
-          await bcrypt.hash(
-            this.password,
-            SALT_ROUNDS
-          );
-      }
-
-      if (!this.security) {
-        this.security = {};
-      }
-
-      this.security.lastPasswordChange =
-        new Date();
-
-      this.security.securityVersion =
-        Number(
-          this.security.securityVersion || 1
-        ) + 1;
-
-      /**
-       * Password changes invalidate active sessions.
-       */
-      if (!this.sessionMetrics) {
-        this.sessionMetrics = {};
-      }
-
-      this.sessionMetrics.sessionVersion =
-        Number(
-          this.sessionMetrics.sessionVersion || 1
-        ) + 1;
-
-      return next();
-    } catch (error) {
-      return next(error);
-    }
+    })().then(
+      () => next(),
+      (error) => next(error)
+    );
   }
 );
 
@@ -1413,108 +1375,200 @@ userSchema.pre(
  * QUERY PASSWORD HASHING
  * ============================================================================
  *
- * Supports:
- *
+ * Supported:
  *   User.findOneAndUpdate(...)
+ *   User.findByIdAndUpdate(...)
  *   User.updateOne(...)
  *
- * without allowing plaintext passwords to reach MongoDB.
+ * This middleware:
+ *   - requires a single, unambiguous password assignment;
+ *   - validates plaintext password strength;
+ *   - bcrypt-hashes plaintext before persistence;
+ *   - updates security/session versions;
+ *   - rejects conflicting updates to middleware-owned metadata.
  *
- * IMPORTANT:
- * ---------------------------------------------------------------------------
- * Password history is not modified here because query middleware cannot safely
- * reconstruct the complete previous document without an additional read.
- *
- * Password-history-sensitive changes should use the document workflow.
+ * Password-history-sensitive changes should use the document save workflow.
  */
 
-async function passwordQueryUpdateMiddleware(next) {
-  try {
-    const update = this.getUpdate();
+async function passwordQueryUpdateMiddleware() {
+  const originalUpdate = this.getUpdate();
 
-    if (!update) {
-      return next();
-    }
+  if (!originalUpdate) {
+    return;
+  }
 
-    /**
-     * Password updates through aggregation/update pipelines are intentionally
-     * rejected because they cannot be safely transformed here without risking
-     * plaintext persistence.
-     */
-    if (Array.isArray(update)) {
-      if (pipelineContainsPasswordUpdate(update)) {
-        return next(
-          new Error(
-            "Pipeline password updates are not permitted. Use document password assignment or a supported update method."
-          )
-        );
-      }
-
-      return next();
-    }
-
-    const password = extractPasswordFromUpdate(update);
-
-    if (
-      typeof password !== "string" ||
-      password.length === 0
-    ) {
-      return next();
-    }
-
-    if (!isBcryptHash(password)) {
-      const hashed = await bcrypt.hash(
-        password,
-        SALT_ROUNDS
+  if (Array.isArray(originalUpdate)) {
+    if (pipelineContainsPasswordUpdate(originalUpdate)) {
+      throw new Error(
+        "Pipeline password updates are not permitted. " +
+        "Use document password assignment or a supported single-user update."
       );
+    }
 
-      if (hasOwn(update, "password")) {
-        update.password = hashed;
+    return;
+  }
+
+  const passwordLocations =
+    getPasswordMutationLocations(originalUpdate);
+
+  if (passwordLocations.length === 0) {
+    return;
+  }
+
+  const supportedLocation =
+    passwordLocations.length === 1 &&
+    (
+      passwordLocations[0] === "password" ||
+      passwordLocations[0] === "$set.password"
+    );
+
+  if (!supportedLocation) {
+    throw new Error(
+      "Password updates must use one top-level password assignment " +
+      "or $set.password. Other password update operators are not permitted."
+    );
+  }
+
+  const suppliedPassword =
+    extractPasswordFromUpdate(originalUpdate);
+
+  if (
+    typeof suppliedPassword !== "string" ||
+    suppliedPassword.length === 0
+  ) {
+    throw new Error(
+      "Password updates must supply a non-empty string."
+    );
+  }
+
+  const hashedPassword = isBcryptHash(suppliedPassword)
+    ? suppliedPassword
+    : await (async () => {
+        if (!isStrongPassword(suppliedPassword)) {
+          throw new Error(
+            "Password must be 12-128 characters and contain uppercase, " +
+            "lowercase, number and special character."
+          );
+        }
+
+        return bcrypt.hash(
+          suppliedPassword,
+          SALT_ROUNDS
+        );
+      })();
+
+  /**
+   * Clone the outer update object so middleware does not mutate caller-owned
+   * objects unexpectedly.
+   */
+  let update = {
+    ...originalUpdate,
+  };
+
+  const hasAtomicOperators =
+    Object.keys(update).some(
+      (key) => key.startsWith("$")
+    );
+
+  if (!hasAtomicOperators) {
+    /**
+     * Normalize a replacement-style update into a $set operation, preserving
+     * other submitted fields while allowing safe password processing.
+     */
+    update = {
+      $set: {
+        ...update,
+      },
+    };
+  } else {
+    /**
+     * Normalize any mixed direct-field/operator update into an atomic update.
+     */
+    const directFields = {};
+
+    for (const [key, value] of Object.entries(update)) {
+      if (!key.startsWith("$")) {
+        directFields[key] = value;
+        delete update[key];
       }
+    }
 
-      if (
+    if (Object.keys(directFields).length > 0) {
+      const existingSet =
         update.$set &&
         typeof update.$set === "object" &&
-        hasOwn(update.$set, "password")
-      ) {
-        update.$set.password = hashed;
+        !Array.isArray(update.$set)
+          ? update.$set
+          : {};
+
+      for (const key of Object.keys(directFields)) {
+        if (hasOwn(existingSet, key)) {
+          throw new Error(
+            `Ambiguous query update: ${key} appears both directly and in $set.`
+          );
+        }
       }
+
+      update.$set = {
+        ...directFields,
+        ...existingSet,
+      };
+    }
+  }
+
+  if (
+    !update.$set ||
+    typeof update.$set !== "object" ||
+    Array.isArray(update.$set)
+  ) {
+    update.$set = {};
+  }
+
+  if (
+    update.$inc !== undefined &&
+    (
+      update.$inc === null ||
+      typeof update.$inc !== "object" ||
+      Array.isArray(update.$inc)
+    )
+  ) {
+    throw new TypeError(
+      "The $inc update operator must be an object."
+    );
+  }
+
+  assertPasswordMetadataPathsAvailable(update);
+
+  update.$set.password = hashedPassword;
+  update.$set["security.lastPasswordChange"] = new Date();
+
+  update.$inc =
+    update.$inc &&
+    typeof update.$inc === "object" &&
+    !Array.isArray(update.$inc)
+      ? { ...update.$inc }
+      : {};
+
+  for (const path of [
+    "security.securityVersion",
+    "sessionMetrics.sessionVersion",
+  ]) {
+    const existingIncrement =
+      update.$inc[path] === undefined
+        ? 0
+        : Number(update.$inc[path]);
+
+    if (!Number.isFinite(existingIncrement)) {
+      throw new TypeError(
+        `The $inc value for ${path} must be a finite number.`
+      );
     }
 
-    const now = new Date();
-
-    update.$set =
-      update.$set &&
-      typeof update.$set === "object" &&
-      !Array.isArray(update.$set)
-        ? update.$set
-        : {};
-
-    update.$set["security.lastPasswordChange"] = now;
-
-    update.$inc =
-      update.$inc &&
-      typeof update.$inc === "object" &&
-      !Array.isArray(update.$inc)
-        ? update.$inc
-        : {};
-
-    update.$inc["security.securityVersion"] =
-      Number(
-        update.$inc["security.securityVersion"] || 0
-      ) + 1;
-
-    update.$inc["sessionMetrics.sessionVersion"] =
-      Number(
-        update.$inc["sessionMetrics.sessionVersion"] || 0
-      ) + 1;
-
-    this.setUpdate(update);
-
-    return next();
-  } catch (error) {
-    return next(error);
+    update.$inc[path] =
+      existingIncrement + 1;
   }
+
+  this.setUpdate(update);
 }
 
 userSchema.pre(
@@ -1529,13 +1583,119 @@ userSchema.pre(
 
 /**
  * ============================================================================
+ * REJECT UNSAFE MULTI-DOCUMENT / REPLACEMENT PASSWORD UPDATES
+ * ============================================================================
+ *
+ * Password changes through these operations are rejected because the model
+ * cannot safely run its single-user password workflow for an arbitrary number
+ * of documents or replacement payloads.
+ */
+
+async function rejectUnsafePasswordMutationMiddleware() {
+  const update = this.getUpdate();
+
+  if (!update) {
+    return;
+  }
+
+  const passwordLocations =
+    getPasswordMutationLocations(update);
+
+  if (passwordLocations.length > 0) {
+    throw new Error(
+      "Password changes through updateMany, replaceOne or " +
+      "findOneAndReplace are not permitted. Use the supported " +
+      "single-user password workflow."
+    );
+  }
+}
+
+userSchema.pre(
+  "updateMany",
+  rejectUnsafePasswordMutationMiddleware
+);
+
+userSchema.pre(
+  "replaceOne",
+  rejectUnsafePasswordMutationMiddleware
+);
+
+userSchema.pre(
+  "findOneAndReplace",
+  rejectUnsafePasswordMutationMiddleware
+);
+
+/**
+ * ============================================================================
+ * bulkWrite PASSWORD SAFEGUARD
+ * ============================================================================
+ *
+ * bulkWrite bypasses the ordinary per-document save lifecycle. Password
+ * writes through bulkWrite are rejected rather than risking plaintext storage
+ * or silently bypassing password/session metadata updates.
+ */
+
+userSchema.pre(
+  "bulkWrite",
+  function rejectBulkWritePasswordMutation(next, operations) {
+    try {
+      if (!Array.isArray(operations)) {
+        throw new TypeError(
+          "bulkWrite operations must be an array."
+        );
+      }
+
+      for (const operation of operations) {
+        if (!operation || typeof operation !== "object") {
+          continue;
+        }
+
+        const insertDocument =
+          operation.insertOne?.document;
+
+        if (
+          insertDocument &&
+          getPasswordMutationLocations(insertDocument).length > 0
+        ) {
+          throw new Error(
+            "User passwords cannot be inserted through bulkWrite. " +
+            "Use User.create(), save() or the supported insertMany() workflow."
+          );
+        }
+
+        const updateDocuments = [
+          operation.updateOne?.update,
+          operation.updateMany?.update,
+          operation.replaceOne?.replacement,
+        ].filter(Boolean);
+
+        for (const update of updateDocuments) {
+          if (
+            getPasswordMutationLocations(update).length > 0
+          ) {
+            throw new Error(
+              "Password mutations through bulkWrite are not permitted."
+            );
+          }
+        }
+      }
+
+      return next();
+    } catch (error) {
+      return next(error);
+    }
+  }
+);
+
+/**
+ * ============================================================================
  * FIELD NORMALIZATION
  * ============================================================================
  */
 
 userSchema.pre(
   "validate",
-  function normalizeUserFields(next) {
+  function normalizeUserFields() {
     if (this.email) {
       this.email = normalizeEmail(this.email);
     }
@@ -1550,12 +1710,8 @@ userSchema.pre(
 
     if (this.referralCode) {
       this.referralCode =
-        normalizeReferralCode(
-          this.referralCode
-        );
+        normalizeReferralCode(this.referralCode);
     }
-
-    return next();
   }
 );
 
@@ -1565,13 +1721,6 @@ userSchema.pre(
  * ============================================================================
  */
 
-/**
- * Compare a supplied password against the stored bcrypt hash.
- *
- * Because password is select:false, callers must explicitly load it:
- *
- *   User.findOne(...).select("+password")
- */
 userSchema.methods.matchPassword =
   async function matchPassword(enteredPassword) {
     if (
@@ -1592,14 +1741,8 @@ userSchema.methods.matchPassword =
     }
   };
 
-/**
- * Check whether a supplied plaintext password appears in recent password
- * history.
- */
 userSchema.methods.isPasswordPreviouslyUsed =
-  async function isPasswordPreviouslyUsed(
-    plainPassword
-  ) {
+  async function isPasswordPreviouslyUsed(plainPassword) {
     if (
       typeof plainPassword !== "string" ||
       !plainPassword
@@ -1640,10 +1783,7 @@ userSchema.methods.generateResetToken =
       hashToken(rawToken);
 
     this.resetPasswordExpires =
-      new Date(
-        Date.now() +
-          RESET_TOKEN_TTL_MS
-      );
+      new Date(Date.now() + RESET_TOKEN_TTL_MS);
 
     return rawToken;
   };
@@ -1663,10 +1803,7 @@ userSchema.methods.generateVerificationToken =
       hashToken(rawToken);
 
     this.verificationTokenExpires =
-      new Date(
-        Date.now() +
-          VERIFICATION_TOKEN_TTL_MS
-      );
+      new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
 
     return rawToken;
   };
@@ -1689,8 +1826,7 @@ userSchema.methods.isResetTokenValid =
 
     if (
       !(this.resetPasswordExpires instanceof Date) ||
-      this.resetPasswordExpires.getTime() <=
-        Date.now()
+      this.resetPasswordExpires.getTime() <= Date.now()
     ) {
       return false;
     }
@@ -1713,8 +1849,7 @@ userSchema.methods.isVerificationTokenValid =
 
     if (
       !(this.verificationTokenExpires instanceof Date) ||
-      this.verificationTokenExpires.getTime() <=
-        Date.now()
+      this.verificationTokenExpires.getTime() <= Date.now()
     ) {
       return false;
     }
@@ -1740,8 +1875,7 @@ userSchema.methods.clearResetToken =
       this.security = {};
     }
 
-    this.security.passwordResetAt =
-      new Date();
+    this.security.passwordResetAt = new Date();
   };
 
 userSchema.methods.clearVerificationToken =
@@ -1753,8 +1887,7 @@ userSchema.methods.clearVerificationToken =
       this.security = {};
     }
 
-    this.security.emailVerifiedAt =
-      new Date();
+    this.security.emailVerifiedAt = new Date();
   };
 
 /**
@@ -1766,9 +1899,8 @@ userSchema.methods.clearVerificationToken =
 userSchema.methods.isCurrentlyLocked =
   function isCurrentlyLocked() {
     return Boolean(
-      this.lockUntil &&
-        this.lockUntil instanceof Date &&
-        this.lockUntil.getTime() > Date.now()
+      this.lockUntil instanceof Date &&
+      this.lockUntil.getTime() > Date.now()
     );
   };
 
@@ -1777,39 +1909,30 @@ userSchema.methods.bumpFailedLogin =
     threshold = DEFAULT_LOGIN_THRESHOLD,
     lockMinutes = DEFAULT_LOCK_MINUTES
   ) {
-    const normalizedThreshold =
-      Math.max(
-        1,
-        Number.parseInt(
-          threshold,
-          10
-        ) || DEFAULT_LOGIN_THRESHOLD
-      );
+    const normalizedThreshold = Math.max(
+      1,
+      Number.parseInt(threshold, 10) ||
+        DEFAULT_LOGIN_THRESHOLD
+    );
 
-    const normalizedLockMinutes =
-      Math.max(
-        1,
-        Number.parseInt(
-          lockMinutes,
-          10
-        ) || DEFAULT_LOCK_MINUTES
-      );
+    const normalizedLockMinutes = Math.max(
+      1,
+      Number.parseInt(lockMinutes, 10) ||
+        DEFAULT_LOCK_MINUTES
+    );
 
     if (this.isCurrentlyLocked()) {
       return this;
     }
 
     this.failedLoginAttempts =
-      Number(
-        this.failedLoginAttempts || 0
-      ) + 1;
+      Number(this.failedLoginAttempts || 0) + 1;
 
     if (!this.security) {
       this.security = {};
     }
 
-    this.security.lastFailedLoginAt =
-      new Date();
+    this.security.lastFailedLoginAt = new Date();
 
     if (
       this.failedLoginAttempts >=
@@ -1818,29 +1941,20 @@ userSchema.methods.bumpFailedLogin =
       this.lockUntil =
         new Date(
           Date.now() +
-            normalizedLockMinutes *
-              60 *
-              1000
+          normalizedLockMinutes * 60 * 1000
         );
 
       this.status = "locked";
 
-      /**
-       * Locking invalidates existing authentication sessions.
-       */
       this.security.securityVersion =
-        Number(
-          this.security.securityVersion || 1
-        ) + 1;
+        Number(this.security.securityVersion || 1) + 1;
 
       if (!this.sessionMetrics) {
         this.sessionMetrics = {};
       }
 
       this.sessionMetrics.sessionVersion =
-        Number(
-          this.sessionMetrics.sessionVersion || 1
-        ) + 1;
+        Number(this.sessionMetrics.sessionVersion || 1) + 1;
     }
 
     await this.save({
@@ -1864,8 +1978,7 @@ userSchema.methods.resetFailedLogin =
       this.security = {};
     }
 
-    this.security.lastFailedLoginAt =
-      null;
+    this.security.lastFailedLoginAt = null;
 
     await this.save({
       validateBeforeSave: false,
@@ -1881,9 +1994,7 @@ userSchema.methods.resetFailedLogin =
  */
 
 userSchema.methods.recordSuccessfulLogin =
-  async function recordSuccessfulLogin(
-    metadata = {}
-  ) {
+  async function recordSuccessfulLogin(metadata = {}) {
     const now = new Date();
 
     this.lastLogin = now;
@@ -1896,17 +2007,12 @@ userSchema.methods.recordSuccessfulLogin =
 
     if (metadata.ip) {
       this.security.lastLoginIp =
-        String(metadata.ip).slice(
-          0,
-          MAX_IP_LENGTH
-        );
+        String(metadata.ip).slice(0, MAX_IP_LENGTH);
     }
 
     if (metadata.userAgent) {
       this.security.lastLoginUserAgent =
-        String(
-          metadata.userAgent
-        ).slice(
+        String(metadata.userAgent).slice(
           0,
           MAX_USER_AGENT_LENGTH
         );
@@ -1940,14 +2046,10 @@ userSchema.methods.invalidateSessions =
     }
 
     this.sessionMetrics.sessionVersion =
-      Number(
-        this.sessionMetrics.sessionVersion || 1
-      ) + 1;
+      Number(this.sessionMetrics.sessionVersion || 1) + 1;
 
     this.sessionMetrics.activeSessions = 0;
-
-    this.sessionMetrics.lastSessionRevokedAt =
-      new Date();
+    this.sessionMetrics.lastSessionRevokedAt = new Date();
 
     await this.save({
       validateBeforeSave: false,
@@ -1965,7 +2067,6 @@ userSchema.methods.invalidateSessions =
 userSchema.methods.markEmailVerified =
   async function markEmailVerified() {
     this.isVerified = true;
-
     this.verificationToken = null;
     this.verificationTokenExpires = null;
 
@@ -1973,8 +2074,7 @@ userSchema.methods.markEmailVerified =
       this.security = {};
     }
 
-    this.security.emailVerifiedAt =
-      new Date();
+    this.security.emailVerifiedAt = new Date();
 
     await this.save({
       validateBeforeSave: false,
@@ -2003,7 +2103,6 @@ userSchema.methods.enableAccount =
   async function enableAccount() {
     this.status = "active";
     this.isActive = true;
-
     this.lockUntil = null;
     this.failedLoginAttempts = 0;
 
@@ -2055,10 +2154,7 @@ userSchema.methods.belongsToTenant =
       return false;
     }
 
-    return (
-      String(this.tenantId) ===
-      String(tenantId)
-    );
+    return String(this.tenantId) === String(tenantId);
   };
 
 /**
@@ -2066,9 +2162,8 @@ userSchema.methods.belongsToTenant =
  * REFERRAL HELPERS
  * ============================================================================
  *
- * These methods update referral statistics only.
- *
- * They do NOT issue financial rewards.
+ * These methods update referral statistics only. They do not issue financial
+ * rewards or maintain an authoritative reward balance.
  */
 
 userSchema.methods.recordReferral =
@@ -2078,17 +2173,12 @@ userSchema.methods.recordReferral =
     }
 
     this.referrals.totalReferrals =
-      Number(
-        this.referrals.totalReferrals || 0
-      ) + 1;
+      Number(this.referrals.totalReferrals || 0) + 1;
 
     this.referrals.pendingReferrals =
-      Number(
-        this.referrals.pendingReferrals || 0
-      ) + 1;
+      Number(this.referrals.pendingReferrals || 0) + 1;
 
-    this.referrals.lastReferralAt =
-      new Date();
+    this.referrals.lastReferralAt = new Date();
 
     await this.save({
       validateBeforeSave: false,
@@ -2104,17 +2194,12 @@ userSchema.methods.recordSuccessfulReferral =
     }
 
     this.referrals.successfulReferrals =
-      Number(
-        this.referrals.successfulReferrals || 0
-      ) + 1;
+      Number(this.referrals.successfulReferrals || 0) + 1;
 
-    this.referrals.pendingReferrals =
-      Math.max(
-        0,
-        Number(
-          this.referrals.pendingReferrals || 0
-        ) - 1
-      );
+    this.referrals.pendingReferrals = Math.max(
+      0,
+      Number(this.referrals.pendingReferrals || 0) - 1
+    );
 
     await this.save({
       validateBeforeSave: false,
@@ -2130,24 +2215,18 @@ userSchema.methods.recordSuccessfulReferral =
  */
 
 /**
- * Find by normalized email while excluding soft-deleted accounts by default.
+ * Find a user by normalized email, excluding soft-deleted accounts by default.
  *
- * options:
- *   includeDeleted: true
- *   includePassword: true
- *   includeMfaSecrets: true
- *   includePasswordHistory: true
+ * Options:
+ *   includeDeleted
+ *   includePassword
+ *   includeMfaSecrets
+ *   includePasswordHistory
  */
 userSchema.statics.findByEmail =
-  function findByEmail(
-    email,
-    options = {}
-  ) {
-    const normalizedEmail =
-      normalizeEmail(email);
-
+  function findByEmail(email, options = {}) {
     const query = {
-      email: normalizedEmail,
+      email: normalizeEmail(email),
     };
 
     if (options.includeDeleted !== true) {
@@ -2157,9 +2236,7 @@ userSchema.statics.findByEmail =
     let operation = this.findOne(query);
 
     if (options.includePassword === true) {
-      operation = operation.select(
-        "+password"
-      );
+      operation = operation.select("+password");
     }
 
     if (options.includeMfaSecrets === true) {
@@ -2168,29 +2245,17 @@ userSchema.statics.findByEmail =
       );
     }
 
-    if (
-      options.includePasswordHistory === true
-    ) {
-      operation = operation.select(
-        "+passwordHistory"
-      );
+    if (options.includePasswordHistory === true) {
+      operation = operation.select("+passwordHistory");
     }
 
     return operation;
   };
 
-/**
- * Find active referral owner.
- */
 userSchema.statics.findByReferralCode =
-  function findByReferralCode(
-    referralCode
-  ) {
+  function findByReferralCode(referralCode) {
     return this.findOne({
-      referralCode:
-        normalizeReferralCode(
-          referralCode
-        ),
+      referralCode: normalizeReferralCode(referralCode),
       deletedAt: null,
       isActive: true,
       status: "active",
@@ -2198,16 +2263,10 @@ userSchema.statics.findByReferralCode =
   };
 
 /**
- * Tenant-scoped user lookup.
- *
- * tenantId remains an ObjectId value and is deliberately not stringified
- * before being passed to MongoDB.
+ * tenantId is an ObjectId and is deliberately not stringified before querying.
  */
 userSchema.statics.findTenantUser =
-  function findTenantUser(
-    tenantId,
-    userId
-  ) {
+  function findTenantUser(tenantId, userId) {
     if (
       !isValidObjectId(tenantId) ||
       !isValidObjectId(userId)
@@ -2224,13 +2283,8 @@ userSchema.statics.findTenantUser =
     });
   };
 
-/**
- * Find active users.
- */
 userSchema.statics.findActiveUsers =
-  function findActiveUsers(
-    tenantId = null
-  ) {
+  function findActiveUsers(tenantId = null) {
     const query = {
       isActive: true,
       status: "active",
@@ -2251,37 +2305,11 @@ userSchema.statics.findActiveUsers =
   };
 
 /**
- * ============================================================================
- * SAFE AUTHENTICATION PROJECTION
- * ============================================================================
- *
- * IMPORTANT:
- * ---------------------------------------------------------------------------
- * The old implementation performed `findOne()` with no filter, which could
- * accidentally return an arbitrary user.
- *
- * The new implementation requires a caller-supplied authentication criteria.
- *
- * Examples:
- *
- *   User.authenticationProjection({
- *     email,
- *     tenantId
- *   });
- *
- *   User.authenticationProjection({
- *     _id: userId,
- *     tenantId
- *   });
- *
- * The no-filter behavior deliberately resolves to no document rather than
- * silently returning the first User in the database.
+ * A caller must provide non-empty authentication criteria.
+ * Unscoped authentication lookups return no document.
  */
 userSchema.statics.authenticationProjection =
-  function authenticationProjection(
-    filter = {},
-    options = {}
-  ) {
+  function authenticationProjection(filter = {}, options = {}) {
     const safeFilter =
       filter &&
       typeof filter === "object" &&
@@ -2290,16 +2318,12 @@ userSchema.statics.authenticationProjection =
         ? { ...filter }
         : { _id: null };
 
-    let operation =
-      this.findOne(safeFilter)
-        .select(
-          "+password +mfa.secret +mfa.backupCodes"
-        );
+    let operation = this.findOne(safeFilter).select(
+      "+password +mfa.secret +mfa.backupCodes"
+    );
 
     if (options.includePasswordHistory === true) {
-      operation = operation.select(
-        "+passwordHistory"
-      );
+      operation = operation.select("+passwordHistory");
     }
 
     if (options.includeDeleted !== true) {
@@ -2311,12 +2335,6 @@ userSchema.statics.authenticationProjection =
     return operation;
   };
 
-/**
- * Explicit convenience helper for login/authentication flows.
- *
- * This keeps authentication reads expressive and tenant-safe without allowing
- * an accidental unscoped query.
- */
 userSchema.statics.findForAuthentication =
   function findForAuthentication({
     email,
@@ -2330,8 +2348,7 @@ userSchema.statics.findForAuthentication =
     }
 
     if (email) {
-      filter.email =
-        normalizeEmail(email);
+      filter.email = normalizeEmail(email);
     }
 
     if (tenantId) {
@@ -2344,10 +2361,7 @@ userSchema.statics.findForAuthentication =
       filter.tenantId = tenantId;
     }
 
-    if (
-      !filter._id &&
-      !filter.email
-    ) {
+    if (!filter._id && !filter.email) {
       return this.findOne({
         _id: null,
       });
@@ -2366,26 +2380,11 @@ userSchema.statics.findForAuthentication =
  * INDEXES
  * ============================================================================
  *
- * Email uniqueness:
- * ---------------------------------------------------------------------------
- * The authoritative email index is GLOBAL:
- *
- *   email -> unique
- *
- * This is intentional and preserves the existing identity model.
- *
- * If TITech later decides that one email may exist independently in multiple
- * tenants, the migration MUST:
- *
- *   1. remove the global unique index;
- *   2. create `{ tenantId: 1, email: 1 }` unique;
- *   3. update authentication semantics;
- *   4. update all identity/recovery workflows.
+ * Email identity is globally unique.
+ * Referral codes are globally unique when supplied.
+ * Token-expiry indexes are each declared exactly once below.
  */
 
-/**
- * Global email identity.
- */
 userSchema.index(
   {
     email: 1,
@@ -2396,9 +2395,6 @@ userSchema.index(
   }
 );
 
-/**
- * Global referral identity.
- */
 userSchema.index(
   {
     referralCode: 1,
@@ -2410,9 +2406,6 @@ userSchema.index(
   }
 );
 
-/**
- * Tenant dashboards / member administration.
- */
 userSchema.index({
   tenantId: 1,
   status: 1,
@@ -2420,123 +2413,88 @@ userSchema.index({
   name: 1,
 });
 
-/**
- * Tenant + email lookup support.
- *
- * This is non-unique because global email uniqueness is authoritative.
- */
 userSchema.index({
   tenantId: 1,
   email: 1,
 });
 
-/**
- * Tenant authorization queries.
- */
 userSchema.index({
   tenantId: 1,
   role: 1,
   status: 1,
 });
 
-/**
- * Tenant soft-delete filtering.
- */
 userSchema.index({
   tenantId: 1,
   deletedAt: 1,
 });
 
-/**
- * Tenant verified-user reporting.
- */
 userSchema.index({
   tenantId: 1,
   isVerified: 1,
   createdAt: -1,
 });
 
-/**
- * KYC work queues.
- */
 userSchema.index({
   "kyc.status": 1,
   "kyc.level": 1,
 });
 
-/**
- * AML review queues.
- */
 userSchema.index({
   "aml.riskRating": 1,
   "aml.reviewRequired": 1,
 });
 
-/**
- * Authentication lock checks.
- */
 userSchema.index({
   status: 1,
   lockUntil: 1,
 });
 
-/**
- * Last-login analytics.
- */
 userSchema.index({
   lastLogin: -1,
 });
 
-/**
- * User creation reporting.
- */
 userSchema.index({
   createdAt: -1,
 });
 
-/**
- * Legacy User-level reset-token expiry lookup.
- */
-userSchema.index({
-  resetPasswordExpires: 1,
-});
+userSchema.index(
+  {
+    resetPasswordExpires: 1,
+  },
+  {
+    name: "idx_user_reset_password_expires",
+  }
+);
 
-/**
- * Legacy User-level verification-token expiry lookup.
- */
-userSchema.index({
-  verificationTokenExpires: 1,
-});
+userSchema.index(
+  {
+    verificationTokenExpires: 1,
+  },
+  {
+    name: "idx_user_verification_token_expires",
+  }
+);
 
 /**
  * ============================================================================
  * MODEL EXPORT
  * ============================================================================
  *
- * Native ESM export contract.
+ * Canonical native ESM export.
  *
- * This is the canonical User model.
- *
- * Do NOT add createRequire()/require() compatibility logic here.
- *
- * Legacy CommonJS consumers should be migrated to:
+ * CommonJS consumers should be migrated to:
  *
  *   import User from "../models/User.js";
  *
  * or:
  *
- *   import {
- *     User,
- *     USER_ROLES
- *   } from "../models/User.js";
+ *   import { User, USER_ROLES } from "../models/User.js";
  */
 
 export const User =
   mongoose.models.User ||
-  mongoose.model(
-    "User",
-    userSchema
-  );
+  mongoose.model("User", userSchema);
 
 export default User;
 
@@ -2557,8 +2515,7 @@ export const USER_MODEL_METADATA =
     bcryptRounds: SALT_ROUNDS,
     passwordHistoryLimit: PASSWORD_HISTORY_LIMIT,
     resetTokenTtlMs: RESET_TOKEN_TTL_MS,
-    verificationTokenTtlMs:
-      VERIFICATION_TOKEN_TTL_MS,
+    verificationTokenTtlMs: VERIFICATION_TOKEN_TTL_MS,
     globalEmailUniqueness: true,
     financialStateAuthority: false,
   });

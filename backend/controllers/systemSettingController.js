@@ -47,9 +47,11 @@
  * ============================================================================
  */
 
-const mongoose = require('mongoose');
+import { createRequire } from 'node:module';
+import mongoose from 'mongoose';
+import SystemSetting from '../models/SystemSetting.js';
 
-const SystemSetting = require('../models/SystemSetting');
+const require = createRequire(import.meta.url);
 
 /**
  * Optional validator import.
@@ -281,37 +283,48 @@ function resolveTenantId(req, requestedTenantId = null) {
             ? String(requestedTenantId).trim()
             : null;
 
-    /**
-     * SYSTEM scope is only available to explicitly privileged actors.
-     */
-    if (
-        requested &&
-        requested.toUpperCase() === SYSTEM_TENANT_ID
-    ) {
-        if (!isPrivilegedSystemActor(req)) {
+    const privileged = isPrivilegedSystemActor(req);
+
+    if (requested) {
+        const normalizedRequested =
+            requested.toUpperCase();
+
+        // SYSTEM scope always requires explicit privileged authorization.
+        if (normalizedRequested === SYSTEM_TENANT_ID) {
+            if (!privileged) {
+                throw createControllerError(
+                    'Access to SYSTEM configuration is restricted.',
+                    'SYSTEM_SETTING_SYSTEM_SCOPE_FORBIDDEN',
+                    403
+                );
+            }
+
+            return SYSTEM_TENANT_ID;
+        }
+
+        // Non-privileged actors must have an authenticated tenant context.
+        if (!authenticatedTenantId) {
+            if (privileged) {
+                return normalizedRequested;
+            }
+
             throw createControllerError(
-                'Access to SYSTEM configuration is restricted.',
-                'SYSTEM_SETTING_SYSTEM_SCOPE_FORBIDDEN',
+                'Authenticated tenant context is required.',
+                'TENANT_CONTEXT_REQUIRED',
                 403
             );
         }
 
-        return SYSTEM_TENANT_ID;
-    }
-
-    /**
-     * A privileged platform administrator may explicitly operate on another
-     * tenant.
-     */
-    if (
-        requested &&
-        authenticatedTenantId &&
-        requested.toUpperCase() !==
+        const normalizedAuthenticated =
             String(authenticatedTenantId)
                 .trim()
-                .toUpperCase()
-    ) {
-        if (!isPrivilegedSystemActor(req)) {
+                .toUpperCase();
+
+        // Only privileged actors may select a different tenant.
+        if (
+            normalizedRequested !== normalizedAuthenticated &&
+            !privileged
+        ) {
             throw createControllerError(
                 'Cross-tenant configuration access is forbidden.',
                 'SYSTEM_SETTING_CROSS_TENANT_FORBIDDEN',
@@ -319,27 +332,17 @@ function resolveTenantId(req, requestedTenantId = null) {
             );
         }
 
-        return requested.toUpperCase();
-    }
-
-    if (requested) {
-        return requested.toUpperCase();
+        return normalizedRequested;
     }
 
     if (authenticatedTenantId) {
-        return String(
-            authenticatedTenantId
-        )
+        return String(authenticatedTenantId)
             .trim()
             .toUpperCase();
     }
 
-    /**
-     * No tenant context:
-     *
-     * Only a privileged system actor may default to SYSTEM.
-     */
-    if (isPrivilegedSystemActor(req)) {
+    // SYSTEM is the fallback only for privileged actors.
+    if (privileged) {
         return SYSTEM_TENANT_ID;
     }
 
@@ -2425,34 +2428,40 @@ async function deleteSetting(
  * ============================================================================
  */
 
-module.exports = {
+const systemSettingController = Object.freeze({
     createSetting,
-
     getSetting,
-
     getEffectiveSetting,
-
     getEffectiveValue,
-
     getEffectiveSettings,
-
     listSettings,
-
     listCategory,
-
     setValue,
-
     updateSetting,
-
     enableSetting,
-
     disableSetting,
-
     resetTenantOverride,
-
     getHealthSummary,
-
     getAuditHistory,
+    deleteSetting,
+});
 
-    deleteSetting
+export {
+    createSetting,
+    getSetting,
+    getEffectiveSetting,
+    getEffectiveValue,
+    getEffectiveSettings,
+    listSettings,
+    listCategory,
+    setValue,
+    updateSetting,
+    enableSetting,
+    disableSetting,
+    resetTenantOverride,
+    getHealthSummary,
+    getAuditHistory,
+    deleteSetting,
 };
+
+export default systemSettingController;

@@ -14,23 +14,23 @@
  * -----------------------------------------------------------------------------
  *
  *   backend/server.js
- *          │
- *          ▼
+ *          Γöé
+ *          Γû╝
  *   ApplicationBootstrap
- *          │
- *          ├── environment
- *          ├── configuration
- *          ├── logger
- *          ├── observability
- *          ├── readiness
- *          ├── resilience
- *          ├── infrastructure
- *          ├── services
- *          ├── middleware
- *          ├── routes
- *          └── HTTP server adapter
- *                         │
- *                         ▼
+ *          Γöé
+ *          Γö£ΓöÇΓöÇ environment
+ *          Γö£ΓöÇΓöÇ configuration
+ *          Γö£ΓöÇΓöÇ logger
+ *          Γö£ΓöÇΓöÇ observability
+ *          Γö£ΓöÇΓöÇ readiness
+ *          Γö£ΓöÇΓöÇ resilience
+ *          Γö£ΓöÇΓöÇ infrastructure
+ *          Γö£ΓöÇΓöÇ services
+ *          Γö£ΓöÇΓöÇ middleware
+ *          Γö£ΓöÇΓöÇ routes
+ *          ΓööΓöÇΓöÇ HTTP server adapter
+ *                         Γöé
+ *                         Γû╝
  *                      READY
  *
  * This module is the canonical application composition and lifecycle
@@ -2659,9 +2659,7 @@ class ApplicationBootstrap {
           },
         );
 
-      this.applyPhaseResult(
-        result,
-      );
+      this.applyPhaseResult(result, definition.name, implementation.module);
 
       if (typeof this.context?.completePhase === "function") {
         this.context.completePhase(
@@ -2764,12 +2762,22 @@ class ApplicationBootstrap {
 
   applyPhaseResult(
     result,
+    phaseName = null,
+    phaseModule = null,
   ) {
     if (
       !result ||
-      typeof result !==
-      "object"
+      (
+        typeof result !== "object" &&
+        typeof result !== "function"
+      )
     ) {
+      this.registerPhaseDependency(
+        phaseName,
+        result,
+        phaseModule,
+      );
+
       return;
     }
 
@@ -2940,6 +2948,192 @@ class ApplicationBootstrap {
 
     this.context.version =
       this.getVersion();
+
+    this.registerPhaseDependency(
+      phaseName,
+      result,
+      phaseModule,
+    );
+  }
+
+  registerPhaseDependency(
+    phaseName,
+    result,
+    phaseModule = null,
+  ) {
+    const context = this.context;
+
+    if (
+      !context ||
+      typeof phaseName !== "string" ||
+      !phaseName.trim()
+    ) {
+      return false;
+    }
+
+    const dependencyName = phaseName.trim();
+
+    const supportedDependencies = new Set([
+      "environment",
+      "configuration",
+      "logger",
+      "observability",
+      "readiness",
+      "resilience",
+      "infrastructure",
+      "services",
+      "middleware",
+      "routes",
+    ]);
+
+    if (!supportedDependencies.has(dependencyName)) {
+      return false;
+    }
+
+    if (
+      typeof context.hasDependency === "function" &&
+      context.hasDependency(dependencyName)
+    ) {
+      return true;
+    }
+
+    const resultContext =
+      result?.context &&
+      typeof result.context === "object"
+        ? result.context
+        : {};
+
+    const isDependencyReference = (value) =>
+      value !== null &&
+      value !== undefined &&
+      (
+        typeof value === "object" ||
+        typeof value === "function"
+      );
+
+    const propertyNames = {
+      environment: ["environment"],
+      configuration: ["configuration", "config"],
+      logger: ["logger"],
+      observability: ["observability"],
+      readiness: ["readiness"],
+      resilience: ["resilience"],
+      infrastructure: ["infrastructure"],
+      services: ["services", "serviceRegistry"],
+      middleware: ["middleware"],
+      routes: ["routes", "router"],
+    };
+
+    const accessorNames = {
+      environment: ["getEnvironment", "getEnvironmentState"],
+      configuration: ["getConfiguration", "getConfig"],
+      logger: ["getLogger", "getRootLogger"],
+      observability: ["getObservability", "getDiagnostics"],
+      readiness: ["getReadinessCoordinator", "getReadiness"],
+      resilience: ["getResilience", "getResilienceState"],
+      infrastructure: ["getInfrastructure", "getInfrastructureState"],
+      services: ["getServices", "getServiceRegistry"],
+      middleware: ["getMiddleware", "getMiddlewareModule"],
+      routes: ["getRoutes", "getRouteModule", "getRouter"],
+    };
+
+    let dependency =
+      resultContext[dependencyName] ??
+      result?.[dependencyName];
+
+    if (
+      dependencyName === "configuration" &&
+      !isDependencyReference(dependency)
+    ) {
+      dependency = result?.config;
+    }
+
+    if (!isDependencyReference(dependency)) {
+      for (const propertyName of propertyNames[dependencyName]) {
+        const candidate = phaseModule?.[propertyName];
+
+        if (isDependencyReference(candidate)) {
+          dependency = candidate;
+          break;
+        }
+      }
+    }
+
+    if (!isDependencyReference(dependency)) {
+      for (const accessorName of accessorNames[dependencyName]) {
+        try {
+          const accessor = phaseModule?.[accessorName];
+
+          if (typeof accessor !== "function") {
+            continue;
+          }
+
+          const candidate = accessor.call(phaseModule);
+
+          if (isDependencyReference(candidate)) {
+            dependency = candidate;
+            break;
+          }
+        } catch {
+          // Try the next supported accessor without hiding the phase error.
+        }
+      }
+    }
+
+    /*
+     * A successfully initialized phase module is a real dependency when
+     * its public contract does not expose a separate dependency object.
+     */
+    if (!isDependencyReference(dependency)) {
+      if (isDependencyReference(phaseModule)) {
+        dependency = phaseModule;
+      } else if (
+        dependencyName === "logger" &&
+        isDependencyReference(this.logger)
+      ) {
+        dependency = this.logger;
+      } else if (isDependencyReference(result)) {
+        dependency = result;
+      }
+    }
+
+    if (!isDependencyReference(dependency)) {
+      return false;
+    }
+
+    const setterNames = {
+      environment: "setEnvironment",
+      configuration: "setConfiguration",
+      logger: "setLogger",
+      observability: "setObservability",
+      readiness: "setReadiness",
+      resilience: "setResilience",
+      infrastructure: "setInfrastructure",
+      services: "setServices",
+      middleware: "setMiddleware",
+      routes: "setRoutes",
+    };
+
+    const setterName = setterNames[dependencyName];
+
+    if (
+      setterName &&
+      typeof context[setterName] === "function"
+    ) {
+      if (dependencyName === "logger") {
+        this.setLogger(dependency);
+      } else {
+        context[setterName](dependency);
+      }
+    } else if (dependencyName === "logger") {
+      this.setLogger(dependency);
+    } else {
+      context[dependencyName] = dependency;
+    }
+
+    return typeof context.hasDependency === "function"
+      ? context.hasDependency(dependencyName)
+      : isDependencyReference(context[dependencyName]);
   }
 
   canSatisfyPhaseWithoutImplementation(
@@ -3260,14 +3454,22 @@ class ApplicationBootstrap {
       );
 
     this.server =
-      result?.server ||
       result?.httpServer ||
       result?.httpsServer ||
+      result?.server ||
       serverModule.getServer?.() ||
       null;
 
-    this.context.server =
-      this.server;
+    if (this.context) {
+      if (typeof this.context.setHttpServer === "function") {
+        this.context.setHttpServer(this.server);
+      } else if (typeof this.context.setServer === "function") {
+        this.context.setServer(this.server);
+      } else {
+        this.context.httpServer = this.server;
+        this.context.server = this.server;
+      }
+    }
 
     this.context.serverModule =
       serverModule;

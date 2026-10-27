@@ -30,6 +30,7 @@ import notificationsRoutes from './notifications.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import { param, validationResult } from 'express-validator';
+import systemSettingRoutesModule from './systemSettingRoutes.js';
 
 /**
  * =============================================================================
@@ -143,6 +144,25 @@ const router =
             false,
     });
 
+
+const systemSettingRoutes =
+    systemSettingRoutesModule?.default ??
+    systemSettingRoutesModule?.router ??
+    systemSettingRoutesModule;
+
+if (
+    typeof systemSettingRoutes !== 'function' ||
+    typeof systemSettingRoutes.use !== 'function'
+) {
+    const error = new TypeError(
+        'TITech System Setting routes must export a valid Express router.'
+    );
+
+    error.code = 'TITECH_SYSTEM_SETTING_ROUTER_INVALID';
+
+    throw error;
+}
+
 /**
  * =============================================================================
  * Router Metadata
@@ -185,9 +205,9 @@ function normalizeEnvironmentValue(
 ) {
     if (
         value ===
-            undefined ||
+        undefined ||
         value ===
-            null
+        null
     ) {
         return fallback;
     }
@@ -209,9 +229,9 @@ function normalizeString(
 ) {
     if (
         value ===
-            undefined ||
+        undefined ||
         value ===
-            null
+        null
     ) {
         return fallback;
     }
@@ -250,30 +270,30 @@ function sendRouteError(
     },
 ) {
     const response =
-        {
-            success:
-                false,
+    {
+        success:
+            false,
 
-            error: {
-                code,
-                message,
-            },
+        error: {
+            code,
+            message,
+        },
 
-            requestId:
-                req.requestId,
+        requestId:
+            req.requestId,
 
-            correlationId:
-                req.correlationId,
+        correlationId:
+            req.correlationId,
 
-            timestamp:
-                new Date().toISOString(),
-        };
+        timestamp:
+            new Date().toISOString(),
+    };
 
     if (
         details !==
-            undefined &&
+        undefined &&
         details !==
-            null
+        null
     ) {
         response.error.details =
             details;
@@ -366,7 +386,7 @@ function requestMetadata(
         ) ||
         sanitizeTraceId(
             req.headers?.[
-                'x-request-id'
+            'x-request-id'
             ],
         ) ||
         crypto.randomUUID();
@@ -377,7 +397,7 @@ function requestMetadata(
         ) ||
         sanitizeTraceId(
             req.headers?.[
-                'x-correlation-id'
+            'x-correlation-id'
             ],
         ) ||
         requestId;
@@ -578,9 +598,9 @@ function requireControllerMethod(
     if (
         !controller ||
         typeof controller[
-            methodName
+        methodName
         ] !==
-            'function'
+        'function'
     ) {
         const error =
             new TypeError(
@@ -703,7 +723,7 @@ function createFinancialIdempotency(
                     true,
             });
     } catch (
-        error
+    error
     ) {
         const startupError =
             new Error(
@@ -763,7 +783,7 @@ function requireObjectBody(
     if (
         !req.body ||
         typeof req.body !==
-            'object' ||
+        'object' ||
         Array.isArray(
             req.body,
         )
@@ -807,7 +827,7 @@ function requireIdempotencyKey(
     const key =
         normalizeString(
             req.headers?.[
-                'idempotency-key'
+            'idempotency-key'
             ],
         );
 
@@ -832,9 +852,9 @@ function requireIdempotencyKey(
 
     if (
         key.length <
-            IDEMPOTENCY_KEY_MIN_LENGTH ||
+        IDEMPOTENCY_KEY_MIN_LENGTH ||
         key.length >
-            IDEMPOTENCY_KEY_MAX_LENGTH
+        IDEMPOTENCY_KEY_MAX_LENGTH
     ) {
         return sendRouteError(
             res,
@@ -1470,7 +1490,7 @@ router.get(
 
             const safeChecks =
                 readinessSnapshot?.checks &&
-                typeof readinessSnapshot.checks === 'object'
+                    typeof readinessSnapshot.checks === 'object'
                     ? Object.fromEntries(
                         Object.entries(readinessSnapshot.checks).map(([name, check]) => [
                             name,
@@ -1597,7 +1617,7 @@ function registerNotFoundHandler(
     if (
         !targetRouter ||
         typeof targetRouter.use !==
-            'function'
+        'function'
     ) {
         const error =
             new TypeError(
@@ -1696,63 +1716,56 @@ const registeredApplications =
 function registerRoutes(
     app,
     {
-        mountPath =
-            ROUTER_MOUNT_PATH,
+        mountPath = ROUTER_MOUNT_PATH,
     } = {},
 ) {
     if (
         !app ||
-        typeof app.use !==
-            'function'
+        typeof app.use !== 'function'
     ) {
-        const error =
-            new TypeError(
-                'TITech registerRoutes(app) requires a valid Express application.',
-            );
+        const error = new TypeError(
+            'TITech registerRoutes(app) requires a valid Express application.',
+        );
 
-        error.code =
-            'TITECH_ROUTE_APPLICATION_INVALID';
+        error.code = 'TITECH_ROUTE_APPLICATION_INVALID';
 
         throw error;
     }
 
-    if (
-        registeredApplications.has(
-            app,
-        )
-    ) {
+    if (registeredApplications.has(app)) {
         return app;
     }
 
-    const normalizedMountPath =
-        normalizeString(
-            mountPath,
-            ROUTER_MOUNT_PATH,
+    const normalizedMountPath = normalizeString(
+        mountPath,
+        ROUTER_MOUNT_PATH,
+    );
+
+    if (!normalizedMountPath.startsWith('/')) {
+        const error = new TypeError(
+            'TITech route mountPath must start with "/".',
         );
 
-    if (
-        !normalizedMountPath.startsWith(
-            '/',
-        )
-    ) {
-        const error =
-            new TypeError(
-                'TITech route mountPath must start with "/".',
-            );
-
-        error.code =
-            'TITECH_ROUTE_MOUNT_PATH_INVALID';
+        error.code = 'TITECH_ROUTE_MOUNT_PATH_INVALID';
 
         throw error;
     }
 
-    /**
-     * Authentication boundary.
-     *
-     * These public routes intentionally use /api/auth and /api/email rather
-     * than the financial API version prefix. This preserves the existing
-     * external authentication contract while keeping route composition under
-     * the canonical registry/bootstrap architecture.
+    if (
+        typeof systemSettingRoutes !== 'function' ||
+        typeof systemSettingRoutes.use !== 'function'
+    ) {
+        const error = new TypeError(
+            'TITech System Setting routes are not a valid Express router.',
+        );
+
+        error.code = 'TITECH_SYSTEM_SETTING_ROUTER_INVALID';
+
+        throw error;
+    }
+
+    /*
+     * Authentication routes remain on their existing public API paths.
      */
     app.use(
         '/api/auth',
@@ -1778,52 +1791,122 @@ function registerRoutes(
     app.use('/api/v1/groups', groupRoutes);
     app.use('/groups', groupRoutes);
 
-    // ------------------------------------------------------------------------
-    // Payroll API and provider callback boundaries.
-    //
-    // Payroll routes own their RBAC/tenant boundary. Provider callbacks remain
-    // outside the authenticated API router and are protected by their
-    // provider-signature policy. Two API mounts preserve both the explicit
-    // payroll namespace and the legacy-style endpoint names requested by the
-    // product contract.
-    // ------------------------------------------------------------------------
+    /*
+     * Payroll API and signed provider callback boundaries.
+     */
     app.use('/api/v1/payroll', payrollApiRouter);
     app.use('/api/v1', payrollApiRouter);
     app.use('/webhooks', payrollWebhookRouter);
 
+    /*
+     * System Setting API.
+     *
+     * These route registrations must precede the main route registry's
+     * terminal 404 handler.
+     *
+     * The System Setting router owns authentication and configuration-level
+     * authorization for its individual endpoints.
+     */
+    const systemSettingIndexHandler = (
+        req,
+        res,
+    ) => {
+        return res.status(200).json({
+            success: true,
+
+            resource: 'system-settings',
+
+            service: ROUTE_METADATA.service,
+
+            application: ROUTE_METADATA.application,
+
+            version: ROUTE_METADATA.version,
+
+            endpoints: [
+                '/health',
+                '/category/:category',
+                '/effective/:key',
+                '/system',
+                '/tenant/:tenantId',
+                '/:key',
+            ],
+
+            requestId: req.requestId,
+
+            correlationId: req.correlationId,
+
+            timestamp: new Date().toISOString(),
+        });
+    };
+
+    /*
+     * The root endpoint is protected. An unauthenticated request should
+     * receive an authentication response, not a misleading 404.
+     */
+    app.get(
+        '/api/system-settings',
+        authenticate,
+        tenantAuthorization,
+        systemSettingIndexHandler,
+    );
+
+    app.get(
+        '/api/v1/system-settings',
+        authenticate,
+        tenantAuthorization,
+        systemSettingIndexHandler,
+    );
+
+    /*
+     * Mount both supported API prefixes. The route module's internal guards
+     * continue to enforce configuration-specific authorization.
+     */
+    app.use(
+        '/api/system-settings',
+        systemSettingRoutes,
+    );
+
+    app.use(
+        '/api/v1/system-settings',
+        systemSettingRoutes,
+    );
+
+    /*
+     * The remaining application domains.
+     */
     app.use(
         normalizedMountPath,
         router,
     );
 
-    if (
-        !app.locals
-    ) {
-        app.locals =
-            {};
+    if (!app.locals) {
+        app.locals = {};
     }
 
-    app.locals.titechRouteRegistry =
-        Object.freeze({
-            name:
-                ROUTE_METADATA.registry,
+    app.locals.titechRouteRegistry = Object.freeze({
+        name: ROUTE_METADATA.registry,
 
-            version:
-                ROUTE_METADATA.version,
+        version: ROUTE_METADATA.version,
 
-            apiVersion:
-                ROUTE_METADATA.apiVersion,
+        apiVersion: ROUTE_METADATA.apiVersion,
 
-            mountPath:
-                normalizedMountPath,
+        mountPath: normalizedMountPath,
 
-            registered:
-                true,
-        });
+        registered: true,
+    });
 
-    registeredApplications.add(
-        app,
-    );
+    app.locals.titechSystemSettingRoutes = Object.freeze({
+        resource: 'system-settings',
+
+        mounts: Object.freeze([
+            '/api/system-settings',
+            '/api/v1/system-settings',
+        ]),
+
+        registered: true,
+    });
+
+    registeredApplications.add(app);
 
     return app;
 }
@@ -1961,5 +2044,52 @@ router.ROUTE_METADATA =
  * Export
  * =============================================================================
  */
+
+/*
+ * Preserve compatibility with existing default-router consumers.
+ */
+router.registerRoutes = registerRoutes;
+
+router.registerNotFoundHandler =
+    registerNotFoundHandler;
+
+router.getRouteRegistryDiagnostics =
+    getRouteRegistryDiagnostics;
+
+router.router = router;
+
+router.asyncHandler = asyncHandler;
+
+router.API_PREFIX = API_PREFIX;
+
+router.API_VERSION = API_VERSION;
+
+router.ROUTE_METADATA = ROUTE_METADATA;
+
+/*
+ * Canonical ESM exports.
+ *
+ * ApplicationBootstrap and other ESM modules may now use:
+ *
+ * import {
+ *   registerRoutes,
+ *   getRouteRegistryDiagnostics,
+ * } from '../routes/index.js';
+ */
+export {
+    registerRoutes,
+
+    registerNotFoundHandler,
+
+    getRouteRegistryDiagnostics,
+
+    asyncHandler,
+
+    API_PREFIX,
+
+    API_VERSION,
+
+    ROUTE_METADATA,
+};
 
 export default router;

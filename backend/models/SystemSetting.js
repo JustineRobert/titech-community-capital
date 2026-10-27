@@ -46,8 +46,7 @@
  * ============================================================================
  */
 
-const mongoose = require('mongoose');
-
+import mongoose from 'mongoose';
 const {
     Schema,
     Types
@@ -79,6 +78,7 @@ const VALUE_TYPES = Object.freeze([
 
 const CATEGORIES = Object.freeze([
     'SYSTEM',
+    'GENERAL',
     'LOANS',
     'SAVINGS',
     'SHARES',
@@ -1754,8 +1754,6 @@ SystemSettingSchema.statics.setValue =
 
                 deleted: false,
 
-                version: 1,
-
                 createdBy:
                     updatedBy || null,
 
@@ -2585,7 +2583,7 @@ SystemSettingSchema.methods.isEditable =
  * ============================================================================
  */
 
-SystemSettingSchema.methods.isActive =
+SystemSettingSchema.methods.isSettingActive =
     function () {
         return (
             this.enabled === true &&
@@ -3245,6 +3243,7 @@ SystemSettingSchema.statics.validateValue =
  * ============================================================================
  */
 
+
 const SystemSetting =
     mongoose.models.SystemSetting ||
     mongoose.model(
@@ -3252,26 +3251,31 @@ const SystemSetting =
         SystemSettingSchema
     );
 
-module.exports =
-    SystemSetting;
-
-/**
- * ============================================================================
- * NAMED COMPATIBILITY EXPORTS
- * ============================================================================
+/*
+ * Maintain compatibility for legacy consumers that access constants as
+ * static properties of the model constructor.
  */
+Object.assign(SystemSetting, {
+    SYSTEM_TENANT_ID,
+    VALUE_TYPES,
+    CATEGORIES,
+    AUDIT_ACTIONS,
+    SOURCES
+});
 
-module.exports.SYSTEM_TENANT_ID =
-    SYSTEM_TENANT_ID;
+/*
+ * Native ESM exports plus Node.js 24 CommonJS interoperability.
+ * The special 'module.exports' export makes require() return the model
+ * constructor itself rather than an empty module namespace.
+ */
+export {
+    SystemSetting,
+    SYSTEM_TENANT_ID,
+    VALUE_TYPES,
+    CATEGORIES,
+    AUDIT_ACTIONS,
+    SOURCES,
+    SystemSetting as 'module.exports'
+};
 
-module.exports.VALUE_TYPES =
-    VALUE_TYPES;
-
-module.exports.CATEGORIES =
-    CATEGORIES;
-
-module.exports.AUDIT_ACTIONS =
-    AUDIT_ACTIONS;
-
-module.exports.SOURCES =
-    SOURCES;
+export default SystemSetting;

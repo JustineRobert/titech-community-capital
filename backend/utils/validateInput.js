@@ -1,489 +1,612 @@
-"use strict";
 
 /**
- * ============================================================
+ * ============================================================================
  * TITech Community Capital LTD
- * Input Validation Utility
- * ============================================================
+ * File: backend/utils/validateInput.js
+ * Input Validation Utility — Native ESM
+ * ============================================================================
  *
- * Enterprise Grade Validation Framework
- *
- * Features:
- * - Required field validation
- * - Type validation
- * - Length validation
- * - Range validation
- * - Enum validation
- * - Array validation
- * - Object validation
- * - Date validation
- * - Email validation
- * - Phone validation
+ * Validation capabilities:
+ * - Required fields
+ * - String type, length and trimming
+ * - Finite numeric values and ranges
+ * - Boolean values
+ * - Date validity and temporal constraints
+ * - Enumeration membership
+ * - Email format
+ * - E.164 international phone numbers
  * - MongoDB ObjectId validation
- * - Loan validation helpers
- * - Mobile Money validation
- * - Structured API exceptions
- * - Jest-friendly architecture
+ * - Loan amount and interest-rate validation
+ * - Loan application payload validation
+ * - Structured ApiError exceptions
  *
- * ============================================================
+ * Module strategy:
+ * - Application package uses "type": "module".
+ * - Dependencies must expose compatible ESM exports.
+ * - Named and default exports are provided.
+ * - A Node.js CommonJS interoperability export is provided for
+ *   compatible Node.js runtimes.
+ * ============================================================================
  */
 
-const mongoose = require("mongoose");
+import mongoose from 'mongoose';
+import * as httpStatusModule from '../constants/httpStatus.js';
+import ApiError from '../errors/ApiError.js';
 
 const HttpStatus =
-    require("../constants/httpStatus");
+  httpStatusModule.default ??
+  httpStatusModule.HttpStatus ??
+  httpStatusModule;
 
-const ApiError =
-    require("../errors/ApiError");
+/* ============================================================================
+ * Internal Validation Helpers
+ * ========================================================================== */
 
 /**
- * ============================================================
+ * Throw a structured validation error using TITech's canonical API error
+ * class and HTTP status constants.
+ */
+function throwValidationError(message, code) {
+  throw new ApiError(
+    message,
+    HttpStatus.BAD_REQUEST,
+    code,
+  );
+}
+
+/**
+ * Validate numeric bounds supplied as configuration.
+ *
+ * Invalid validator configuration should fail immediately rather than
+ * produce unpredictable validation outcomes.
+ */
+function validateNumericBounds(min, max) {
+  if (
+    typeof min !== 'number' ||
+    typeof max !== 'number' ||
+    !Number.isFinite(min) ||
+    !Number.isFinite(max) ||
+    min > max
+  ) {
+    throw new TypeError(
+      'Validation minimum and maximum must be finite numbers, ' +
+        'and minimum must not exceed maximum.',
+    );
+  }
+}
+
+/* ============================================================================
  * REQUIRED FIELD
- * ============================================================
- */
-
-function validateInput(
-    value,
-    fieldName = "Field"
-) {
-
-    if (
-        value === undefined ||
-        value === null ||
-        value === ""
-    ) {
-
-        throw new ApiError(
-            `${fieldName} is required`,
-            HttpStatus.BAD_REQUEST,
-            "VALIDATION_ERROR"
-        );
-    }
-
-    return true;
-}
+ * ========================================================================== */
 
 /**
- * ============================================================
+ * Reject null, undefined, and empty-string values.
+ *
+ * Boolean false and numeric zero are valid supplied values.
+ */
+function validateInput(value, fieldName = 'Field') {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ''
+  ) {
+    throwValidationError(
+      `${fieldName} is required`,
+      'VALIDATION_ERROR',
+    );
+  }
+
+  return true;
+}
+
+/* ============================================================================
  * STRING
- * ============================================================
- */
+ * ========================================================================== */
 
+/**
+ * Validate a string, optionally trimming surrounding whitespace.
+ */
 function validateString(
-    value,
-    fieldName,
-    {
-        minLength = 0,
-        maxLength = 10000,
-        trim = true
-    } = {}
+  value,
+  fieldName = 'Field',
+  {
+    minLength = 0,
+    maxLength = 10000,
+    trim = true,
+  } = {},
 ) {
+  validateInput(value, fieldName);
 
-    validateInput(value, fieldName);
+  if (typeof value !== 'string') {
+    throwValidationError(
+      `${fieldName} must be a string`,
+      'INVALID_STRING',
+    );
+  }
 
-    if (typeof value !== "string") {
+  if (
+    !Number.isSafeInteger(minLength) ||
+    !Number.isSafeInteger(maxLength) ||
+    minLength < 0 ||
+    maxLength < 0 ||
+    minLength > maxLength
+  ) {
+    throw new TypeError(
+      'String validation requires non-negative integer bounds, ' +
+        'with minLength not exceeding maxLength.',
+    );
+  }
 
-        throw new ApiError(
-            `${fieldName} must be a string`,
-            HttpStatus.BAD_REQUEST,
-            "INVALID_STRING"
-        );
-    }
+  const processed = trim
+    ? value.trim()
+    : value;
 
-    const processed =
-        trim
-            ? value.trim()
-            : value;
+  if (
+    trim &&
+    processed.length === 0
+  ) {
+    throwValidationError(
+      `${fieldName} is required`,
+      'VALIDATION_ERROR',
+    );
+  }
 
-    if (processed.length < minLength) {
+  if (processed.length < minLength) {
+    throwValidationError(
+      `${fieldName} must be at least ${minLength} characters`,
+      'MIN_LENGTH_VIOLATION',
+    );
+  }
 
-        throw new ApiError(
-            `${fieldName} must be at least ${minLength} characters`,
-            HttpStatus.BAD_REQUEST,
-            "MIN_LENGTH_VIOLATION"
-        );
-    }
+  if (processed.length > maxLength) {
+    throwValidationError(
+      `${fieldName} exceeds maximum length of ${maxLength}`,
+      'MAX_LENGTH_VIOLATION',
+    );
+  }
 
-    if (processed.length > maxLength) {
-
-        throw new ApiError(
-            `${fieldName} exceeds maximum length of ${maxLength}`,
-            HttpStatus.BAD_REQUEST,
-            "MAX_LENGTH_VIOLATION"
-        );
-    }
-
-    return true;
+  return true;
 }
 
-/**
- * ============================================================
+/* ============================================================================
  * NUMBER
- * ============================================================
- */
+ * ========================================================================== */
 
+/**
+ * Accept finite JavaScript numbers within the configured range.
+ *
+ * Numeric strings are deliberately not coerced.
+ */
 function validateNumber(
-    value,
-    fieldName,
-    {
-        min = Number.MIN_SAFE_INTEGER,
-        max = Number.MAX_SAFE_INTEGER
-    } = {}
+  value,
+  fieldName = 'Field',
+  {
+    min = Number.MIN_SAFE_INTEGER,
+    max = Number.MAX_SAFE_INTEGER,
+  } = {},
 ) {
+  validateInput(value, fieldName);
+  validateNumericBounds(min, max);
 
-    validateInput(value, fieldName);
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value)
+  ) {
+    throwValidationError(
+      `${fieldName} must be a valid finite number`,
+      'INVALID_NUMBER',
+    );
+  }
 
-    if (
-        typeof value !== "number" ||
-        Number.isNaN(value)
-    ) {
+  if (value < min) {
+    throwValidationError(
+      `${fieldName} must be at least ${min}`,
+      'MIN_VALUE_VIOLATION',
+    );
+  }
 
-        throw new ApiError(
-            `${fieldName} must be a valid number`,
-            HttpStatus.BAD_REQUEST,
-            "INVALID_NUMBER"
-        );
-    }
+  if (value > max) {
+    throwValidationError(
+      `${fieldName} cannot exceed ${max}`,
+      'MAX_VALUE_VIOLATION',
+    );
+  }
 
-    if (value < min) {
-
-        throw new ApiError(
-            `${fieldName} must be at least ${min}`,
-            HttpStatus.BAD_REQUEST,
-            "MIN_VALUE_VIOLATION"
-        );
-    }
-
-    if (value > max) {
-
-        throw new ApiError(
-            `${fieldName} cannot exceed ${max}`,
-            HttpStatus.BAD_REQUEST,
-            "MAX_VALUE_VIOLATION"
-        );
-    }
-
-    return true;
+  return true;
 }
 
-/**
- * ============================================================
+/* ============================================================================
  * BOOLEAN
- * ============================================================
- */
+ * ========================================================================== */
 
+/**
+ * Validate a strict boolean.
+ *
+ * Values such as "true", 1, and 0 are not implicitly converted.
+ */
 function validateBoolean(
-    value,
-    fieldName
+  value,
+  fieldName = 'Field',
 ) {
+  validateInput(value, fieldName);
 
-    if (
-        typeof value !== "boolean"
-    ) {
+  if (typeof value !== 'boolean') {
+    throwValidationError(
+      `${fieldName} must be boolean`,
+      'INVALID_BOOLEAN',
+    );
+  }
 
-        throw new ApiError(
-            `${fieldName} must be boolean`,
-            HttpStatus.BAD_REQUEST,
-            "INVALID_BOOLEAN"
-        );
-    }
-
-    return true;
+  return true;
 }
 
-/**
- * ============================================================
+/* ============================================================================
  * DATE VALIDATION
- * ============================================================
- */
+ * ========================================================================== */
 
+/**
+ * Validate a Date, date string, or numeric timestamp.
+ *
+ * Boolean values and arbitrary objects are not accepted as dates.
+ */
 function validateDate(
-    value,
-    fieldName,
-    {
-        futureOnly = false,
-        pastOnly = false
-    } = {}
+  value,
+  fieldName = 'Date',
+  {
+    futureOnly = false,
+    pastOnly = false,
+  } = {},
 ) {
+  validateInput(value, fieldName);
 
-    validateInput(value, fieldName);
+  if (
+    typeof futureOnly !== 'boolean' ||
+    typeof pastOnly !== 'boolean'
+  ) {
+    throw new TypeError(
+      'futureOnly and pastOnly must be boolean options.',
+    );
+  }
 
-    const date =
-        new Date(value);
+  if (futureOnly && pastOnly) {
+    throw new TypeError(
+      'futureOnly and pastOnly cannot both be true.',
+    );
+  }
 
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
+  const supportedInput =
+    value instanceof Date ||
+    typeof value === 'string' ||
+    typeof value === 'number';
 
-        throw new ApiError(
-            `${fieldName} must contain a valid date`,
-            HttpStatus.BAD_REQUEST,
-            "INVALID_DATE"
-        );
-    }
+  const date = supportedInput
+    ? new Date(value instanceof Date ? value.getTime() : value)
+    : new Date(Number.NaN);
 
-    const now =
-        new Date();
+  if (Number.isNaN(date.getTime())) {
+    throwValidationError(
+      `${fieldName} must contain a valid date`,
+      'INVALID_DATE',
+    );
+  }
 
-    if (
-        futureOnly &&
-        date <= now
-    ) {
+  const now = new Date();
 
-        throw new ApiError(
-            `${fieldName} must be in the future`,
-            HttpStatus.BAD_REQUEST,
-            "FUTURE_DATE_REQUIRED"
-        );
-    }
+  if (
+    futureOnly &&
+    date <= now
+  ) {
+    throwValidationError(
+      `${fieldName} must be in the future`,
+      'FUTURE_DATE_REQUIRED',
+    );
+  }
 
-    if (
-        pastOnly &&
-        date >= now
-    ) {
+  if (
+    pastOnly &&
+    date >= now
+  ) {
+    throwValidationError(
+      `${fieldName} must be in the past`,
+      'PAST_DATE_REQUIRED',
+    );
+  }
 
-        throw new ApiError(
-            `${fieldName} must be in the past`,
-            HttpStatus.BAD_REQUEST,
-            "PAST_DATE_REQUIRED"
-        );
-    }
-
-    return true;
+  return true;
 }
 
-/**
- * ============================================================
+/* ============================================================================
  * ENUM
- * ============================================================
- */
+ * ========================================================================== */
 
+/**
+ * Validate membership in an explicit array of allowed values.
+ */
 function validateEnum(
-    value,
-    fieldName,
-    allowedValues = []
+  value,
+  fieldName = 'Field',
+  allowedValues = [],
 ) {
+  validateInput(value, fieldName);
 
-    if (
-        !allowedValues.includes(value)
-    ) {
+  if (!Array.isArray(allowedValues)) {
+    throw new TypeError(
+      'allowedValues must be an array.',
+    );
+  }
 
-        throw new ApiError(
-            `${fieldName} contains unsupported value`,
-            HttpStatus.BAD_REQUEST,
-            "INVALID_ENUM"
-        );
-    }
+  if (!allowedValues.includes(value)) {
+    throwValidationError(
+      `${fieldName} contains unsupported value`,
+      'INVALID_ENUM',
+    );
+  }
 
-    return true;
+  return true;
 }
 
-/**
- * ============================================================
+/* ============================================================================
  * EMAIL
- * ============================================================
- */
-
-function validateEmail(
-    email
-) {
-
-    validateInput(
-        email,
-        "Email"
-    );
-
-    const regex =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (
-        !regex.test(email)
-    ) {
-
-        throw new ApiError(
-            "Invalid email address",
-            HttpStatus.BAD_REQUEST,
-            "INVALID_EMAIL"
-        );
-    }
-
-    return true;
-}
+ * ========================================================================== */
 
 /**
- * ============================================================
+ * Validate a conventional email address.
+ *
+ * This performs syntax-level validation only. It does not establish that
+ * the mailbox exists or that the user controls it.
+ */
+function validateEmail(email) {
+  validateString(email, 'Email', {
+    minLength: 3,
+    maxLength: 254,
+    trim: true,
+  });
+
+  const normalized = email.trim();
+
+  const emailRegex =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailRegex.test(normalized)) {
+    throwValidationError(
+      'Invalid email address',
+      'INVALID_EMAIL',
+    );
+  }
+
+  return true;
+}
+
+/* ============================================================================
  * PHONE
- * ============================================================
- */
-
-function validatePhoneNumber(
-    phone
-) {
-
-    validateInput(
-        phone,
-        "Phone Number"
-    );
-
-    const normalized =
-        String(phone).trim();
-
-    // TITech stores/cross-integrates phone identifiers in E.164 form.
-    // A country prefix is therefore mandatory at this generic boundary.
-    // Local/national presentation formats belong to a country-aware
-    // normalization layer before calling this validator.
-    const e164Regex =
-        /^\+[1-9]\d{7,14}$/;
-
-    if (
-        !e164Regex.test(normalized)
-    ) {
-
-        throw new ApiError(
-            "Invalid phone number. Expected E.164 format, e.g. +256772123546",
-            HttpStatus.BAD_REQUEST,
-            "INVALID_PHONE"
-        );
-    }
-
-    return true;
-}
+ * ========================================================================== */
 
 /**
- * ============================================================
- * OBJECT ID
- * ============================================================
+ * Validate an international phone number in E.164 representation.
+ *
+ * The input must include the leading plus sign and country calling code.
+ * Country-specific national-number validity should be handled by an
+ * appropriate phone-number normalization library.
  */
+function validatePhoneNumber(phone) {
+  validateString(phone, 'Phone Number', {
+    minLength: 9,
+    maxLength: 16,
+    trim: true,
+  });
 
+  const normalized = phone.trim();
+
+  const e164Regex =
+    /^\+[1-9]\d{7,14}$/;
+
+  if (!e164Regex.test(normalized)) {
+    throwValidationError(
+      'Invalid phone number. Expected E.164 format, ' +
+        'e.g. +256772123546',
+      'INVALID_PHONE',
+    );
+  }
+
+  return true;
+}
+
+/* ============================================================================
+ * MONGODB OBJECT ID
+ * ========================================================================== */
+
+/**
+ * Validate an ObjectId instance or a canonical 24-character hexadecimal ID.
+ *
+ * Reject arbitrary numbers, short strings, and other values that might be
+ * accepted by permissive ObjectId coercion.
+ */
 function validateObjectId(
-    id,
-    fieldName = "ID"
+  id,
+  fieldName = 'ID',
 ) {
+  validateInput(id, fieldName);
 
-    if (
-        !mongoose.Types.ObjectId.isValid(id)
-    ) {
+  const isObjectIdInstance =
+    id instanceof mongoose.Types.ObjectId;
 
-        throw new ApiError(
-            `${fieldName} is invalid`,
-            HttpStatus.BAD_REQUEST,
-            "INVALID_OBJECT_ID"
-        );
-    }
+  const isCanonicalObjectIdString =
+    typeof id === 'string' &&
+    /^[a-f\d]{24}$/i.test(id);
 
-    return true;
+  const valid =
+    isObjectIdInstance ||
+    (
+      isCanonicalObjectIdString &&
+      mongoose.Types.ObjectId.isValid(id)
+    );
+
+  if (!valid) {
+    throwValidationError(
+      `${fieldName} is invalid`,
+      'INVALID_OBJECT_ID',
+    );
+  }
+
+  return true;
 }
 
-/**
- * ============================================================
+/* ============================================================================
  * LOAN AMOUNT
- * ============================================================
- */
-
-function validateLoanAmount(
-    amount
-) {
-
-    return validateNumber(
-        amount,
-        "Loan Amount",
-        {
-            min: 1
-        }
-    );
-}
+ * ========================================================================== */
 
 /**
- * ============================================================
+ * Validate a positive loan amount.
+ *
+ * This validates numeric type and range. Currency-specific precision,
+ * rounding, and ledger-safe representation must be enforced by the
+ * financial domain layer.
+ */
+function validateLoanAmount(amount) {
+  return validateNumber(
+    amount,
+    'Loan Amount',
+    {
+      min: 1,
+    },
+  );
+}
+
+/* ============================================================================
  * INTEREST RATE
- * ============================================================
- */
-
-function validateInterestRate(
-    rate
-) {
-
-    return validateNumber(
-        rate,
-        "Interest Rate",
-        {
-            min: 0,
-            max: 100
-        }
-    );
-}
+ * ========================================================================== */
 
 /**
- * ============================================================
- * LOAN APPLICATION VALIDATOR
- * ============================================================
+ * Validate an interest rate between 0 and 100 inclusive.
  */
-
-function validateLoanApplication(
-    payload
-) {
-
-    validateObjectId(
-        payload.memberId,
-        "Member ID"
-    );
-
-    validateObjectId(
-        payload.groupId,
-        "Group ID"
-    );
-
-    validateLoanAmount(
-        payload.amount
-    );
-
-    validateInterestRate(
-        payload.interestRate
-    );
-
-    validateNumber(
-        payload.repaymentPeriod,
-        "Repayment Period",
-        {
-            min: 1,
-            max: 120
-        }
-    );
-
-    return true;
+function validateInterestRate(rate) {
+  return validateNumber(
+    rate,
+    'Interest Rate',
+    {
+      min: 0,
+      max: 100,
+    },
+  );
 }
 
+/* ============================================================================
+ * LOAN APPLICATION
+ * ========================================================================== */
+
 /**
- * ============================================================
- * EXPORTS
- * ============================================================
+ * Validate the required structure and basic financial fields of a loan
+ * application.
+ *
+ * This is input validation, not authorization, credit approval, or a
+ * substitute for tenant-scoped resource checks.
  */
+function validateLoanApplication(payload) {
+  validateInput(
+    payload,
+    'Loan Application',
+  );
 
-module.exports = {
+  if (
+    typeof payload !== 'object' ||
+    Array.isArray(payload)
+  ) {
+    throwValidationError(
+      'Loan Application must be an object',
+      'INVALID_LOAN_APPLICATION',
+    );
+  }
 
-    validateInput,
+  validateObjectId(
+    payload.memberId,
+    'Member ID',
+  );
 
-    validateString,
+  validateObjectId(
+    payload.groupId,
+    'Group ID',
+  );
 
-    validateNumber,
+  validateLoanAmount(
+    payload.amount,
+  );
 
-    validateBoolean,
+  validateInterestRate(
+    payload.interestRate,
+  );
 
-    validateDate,
+  validateNumber(
+    payload.repaymentPeriod,
+    'Repayment Period',
+    {
+      min: 1,
+      max: 120,
+    },
+  );
 
-    validateEnum,
+  if (!Number.isInteger(payload.repaymentPeriod)) {
+    throwValidationError(
+      'Repayment Period must be a whole number of months',
+      'INVALID_REPAYMENT_PERIOD',
+    );
+  }
 
-    validateEmail,
+  return true;
+}
 
-    validatePhoneNumber,
+/* ============================================================================
+ * PUBLIC API
+ * ========================================================================== */
 
-    validateObjectId,
+const validationUtils = Object.freeze({
+  validateInput,
+  validateString,
+  validateNumber,
+  validateBoolean,
+  validateDate,
+  validateEnum,
+  validateEmail,
+  validatePhoneNumber,
+  validateObjectId,
+  validateLoanAmount,
+  validateInterestRate,
+  validateLoanApplication,
+});
 
-    validateLoanAmount,
+/**
+ * Preferred native ESM interface:
+ *
+ *   import validationUtils from './validateInput.js';
+ *   import { validateEmail } from './validateInput.js';
+ */
+export {
+  validateInput,
+  validateString,
+  validateNumber,
+  validateBoolean,
+  validateDate,
+  validateEnum,
+  validateEmail,
+  validatePhoneNumber,
+  validateObjectId,
+  validateLoanAmount,
+  validateInterestRate,
+  validateLoanApplication,
+};
 
-    validateInterestRate,
+export default validationUtils;
 
-    validateLoanApplication
+/**
+ * CommonJS interoperability for supported Node.js versions.
+ *
+ * The exported object retains the legacy shape:
+ *
+ *   const validators = require('./validateInput.js');
+ *
+ * Requires a Node.js version that supports require(esm) and the
+ * 'module.exports' ESM export name. Jest compatibility must still be
+ * verified using the repository's actual test suite.
+ */
+export {
+  validationUtils as 'module.exports',
 };

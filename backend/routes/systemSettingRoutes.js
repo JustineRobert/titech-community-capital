@@ -61,6 +61,10 @@
  *
  * =============================================================================
  */
+import { createRequire } from 'node:module';
+import systemSettingController from '../controllers/systemSettingController.js';
+
+const require = createRequire(import.meta.url);
 
 const express = require('express');
 
@@ -74,8 +78,6 @@ const router = express.Router();
  * Keep the route layer independent from persistence/business logic.
  */
 
-const systemSettingController =
-    require('../controllers/systemSettingController');
 
 /**
  * =============================================================================
@@ -1136,4 +1138,4 @@ router.service = 'TITech Community Capital';
  * =============================================================================
  */
 
-module.exports = router;
+export default router;
