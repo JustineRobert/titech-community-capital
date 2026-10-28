@@ -6,7 +6,7 @@ services:
     container_name: titech-validation-mongodb
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - titech-validation-mongo:/data/db
     healthcheck:
@@ -19,9 +19,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: titech-validation-redis
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - titech-validation-redis:/data
     healthcheck:
@@ -38,9 +38,9 @@ services:
     restart: "no"
     entrypoint: ["/bin/bash", "-lc"]
     command: >-
-      until mongosh --host mongodb:27017 --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; do sleep 1; done;
-      mongosh --host mongodb:27017 --eval 'try { rs.status() } catch (e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongodb:27017"}]}) }';
-      until mongosh --host mongodb:27017 --quiet --eval 'rs.status().myState' | grep -q '^1$'; do sleep 1; done;
+      until mongosh "mongodb://mongodb:27017/admin?directConnection=true" --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; do sleep 1; done;
+      mongosh "mongodb://mongodb:27017/admin?directConnection=true" --eval 'try { rs.status() } catch (e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]}) }';
+      until mongosh "mongodb://mongodb:27017/admin?directConnection=true" --quiet --eval 'db.hello().isWritablePrimary' | grep -q 'true'; do sleep 1; done;
 
 volumes:
   titech-validation-mongo:

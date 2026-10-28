@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-28",
+  "comparisonMethod": "Byte-for-byte comparison against the original user-uploaded ZIP extracted without Git metadata.",
+  "baselineArchive": {
+    "fileName": "titech-community-capital-main.zip",
+    "sha256": "aac339833923cf503cb0eb5100f2f384b5389e9cc140d634f1436804f74828c5"
+  },
+  "baselineFileCount": 3441,
+  "outputFileCount": 3457,
+  "addedCount": 16,
+  "modifiedCount": 11,
+  "deletedCount": 0,
+  "deletedFiles": [],
+  "manifestSelfHashOmitted": true,
+  "manifestSelfHashNote": "This file does not hash itself to avoid a recursive checksum. All other added/modified files are listed and SHA-256 pinned.",
+  "changeRecords": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "changeType": "MODIFIED",
+      "sizeBytes": 8742,
+      "sha256": "d6d0dbd4c4e8d98f39cea940a79495540485ec61f53aac382358903528ab5413",
+      "baselineSha256": "73ac99f27a0f5193cd309ca6abcd0478c75cdc331bf2fc7ac1603b129779aaa2"
+    },
+    {
+      "path": ".github/workflows/deploy.yml",
+      "changeType": "MODIFIED",
+      "sizeBytes": 69546,
+      "sha256": "e55e0fbf337e78a754a8b9be07a4649ca232e1546d19d9c87ac7e911d3478726",
+      "baselineSha256": "c57843fe2c32b73d6e6d54d8a5de0912fc5f06f37edbc358111e21966fe729e4"
+    },
+    {
+      "path": "README.md",
+      "changeType": "MODIFIED",
+      "sizeBytes": 48629,
+      "sha256": "3e93e9312c6738862293597a0044b2c5c9632a97e008707ab4c0479f98962abe",
+      "baselineSha256": "9f0ad480d3a914311b1d0e8966d646da8e28aed8c3e638c55619f3630fce4c54"
+    },
+    {
+      "path": "TITECH_END_TO_END_P0_P1_REMEDIATION_MASTER_PROMPT.md",
+      "changeType": "ADDED",
+      "sizeBytes": 22654,
+      "sha256": "c5d75187afd21c2dd25f4dee0604d93611ae507b2a0915cbfaeeded241ab95d0",
+      "baselineSha256": null
+    },
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "changeType": "MODIFIED",
+      "sizeBytes": 39294,
+      "sha256": "d2d3fdb4a1710d4cbcf5d049210f47a93adc170ef1af0e9ea2f0f049e8bf7622",
+      "baselineSha256": "b209d28a3c2cb7cbe7045244f13be36976652da6706deb3a2fdceff48cd1cd68"
+    },
+    {
+      "path": "TITECH_REMEDIATION_CHANGESET_2026-10-28.md",
+      "changeType": "ADDED",
+      "sizeBytes": 6005,
+      "sha256": "80fed200b4f2c6126a0de10902df37f14f3bf93443bb263b49f17722344a42e5",
+      "baselineSha256": null
+    },
+    {
+      "path": "backend/.env.example",
+      "changeType": "MODIFIED",
+      "sizeBytes": 4238,
+      "sha256": "3ad229db1c4c2d99cca66316c98adcc687d7d1c6a287ba42d58cd6f7fb44dc18",
+      "baselineSha256": "18de88782c0854d03be125e576ed12e35026a3e0d472d63cff6f4bdc5eda9d3f"
+    },
+    {
+      "path": "docker-compose.dev.yml",
+      "changeType": "MODIFIED",
+      "sizeBytes": 2497,
+      "sha256": "f7fad5a804bac71e5d53e5e86f79cc6491ddd83c9dab6c48d28e448010df69af",
+      "baselineSha256": "226ecc2271c4eebec59d1a46d92e7c5ec742c9c6f45cf19ad6f647fe615187c8"
+    },
+    {
+      "path": "docker-compose.validation.yml",
+      "changeType": "MODIFIED",
+      "sizeBytes": 1574,
+      "sha256": "d6f277d93865fd2772acc4218fb16d79bbc97c2ed0bc7f5d70e860cbd392d543",
+      "baselineSha256": "ac341e0497a9ba61d16d71908d139c0f845a7f4c6e1fd8bfadf5095a4c486ce2"
+    },
+    {
+      "path": "docker-compose.yml",
+      "changeType": "MODIFIED",
+      "sizeBytes": 2731,
+      "sha256": "75aec4403b16fac39050ea107ba7550cc469782bd2dca83f5600ba4a037191e4",
+      "baselineSha256": "fef3fafe22785f3da92155aa8ec9064e4feed499f530341c00ab4144968664be"
+    },
+    {
+      "path": "docker/docker-compose.dev.yml",
+      "changeType": "MODIFIED",
+      "sizeBytes": 2708,
+      "sha256": "cce816db4548e3ff2bf53b8592849d03bd043746100bf874b8893e405f007d07",
+      "baselineSha256": "71c6a538c66d2d6252ca79af6d680f02500a6d51b1354c6a871d174d4d256360"
+    },
+    {
+      "path": "docs/ci/LOCAL_CI.md",
+      "changeType": "MODIFIED",
+      "sizeBytes": 2196,
+      "sha256": "e7b348a5fb46ca7ef93b7823b0df349cc813b6a6c99eafec49a9027802a20ee6",
+      "baselineSha256": "1247c14f7dabe9d8475760c60ab2c9dfa0f6198622c3653284e66dbe17e12885"
+    },
+    {
+      "path": "docs/evidence/P0-P1-critical-gate-handoff-2026-10-28.md",
+      "changeType": "ADDED",
+      "sizeBytes": 2508,
+      "sha256": "0b411a663b047f5754c561db32e70f5f585b6c7d0fdf29bd83c65dd211ca877a",
+      "baselineSha256": null
+    },
+    {
+      "path": "docs/evidence/archive-local-verification-2026-10-28.md",
+      "changeType": "ADDED",
+      "sizeBytes": 5674,
+      "sha256": "d726ce43ab191e6785294344b3edfa1a8c8b4ec55475fa71bc4b8fc60540731c",
+      "baselineSha256": null
+    },
+    {
+      "path": "docs/evidence/critical-gates-2026-10-28.json",
+      "changeType": "ADDED",
+      "sizeBytes": 10622,
+      "sha256": "5a75f54739187a5a1d02bcb9b7e8df89f1c023b3e61823a735449d3daf7442cc",
+      "baselineSha256": null
+    },
+    {
+      "path": "package.json",
+      "changeType": "MODIFIED",
+      "sizeBytes": 10344,
+      "sha256": "4b9c1362e13bb85c58be9b932f01d0b9e218db64e161d6c482fd86f7438b8963",
+      "baselineSha256": "b53ac4fa8700a04f95fc28b6d4cc2c6b22f2327dca825bff2dc61eb997e87111"
+    },
+    {
+      "path": "reports/evidence/archive-local-blocking-gates-2026-10-28.log",
+      "changeType": "ADDED",
+      "sizeBytes": 1694,
+      "sha256": "51891d55e473e23fb5f5d390681abda29869285cc0fd885a5787c526d1f411ba",
+      "baselineSha256": null
+    },
+    {
+      "path": "reports/evidence/archive-local-native-tests-2026-10-28.log",
+      "changeType": "ADDED",
+      "sizeBytes": 27170,
+      "sha256": "4d6719e720f7655013ce385578d7c2296203fe22ed9a013c4c5a3cb6204e4667",
+      "baselineSha256": null
+    },
+    {
+      "path": "reports/evidence/archive-local-static-gates-2026-10-28.log",
+      "changeType": "ADDED",
+      "sizeBytes": 3306,
+      "sha256": "2ad1095358a9c0601d10a84e61c80ba63493bee59e3f51d8a9698963081d30c0",
+      "baselineSha256": null
+    },
+    {
+      "path": "reports/evidence/archive-local-yaml-validation-2026-10-28.txt",
+      "changeType": "ADDED",
+      "sizeBytes": 669,
+      "sha256": "eaf7b2b59f81640f4331b2494df8f4a5f359b7b8680caf4909124ce3c11bcbc9",
+      "baselineSha256": null
+    },
+    {
+      "path": "reports/rbac-security-gate.json",
+      "changeType": "ADDED",
+      "sizeBytes": 2100,
+      "sha256": "99f73defb0555f2b925f6f8ea529ec95781ff1b62ccc21c7ca1aa5af4fe9e11e",
+      "baselineSha256": null
+    },
+    {
+      "path": "reports/runtime-import-audit.json",
+      "changeType": "ADDED",
+      "sizeBytes": 32334,
+      "sha256": "b888550e245637a2ab0d431d154908451251e27c7901d000d753501f02fe49a6",
+      "baselineSha256": null
+    },
+    {
+      "path": "reports/titech-hosting-gate.json",
+      "changeType": "ADDED",
+      "sizeBytes": 1352,
+      "sha256": "33f3f4eb16e1f678c0ff98799abff2a781d51e7a52dd0975389c1ecc55d771c1",
+      "baselineSha256": null
+    },
+    {
+      "path": "scripts/titech-critical-gates.mjs",
+      "changeType": "ADDED",
+      "sizeBytes": 9068,
+      "sha256": "52c11882ebd86c30ae124fb624aa7ad463a98547b96d35365c4ee7f1cab1030e",
+      "baselineSha256": null
+    },
+    {
+      "path": "scripts/titech-critical-gates.test.mjs",
+      "changeType": "ADDED",
+      "sizeBytes": 1797,
+      "sha256": "09b1caf846bca64147db41b7c1d1ae4a63f9ccfeb9d72826ba22e2ce8d9fd27b",
+      "baselineSha256": null
+    },
+    {
+      "path": "scripts/titech-supported-runtime-gate.mjs",
+      "changeType": "ADDED",
+      "sizeBytes": 4046,
+      "sha256": "cc2232b9989c8bd735d7464da17c41cbdfa4c7696ed49efdfb8b74b356071b11",
+      "baselineSha256": null
+    }
+  ]
+}

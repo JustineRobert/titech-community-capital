@@ -1,3 +1,4 @@
+# LEGACY LOCAL-ONLY STACK: MongoDB is standalone; do not use for transaction/replay proof. Use docker-compose.validation.yml for P0 financial tests.
 version: '3.9'
 
 services:
@@ -6,7 +7,7 @@ services:
     container_name: community-savings-mongodb
     restart: unless-stopped
     ports:
-      - '27017:27017'
+      - '127.0.0.1:27017:27017'
     env_file:
       - .env
     volumes:
@@ -33,7 +34,7 @@ services:
     container_name: community-savings-redis
     restart: unless-stopped
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     volumes:
       - redis_data:/data
     command: >
@@ -43,7 +44,7 @@ services:
       --timeout 300
       --tcp-keepalive 300
       --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy noeviction
     networks:
       community-savings-net:
         aliases:

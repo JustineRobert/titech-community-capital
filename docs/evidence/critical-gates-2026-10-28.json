@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "asOf": "2026-10-28",
+  "product": "TITech Community Capital",
+  "organization": "TITech Capital LTD",
+  "engineeringPrinciple": "BUILD LESS. PROVE MORE.",
+  "releaseStatus": "NOT_READY",
+  "productionApproved": false,
+  "evidenceLadder": [
+    "Designed",
+    "Implemented",
+    "Unit",
+    "Integration",
+    "E2E",
+    "Operational",
+    "Security-Assessed",
+    "Externally-Approved",
+    "Production-Approved"
+  ],
+  "goldenMoneyPath": [
+    "Institution / tenant",
+    "Consented member / group",
+    "Financial intent",
+    "Payment instruction",
+    "Provider attempt",
+    "Verified outcome",
+    "Settlement evidence",
+    "Financial transaction",
+    "Balanced double-entry ledger",
+    "Derived balance",
+    "Receipt",
+    "Outbox / audit",
+    "Reconciliation",
+    "Exception workflow",
+    "Period close"
+  ],
+  "executionPolicy": {
+    "firstMode": "sandbox or shadow/reconciliation mode; licensed provider remains authoritative",
+    "timeoutState": "UNKNOWN until verified through authoritative provider status/settlement evidence",
+    "sourceArtifactLimitation": "Source inspection, static gates, unit tests, fixtures, mocked providers and a passing contract harness do not establish live operational or external approval.",
+    "moneyMovement": "Keep production money movement disabled until provider, institution, security, legal/privacy and release approvals are independently evidenced.",
+    "releaseRule": "A release must stop at the lowest incomplete evidence-ladder level. No status can be promoted by generating or editing a report alone."
+  },
+  "gates": [
+    {
+      "id": "P0_RUNTIME_INSTALL",
+      "priority": "P0",
+      "status": "NOT_VERIFIED",
+      "blocking": true,
+      "title": "Supported runtime and clean install",
+      "minimumEvidence": [
+        "Node.js >=24.15.0 and npm >=11.0.0 are observed in the same clean run.",
+        ".nvmrc and all root/backend/frontend package engines agree.",
+        "Fresh npm ci --include=dev passes from each tracked lockfile on the documented OS.",
+        "Root checks, backend tests, frontend tests and production builds pass; command logs and artifact hashes are retained."
+      ],
+      "releaseRule": "No passing supported-runtime CI = no promotion.",
+      "evidenceRefs": [
+        ".nvmrc",
+        "package.json",
+        "backend/package.json",
+        "frontend/package.json",
+        ".github/workflows/ci.yml"
+      ]
+    },
+    {
+      "id": "P0_BOOTSTRAP_HEALTH",
+      "priority": "P0",
+      "status": "NOT_VERIFIED",
+      "blocking": true,
+      "title": "Bootstrap, lifecycle, health and readiness",
+      "minimumEvidence": [
+        "Start and stop the application twice in one test run; assert one canonical Express application instance.",
+        "Inject failure at each bootstrap phase; assert reverse-order rollback and clean dependency disconnect.",
+        "/api/v1/health and /api/v1/ready report the documented state with real MongoDB and Redis dependencies.",
+        "Readiness returns non-ready/503 while required dependencies are unavailable and recovers after restoration.",
+        "No source-only substitute, fake health state or swallowed startup exception."
+      ],
+      "releaseRule": "Unproven bootstrap lifecycle or dependency readiness blocks promotion.",
+      "evidenceRefs": [
+        "backend/tests/bootstrap/",
+        "scripts/verify-runtime-contract.mjs",
+        "TITECH_PLATFORM_TRUTH.md"
+      ]
+    },
+    {
+      "id": "P0_LEDGER_REPLAY",
+      "priority": "P0",
+      "status": "NOT_VERIFIED",
+      "blocking": true,
+      "title": "Ledger invariants, transaction atomicity and replay safety",
+      "minimumEvidence": [
+        "MongoDB transaction-capable replica set proves commit, abort and rollback.",
+        "Durable unique constraints protect financial operation, provider event/callback and idempotency scopes; Redis is not the sole financial uniqueness authority.",
+        "Concurrent same-key/same-payload and same-key/conflicting-payload tests produce at most one financial effect.",
+        "Repeat the duplicate/replay tests after backend restart and Redis restart; retain before/after persisted records.",
+        "Every posted journal balances by currency; amounts use exact decimal/minor-unit arithmetic; reversals are compensating history.",
+        "Balance reconstruction equals ledger replay; all unexplained invariant mismatches equal zero."
+      ],
+      "releaseRule": "Zero unexplained invariant failure; any duplicate financial effect or unbalanced journal blocks promotion.",
+      "evidenceRefs": [
+        "docs/evidence/financial-invariants.md",
+        "docs/evidence/reconciliation-proof.md",
+        "docker-compose.validation.yml",
+        "tests/unit/enterprise-financial-invariants.node.test.mjs"
+      ]
+    },
+    {
+      "id": "P0_PROVIDER_FAILURES",
+      "priority": "P0",
+      "status": "NOT_VERIFIED",
+      "blocking": true,
+      "title": "Provider outcome, retry, refund, reversal and settlement",
+      "minimumEvidence": [
+        "Authenticated provider request and documented idempotency/reference mapping.",
+        "Signed callback authentication plus duplicate and out-of-order callback tests.",
+        "Timeout or lost response enters UNKNOWN; query provider status before retrying or issuing any second debit.",
+        "Bounded retry/backoff, provider outage, delayed callback and recovery tests preserve one effect.",
+        "Refund/reversal tests create compensating ledger events and audit evidence without rewriting posted history.",
+        "Authoritative provider settlement evidence matches TITech operation, currency, amount, ledger and receipt."
+      ],
+      "releaseRule": "Never infer DECLINED/FAILED from a timeout. No live money-moving workflow without provider/institution/legal authorization.",
+      "evidenceRefs": [
+        "docs/evidence/provider-proof.md",
+        "docs/evidence/reconciliation-proof.md",
+        "docs/evidence/10-mtn-sandbox-proof.md"
+      ]
+    },
+    {
+      "id": "P0_TENANT_PERMISSIONS",
+      "priority": "P0",
+      "status": "NOT_VERIFIED",
+      "blocking": true,
+      "title": "Tenant isolation and permission enforcement",
+      "minimumEvidence": [
+        "Live API/E2E negative tests cover cross-tenant read, write, list/search, aggregate/report, export, document and audit access.",
+        "Tenant scope is derived and enforced server-side; client-supplied tenant identifiers are not authorization.",
+        "Least privilege is tested for member, operator, approver, auditor and service-to-service identities.",
+        "Maker-checker separation is enforced server-side and tested against self-approval and privilege escalation.",
+        "Denied and privileged actions produce privacy-safe, tamper-evident audit evidence."
+      ],
+      "releaseRule": "Any cross-tenant leakage, broken separation of duties or unexplained permission bypass blocks promotion.",
+      "evidenceRefs": [
+        "docs/evidence/tenant-isolation-proof.md",
+        "docs/evidence/production-readiness-matrix.csv"
+      ]
+    },
+    {
+      "id": "P1_SECURITY_RECOVERY",
+      "priority": "P1",
+      "status": "EXTERNAL_REQUIRED",
+      "blocking": true,
+      "title": "Security assessment, document safety and recovery",
+      "minimumEvidence": [
+        "Independent application security assessment completed; findings severity-ranked, assigned, fixed or formally risk-accepted.",
+        "Dependency, secret, container/image and infrastructure-as-code scans run against the release candidate.",
+        "Private-document scanner has live clean and EICAR test-signature proof, fail-closed evidence, alerting and upload-path E2E.",
+        "Encrypted backup restore validates account/journal/transaction counts and balance reconstruction.",
+        "Rollback drill and incident-response tabletop are executed; recovery time/data loss and owners recorded."
+      ],
+      "releaseRule": "Untriaged critical/high findings or missing restore/rollback proof block promotion.",
+      "evidenceRefs": [
+        "docs/evidence/security-assessment.md",
+        "docs/evidence/18-backup-restore-drill.md",
+        "docs/evidence/21-rollback-proof.md"
+      ]
+    },
+    {
+      "id": "P1_REGULATORY_PARTNER",
+      "priority": "P1",
+      "status": "EXTERNAL_REQUIRED",
+      "blocking": true,
+      "title": "Uganda legal/privacy, regulatory boundary and partner authority",
+      "minimumEvidence": [
+        "Qualified Uganda counsel documents the activity-by-activity regulatory boundary and conditions; no assumption of deposit-taking/lending authority.",
+        "PDPO registration/status and controller/processor obligations are confirmed from authoritative records and counsel.",
+        "Institution and provider authority is documented in signed agreements/authorization, with sandbox scope and liability boundaries.",
+        "Restricted financial-product capabilities are server-side feature-flagged OFF until approved; approvals are versioned and time-bound.",
+        "Privacy notices, lawful basis/consent, retention, data-subject requests, DPIA where applicable, breach handling and cross-border transfers are reviewed."
+      ],
+      "releaseRule": "No unapproved regulated activity and no money movement beyond the authorized sandbox/shadow scope.",
+      "evidenceRefs": [
+        "docs/regulatory/regulatory-boundary-memo.md",
+        "docs/regulatory/data-processing-and-controller-processor-matrix.md"
+      ]
+    },
+    {
+      "id": "P1_COMMERCIAL_PILOT",
+      "priority": "P1",
+      "status": "NOT_VERIFIED",
+      "blocking": true,
+      "title": "Real institutional pilot and commercial conversion",
+      "minimumEvidence": [
+        "Named institution, accountable sponsor, operational owner and approved real workflow are evidenced.",
+        "Signed pilot terms, scope, data-processing roles, success criteria and escalation contacts exist.",
+        "Baseline is recorded before rollout; weekly review measures reconciliation time, exception rate, failure recovery, user adoption and cost.",
+        "Measured ROI is signed off by the institution and source data is retained.",
+        "Paid conversion/invoice evidence and renewal or paid continuation are captured; an MOU/conversation alone is not proof."
+      ],
+      "releaseRule": "No commercial scale claim without a measured pilot and paid institutional evidence.",
+      "evidenceRefs": [
+        "docs/evidence/pilot-readiness.md",
+        "docs/commercial/roi-measurement-template.md",
+        "docs/evidence/28-first-paying-customer.md"
+      ]
+    }
+  ]
+}

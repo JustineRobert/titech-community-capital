@@ -22,8 +22,8 @@ concurrency:
 env:
   NODE_ENV: test
   CI: true
-  MONGO_URI: mongodb://127.0.0.1:27017/titech_test
-  MONGODB_URI: mongodb://127.0.0.1:27017/titech_test
+  MONGO_URI: "mongodb://127.0.0.1:27017/titech_test?replicaSet=rs0"
+  MONGODB_URI: "mongodb://127.0.0.1:27017/titech_test?replicaSet=rs0"
   REDIS_URL: redis://127.0.0.1:6379
   PORT: 5000
 
@@ -45,6 +45,12 @@ jobs:
             package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
+
+      - name: Pin supported npm runtime
+        run: npm install --global npm@11.12.1
+
+      - name: Enforce supported runtime and lockfile contract
+        run: npm run check:runtime
 
       - name: Frontend runtime ownership/configuration audit
         run: npm run audit:frontend-runtime
@@ -106,71 +112,30 @@ jobs:
       - name: Lint and format
         run: npm run check
 
-  # Unit and integration tests with services and compatibility matrix
+  # Unit and integration tests using transaction-capable MongoDB and persistent Redis
   tests:
-    name: Unit and integration tests
+    name: Unit and integration tests (supported runtime)
     runs-on: ubuntu-latest
     needs: [quality]
-    services:
-      mongodb:
-        image: mongo:7-jammy
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 12
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 12
-
-    strategy:
-      fail-fast: false
-      matrix:
-        # Two runs: measured local environment and repository target
-        node-version: [ '22.16.0', '24.15.0' ]
-        include:
-          - node-version: '22.16.0'
-            label: measured
-          - node-version: '24.15.0'
-            label: target
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node (matrix)
+      - name: Setup Node (use .nvmrc)
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
 
-      - name: Confirm .nvmrc matches target run
-        if: matrix.node-version == '24.15.0'
-        run: |
-          if [ -f .nvmrc ]; then
-            nvm_file=$(cat .nvmrc | tr -d '[:space:]')
-            if [ "$nvm_file" != "${{ matrix.node-version }}" ]; then
-              echo "::error file=.nvmrc::.nvmrc value ($nvm_file) does not match expected CI target (${{
-                matrix.node-version }})"
-              exit 1
-            fi
-            echo ".nvmrc matches expected target: $nvm_file"
-          else
-            echo "::error file=.nvmrc::.nvmrc not found in repository"
-            exit 1
-          fi
+      - name: Pin supported npm runtime
+        run: npm install --global npm@11.12.1
+
+      - name: Enforce supported runtime and lockfile contract
+        run: npm run check:runtime
 
       - name: Install dependencies (root + workspaces)
         run: |
@@ -178,15 +143,32 @@ jobs:
           npm ci --prefix backend --include=dev
           npm ci --prefix frontend --include=dev
 
-      - name: Verify service readiness
+      - name: Start transaction-capable MongoDB and persistent Redis
         run: |
-          node -e "const net=require('net'); const checks=[['MongoDB',27017],['Redis',6379]]; let pending=checks.length; for(const [name,port] of checks){const socket=net.createConnection({host:'127.0.0.1',port},()=>{console.log(name+' is reachable'); socket.destroy(); if(--pending===0) process.exit(0)}); socket.on('error',()=>{console.error(name+' not reachable'); process.exit(1);});}"
+          docker compose -f docker-compose.validation.yml up -d
+          ready=false
+          for attempt in $(seq 1 60); do
+            primary=$(docker compose -f docker-compose.validation.yml exec -T mongodb mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | tail -n 1 || true)
+            redis=$(docker compose -f docker-compose.validation.yml exec -T redis redis-cli ping 2>/dev/null | tail -n 1 || true)
+            if [ "$primary" = "true" ] && [ "$redis" = "PONG" ]; then ready=true; break; fi
+            sleep 2
+          done
+          if [ "$ready" != "true" ]; then
+            docker compose -f docker-compose.validation.yml ps
+            docker compose -f docker-compose.validation.yml logs --no-color
+            exit 1
+          fi
+          docker compose -f docker-compose.validation.yml exec -T mongodb mongosh --quiet --eval 'assert(rs.status().myState === 1)'
 
       - name: Run backend tests
         run: npm run test:backend:ci
 
       - name: Run frontend tests
         run: npm run test:frontend:ci
+
+      - name: Stop validation services
+        if: always()
+        run: docker compose -f docker-compose.validation.yml down --volumes --remove-orphans
 
   # Production builds (only after quality + tests)
   build:
@@ -206,6 +188,12 @@ jobs:
             package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
+
+      - name: Pin supported npm runtime
+        run: npm install --global npm@11.12.1
+
+      - name: Enforce supported runtime and lockfile contract
+        run: npm run check:runtime
 
       - name: Install dependencies (root + workspaces)
         run: |
@@ -238,6 +226,12 @@ jobs:
             backend/package-lock.json
             frontend/package-lock.json
 
+      - name: Pin supported npm runtime
+        run: npm install --global npm@11.12.1
+
+      - name: Enforce supported runtime and lockfile contract
+        run: npm run check:runtime
+
       - name: Install dependencies (root + workspaces)
         run: |
           npm ci --include=dev
@@ -246,9 +240,9 @@ jobs:
 
       - name: Audit dependencies (high severity)
         run: |
-          npm audit --audit-level=high || true
-          npm audit --prefix backend --audit-level=high || true
-          npm audit --prefix frontend --audit-level=high || true
+          npm audit --audit-level=high
+          npm audit --prefix backend --audit-level=high
+          npm audit --prefix frontend --audit-level=high
 
   # OSV scan
   osv:

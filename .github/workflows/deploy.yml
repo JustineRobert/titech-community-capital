@@ -545,8 +545,15 @@ jobs:
           cache: npm
 
           cache-dependency-path: |
+            package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
+
+      - name: Pin supported npm runtime
+        run: npm install --global npm@11.12.1
+
+      - name: Enforce supported runtime and lockfile contract
+        run: npm run check:runtime
 
       ##########################################################################
       # Verify repository structure
@@ -583,6 +590,18 @@ jobs:
           echo "Canonical repository structure verified."
 
       ##########################################################################
+      # Install root, backend and frontend from their lockfiles
+      ##########################################################################
+
+      - name: Install Root Dependencies
+
+        run: npm ci --include=dev
+
+      - name: Validate P0/P1 gate contract
+
+        run: npm run titech:critical-gates
+
+      ##########################################################################
       # Install backend
       ##########################################################################
 
@@ -601,6 +620,10 @@ jobs:
         working-directory: ${{ env.FRONTEND_DIR }}
 
         run: npm ci
+
+      - name: Root static and release checks
+
+        run: npm run check
 
       - name: Enterprise hosting gate
 
@@ -785,6 +808,28 @@ jobs:
       # Tests
       ##########################################################################
 
+      - name: Start transaction-capable MongoDB and persistent Redis
+
+        if: ${{ env.SKIP_TESTS != 'true' }}
+
+        run: |
+
+          set -euo pipefail
+          docker compose -f docker-compose.validation.yml up -d
+          ready=false
+          for attempt in $(seq 1 60); do
+            primary=$(docker compose -f docker-compose.validation.yml exec -T mongodb mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | tail -n 1 || true)
+            redis=$(docker compose -f docker-compose.validation.yml exec -T redis redis-cli ping 2>/dev/null | tail -n 1 || true)
+            if [[ "$primary" == "true" && "$redis" == "PONG" ]]; then ready=true; break; fi
+            sleep 2
+          done
+          if [[ "$ready" != "true" ]]; then
+            docker compose -f docker-compose.validation.yml ps
+            docker compose -f docker-compose.validation.yml logs --no-color
+            exit 1
+          fi
+          docker compose -f docker-compose.validation.yml exec -T mongodb mongosh --quiet --eval 'assert(rs.status().myState === 1)'
+
       - name: Backend CI Tests
 
         if: ${{ env.SKIP_TESTS != 'true' }}
@@ -841,16 +886,13 @@ jobs:
 
         run: |
 
-          if npm run | grep -q "test:integration"
-          then
+          npm run test:integration
 
-            npm run test:integration
+      - name: Stop validation services
 
-          else
+        if: always() && env.SKIP_TESTS != 'true'
 
-            echo "Backend integration test script not configured."
-
-          fi
+        run: docker compose -f docker-compose.validation.yml down --volumes --remove-orphans
 
       ##########################################################################
       # Application builds

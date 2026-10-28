@@ -3,24 +3,36 @@ name: titech-community-capital-dev
 services:
   mongo:
     image: mongo:7.0-jammy
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - titech-dev-mongo:/data/db
-    command: ["mongod", "--bind_ip_all"]
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok' | grep -q 1"]
       interval: 10s
       timeout: 5s
       retries: 12
 
+  mongo-init:
+    image: mongo:7.0-jammy
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/bash", "-lc"]
+    command: >-
+      until mongosh "mongodb://mongo:27017/admin?directConnection=true" --quiet --eval 'db.adminCommand({ping:1}).ok' | grep -q '^1$'; do sleep 1; done;
+      mongosh "mongodb://mongo:27017/admin?directConnection=true" --quiet --eval 'try { rs.status() } catch (e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo:27017"}]}) }';
+      until mongosh "mongodb://mongo:27017/admin?directConnection=true" --quiet --eval 'db.hello().isWritablePrimary' | grep -q 'true'; do sleep 1; done;
+
   redis:
     image: redis:7.4-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
+      - "127.0.0.1:6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
     volumes:
       - titech-dev-redis:/data
     healthcheck:
@@ -40,7 +52,7 @@ services:
       NODE_ENV: development
       HOST: 0.0.0.0
       PORT: 5000
-      MONGO_URI: mongodb://mongo:27017/community_savings
+      MONGO_URI: mongodb://mongo:27017/community_savings?replicaSet=rs0
       REDIS_URL: redis://redis:6379
       CORS_ORIGINS: http://localhost:3000
       CLIENT_ORIGIN: http://localhost:3000
@@ -49,6 +61,8 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:
