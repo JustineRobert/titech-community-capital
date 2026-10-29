@@ -47,7 +47,6 @@ import React, {
 } from 'react';
 
 import {
-  Navigate,
   Route,
   Routes,
   useLocation,
@@ -62,10 +61,6 @@ import 'react-toastify/dist/ReactToastify.css';
 // -----------------------------------------------------------------------------
 // Application context
 // -----------------------------------------------------------------------------
-
-import {
-  useAuth,
-} from './context/AuthContext';
 
 // -----------------------------------------------------------------------------
 // Route guards
@@ -152,6 +147,19 @@ const NotFound = lazy(
   () => import('./pages/NotFound')
 );
 
+const InstitutionalHomePage = lazy(() =>
+  import('./pages/public/InstitutionalPublicPages').then((module) => ({ default: module.HomePage })),
+);
+const BookDemoPage = lazy(() =>
+  import('./pages/public/InstitutionalPublicPages').then((module) => ({ default: module.BookDemoPage })),
+);
+const ContactUsPage = lazy(() =>
+  import('./pages/public/InstitutionalPublicPages').then((module) => ({ default: module.ContactUsPage })),
+);
+const GuidedChatPage = lazy(() =>
+  import('./pages/public/InstitutionalPublicPages').then((module) => ({ default: module.GuidedChatPage })),
+);
+
 // ============================================================================
 // Lazy-loaded administrative pages
 // ============================================================================
@@ -178,6 +186,9 @@ const AdminSessions = lazy(
 
 const ROUTES = Object.freeze({
   HOME: '/',
+  BOOK_A_DEMO: '/book-a-demo',
+  CONTACT_US: '/contact-us',
+  CHAT_WITH_TITECH: '/chat-with-titech',
   LOGIN: '/login',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
@@ -509,32 +520,6 @@ function reportError(error, errorInfo) {
 // Home route
 // ============================================================================
 
-function HomeRedirect() {
-  const {
-    user,
-    loading,
-  } = useAuth();
-
-  if (loading) {
-    return <RouteFallback />;
-  }
-
-  if (user) {
-    return (
-      <Navigate
-        to={ROUTES.DASHBOARD}
-        replace
-      />
-    );
-  }
-
-  return (
-    <Navigate
-      to={ROUTES.LOGIN}
-      replace
-    />
-  );
-}
 
 // ============================================================================
 // Route visibility helpers
@@ -662,7 +647,22 @@ function PublicRoutes() {
     <>
       <Route
         path={ROUTES.HOME}
-        element={<HomeRedirect />}
+        element={<InstitutionalHomePage />}
+      />
+
+      <Route
+        path={ROUTES.BOOK_A_DEMO}
+        element={<BookDemoPage />}
+      />
+
+      <Route
+        path={ROUTES.CONTACT_US}
+        element={<ContactUsPage />}
+      />
+
+      <Route
+        path={ROUTES.CHAT_WITH_TITECH}
+        element={<GuidedChatPage />}
       />
 
       <Route

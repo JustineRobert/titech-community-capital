@@ -1,0 +1,507 @@
+.titech-public-page {
+  width: min(100% - 2rem, 76rem);
+  margin-inline: auto;
+  padding-block: clamp(2rem, 5vw, 4.5rem);
+  color: var(--titech-color-text);
+}
+
+.titech-public-page__intro {
+  max-width: 55rem;
+  margin: 0 auto clamp(1.75rem, 4vw, 3rem);
+  text-align: center;
+}
+
+.titech-public-page__eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--titech-official-electric-blue);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.titech-public-page h1 {
+  max-width: 20ch;
+  margin: 0 auto 1rem;
+  color: var(--titech-official-deep-blue);
+  font-size: clamp(2.1rem, 5vw, 3.7rem);
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+}
+
+.titech-public-page__lead {
+  max-width: 64ch;
+  margin: 0 auto;
+  color: var(--titech-color-text-muted);
+  font-size: clamp(1rem, 1.7vw, 1.16rem);
+  line-height: 1.75;
+}
+
+.titech-public-home {
+  width: 100%;
+  padding-block: 0;
+}
+
+.titech-public-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.22fr) minmax(19rem, 0.78fr);
+  align-items: center;
+  gap: clamp(2rem, 4vw, 4rem);
+  width: min(100% - 2rem, 80rem);
+  margin-inline: auto;
+  padding-block: clamp(3rem, 7vw, 6.5rem);
+}
+
+.titech-public-hero__copy h1 {
+  max-width: 15ch;
+  margin: 0 0 1.25rem;
+  color: var(--titech-official-deep-blue);
+  font-size: clamp(2.7rem, 6vw, 5.1rem);
+  font-weight: 900;
+  letter-spacing: -0.055em;
+  line-height: 1.02;
+}
+
+.titech-public-hero__copy .titech-public-page__lead {
+  margin: 0;
+}
+
+.titech-public-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.6rem;
+}
+
+.titech-public-button {
+  display: inline-flex;
+  min-height: 2.85rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: var(--titech-ui-radius-control, 0.75rem);
+  font: inherit;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.titech-public-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.titech-public-button:focus-visible,
+.titech-guided-chat__topic:focus-visible,
+.titech-public-form input:focus-visible,
+.titech-public-form select:focus-visible,
+.titech-public-form textarea:focus-visible {
+  outline: 3px solid var(--titech-official-cyan);
+  outline-offset: 3px;
+}
+
+.titech-public-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.titech-public-button--primary {
+  background: var(--titech-official-electric-blue);
+  color: var(--titech-official-white);
+}
+
+.titech-public-button--primary:hover:not(:disabled) {
+  background: var(--titech-official-deep-blue);
+}
+
+.titech-public-button--secondary {
+  border-color: var(--titech-color-border-strong);
+  background: var(--titech-color-surface);
+  color: var(--titech-official-deep-blue);
+}
+
+.titech-public-button--secondary:hover {
+  border-color: var(--titech-official-electric-blue);
+  background: var(--titech-color-surface-muted);
+}
+
+.titech-public-button--text {
+  padding-inline: 0.45rem;
+  background: transparent;
+  color: var(--titech-official-electric-blue);
+}
+
+.titech-public-home__disclaimer,
+.titech-public-form__privacy-note {
+  margin: 1.25rem 0 0;
+  color: var(--titech-color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.titech-public-hero__panel {
+  padding: clamp(1.2rem, 3vw, 2rem);
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-card, 1rem);
+  background: var(--titech-color-surface);
+  box-shadow: var(--titech-ui-shadow-card, 0 10px 30px rgb(8 43 103 / 0.08));
+}
+
+.titech-public-hero__panel-label {
+  margin: 0 0 1.1rem;
+  color: var(--titech-color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.titech-public-hero__step {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.8rem;
+  padding-block: 0.9rem;
+  border-block-start: 1px solid var(--titech-color-border);
+}
+
+.titech-public-hero__step span {
+  display: grid;
+  width: 2.3rem;
+  height: 2.3rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--titech-color-surface-muted);
+  color: var(--titech-official-deep-blue);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.titech-public-hero__step strong {
+  color: var(--titech-color-text);
+  font-size: 0.98rem;
+}
+
+.titech-public-hero__panel-footnote {
+  margin: 0.9rem 0 0;
+  color: var(--titech-color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.titech-public-section {
+  padding: clamp(2.5rem, 6vw, 5rem) max(1rem, calc((100% - 76rem) / 2));
+}
+
+.titech-public-section h2,
+.titech-public-bottom-cta h2 {
+  max-width: 28ch;
+  margin: 0 0 1.5rem;
+  color: var(--titech-official-deep-blue);
+  font-size: clamp(1.7rem, 3.4vw, 2.65rem);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.titech-public-section > p:not(.titech-public-page__eyebrow) {
+  max-width: 75ch;
+  color: var(--titech-color-text-muted);
+  line-height: 1.8;
+}
+
+.titech-public-section--tinted {
+  background: var(--titech-color-surface-muted);
+}
+
+.titech-public-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.titech-public-card {
+  padding: 1.35rem;
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-card, 1rem);
+  background: var(--titech-color-surface);
+}
+
+.titech-public-card h3 {
+  margin: 0 0 0.65rem;
+  color: var(--titech-official-deep-blue);
+  font-size: 1.1rem;
+}
+
+.titech-public-card p {
+  margin: 0;
+  color: var(--titech-color-text-muted);
+  line-height: 1.7;
+}
+
+.titech-public-bottom-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: clamp(2rem, 5vw, 3.75rem) max(1rem, calc((100% - 76rem) / 2));
+  background: var(--titech-official-deep-blue);
+  color: var(--titech-official-white);
+}
+
+.titech-public-bottom-cta h2 {
+  margin-bottom: 0.5rem;
+  color: var(--titech-official-white);
+}
+
+.titech-public-bottom-cta p {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--titech-official-white);
+  line-height: 1.65;
+  opacity: 0.9;
+}
+
+.titech-public-button--inverse {
+  border-color: var(--titech-official-white);
+  background: var(--titech-official-white);
+  color: var(--titech-official-deep-blue);
+  white-space: nowrap;
+}
+
+.titech-public-form-panel {
+  max-width: 58rem;
+  margin-inline: auto;
+  padding: clamp(1.1rem, 3vw, 2rem);
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-card, 1rem);
+  background: var(--titech-color-surface);
+  box-shadow: var(--titech-ui-shadow-card, 0 10px 30px rgb(8 43 103 / 0.08));
+}
+
+.titech-public-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.titech-public-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem;
+}
+
+.titech-public-form__field {
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.titech-public-form__field label {
+  color: var(--titech-color-text);
+  font-size: 0.92rem;
+  font-weight: 750;
+}
+
+.titech-public-form__field label span {
+  color: var(--titech-state-danger);
+}
+
+.titech-public-form__field input,
+.titech-public-form__field select,
+.titech-public-form__field textarea {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--titech-color-border-strong);
+  border-radius: var(--titech-ui-radius-control, 0.75rem);
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+  font: inherit;
+}
+
+.titech-public-form__field textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.titech-public-form__field:has(textarea) {
+  grid-column: 1 / -1;
+}
+
+.titech-public-form__field input::placeholder,
+.titech-public-form__field textarea::placeholder {
+  color: var(--titech-color-text-muted);
+  opacity: 0.8;
+}
+
+.titech-public-form__hint {
+  margin: 0;
+  color: var(--titech-color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.titech-public-form__consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  color: var(--titech-color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.titech-public-form__consent input {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+  accent-color: var(--titech-official-electric-blue);
+}
+
+.titech-public-form__honeypot {
+  position: absolute !important;
+  inset-inline-start: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+
+.titech-public-form__error,
+.titech-public-form__field-errors {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--titech-danger-border);
+  border-radius: var(--titech-ui-radius-control, 0.75rem);
+  background: var(--titech-danger-surface);
+  color: var(--titech-state-danger);
+}
+
+.titech-public-form__field-errors ul {
+  margin: 0.5rem 0 0;
+  padding-inline-start: 1.25rem;
+}
+
+.titech-public-form__success {
+  padding: 1rem;
+  border: 1px solid var(--titech-color-border-strong);
+  border-inline-start: 4px solid var(--titech-state-success);
+  border-radius: var(--titech-ui-radius-control, 0.75rem);
+  background: var(--titech-color-surface-muted);
+  color: var(--titech-color-text);
+  line-height: 1.65;
+}
+
+.titech-public-form__success p {
+  margin: 0.45rem 0 0;
+}
+
+.titech-public-form__success span {
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.titech-public-form__privacy-note {
+  margin-top: 0;
+  font-size: 0.8rem;
+}
+
+.titech-guided-chat {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.82fr) minmax(0, 1.18fr);
+  gap: 1.25rem;
+  max-width: 68rem;
+  margin-inline: auto;
+}
+
+.titech-guided-chat__topics {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+}
+
+.titech-guided-chat__topic {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-control, 0.75rem);
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.titech-guided-chat__topic:hover,
+.titech-guided-chat__topic.is-active {
+  border-color: var(--titech-official-electric-blue);
+  background: var(--titech-color-surface-muted);
+}
+
+.titech-guided-chat__answer {
+  min-height: 19rem;
+  padding: clamp(1.1rem, 3vw, 2rem);
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-card, 1rem);
+  background: var(--titech-color-surface);
+}
+
+.titech-guided-chat__answer h2 {
+  margin: 0 0 0.9rem;
+  color: var(--titech-official-deep-blue);
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  line-height: 1.25;
+}
+
+.titech-guided-chat__answer > p:not(.titech-public-page__eyebrow) {
+  color: var(--titech-color-text-muted);
+  line-height: 1.8;
+}
+
+@media (max-width: 56rem) {
+  .titech-public-hero,
+  .titech-guided-chat {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .titech-public-hero__panel {
+    max-width: 42rem;
+  }
+
+  .titech-public-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .titech-public-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .titech-public-form__field:has(textarea) {
+    grid-column: auto;
+  }
+
+  .titech-public-hero__actions .titech-public-button,
+  .titech-public-form > .titech-public-button {
+    width: 100%;
+  }
+
+  .titech-public-bottom-cta {
+    align-items: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titech-public-button {
+    transition: none;
+  }
+
+  .titech-public-button:hover:not(:disabled) {
+    transform: none;
+  }
+}

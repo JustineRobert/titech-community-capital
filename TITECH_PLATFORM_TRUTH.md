@@ -1,3 +1,15 @@
+## 29 October 2026 — institutional conversion workflow implementation slice
+
+**Current decision: `NOT_READY`; `productionApproved=false`.** This section records source changes made to the uploaded archive snapshot `titech-community-capital-main.zip`. The archive has no `.git` directory; no commit, branch, push, remote CI result, or clean-clone result is claimed.
+
+Implemented in source: a public institutional landing page and Book a Demo, Contact Us, and guided FAQ pages; public submission routing; Mongoose persistence model for institutional leads; allowlist/length/consent validation; idempotency-key plus payload-fingerprint handling; server-side super-admin-only lead listing/status changes; source-theme semantic CSS; and focused native validation tests. Official colors continue to come from the repository brand manifest/theme-token layer, and the configured legal entity remains `TITech Capital LTD`. The new chat UI is guided FAQ only, not staffed live chat, and the demo flow explicitly remains request-only until a human confirms availability.
+
+**Verification boundary:** the nine focused validation tests and documented native/static gate results pass in the available environment. The environment is Node `v22.16.0` / npm `10.9.2`, below the repository's Node `>=24.15.0` / npm `>=11` target; dependencies are absent and Docker is unavailable. The runtime gate therefore fails, `npm ci` is blocked by engine enforcement, and no live Express/MongoDB/Redis, browser E2E, provider sandbox, backup/restore, or production service test was executed. The source import audit continues to report 208 legacy/non-critical missing local imports, while the canonical financial surface is reported with zero missing imports. The request audit currently has a pending-state fallback and is not proven transactionally atomic with lead persistence; the rate limiter is process-local and is not production-ready for multi-instance deployments.
+
+The institutional lead workflow does not change the canonical financial/ledger path or authorize real-money activity. Provider integrations, regulated features, external security/legal/partner approvals, and pilot evidence remain separate unresolved gates. See `docs/evidence/public-conversion-workflow-2026-10-29.md` and `reports/2026-10-29/` for exact changes and command results.
+
+---
+
 # TITech Community Capital — Platform Truth
 
 ## Current release decision

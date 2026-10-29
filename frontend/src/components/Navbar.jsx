@@ -569,6 +569,12 @@ function Navbar({
             ================================================================== */}
 
         <div className="titech-navbar__actions">
+          {!isAuthenticated ? (
+            <div className="titech-navbar__public-ctas" aria-label="Institutional enquiries">
+              <Link className="titech-navbar__public-link" to="/contact-us">Contact Us</Link>
+              <Link className="titech-navbar__public-button" to="/book-a-demo">Book a Demo</Link>
+            </div>
+          ) : null}
           <LanguageSelector className="titech-language-selector--desktop" />
           {isAuthenticated ? (
             <>
@@ -869,6 +875,13 @@ function Navbar({
           )}
 
           <div className="titech-navbar__mobile-divider" />
+          {!isAuthenticated ? (
+            <div className="titech-navbar__mobile-public-ctas" aria-label="Institutional enquiries">
+              <Link to="/book-a-demo" onClick={handleNavigationClick}>Book a Demo</Link>
+              <Link to="/contact-us" onClick={handleNavigationClick}>Contact Us</Link>
+              <Link to="/chat-with-titech" onClick={handleNavigationClick}>Chat with TITech</Link>
+            </div>
+          ) : null}
           <LanguageSelector className="titech-language-selector--mobile" />
 
           {isAuthenticated ? (

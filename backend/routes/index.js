@@ -19,6 +19,7 @@ import operationsRoutes from '../modules/operations/operations.routes.js';
 import ubuntuFloatRoutes from '../modules/ubuntu-float/ubuntuFloat.routes.js';
 import educationCampaignRoutes from '../modules/education/educationCampaign.routes.js';
 import educationCampaignPublicRoutes from '../modules/education/educationCampaign.public.routes.js';
+import institutionalLeadRoutes from './institutionalLead.routes.js';
 import tenantMiddlewareModule from '../middleware/tenantMiddleware.js';
 import { payrollApiRouter, payrollWebhookRouter } from '../modules/payroll/payroll.routes.js';
 import LoansController from '../controllers/loansController.js';
@@ -1192,6 +1193,13 @@ router.use(
 router.use(
     `${API_PREFIX}/education/campaigns/public`,
     educationCampaignPublicRoutes,
+);
+
+// Public conversion intake is separated from authenticated tenant/financial APIs.
+// Administrative listing and transitions enforce super-admin authorization inside the router.
+router.use(
+    `${API_PREFIX}/public/institutional-leads`,
+    institutionalLeadRoutes,
 );
 
 router.use(

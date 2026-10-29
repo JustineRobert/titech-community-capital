@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital",
   "version": "1.0.0",
-  "description": "TITech Community Capital — Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
+  "description": "TITech Community Capital \u2014 Community Financial Infrastructure Layer for Africa: trusted community financial records, provider-neutral payment orchestration, ledger and reconciliation controls, consented data, risk intelligence and permissioned capital connectivity.",
   "private": true,
   "keywords": [
     "TITech",
@@ -107,7 +107,7 @@
     "test:backend:ci": "npm --prefix backend run test:ci",
     "test:backend:coverage": "npm --prefix backend run test:coverage",
     "test:backend:watch": "npm --prefix backend test -- --watch",
-    "test:ci": "npm run test:critical-gates && npm run test:i18n:native && npm run test:document-malware-scan && npm run test:ubuntu-float && npm run test:inclusive-onboarding && npm run test:education-campaigns && npm run test:performance-contract && npm run test:retirement-support && npm run test:backend:ci && npm run test:frontend:ci",
+    "test:ci": "npm run test:critical-gates && npm run test:institutional-leads && npm run test:i18n:native && npm run test:document-malware-scan && npm run test:ubuntu-float && npm run test:inclusive-onboarding && npm run test:education-campaigns && npm run test:performance-contract && npm run test:retirement-support && npm run test:backend:ci && npm run test:frontend:ci",
     "test:control-plane": "npm --prefix backend run test:control-plane",
     "test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
     "test:e2e": "npm --prefix frontend run test:e2e",
@@ -168,7 +168,8 @@
     "check:runtime": "node scripts/titech-supported-runtime-gate.mjs",
     "titech:critical-gates": "node scripts/titech-critical-gates.mjs",
     "titech:critical-gates:strict": "node scripts/titech-critical-gates.mjs --strict",
-    "test:critical-gates": "node --test scripts/titech-critical-gates.test.mjs"
+    "test:critical-gates": "node --test scripts/titech-critical-gates.test.mjs",
+    "test:institutional-leads": "node --test backend/tests/unit/institutional-leads/*.test.mjs"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

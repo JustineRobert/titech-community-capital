@@ -1560,3 +1560,10 @@ The repository does not treat source-level checks, mocked tests, provider adapte
 
 The ordered technical/commercial release gates and Golden Money Path requirements are defined in [`docs/evidence/critical-gates-2026-10-28.json`](docs/evidence/critical-gates-2026-10-28.json). Use [`TITECH_END_TO_END_P0_P1_REMEDIATION_MASTER_PROMPT.md`](TITECH_END_TO_END_P0_P1_REMEDIATION_MASTER_PROMPT.md) as the copy-ready end-to-end remediation instruction. Run `npm run check:runtime`, `npm run titech:critical-gates`, and `npm run test:critical-gates` before dependency-backed tests. The source archive intentionally remains `NOT_READY` and `productionApproved=false` until the runtime, live transaction/provider, security/recovery, legal/partner and institutional-pilot evidence is reviewed.
 
+
+
+## Public institutional conversion workflow — 29 October 2026
+
+The public website now includes the source implementation for `/`, `/book-a-demo`, `/contact-us`, and `/chat-with-titech`. Demo and contact submissions use `POST /api/v1/public/institutional-leads`; super-admin staff can list requests and transition their status through the same route family. The chat page is a bounded, local guided FAQ—not live human chat or a connected AI service. Demo submission creates a request awaiting staff confirmation; it does not reserve a calendar slot or claim that a notification was delivered.
+
+Before exposing the forms in a production deployment, the variable is documented in `backend/.env.example`; set it as a real deployment environment value containing the exact trusted website origin(s). The current limiter is process-local; production needs shared Redis/gateway rate limiting and the matching abuse monitoring proved under the actual deployment. Database indexes, persistent lead storage, route authorization, audit durability, browser E2E, notification delivery, and real calendar/human-chat integrations remain unverified until dependency-backed service integration tests are run. This feature does not change financial posting paths, activate payment providers, or change `productionApproved=false`. See `docs/evidence/public-conversion-workflow-2026-10-29.md`.

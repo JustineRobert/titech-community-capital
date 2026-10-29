@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-05T21:16:46.483Z",
+  "generatedAt": "2026-10-29T05:49:29.333Z",
   "repository": {
-    "totalFiles": 3083,
-    "sourceFiles": 2317,
-    "zeroByteFiles": 250,
+    "totalFiles": 3496,
+    "sourceFiles": 2467,
+    "zeroByteFiles": 248,
     "zeroBytePaths": [
       "backend/application/MiddlewareRegistrar.js",
       "backend/application/index.js",
@@ -108,9 +108,6 @@
       "backend/modules/finance/ledger/cache/balanceCache.js",
       "backend/modules/finance/ledger/cache/ledgerCache.js",
       "backend/modules/finance/ledger/cache/snapshotCache.js",
-      "backend/modules/finance/ledger/core/accountLockService.js",
-      "backend/modules/finance/ledger/core/adjustmentService.js",
-      "backend/modules/finance/ledger/core/fiscalCalendarService.js",
       "backend/modules/finance/ledger/events/balanceEvents.js",
       "backend/modules/finance/ledger/events/ledgerEvents.js",
       "backend/modules/finance/ledger/events/periodEvents.js",
@@ -245,6 +242,7 @@
       "backend/tests/unit/commercial/transactionRevenue/revenueReversal.service.test.js",
       "backend/tests/unit/commercial/transactionRevenue/settlement.service.test.js",
       "backend/tests/unit/commercial/transactionRevenue/transactionRevenue.service.test.js",
+      "build-artifact-hashes.txt",
       "docs/onboarding/kyc-requirements.md",
       "docs/onboarding/pilot-plan.md",
       "docs/onboarding/pricing-model.md",
@@ -256,7 +254,7 @@
       "frontend/src/ui/uiSlice.js",
       "postman/reports/.gitkeep"
     ],
-    "testFilesObserved": 249,
+    "testFilesObserved": 286,
     "emptyTestFiles": 26,
     "blockingEmptyTestFiles": [],
     "legacyEmptyTestFiles": [
@@ -287,9 +285,9 @@
       "backend/tests/unit/commercial/transactionRevenue/settlement.service.test.js",
       "backend/tests/unit/commercial/transactionRevenue/transactionRevenue.service.test.js"
     ],
-    "unresolvedRelativeImportsOrRequires": 214,
+    "unresolvedRelativeImportsOrRequires": 208,
     "criticalMissingImports": 0,
-    "legacyMissingImportPaths": 214,
+    "legacyMissingImportPaths": 208,
     "duplicateImplementationSignals": [
       [
         "backend/app.js",
@@ -307,7 +305,7 @@
   "product": "TITech Community Capital",
   "branch": "UNAVAILABLE_IN_ARCHIVE",
   "commit": "UNAVAILABLE_IN_ARCHIVE",
-  "sourceSnapshotSha256": "229c2d7e376cdfb12fd87fad2349e35382017792a258b843541f94960b224903",
+  "sourceSnapshotSha256": "ded108763dff48a27225aefba3a629cfe6369d1bfb576835b3a5b93dbc20dfac",
   "runtime": {
     "requiredNode": "24.15.0",
     "requiredNpm": "11.x",
@@ -316,10 +314,10 @@
     "localRuntimeMeetsTarget": false
   },
   "modules": {
-    "esm": 589,
-    "cjs": 1415,
-    "mixedBoundaryFiles": 61,
-    "neutral": 252
+    "esm": 750,
+    "cjs": 1396,
+    "mixedBoundaryFiles": 71,
+    "neutral": 250
   },
   "sourceVerified": {
     "syntax": "PASS",
@@ -345,12 +343,12 @@
       "light",
       "dark"
     ],
-    "cssFilesScanned": 56,
+    "cssFilesScanned": 66,
     "hardcodedOfficialCssOccurrences": 0,
-    "inlineScriptOfficialColorOccurrences": 68
+    "inlineScriptOfficialColorOccurrences": 0
   },
   "legacyDebt": {
-    "unresolvedLocalImports": 214,
+    "unresolvedLocalImports": 208,
     "emptyTests": 26,
     "blockingEmptyTests": 0,
     "note": "Legacy/non-critical debt remains visible and is not converted into fake completion. It must be consolidated before declaring repository-wide hygiene complete."

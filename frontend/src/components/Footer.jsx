@@ -121,6 +121,20 @@ const {
 
 export const QUICK_LINKS = Object.freeze([
   Object.freeze({
+    label: 'Book a Demo',
+    to: '/book-a-demo',
+  }),
+
+  Object.freeze({
+    label: 'Contact Us',
+    to: '/contact-us',
+  }),
+
+  Object.freeze({
+    label: 'Chat with TITech',
+    to: '/chat-with-titech',
+  }),
+  Object.freeze({
     label: 'Dashboard',
     to: '/dashboard',
   }),
