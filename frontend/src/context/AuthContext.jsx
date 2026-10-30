@@ -104,6 +104,72 @@ const TOKEN_REFRESH_BUFFER_SECONDS =
 const AUTH_CHANNEL_NAME =
   "titech-auth";
 
+// A non-secret marker prevents a retained HttpOnly cookie from restoring an
+// authenticated session while the backend has not confirmed logout. It never
+// stores or derives a token and is cleared only by confirmed revocation, an
+// explicit server response that no session record is present, or new login.
+const PENDING_LOGOUT_KEY = "titech.auth.logoutPending";
+let pendingLogoutInMemory = false;
+
+function hasPendingLogout() {
+  if (pendingLogoutInMemory) return true;
+  if (typeof window === "undefined") return false;
+
+  try {
+    if (window.localStorage.getItem(PENDING_LOGOUT_KEY) === "1") {
+      pendingLogoutInMemory = true;
+      return true;
+    }
+  } catch {
+    // Try per-tab storage before concluding that no marker is available.
+  }
+
+  try {
+    if (window.sessionStorage.getItem(PENDING_LOGOUT_KEY) === "1") {
+      pendingLogoutInMemory = true;
+      return true;
+    }
+  } catch {
+    // Storage is a coordination aid, not an authentication authority.
+  }
+
+  return false;
+}
+
+function setPendingLogout() {
+  pendingLogoutInMemory = true;
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(PENDING_LOGOUT_KEY, "1");
+    return;
+  } catch {
+    // Continue with the per-tab storage fallback.
+  }
+
+  try {
+    window.sessionStorage.setItem(PENDING_LOGOUT_KEY, "1");
+  } catch {
+    // The in-memory marker still protects the current application lifecycle.
+  }
+}
+
+function clearPendingLogout() {
+  pendingLogoutInMemory = false;
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(PENDING_LOGOUT_KEY);
+  } catch {
+    // Cleanup must not prevent local sign-out.
+  }
+  try {
+    window.sessionStorage.removeItem(PENDING_LOGOUT_KEY);
+  } catch {
+    // Cleanup must not prevent local sign-out.
+  }
+}
+
 const AUTH_ME_ENDPOINT =
   "/api/auth/me";
 
@@ -1350,6 +1416,50 @@ export function AuthProvider({
           );
         }
 
+        if (hasPendingLogout()) {
+          // Do not replace an unrevoked session cookie with a fresh login
+          // cookie. Resolve the previous revocation first or fail closed.
+          try {
+            const logoutResponse = await apiLogout();
+            const logoutResult = logoutResponse?.data || {};
+            if (
+              logoutResult.serverRevocationConfirmed === true ||
+              logoutResult.code === "NO_SERVER_SESSION_PRESENT"
+            ) {
+              clearPendingLogout();
+            } else {
+              throw new Error("Previous server-side session revocation is still unconfirmed.");
+            }
+          } catch {
+            setPendingLogout();
+            throw new Error(
+              "A previous sign-out is still awaiting server-side revocation. Reconnect and retry sign-out before starting a new session."
+            );
+          }
+        }
+
+        if (hasPendingLogout()) {
+          // Do not replace an unrevoked session cookie with a fresh login
+          // cookie. Resolve the previous revocation first or fail closed.
+          try {
+            const logoutResponse = await apiLogout();
+            const logoutResult = logoutResponse?.data || {};
+            if (
+              logoutResult.serverRevocationConfirmed === true ||
+              logoutResult.code === "NO_SERVER_SESSION_PRESENT"
+            ) {
+              clearPendingLogout();
+            } else {
+              throw new Error("Previous server-side session revocation is still unconfirmed.");
+            }
+          } catch {
+            setPendingLogout();
+            throw new Error(
+              "A previous sign-out is still awaiting server-side revocation. Reconnect and retry sign-out before starting a new session."
+            );
+          }
+        }
+
         /**
          * New authentication lifecycle.
          *
@@ -1424,6 +1534,8 @@ export function AuthProvider({
             "Login succeeded but no authenticated user profile was returned."
           );
         }
+
+        clearPendingLogout();
 
         updateAccessToken(
           accessToken,
@@ -1661,14 +1773,39 @@ export function AuthProvider({
 
         const operation =
           (async () => {
+            let logoutOutcome = {
+              code: "LOCAL_SIGNOUT_COMPLETE_SERVER_REVOCATION_UNCONFIRMED",
+              serverRevocationConfirmed: false,
+              localSignoutComplete: false,
+            };
+
             try {
               try {
-                await apiLogout();
+                const response = await apiLogout();
+                const serverResult = response?.data || {};
+                logoutOutcome = {
+                  code: serverResult.code || "LOGOUT_RESPONSE_UNVERIFIED",
+                  serverRevocationConfirmed:
+                    serverResult.serverRevocationConfirmed === true,
+                  localSignoutComplete: false,
+                };
+                if (
+                  logoutOutcome.serverRevocationConfirmed ||
+                  logoutOutcome.code === "NO_SERVER_SESSION_PRESENT"
+                ) {
+                  clearPendingLogout();
+                } else {
+                  setPendingLogout();
+                }
               } catch (error) {
+                setPendingLogout();
                 devLog(
                   "warn",
-                  "[AUTH] Logout API failed; continuing local cleanup",
-                  error
+                  "[AUTH] Logout API failed; continuing local sign-out without claiming server revocation",
+                  {
+                    code: error?.code || error?.response?.data?.code || "LOGOUT_REQUEST_FAILED",
+                    status: error?.response?.status || null,
+                  }
                 );
               }
 
@@ -1718,15 +1855,24 @@ export function AuthProvider({
                 !silent &&
                 mountedRef.current
               ) {
-                toast.info(
-                  "Logged out successfully"
-                );
+                if (logoutOutcome.serverRevocationConfirmed) {
+                  toast.success("Signed out; server-side session revocation is confirmed.");
+                } else if (logoutOutcome.code === "NO_SERVER_SESSION_PRESENT") {
+                  toast.info("Signed out on this device. The server has no matching active refresh session to revoke.");
+                } else {
+                  toast.warning("Signed out on this device, but server-side session revocation could not be confirmed. Reconnect and sign out again to verify revocation.");
+                }
               }
+
+              logoutOutcome.localSignoutComplete = true;
 
               devLog(
                 "info",
-                "[AUTH] Logout completed"
+                "[AUTH] Local sign-out completed",
+                { serverRevocationConfirmed: logoutOutcome.serverRevocationConfirmed, code: logoutOutcome.code }
               );
+
+              return logoutOutcome;
             } finally {
               logoutPromiseRef.current =
                 null;
@@ -1754,7 +1900,7 @@ export function AuthProvider({
   const logout =
     useCallback(
       async silent => {
-        await performLogout(
+        return performLogout(
           Boolean(silent),
           true
         );
@@ -1801,6 +1947,44 @@ export function AuthProvider({
         const operation =
           (async () => {
             try {
+              if (hasPendingLogout()) {
+                // Never bootstrap/rotate a refresh cookie while an earlier
+                // server-side logout remains unconfirmed.
+                try {
+                  const response = await apiLogout();
+                  const result = response?.data || {};
+                  if (
+                    result.serverRevocationConfirmed === true ||
+                    result.code === "NO_SERVER_SESSION_PRESENT"
+                  ) {
+                    clearPendingLogout();
+                  }
+                } catch (error) {
+                  devLog("warn", "[AUTH] Pending server-side logout could not yet be confirmed", {
+                    code: error?.code || error?.response?.data?.code || "LOGOUT_RETRY_FAILED",
+                    status: error?.response?.status || null,
+                  });
+                }
+
+                if (mountedRef.current && isSessionCurrent(generation)) {
+                  updateAccessToken(null, generation);
+                  clearTenant();
+                  disconnectUserSocket();
+                  setTenantId(null);
+                  setUser(null);
+                  setRefreshing(false);
+                  if (hasPendingLogout()) {
+                    setAuthError({
+                      code: "AUTH_SESSION_REVOCATION_UNCONFIRMED",
+                      message: "You are signed out on this device. Server-side session revocation is still pending; reconnect and retry sign-out before relying on revocation.",
+                    });
+                  } else {
+                    setAuthError(null);
+                  }
+                }
+                return;
+              }
+
               if (
                 mountedRef.current
               ) {

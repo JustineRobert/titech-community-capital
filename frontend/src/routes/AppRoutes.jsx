@@ -73,6 +73,7 @@ import {
 import AdminLayout from '../layouts/AdminLayout';
 
 import { useAuth } from '../context/AuthContext';
+import { normalizeTitechRole, TITECH_ROLES } from '../security/rbacPolicy';
 
 // ============================================================================
 // Application routes
@@ -81,6 +82,7 @@ import { useAuth } from '../context/AuthContext';
 const ROUTES = Object.freeze({
   ROOT: '/',
   LOGIN: '/login',
+  LOGOUT: '/logout',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
@@ -92,6 +94,7 @@ const ROUTES = Object.freeze({
   PRIVACY: '/privacy',
 
   DASHBOARD: '/dashboard',
+  ADMIN: '/admin',
   MEMBERS: '/members',
   SAVINGS: '/savings',
   LOANS: '/loans',
@@ -106,11 +109,8 @@ const ROUTES = Object.freeze({
 // ============================================================================
 
 const ADMIN_ROLES = new Set([
-  'platform_admin',
-  'tenant_admin',
-  'group_admin',
-  'admin',
-  'super_admin',
+  TITECH_ROLES.PLATFORM_ADMIN,
+  TITECH_ROLES.TENANT_ADMIN,
 ]);
 
 // ============================================================================
@@ -193,6 +193,11 @@ const Dashboard = lazyWithRecovery(
   'Dashboard'
 );
 
+const EnterpriseAdminDashboard = lazyWithRecovery(
+  () => import('../pages/admin/AdminDashboard'),
+  'EnterpriseAdminDashboard'
+);
+
 const Members = lazyWithRecovery(
   () => import('../pages/Members'),
   'Members'
@@ -221,6 +226,11 @@ const Reports = lazyWithRecovery(
 const Login = lazyWithRecovery(
   () => import('../pages/Login'),
   'Login'
+);
+
+const LogoutPage = lazyWithRecovery(
+  () => import('../pages/Logout'),
+  'LogoutPage'
 );
 
 const Register = lazyWithRecovery(
@@ -323,18 +333,8 @@ function useAuthentication() {
 // Role normalization
 // ============================================================================
 
-function normalizeRole(
-  role
-) {
-  if (
-    typeof role !== 'string'
-  ) {
-    return null;
-  }
-
-  return role
-    .trim()
-    .toLowerCase();
+function normalizeRole(role) {
+  return normalizeTitechRole(role);
 }
 
 // ============================================================================
@@ -362,10 +362,11 @@ function ProtectedRoute() {
         to={ROUTES.LOGIN}
         replace
         state={{
-          from:
-            location.pathname +
-            location.search +
-            location.hash,
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+            hash: location.hash,
+          },
         }}
       />
     );
@@ -516,6 +517,16 @@ function ApplicationRouteTree() {
     <Routes>
 
       {/* ================================================================== */}
+      {/* Canonical sign-out route                                            */}
+      {/* ================================================================== */}
+      {/* Must remain reachable after local sign-out when server revocation is
+          unconfirmed, so users can retry without entering protected screens. */}
+      <Route
+        path={ROUTES.LOGOUT}
+        element={<LogoutPage />}
+      />
+
+      {/* ================================================================== */}
       {/* Public authentication routes                                       */}
       {/* ================================================================== */}
 
@@ -655,6 +666,11 @@ function ApplicationRouteTree() {
               <AdminRoute />
             }
           >
+            <Route
+              path={ROUTES.ADMIN}
+              element={<EnterpriseAdminDashboard />}
+            />
+
             <Route
               path={ROUTES.SETTINGS}
               element={

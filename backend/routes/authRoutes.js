@@ -572,6 +572,11 @@ router.get(
 
         role,
 
+        // Match the canonical access-token contract. These tokens are only
+        // issued by this explicitly restricted non-production test route.
+        securityVersion: 1,
+        sessionVersion: 1,
+
         tokenType:
           'test',
 

@@ -194,7 +194,7 @@ const createRegisterSchema = (t) => Yup.object({
 
   password: Yup.string()
     .required(t('auth.register.validation.passwordRequired'))
-    .min(8, t('auth.register.validation.passwordMin', { min: 8 }))
+    .min(12, t('auth.register.validation.passwordMin', { min: 12 }))
     .max(MAX_PASSWORD_LENGTH, t('auth.register.validation.passwordMax', { max: MAX_PASSWORD_LENGTH }))
     .matches(/[A-Z]/, t('auth.register.validation.passwordUppercase'))
     .matches(/[a-z]/, t('auth.register.validation.passwordLowercase'))
@@ -219,8 +219,8 @@ const createRegisterSchema = (t) => Yup.object({
 const calculatePasswordStrength = (password = '') => {
   let score = 0;
 
-  if (password.length >= 8) score += 1;
   if (password.length >= 12) score += 1;
+  if (password.length >= 16) score += 1;
   if (/[A-Z]/.test(password)) score += 1;
   if (/[a-z]/.test(password)) score += 1;
   if (/\d/.test(password)) score += 1;

@@ -36,10 +36,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-import { toast } from "react-toastify";
-
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "../components/BrandLogo";
+import { normalizeTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
 
 import "./AdminLayout.css";
 
@@ -63,7 +62,6 @@ export default function AdminLayout() {
 
   const {
     user,
-    logout,
   } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] =
@@ -152,24 +150,15 @@ export default function AdminLayout() {
         },
       ];
 
-      const role = String(user?.role || "")
-        .trim()
-        .toLowerCase();
-      const isAdmin =
-        [
-          "platform_admin",
-          "tenant_admin",
-          "group_admin",
-          "admin",
-          "super_admin",
-        ].includes(role);
-      const canGovernAccess =
-        [
-          "platform_admin",
-          "tenant_admin",
-          "admin",
-          "super_admin",
-        ].includes(role);
+      const role = normalizeTitechRole(user?.role);
+      const isAdmin = [
+        TITECH_ROLES.PLATFORM_ADMIN,
+        TITECH_ROLES.TENANT_ADMIN,
+      ].includes(role);
+      const canGovernAccess = [
+        TITECH_ROLES.PLATFORM_ADMIN,
+        TITECH_ROLES.TENANT_ADMIN,
+      ].includes(role);
       const governanceItems = canGovernAccess
         ? [
             {
@@ -269,31 +258,13 @@ export default function AdminLayout() {
 
   const handleLogout =
     useCallback(
-      async () => {
-        try {
-          await logout();
-
-          toast.success(
-            "Logged out successfully."
-          );
-
-          navigate(
-            "/login",
-            {
-              replace:
-                true,
-            }
-          );
-        } catch {
-          toast.error(
-            "Logout failed."
-          );
-        }
+      () => {
+        // The canonical Logout page owns server-revocation feedback and retry
+        // handling. The layout only navigates; it does not create a second
+        // logout flow or display a success message prematurely.
+        navigate("/logout");
       },
-      [
-        logout,
-        navigate,
-      ]
+      [navigate],
     );
 
   // ===========================================================================

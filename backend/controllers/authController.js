@@ -133,7 +133,7 @@ async function saveFallbackUser(user) {
   FALLBACK_USERS.set(normalizedEmail, user);
   return user;
 }
-async function createFallbackRefreshToken(userId, deviceInfo = {}) {
+async function createFallbackRefreshToken(userId, deviceInfo = {}, familyId = null) {
   const token = randomTokenString();
   const tokenHash = hashToken(token);
   const now = new Date();
@@ -141,6 +141,7 @@ async function createFallbackRefreshToken(userId, deviceInfo = {}) {
   const dbEntry = {
     id: RefreshToken.generatePublicId(),
     userId,
+    familyId: familyId || RefreshToken.generateTokenFamilyId(),
     tokenHash,
     deviceInfo,
     createdAt: now,
@@ -205,7 +206,7 @@ function generateAccessToken(user) {
   return jwt.sign(payload, ACCESS_TOKEN_SECRET, options);
 }
 
-async function createRefreshToken(userId, deviceInfo = {}) {
+async function createRefreshToken(userId, deviceInfo = {}, { session = null, familyId = null } = {}) {
   if (!isMongoConnected()) {
     if (!ALLOW_IN_MEMORY_AUTH_FALLBACK) {
       const error = new Error('MongoDB is required for persistent authentication sessions.');
@@ -213,7 +214,7 @@ async function createRefreshToken(userId, deviceInfo = {}) {
       throw error;
     }
 
-    return createFallbackRefreshToken(userId, deviceInfo);
+    return createFallbackRefreshToken(userId, deviceInfo, familyId);
   }
 
   const token = randomTokenString();
@@ -221,7 +222,7 @@ async function createRefreshToken(userId, deviceInfo = {}) {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
 
-  const dbEntry = await RefreshToken.create({
+  const refreshTokenRecord = {
     id: RefreshToken.generatePublicId(),
     userId,
     tokenHash,
@@ -232,7 +233,21 @@ async function createRefreshToken(userId, deviceInfo = {}) {
     revokedAt: null,
     revokedReason: null,
     replacedBy: null,
-  });
+  };
+
+  // Refresh rotation must persist the replacement inside the same MongoDB
+  // transaction that consumes the previous token. Login/registration creates
+  // a new token family and intentionally omit `familyId` so the model default
+  // creates a new family; refresh passes the existing family explicitly.
+  if (familyId) {
+    refreshTokenRecord.familyId = familyId;
+  }
+
+  const created = await RefreshToken.create(
+    [refreshTokenRecord],
+    session ? { session } : {},
+  );
+  const dbEntry = Array.isArray(created) ? created[0] : created;
 
   return { token, dbEntry };
 }
@@ -662,34 +677,41 @@ async function login(req, res) {
  */
 
 async function createRefreshSession() {
-  // In test environments or when transactions are not supported by the server,
-  // avoid creating sessions to prevent "Transaction numbers are only allowed"
-  // errors on standalone Mongo instances. Tests typically run against a
-  // lightweight Mongo that doesn't support transactions.
-  if (process.env.NODE_ENV === 'test') {
-    return { session: null, transactionAvailable: false };
-  }
-
   const session = await RefreshToken.startSession();
-  let transactionAvailable = true;
 
   try {
     session.startTransaction();
-  } catch (err) {
-    transactionAvailable = false;
-  }
+    return { session, transactionAvailable: true };
+  } catch (error) {
+    try {
+      await session.endSession();
+    } catch {
+      // Preserve the transaction-start failure as the primary error.
+    }
 
-  return { session, transactionAvailable };
+    const unavailable = new Error(
+      'Refresh-token rotation requires MongoDB transaction support.',
+      { cause: error },
+    );
+    unavailable.code = 'AUTH_TRANSACTION_UNAVAILABLE';
+    throw unavailable;
+  }
+}
+
+function isTransactionUnavailableError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return error?.code === 'AUTH_TRANSACTION_UNAVAILABLE' ||
+    error?.code === 20 ||
+    /transaction numbers are only allowed|replica set|mongos|transactions are not supported/.test(message);
 }
 
 async function refresh(req, res) {
   let session;
-  let transactionAvailable = false;
 
   try {
-    const presentedToken =
-      req.cookies?.[REFRESH_COOKIE_NAME] ||
-      req.body?.refreshToken;
+    // Refresh tokens are accepted only from the HttpOnly cookie. A browser-
+    // readable body token would undermine the intended session boundary.
+    const presentedToken = req.cookies?.[REFRESH_COOKIE_NAME];
 
     if (!presentedToken) {
       return res.status(401).json({
@@ -711,11 +733,20 @@ async function refresh(req, res) {
         return res.status(401).json({ success: false, message: 'Invalid refresh token', code: 'REFRESH_TOKEN_INVALID' });
       }
       if (dbToken.revokedAt) {
-        return res.status(401).json({ success: false, message: 'Refresh token reuse detected. All sessions have been revoked.', code: 'TOKEN_REUSE_DETECTED' });
+        if (dbToken.revokedReason === 'rotated' && dbToken.familyId) {
+          for (const candidate of FALLBACK_REFRESH_TOKENS.values()) {
+            if (candidate.familyId === dbToken.familyId && !candidate.revokedAt) {
+              candidate.revokedAt = new Date();
+              candidate.revokedReason = 'refresh_token_reuse';
+            }
+          }
+          return res.status(401).json({ success: false, message: 'Refresh token reuse detected. The affected session family has been revoked.', code: 'TOKEN_REUSE_DETECTED' });
+        }
+        return res.status(401).json({ success: false, message: 'Refresh token is no longer active.', code: 'REFRESH_TOKEN_REVOKED' });
       }
       if (dbToken.expiresAt <= new Date()) {
         dbToken.revokedAt = new Date();
-        dbToken.revokedReason = 'expired';
+        dbToken.revokedReason = 'session_expired';
         return res.status(401).json({ success: false, message: 'Refresh token expired', code: 'REFRESH_TOKEN_EXPIRED' });
       }
       const fallbackUser = await findFallbackUserById(dbToken.userId);
@@ -730,30 +761,24 @@ async function refresh(req, res) {
       const {
         token: newRefreshToken,
         dbEntry: newDbToken,
-      } = await createRefreshToken(fallbackUser._id, dbToken.deviceInfo);
+      } = await createRefreshToken(fallbackUser._id, dbToken.deviceInfo, { familyId: dbToken.familyId });
       dbToken.revokedAt = new Date();
       dbToken.revokedReason = 'rotated';
       dbToken.replacedBy = newDbToken.id;
+      dbToken.replacedAt = new Date();
       const accessToken = generateAccessToken(fallbackUser);
       setRefreshCookie(res, newRefreshToken);
       return res.status(200).json({ success: true, token: accessToken, expiresIn: ACCESS_TOKEN_EXP });
     }
 
-    ({ session, transactionAvailable } = await createRefreshSession());
-    const sessionOptions = transactionAvailable ? { session } : {};
+    ({ session } = await createRefreshSession());
 
     const dbTokenQuery = RefreshToken.findOne({ tokenHash: presentedHash });
-    if (transactionAvailable) {
-      dbTokenQuery.session(session);
-    }
+    dbTokenQuery.session(session);
     const dbToken = await dbTokenQuery.exec();
 
     if (!dbToken) {
-      if (
-        transactionAvailable &&
-        typeof session.inTransaction === 'function' &&
-        session.inTransaction()
-      ) {
+      if (typeof session.inTransaction === 'function' && session.inTransaction()) {
         await session.abortTransaction();
       }
 
@@ -768,33 +793,46 @@ async function refresh(req, res) {
      * Reuse Detection
      */
     if (dbToken.revokedAt) {
-      await RefreshToken.updateMany(
-        {
-          userId: dbToken.userId,
-          revokedAt: null,
-        },
-        {
-          $set: {
-            revokedAt: new Date(),
-            revokedReason: 'reuse_detected',
+      // Only a token previously consumed by rotation is evidence of reuse.
+      // A deliberately logged-out or administratively revoked cookie is not
+      // automatically classified as theft.
+      if (dbToken.revokedReason === 'rotated') {
+        const now = new Date();
+        await RefreshToken.updateMany(
+          {
+            userId: dbToken.userId,
+            familyId: dbToken.familyId,
+            revokedAt: null,
           },
-        },
-        transactionAvailable ? { session } : {}
-      );
+          {
+            $set: {
+              revokedAt: now,
+              revokedReason: 'refresh_token_reuse',
+              reuseDetectedAt: now,
+            },
+          },
+          { session },
+        );
 
-      if (transactionAvailable) {
         await session.commitTransaction();
+
+        console.warn('[SECURITY] Refresh token reuse detected', {
+          userId: String(dbToken.userId),
+          familyId: dbToken.familyId || null,
+        });
+
+        return res.status(401).json({
+          success: false,
+          message: 'Refresh token reuse detected. The affected session family has been revoked.',
+          code: 'TOKEN_REUSE_DETECTED',
+        });
       }
 
-      console.warn(
-        `[SECURITY] Refresh token reuse detected for user ${dbToken.userId}`
-      );
-
+      if (session.inTransaction()) await session.abortTransaction();
       return res.status(401).json({
         success: false,
-        message:
-          'Refresh token reuse detected. All sessions have been revoked.',
-        code: 'TOKEN_REUSE_DETECTED',
+        message: 'Refresh token is no longer active.',
+        code: 'REFRESH_TOKEN_REVOKED',
       });
     }
 
@@ -803,13 +841,10 @@ async function refresh(req, res) {
      */
     if (dbToken.expiresAt <= new Date()) {
       dbToken.revokedAt = new Date();
-      dbToken.revokedReason = 'expired';
+      dbToken.revokedReason = 'session_expired';
 
-      await dbToken.save(transactionAvailable ? { session } : {});
-
-      if (transactionAvailable) {
-        await session.commitTransaction();
-      }
+      await dbToken.save({ session });
+      await session.commitTransaction();
 
       return res.status(401).json({
         success: false,
@@ -822,17 +857,11 @@ async function refresh(req, res) {
      * User Validation
      */
     const userQuery = User.findById(dbToken.userId);
-    if (transactionAvailable) {
-      userQuery.session(session);
-    }
+    userQuery.session(session);
     const user = await userQuery.exec();
 
     if (!user) {
-      if (
-        transactionAvailable &&
-        typeof session.inTransaction === 'function' &&
-        session.inTransaction()
-      ) {
+      if (typeof session.inTransaction === 'function' && session.inTransaction()) {
         await session.abortTransaction();
       }
 
@@ -858,12 +887,10 @@ async function refresh(req, res) {
             revokedReason: 'account_disabled',
           },
         },
-        transactionAvailable ? { session } : {}
+        { session }
       );
 
-      if (transactionAvailable) {
-        await session.commitTransaction();
-      }
+      await session.commitTransaction();
 
       return res.status(403).json({
         success: false,
@@ -880,28 +907,47 @@ async function refresh(req, res) {
       dbEntry: newDbToken,
     } = await createRefreshToken(
       user._id,
-      dbToken.deviceInfo
+      dbToken.deviceInfo,
+      {
+        session,
+        familyId: dbToken.familyId,
+      },
     );
 
     /**
-     * Rotate Existing Token
+     * Consume the old token through a conditional update in the same
+     * transaction as replacement insertion. The predicate is the one-time
+     * use guard; a concurrent request cannot independently rotate this token.
      */
-    dbToken.revokedAt = new Date();
-    dbToken.revokedReason = 'rotated';
-    dbToken.replacedBy = newDbToken.id;
-    dbToken.lastUsedAt = new Date();
+    const rotatedAt = new Date();
+    const consumed = await RefreshToken.updateOne(
+      {
+        _id: dbToken._id,
+        revokedAt: null,
+        expiresAt: { $gt: rotatedAt },
+      },
+      {
+        $set: {
+          revokedAt: rotatedAt,
+          revokedReason: 'rotated',
+          replacedBy: newDbToken.id,
+          replacedAt: rotatedAt,
+          lastUsedAt: rotatedAt,
+        },
+      },
+      { session },
+    );
 
-    await dbToken.save(transactionAvailable ? { session } : {});
-
-    /**
-     * Update New Session Metadata
-     */
-    newDbToken.lastUsedAt = new Date();
-    await newDbToken.save(transactionAvailable ? { session } : {});
-
-    if (transactionAvailable) {
-      await session.commitTransaction();
+    if (consumed.matchedCount !== 1) {
+      await session.abortTransaction();
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token was already consumed or expired.',
+        code: 'REFRESH_TOKEN_ALREADY_CONSUMED',
+      });
     }
+
+    await session.commitTransaction();
 
     /**
      * Issue New Access Token
@@ -940,8 +986,20 @@ async function refresh(req, res) {
       error
     );
 
-    if (session && transactionAvailable && typeof session.inTransaction === 'function' && session.inTransaction()) {
-      await session.abortTransaction();
+    if (session && typeof session.inTransaction === 'function' && session.inTransaction()) {
+      try {
+        await session.abortTransaction();
+      } catch {
+        // Keep the original failure as the returned diagnostic.
+      }
+    }
+
+    if (isTransactionUnavailableError(error)) {
+      return res.status(503).json({
+        success: false,
+        message: 'Secure session rotation is unavailable until MongoDB transaction support is restored.',
+        code: 'AUTH_TRANSACTION_UNAVAILABLE',
+      });
     }
 
     return res.status(500).json({
@@ -951,7 +1009,11 @@ async function refresh(req, res) {
     });
   } finally {
     if (session) {
-      session.endSession();
+      try {
+        await session.endSession();
+      } catch {
+        // A cleanup failure must not replace the primary response/result.
+      }
     }
   }
 }
@@ -960,73 +1022,255 @@ async function refresh(req, res) {
  * Revokes current refresh token, clears cookie.
  */
 async function logout(req, res) {
-  try {
-    const presented = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
+  // Clear the HttpOnly cookie only when there is no session to present or the
+  // authoritative store confirms revocation. On persistence failure, preserve
+  // it for a retry; the frontend blocks session restoration while pending.
+  const presented = req.cookies?.[REFRESH_COOKIE_NAME];
 
-    if (presented && !isMongoConnected() && !ALLOW_IN_MEMORY_AUTH_FALLBACK) {
-      clearRefreshCookie(res);
-      return authStoreUnavailable(res);
-    }
-
-    if (presented) {
-      const presentedHash = hashToken(presented);
-
-      try {
-        if (!isMongoConnected()) {
-          const dbToken = FALLBACK_REFRESH_TOKENS.get(presentedHash);
-          if (dbToken && !dbToken.revokedAt) {
-            dbToken.revokedAt = new Date();
-            dbToken.revokedReason = 'logout';
-          }
-        } else {
-          const dbToken = await RefreshToken.findOne({ tokenHash: presentedHash });
-          if (dbToken && !dbToken.revokedAt) {
-            await RefreshToken.updateOne(
-              {
-                _id: dbToken._id,
-                revokedAt: null,
-              },
-              {
-                $set: {
-                  revokedAt: new Date(),
-                  revokedReason: 'logout',
-                },
-              }
-            );
-          }
-        }
-      } catch (_) {
-        // ignore errors in token lookup
-      }
-    }
-
+  if (!presented) {
     clearRefreshCookie(res);
-    return res.status(204).end();
-  } catch (err) {
-    console.error('[AuthController] logout error', err);
-    return res.status(500).json({ message: 'Logout failed' });
+    return res.status(200).json({
+      success: true,
+      code: 'NO_SERVER_SESSION_PRESENT',
+      serverRevocationConfirmed: false,
+    });
+  }
+
+  const presentedHash = hashToken(presented);
+
+  if (!isMongoConnected()) {
+    if (!ALLOW_IN_MEMORY_AUTH_FALLBACK) {
+      // Preserve the HttpOnly cookie so the client can retry revocation after
+      // persistence recovers. The frontend records a non-secret pending-logout
+      // marker and will not restore this cookie as an authenticated session.
+      return res.status(503).json({
+        success: false,
+        code: 'AUTH_SESSION_REVOCATION_UNCONFIRMED',
+        message: 'Local sign-out completed, but server-side session revocation could not be confirmed.',
+        serverRevocationConfirmed: false,
+      });
+    }
+
+    const fallbackToken = FALLBACK_REFRESH_TOKENS.get(presentedHash);
+    if (!fallbackToken) {
+      clearRefreshCookie(res);
+      return res.status(200).json({
+        success: true,
+        code: 'NO_SERVER_SESSION_PRESENT',
+        serverRevocationConfirmed: false,
+      });
+    }
+    if (fallbackToken.revokedAt) {
+      clearRefreshCookie(res);
+      return res.status(200).json({
+        success: true,
+        code: 'SESSION_ALREADY_REVOKED',
+        serverRevocationConfirmed: true,
+      });
+    }
+
+    fallbackToken.revokedAt = new Date();
+    fallbackToken.revokedReason = 'user_logout';
+    clearRefreshCookie(res);
+    return res.status(200).json({
+      success: true,
+      code: 'SERVER_SESSION_REVOKED',
+      serverRevocationConfirmed: true,
+    });
+  }
+
+  try {
+    const dbToken = await RefreshToken.findOne({ tokenHash: presentedHash }).exec();
+
+    if (!dbToken) {
+      // The authoritative store returned no record for this opaque token. It
+      // cannot be refreshed through this record, so discard the cookie while
+      // explicitly avoiding any claim that a persistent revocation occurred.
+      clearRefreshCookie(res);
+      return res.status(200).json({
+        success: true,
+        code: 'NO_SERVER_SESSION_PRESENT',
+        serverRevocationConfirmed: false,
+      });
+    }
+
+    if (dbToken.revokedAt) {
+      clearRefreshCookie(res);
+      return res.status(200).json({
+        success: true,
+        code: 'SESSION_ALREADY_REVOKED',
+        serverRevocationConfirmed: true,
+      });
+    }
+
+    const revokedAt = new Date();
+    const result = await RefreshToken.updateOne(
+      {
+        _id: dbToken._id,
+        revokedAt: null,
+      },
+      {
+        $set: {
+          revokedAt,
+          revokedReason: 'user_logout',
+        },
+      },
+    );
+
+    if (result.matchedCount === 1) {
+      clearRefreshCookie(res);
+      console.info('[AUTH] Server refresh session revoked', {
+        userId: String(dbToken.userId),
+        sessionId: dbToken.id || null,
+      });
+      return res.status(200).json({
+        success: true,
+        code: 'SERVER_SESSION_REVOKED',
+        serverRevocationConfirmed: true,
+      });
+    }
+
+    // A concurrent logout may already have revoked the row. Confirm the
+    // authoritative state instead of assuming the update succeeded.
+    const refreshed = await RefreshToken.findById(dbToken._id).exec();
+    if (refreshed?.revokedAt) {
+      clearRefreshCookie(res);
+      return res.status(200).json({
+        success: true,
+        code: 'SESSION_ALREADY_REVOKED',
+        serverRevocationConfirmed: true,
+      });
+    }
+
+    return res.status(503).json({
+      success: false,
+      code: 'AUTH_SESSION_REVOCATION_UNCONFIRMED',
+      message: 'Server-side session revocation could not be confirmed.',
+      serverRevocationConfirmed: false,
+    });
+  } catch (error) {
+    // Never log the raw token or token digest.
+    console.error('[AuthController] logout persistence failure', {
+      code: error?.code || 'AUTH_SESSION_REVOCATION_UNCONFIRMED',
+      name: error?.name || 'Error',
+    });
+    return res.status(503).json({
+      success: false,
+      code: 'AUTH_SESSION_REVOCATION_UNCONFIRMED',
+      message: 'Local sign-out completed, but server-side session revocation could not be confirmed.',
+      serverRevocationConfirmed: false,
+    });
   }
 }
 
 /**
  * POST /api/auth/logout-all
- * Revokes all refresh tokens for authenticated user.
+ * Atomically revokes persistent refresh sessions and advances the user's
+ * authoritative session/security versions so already-issued access JWTs fail.
  */
 async function logoutAll(req, res) {
-  try {
-    if (!req.user?.id && !req.user?._id) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-    const userId = req.user._id?.toString?.() || req.user.id;
-    await RefreshToken.updateMany(
-      { userId, revokedAt: null },
-      { $set: { revokedAt: new Date(), revokedReason: 'user_logout_all' } }
-    );
+  const rawUserId = req.user?._id?.toString?.() || req.user?.id;
+
+  if (!rawUserId) {
     clearRefreshCookie(res);
-    return res.status(204).end();
-  } catch (err) {
-    console.error('[AuthController] logoutAll error', err);
-    return res.status(500).json({ message: 'Logout all failed' });
+    return res.status(401).json({
+      success: false,
+      code: 'AUTH_REQUIRED',
+      message: 'Authentication is required to revoke all sessions.',
+    });
+  }
+
+  if (!isMongoConnected()) {
+    return res.status(503).json({
+      success: false,
+      code: 'AUTH_SESSION_REVOCATION_UNCONFIRMED',
+      message: 'Server-side session revocation could not be confirmed.',
+    });
+  }
+
+  let session;
+  try {
+    session = await RefreshToken.startSession();
+    session.startTransaction();
+
+    const user = await User.findById(rawUserId).session(session).exec();
+    if (!user || user.deletedAt) {
+      await session.abortTransaction();
+      return res.status(401).json({
+        success: false,
+        code: 'AUTH_REQUIRED',
+        message: 'The authenticated account is no longer available.',
+      });
+    }
+
+    const revokedAt = new Date();
+    await RefreshToken.updateMany(
+      {
+        userId: user._id,
+        revokedAt: null,
+      },
+      {
+        $set: {
+          revokedAt,
+          revokedReason: 'user_logout_all',
+        },
+      },
+      { session },
+    );
+
+    // Explicitly initialize missing legacy values at 1, then increment, so
+    // old tokens with implicit version 1 cannot survive this operation.
+    user.security = user.security || {};
+    user.sessionMetrics = user.sessionMetrics || {};
+    user.security.securityVersion = Number(user.security.securityVersion || 1) + 1;
+    user.sessionMetrics.sessionVersion = Number(user.sessionMetrics.sessionVersion || 1) + 1;
+    await user.save({ session });
+
+    await session.commitTransaction();
+    // Clear the current browser credential only after the authoritative
+    // refresh records and token-version revocation commit successfully.
+    clearRefreshCookie(res);
+
+    console.info('[AUTH] All server sessions revoked', {
+      userId: String(user._id),
+      at: revokedAt.toISOString(),
+    });
+
+    return res.status(200).json({
+      success: true,
+      code: 'SERVER_SESSIONS_REVOKED',
+      serverRevocationConfirmed: true,
+      reauthenticationRequired: true,
+    });
+  } catch (error) {
+    if (session && typeof session.inTransaction === 'function' && session.inTransaction()) {
+      try {
+        await session.abortTransaction();
+      } catch {
+        // Keep the original failure as the primary error.
+      }
+    }
+
+    const transactionUnavailable = isTransactionUnavailableError(error);
+    console.error('[AuthController] logoutAll persistence failure', {
+      code: transactionUnavailable ? 'AUTH_TRANSACTION_UNAVAILABLE' : (error?.code || 'AUTH_SESSION_REVOCATION_UNCONFIRMED'),
+      name: error?.name || 'Error',
+    });
+
+    return res.status(503).json({
+      success: false,
+      code: transactionUnavailable ? 'AUTH_TRANSACTION_UNAVAILABLE' : 'AUTH_SESSION_REVOCATION_UNCONFIRMED',
+      message: 'Server-side session revocation could not be confirmed.',
+      serverRevocationConfirmed: false,
+    });
+  } finally {
+    if (session) {
+      try {
+        await session.endSession();
+      } catch {
+        // Cleanup failure must not alter the transaction result.
+      }
+    }
   }
 }
 

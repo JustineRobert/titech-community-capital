@@ -517,6 +517,53 @@ line {
 }
 
 /* ============================================================================
+   Honest empty states for unavailable or unverified analytics
+   ============================================================================ */
+
+.chart-empty-state {
+  display: flex;
+  min-height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--text-secondary);
+  text-align: center;
+  background: var(--surface-muted, var(--surface));
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md, var(--radius-lg));
+}
+
+.chart-empty-state p {
+  max-width: 52ch;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.chart-empty-state span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.dashboard-footer-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-footer-status[data-readiness="READY"] {
+  color: var(--titech-state-success, var(--text-secondary));
+}
+
+.dashboard-footer-status[data-readiness="DEGRADED"],
+.dashboard-footer-status[data-readiness="NOT_READY"],
+.dashboard-footer-status[data-readiness="UNAVAILABLE"] {
+  color: var(--titech-state-warning, var(--text-secondary));
+}
+
+/* ============================================================================
    Groups Section
    ============================================================================ */
 

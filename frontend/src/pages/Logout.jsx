@@ -68,6 +68,7 @@ const STATUS = Object.freeze({
   PREPARING: 'preparing',
   LOGGING_OUT: 'logging-out',
   SUCCESS: 'success',
+  REVOCATION_UNCONFIRMED: 'revocation-unconfirmed',
   ALREADY_LOGGED_OUT: 'already-logged-out',
   ERROR: 'error',
   TIMEOUT: 'timeout',
@@ -215,6 +216,7 @@ const Logout = () => {
   const {
     authenticated,
     loading: authLoading,
+    authError,
     logout,
   } = auth ?? {};
 
@@ -404,7 +406,7 @@ const Logout = () => {
     }, LOGOUT_TIMEOUT_MS);
 
     try {
-      await logout();
+      const logoutOutcome = await logout(true);
 
       if (!mountedRef.current) {
         return;
@@ -412,20 +414,50 @@ const Logout = () => {
 
       clearLogoutTimeout();
 
-      setStatus(STATUS.SUCCESS);
-
-      toast.success(
-        'You have been securely signed out.',
-        {
-          autoClose: 2500,
-          toastId: 'titech-logout-success',
-        },
-      );
-
-      scheduleRedirect(
-        redirectTarget,
-        SUCCESS_REDIRECT_DELAY_MS,
-      );
+      if (logoutOutcome?.serverRevocationConfirmed === true) {
+        setStatus(STATUS.SUCCESS);
+        setErrorMessage('Server-side session revocation has been confirmed.');
+        toast.success(
+          'You have been securely signed out.',
+          {
+            autoClose: 2500,
+            toastId: 'titech-logout-success',
+          },
+        );
+        scheduleRedirect(
+          redirectTarget,
+          SUCCESS_REDIRECT_DELAY_MS,
+        );
+      } else if (logoutOutcome?.code === 'NO_SERVER_SESSION_PRESENT') {
+        setStatus(STATUS.ALREADY_LOGGED_OUT);
+        setErrorMessage(
+          'The server found no matching active refresh session to revoke. Local sign-out is complete; this is not represented as a persistent revocation event.',
+        );
+        toast.info(
+          'Signed out locally. No matching active refresh session was found.',
+          {
+            autoClose: 3500,
+            toastId: 'titech-logout-no-session',
+          },
+        );
+        scheduleRedirect(
+          redirectTarget,
+          ALREADY_LOGGED_OUT_REDIRECT_DELAY_MS,
+        );
+      } else {
+        setStatus(STATUS.REVOCATION_UNCONFIRMED);
+        setErrorMessage(
+          'You have been signed out on this device, but server-side session revocation could not be confirmed. Reconnect and sign out again before relying on the session being revoked.',
+        );
+        toast.warning(
+          'Local sign-out completed; server-side revocation remains unconfirmed.',
+          {
+            autoClose: 5000,
+            toastId: 'titech-logout-revocation-unconfirmed',
+          },
+        );
+        logoutStartedRef.current = false;
+      }
     } catch (error) {
       if (!mountedRef.current) {
         return;
@@ -506,6 +538,24 @@ const Logout = () => {
       return undefined;
     }
 
+    // The AuthContext clears local user state before its server-revocation
+    // result returns. Do not let that intermediate state override the result.
+    if (logoutStartedRef.current) {
+      return undefined;
+    }
+
+    // A bootstrap-time retry may have been attempted by AuthContext before
+    // this page mounts. Keep the retry UI visible instead of redirecting away.
+    if (
+      !authenticated &&
+      authError?.code === 'AUTH_SESSION_REVOCATION_UNCONFIRMED'
+    ) {
+      setStatus(STATUS.REVOCATION_UNCONFIRMED);
+      setErrorMessage(authError.message ||
+        'Server-side session revocation is still pending. Retry sign-out when the service is available.');
+      return undefined;
+    }
+
     // ------------------------------------------------------------------------
     // No active session
     // ------------------------------------------------------------------------
@@ -546,6 +596,7 @@ const Logout = () => {
 
     return undefined;
   }, [
+    authError,
     authLoading,
     authenticated,
     performLogout,
@@ -642,6 +693,19 @@ const Logout = () => {
             'The sign-out request has not completed yet.',
         };
 
+      case STATUS.REVOCATION_UNCONFIRMED:
+        return {
+          icon: (
+            <AlertCircle
+              aria-hidden="true"
+            />
+          ),
+          title: 'Signed out locally; server revocation unconfirmed',
+          description:
+            errorMessage ||
+            'Local sign-out completed, but persistent server-side revocation could not be verified.',
+        };
+
       case STATUS.LOGGING_OUT:
         return {
           icon: (
@@ -678,7 +742,8 @@ const Logout = () => {
 
   const showRetry =
     status === STATUS.ERROR ||
-    status === STATUS.TIMEOUT;
+    status === STATUS.TIMEOUT ||
+    status === STATUS.REVOCATION_UNCONFIRMED;
 
   // ==========================================================================
   // Render

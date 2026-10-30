@@ -466,19 +466,35 @@ export default function Login() {
     const stateFromLocation =
       location?.state;
 
-    const requestedPath =
-      stateFromLocation?.from?.pathname;
+    const storedTarget = stateFromLocation?.from;
+    const requestedPath = typeof storedTarget === "string"
+      ? storedTarget
+      : storedTarget?.pathname;
 
     /*
-     * Only accept local application paths.
-     * This prevents open-redirect behavior through login state.
+     * Preserve pathname, query and hash from protected-route redirects while
+     * accepting only a local absolute path. The string form is retained for
+     * compatibility with older route guards but is subject to the same check.
      */
     if (
       typeof requestedPath === "string" &&
       requestedPath.startsWith("/") &&
-      !requestedPath.startsWith("//")
+      !requestedPath.startsWith("//") &&
+      !requestedPath.includes("\\") &&
+      !/[\r\n]/.test(requestedPath)
     ) {
-      return requestedPath;
+      if (typeof storedTarget === "string") {
+        return requestedPath;
+      }
+
+      const search = typeof storedTarget?.search === "string" && storedTarget.search.startsWith("?")
+        ? storedTarget.search
+        : "";
+      const hash = typeof storedTarget?.hash === "string" && storedTarget.hash.startsWith("#")
+        ? storedTarget.hash
+        : "";
+
+      return `${requestedPath}${search}${hash}`;
     }
 
     return ROUTES.DASHBOARD;

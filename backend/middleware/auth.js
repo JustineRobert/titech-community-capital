@@ -37,6 +37,7 @@ import { createRequire } from 'node:module';
 import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 import { getPermissionsForRoles, normalizeRole as normalizeCanonicalRole } from '../security/rbacPolicy.js';
+import { evaluateTokenVersions } from '../security/tokenVersionPolicy.js';
 
 const require = createRequire(import.meta.url);
 
@@ -1143,6 +1144,32 @@ async function authenticateRequest(
         CODE.TOKEN_INVALID,
         'Unable to identify the authenticated user.',
         req
+      );
+    }
+
+    /*
+     * Access tokens are short lived, but they are not the revocation
+     * authority. Compare explicit token version claims with the latest
+     * persisted identity versions so logout-all, password/security changes
+     * and administrative revocation invalidate previously issued JWTs.
+     * Missing claims fail closed; never infer version 1 from an old token.
+     */
+    const tokenVersionState = evaluateTokenVersions(
+      decoded,
+      user,
+    );
+
+    if (!tokenVersionState.valid) {
+      return sendAuthError(
+        res,
+        401,
+        tokenVersionState.reason === 'VERSION_REVOKED'
+          ? 'AUTH_SESSION_REVOKED'
+          : 'AUTH_TOKEN_VERSION_INVALID',
+        tokenVersionState.reason === 'VERSION_REVOKED'
+          ? 'This session is no longer valid. Please authenticate again.'
+          : 'The authentication token is missing required security claims.',
+        req,
       );
     }
 

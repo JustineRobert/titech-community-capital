@@ -224,3 +224,11 @@ The supplied strategic/technical assessment's `APPLICATION_LOCKED` startup incid
 The supplied ZIP does not contain `.git`; no commit history, branch diff, remote push or GitHub update is claimed. See `docs/evidence/implementation-handoff-2026-10-30.md`, `TITECH_REMEDIATION_CHANGESET_2026-10-30.md` and `TITECH_END_TO_END_ENTERPRISE_PRODUCTION_MASTER_PROMPT_2026-10-30.md`.
 
 **Operating principle:** BUILD LESS. PROVE MORE. FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
+
+## Authentication/session and dashboard remediation — 30 October 2026 (archive-local)
+
+The current archive includes a focused source remediation for explicit access-token security/session-version validation, transaction-bound refresh-token rotation, non-false-confirming logout semantics, transactional logout-all version increments, pending logout UI state, a canonical `/logout` route, the existing enterprise Administration Center at `/admin`, truthful dashboard missing-data and readiness display, and safe local deep-link restoration. A new native policy test file covers five token-version cases. Registration UI validation now requires at least 12 characters, aligning with the existing backend user-model/reset minimum.
+
+The source change does **not** close production gates. No supported-runtime install or package-dependent suite could be run in this environment. MongoDB replica-set transaction/concurrency behaviour, real browser session recovery and multi-tab coordination, provider settlement, legal acceptance persistence, runtime tenant isolation, independent security review, recovery drill and commercial/legal proof remain unverified. The implementation handoff and exact changed-file manifest record the commands, limits and per-file changes. The supplied ZIP has no `.git`; no remote update is claimed. `productionApproved=false` remains mandatory.
+
+See [`docs/auth-dashboard/AUTH_DASHBOARD_BASELINE.md`](docs/auth-dashboard/AUTH_DASHBOARD_BASELINE.md), [`docs/master-prompts/TITECH_AUTHENTICATION_SESSION_SECURITY_DASHBOARD_MASTER_PROMPT_2026-10-30.md`](docs/master-prompts/TITECH_AUTHENTICATION_SESSION_SECURITY_DASHBOARD_MASTER_PROMPT_2026-10-30.md), and [`docs/evidence/implementation-handoff-2026-10-30-auth-dashboard.md`](docs/evidence/implementation-handoff-2026-10-30-auth-dashboard.md).

@@ -49,6 +49,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { useAuth } from "../../context/AuthContext";
+import { normalizeTitechRole, TITECH_ROLES } from "../../security/rbacPolicy";
 import api from "../../services/api";
 
 import "./AdminDashboard.css";
@@ -60,17 +61,19 @@ import "./AdminDashboard.css";
 const DASHBOARD_REFRESH_INTERVAL = 60_000;
 
 const ADMIN_ROLES = new Set([
-  "admin",
-  "super_admin",
+  TITECH_ROLES.PLATFORM_ADMIN,
+  TITECH_ROLES.TENANT_ADMIN,
 ]);
 
+// `null` means the backend has not supplied a trustworthy metric. An actual
+// numeric zero remains zero; missing or malformed data must not be fabricated.
 const DEFAULT_STATS = Object.freeze({
-  totalUsers: 0,
-  activeUsers: 0,
-  activeGroups: 0,
-  pendingApprovals: 0,
-  activeLoans: 0,
-  totalSavings: 0,
+  totalUsers: null,
+  activeUsers: null,
+  activeGroups: null,
+  pendingApprovals: null,
+  activeLoans: null,
+  totalSavings: null,
 });
 
 const DEFAULT_ACTIVITY = Object.freeze([]);
@@ -82,46 +85,18 @@ const ENDPOINTS = Object.freeze({
 
 const QUICK_ACTIONS = Object.freeze([
   {
-    id: "users",
-    label: "Manage Users",
-    description: "User accounts and access",
-    path: "/admin/users",
-    icon: Users,
-  },
-  {
-    id: "sessions",
-    label: "Manage Sessions",
-    description: "Active authentication sessions",
-    path: "/admin/sessions",
+    id: "access-governance",
+    label: "Access Governance",
+    description: "Roles, permissions and controlled access",
+    path: "/admin/access",
     icon: Shield,
   },
   {
     id: "settings",
-    label: "Settings",
-    description: "Platform administration",
-    path: "/admin/settings",
+    label: "Institution Settings",
+    description: "Settings available in the active route tree",
+    path: "/settings",
     icon: Settings,
-  },
-  {
-    id: "groups",
-    label: "Groups",
-    description: "Community groups",
-    path: "/admin/groups",
-    icon: Wallet,
-  },
-  {
-    id: "loans",
-    label: "Loans",
-    description: "Loan administration",
-    path: "/admin/loans",
-    icon: Landmark,
-  },
-  {
-    id: "compliance",
-    label: "AML / KYC",
-    description: "Compliance and verification",
-    path: "/admin/compliance",
-    icon: Shield,
   },
 ]);
 
@@ -137,45 +112,23 @@ function isObject(value) {
   );
 }
 
-function toSafeNumber(value, fallback = 0) {
-  if (
-    typeof value === "number" &&
-    Number.isFinite(value)
-  ) {
-    return value;
+function toSafeNonNegativeNumberOrNull(value) {
+  let parsed = null;
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    parsed = value;
+  } else if (typeof value === "string" && value.trim() !== "") {
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue)) parsed = numericValue;
   }
 
-  if (
-    typeof value === "string" &&
-    value.trim() !== ""
-  ) {
-    const parsed = Number(value);
-
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return fallback;
-}
-
-function toSafeNonNegativeNumber(value) {
-  return Math.max(
-    toSafeNumber(value),
-    0
-  );
+  // Negative values are invalid for these aggregate counters and should not
+  // be silently clamped to zero, because zero is a meaningful business value.
+  return parsed !== null && parsed >= 0 ? parsed : null;
 }
 
 function normalizeRole(role) {
-  if (
-    typeof role !== "string"
-  ) {
-    return "";
-  }
-
-  return role
-    .trim()
-    .toLowerCase();
+  return normalizeTitechRole(role) || "";
 }
 
 function unwrapResponseData(response) {
@@ -200,32 +153,32 @@ function normalizeStats(payload) {
 
   return {
     totalUsers:
-      toSafeNonNegativeNumber(
+      toSafeNonNegativeNumberOrNull(
         source.totalUsers
       ),
 
     activeUsers:
-      toSafeNonNegativeNumber(
+      toSafeNonNegativeNumberOrNull(
         source.activeUsers
       ),
 
     activeGroups:
-      toSafeNonNegativeNumber(
+      toSafeNonNegativeNumberOrNull(
         source.activeGroups
       ),
 
     pendingApprovals:
-      toSafeNonNegativeNumber(
+      toSafeNonNegativeNumberOrNull(
         source.pendingApprovals
       ),
 
     activeLoans:
-      toSafeNonNegativeNumber(
+      toSafeNonNegativeNumberOrNull(
         source.activeLoans
       ),
 
     totalSavings:
-      toSafeNonNegativeNumber(
+      toSafeNonNegativeNumberOrNull(
         source.totalSavings
       ),
   };
@@ -296,32 +249,24 @@ function normalizeActivity(payload) {
 }
 
 function formatInteger(value) {
-  return new Intl.NumberFormat(
-    "en-UG",
-    {
-      maximumFractionDigits: 0,
-    }
-  ).format(
-    toSafeNonNegativeNumber(
-      value
-    )
-  );
+  const safeValue = toSafeNonNegativeNumberOrNull(value);
+  if (safeValue === null) return "Unavailable";
+
+  return new Intl.NumberFormat("en-UG", {
+    maximumFractionDigits: 0,
+  }).format(safeValue);
 }
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat(
-    "en-UG",
-    {
-      style: "currency",
-      currency: "UGX",
-      currencyDisplay: "symbol",
-      maximumFractionDigits: 0,
-    }
-  ).format(
-    toSafeNonNegativeNumber(
-      value
-    )
-  );
+  const safeValue = toSafeNonNegativeNumberOrNull(value);
+  if (safeValue === null) return "Unavailable";
+
+  return new Intl.NumberFormat("en-UG", {
+    style: "currency",
+    currency: "UGX",
+    currencyDisplay: "symbol",
+    maximumFractionDigits: 0,
+  }).format(safeValue);
 }
 
 function formatDate(value) {

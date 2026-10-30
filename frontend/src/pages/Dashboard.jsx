@@ -56,8 +56,9 @@ import {
 
 import { toast } from "react-toastify";
 
-import api from "../services/api";
+import api, { probeApiReadiness } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { normalizeTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
 
 import "./Dashboard.css";
 
@@ -68,24 +69,14 @@ import "./Dashboard.css";
 const AUTO_REFRESH_INTERVAL = 60_000;
 const MAX_RETRIES = 3;
 
-const DEFAULT_FRAUD_DATA = [
-  {
-    name: "Clean",
-    value: 100,
-  },
-  {
-    name: "Flagged",
-    value: 0,
-  },
-];
-
 const DEFAULT_STATS = {
-  savings: 0,
+  savings: null,
   loans: [],
-  fraud: DEFAULT_FRAUD_DATA,
-  members: 0,
-  activeLoans: 0,
-  totalDisbursed: 0,
+  fraud: null,
+  fraudStatus: "NO_DATA",
+  members: null,
+  activeLoans: null,
+  totalDisbursed: null,
 };
 
 const FRAUD_COLORS = ['var(--titech-state-success)', 'var(--titech-state-danger)'];
@@ -142,22 +133,41 @@ function normalizeArrayResponse(response, keys = []) {
   return [];
 }
 
+function nonNegativeMetricOrNull(value) {
+  if (value === null || value === undefined ||
+      (typeof value === "string" && value.trim() === "")) {
+    return null;
+  }
+
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 function normalizeStatsResponse(response) {
   const payload = response?.data ?? response ?? {};
 
-  if (!payload || typeof payload !== "object") {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return DEFAULT_STATS;
   }
 
   return {
     ...DEFAULT_STATS,
     ...payload,
+    savings: nonNegativeMetricOrNull(payload.savings),
+    members: nonNegativeMetricOrNull(payload.members),
+    activeLoans: nonNegativeMetricOrNull(payload.activeLoans),
+    totalDisbursed: nonNegativeMetricOrNull(payload.totalDisbursed),
     loans: Array.isArray(payload.loans)
       ? payload.loans
       : DEFAULT_STATS.loans,
     fraud: Array.isArray(payload.fraud)
       ? payload.fraud
-      : DEFAULT_STATS.fraud,
+      : null,
+    fraudStatus: typeof payload.fraudStatus === "string"
+      ? payload.fraudStatus.toUpperCase()
+      : Array.isArray(payload.fraud) && payload.fraud.length > 0
+        ? "AVAILABLE"
+        : "NO_DATA",
   };
 }
 
@@ -352,10 +362,10 @@ function AdminDashboard({ stats }) {
       !Array.isArray(stats?.fraud) ||
       stats.fraud.length === 0
     ) {
-      return DEFAULT_FRAUD_DATA;
+      return null;
     }
 
-    return stats.fraud
+    const normalized = stats.fraud
       .map((entry) => ({
         name:
           entry?.name ||
@@ -371,6 +381,8 @@ function AdminDashboard({ stats }) {
           ) &&
           entry.value >= 0
       );
+
+    return normalized.length > 0 ? normalized : null;
   }, [stats?.fraud]);
 
   return (
@@ -473,45 +485,57 @@ function AdminDashboard({ stats }) {
             </div>
           </div>
 
-          <div
-            className="chart-container"
-            role="img"
-            aria-label="Fraud monitoring chart"
-          >
-            <ResponsiveContainer
-              width="100%"
-              height={320}
+          {fraudData ? (
+            <div
+              className="chart-container"
+              role="img"
+              aria-label="Fraud monitoring chart from returned API data"
             >
-              <PieChart>
-                <Pie
-                  data={fraudData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  innerRadius={55}
-                  paddingAngle={2}
-                >
-                  {fraudData.map(
-                    (entry, index) => (
-                      <Cell
-                        key={`${entry.name}-${index}`}
-                        fill={
-                          FRAUD_COLORS[
-                            index %
-                              FRAUD_COLORS.length
-                          ]
-                        }
-                      />
-                    )
-                  )}
-                </Pie>
+              <ResponsiveContainer
+                width="100%"
+                height={320}
+              >
+                <PieChart>
+                  <Pie
+                    data={fraudData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    innerRadius={55}
+                    paddingAngle={2}
+                  >
+                    {fraudData.map(
+                      (entry, index) => (
+                        <Cell
+                          key={`${entry.name}-${index}`}
+                          fill={
+                            FRAUD_COLORS[
+                              index %
+                                FRAUD_COLORS.length
+                            ]
+                          }
+                        />
+                      )
+                    )}
+                  </Pie>
 
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="chart-empty-state" role="status">
+              <AlertCircle size={20} aria-hidden="true" />
+              <p>
+                Fraud analytics are unavailable or have not been populated by
+                an authoritative source. This must not be interpreted as a
+                zero-risk or 100% clean result.
+              </p>
+              <span>Evidence state: {stats?.fraudStatus || "NO_DATA"}</span>
+            </div>
+          )}
         </article>
       </div>
     </section>
@@ -700,19 +724,22 @@ export default function Dashboard() {
     setNotifCount,
   ] = useState(0);
 
+  const [
+    readiness,
+    setReadiness,
+  ] = useState({
+    status: "CHECKING",
+    checkedAt: null,
+    message: "Checking API readiness.",
+  });
+
   // ==========================================================================
   // Role
   // ==========================================================================
 
   const isAdmin = useMemo(() => {
-    const role = String(
-      user?.role || ""
-    ).toLowerCase();
-
-    return [
-      "admin",
-      "super_admin",
-    ].includes(role);
+    const role = normalizeTitechRole(user?.role);
+    return [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN].includes(role);
   }, [user?.role]);
 
   // ==========================================================================
@@ -748,17 +775,18 @@ export default function Dashboard() {
   const formatCurrency =
     useCallback(
       (value) => {
+        if (value === null || value === undefined || value === "") {
+          return "Unavailable";
+        }
+
         const numericValue =
           Number(value);
 
         if (
-          !Number.isFinite(
-            numericValue
-          )
+          !Number.isFinite(numericValue) ||
+          numericValue < 0
         ) {
-          return currencyFormatter.format(
-            0
-          );
+          return "Unavailable";
         }
 
         return currencyFormatter.format(
@@ -1011,6 +1039,58 @@ export default function Dashboard() {
         false;
     };
   }, [loadDashboard]);
+
+  // Readiness is obtained from the canonical readiness endpoint. A rendered
+  // dashboard or a reachable HTTP socket is not itself proof that required
+  // backend dependencies are ready.
+  useEffect(() => {
+    let active = true;
+
+    const checkReadiness = async () => {
+      try {
+        const result = await probeApiReadiness({ force: true });
+        if (!active || result?.cancelled || result?.stale) return;
+
+        let status = "NOT_READY";
+        if (result?.healthy === true) status = "READY";
+        else if (result?.degraded === true) status = "DEGRADED";
+        else if (result?.offline === true || result?.unavailable === true) status = "UNAVAILABLE";
+
+        const message = status === "READY"
+          ? "The API readiness endpoint reports required services ready."
+          : status === "DEGRADED"
+            ? "The API is reachable but reports that required services are not ready."
+            : status === "UNAVAILABLE"
+              ? "API readiness could not be verified."
+              : "The API has not confirmed readiness.";
+
+        setReadiness({
+          status,
+          checkedAt: new Date().toISOString(),
+          latencyMs: Number.isFinite(Number(result?.latency)) ? Number(result.latency) : null,
+          message,
+        });
+      } catch {
+        if (!active) return;
+        setReadiness({
+          status: "UNAVAILABLE",
+          checkedAt: new Date().toISOString(),
+          latencyMs: null,
+          message: "API readiness could not be verified.",
+        });
+      }
+    };
+
+    void checkReadiness();
+    const timer = window.setInterval(() => {
+      void checkReadiness();
+    }, AUTO_REFRESH_INTERVAL);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   // ==========================================================================
   // Socket Notifications
@@ -1269,15 +1349,9 @@ export default function Dashboard() {
   const groupCount =
     groups.length;
 
-  const memberCount =
-    Number(
-      stats?.members ?? 0
-    );
+  const memberCount = stats?.members ?? "Unavailable";
 
-  const activeLoans =
-    Number(
-      stats?.activeLoans ?? 0
-    );
+  const activeLoans = stats?.activeLoans ?? "Unavailable";
 
   // ==========================================================================
   // Authentication State
@@ -1714,16 +1788,26 @@ export default function Dashboard() {
       {/* ================================================================== */}
 
       <footer className="dashboard-footer">
-        <div className="dashboard-footer-status">
-          <CheckCircle2
-            size={17}
-            aria-hidden="true"
-          />
-
-          <span>
-            TITech Community Capital
-            services operational
-          </span>
+        <div
+          className="dashboard-footer-status"
+          data-readiness={readiness.status}
+          role="status"
+          aria-live="polite"
+        >
+          {readiness.status === "READY" ? (
+            <CheckCircle2 size={17} aria-hidden="true" />
+          ) : (
+            <AlertCircle size={17} aria-hidden="true" />
+          )}
+          <span>Platform readiness: {readiness.status.replaceAll("_", " ")}</span>
+          {readiness.checkedAt && (
+            <time dateTime={readiness.checkedAt}>
+              Last checked {new Date(readiness.checkedAt).toLocaleTimeString("en-UG")}
+            </time>
+          )}
+          {readiness.status !== "READY" && (
+            <span>{readiness.message}</span>
+          )}
         </div>
 
         <span>

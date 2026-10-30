@@ -1,0 +1,586 @@
+{
+  "schemaVersion": "1.0.0",
+  "documentType": "archive-local-implementation-change-manifest",
+  "generatedAt": "2026-10-30T21:08:31+03:00",
+  "product": "TITech Community Capital",
+  "organization": "TITech Capital LTD",
+  "sourceRepository": "https://github.com/JustineRobert/titech-community-capital",
+  "sourceSnapshot": {
+    "filename": "titech-community-capital-main.zip",
+    "sha256": "05e21ed9570c64dd41c7e5cd65b1139dcdc6cb5eaf49a6357c209ddd89bdbb86",
+    "gitDirectoryPresent": false,
+    "sourceType": "supplied ZIP archive"
+  },
+  "combinedMasterPrompt": {
+    "path": "TITECH_END_TO_END_ENTERPRISE_PRODUCTION_MASTER_PROMPT_2026-10-30.md",
+    "bytes": 126643,
+    "sha256": "86bc85f9188fda0ca89587dcafd8027e1b74e0f0b3e665e9326bb00ca2e8d43f",
+    "supplementalPromptPath": "docs/master-prompts/TITECH_AUTHENTICATION_SESSION_SECURITY_DASHBOARD_MASTER_PROMPT_2026-10-30.md",
+    "supplementalBytes": 81402,
+    "supplementalSha256": "0941369e65712d22c8a0b8a5ca30b7efea2f12c0a5956a1028e20ec6576be992"
+  },
+  "environment": {
+    "platform": "Linux x86_64",
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "requiredNode": ">=24.15.0",
+    "requiredNpm": ">=11.0.0",
+    "rootDependenciesInstalled": false,
+    "backendDependenciesInstalled": false,
+    "frontendDependenciesInstalled": false,
+    "dockerAvailable": false
+  },
+  "releaseDecision": {
+    "status": "NOT_READY",
+    "productionApproved": false,
+    "criticalOpenGates": [
+      "P0_RUNTIME_INSTALL",
+      "P0_BOOTSTRAP_HEALTH",
+      "P0_LEDGER_REPLAY",
+      "P0_PROVIDER_FAILURES",
+      "P0_TENANT_PERMISSIONS",
+      "P1_SECURITY_RECOVERY",
+      "P1_REGULATORY_PARTNER",
+      "P1_COMMERCIAL_PILOT"
+    ],
+    "productionApprovalGate": "BLOCKED"
+  },
+  "baselineComparison": {
+    "baselineFileCount": 3463,
+    "currentFileCountExcludingManifest": 3501,
+    "modifiedBaselineFiles": 16,
+    "addedFilesExcludingManifest": 38,
+    "missingBaselineFiles": 0,
+    "missingPaths": [],
+    "changedTreeSha256": "0d1356bc564e6381acfc2d70cf13b15728f865e2ac9f14af8d61daa9890b7dd7",
+    "manifestItselfExcludedFromOwnFileInventory": true
+  },
+  "implementationSummary": [
+    {
+      "area": "access-token-revocation",
+      "details": "Added explicit token security/session version policy and authoritative identity comparison."
+    },
+    {
+      "area": "refresh-token-rotation",
+      "details": "Refresh replacement insert and old-token consumption use one MongoDB transaction; no production non-transactional fallback."
+    },
+    {
+      "area": "logout",
+      "details": "Accurate server revocation outcomes; persistence failure does not claim success or clear the HttpOnly refresh cookie."
+    },
+    {
+      "area": "logout-all",
+      "details": "Refresh sessions and persisted security/session versions revoked/incremented transactionally."
+    },
+    {
+      "area": "frontend-session",
+      "details": "Pending revocation coordination, retryable feedback, local session cleanup and storage fallbacks using non-secret marker only."
+    },
+    {
+      "area": "registration-policy",
+      "details": "Frontend registration UI minimum aligned to the existing 12-character backend password policy."
+    },
+    {
+      "area": "dashboard-truthfulness",
+      "details": "Removed fabricated clean-fraud defaults; missing/invalid KPIs are unavailable; readiness comes from the existing readiness probe."
+    },
+    {
+      "area": "routing",
+      "details": "Canonical /logout and admin-gated /admin integration; local deep-link preserves pathname, query and hash."
+    },
+    {
+      "area": "prompt-and-evidence",
+      "details": "Full main enterprise prompt includes the entire supplied authentication/session/dashboard prompt as an appendix; added dated baseline, handoff, and test logs."
+    }
+  ],
+  "commandResults": [
+    {
+      "command": "node scripts/titech-supported-runtime-gate.mjs",
+      "exitCode": 1,
+      "result": "BLOCKED: Node/npm below declared engines",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/runtime-gate.log"
+    },
+    {
+      "command": "npm run check",
+      "exitCode": 1,
+      "result": "BLOCKED at first prerequisite, check:runtime",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/root-check.log"
+    },
+    {
+      "command": "node --test scripts/titech-critical-gates.test.mjs",
+      "exitCode": 0,
+      "result": "PASS: 4/4 tests",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/critical-gate-tests.log"
+    },
+    {
+      "command": "node scripts/titech-critical-gates.mjs",
+      "exitCode": 0,
+      "result": "Contract passes; release blocked by 8 P0/P1 gates",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/critical-gate.log"
+    },
+    {
+      "command": "node scripts/check-conflicts.js",
+      "exitCode": 0,
+      "result": "PASS: no conflict markers; 3463 baseline files",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/conflict-scan.log"
+    },
+    {
+      "command": "node --test backend/tests/unit/security/token-version-policy.test.mjs",
+      "exitCode": 0,
+      "result": "PASS: 5/5 tests",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/token-version-tests.log"
+    },
+    {
+      "command": "Global TypeScript parse of changed frontend JSX/CSS",
+      "exitCode": 0,
+      "result": "PASS: 8 JSX files and CSS non-empty",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/frontend-jsx-parse.log"
+    },
+    {
+      "command": "node scripts/enterprise-gate.mjs --syntax",
+      "exitCode": 0,
+      "result": "PASS: 2469 JS/TS-family files parsed",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/enterprise-syntax.log"
+    },
+    {
+      "command": "node scripts/financial-static-gate.mjs",
+      "exitCode": 0,
+      "result": "PASS: 12 canonical financial files",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/financial-static.log"
+    },
+    {
+      "command": "node scripts/enterprise-contract-contracts.mjs",
+      "exitCode": 0,
+      "result": "PASS: 11 contracts",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/enterprise-contracts.log"
+    },
+    {
+      "command": "node scripts/rbac-security-gate.mjs",
+      "exitCode": 0,
+      "result": "PASS: static contract only",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/rbac-static.log"
+    },
+    {
+      "command": "node scripts/titech-hosting-gate.mjs",
+      "exitCode": 0,
+      "result": "PASS: static hosting contract",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/hosting-static.log"
+    },
+    {
+      "command": "node scripts/official-theme-audit.mjs",
+      "exitCode": 0,
+      "result": "PASS: 66 CSS consumers checked",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/theme-static.log"
+    },
+    {
+      "command": "node scripts/performance-contract-gate.mjs",
+      "exitCode": 0,
+      "result": "PASS: static contract",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/performance-contract.log"
+    },
+    {
+      "command": "node scripts/i18n-validation.mjs",
+      "exitCode": 0,
+      "result": "PASS: resource validation only",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/i18n-validation.log"
+    },
+    {
+      "command": "node scripts/frontend-runtime-audit.mjs",
+      "exitCode": 0,
+      "result": "PASS_WITH_WARNINGS",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/frontend-runtime-audit.log"
+    },
+    {
+      "command": "node scripts/runtime-import-audit.mjs",
+      "exitCode": 0,
+      "result": "Financial surface passes; 208 local import references need triage",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/runtime-import-audit.log"
+    },
+    {
+      "command": "node scripts/titech-implementation-gate.mjs",
+      "exitCode": 0,
+      "result": "PASS: static contract",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/implementation-gate.log"
+    },
+    {
+      "command": "node scripts/release-readiness-gate.mjs --audit",
+      "exitCode": 0,
+      "result": "Structural audit reports pass with warnings; not production approval",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/release-gate-audit.log"
+    },
+    {
+      "command": "node scripts/production-approval-gate.mjs",
+      "exitCode": 1,
+      "result": "BLOCKED: protected approval evidence missing",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/production-approval-gate.log"
+    },
+    {
+      "command": "node --check backend/controllers/authController.js",
+      "exitCode": 0,
+      "result": "PASS: syntax only",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-controller-syntax.log"
+    },
+    {
+      "command": "node --check backend/middleware/auth.js",
+      "exitCode": 0,
+      "result": "PASS: syntax only",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-middleware-syntax.log"
+    },
+    {
+      "command": "node --check backend/security/tokenVersionPolicy.js",
+      "exitCode": 0,
+      "result": "PASS: syntax only",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-token-policy-syntax.log"
+    },
+    {
+      "command": "node --check backend/routes/authRoutes.js",
+      "exitCode": 0,
+      "result": "PASS: syntax only",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-routes-syntax.log"
+    },
+    {
+      "command": "node --check backend/tests/helpers/auth.js",
+      "exitCode": 0,
+      "result": "PASS: syntax only",
+      "log": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-test-helper-syntax.log"
+    }
+  ],
+  "residualRisks": [
+    "Supported runtime unavailable in execution environment.",
+    "No clean dependency install or full lint/build/Jest/Vitest suite.",
+    "MongoDB replica-set and Redis transaction/restart/replay tests not run.",
+    "Bootstrap APPLICATION_LOCKED issue not reproduced; canonical identity guard not weakened.",
+    "Repository-wide runtime-import audit reports 208 local import references requiring triage.",
+    "Canonical legal acceptance persistence and approved legal publication remain incomplete; production registration stays fail-closed.",
+    "No live provider settlement, tenant E2E, independent security review, backup/restore, external legal/partner or commercial evidence was verified."
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "change": "modified",
+      "bytes": 51575,
+      "sha256": "4dbd4426ad32b520f845de38324a301ac5b38d6ac158a38fc774b86e86073a4e"
+    },
+    {
+      "path": "TITECH_END_TO_END_ENTERPRISE_PRODUCTION_MASTER_PROMPT_2026-10-30.md",
+      "change": "modified",
+      "bytes": 126643,
+      "sha256": "86bc85f9188fda0ca89587dcafd8027e1b74e0f0b3e665e9326bb00ca2e8d43f"
+    },
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "change": "modified",
+      "bytes": 45471,
+      "sha256": "bb6e80eaa34d5f3ea22cdba8bf1320871070739f5f5fabf6274fd39cc3c3a079"
+    },
+    {
+      "path": "backend/controllers/authController.js",
+      "change": "modified",
+      "bytes": 42858,
+      "sha256": "a57beebcdb26b4944d7af00f2e5dabaaa05bccf297fcde2ef4a0e200555aa2f3"
+    },
+    {
+      "path": "backend/middleware/auth.js",
+      "change": "modified",
+      "bytes": 42311,
+      "sha256": "c4b93a30c62b7da076393136f6928517d43d22cabb25136c4a3a97347881adb8"
+    },
+    {
+      "path": "backend/routes/authRoutes.js",
+      "change": "modified",
+      "bytes": 14223,
+      "sha256": "6ede717e7688908e1832ac85fc676dc9af9268b4da295259b6549bcebfa901d1"
+    },
+    {
+      "path": "backend/tests/helpers/auth.js",
+      "change": "modified",
+      "bytes": 3226,
+      "sha256": "a0e832f77eb95766d67613bbd936aa654a677043a2e3ca30b3456e4de81bad35"
+    },
+    {
+      "path": "frontend/src/context/AuthContext.jsx",
+      "change": "modified",
+      "bytes": 68747,
+      "sha256": "35c6536b9e88aeaa99e26aa18b47d3ae011fd2b6eac321ca40f492b39e1b92f2"
+    },
+    {
+      "path": "frontend/src/layouts/AdminLayout.jsx",
+      "change": "modified",
+      "bytes": 11250,
+      "sha256": "c6e1a29d7ba3aee9a3d815c34e07096355dfcadb6e45f48da44c4736659f4a00"
+    },
+    {
+      "path": "frontend/src/pages/Dashboard.css",
+      "change": "modified",
+      "bytes": 23551,
+      "sha256": "9ff9349b0048377f0f2d4981e864da7f9d272a5b2bad2504eb3ec81c589be173"
+    },
+    {
+      "path": "frontend/src/pages/Dashboard.jsx",
+      "change": "modified",
+      "bytes": 42379,
+      "sha256": "a8027c5a743334f537ace1fcf378d4a419baecef1c04a6c1ae1491129eeb77db"
+    },
+    {
+      "path": "frontend/src/pages/Login.jsx",
+      "change": "modified",
+      "bytes": 40327,
+      "sha256": "c340a2f3cbe56b5fb2fdaf04764c8a832b7d01dfdedc26ffc05453e123a3cd80"
+    },
+    {
+      "path": "frontend/src/pages/Logout.jsx",
+      "change": "modified",
+      "bytes": 22545,
+      "sha256": "507f031d4ebab8366323f0351632663488a509e813a23008525543b0c4d4bff5"
+    },
+    {
+      "path": "frontend/src/pages/Register.jsx",
+      "change": "modified",
+      "bytes": 43513,
+      "sha256": "a751135e6bd510dfdd082b74601c9b04766b6cc2de3e8a7bfc282b8e9ff13e68"
+    },
+    {
+      "path": "frontend/src/pages/admin/AdminDashboard.jsx",
+      "change": "modified",
+      "bytes": 27720,
+      "sha256": "6c9d5d388eec51bb3ad1b27f3895545ced2ee8ad336d12fa05aebcb949af4595"
+    },
+    {
+      "path": "frontend/src/routes/AppRoutes.jsx",
+      "change": "modified",
+      "bytes": 16992,
+      "sha256": "b2a03ef9aa6b21e40c672047df73e1eb9318a57a6a05219f0c13e90625f70eb9"
+    },
+    {
+      "path": "backend/security/tokenVersionPolicy.js",
+      "change": "added",
+      "bytes": 1651,
+      "sha256": "bdc0228c3857d28b9690621f9c51857e25d2619be3abb9a0581660118041514d"
+    },
+    {
+      "path": "backend/tests/unit/security/token-version-policy.test.mjs",
+      "change": "added",
+      "bytes": 1461,
+      "sha256": "918de0a8343cbaf36655b2bf907dc99774553d3bc443e674991e14fbc6168727"
+    },
+    {
+      "path": "docs/auth-dashboard/AUTH_DASHBOARD_BASELINE.md",
+      "change": "added",
+      "bytes": 6739,
+      "sha256": "4e7291d539f967577fbf768c3a44123b21b638fe19ea21426f8f22a27d942490"
+    },
+    {
+      "path": "docs/evidence/implementation-handoff-2026-10-30-auth-dashboard.md",
+      "change": "added",
+      "bytes": 13510,
+      "sha256": "e70790ea73abf2e8035e6b8943c54dae6ebd148a0fd681ee17a3d977fe578394"
+    },
+    {
+      "path": "docs/master-prompts/TITECH_AUTHENTICATION_SESSION_SECURITY_DASHBOARD_MASTER_PROMPT_2026-10-30.md",
+      "change": "added",
+      "bytes": 81402,
+      "sha256": "0941369e65712d22c8a0b8a5ca30b7efea2f12c0a5956a1028e20ec6576be992"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-controller-syntax.log",
+      "change": "added",
+      "bytes": 74,
+      "sha256": "dda9fedf40dabe6ee9494fc663e399c474fae86f26053f8c8f62dd902fa8ee36"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-middleware-syntax.log",
+      "change": "added",
+      "bytes": 63,
+      "sha256": "e2e1a5c91710023d41d2851c2f562fd75ac5b36cb90c4477a206d19bffc40267"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-routes-syntax.log",
+      "change": "added",
+      "bytes": 65,
+      "sha256": "9f226c1a449c2aa975c4de07af4c7a1a4a8904c359703baf4aec3cbeb5bdf559"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-test-helper-syntax.log",
+      "change": "added",
+      "bytes": 66,
+      "sha256": "bfc4bdad676d93444148344dd8e161c286c418af0ab0b652fb167328ecefe100"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/backend-token-policy-syntax.log",
+      "change": "added",
+      "bytes": 75,
+      "sha256": "441d5cdb47b8500339368c77bb930dd3c1e792bb7dc8c0f97f4b58032c52c326"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/conflict-scan.log",
+      "change": "added",
+      "bytes": 109,
+      "sha256": "a8073ca1df8336e573954f14268d7f5d6adb3b708783eee75d70767ed3133db7"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/critical-gate-tests.log",
+      "change": "added",
+      "bytes": 1061,
+      "sha256": "e9d06330545b536128d5a1ca24d52bc80ef70cf5a316f79048c0e1211f7f5889"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/critical-gate.log",
+      "change": "added",
+      "bytes": 338,
+      "sha256": "fa2f0d6f93b126becf18d51fb19892e0f9cf0ad435d938eda6ce21086d35ecc7"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/enterprise-contracts.log",
+      "change": "added",
+      "bytes": 139,
+      "sha256": "a7ec056e67aa29ba90984c507cf885e7b6db98f4c31000dede55df46ca28655b"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/enterprise-syntax.log",
+      "change": "added",
+      "bytes": 233,
+      "sha256": "aab16bd763ed86978897ad8c144f14b5ec8fe2a0e7d3931aedd666f711d7366d"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/financial-static.log",
+      "change": "added",
+      "bytes": 120,
+      "sha256": "9007e8b16915cadba238bbb62faa056eb115eb74b29f37405f5207571c60030a"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/frontend-jsx-parse.log",
+      "change": "added",
+      "bytes": 551,
+      "sha256": "abad218e64ea00ca604bb1ecf04969e312f624faa4fb59c5a068ab379723f195"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/frontend-runtime-audit.log",
+      "change": "added",
+      "bytes": 3330,
+      "sha256": "8ed240f8ce6996f932962387bd82e143510f67b9ab0483c80ab983128a208ec8"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/hosting-static.log",
+      "change": "added",
+      "bytes": 1412,
+      "sha256": "9093ea9edf61407406ca35e265aa6a72435fc452dbccf740a8308072011b35c4"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/i18n-validation.log",
+      "change": "added",
+      "bytes": 752,
+      "sha256": "2f3013733229cd4cc35e1189d42535a3ff6ca943b2d89ab2549bb3ddfd25715e"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/implementation-gate.log",
+      "change": "added",
+      "bytes": 454,
+      "sha256": "6f16fff52fac16b4c08c350700f880515ddfd5bc73014dacb8350f6d50527dc0"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/performance-contract.log",
+      "change": "added",
+      "bytes": 280,
+      "sha256": "92a60e58acd8c4201f79c8347251b1f1ee4b3e4f934dfa3788d8a8e56bd125a6"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/production-approval-gate.log",
+      "change": "added",
+      "bytes": 210,
+      "sha256": "8009c3c9b77cd1778bae8d88d68b6e1d398734d50a56db8ae02075e2581eb4f7"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/rbac-static.log",
+      "change": "added",
+      "bytes": 84,
+      "sha256": "d47699fa454bd94e91a5e152fa2fc1b65dff202a0039f00122e462e10697ee39"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/release-gate-audit.log",
+      "change": "added",
+      "bytes": 1175,
+      "sha256": "e98c7798f3138335071abe8614a92f94257809410d35392530891c16841fbeea"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/root-check.log",
+      "change": "added",
+      "bytes": 864,
+      "sha256": "90da513b4f87ddd8fa5b42453c18d78cb07714b1ba851f2bc60a6150c562fa7e"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/runtime-gate.log",
+      "change": "added",
+      "bytes": 302,
+      "sha256": "0285129732b5329220a150ba5ae84e271e878b9ef63d374a6860c41bf0a0daee"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/runtime-import-audit.log",
+      "change": "added",
+      "bytes": 448,
+      "sha256": "0d491cfb0affe9fafff2a6d17070be6c71676585f07dee4134a0d34b297adea2"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/theme-static.log",
+      "change": "added",
+      "bytes": 4809,
+      "sha256": "1c13a6a5344c2085e6b4ad23e775161bbc1eea02753c26319d89172ea6633096"
+    },
+    {
+      "path": "reports/evidence/archive-local-2026-10-30-auth-dashboard/token-version-tests.log",
+      "change": "added",
+      "bytes": 1213,
+      "sha256": "ee6bab320954e4073cec8f9fdf92f2efcc15884e5009c74fc1d3d6d76f60a524"
+    },
+    {
+      "path": "reports/frontend-runtime-audit.json",
+      "change": "added",
+      "bytes": 3267,
+      "sha256": "963c54a55468a960eec877878dc890509f7f5fcfa5f3e3637712e77d6be4d7b9"
+    },
+    {
+      "path": "reports/i18n-coverage-2026-10-17.json",
+      "change": "added",
+      "bytes": 12864,
+      "sha256": "6b434285884f84d04854a5f176cc2dbd6d000eb36add95d6993d6abd2a88548b"
+    },
+    {
+      "path": "reports/official-theme-audit.json",
+      "change": "added",
+      "bytes": 4748,
+      "sha256": "c6710747879ca5c57e0ee7eb1363cab9517502652fd6e07f5d3b95ae93bc6694"
+    },
+    {
+      "path": "reports/rbac-security-gate.json",
+      "change": "added",
+      "bytes": 2100,
+      "sha256": "9cf3ef8b4c98a171841e3826f396ea5e74e5061ecfc1697ac0b7d3e559f64def"
+    },
+    {
+      "path": "reports/release-readiness.json",
+      "change": "added",
+      "bytes": 2551,
+      "sha256": "1582a1925d1741cef9efff1a89690c473a0079bd42a4775ebac22cf109266723"
+    },
+    {
+      "path": "reports/runtime-import-audit.json",
+      "change": "added",
+      "bytes": 32334,
+      "sha256": "5f0b81b718c58c8a41400c787a6d5ded0a839be6eae75a1c31c2c8d93b0456fe"
+    },
+    {
+      "path": "reports/titech-hosting-gate.json",
+      "change": "added",
+      "bytes": 1352,
+      "sha256": "d5a4da5d8d8b1e57739792d5b709d3bf21a452312bddc4e42254fa1d9a4452d6"
+    },
+    {
+      "path": "reports/titech-implementation-gate-2026-10-02.json",
+      "change": "added",
+      "bytes": 387,
+      "sha256": "eeda3f5e9ce7d4048dcdbf3f5b82cd6426ba7b4511e673dc2df41d9fc601a393"
+    }
+  ],
+  "evidenceDirectory": "reports/evidence/archive-local-2026-10-30-auth-dashboard/",
+  "independentApprovalRequired": true,
+  "sha256OfFinalArchive": "Recorded in adjacent titech-community-capital-main-updated.zip.sha256 sidecar after packaging."
+}

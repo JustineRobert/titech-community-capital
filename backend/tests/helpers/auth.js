@@ -49,11 +49,24 @@ async function createTestUsers(count = 3, overrides = {}) {
  * Generate access token for test user
  */
 function generateAccessToken(user, expiresIn = '15m') {
+  const userId = user._id.toString();
+  const securityVersion = Number(user.security?.securityVersion || 1);
+  const sessionVersion = Number(user.sessionMetrics?.sessionVersion || 1);
   const payload = {
+    sub: userId,
+    id: userId,
+    userId,
+    tenantId: user.tenantId ? String(user.tenantId) : null,
+    role: user.role,
+    securityVersion,
+    sessionVersion,
     user: {
-      id: user._id.toString(),
+      id: userId,
       email: user.email,
       role: user.role,
+      tenantId: user.tenantId ? String(user.tenantId) : null,
+      securityVersion,
+      sessionVersion,
     },
   };
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
