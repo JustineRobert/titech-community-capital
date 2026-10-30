@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "product": "TITech Community Capital",
+  "organization": "TITech Capital LTD",
+  "releaseStatus": "NOT_READY",
+  "productionApproved": false,
+  "sourceArchive": {
+    "path": "titech-community-capital-main.zip",
+    "sha256": "e3ca58875edda9683bd00a404de07ba7a1ecd7c8b987d76a1989be79205179e1",
+    "gitMetadataPresent": false
+  },
+  "changes": [
+    {
+      "path": "README.md",
+      "change": "modified",
+      "sha256Before": "fd8173dd41dbc0487952ddd68d714373f95b31504baeaad5180b3d5f464e810d",
+      "sha256After": "d75b93b21f30b649b51b6a412069e59612d5c87056120a371c750b5b3bab7a1c",
+      "bytesAfter": 50449
+    },
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "change": "modified",
+      "sha256Before": "a8f5db4b3a9f48abcba1ae2be06bdcc7f5c6af34e42559e672a8c88d1efe9736",
+      "sha256After": "735b2c6a3f832faf062c557cb7ed609b540af3c62602a577c49fe1087792e1cb",
+      "bytesAfter": 43651
+    },
+    {
+      "path": "TITECH_END_TO_END_ENTERPRISE_PRODUCTION_MASTER_PROMPT_2026-10-30.md",
+      "change": "added",
+      "sha256Before": null,
+      "sha256After": "130583be92878aecbab3a14daebbfb156a5e603d1bc7be839bbbfbcf3a8afbd0",
+      "bytesAfter": 44748
+    },
+    {
+      "path": "docs/evidence/implementation-handoff-2026-10-30.md",
+      "change": "added",
+      "sha256Before": null,
+      "sha256After": "e96575a9a4b8522f49972376c68d1460dfb4b238ba0d3e763133aef6ebdfb179",
+      "bytesAfter": 9218
+    },
+    {
+      "path": "TITECH_REMEDIATION_CHANGESET_2026-10-30.md",
+      "change": "added",
+      "sha256Before": null,
+      "sha256After": "766928f29f601f1b6564db69b984d4d29934bcd0c144db01c610316b9f9b698c",
+      "bytesAfter": 2951
+    }
+  ],
+  "manifestSelfHash": "Not included; a file cannot contain a stable hash of its own final bytes.",
+  "notes": [
+    "Archive-local documentation and evidence update.",
+    "No application financial or provider execution code changed.",
+    "No GitHub push or remote commit is claimed."
+  ]
+}
