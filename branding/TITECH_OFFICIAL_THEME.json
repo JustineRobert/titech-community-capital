@@ -51,5 +51,6 @@
     "Light is the deterministic default; dark is an explicit user-selected mode.",
     "The official TITech circular logo remains the primary product mark."
   ],
-  "organizationLegalName": "TITech Capital LTD"
+  "organizationLegalName": "TITech Capital LTD",
+  "organizationProfile": "branding/TITECH_ORGANIZATION_PROFILE.json"
 }

@@ -1,0 +1,9 @@
+# Authentication Test Contradictions — 31 October 2026
+
+The intended business rule is explicit in `backend/controllers/authController.js`: an account with `isVerified === false` must receive `403 EMAIL_VERIFICATION_REQUIRED`. Tests must not remove this guard to make immediate post-registration login succeed.
+
+The full acceptance sequence remains: authorized invitation → registration → verify user/password hash → capture verification email using an isolated test adapter → call the real verification endpoint → confirm verified status → login → use authenticated API → logout → prove refresh-cookie session revocation and stale refresh rejection. The current route-only login test fixture was changed to represent a verified account explicitly, and a negative test asserts that an unverified account gets `403 EMAIL_VERIFICATION_REQUIRED`. The actual email-route/provider journey remains unimplemented as a single integration test and must not be described as E2E proven.
+
+Also require negative cases for unverified login, expired/reused token, duplicate normalized email, invalid/revoked/exhausted invitation, legal publication gate, delivery failure, unsupported MongoDB transactions, concurrent refresh, logout-all and cross-tenant operations.
+
+**Execution status for this snapshot:** the source-level transactional registration change and revised test fixtures were syntax-checked, but the new MongoDB replica-set integration test was not executed. Complete Jest/Vitest/authentication integration and browser journeys were not executed here because the archived working tree does not include dependency installation and the current runtime (Node 22.16.0/npm 10.9.2) is below the declared project requirement. Do not mark any test as passing based on this specification. Re-run the project-authentication suites under Node >=24.15/npm >=11 with replica-set MongoDB and a test-only email adapter.

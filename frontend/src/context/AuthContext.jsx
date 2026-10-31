@@ -1645,99 +1645,56 @@ export function AuthProvider({
           null
         );
 
-        const response =
-          await apiRegister(
-            payload,
-            options
-          );
+        const response = await apiRegister(payload, options);
 
-        // Registration remains anonymous until verification. Trigger the
-        // public, enumeration-resistant verification delivery flow.
+        // Account creation and verification-message delivery are separate
+        // outcomes. A successful HTTP request here means only that the public
+        // verification request was accepted; it does not prove inbox delivery.
+        let verificationDeliveryStatus = 'UNCONFIRMED';
         if (typeof requestEmailVerification === 'function' && payload.email) {
           try {
             await requestEmailVerification(payload.email);
+            verificationDeliveryStatus = 'REQUEST_ACCEPTED';
           } catch (verificationError) {
-            devLog('warn', '[AUTH] Verification email delivery could not be confirmed', verificationError);
+            const safeStatus = verificationError?.response?.status ?? null;
+            const safeCode = String(
+              verificationError?.response?.data?.code ||
+              verificationError?.code ||
+              'VERIFICATION_REQUEST_FAILED'
+            ).slice(0, 80);
+            devLog('warn', '[AUTH] Verification request was not confirmed', {
+              status: safeStatus,
+              code: safeCode,
+            });
           }
         }
 
         if (
           !mountedRef.current ||
-          sessionGenerationRef.current !==
-            generation
+          sessionGenerationRef.current !== generation
         ) {
           return null;
         }
 
-        const accessToken = extractAccessToken(response);
-
-        // Secure registration does not create an authenticated session before
-        // email verification. Preserve the anonymous state intentionally.
-        if (!accessToken) {
-          toast.success("Registration successful. Check your email to verify your account.");
-          return response?.user ? normalizeUser(response) : null;
-        }
-
-        const profile =
-          normalizeUser(
-            response
-          );
-
-        if (!profile) {
-          throw new Error(
-            "Registration succeeded but no authenticated user profile was returned."
-          );
-        }
-
-        updateAccessToken(
-          accessToken,
-          generation
-        );
-
-        setUser(
-          profile
-        );
-
-        synchronizeTenant(
-          response,
-          profile
-        );
-
-        scheduleRefresh(
-          accessToken,
-          generation
-        );
-
-        connectUserSocket();
-
-        setAuthError(
-          null
-        );
-
-        broadcastAuthEvent(
-          "AUTH_LOGIN"
-        );
-
-        toast.success(
-          "Registration successful"
-        );
-
-        devLog(
-          "info",
-          "[AUTH] Registration successful"
-        );
-
-        return profile;
+        // Even if a backend regression returns an access token during
+        // registration, never install it, set a tenant, or open a session.
+        // The API service's register() intentionally does not persist it.
+        const sessionIssuedByRegistration = Boolean(extractAccessToken(response));
+        return Object.freeze({
+          accountCreated: true,
+          verificationRequired: true,
+          verificationDeliveryStatus,
+          sessionIssuedByRegistration,
+          message: verificationDeliveryStatus === 'REQUEST_ACCEPTED'
+            ? 'Your account was created. The verification request was accepted; actual email delivery is not confirmed. Check your inbox or request another message.'
+            : 'Your account was created, but the verification email request could not be confirmed. Request another message from the verification page before signing in.',
+        });
       },
       [
-        broadcastAuthEvent,
         clearRefreshTimer,
-        connectUserSocket,
         disconnectUserSocket,
         invalidateSession,
         requestEmailVerification,
-        scheduleRefresh,
-        synchronizeTenant,
         updateAccessToken,
       ]
     );

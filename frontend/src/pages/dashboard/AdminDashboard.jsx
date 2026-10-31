@@ -70,15 +70,15 @@ const DEFAULT_TENANT_NAME =
   "TITech Community Capital";
 
 const DEFAULT_METRICS = Object.freeze({
-  totalMembers: 0,
-  totalSavings: 0,
-  totalLoans: 0,
-  activeLoans: 0,
-  loanPortfolio: 0,
-  totalTransactions: 0,
-  mobileMoneyVolume: 0,
-  fraudCases: 0,
-  regulatoryReports: 0,
+  totalMembers: null,
+  totalSavings: null,
+  totalLoans: null,
+  activeLoans: null,
+  loanPortfolio: null,
+  totalTransactions: null,
+  mobileMoneyVolume: null,
+  fraudCases: null,
+  regulatoryReports: null,
 });
 
 const DEFAULT_EXECUTIVE_METRICS =
@@ -87,10 +87,10 @@ const DEFAULT_EXECUTIVE_METRICS =
     savingsGrowth: null,
     loanGrowth: null,
     transactionGrowth: null,
-    revenue: 0,
-    expenses: 0,
-    profit: 0,
-    recoveryRate: 0,
+    revenue: null,
+    expenses: null,
+    profit: null,
+    recoveryRate: null,
   });
 
 const DEFAULT_SYSTEM_HEALTH =
@@ -101,16 +101,8 @@ const DEFAULT_SYSTEM_HEALTH =
     mobileMoney: "unknown",
   });
 
-const DEFAULT_FRAUD = Object.freeze([
-  {
-    name: "Clean",
-    value: 100,
-  },
-  {
-    name: "Flagged",
-    value: 0,
-  },
-]);
+// No fraud data means unknown coverage, not a 100% clean portfolio.
+const DEFAULT_FRAUD = Object.freeze([]);
 
 const CHART_HEIGHT = 320;
 
@@ -136,33 +128,15 @@ const STATUS_VALUES = new Set([
 // Safe Numeric Helpers
 // ============================================================================
 
-function toFiniteNumber(
-  value,
-  fallback = 0
-) {
-  const numericValue =
-    Number(value);
-
-  return Number.isFinite(
-    numericValue
-  )
-    ? numericValue
-    : fallback;
+function toFiniteNumber(value, fallback = null) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
 }
 
-function toNonNegativeNumber(
-  value,
-  fallback = 0
-) {
-  const numericValue =
-    toFiniteNumber(
-      value,
-      fallback
-    );
-
-  return numericValue >= 0
-    ? numericValue
-    : fallback;
+function toNonNegativeNumber(value, fallback = null) {
+  const numericValue = toFiniteNumber(value, fallback);
+  return numericValue !== null && numericValue >= 0 ? numericValue : fallback;
 }
 
 // ============================================================================
@@ -170,36 +144,22 @@ function toNonNegativeNumber(
 // ============================================================================
 
 function currency(value) {
-  return new Intl.NumberFormat(
-    "en-UG",
-    {
-      style: "currency",
-      currency: "UGX",
-      maximumFractionDigits: 0,
-    }
-  ).format(
-    toFiniteNumber(value)
-  );
+  const numericValue = toNonNegativeNumber(value);
+  if (numericValue === null) return "Unavailable";
+  return new Intl.NumberFormat("en-UG", {
+    style: "currency", currency: "UGX", maximumFractionDigits: 0,
+  }).format(numericValue);
 }
 
 function number(value) {
-  return new Intl.NumberFormat(
-    "en-UG"
-  ).format(
-    toFiniteNumber(value)
-  );
+  const numericValue = toNonNegativeNumber(value);
+  if (numericValue === null) return "Unavailable";
+  return new Intl.NumberFormat("en-UG").format(numericValue);
 }
 
-function percentage(
-  value,
-  fractionDigits = 1
-) {
-  const numericValue =
-    toFiniteNumber(value);
-
-  return `${numericValue.toFixed(
-    fractionDigits
-  )}%`;
+function percentage(value, fractionDigits = 1) {
+  const numericValue = toFiniteNumber(value);
+  return numericValue === null ? "Unavailable" : `${numericValue.toFixed(fractionDigits)}%`;
 }
 
 function trendPercentage(
@@ -265,17 +225,14 @@ function normalizeChartData(
           `Item ${index + 1}`;
 
         const numericValue =
-          toNonNegativeNumber(
-            item[valueKey]
-          );
+          toNonNegativeNumber(item[valueKey]);
+
+        if (numericValue === null) return null;
 
         return {
           ...item,
-          [labelKey]: String(
-            label
-          ),
-          [valueKey]:
-            numericValue,
+          [labelKey]: String(label),
+          [valueKey]: numericValue,
         };
       }
     )
@@ -1083,17 +1040,12 @@ function AdminDashboard({
               />
             </div>
 
-            <ResponsiveContainer
-              width="100%"
-              height={
-                CHART_HEIGHT
-              }
-            >
+            {fraudData.length === 0 ? (
+              <ChartEmptyState message="Fraud intelligence is unavailable; no clean/flagged conclusion can be drawn." />
+            ) : (
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
               <PieChart>
-                <Pie
-                  data={
-                    fraudData
-                  }
+                <Pie data={fraudData}
                   outerRadius={100}
                   innerRadius={55}
                   dataKey="value"
@@ -1126,6 +1078,7 @@ function AdminDashboard({
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </Card>
         </FeatureGate>
       </section>

@@ -51,7 +51,8 @@ try {
   const currentManifest = JSON.parse(read('branding/BRAND_MANIFEST.json'));
   const brandJsSource = read('frontend/src/branding/brand.js');
   const footerSource = read('frontend/src/components/Footer.jsx');
-  const appSource = read('backend/app.cjs');
+  const backendPackage = JSON.parse(read('backend/package.json'));
+  const runtimeContextSource = read('backend/runtime/context.js');
   const deploySource = read('.github/workflows/deploy.yml');
   const identityChecks = [
     [
@@ -67,13 +68,13 @@ try {
     [
       'frontend/src/branding/brand.js product/legal split',
       /fullName:\s*['\\"]TITech Community Capital['\\"]/.test(brandJsSource) &&
-        /organizationName:\s*['\\"]TITech Capital LTD['\\"]/.test(brandJsSource) &&
-        /legalName:\s*['\\"]TITech Capital LTD['\\"]/.test(brandJsSource),
+        (/organizationName:\s*['\\"]TITech Capital LTD['\\"]/.test(brandJsSource) || /organizationName:\s*TITECH_ORGANIZATION\.displayName/.test(brandJsSource)) &&
+        (/legalName:\s*['\\"]TITech Capital LTD['\\"]/.test(brandJsSource) || /legalName:\s*TITECH_ORGANIZATION\.configuredLegalName/.test(brandJsSource)),
     ],
     [
       'frontend/src/components/Footer.jsx product/legal split',
-      /COMPANY_NAME:\s*['\\"]TITech Community Capital['\\"]/.test(footerSource) &&
-        /COMPANY_LEGAL_NAME:\s*['\\"]TITech Capital LTD['\\"]/.test(footerSource),
+      (/COMPANY_NAME:\s*['\\"]TITech Community Capital['\\"]/.test(footerSource) || /COMPANY_NAME:\s*TITECH_BRAND\.fullName/.test(footerSource)) &&
+        (/COMPANY_LEGAL_NAME:\s*['\\"]TITech Capital LTD['\\"]/.test(footerSource) || /COMPANY_LEGAL_NAME:\s*TITECH_BRAND\.legalName/.test(footerSource)),
     ],
     [
       'frontend/src/legal/legalConfig.js legal name',
@@ -94,11 +95,9 @@ try {
       ),
     ],
     [
-      'backend/app.cjs company metadata',
-      /company:\s*['\\"]TITech Capital LTD['\\"]/.test(appSource) &&
-        /packageJson\.author\s*\|\|\s*['\\"]TITech Capital LTD['\\"]/.test(
-          appSource,
-        ),
+      'canonical backend company metadata',
+      /const COMPANY_NAME\s*=\s*['\\"]TITech Capital LTD['\\"]/.test(runtimeContextSource) &&
+        String(backendPackage.author ?? '').includes('TITech Capital LTD'),
     ],
     [
       'deployment metadata organization',

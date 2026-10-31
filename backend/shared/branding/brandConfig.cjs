@@ -13,6 +13,16 @@ module.exports = Object.freeze({
   productName: 'Community Capital',
   fullName: 'TITech Community Capital',
   legalName: 'TITech Capital LTD',
+  organization: Object.freeze({
+    displayName: 'TITech Capital LTD',
+    configuredLegalName: 'TITech Capital LTD',
+    postalAddress: 'P.O. BOX 601200',
+    postalLocation: 'Clock Tower',
+    country: 'Uganda',
+    administrativeAssociationName: 'TITECH CAPITAL - SMC LTD',
+    legalIdentityVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
+    postalAddressVerification: 'USER_SUPPLIED_ADMINISTRATIVE_RECORD',
+  }),
   emailFromName: 'TITech Community Capital',
 
   tagline: 'Community Finance. Stronger Together.',

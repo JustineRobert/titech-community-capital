@@ -73,6 +73,7 @@ import {
 
 import api from '../services/api';
 import socket from '../services/socket';
+import { nonNegativeMetricOrNull } from '../utils/financialMetric.js';
 
 /**
  * ============================================================================
@@ -124,10 +125,10 @@ const SOCKET_EVENTS =
 
 const DEFAULT_STATS =
   Object.freeze({
-    savings: 0,
-    members: 0,
-    activeLoans: 0,
-    totalDisbursed: 0,
+    savings: null,
+    members: null,
+    activeLoans: null,
+    totalDisbursed: null,
 
     loans: [],
 
@@ -1504,33 +1505,28 @@ export default function useDashboardData(
   const metrics =
     useMemo(() => {
       const savings =
-        Number(
-          dashboard.stats
-            ?.savings,
-        ) || 0;
+        nonNegativeMetricOrNull(
+          dashboard.stats?.savings,
+        );
 
       const members =
-        Number(
-          dashboard.stats
-            ?.members,
-        ) || 0;
+        nonNegativeMetricOrNull(
+          dashboard.stats?.members,
+        );
 
       const activeLoans =
-        Number(
-          dashboard.stats
-            ?.activeLoans,
-        ) || 0;
+        nonNegativeMetricOrNull(
+          dashboard.stats?.activeLoans,
+        );
 
       const totalDisbursed =
-        Number(
-          dashboard.stats
-            ?.totalDisbursed,
-        ) || 0;
+        nonNegativeMetricOrNull(
+          dashboard.stats?.totalDisbursed,
+        );
 
       return {
         totalGroups:
-          dashboard.groups
-            .length,
+          error ? null : dashboard.groups.length,
 
         totalMembers:
           members,
@@ -1547,6 +1543,7 @@ export default function useDashboardData(
     }, [
       dashboard.groups,
       dashboard.stats,
+      error,
     ]);
 
   /**

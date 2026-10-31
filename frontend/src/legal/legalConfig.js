@@ -120,10 +120,18 @@ export const LEGAL_CONTACTS = Object.freeze({
  */
 export const LEGAL_ADDRESS = Object.freeze({
   organization: 'TITech Capital LTD',
+  // Postal correspondence address supplied for the 31 October 2026 update.
+  postalAddress: 'P.O. BOX 601200',
+  postalLocation: 'Clock Tower',
+  postalCountry: 'Uganda',
+  postalFull: 'TITech Capital LTD, P.O. BOX 601200, Clock Tower, Uganda',
+  // Existing separately configured address retained for compatibility. Its
+  // legal/registered-office status is not established by the postal record.
   street: 'Plot 69-71 Jinja Road',
   city: 'Kampala',
   country: 'Uganda',
-  full: 'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
+  full: 'TITech Capital LTD, P.O. BOX 601200, Clock Tower, Uganda',
+  additionalAddressOnFile: 'Plot 69-71 Jinja Road, Kampala, Uganda',
 });
 
 /* ============================================================================

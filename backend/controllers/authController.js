@@ -322,102 +322,104 @@ async function register(req, res) {
       });
     }
 
-    const existing = isMongoConnected()
-      ? await User.findOne({ email: normalizedEmail })
-      : await findFallbackUserByEmail(normalizedEmail);
-
-    if (existing) {
-      return res.status(409).json({
+    // Invitation consumption and account creation are one MongoDB transaction.
+    // Compensating writes are not equivalent to atomicity and could over-restore
+    // invitation usage under concurrent requests. Registration is invitation-
+    // based, so a disconnected/in-memory-only store cannot safely complete it.
+    if (!isMongoConnected()) {
+      return res.status(503).json({
         success: false,
-        message: 'Email already registered',
+        code: 'REGISTRATION_STORE_UNAVAILABLE',
+        message: 'Account registration is temporarily unavailable. Please contact your institution administrator.',
       });
     }
 
+    let user;
     let tenantInvitation = null;
     let tenantId = null;
+    let session;
 
-    if (tenantInviteCode) {
-      if (!isMongoConnected()) {
-        return res.status(503).json({
-          success: false,
-          message: 'Tenant invitations are temporarily unavailable',
-        });
-      }
-
-      const codeHash = hashToken(tenantInviteCode);
-      const now = new Date();
-      tenantInvitation = await TenantInvitation.findOneAndUpdate(
-        {
-          codeHash,
-          revokedAt: null,
-          expiresAt: { $gt: now },
-          $expr: { $lt: ['$uses', '$maxUses'] },
-        },
-        { $inc: { uses: 1 } },
-        { new: true }
-      );
-
-      if (!tenantInvitation) {
-        return res.status(400).json({
-          success: false,
-          message: 'Tenant invite code is invalid, expired, or already used',
-        });
-      }
-
-      tenantId = tenantInvitation.tenantId;
-    }
-
-    let user;
     try {
-      if (isMongoConnected()) {
-        user = await User.create({
+      session = await User.startSession();
+      await session.withTransaction(async () => {
+        const existing = await User.findOne({ email: normalizedEmail })
+          .session(session)
+          .exec();
+
+        if (existing) {
+          const duplicate = new Error('Email already registered');
+          duplicate.code = 'REGISTRATION_DUPLICATE_EMAIL';
+          throw duplicate;
+        }
+
+        const codeHash = hashToken(tenantInviteCode);
+        const now = new Date();
+        tenantInvitation = await TenantInvitation.findOneAndUpdate(
+          {
+            codeHash,
+            revokedAt: null,
+            expiresAt: { $gt: now },
+            $expr: { $lt: ['$uses', '$maxUses'] },
+          },
+          { $inc: { uses: 1 } },
+          { new: true, session },
+        );
+
+        if (!tenantInvitation) {
+          const invalidInvitation = new Error('Tenant invitation is invalid, expired, revoked, or exhausted');
+          invalidInvitation.code = 'REGISTRATION_INVITATION_INVALID';
+          throw invalidInvitation;
+        }
+
+        tenantId = tenantInvitation.tenantId;
+        const created = await User.create([{
           name: normalizedName,
           email: normalizedEmail,
           password,
           phone: normalizedPhone,
           tenantId,
-        });
-      } else {
-        const hashedPassword = await bcrypt.hash(password, 12);
-        user = createFallbackUserRecord({
-          name: normalizedName,
-          email: normalizedEmail,
-          password: hashedPassword,
-          phone: normalizedPhone,
-          tenantId,
-        });
-        await saveFallbackUser(user);
-      }
-
+        }], { session });
+        user = created[0];
+      });
     } catch (error) {
-      if (user) {
-        try {
-          if (isMongoConnected()) {
-            await User.deleteOne({ _id: user._id });
-          } else {
-            FALLBACK_USERS.delete(normalizedEmail);
-          }
-        } catch (cleanupError) {
-          logger.error('[AuthController] Registration rollback could not remove the provisional user record.', {
-            code: cleanupError?.code || 'REGISTRATION_USER_ROLLBACK_FAILED',
-          });
-        }
+      if (
+        error?.code === 'REGISTRATION_DUPLICATE_EMAIL' ||
+        error?.code === 11000
+      ) {
+        return res.status(409).json({
+          success: false,
+          code: 'EMAIL_ALREADY_REGISTERED',
+          message: 'Email already registered',
+        });
       }
 
-      if (tenantInvitation) {
-        try {
-          await TenantInvitation.updateOne(
-            { _id: tenantInvitation._id, uses: { $gt: 0 } },
-            { $inc: { uses: -1 } }
-          );
-        } catch (invitationRollbackError) {
-          logger.error('[AuthController] Registration rollback could not restore the tenant invitation use count.', {
-            code: invitationRollbackError?.code || 'REGISTRATION_INVITATION_ROLLBACK_FAILED',
-          });
-        }
+      if (error?.code === 'REGISTRATION_INVITATION_INVALID') {
+        return res.status(400).json({
+          success: false,
+          code: 'INVITATION_INVALID_OR_UNAVAILABLE',
+          message: 'Tenant invitation code is invalid, expired, revoked, or already used',
+        });
+      }
+
+      if (isTransactionUnavailableError(error)) {
+        return res.status(503).json({
+          success: false,
+          code: 'REGISTRATION_TRANSACTION_UNAVAILABLE',
+          message: 'Account registration is temporarily unavailable because required database transaction support is unavailable.',
+        });
       }
 
       throw error;
+    } finally {
+      if (session) {
+        try {
+          await session.endSession();
+        } catch (sessionCleanupError) {
+          logger.warn('[AuthController] Registration session cleanup failed.', {
+            code: sessionCleanupError?.code || 'REGISTRATION_SESSION_CLEANUP_FAILED',
+          });
+        }
+      }
     }
 
     if (tenantId) {

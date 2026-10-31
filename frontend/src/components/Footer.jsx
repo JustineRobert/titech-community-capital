@@ -63,6 +63,7 @@ import {
 
 import PropTypes from 'prop-types';
 
+import TITECH_BRAND from '../branding/brand';
 import './Footer.css';
 import BrandLogo from './BrandLogo';
 
@@ -72,10 +73,10 @@ import BrandLogo from './BrandLogo';
 
 export const FOOTER_CONSTANTS = Object.freeze({
   COMPANY_NAME:
-    'TITech Community Capital',
+    TITECH_BRAND.fullName,
 
   COMPANY_LEGAL_NAME:
-    'TITech Capital LTD',
+    TITECH_BRAND.legalName,
 
   COMPANY_DESCRIPTION:
     'Community financial infrastructure for a stronger, more inclusive Africa — connecting trusted records, payments, communities, capital and opportunity.',
@@ -95,8 +96,19 @@ export const FOOTER_CONSTANTS = Object.freeze({
   DISPLAY_PHONE:
     '+256 (782) 397907',
 
+  // Preserve the pre-existing additional address as a separately labelled
+  // record; the new postal address is represented by distinct fields below.
   COMPANY_ADDRESS:
     'Plot 69-71 Jinja Road, Kampala, Uganda',
+
+  COMPANY_POSTAL_ADDRESS:
+    TITECH_BRAND.organization.postalAddress,
+
+  COMPANY_POSTAL_LOCATION:
+    TITECH_BRAND.organization.postalLocation,
+
+  COMPANY_COUNTRY:
+    TITECH_BRAND.organization.country,
 
   TEST_ID:
     'titech-footer',
@@ -112,6 +124,9 @@ const {
   PHONE_NUMBER,
   DISPLAY_PHONE,
   COMPANY_ADDRESS,
+  COMPANY_POSTAL_ADDRESS,
+  COMPANY_POSTAL_LOCATION,
+  COMPANY_COUNTRY,
   TEST_ID,
 } = FOOTER_CONSTANTS;
 
@@ -642,6 +657,9 @@ function Footer({
   phone,
   phoneHref,
   address,
+  postalAddress,
+  postalLocation,
+  country,
   showQuickLinks,
   showLegalLinks,
   showContact,
@@ -964,9 +982,28 @@ function Footer({
                     </li>
                   ) : null}
 
-                  {address ? (
-                    <li>
+                  {postalAddress ? (
+                    <li data-testid="titech-footer-postal-address">
                       <span>
+                        <strong>Postal address:</strong>{' '}
+                        {postalAddress}
+                      </span>
+                    </li>
+                  ) : null}
+
+                  {postalLocation ? (
+                    <li data-testid="titech-footer-postal-location">
+                      <span>
+                        <strong>Location:</strong>{' '}
+                        {postalLocation}{country ? `, ${country}` : ''}
+                      </span>
+                    </li>
+                  ) : null}
+
+                  {address ? (
+                    <li data-testid="titech-footer-additional-address">
+                      <span>
+                        <strong>Additional address on file:</strong>{' '}
                         {address}
                       </span>
                     </li>
@@ -1110,6 +1147,15 @@ Footer.propTypes = {
   address:
     PropTypes.string,
 
+  postalAddress:
+    PropTypes.string,
+
+  postalLocation:
+    PropTypes.string,
+
+  country:
+    PropTypes.string,
+
   showQuickLinks:
     PropTypes.bool,
 
@@ -1217,6 +1263,15 @@ Footer.defaultProps = {
 
   address:
     COMPANY_ADDRESS,
+
+  postalAddress:
+    COMPANY_POSTAL_ADDRESS,
+
+  postalLocation:
+    COMPANY_POSTAL_LOCATION,
+
+  country:
+    COMPANY_COUNTRY,
 
   showQuickLinks:
     true,

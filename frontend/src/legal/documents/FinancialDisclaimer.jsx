@@ -84,7 +84,7 @@ const PHONE_HREF =
 '+256782397907';
 
 const ADDRESS =
-'Plot 69-71 Jinja Road, Kampala, Uganda';
+'P.O. BOX 601200, Clock Tower, Uganda';
 
 /* ============================================================================
 

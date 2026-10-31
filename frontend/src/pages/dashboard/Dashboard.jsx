@@ -49,6 +49,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import useDashboardData from "../../hooks/useDashboardData";
 import useRealtimeDashboard from "../../hooks/useRealtimeDashboard";
+import { finiteMetricOrNull } from "../../utils/financialMetric.js";
 
 import FeatureGate from "../../components/FeatureGate";
 import PermissionGate from "../../components/PermissionGate";
@@ -80,29 +81,17 @@ const MAX_NOTIFICATION_BADGE =
 // Helpers
 // ============================================================================
 
-function toFiniteNumber(
-  value,
-  fallback = 0
-) {
-  const numericValue =
-    Number(value);
-
-  return Number.isFinite(
-    numericValue
-  )
-    ? numericValue
-    : fallback;
+function toFiniteNumber(value) {
+  return finiteMetricOrNull(value);
 }
 
 // ----------------------------------------------------------------------------
 // Currency
 // ----------------------------------------------------------------------------
 
-function formatCurrency(
-  value = 0
-) {
-  const numericValue =
-    toFiniteNumber(value);
+function formatCurrency(value) {
+  const numericValue = toFiniteNumber(value);
+  if (numericValue === null) return "Unavailable";
 
   return new Intl.NumberFormat(
     "en-UG",
@@ -120,11 +109,9 @@ function formatCurrency(
 // Number
 // ----------------------------------------------------------------------------
 
-function formatNumber(
-  value = 0
-) {
-  const numericValue =
-    toFiniteNumber(value);
+function formatNumber(value) {
+  const numericValue = toFiniteNumber(value);
+  if (numericValue === null) return "Unavailable";
 
   return new Intl.NumberFormat(
     "en-UG"
@@ -137,11 +124,9 @@ function formatNumber(
 // Percentage
 // ----------------------------------------------------------------------------
 
-function formatPercentage(
-  value = 0
-) {
-  const numericValue =
-    toFiniteNumber(value);
+function formatPercentage(value) {
+  const numericValue = toFiniteNumber(value);
+  if (numericValue === null) return "Unavailable";
 
   return `${numericValue.toFixed(
     1
@@ -494,25 +479,10 @@ export default function Dashboard() {
   const safeMetrics =
     useMemo(
       () => ({
-        totalSavings:
-          toFiniteNumber(
-            metrics?.totalSavings
-          ),
-
-        totalGroups:
-          toFiniteNumber(
-            metrics?.totalGroups
-          ),
-
-        totalMembers:
-          toFiniteNumber(
-            metrics?.totalMembers
-          ),
-
-        activeLoans:
-          toFiniteNumber(
-            metrics?.activeLoans
-          ),
+        totalSavings: toFiniteNumber(metrics?.totalSavings),
+        totalGroups: toFiniteNumber(metrics?.totalGroups),
+        totalMembers: toFiniteNumber(metrics?.totalMembers),
+        activeLoans: toFiniteNumber(metrics?.activeLoans),
       }),
       [metrics]
     );

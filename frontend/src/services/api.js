@@ -1933,44 +1933,13 @@ export async function requestEmailVerification(email) {
   return authApi.post('/api/email/request-verification', { email });
 }
 
-export async function register(
-  payload
-) {
-  const response =
-    await authApi.post(
-      REGISTER_ENDPOINT,
-      payload
-    );
-
-  const token =
-    response.data
-      ?.accessToken ||
-    response.data
-      ?.token;
-
-  if (token) {
-    setToken(token);
-
-    api.defaults.headers.common.Authorization =
-      `Bearer ${token}`;
-  }
-
-  const tenantId =
-    response.data
-      ?.tenantId ||
-    response.data
-      ?.user?.tenantId;
-
-  if (
-    tenantId !== undefined &&
-    tenantId !== null
-  ) {
-    setTenant(
-      tenantId
-    );
-  }
-
-  return response;
+export async function register(payload) {
+  // Registration is an anonymous onboarding operation. Never install a
+  // token or tenant context from this response: the account must complete
+  // email verification and then authenticate through the canonical login flow.
+  // If a backend response includes a token, AuthContext will flag the policy
+  // violation without persisting or attaching the token to subsequent requests.
+  return authApi.post(REGISTER_ENDPOINT, payload);
 }
 
 export async function logout() {

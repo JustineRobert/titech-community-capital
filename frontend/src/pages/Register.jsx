@@ -390,23 +390,6 @@ export default function Register() {
   }, []);
 
   // --------------------------------------------------------------------------
-  // Navigation
-  // --------------------------------------------------------------------------
-
-  const navigateAfterRegistration = useCallback(() => {
-    if (!mountedRef.current) {
-      return;
-    }
-
-    navigate(successRedirect, {
-      replace: true,
-    });
-  }, [
-    navigate,
-    successRedirect,
-  ]);
-
-  // --------------------------------------------------------------------------
   // Submit
   // --------------------------------------------------------------------------
 
@@ -489,27 +472,50 @@ export default function Register() {
           payload.phone = phone;
         }
 
-        await register(payload);
+        const registrationResult = await register(payload);
 
         if (!mountedRef.current) {
           return;
         }
 
-        clearRegistrationTimeout();
+        if (registrationResult?.accountCreated !== true) {
+          throw new Error('The account-creation result could not be confirmed. Please contact your institution administrator before retrying.');
+        }
 
+        clearRegistrationTimeout();
         registrationInProgressRef.current = false;
 
-        toast.success(
-          t('auth.register.errors.success'),
-          {
-            autoClose: 3000,
+        if (registrationResult.sessionIssuedByRegistration) {
+          // Security event: registration must not establish an authenticated
+          // session before email verification. Do not expose the token value.
+          setRegistrationError('Your account request was processed, but the server returned an unexpected authentication response. Do not sign in from this page; contact your institution administrator.');
+          toast.error('Registration requires administrator review.', {
+            autoClose: 5000,
+            toastId: 'titech-registration-session-policy-violation',
+          });
+        } else if (registrationResult.verificationDeliveryStatus === 'REQUEST_ACCEPTED') {
+          toast.success('Account created. The verification request was accepted; actual email delivery is not confirmed.', {
+            autoClose: 4500,
             toastId: 'titech-registration-success',
-          },
-        );
+          });
+        } else {
+          setRegistrationError('Your account was created, but the verification email request could not be confirmed. Use the verification page to request another message before signing in.');
+          toast.warn('Account created; verification delivery needs attention.', {
+            autoClose: 5000,
+            toastId: 'titech-registration-verification-pending',
+          });
+        }
 
         resetForm();
-
-        navigateAfterRegistration();
+        navigate('/verify-email', {
+          replace: true,
+          state: {
+            email: payload.email,
+            verificationDeliveryStatus: registrationResult.verificationDeliveryStatus,
+            redirectAfterVerification: successRedirect,
+            sessionIssuedByRegistration: registrationResult.sessionIssuedByRegistration,
+          },
+        });
       } catch (error) {
         if (!mountedRef.current) {
           return;
@@ -555,8 +561,9 @@ export default function Register() {
     },
     [
       clearRegistrationTimeout,
-      navigateAfterRegistration,
+      navigate,
       register,
+      successRedirect,
       t,
     ],
   );

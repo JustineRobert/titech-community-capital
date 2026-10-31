@@ -263,6 +263,15 @@ beforeAll(async () => {
 
     databaseOwnedBySuite = true;
   }
+
+  // Registration and refresh-token rotation depend on MongoDB transactions.
+  // A standalone MongoDB process is not acceptable integration evidence.
+  const topology = await mongoose.connection.db.admin().command({ hello: 1 });
+  if (!topology.setName && topology.msg !== "isdbgrid") {
+    throw new Error(
+      "Authentication integration tests require a MongoDB replica set or mongos; standalone MongoDB cannot prove transactional registration/session behavior."
+    );
+  }
 });
 
 afterAll(async () => {
@@ -384,6 +393,44 @@ describe("POST /api/auth/register", () => {
     }).lean();
 
     expect(users).toHaveLength(1);
+    const invitation = await TenantInvitation.findOne({
+      codeHash: crypto.createHash("sha256").update(TEST_TENANT_INVITE_CODE).digest("hex"),
+    }).select("uses").lean();
+    expect(invitation.uses).toBe(1);
+  });
+
+  test("consumes a single-use invitation atomically under concurrent registrations", async () => {
+    const rawInviteCode = `single-use-${crypto.randomBytes(24).toString("hex")}`;
+    const codeHash = crypto.createHash("sha256").update(rawInviteCode).digest("hex");
+    await TenantInvitation.create({
+      tenantId: TEST_TENANT_ID,
+      createdBy: new mongoose.Types.ObjectId(),
+      codeHash,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      maxUses: 1,
+      uses: 0,
+    });
+
+    const emails = [uniqueEmail("single-use-a"), uniqueEmail("single-use-b")];
+    const responses = await Promise.all(emails.map((email) =>
+      request(app).post("/api/auth/register").send({
+        email,
+        password: PASSWORD,
+        fullName: "Single Use Invitation User",
+        phoneNumber: uniquePhoneNumber(),
+        tenantInviteCode: rawInviteCode,
+      })
+    ));
+
+    const created = responses.filter((response) => response.status === HTTP.CREATED);
+    expect(created).toHaveLength(1);
+    expect(responses.filter((response) => response.status !== HTTP.CREATED)).toHaveLength(1);
+
+    const users = await User.find({ email: { $in: emails.map((email) => email.toLowerCase()) } }).lean();
+    expect(users).toHaveLength(1);
+
+    const invitation = await TenantInvitation.findOne({ codeHash }).select("+codeHash").lean();
+    expect(invitation.uses).toBe(1);
   });
 
   test("rejects registration when required fields are missing", async () => {
@@ -494,6 +541,14 @@ describe("POST /api/auth/login", () => {
 
     expect([HTTP.OK, HTTP.CREATED]).toContain(registration.status);
 
+    // This suite exercises login mechanics for an account whose verification
+    // step is already complete. The explicit unverified-login test below
+    // proves that registration alone never satisfies the verification guard.
+    await User.updateOne(
+      { email: email.toLowerCase() },
+      { $set: { isVerified: true } },
+    );
+
     testUser = {
       email,
       password: PASSWORD,
@@ -523,7 +578,7 @@ describe("POST /api/auth/login", () => {
     }
   });
 
-  test("registers, logs in, and loads the authenticated dashboard profile", async () => {
+  test("loads authenticated dashboard profile for a verified account fixture", async () => {
     const email = uniqueEmail("dashboard-smoke");
     const name = "Dashboard Smoke User";
 
@@ -541,6 +596,14 @@ describe("POST /api/auth/login", () => {
         return response;
       });
     expect(registration.body.user.email).toBe(email.toLowerCase());
+
+    // This endpoint-only test does not mount the email routes/provider. Mark
+    // the account verified as an explicit fixture; the real verification
+    // journey belongs in the auth+email browser/integration acceptance suite.
+    await User.updateOne(
+      { email: email.toLowerCase() },
+      { $set: { isVerified: true } },
+    );
 
     const login = await request(app)
       .post("/api/auth/login")
@@ -561,6 +624,22 @@ describe("POST /api/auth/login", () => {
 
     expect(profile.body.email).toBe(email.toLowerCase());
     expect(profile.body.name).toBe(name);
+  });
+
+  test("rejects an unverified account with EMAIL_VERIFICATION_REQUIRED", async () => {
+    await User.updateOne(
+      { email: testUser.email.toLowerCase() },
+      { $set: { isVerified: false } },
+    );
+
+    const response = await request(app)
+      .post("/api/auth/login")
+      .send({ email: testUser.email, password: testUser.password });
+
+    expect(response.status).toBe(HTTP.FORBIDDEN);
+    expect(response.body.code).toBe("EMAIL_VERIFICATION_REQUIRED");
+    expect(extractAccessToken(response)).toBeNull();
+    expect(containsRefreshCookie(extractCookies(response))).toBe(false);
   });
 
   test("returns a structurally valid JWT", async () => {

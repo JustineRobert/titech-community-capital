@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-10-29T05:49:29.333Z",
+  "generatedAt": "2026-10-31T20:01:24.729Z",
   "repository": {
-    "totalFiles": 3496,
-    "sourceFiles": 2467,
+    "totalFiles": 3519,
+    "sourceFiles": 2473,
     "zeroByteFiles": 248,
     "zeroBytePaths": [
       "backend/application/MiddlewareRegistrar.js",
@@ -254,7 +254,7 @@
       "frontend/src/ui/uiSlice.js",
       "postman/reports/.gitkeep"
     ],
-    "testFilesObserved": 286,
+    "testFilesObserved": 289,
     "emptyTestFiles": 26,
     "blockingEmptyTestFiles": [],
     "legacyEmptyTestFiles": [
@@ -290,13 +290,6 @@
     "legacyMissingImportPaths": 208,
     "duplicateImplementationSignals": [
       [
-        "backend/app.js",
-        "backend/app.cjs"
-      ],
-      [
-        "backend/PRODUCTION_IMPLEMENTATION_v2.js"
-      ],
-      [
         "backend/bootstrap/ApplicationBootstrap.js",
         "backend/bootstrap/app.js"
       ]
@@ -305,7 +298,7 @@
   "product": "TITech Community Capital",
   "branch": "UNAVAILABLE_IN_ARCHIVE",
   "commit": "UNAVAILABLE_IN_ARCHIVE",
-  "sourceSnapshotSha256": "ded108763dff48a27225aefba3a629cfe6369d1bfb576835b3a5b93dbc20dfac",
+  "sourceSnapshotSha256": "a58d2d5719eb16d6d26cff119af67bc54cf773dd9039a8fd6b34a3efbbc7b312",
   "runtime": {
     "requiredNode": "24.15.0",
     "requiredNpm": "11.x",
@@ -314,7 +307,7 @@
     "localRuntimeMeetsTarget": false
   },
   "modules": {
-    "esm": 750,
+    "esm": 756,
     "cjs": 1396,
     "mixedBoundaryFiles": 71,
     "neutral": 250

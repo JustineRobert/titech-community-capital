@@ -126,7 +126,7 @@ phoneHref:
 '+256782397907',
 
 address:
-'TITech Capital LTD, Plot 69-71 Jinja Road, Kampala, Uganda',
+'TITech Capital LTD, P.O. BOX 601200, Clock Tower, Uganda',
 });
 
 /* ============================================================================

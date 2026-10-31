@@ -76,18 +76,18 @@ const COLORS = [
 ];
 
 const DEFAULT_METRICS = Object.freeze({
-  totalAssets: 0,
-  totalLiabilities: 0,
-  totalSavings: 0,
-  loanPortfolio: 0,
-  revenue: 0,
-  expenses: 0,
-  profit: 0,
-  activeMembers: 0,
-  activeGroups: 0,
-  recoveryRate: 0,
-  defaultRate: 0,
-  mobileMoneyVolume: 0,
+  totalAssets: null,
+  totalLiabilities: null,
+  totalSavings: null,
+  loanPortfolio: null,
+  revenue: null,
+  expenses: null,
+  profit: null,
+  activeMembers: null,
+  activeGroups: null,
+  recoveryRate: null,
+  defaultRate: null,
+  mobileMoneyVolume: null,
 });
 
 const EMPTY_ARRAY = Object.freeze([]);
@@ -123,29 +123,24 @@ const currencyFormatter = new Intl.NumberFormat(
 );
 
 function toSafeNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
   const numericValue = Number(value);
-
-  return Number.isFinite(numericValue)
-    ? numericValue
-    : 0;
+  return Number.isFinite(numericValue) ? numericValue : null;
 }
 
 function money(value) {
-  return currencyFormatter.format(
-    toSafeNumber(value)
-  );
+  const numericValue = toSafeNumber(value);
+  return numericValue === null ? "Unavailable" : currencyFormatter.format(numericValue);
 }
 
 function formatNumber(value) {
-  return numberFormatter.format(
-    toSafeNumber(value)
-  );
+  const numericValue = toSafeNumber(value);
+  return numericValue === null ? "Unavailable" : numberFormatter.format(numericValue);
 }
 
 function percentage(value) {
-  return `${decimalFormatter.format(
-    toSafeNumber(value)
-  )}%`;
+  const numericValue = toSafeNumber(value);
+  return numericValue === null ? "Unavailable" : `${decimalFormatter.format(numericValue)}%`;
 }
 
 function normalizeArray(value) {

@@ -170,12 +170,31 @@ export const TITECH_VISION = Object.freeze({
   ]),
 });
 
+/**
+ * Configured organization profile. The postal details are the administrative
+ * information supplied for the 31 October 2026 update. Keeping these fields
+ * separate from an office/registered-office address prevents a P.O. Box from
+ * being mistaken for a physical address. Repository configuration is not
+ * documentary proof of incorporation or statutory address validity.
+ */
+export const TITECH_ORGANIZATION = Object.freeze({
+  displayName: 'TITech Capital LTD',
+  configuredLegalName: 'TITech Capital LTD',
+  postalAddress: 'P.O. BOX 601200',
+  postalLocation: 'Clock Tower',
+  country: 'Uganda',
+  administrativeAssociationName: 'TITECH CAPITAL - SMC LTD',
+  legalIdentityVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
+  postalAddressVerification: 'USER_SUPPLIED_ADMINISTRATIVE_RECORD',
+});
+
 export const TITECH_BRAND = Object.freeze({
   name: 'TITech',
   productName: 'Community Capital',
   fullName: 'TITech Community Capital',
-  organizationName: 'TITech Capital LTD',
-  legalName: 'TITech Capital LTD',
+  organizationName: TITECH_ORGANIZATION.displayName,
+  legalName: TITECH_ORGANIZATION.configuredLegalName,
+  organization: TITECH_ORGANIZATION,
   tagline: TITECH_VISION.tagline,
   mission: TITECH_VISION.mission,
   vision: TITECH_VISION.vision2035,

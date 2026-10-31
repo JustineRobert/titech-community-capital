@@ -82,7 +82,7 @@ phoneHref:
 '+256782397907',
 
 address:
-'Plot 69-71 Jinja Road, Kampala, Uganda',
+'P.O. BOX 601200, Clock Tower, Uganda',
 });
 
 /* ============================================================================
