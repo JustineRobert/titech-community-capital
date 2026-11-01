@@ -1,22 +1,24 @@
 # TITech Capital LTD — Organization Identity and Postal Address
 
-**Baseline date:** 31 October 2026  
+**Evidence update:** 1 November 2026  
 **Product identity:** TITech Community Capital  
 **Configured organization identity:** TITech Capital LTD  
 **Production approval:** `false`
 
 ## Configured administrative details
 
-| Field | Displayed information |
+| Field | Configured/displayed information |
 |---|---|
-| Organization | TITech Capital LTD |
+| Organization name directed for platform configuration | TITech Capital LTD |
 | Postal address | P.O. BOX 601200 |
 | Location | Clock Tower |
 | Country | Uganda |
-| Name associated by the supplied portal record | TITECH CAPITAL - SMC LTD |
+| Name displayed by the supplied portal in “Postal address belongs to” | TITECH CAPITAL - SMC LTD |
 | Identity status | Pending external documentary verification |
 
-The postal address and associated-name wording above were supplied for this repository update. The association string is preserved as a description of what the portal displayed. It is not silently treated as equivalent to `TITech Capital LTD`.
+The supplied screenshot is archived at [`docs/evidence/source-records/TITech_Capital_LTD_Postal_Address_Record_2026-11-01.jpeg`](../evidence/source-records/TITech_Capital_LTD_Postal_Address_Record_2026-11-01.jpeg). Its SHA-256 is `d62ea2d699ab7aa541f7c5598ae55f1b48db460bc51220b2e2bea37a94666d82`. The screenshot shows the postal code and location and separately displays `TITECH CAPITAL - SMC LTD` as the portal association. The record date is not visible in the screenshot; it was supplied to this update on 1 November 2026.
+
+For platform configuration and product/company display, the user has directed that the organization identity remain **TITech Capital LTD**. The portal association text is retained separately and is not silently substituted as the organization's configured name. The available screenshot does not establish whether the two names identify the same legal entity.
 
 ## Address on file retained separately
 
@@ -24,7 +26,7 @@ The postal address and associated-name wording above were supplied for this repo
 
 ## Required documentary verification
 
-Before using these details for statutory filings, contracts, regulated activity, or production representations, obtain and reconcile current authoritative documents confirming:
+Before using these details for statutory filings, contracts, regulated activity, public legal representations or production representations, obtain and reconcile current authoritative documents confirming:
 
 1. The exact incorporated legal name and any suffix (including whether `SMC LTD` is part of the legal name).
 2. Current company-registration/search documentation.
@@ -32,4 +34,4 @@ Before using these details for statutory filings, contracts, regulated activity,
 4. The registered office and physical correspondence-address requirements, if distinct.
 5. Renewal/expiry information where applicable.
 
-A screenshot or a repository configuration is administrative evidence only, not proof of incorporation, ownership, licence, registered office, address validity, or regulatory approval.
+A screenshot or repository configuration is administrative evidence only, not proof of incorporation, ownership, licence, registered office, address validity, or regulatory approval.

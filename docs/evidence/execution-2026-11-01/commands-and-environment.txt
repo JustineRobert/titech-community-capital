@@ -1,0 +1,10 @@
+Date: 2026-11-01
+Working directory: repository root
+Node: v22.16.0
+npm: 10.9.2
+Required by package.json/.nvmrc: Node >=24.15.0; npm >=11.0.0
+Dependencies: node_modules directories absent in supplied snapshot.
+Git metadata: .git directory absent.
+
+Executed commands are listed in test-results.json and their captured outputs are in the correspondingly named .log files.
+npm ci, full npm run check, full npm run test, npm run build, live services and browser E2E were not run because the runtime was unsupported and dependency directories were absent.

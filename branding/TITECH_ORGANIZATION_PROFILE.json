@@ -10,11 +10,15 @@
   "administrativeAssociationName": "TITECH CAPITAL - SMC LTD",
   "identityStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
   "postalAddressStatus": "USER_SUPPLIED_ADMINISTRATIVE_RECORD",
-  "sourceBaseline": "User-provided administrative record dated 31 October 2026",
+  "sourceBaseline": "User-provided administrative screenshot supplied on 1 November 2026; the underlying record date is not visible in the screenshot.",
   "limitations": [
     "The portal association string is retained as the identifier displayed by the supplied administrative record; it is not substituted for the configured platform organization name.",
+    "The supplied screenshot displays TITECH CAPITAL - SMC LTD in the “Postal address belongs to” field, while the user instructed the platform organization identity to remain TITech Capital LTD. The screenshot does not establish whether these strings identify the same legal entity.",
     "Repository configuration and the supplied postal record do not prove incorporation, statutory name, registered office, postal-address validity, licence, or regulatory approval.",
     "The previously configured address Plot 69-71 Jinja Road, Kampala, Uganda is retained separately as an additional address on file pending documentary verification."
   ],
-  "productionApproved": false
+  "productionApproved": false,
+  "sourceRecordDate": null,
+  "sourceEvidence": "docs/evidence/source-records/TITech_Capital_LTD_Postal_Address_Record_2026-11-01.jpeg",
+  "sourceEvidenceSha256": "d62ea2d699ab7aa541f7c5598ae55f1b48db460bc51220b2e2bea37a94666d82"
 }

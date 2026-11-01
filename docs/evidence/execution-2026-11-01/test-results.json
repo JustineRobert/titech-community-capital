@@ -1,0 +1,245 @@
+{
+  "date": "2026-11-01",
+  "repository": "https://github.com/JustineRobert/titech-community-capital",
+  "source": "User-supplied ZIP snapshot; no .git metadata present",
+  "product": "TITech Community Capital",
+  "organization": "TITech Capital LTD",
+  "runtime": {
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "requiredNode": ">=24.15.0",
+    "requiredNpm": ">=11.0.0",
+    "supportedRuntimeGate": "BLOCKED"
+  },
+  "selectedDependencyFreeNodeTests": {
+    "total": 96,
+    "passed": 96,
+    "failed": 0,
+    "skipped": 0
+  },
+  "commands": [
+    {
+      "name": "org_and_metric_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/org_and_metric_tests.log",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "theme_audit",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/theme_audit.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "organization_gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/organization_gate.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "financial_static_gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/financial_static_gate.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "enterprise_contract_gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/enterprise_contract_gate.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "rbac_gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/rbac_gate.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "critical_gates",
+      "exitCode": 0,
+      "status": "BLOCKED",
+      "log": "docs/evidence/execution-2026-11-01/critical_gates.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "syntax_gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/syntax_gate.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "implementation_gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/implementation_gate.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "structure_gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/structure_gate.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "release_readiness",
+      "exitCode": 0,
+      "status": "PASS_WITH_WARNINGS",
+      "log": "docs/evidence/execution-2026-11-01/release_readiness.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "production_approval",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "log": "docs/evidence/execution-2026-11-01/production_approval.log",
+      "processExit": "NONZERO_EXIT"
+    },
+    {
+      "name": "supported_runtime",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "log": "docs/evidence/execution-2026-11-01/supported_runtime.log",
+      "processExit": "NONZERO_EXIT"
+    },
+    {
+      "name": "i18n_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/i18n_tests.log",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "inclusive_onboarding_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/inclusive_onboarding_tests.log",
+      "tests": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "education_campaign_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/education_campaign_tests.log",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "ubuntu_float_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/ubuntu_float_tests.log",
+      "tests": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "retirement_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/retirement_tests.log",
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "institutional_leads_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/institutional_leads_tests.log",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "performance_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/performance_tests.log",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "malware_scan_tests",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "docs/evidence/execution-2026-11-01/malware_scan_tests.log",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "runtime_imports",
+      "exitCode": 0,
+      "status": "WARN",
+      "log": "docs/evidence/execution-2026-11-01/runtime_imports.log",
+      "processExit": "EXIT_0"
+    },
+    {
+      "name": "frontend_runtime",
+      "exitCode": 0,
+      "status": "WARN",
+      "log": "docs/evidence/execution-2026-11-01/frontend_runtime.log",
+      "processExit": "EXIT_0"
+    }
+  ],
+  "keyFindings": {
+    "syntaxGate": "PASS; 2,475 JS/TS-family files parsed",
+    "officialThemeAudit": "PASS; all nine official palette values; all 66 non-brand frontend CSS files use the centralized TITech brand token layer",
+    "organizationProfileGate": "PASS; supplied source screenshot exists and matches its recorded SHA-256",
+    "financialStaticGate": "PASS; 12 canonical files checked",
+    "enterpriseContracts": "PASS; 11 control-plane contracts checked",
+    "rbacStaticGate": "PASS; static contract only, not live tenant E2E",
+    "runtimeImportAudit": "208 missing local import candidates across repository; zero detected on audited canonical financial surface; zero mixed-module violations on that surface",
+    "frontendRuntimeAudit": "WARN; no frontend/dist build artifact in supplied snapshot",
+    "criticalReleaseGates": "BLOCKED; P0_RUNTIME_INSTALL, P0_BOOTSTRAP_HEALTH, P0_LEDGER_REPLAY, P0_PROVIDER_FAILURES, P0_TENANT_PERMISSIONS, P1_SECURITY_RECOVERY, P1_REGULATORY_PARTNER, P1_COMMERCIAL_PILOT",
+    "productionApproval": "BLOCKED; missing protected approval evidence values TITECH_PRODUCTION_APPROVAL, TITECH_APPROVAL_REFERENCE, TITECH_APPROVAL_EXPIRES_AT"
+  },
+  "notRun": [
+    "npm ci / clean dependency installation (runtime is below repository engines and node_modules are absent)",
+    "full backend/frontend lint and dependency-backed test suites",
+    "frontend production build",
+    "MongoDB replica-set integration and financial concurrency/replay tests",
+    "Redis integration/failure/recovery tests",
+    "live backend startup/readiness/shutdown",
+    "browser Playwright E2E and real multi-tenant workflow tests",
+    "provider sandbox/settlement evidence",
+    "independent security assessment and backup/restore drill",
+    "external legal, regulatory, insurer, institutional and pilot approvals"
+  ],
+  "releaseDecision": "NOT READY",
+  "productionApproved": false
+}

@@ -1,0 +1,107 @@
+{
+  "generatedAt": "2026-11-01T08:56:41.252Z",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "policy:legacy-admin-normalizes",
+      "status": "PASS"
+    },
+    {
+      "id": "policy:member-no-role-assign",
+      "status": "PASS"
+    },
+    {
+      "id": "policy:self-promotion-denied",
+      "status": "PASS"
+    },
+    {
+      "id": "policy:cross-tenant-role-denied",
+      "status": "PASS"
+    },
+    {
+      "id": "policy:cross-tenant-group-view-denied",
+      "status": "PASS"
+    },
+    {
+      "id": "exists:backend/security/rbacPolicy.js",
+      "status": "PASS"
+    },
+    {
+      "id": "exists:backend/services/rbacService.js",
+      "status": "PASS"
+    },
+    {
+      "id": "exists:backend/middleware/auth.js",
+      "status": "PASS"
+    },
+    {
+      "id": "exists:backend/routes/rbac.js",
+      "status": "PASS"
+    },
+    {
+      "id": "exists:backend/controllers/rbacController.js",
+      "status": "PASS"
+    },
+    {
+      "id": "exists:frontend/src/pages/VerifyEmail.jsx",
+      "status": "PASS"
+    },
+    {
+      "id": "exists:frontend/src/pages/admin/AccessGovernance.jsx",
+      "status": "PASS"
+    },
+    {
+      "id": "exists:branding/TITECH_OFFICIAL_THEME.json",
+      "status": "PASS"
+    },
+    {
+      "id": "auth:resolveAuthoritativeIdentity",
+      "status": "PASS"
+    },
+    {
+      "id": "auth:getPermissionsForRoles",
+      "status": "PASS"
+    },
+    {
+      "id": "auth:AUTH_IDENTITY_STORE_UNAVAILABLE",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:deepBlue",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:electricBlue",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:brightBlue",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:cyan",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:africaGreen",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:limeGreen",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:goldYellow",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:navyInk",
+      "status": "PASS"
+    },
+    {
+      "id": "theme:white",
+      "status": "PASS"
+    }
+  ],
+  "blockers": []
+}

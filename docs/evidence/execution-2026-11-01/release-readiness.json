@@ -1,0 +1,86 @@
+{
+  "generatedAt": "2026-11-01T08:56:47.142Z",
+  "mode": "audit",
+  "status": "PASS",
+  "blockers": [],
+  "warnings": [
+    "Observed Node runtime 22.16.0 does not match the repository enterprise pin 24.15.0.",
+    "Repository-wide legacy/runtime import debt remains: 208 missing local imports."
+  ],
+  "checks": [
+    {
+      "id": "required-artifacts",
+      "status": "PASS",
+      "message": "Canonical release artifacts are present.",
+      "details": []
+    },
+    {
+      "id": "runtime-pin",
+      "status": "PASS",
+      "message": "Node 24.15.0 is pinned.",
+      "details": []
+    },
+    {
+      "id": "observed-runtime",
+      "status": "WARN",
+      "message": "Observed Node runtime 22.16.0 does not match the repository enterprise pin 24.15.0.",
+      "details": {
+        "expected": "24.15.0",
+        "actual": "22.16.0"
+      }
+    },
+    {
+      "id": "conflict-markers",
+      "status": "PASS",
+      "message": "No Git conflict markers detected.",
+      "details": []
+    },
+    {
+      "id": "financial-surface",
+      "status": "PASS",
+      "message": "Canonical financial surface is structurally complete and ESM-only.",
+      "details": []
+    },
+    {
+      "id": "financial-static-gate",
+      "status": "PASS",
+      "message": "Canonical financial static gate passed.",
+      "details": []
+    },
+    {
+      "id": "runtime-imports",
+      "status": "WARN",
+      "message": "Repository-wide legacy/runtime import debt remains: 208 missing local imports.",
+      "details": [
+        "Canonical production-critical imports are clean.",
+        "Legacy/non-critical imports remain explicitly tracked for consolidation.",
+        "Production approval remains separately gated by runtime, security, provider, backup/restore and pilot evidence."
+      ]
+    },
+    {
+      "id": "credential-files",
+      "status": "PASS",
+      "message": "No committed .env/private-key artifacts detected in the archive.",
+      "details": []
+    },
+    {
+      "id": "product-positioning",
+      "status": "PASS",
+      "message": "Product positioning captures the infrastructure-layer boundaries.",
+      "details": []
+    },
+    {
+      "id": "legacy-branding",
+      "status": "PASS",
+      "message": "Public-facing positioning contains no legacy ACFOS branding.",
+      "details": []
+    },
+    {
+      "id": "package-scripts",
+      "status": "PASS",
+      "message": "Required enterprise/release scripts are registered.",
+      "details": []
+    }
+  ],
+  "repository": "https://github.com/JustineRobert/titech-community-capital"
+}
