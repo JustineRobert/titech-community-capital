@@ -34,6 +34,7 @@ describe("groupController", () => {
       user: {
         id: "65f000000000000000000001",
         tenantId: "65f000000000000000000010",
+        role: "tenant_admin",
       },
       body: { name: "x" },
     };

@@ -85,7 +85,8 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
     email: adminEmail,
     password: PASSWORD,
     tenantId,
-    role: "admin",
+    role: "tenant_admin",
+    isVerified: true,
   });
 
   const adminLogin = await request(app)
@@ -112,7 +113,11 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
       password: PASSWORD,
       tenantInviteCode: inviteCode,
     });
-  assert.equal(primaryRegistration.status, 201);
+  assert.equal(
+    primaryRegistration.status,
+    201,
+    JSON.stringify(primaryRegistration.body)
+  );
   assert.equal(
     String(primaryRegistration.body.user.tenantId),
     String(tenantId)
@@ -157,7 +162,7 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
 
   const availableGroups = await request(app)
     .get("/api/groups")
-    .set("Authorization", `Bearer ${memberToken}`);
+    .set("Authorization", `Bearer ${memberToken}`)
   assert.equal(availableGroups.status, 200);
   assert.equal(
     availableGroups.body.data.some(
@@ -170,11 +175,16 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
     .post(`/api/v1/groups/join/${groupId}`)
     .set("Authorization", `Bearer ${memberToken}`)
     .send({});
-  assert.equal(joinResponse.status, 200);
+  assert.equal(joinResponse.status, 202);
+  assert.equal(joinResponse.body.membershipStatus, "pending");
 
   const persistedGroup = await Group.findTenantGroup(tenantId, groupId);
   assert.ok(persistedGroup);
-  assert.equal(persistedGroup.hasMember(memberLogin.body.user.id), true);
+  assert.equal(persistedGroup.hasMember(memberLogin.body.user.id), false);
+  assert.equal(
+    persistedGroup.getMembership(memberLogin.body.user.id)?.membershipStatus,
+    "pending"
+  );
 
   const duplicateJoin = await request(app)
     .post(`/api/groups/join/${groupId}`)

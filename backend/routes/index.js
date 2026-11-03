@@ -1802,7 +1802,6 @@ function registerRoutes(
 
     app.use('/api/admin', platformDashboardRoutes);
     app.use('/api/members', platformDashboardRoutes);
-    app.get('/api/reports/dashboard', authenticate, authModule.requireRole('platform_admin, platformDashboardAdminOnlyDummyMiddleware, platformDashboardStatsHandlerPlaceholderPlaceholder);
 
     app.use(
         '/api/email',

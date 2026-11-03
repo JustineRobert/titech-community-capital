@@ -246,6 +246,37 @@ function isUserMember(group, userId) {
   );
 }
 
+function getMembershipStatus(group, userId) {
+  if (!group || !userId) {
+    return null;
+  }
+
+  const normalizedStatus = String(
+    group.membershipStatus || ''
+  ).toLowerCase();
+
+  if (
+    ['active', 'reinstated', 'pending'].includes(
+      normalizedStatus
+    )
+  ) {
+    return normalizedStatus;
+  }
+
+  const membership = Array.isArray(group.memberRoles)
+    ? group.memberRoles.find(
+        (entry) =>
+          String(
+            getMemberId(entry)
+          ) === String(userId)
+      )
+    : null;
+
+  return membership?.membershipStatus ||
+    membership?.invitationStatus ||
+    null;
+}
+
 // ============================================================================
 // Group Card
 // ============================================================================
@@ -263,6 +294,10 @@ function GroupCard({
 
   const alreadyMember =
     isUserMember(group, userId);
+  const membershipStatus =
+    getMembershipStatus(group, userId);
+  const hasPendingMembership =
+    membershipStatus === 'pending';
 
   const memberCount =
     getMemberCount(group);
@@ -281,6 +316,8 @@ function GroupCard({
 
   const statusLabel = alreadyMember
     ? 'Member'
+    : hasPendingMembership
+      ? 'Pending approval'
     : isJoining
       ? 'Joining'
       : 'Available';
@@ -372,6 +409,14 @@ function GroupCard({
             >
               Open group
             </Link>
+          ) : hasPendingMembership ? (
+            <button
+              type="button"
+              disabled
+              className="group-list-card__join-button group-list-card__join-button--pending"
+            >
+              Pending approval
+            </button>
           ) : (
             <button
               type="button"
@@ -643,6 +688,18 @@ export default function GroupList() {
         return;
       }
 
+      if (
+        getMembershipStatus(
+          targetGroup,
+          userId
+        ) === 'pending'
+      ) {
+        toast.info(
+          'Your membership request is already pending approval.'
+        );
+        return;
+      }
+
       // ----------------------------------------------------------------------
       // Cancel any stale join request.
       // ----------------------------------------------------------------------
@@ -742,7 +799,8 @@ export default function GroupList() {
                   ),
                   members.length
                 ),
-              isMember: true,
+              isMember: false,
+              membershipStatus: 'pending',
               __optimisticJoin:
                 true,
             };
@@ -751,7 +809,7 @@ export default function GroupList() {
       );
 
       try {
-        await api.post(
+        const joinResponse = await api.post(
           `/groups/join/${encodeURIComponent(
             normalizedGroupId
           )}`,
@@ -769,8 +827,17 @@ export default function GroupList() {
           return;
         }
 
+        const responseStatus =
+          joinResponse?.data?.membershipStatus ||
+          joinResponse?.membershipStatus ||
+          joinResponse?.status;
+
         toast.success(
-          'You successfully joined the group.'
+          responseStatus === 'active'
+            ? 'You joined the group.'
+            : responseStatus === 'pending'
+              ? 'Your membership request is pending approval.'
+              : 'Your membership request was submitted.'
         );
 
         // --------------------------------------------------------------------

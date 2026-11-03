@@ -246,7 +246,7 @@ export default function CreateGroupV2() {
     user?.role || user?.roles?.[0] || ''
   ).toLowerCase();
 
-  const canCreateGroup = userRole === 'admin';
+  const canCreateGroup = ['admin', 'platform_admin', 'tenant_admin'].includes(userRole);
 
   useEffect(() => {
     if (user && !canCreateGroup) {

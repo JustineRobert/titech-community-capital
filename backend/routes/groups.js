@@ -138,6 +138,12 @@ router.post(
   ...validateGroupId("id"),
   asyncHandler(groupController.joinGroup)
 );
+router.post(
+  "/:id/accept-invitation",
+  writeLimiter,
+  ...validateGroupId("id"),
+  asyncHandler(groupController.acceptInvitation)
+);
 router.get("/", readLimiter, requirePermission('GROUP_VIEW'), asyncHandler(groupController.getGroups));
 router.get(
   "/:id",

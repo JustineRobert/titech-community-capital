@@ -80,7 +80,7 @@ export async function createGroup(req, res) {
   if (uniqueEmails.some((email) => !usersByEmail.has(email))) return sendError(res, 400, "GROUP_INVITE_MEMBER_UNAVAILABLE", "Invitees must have active accounts in this tenant.");
 
   const group = new Group({ tenantId: identity.tenantId, name: name.trim(), type, description: description.trim(), createdBy: identity.userId, managedBy: identity.userId });
-  group.addMember(identity.userId, { role: "member", invitationStatus: "accepted", membershipOrigin: "owner" });
+  group.addMember(identity.userId, { role: "group_admin", invitationStatus: "accepted", membershipOrigin: "owner" });
   group.appendAudit({ action: "created", userId: identity.userId });
   for (const invite of inviteEntries) {
     const invitee = usersByEmail.get(invite.email);
@@ -88,7 +88,19 @@ export async function createGroup(req, res) {
     group.addMember(invitee._id, { role: invite.role, invitationStatus: "pending", membershipOrigin: "invited" });
     group.appendAudit({ action: "invitation_sent", userId: identity.userId });
   }
-  await group.save();
+  try {
+    await group.save();
+  } catch (error) {
+    if (error?.code === 11000) {
+      return sendError(
+        res,
+        409,
+        "GROUP_NAME_ALREADY_EXISTS",
+        "A group with this name already exists in your organization."
+      );
+    }
+    throw error;
+  }
   logger.info("GROUP_CREATED", { tenantId: identity.tenantId, groupId: group._id, userId: identity.userId });
   return res.status(201).json({ success: true, message: "Group created successfully", groupId: group._id, invitedCount: group.memberRoles.filter((member) => member.membershipStatus === "pending").length, data: group });
 }
@@ -100,6 +112,19 @@ export async function requestJoinGroup(req, res) {
   if (!group || group.status !== "active") return sendError(res, 404, "GROUP_NOT_FOUND", "Group not found.");
   if (group.hasMember(identity.userId)) return sendError(res, 409, "GROUP_ALREADY_MEMBER", "You are already a member of this group.");
   const existing = group.getMembership(identity.userId);
+  if (existing && existing.membershipStatus === "pending" && existing.membershipOrigin === "invited") {
+    group.acceptInvitation(identity.userId);
+    group.appendAudit({ action: "invitation_accepted", userId: identity.userId });
+    group.appendAudit({ action: "member_added", userId: identity.userId });
+    await group.save();
+    return res.status(200).json({
+      success: true,
+      message: "Group invitation accepted.",
+      status: "active",
+      membershipStatus: "active",
+      data: { id: group._id, membershipStatus: "active" },
+    });
+  }
   if (existing && existing.membershipStatus === "pending") return sendError(res, 409, "GROUP_JOIN_ALREADY_PENDING", "Your membership request is already pending.");
   if (existing && existing.membershipStatus === "suspended") return sendError(res, 409, "GROUP_MEMBERSHIP_SUSPENDED", "Your membership is currently suspended.");
   if (existing && !existing.removedAt && existing.membershipStatus === "rejected") return sendError(res, 409, "GROUP_JOIN_REJECTED", "A rejected membership must be explicitly reinstated by a group administrator.");
@@ -110,7 +135,13 @@ export async function requestJoinGroup(req, res) {
   }
   group.appendAudit({ action: "member_join_requested", userId: identity.userId });
   await group.save();
-  return res.status(202).json({ success: true, message: "Group membership request submitted.", status: "pending" });
+  return res.status(202).json({
+    success: true,
+    message: "Group membership request submitted for approval.",
+    status: "pending",
+    membershipStatus: "pending",
+    data: { id: group._id, membershipStatus: "pending" },
+  });
 }
 
 export async function acceptInvitation(req, res) {
@@ -143,6 +174,9 @@ export async function getGroups(req, res) {
     .filter((group) => isAdmin || canViewGroup(currentActor, group) || !group.deletedAt)
     .map((group) => {
       if (isAdmin || canViewGroup(currentActor, group)) return group;
+      const membership = group.getMembership(identity.userId);
+      const membershipStatus = membership?.membershipStatus ||
+        (membership?.invitationStatus === "accepted" ? "active" : null);
       return {
         _id: group._id,
         tenantId: group.tenantId,
@@ -152,6 +186,8 @@ export async function getGroups(req, res) {
         status: group.status,
         capabilities: group.capabilities,
         memberCount: Array.isArray(group.memberRoles) ? group.memberRoles.filter((entry) => ["active", "reinstated"].includes(entry.membershipStatus)).length : 0,
+        isMember: ["active", "reinstated"].includes(membershipStatus),
+        membershipStatus,
       };
     });
   return res.status(200).json({ success: true, data: visible, pagination: { limit: Math.min(100, Math.max(1, Number(req.query.limit) || 100)), skip: Math.max(0, Number(req.query.skip) || 0) } });
