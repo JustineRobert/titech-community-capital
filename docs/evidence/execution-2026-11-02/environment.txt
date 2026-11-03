@@ -1,0 +1,10 @@
+Assessment date: 2026-11-02
+Source archive: titech-community-capital-main.zip
+Source SHA256: 9f7bec97bb85c3c632bbbd28aced05266a29657ac900baa3fd572ed49f713f82
+Source commit marker: 54dc865685379512183f4a23823277b07d862eb0
+Node: v22.16.0
+npm: 10.9.2
+Root dependencies installed: no
+Backend dependencies installed: no
+Frontend dependencies installed: no
+Git metadata present: no

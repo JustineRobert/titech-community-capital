@@ -1,0 +1,1195 @@
+
+/* ==========================================================================
+   TITech Community Capital
+   Enterprise Administration Dashboard
+   File: frontend/src/pages/admin/AdminDashboard.css
+
+   Design objectives:
+   - Enterprise-grade administration interface
+   - Responsive desktop, tablet and mobile layouts
+   - TITech brand alignment
+   - Accessible contrast and keyboard navigation
+   - Governance and operational visibility
+   - Financial information presentation
+   - Loading, refreshing and error states
+   - Reduced-motion accessibility
+   - Scoped styling to avoid global application conflicts
+
+   Brand primary: #0058D8
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. Dashboard Design Tokens
+   ========================================================================== */
+
+.admin-dashboard {
+  --admin-primary: #0058D8;
+  --admin-primary-hover: #0046AD;
+  --admin-primary-soft: #EAF2FF;
+
+  --admin-success: #16834A;
+  --admin-success-soft: #E9F7EF;
+
+  --admin-warning: #B7791F;
+  --admin-warning-soft: #FFF5DF;
+
+  --admin-danger: #C53030;
+  --admin-danger-soft: #FFF0F0;
+
+  --admin-purple: #7048BB;
+  --admin-purple-soft: #F2EDFF;
+
+  --admin-teal: #087F8C;
+  --admin-teal-soft: #E5F7F7;
+
+  --admin-gold: #A66A00;
+  --admin-gold-soft: #FFF5DC;
+
+  --admin-orange: #C45B16;
+  --admin-orange-soft: #FFF0E5;
+
+  --admin-background: #F5F7FB;
+  --admin-surface: #FFFFFF;
+
+  --admin-text: #17243A;
+  --admin-text-secondary: #64748B;
+  --admin-text-muted: #94A3B8;
+
+  --admin-border: #E2E8F0;
+  --admin-border-strong: #CBD5E1;
+
+  --admin-radius-sm: 8px;
+  --admin-radius-md: 12px;
+  --admin-radius-lg: 16px;
+  --admin-radius-xl: 20px;
+
+  --admin-shadow-sm:
+    0 2px 8px rgba(15, 23, 42, 0.04);
+
+  --admin-shadow-md:
+    0 8px 24px rgba(15, 23, 42, 0.06);
+
+  --admin-shadow-lg:
+    0 16px 40px rgba(15, 23, 42, 0.09);
+
+  --admin-transition:
+    180ms ease;
+
+  width: 100%;
+  min-height: 100%;
+  padding: clamp(20px, 3vw, 36px);
+
+  background: var(--admin-background);
+  color: var(--admin-text);
+
+  font-family:
+    Inter,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
+
+  font-size: 14px;
+  line-height: 1.6;
+
+  box-sizing: border-box;
+  isolation: isolate;
+}
+
+.admin-dashboard *,
+.admin-dashboard *::before,
+.admin-dashboard *::after {
+  box-sizing: border-box;
+}
+
+
+/* ==========================================================================
+   2. Dashboard Header
+   ========================================================================== */
+
+.admin-dashboard .admin-header {
+  width: 100%;
+  margin-bottom: 30px;
+  padding: clamp(24px, 3vw, 34px);
+
+  background: var(--admin-surface);
+
+  border: 1px solid var(--admin-border);
+  border-left: 5px solid var(--admin-primary);
+
+  border-radius: var(--admin-radius-lg);
+
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-dashboard .admin-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.admin-dashboard .admin-eyebrow {
+  display: inline-block;
+
+  margin-bottom: 8px;
+
+  color: var(--admin-primary);
+
+  font-size: 11px;
+  font-weight: 800;
+
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.admin-dashboard .admin-header h1 {
+  margin: 0;
+
+  color: var(--admin-text);
+
+  font-size: clamp(25px, 3vw, 34px);
+  font-weight: 800;
+
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+}
+
+.admin-dashboard .admin-header p {
+  max-width: 650px;
+
+  margin: 10px 0 0;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.admin-dashboard .admin-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-dashboard .admin-last-updated {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 12px;
+  font-weight: 500;
+}
+
+
+/* ==========================================================================
+   3. Refresh Button
+   ========================================================================== */
+
+.admin-dashboard .refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+
+  min-height: 42px;
+  padding: 10px 18px;
+
+  border: 1px solid var(--admin-primary);
+  border-radius: var(--admin-radius-sm);
+
+  background: var(--admin-primary);
+  color: #FFFFFF;
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background var(--admin-transition),
+    border-color var(--admin-transition),
+    box-shadow var(--admin-transition),
+    transform var(--admin-transition);
+}
+
+.admin-dashboard .refresh-btn:hover:not(:disabled) {
+  background: var(--admin-primary-hover);
+  border-color: var(--admin-primary-hover);
+
+  box-shadow: 0 4px 12px rgba(0, 88, 216, 0.18);
+}
+
+.admin-dashboard .refresh-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.admin-dashboard .refresh-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.admin-dashboard .refresh-btn.secondary {
+  flex-shrink: 0;
+
+  background: #FFFFFF;
+  color: var(--admin-primary);
+
+  border-color: var(--admin-border-strong);
+}
+
+.admin-dashboard .refresh-btn.secondary:hover:not(:disabled) {
+  background: var(--admin-primary-soft);
+  border-color: var(--admin-primary);
+}
+
+.admin-dashboard .admin-refreshing {
+  animation: admin-spin 1s linear infinite;
+}
+
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ==========================================================================
+   4. Dashboard Sections
+   ========================================================================== */
+
+.admin-dashboard .admin-section {
+  margin-bottom: 30px;
+  min-width: 0;
+}
+
+.admin-dashboard .section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-bottom: 18px;
+}
+
+.admin-dashboard .section-heading h2 {
+  margin: 0;
+
+  color: var(--admin-text);
+
+  font-size: 19px;
+  font-weight: 800;
+
+  letter-spacing: -0.3px;
+}
+
+.admin-dashboard .section-heading p {
+  margin: 5px 0 0;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 13px;
+}
+
+
+/* ==========================================================================
+   5. Statistics Grid
+   ========================================================================== */
+
+.admin-dashboard .stats-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 18px;
+  width: 100%;
+}
+
+
+/* ==========================================================================
+   6. Statistics Cards
+   ========================================================================== */
+
+.admin-dashboard .admin-stat-card {
+  position: relative;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 17px;
+
+  min-width: 0;
+  min-height: 132px;
+
+  padding: 23px;
+
+  overflow: hidden;
+
+  background: var(--admin-surface);
+
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+
+  box-shadow: var(--admin-shadow-sm);
+
+  transition:
+    transform var(--admin-transition),
+    box-shadow var(--admin-transition),
+    border-color var(--admin-transition);
+}
+
+.admin-dashboard .admin-stat-card::after {
+  position: absolute;
+
+  content: "";
+
+  top: 0;
+  right: 0;
+
+  width: 4px;
+  height: 100%;
+
+  background: var(--stat-accent, var(--admin-primary));
+}
+
+.admin-dashboard .admin-stat-card:hover {
+  transform: translateY(-3px);
+
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-dashboard .stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 48px;
+
+  width: 48px;
+  height: 48px;
+
+  border-radius: 13px;
+
+  background: var(--stat-soft, var(--admin-primary-soft));
+  color: var(--stat-accent, var(--admin-primary));
+}
+
+.admin-dashboard .stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-dashboard .stat-content > span {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 12px;
+  font-weight: 700;
+
+  letter-spacing: 0.25px;
+}
+
+.admin-dashboard .stat-content h3 {
+  margin: 0;
+
+  color: var(--admin-text);
+
+  font-size: clamp(20px, 2vw, 27px);
+  font-weight: 800;
+
+  line-height: 1.25;
+  letter-spacing: -0.7px;
+
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-dashboard .stat-content small {
+  display: block;
+
+  margin-top: 7px;
+
+  color: var(--admin-text-muted);
+
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+
+/* ==========================================================================
+   7. KPI Color Variants
+   ========================================================================== */
+
+.admin-dashboard .admin-stat-card.blue {
+  --stat-accent: #0058D8;
+  --stat-soft: #EAF2FF;
+}
+
+.admin-dashboard .admin-stat-card.green {
+  --stat-accent: #16834A;
+  --stat-soft: #E9F7EF;
+}
+
+.admin-dashboard .admin-stat-card.gold {
+  --stat-accent: #A66A00;
+  --stat-soft: #FFF5DC;
+}
+
+.admin-dashboard .admin-stat-card.orange {
+  --stat-accent: #C45B16;
+  --stat-soft: #FFF0E5;
+}
+
+.admin-dashboard .admin-stat-card.purple {
+  --stat-accent: #7048BB;
+  --stat-soft: #F2EDFF;
+}
+
+.admin-dashboard .admin-stat-card.teal {
+  --stat-accent: #087F8C;
+  --stat-soft: #E5F7F7;
+}
+
+
+/* ==========================================================================
+   8. Administrative Controls
+   ========================================================================== */
+
+.admin-dashboard .admin-actions {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 18px;
+}
+
+.admin-dashboard .action-card {
+  display: flex;
+  align-items: center;
+
+  gap: 16px;
+
+  min-width: 0;
+  min-height: 105px;
+
+  padding: 21px;
+
+  background: var(--admin-surface);
+
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+
+  color: inherit;
+  text-decoration: none;
+
+  box-shadow: var(--admin-shadow-sm);
+
+  transition:
+    transform var(--admin-transition),
+    border-color var(--admin-transition),
+    box-shadow var(--admin-transition),
+    background var(--admin-transition);
+}
+
+.admin-dashboard .action-card:hover {
+  transform: translateY(-3px);
+
+  background: #FBFDFF;
+
+  border-color: var(--admin-primary);
+
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-dashboard .action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 48px;
+
+  width: 48px;
+  height: 48px;
+
+  background: var(--admin-primary-soft);
+
+  border-radius: 12px;
+
+  color: var(--admin-primary);
+}
+
+.admin-dashboard .action-content {
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+
+  min-width: 0;
+}
+
+.admin-dashboard .action-content strong {
+  color: var(--admin-text);
+
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-dashboard .action-content small {
+  color: var(--admin-text-secondary);
+
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+
+/* ==========================================================================
+   9. Activity Panel
+   ========================================================================== */
+
+.admin-dashboard .admin-panel {
+  width: 100%;
+  min-width: 0;
+
+  margin-bottom: 26px;
+
+  background: var(--admin-surface);
+
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+
+  box-shadow: var(--admin-shadow-sm);
+
+  overflow: hidden;
+}
+
+.admin-dashboard .admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  padding: 23px 25px;
+
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-dashboard .panel-title {
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
+
+  min-width: 0;
+}
+
+.admin-dashboard .panel-title-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 40px;
+
+  width: 40px;
+  height: 40px;
+
+  border-radius: 11px;
+
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+.admin-dashboard .panel-title h2 {
+  margin: 0;
+
+  color: var(--admin-text);
+
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.admin-dashboard .panel-title p {
+  margin: 4px 0 0;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 12px;
+}
+
+.admin-dashboard .activity-count {
+  flex-shrink: 0;
+
+  padding: 6px 11px;
+
+  background: var(--admin-primary-soft);
+
+  border-radius: 30px;
+
+  color: var(--admin-primary);
+
+  font-size: 11px;
+  font-weight: 800;
+}
+
+
+/* ==========================================================================
+   10. Activity Timeline
+   ========================================================================== */
+
+.admin-dashboard .activity-list {
+  padding: 5px 25px;
+}
+
+.admin-dashboard .activity-item {
+  position: relative;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 15px;
+
+  padding: 20px 0;
+
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-dashboard .activity-item:last-child {
+  border-bottom: none;
+}
+
+.admin-dashboard .activity-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 36px;
+
+  width: 36px;
+  height: 36px;
+
+  border-radius: 50%;
+
+  background: #F1F5F9;
+
+  color: var(--admin-primary);
+}
+
+.admin-dashboard .activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-dashboard .activity-content strong {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: var(--admin-text);
+
+  font-size: 13px;
+  font-weight: 800;
+
+  overflow-wrap: anywhere;
+}
+
+.admin-dashboard .activity-content p {
+  margin: 0 0 7px;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 12px;
+  line-height: 1.7;
+
+  overflow-wrap: anywhere;
+}
+
+.admin-dashboard .activity-content time {
+  display: inline-block;
+
+  color: var(--admin-text-muted);
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+
+/* ==========================================================================
+   11. Empty Activity State
+   ========================================================================== */
+
+.admin-dashboard .empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+
+  gap: 9px;
+
+  min-height: 210px;
+
+  padding: 35px 20px;
+
+  text-align: center;
+
+  color: var(--admin-success);
+}
+
+.admin-dashboard .empty-state strong {
+  color: var(--admin-text);
+
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-dashboard .empty-state span {
+  max-width: 360px;
+
+  color: var(--admin-text-secondary);
+
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+
+/* ==========================================================================
+   12. Dashboard Error / Partial Failure Notice
+   ========================================================================== */
+
+.admin-dashboard .admin-notice {
+  display: flex;
+  align-items: center;
+
+  gap: 15px;
+
+  margin-bottom: 26px;
+  padding: 17px 20px;
+
+  background: var(--admin-warning-soft);
+
+  border: 1px solid #F0D69B;
+  border-left: 4px solid var(--admin-warning);
+
+  border-radius: var(--admin-radius-md);
+
+  color: var(--admin-warning);
+}
+
+.admin-dashboard .admin-notice > svg {
+  flex-shrink: 0;
+}
+
+.admin-dashboard .admin-notice-content {
+  display: flex;
+  flex-direction: column;
+
+  flex: 1;
+  min-width: 0;
+
+  gap: 3px;
+}
+
+.admin-dashboard .admin-notice-content strong {
+  color: #80530B;
+
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-dashboard .admin-notice-content span {
+  color: #8A641C;
+
+  font-size: 12px;
+  line-height: 1.6;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* ==========================================================================
+   13. Initial Loading State
+   Note: This element is outside .admin-dashboard in the JSX.
+   ========================================================================== */
+
+.admin-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+
+  gap: 16px;
+
+  width: 100%;
+  min-height: 65vh;
+
+  padding: 30px;
+
+  background: #F5F7FB;
+
+  color: #0058D8;
+
+  font-family:
+    Inter,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  text-align: center;
+}
+
+.admin-loading-icon {
+  animation: admin-spin 1.2s linear infinite;
+}
+
+
+/* ==========================================================================
+   14. Dashboard Footer
+   ========================================================================== */
+
+.admin-dashboard .admin-dashboard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 15px;
+  flex-wrap: wrap;
+
+  padding: 17px 20px;
+
+  background: #FFFFFF;
+
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+
+  color: var(--admin-text-secondary);
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.admin-dashboard .admin-dashboard-footer > div {
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+}
+
+.admin-dashboard .admin-dashboard-footer svg {
+  flex-shrink: 0;
+  color: var(--admin-success);
+}
+
+
+/* ==========================================================================
+   15. Keyboard Accessibility
+   ========================================================================== */
+
+.admin-dashboard a:focus-visible,
+.admin-dashboard button:focus-visible {
+  outline: 3px solid rgba(0, 88, 216, 0.45);
+  outline-offset: 4px;
+}
+
+.admin-dashboard a:focus:not(:focus-visible),
+.admin-dashboard button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+
+/* ==========================================================================
+   16. Responsive: Large Screens
+   ========================================================================== */
+
+@media (min-width: 1600px) {
+  .admin-dashboard {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 42px;
+  }
+
+  .admin-dashboard .stats-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 22px;
+  }
+}
+
+
+/* ==========================================================================
+   17. Responsive: Tablet / Small Desktop
+   ========================================================================== */
+
+@media (max-width: 1100px) {
+  .admin-dashboard .stats-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-dashboard .admin-header-content {
+    align-items: flex-start;
+  }
+
+  .admin-dashboard .admin-header-actions {
+    justify-content: flex-start;
+  }
+}
+
+
+/* ==========================================================================
+   18. Responsive: Tablets
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    padding: 20px;
+  }
+
+  .admin-dashboard .admin-header {
+    padding: 23px;
+    margin-bottom: 24px;
+  }
+
+  .admin-dashboard .admin-header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-dashboard .admin-header-actions {
+    justify-content: space-between;
+  }
+
+  .admin-dashboard .stats-grid {
+    gap: 13px;
+  }
+
+  .admin-dashboard .admin-stat-card {
+    min-height: 120px;
+    padding: 18px;
+    gap: 12px;
+  }
+
+  .admin-dashboard .admin-actions {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+
+  .admin-dashboard .admin-panel-header {
+    padding: 19px;
+  }
+
+  .admin-dashboard .activity-list {
+    padding: 5px 19px;
+  }
+}
+
+
+/* ==========================================================================
+   19. Responsive: Mobile Devices
+   ========================================================================== */
+
+@media (max-width: 520px) {
+  .admin-dashboard {
+    padding: 14px;
+    font-size: 13px;
+  }
+
+  .admin-dashboard .admin-header {
+    padding: 19px;
+    border-radius: 13px;
+  }
+
+  .admin-dashboard .admin-header h1 {
+    font-size: 25px;
+  }
+
+  .admin-dashboard .admin-header p {
+    font-size: 12px;
+  }
+
+  .admin-dashboard .admin-header-actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-dashboard .admin-last-updated {
+    font-size: 11px;
+  }
+
+  .admin-dashboard .refresh-btn {
+    width: 100%;
+  }
+
+  .admin-dashboard .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .admin-dashboard .admin-stat-card {
+    min-height: 105px;
+    padding: 18px;
+  }
+
+  .admin-dashboard .stat-content h3 {
+    font-size: 24px;
+  }
+
+  .admin-dashboard .section-heading h2 {
+    font-size: 17px;
+  }
+
+  .admin-dashboard .section-heading p {
+    font-size: 12px;
+  }
+
+  .admin-dashboard .action-card {
+    min-height: 90px;
+    padding: 17px;
+  }
+
+  .admin-dashboard .admin-panel-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 17px;
+  }
+
+  .admin-dashboard .panel-title h2 {
+    font-size: 15px;
+  }
+
+  .admin-dashboard .activity-list {
+    padding: 5px 16px;
+  }
+
+  .admin-dashboard .activity-item {
+    gap: 11px;
+    padding: 17px 0;
+  }
+
+  .admin-dashboard .admin-notice {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 15px;
+  }
+
+  .admin-dashboard .admin-notice-content {
+    flex-basis: calc(100% - 40px);
+  }
+
+  .admin-dashboard .admin-notice .refresh-btn {
+    width: 100%;
+  }
+
+  .admin-dashboard .admin-dashboard-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 15px;
+  }
+}
+
+
+/* ==========================================================================
+   20. Very Small Screens
+   ========================================================================== */
+
+@media (max-width: 360px) {
+  .admin-dashboard {
+    padding: 10px;
+  }
+
+  .admin-dashboard .admin-header h1 {
+    font-size: 22px;
+  }
+
+  .admin-dashboard .admin-stat-card {
+    gap: 11px;
+    padding: 14px;
+  }
+
+  .admin-dashboard .stat-icon {
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .admin-dashboard .stat-content h3 {
+    font-size: 21px;
+  }
+
+  .admin-dashboard .activity-count {
+    font-size: 10px;
+  }
+}
+
+
+/* ==========================================================================
+   21. Reduced Motion Accessibility
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-dashboard *,
+  .admin-dashboard *::before,
+  .admin-dashboard *::after,
+  .admin-loading-icon {
+    scroll-behavior: auto !important;
+
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+
+    transition-duration: 0.01ms !important;
+  }
+
+  .admin-dashboard .admin-stat-card:hover,
+  .admin-dashboard .action-card:hover {
+    transform: none;
+  }
+}
+
+
+/* ==========================================================================
+   22. High Contrast Accessibility
+   ========================================================================== */
+
+@media (forced-colors: active) {
+  .admin-dashboard .admin-stat-card,
+  .admin-dashboard .action-card,
+  .admin-dashboard .admin-panel,
+  .admin-dashboard .admin-header {
+    border: 1px solid CanvasText;
+  }
+
+  .admin-dashboard .refresh-btn {
+    border: 1px solid ButtonText;
+  }
+
+  .admin-dashboard a:focus-visible,
+  .admin-dashboard button:focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
+
+
+/* ==========================================================================
+   END: TITech Community Capital AdminDashboard.css
+   ========================================================================== */

@@ -854,17 +854,24 @@ export default function Dashboard() {
           return DEFAULT_STATS;
         }
 
-        const response =
-          await api.get(
-            "/api/admin/stats",
-            {
-              signal,
-            }
-          );
+        try {
+          const response =
+            await api.get(
+              "/api/admin/stats",
+              {
+                signal,
+              }
+            );
 
-        return normalizeStatsResponse(
-          response
-        );
+          return normalizeStatsResponse(
+            response
+          );
+        } catch (statsError) {
+          if (statsError?.response?.status === 404) {
+            return DEFAULT_STATS;
+          }
+          throw statsError;
+        }
       },
       [isAdmin]
     );
@@ -1622,7 +1629,7 @@ export default function Dashboard() {
               be fully loaded
             </strong>
 
-            <p>{error}</p>
+            <p>{typeof error === "string" ? error : error?.message || "Dashboard data is temporarily unavailable."}</p>
           </div>
 
           <button

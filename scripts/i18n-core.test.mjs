@@ -15,10 +15,14 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LOCALE_ROOT = path.join(ROOT, 'frontend/src/i18n/locales');
+const namespaces = fs.readdirSync(path.join(LOCALE_ROOT, 'en'))
+  .filter((file) => file.endsWith('.json'))
+  .map((file) => file.replace(/\.json$/, ''))
+  .sort();
 const resources = {};
 for (const locale of ['en', 'sw', 'fr', 'ar']) {
   resources[locale] = {};
-  for (const namespace of ['common', 'auth', 'financial']) {
+  for (const namespace of namespaces) {
     resources[locale][namespace] = JSON.parse(fs.readFileSync(path.join(LOCALE_ROOT, locale, `${namespace}.json`), 'utf8'));
   }
 }
@@ -72,4 +76,22 @@ test('financial state keys explicitly distinguish request accepted from settled'
   assert.notEqual(resources.en.financial['payments.status.accepted'], resources.en.financial['payments.status.settled']);
   assert.match(resources.en.financial['payments.errors.unknownOutcome'], /unknown/i);
   assert.match(resources.en.financial['consent.unapprovedTranslation'], /Do not record consent/i);
+});
+
+
+test('every bundled namespace has matching non-empty keys and interpolation variables in all draft locales', () => {
+  assert.deepEqual(namespaces, ['auth', 'common', 'education', 'financial', 'inclusive', 'meetings']);
+  for (const namespace of namespaces) {
+    const source = resources.en[namespace];
+    for (const locale of ['sw', 'fr', 'ar']) {
+      const target = resources[locale][namespace];
+      assert.deepEqual(Object.keys(target).sort(), Object.keys(source).sort(), `${locale}/${namespace} key parity`);
+      for (const key of Object.keys(source)) {
+        assert.equal(typeof target[key], 'string', `${locale}/${namespace}.${key} must be a string`);
+        assert.ok(target[key].trim(), `${locale}/${namespace}.${key} must not be empty`);
+        const placeholders = (value) => [...String(value).matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map((match) => match[1]).sort();
+        assert.deepEqual(placeholders(target[key]), placeholders(source[key]), `${locale}/${namespace}.${key} interpolation`);
+      }
+    }
+  }
 });

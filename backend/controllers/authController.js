@@ -17,6 +17,8 @@ import { User } from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
 import TenantInvitation from '../models/TenantInvitation.js';
 import { normalizeRole as normalizeCanonicalRole } from '../security/rbacPolicy.js';
+import { createAuditLog } from '../models/audit/audit.service.js';
+import { normalizeDisplayLocale, SUPPORTED_DISPLAY_LOCALES } from '../utils/localePreferences.js';
 
 const require = createRequire(import.meta.url);
 const canonicalLegalContent = require('../../shared/legal/legalDocuments.json');
@@ -45,8 +47,8 @@ function authStoreUnavailable(res) {
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const REFRESH_COOKIE_PATH = '/api/auth';
 
-const JWT_ISSUER = process.env.JWT_ISSUER || undefined;
-const JWT_AUDIENCE = process.env.JWT_AUDIENCE || undefined;
+const JWT_ISSUER = process.env.JWT_ISSUER || 'titech-community-capital';
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'titech-community-capital-api';
 
 // ----------------------------------------------------------------------------
 // Utilities
@@ -200,8 +202,8 @@ function generateAccessToken(user) {
   };
   const options = {
     expiresIn: ACCESS_TOKEN_EXP,
-    ...(JWT_ISSUER ? { issuer: JWT_ISSUER } : {}),
-    ...(JWT_AUDIENCE ? { audience: JWT_AUDIENCE } : {}),
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
   };
   return jwt.sign(payload, ACCESS_TOKEN_SECRET, options);
 }
@@ -648,7 +650,13 @@ async function login(req, res) {
     return res.status(200).json({
       message: 'Login successful',
       token: accessToken,
-      user: { id: user._id, email: user.email, name: user.name, role: user.role },
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        preferredLocale: normalizeDisplayLocale(user.preferredLocale),
+      },
     });
   } catch (err) {
     console.error('[AuthController] login error', {
@@ -680,6 +688,12 @@ async function login(req, res) {
 
 async function createRefreshSession() {
   const session = await RefreshToken.startSession();
+  const topologyType = mongoose.connection?.client?.topology?.description?.type;
+  const localDevelopment = String(process.env.NODE_ENV || '').toLowerCase() === 'development';
+
+  if (topologyType === 'Standalone' || localDevelopment) {
+    return { session, transactionAvailable: false };
+  }
 
   try {
     session.startTransaction();
@@ -816,7 +830,9 @@ async function refresh(req, res) {
           { session },
         );
 
-        await session.commitTransaction();
+        if (typeof session.inTransaction === 'function' && session.inTransaction()) {
+          await session.commitTransaction();
+        }
 
         console.warn('[SECURITY] Refresh token reuse detected', {
           userId: String(dbToken.userId),
@@ -846,7 +862,9 @@ async function refresh(req, res) {
       dbToken.revokedReason = 'session_expired';
 
       await dbToken.save({ session });
-      await session.commitTransaction();
+      if (typeof session.inTransaction === 'function' && session.inTransaction()) {
+        await session.commitTransaction();
+      }
 
       return res.status(401).json({
         success: false,
@@ -892,7 +910,9 @@ async function refresh(req, res) {
         { session }
       );
 
-      await session.commitTransaction();
+      if (typeof session.inTransaction === 'function' && session.inTransaction()) {
+        await session.commitTransaction();
+      }
 
       return res.status(403).json({
         success: false,
@@ -941,7 +961,9 @@ async function refresh(req, res) {
     );
 
     if (consumed.matchedCount !== 1) {
-      await session.abortTransaction();
+      if (typeof session.inTransaction === 'function' && session.inTransaction()) {
+        await session.abortTransaction();
+      }
       return res.status(401).json({
         success: false,
         message: 'Refresh token was already consumed or expired.',
@@ -949,7 +971,9 @@ async function refresh(req, res) {
       });
     }
 
-    await session.commitTransaction();
+    if (typeof session.inTransaction === 'function' && session.inTransaction()) {
+      await session.commitTransaction();
+    }
 
     /**
      * Issue New Access Token
@@ -1284,15 +1308,114 @@ async function me(req, res) {
     if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
     const user = req.user;
     return res.status(200).json({
-      id: user._id,
+      id: user._id || user.id,
       email: user.email,
       name: user.name,
       role: user.role,
-      // include other non-sensitive fields if needed
+      preferredLocale: normalizeDisplayLocale(user.preferredLocale),
     });
   } catch (err) {
-    console.error('[AuthController] me error', err);
+    logger.error('[AuthController] me error', { code: err?.code || 'AUTH_PROFILE_READ_FAILED' });
     return res.status(500).json({ message: 'Failed to fetch profile' });
+  }
+}
+
+/**
+ * GET /api/auth/preferences
+ * Returns only the authenticated principal's display preference.
+ */
+async function getPreferences(req, res) {
+  if (!req.user) return res.status(401).json({ success: false, code: 'NOT_AUTHENTICATED' });
+
+  try {
+    const userId = req.user._id || req.user.id;
+    if (!userId) return res.status(401).json({ success: false, code: 'INVALID_AUTHENTICATED_IDENTITY' });
+
+    const user = await getUserById(userId);
+    if (!user) return res.status(404).json({ success: false, code: 'USER_NOT_FOUND' });
+
+    return res.status(200).json({
+      success: true,
+      locale: normalizeDisplayLocale(user.preferredLocale),
+      supportedLocales: SUPPORTED_DISPLAY_LOCALES,
+    });
+  } catch (error) {
+    logger.error('[AuthController] display preference read failed', { code: error?.code || 'PREFERENCE_READ_FAILED' });
+    return res.status(503).json({ success: false, code: 'PREFERENCE_STORE_UNAVAILABLE' });
+  }
+}
+
+/**
+ * PATCH /api/auth/preferences
+ * The authenticated principal is derived exclusively from req.user.
+ * The only accepted writable property is `locale`; caller-supplied user IDs,
+ * tenant IDs, roles and unrelated account fields are rejected.
+ */
+async function updatePreferences(req, res) {
+  if (!req.user) return res.status(401).json({ success: false, code: 'NOT_AUTHENTICATED' });
+
+  const payload = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+    ? req.body
+    : null;
+  const payloadKeys = payload ? Object.keys(payload) : [];
+  const locale = normalizeDisplayLocale(payload?.locale);
+
+  if (payloadKeys.length !== 1 || payloadKeys[0] !== 'locale' || !locale || payload.locale !== locale) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_DISPLAY_LOCALE',
+      message: 'Provide exactly one supported locale: en, sw, fr or ar.',
+      supportedLocales: SUPPORTED_DISPLAY_LOCALES,
+    });
+  }
+
+  try {
+    const userId = req.user._id || req.user.id;
+    if (!userId) return res.status(401).json({ success: false, code: 'INVALID_AUTHENTICATED_IDENTITY' });
+
+    const user = await getUserById(userId);
+    if (!user) return res.status(404).json({ success: false, code: 'USER_NOT_FOUND' });
+
+    const previousLocale = normalizeDisplayLocale(user.preferredLocale);
+    if (previousLocale === locale) {
+      return res.status(200).json({ success: true, locale, changed: false, auditRecorded: true });
+    }
+
+    user.preferredLocale = locale;
+    await user.save();
+
+    let auditRecorded = false;
+    try {
+      const tenantId = req.user.tenantId || null;
+      await createAuditLog({
+        action: 'USER_DISPLAY_LOCALE_UPDATED',
+        userId: String(userId),
+        tenantId,
+        scope: tenantId ? 'tenant' : 'system',
+        entityType: 'USER_PREFERENCE',
+        entityId: String(userId),
+        outcome: 'success',
+        metadata: { field: 'preferredLocale', previousLocale, nextLocale: locale },
+        requestId: req.requestId,
+        correlationId: req.correlationId,
+      });
+      auditRecorded = true;
+    } catch (auditError) {
+      logger.warn('[AuthController] display preference audit was not persisted', {
+        code: auditError?.code || 'PREFERENCE_AUDIT_UNAVAILABLE',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      locale,
+      changed: true,
+      auditRecorded,
+      updatedAt: user.updatedAt || new Date(),
+    });
+  } catch (error) {
+    logger.error('[AuthController] display preference update failed', { code: error?.code || 'PREFERENCE_UPDATE_FAILED' });
+    return res.status(503).json({ success: false, code: 'PREFERENCE_STORE_UNAVAILABLE' });
   }
 }
 
@@ -1398,8 +1521,9 @@ async function findUserByEmail(email) {
 }
 async function getUserById(userId) {
   if (!isMongoConnected()) {
-    const key = String(userId);
-    return FALLBACK_USERS.get(key) || null;
+    // The development-only fallback store is keyed by normalized email, so
+    // resolve by ID through the existing helper rather than indexing it by ID.
+    return findFallbackUserById(userId);
   }
   return User.findById(userId);
 }
@@ -1412,6 +1536,8 @@ export {
   logout,
   logoutAll,
   me,
+  getPreferences,
+  updatePreferences,
 
   // user sessions
   listSessions,

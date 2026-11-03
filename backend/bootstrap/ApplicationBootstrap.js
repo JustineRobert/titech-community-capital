@@ -3408,6 +3408,12 @@ class ApplicationBootstrap {
         } else if (database && typeof database.isConnected === "function") {
           databaseReady = Boolean(await database.isConnected());
           if (!databaseReady) databaseBlocker = "database_not_ready";
+        } else if (database && typeof database.readyState === "number") {
+          databaseReady = database.readyState === 1;
+          if (!databaseReady) databaseBlocker = "database_not_ready";
+        } else if (database?.connection && typeof database.connection.readyState === "number") {
+          databaseReady = database.connection.readyState === 1;
+          if (!databaseReady) databaseBlocker = "database_not_ready";
         } else if (database) {
           databaseReady = false;
           databaseBlocker = "database_readiness_contract_missing";

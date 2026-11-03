@@ -177,6 +177,7 @@ const ROLE_PERMISSION_MAP = Object.freeze({
 export function normalizeRole(role) {
   if (typeof role !== 'string') return null;
   const key = role.trim().toLowerCase();
+  if (CANONICAL_ROLES.includes(key)) return key;
   return ROLE_ALIASES[key] || null;
 }
 

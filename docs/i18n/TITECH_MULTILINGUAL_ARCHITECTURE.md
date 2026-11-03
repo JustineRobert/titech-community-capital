@@ -1,65 +1,140 @@
-# TITech Community Capital — Multilingual Architecture
+# TITech Community Capital — Multilingual Architecture and Preference Synchronization
 
+**Assessment / update date:** 2 November 2026  
 **Product:** TITech Community Capital  
-**Organization display/legal name configured in source:** TITech Capital LTD  
-**Status:** Internal implementation foundation; not production-approved  
-**Default locale:** `en` (English)
+**Configured organization identity:** TITech Capital LTD  
+**Default locale:** `en` (English)  
+**Initial locale set:** `en`, `sw`, `fr`, `ar`  
+**Release state:** Technical foundation extended; Kiswahili, French and Arabic remain blocked pending human review and broader application verification.
 
-## Scope delivered in this change
+## 1. Architectural boundary
 
-The frontend now has a dependency-free locale registry/resource catalog, a React context provider, a language selector, deterministic default/fallback logic, document `lang`/`dir` synchronization, locale-aware formatting helpers, cross-tab language-preference synchronization, and resource-integrity validation. This was chosen for compatibility with the current locked dependency environment; no new package was installed.
+The implementation uses the existing React/Vite frontend, existing `AuthContext`, existing API client, Express ESM authentication router, existing Mongoose `User` model, and existing audit service. It does not add a second authentication provider, profile service, locale database, token store, or financial mutation path.
 
-Initial locale identifiers are `en`, `sw`, `fr`, and `ar`. Arabic is declared RTL. Swahili, French, and Arabic are draft translations pending human review. Registry presence does not mean linguistic, financial, contractual, or legal approval.
+The locale is display metadata only. It must never determine tenant identity, roles, permissions, financial amount, account ownership, currency denomination, payment outcome, settlement state, ledger entry, reconciliation result, legal consent, or audit event semantics.
 
-## Source locations
+## 2. Supported locale registry
 
-- `frontend/src/i18n/i18nCore.mjs`: dependency-free pure helpers and locale formatting.
-- `frontend/src/i18n/I18nProvider.jsx`: React context, anonymous display-language persistence, cross-tab event handling and HTML document metadata.
-- `frontend/src/i18n/LanguageSelector.jsx`: accessible language selector using native names.
-- `frontend/src/i18n/resources.js`: static namespace catalog.
-- `frontend/src/i18n/locales/registry.json`: supported locale metadata, direction and review status.
-- `frontend/src/i18n/locales/{en,sw,fr,ar}/{common,auth,financial}.json`: currently bundled messages.
-- `scripts/i18n-validation.mjs`: JSON, namespace, parity and interpolation checks plus coverage report generation.
-- `scripts/i18n-production-gate.mjs`: explicit production translation-review gate.
+| Code | Display name | Native name | Direction | Current review state |
+|---|---|---|---|---|
+| `en` | English | English | LTR | Canonical source locale |
+| `sw` | Kiswahili | Kiswahili | LTR | Draft; human review pending |
+| `fr` | French | Français | LTR | Draft; human review pending |
+| `ar` | Arabic | العربية | RTL | Draft; human review and RTL visual review pending |
 
-## Locale resolution and storage
+English remains the fallback. Unsupported or malformed locale values are rejected by the backend preference write contract and safely fall back to English in the client locale helpers.
 
-1. Start with English if no valid preference exists.
-2. Reuse a supported `titech.display-language` value if present.
-3. Reject unsupported identifiers and recover to English.
-4. Do not silently infer and override the default from browser language.
-5. Update the document root's `lang`, `dir`, and `data-titech-locale` when the locale changes.
-6. Synchronize changes across browser tabs using the browser `storage` event.
+## 3. Resource architecture and measured scope
 
-The only value stored by this functionality is a non-sensitive UI locale identifier. Authentication tokens and session secrets are not stored by the internationalization layer.
+The current bundled namespaces are discovered from the English resource directory and registered in `frontend/src/i18n/resources.js`:
 
-## Current coverage boundary
+- `auth`
+- `common`
+- `education`
+- `financial`
+- `inclusive`
+- `meetings`
 
-The current resource catalog contains `common`, `auth`, and `financial` namespaces. The translation validator computes parity only across these bundled resources. Its 100% result means 157/157 keys exist per locale in this restricted catalog; it does **not** mean every route, modal, notification, report or workflow in the full application is translated. Other existing routes and backend-generated messages still contain English text and require a route-by-route localization pass.
+As of this evidence run, each locale contains **587 non-empty resource keys** across these six namespaces. The validator verifies JSON shape, namespace parity, key parity, non-empty strings and interpolation-placeholder parity. It also scans 327 frontend JS/JSX/TS/TSX source files and finds 183 unique literal translation-key references.
 
-## Financial and API invariants
+This is a resource-catalogue result, not an application-wide translation-coverage result. The current validator explicitly reports:
 
-Locale is presentation metadata only. It must not modify transaction amounts, currency denomination, business state, financial identifiers, idempotency keys, authorization, tenant scope, ledger entries, provider status, settlement evidence, reconciliation or audit event codes. Use canonical API representations and locale-aware display formatting only. Never use localized strings as machine-readable state values.
+- Registered route declarations discovered: 25.
+- Route-by-route translation coverage: `NOT_ASSESSED`.
+- Exhaustive hardcoded user-facing string coverage: `NOT_ASSESSED`.
+- End-to-end workflow translation coverage: `NOT_ASSESSED`.
+- Notification and email-template coverage: `NOT_ASSESSED`.
+- Report/export coverage: `NOT_ASSESSED`.
+- Offline-language coverage: `NOT_ASSESSED`.
 
-Do not treat provider request acceptance as settlement. Existing payment lifecycle, refresh-token/session, Redis, tenancy/RBAC, outbox, ledger and audit services remain the established authority; this change adds no payment or financial mutation path.
+Do not report the 100% resource-key parity result as 100% translated application coverage.
 
-## Arabic / mixed direction
+## 4. Runtime ownership and provider placement
 
-Arabic metadata uses `dir="rtl"`; English, Swahili and French use `dir="ltr"`. Mixed-direction identifiers should be rendered with `<bdi>` or equivalent direction isolation in UI components. This change sets document direction and includes direction-aware selector styling, but it does not yet claim visual verification of all tables, charts, receipts, reports, modals or all mobile routes. Perform screenshot/browser inspection of representative routes before enabling Arabic for production users.
+`frontend/src/main.jsx` renders the existing `I18nProvider` inside the established `Providers` tree. `Providers` owns the existing `AuthProvider`; therefore `I18nProvider` consumes the current authenticated identity rather than creating another authentication context.
 
-## Preferences and backend integration gap
+The single locale context is implemented in `frontend/src/i18n/I18nProvider.jsx` and the dependency-free storage/ownership contract in `frontend/src/i18n/localePreferenceStorage.mjs`. It exposes the active locale, direction, translation function, date/number/currency formatting, selection operation, synchronization state, and a retry operation. Translation resources remain the existing statically bundled resources.
 
-This delivery persists an anonymous/non-sensitive display preference locally. It does not yet synchronize the preference to an authenticated backend profile because no verified canonical profile-locale API contract was established in this change. Before adding persistence, inspect the actual User model, canonical profile route, RBAC policy, audit conventions, and API response contract; use a backward-compatible validated `preferredLocale` field and audited tenant-scoped update service only if those are the accepted design. Do not route through unverified frontend calls or add a second profile API.
+The selector remains the existing native HTML select in `frontend/src/i18n/LanguageSelector.jsx`, with native language names and a status/retry presentation. The component keeps keyboard and native screen-reader selection behavior and retains the user's current route because locale switching does not navigate.
 
-## Translation review and release
+## 5. Preference precedence and persistence
 
-English is the reference resource. Swahili, French and Arabic message text is a draft and must be reviewed by competent language reviewers. Financial/security/consent/contractual/compliance disclosures require the qualified human review specified in `docs/i18n/translation-governance-and-glossary.md`. The production gate must remain blocked until the registry status reflects recorded approvals. Do not alter the registry to make CI green without the approval evidence.
+### Guest preference
 
-## Add a language
+- Key: `titech.display-language`.
+- Stores one atomic JSON value containing the non-sensitive locale identifier and a minimal owner marker (`guest` or the authenticated account ID). The original plain-locale string is accepted for backward compatibility.
+- Invalid values fall back to English.
+- Storage access failure does not crash the application; the selected locale remains active in memory and the selector announces that browser storage is unavailable.
 
-1. Add the BCP 47-compatible locale identifier and native name/direction to `registry.json`.
-2. Add its directory and the same namespaces as English.
-3. Translate every English source key and preserve interpolation placeholders.
-4. Run `npm run i18n:check` and the native test command.
-5. Complete linguistic and critical-content review, attach actual reviewer/version records according to governance, and only then consider production release.
-6. Validate all relevant workflows, visual layout, accessibility, offline behavior and performance before calling it fully supported.
+### Pending synchronization marker
+
+- Key: `titech.display-language.pending`.
+- Stores `{ locale, userId }` metadata only; no authentication tokens or personal profile data.
+- `userId: null` denotes a guest-selected preference eligible for one-time promotion on the next login.
+- The primary local preference's owner marker is committed in the same storage write as its locale, avoiding a two-key partial update.
+- An account-owned local preference is associated with that account ID and is not carried to another account on a shared device.
+
+### Authenticated preference
+
+- Canonical model field: `User.preferredLocale` (nullable enum of `en`, `sw`, `fr`, `ar`).
+- The existing auth controller returns it in `/api/auth/me` and the login profile response.
+- A guest's explicit pending selection is promoted once on login.
+- Otherwise, an account's server-saved preference overrides the local device value.
+- When the account has no server preference, an existing local value can be migrated once.
+- Preference writes are serialized and bound to the authenticated account ID at dispatch time. The queue checks the currently authenticated identity before sending a delayed write, preventing an old queued request from being dispatched with a different account's current token.
+
+## 6. Backend API and security contract
+
+The existing auth router is mounted at `/api/auth` by the canonical route registry. The following authenticated endpoints are implemented:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/auth/preferences` | Return the current authenticated principal's display locale and supported locale list |
+| PATCH | `/api/auth/preferences` | Persist only the current authenticated principal's display locale |
+
+The PATCH contract accepts exactly one property, for example `{ "locale": "sw" }`. Unknown properties, unsupported locales, regional codes in the write payload and caller-supplied user/tenant/role fields are rejected. The user ID is derived from `req.user`, never from request data. The route uses the established authentication middleware and session rate limiter.
+
+The existing `User` schema owns the nullable `preferredLocale` field. The existing auth middleware projects that field onto the authoritative authenticated user context. The controller saves through the existing Mongoose model and appends a `USER_DISPLAY_LOCALE_UPDATED` audit event through the existing audit service. The response includes `auditRecorded`; if audit persistence fails after the preference write, the response indicates that audit evidence was not recorded rather than hiding the condition.
+
+The login response now includes `preferredLocale`, ensuring the frontend receives the account's current preference immediately and does not mistakenly migrate a stale browser preference over it. The `/me` profile response also exposes the field.
+
+## 7. Account-switch and failure handling
+
+The frontend serializes updates, confirms the locale returned by the server, and retains a retry marker after failed authenticated synchronization when browser storage is available. A stale result does not mark a different active account as saved. The marker is scoped by account ID. The UI distinguishes:
+
+- Saving to account.
+- Saved to account.
+- Saved on this device (guest).
+- Account synchronization pending, with retry.
+- Browser storage unavailable.
+
+The API client remains the existing API client, which owns the access-token and refresh-cookie protocol. The i18n layer never reads or stores access or refresh tokens.
+
+## 8. Arabic RTL and mixed-script presentation
+
+`frontend/src/i18n/i18nCore.mjs` declares Arabic RTL and the other three locales LTR. On locale changes, the provider updates the root document's `lang`, `dir`, and `data-titech-locale` attributes. The language selector uses CSS logical properties and direction-aware inline padding.
+
+This implementation does **not** constitute proof that every application page is visually correct in RTL. Tables, charts, receipts, report exports, financial identifiers, dialogs, and all mobile layouts still require representative browser visual testing. Mixed-direction account IDs, transaction references and values should use `<bdi>` or an equivalent isolation treatment at the consuming UI component.
+
+## 9. Formatting and financial controls
+
+Existing locale-aware `Intl.NumberFormat`, `Intl.DateTimeFormat` and currency formatting helpers are retained. Date formatting defaults to the repository's declared `Africa/Kampala` timezone unless the caller supplies an explicit timezone. Locale affects presentation only. Stored/API monetary values, transaction currency, ledger amounts and financial state codes remain unchanged.
+
+Formatting tests prove helper output and invalid-input fallback only. They do not replace ledger or currency-conversion correctness tests.
+
+## 10. Human review and production release
+
+The current resource registry marks `sw`, `fr`, and `ar` as `draft_pending_linguistic_review`. The production locale gate is therefore expected to remain `BLOCKED`. Structural parity and passing tests do not establish linguistic accuracy, cultural suitability, financial terminology approval, accessibility conformance or regulatory/legal translation approval.
+
+Before approving any non-English locale, retain authentic reviewer identity, qualification/scope, resource version, date, reviewed namespace/keys, critical-term findings, remediation and approval outcome. Arabic additionally requires visual RTL verification. Do not fabricate reviewer records or change registry statuses without evidence.
+
+## 11. Verification boundary as of 2 November 2026
+
+- Native i18n/locale preference tests: 24 passed, 0 failed, 0 skipped; the three additional tests exercise locale-storage parsing, unavailable storage, and cross-account ownership behavior.
+- Resource validator: 33 checks passed; 587/587 keys per locale across six namespaces; 100% structural parity.
+- Production locale gate: blocked for `sw`, `fr`, `ar` human review.
+- Authenticated preference integration: static route/model/controller/auth contracts checked; live HTTP + MongoDB integration not run.
+- Browser E2E, actual cross-device test, screenshot/RTL visual inspection, assistive-technology assessment and offline tests: not run.
+- Frontend production build and complete backend integration suite: not run; no workspace dependencies are installed and runtime is below declared Node/npm support.
+
+The owner-aware storage contract is in `frontend/src/i18n/localePreferenceStorage.mjs`. See `docs/evidence/TITECH_MULTILINGUAL_IMPLEMENTATION_2026-11-02.md` for the detailed execution evidence and `docs/evidence/TITECH_CHANGE_DISCOVERY_2026-11-02.md` for the exact file delta.

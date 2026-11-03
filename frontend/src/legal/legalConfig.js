@@ -120,7 +120,7 @@ export const LEGAL_CONTACTS = Object.freeze({
  */
 export const LEGAL_ADDRESS = Object.freeze({
   organization: 'TITech Capital LTD',
-  // Postal correspondence details recorded from the user-supplied screenshot received on 1 November 2026.
+  // Postal correspondence address supplied for the 31 October 2026 update.
   postalAddress: 'P.O. BOX 601200',
   postalLocation: 'Clock Tower',
   postalCountry: 'Uganda',

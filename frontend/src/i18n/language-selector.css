@@ -1,6 +1,7 @@
 .titech-language-selector {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.4rem;
   min-width: 0;
   color: var(--titech-color-text, var(--titech-official-navy));
@@ -80,4 +81,30 @@
     inset-block-start: 0.65rem;
     inset-inline-end: 0.65rem;
   }
+}
+
+
+.titech-language-selector__status {
+  color: var(--titech-color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.titech-language-selector__retry {
+  min-height: 2rem;
+  padding-block: 0.25rem;
+  padding-inline: 0.55rem;
+  border: 1px solid var(--titech-color-border-strong);
+  border-radius: 0.45rem;
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.titech-language-selector__retry:focus-visible {
+  outline: 3px solid var(--titech-focus-color, var(--titech-official-electric-blue));
+  outline-offset: 2px;
 }

@@ -930,11 +930,11 @@ function bootstrapApplication() {
   try {
     root.render(
       <React.StrictMode>
-        <I18nProvider>
-          <Providers>
+        <Providers>
+          <I18nProvider>
             <AppRoutes />
-          </Providers>
-        </I18nProvider>
+          </I18nProvider>
+        </Providers>
       </React.StrictMode>
     );
   } catch (error) {

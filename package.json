@@ -153,7 +153,7 @@
     "verify:runtime-connectivity": "node scripts/verify-runtime-connectivity-state.mjs",
     "i18n:check": "node scripts/i18n-validation.mjs",
     "i18n:production-gate": "node scripts/i18n-production-gate.mjs",
-    "test:i18n:native": "node --test scripts/i18n-core.test.mjs",
+    "test:i18n:native": "node --test scripts/i18n-core.test.mjs scripts/locale-preferences.test.mjs",
     "test:inclusive-onboarding": "node --test backend/tests/unit/inclusive-onboarding/*.test.mjs",
     "db:indexes:inclusive-insurance": "npm --prefix backend run index:create:inclusive-insurance",
     "test:retirement-support": "node --test backend/tests/unit/retirement/*.test.mjs",

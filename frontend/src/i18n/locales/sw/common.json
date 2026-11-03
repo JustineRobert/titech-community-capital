@@ -38,10 +38,16 @@
   "accessibility.skipToContent": "Ruka hadi maudhui makuu",
   "accessibility.languageSelector": "Chagua lugha ya kuonyesha",
   "errors.logoutFailed": "Imeshindikana kutoka kikamilifu. Tafadhali jaribu tena.",
-  "errors.languageSaveFailed": "Lugha hii inatumika kwenye kifaa hiki, lakini haikuweza kuhifadhiwa kwenye kifaa.",
+  "errors.languageSaveFailed": "Lugha hii inatumika kwenye kifaa hiki, lakini upendeleo haukuweza kusawazishwa na akaunti yako.",
   "brand.home": "Ukurasa wa mwanzo wa TITech Community Capital",
   "nav.inclusiveOnboarding": "Usajili jumuishi",
   "nav.retirementSupport": "Msaada wa kustaafu",
   "nav.meetings": "Mikutano",
-  "nav.educationSupport": "Msaada wa elimu"
+  "nav.educationSupport": "Msaada wa elimu",
+  "language.syncing": "Inahifadhi mapendeleo ya lugha…",
+  "language.saved": "Upendeleo wa lugha umehifadhiwa kwenye akaunti yako.",
+  "language.deviceOnly": "Upendeleo wa lugha umehifadhiwa kwenye kifaa hiki.",
+  "language.syncPending": "Lugha inatumika hapa; usawazishaji wa akaunti unasubiri.",
+  "language.retry": "Jaribu kusawazisha tena",
+  "language.deviceUnavailable": "Hifadhi ya kivinjari haipatikani; chaguo hili linaweza kupotea ukurasa ukifungwa."
 }

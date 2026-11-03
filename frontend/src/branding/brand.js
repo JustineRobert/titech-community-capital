@@ -172,7 +172,7 @@ export const TITECH_VISION = Object.freeze({
 
 /**
  * Configured organization profile. The postal details are the administrative
- * information evidenced by a user-supplied screenshot received on 1 November 2026. Keeping these fields
+ * information supplied for the 31 October 2026 update. Keeping these fields
  * separate from an office/registered-office address prevents a P.O. Box from
  * being mistaken for a physical address. Repository configuration is not
  * documentary proof of incorporation or statutory address validity.

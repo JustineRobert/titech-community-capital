@@ -38,10 +38,16 @@
   "accessibility.skipToContent": "الانتقال إلى المحتوى الرئيسي",
   "accessibility.languageSelector": "اختيار لغة العرض",
   "errors.logoutFailed": "تعذر تسجيل الخروج بالكامل. يرجى المحاولة مرة أخرى.",
-  "errors.languageSaveFailed": "اللغة مفعلة على هذا الجهاز، لكن تعذر حفظ التفضيل محليًا.",
+  "errors.languageSaveFailed": "هذه اللغة مفعّلة على هذا الجهاز، لكن تعذرت مزامنة التفضيل مع حسابك.",
   "brand.home": "الصفحة الرئيسية لـ TITech Community Capital",
   "nav.inclusiveOnboarding": "التسجيل الشامل",
   "nav.retirementSupport": "دعم التقاعد",
   "nav.meetings": "الاجتماعات",
-  "nav.educationSupport": "دعم التعليم"
+  "nav.educationSupport": "دعم التعليم",
+  "language.syncing": "جارٍ حفظ تفضيل اللغة…",
+  "language.saved": "تم حفظ تفضيل اللغة في حسابك.",
+  "language.deviceOnly": "تم حفظ تفضيل اللغة على هذا الجهاز.",
+  "language.syncPending": "اللغة مفعّلة هنا؛ ومزامنة الحساب قيد الانتظار.",
+  "language.retry": "إعادة محاولة المزامنة",
+  "language.deviceUnavailable": "تخزين المتصفح غير متاح؛ وقد يُفقد هذا الاختيار عند إغلاق الصفحة."
 }

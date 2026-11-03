@@ -38,10 +38,16 @@
   "accessibility.skipToContent": "Passer au contenu principal",
   "accessibility.languageSelector": "Choisir la langue d’affichage",
   "errors.logoutFailed": "La déconnexion complète a échoué. Veuillez réessayer.",
-  "errors.languageSaveFailed": "Cette langue est active sur cet appareil, mais la préférence n’a pas pu être enregistrée localement.",
+  "errors.languageSaveFailed": "Cette langue est active sur cet appareil, mais la préférence n’a pas pu être synchronisée avec votre compte.",
   "brand.home": "Accueil de TITech Community Capital",
   "nav.inclusiveOnboarding": "Intégration inclusive",
   "nav.retirementSupport": "Assistance à la retraite",
   "nav.meetings": "Réunions",
-  "nav.educationSupport": "Soutien à l’éducation"
+  "nav.educationSupport": "Soutien à l’éducation",
+  "language.syncing": "Enregistrement de la préférence linguistique…",
+  "language.saved": "La préférence linguistique est enregistrée dans votre compte.",
+  "language.deviceOnly": "La préférence linguistique est enregistrée sur cet appareil.",
+  "language.syncPending": "La langue est active ici ; la synchronisation du compte est en attente.",
+  "language.retry": "Réessayer la synchronisation",
+  "language.deviceUnavailable": "Le stockage du navigateur est indisponible ; ce choix peut être perdu à la fermeture de la page."
 }

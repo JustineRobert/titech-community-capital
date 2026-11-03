@@ -29,6 +29,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import crypto from "node:crypto";
 import validator from "validator";
+import { SUPPORTED_DISPLAY_LOCALES, normalizeDisplayLocale } from "../utils/localePreferences.js";
 
 const { Schema } = mongoose;
 
@@ -969,6 +970,20 @@ const userSchema = new Schema(
       enum: USER_STATUSES,
       default: "active",
       index: true,
+    },
+
+    /**
+     * Optional account-level display language. Null means no server preference
+     * has been saved yet; clients may then migrate a previously selected guest
+     * preference. This field is never an authorization or financial attribute.
+     */
+    preferredLocale: {
+      type: String,
+      enum: SUPPORTED_DISPLAY_LOCALES,
+      default: null,
+      set(value) {
+        return normalizeDisplayLocale(value) || value;
+      },
     },
 
     isActive: {

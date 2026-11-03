@@ -300,6 +300,9 @@ function logAuthFailure(
     errorCode:
       error?.code ||
       undefined,
+    ...(process.env.NODE_ENV === 'development' && error?.message
+      ? { errorMessage: error.message }
+      : {}),
   };
 
   // Development diagnostics only.
@@ -992,7 +995,7 @@ async function resolveAuthoritativeIdentity(decodedUser) {
   }
 
   const persisted = await User.findById(decodedUser.id)
-    .select('_id name email role tenantId status isActive isVerified deletedAt security.securityVersion sessionMetrics.sessionVersion')
+    .select('_id name email role tenantId status isActive isVerified preferredLocale deletedAt security.securityVersion sessionMetrics.sessionVersion')
     .lean()
     .exec();
 
@@ -1019,6 +1022,7 @@ async function resolveAuthoritativeIdentity(decodedUser) {
     tenantId: persisted.tenantId ? String(persisted.tenantId) : null,
     isVerified: persisted.isVerified !== false,
     isActive: persisted.isActive !== false,
+    preferredLocale: persisted.preferredLocale || null,
     securityVersion: Number(persisted.security?.securityVersion || 1),
     sessionVersion: Number(persisted.sessionMetrics?.sessionVersion || 1),
   };

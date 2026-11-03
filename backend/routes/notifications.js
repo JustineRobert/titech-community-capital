@@ -25,7 +25,7 @@ function resolveUserId(req) {
 }
 
 function resolveTenantId(req) {
-  return (
+  const tenantId = (
     req.tenantId ||
     req.tenant?.tenantId ||
     req.tenantContext?.tenantId ||
@@ -33,6 +33,10 @@ function resolveTenantId(req) {
     req.user?.tenantId ||
     null
   );
+
+  if (tenantId) return tenantId;
+  if (req.user?.role === 'platform_admin' || req.auth?.role === 'platform_admin') return 'SYSTEM';
+  return null;
 }
 
 function requireNotificationContext(req, res) {

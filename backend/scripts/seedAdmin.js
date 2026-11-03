@@ -46,7 +46,7 @@ function resolveConfig() {
 
   return Object.freeze({
     mongoUri: process.env.MONGODB_URI || process.env.MONGO_URI || "",
-    tenantId: process.env.SEED_ADMIN_TENANT_ID || "SYSTEM",
+    tenantId: process.env.SEED_ADMIN_TENANT_ID || "",
     firstName: process.env.SEED_ADMIN_FIRSTNAME || "System",
     lastName: process.env.SEED_ADMIN_LASTNAME || "Administrator",
     email: (process.env.SEED_ADMIN_EMAIL || "admin@titechcapital.com").trim().toLowerCase(),
@@ -84,7 +84,7 @@ export async function run() {
   await connect(config.mongoUri);
 
   try {
-    const existingAdmin = await User.findOne({ email: config.email });
+    const existingAdmin = await User.findOne({ email: config.email }).select("+password");
 
     if (existingAdmin) {
       let changed = false;
@@ -94,8 +94,18 @@ export async function run() {
         changed = true;
       }
 
+      if (!Array.isArray(existingAdmin.roles) || !existingAdmin.roles.includes(config.role)) {
+        existingAdmin.roles = [...new Set([...(existingAdmin.roles || []), config.role, "admin"])];
+        changed = true;
+      }
+
       if (!existingAdmin.isActive) {
         existingAdmin.isActive = true;
+        changed = true;
+      }
+
+      if (!await bcrypt.compare(config.password, existingAdmin.password)) {
+        existingAdmin.password = config.password;
         changed = true;
       }
 
@@ -103,14 +113,14 @@ export async function run() {
         await existingAdmin.save();
       }
 
-      console.log(`Administrator already exists: ${existingAdmin.email}`);
+      console.log(`Administrator synchronized: ${existingAdmin.email}`);
       return existingAdmin;
     }
 
     const passwordHash = await bcrypt.hash(config.password, 12);
 
     const admin = await User.create({
-      tenantId: config.tenantId,
+      ...(mongoose.isValidObjectId(config.tenantId) ? { tenantId: config.tenantId } : {}),
       firstName: config.firstName,
       lastName: config.lastName,
       name: `${config.firstName} ${config.lastName}`.trim(),
@@ -125,7 +135,6 @@ export async function run() {
       phoneVerified: true,
       kycStatus: "VERIFIED",
       memberStatus: "ACTIVE",
-      createdBy: "SYSTEM",
     });
 
     console.log(`Administrator created: ${admin.email}`);

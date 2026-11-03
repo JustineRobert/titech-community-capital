@@ -249,6 +249,8 @@ const storage = {
   },
 };
 
+// Public connectivity-state contract for frontend consumers.
+export { API_CONNECTIVITY_STATUS };
 // ============================================================================
 // Token Helpers
 // ============================================================================

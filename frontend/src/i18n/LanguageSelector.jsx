@@ -5,7 +5,7 @@ import { useI18n } from './I18nProvider';
 import './language-selector.css';
 
 export default function LanguageSelector({ className = '' }) {
-  const { locale, setLocale, t } = useI18n();
+  const { locale, setLocale, syncStatus, retryLocaleSync, t } = useI18n();
   const generatedId = useId().replace(/:/g, '');
   const inputId = `titech-language-choice-${generatedId}`;
   const classes = ['titech-language-selector', className].filter(Boolean).join(' ');
@@ -30,6 +30,24 @@ export default function LanguageSelector({ className = '' }) {
           </option>
         ))}
       </select>
+      {syncStatus !== 'idle' && (
+        <span className="titech-language-selector__status" role="status" aria-live="polite">
+          {syncStatus === 'saving' && t('common.language.syncing')}
+          {syncStatus === 'saved' && t('common.language.saved')}
+          {syncStatus === 'device' && t('common.language.deviceOnly')}
+          {syncStatus === 'pending' && t('common.language.syncPending')}
+          {syncStatus === 'unavailable' && t('common.language.deviceUnavailable')}
+        </span>
+      )}
+      {syncStatus === 'pending' && (
+        <button
+          type="button"
+          className="titech-language-selector__retry"
+          onClick={() => { void retryLocaleSync().catch(() => undefined); }}
+        >
+          {t('common.language.retry')}
+        </button>
+      )}
     </div>
   );
 }

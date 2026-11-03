@@ -33,6 +33,8 @@ import {
   useNavigate,
 } from 'react-router-dom';
 
+import BrandLogo from '../components/BrandLogo';
+
 // ============================================================================
 // Constants
 // ============================================================================

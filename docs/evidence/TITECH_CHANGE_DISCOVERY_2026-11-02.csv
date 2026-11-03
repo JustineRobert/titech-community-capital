@@ -1,0 +1,48 @@
+path,change,area,reason
+backend/utils/localePreferences.js,ADDED,backend,Canonical backend locale allowlist and normalization helper.
+docs/evidence/TITECH_CHANGE_DISCOVERY_2026-11-02.csv,ADDED,evidence,"Date-stamped implementation, enterprise status, or file-change evidence."
+docs/evidence/TITECH_CHANGE_DISCOVERY_2026-11-02.md,ADDED,evidence,"Date-stamped implementation, enterprise status, or file-change evidence."
+docs/evidence/TITECH_ENTERPRISE_PROGRESS_2026-11-02.md,ADDED,evidence,"Date-stamped implementation, enterprise status, or file-change evidence."
+docs/evidence/TITECH_MULTILINGUAL_IMPLEMENTATION_2026-11-02.md,ADDED,evidence,"Date-stamped implementation, enterprise status, or file-change evidence."
+docs/evidence/execution-2026-11-02/backend-syntax.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/changed-source-syntax.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/critical-financial.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/enterprise-contract-gate.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/enterprise-contracts.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/environment.txt,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/financial-static-gate.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/frontend-jsx-parse.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/i18n-production-locale-gate.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/i18n-resource-validation.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/native-i18n-tests.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/official-theme-audit.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/organization-profile-gate.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/production-approval-gate.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/production-approval.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/rbac-gate.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/rbac.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/runtime-engine-gate.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/runtime-engine.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+docs/evidence/execution-2026-11-02/runtime-import-audit.log,ADDED,evidence,Captured command/environment output for reproducible inspection; exit status is recorded where applicable.
+frontend/src/i18n/localePreferenceStorage.mjs,ADDED,frontend,"Dependency-free locale storage and guest/account ownership rules, directly unit tested."
+reports/i18n-coverage-2026-11-02.json,ADDED,evidence,Machine-readable six-namespace resource parity and scoped coverage result.
+reports/official-theme-audit.json,ADDED,evidence,Machine-readable official nine-colour theme audit.
+reports/rbac-security-gate.json,ADDED,evidence,Machine-readable static RBAC gate evidence.
+reports/runtime-import-audit.json,ADDED,evidence,Machine-readable 208-candidate runtime import audit result.
+scripts/locale-preferences.test.mjs,ADDED,tooling/tests,Native backend/frontend locale preference contract and owner-scoped storage tests.
+backend/controllers/authController.js,MODIFIED,backend,"Adds authenticated locale GET/PATCH handlers, audit trace, login/me locale hydration and correct fallback lookup by ID."
+backend/middleware/auth.js,MODIFIED,backend,Projects the account locale in the authenticated principal.
+backend/models/User.js,MODIFIED,backend,Adds presentation-only nullable preferredLocale on the existing User model.
+backend/routes/auth.js,MODIFIED,backend,Registers authenticated/rate-limited locale preference routes in the existing auth router.
+docs/i18n/TITECH_MULTILINGUAL_ARCHITECTURE.md,MODIFIED,docs,"Documents the six-namespace architecture, server preference sync, ownership and release limits."
+frontend/src/i18n/I18nProvider.jsx,MODIFIED,frontend,"Uses existing AuthContext/API client for account preference hydration/sync, owner-aware queueing and document locale."
+frontend/src/i18n/LanguageSelector.jsx,MODIFIED,frontend,Adds visible saved/pending/retry/storage-error state to existing native language selector.
+frontend/src/i18n/language-selector.css,MODIFIED,frontend,"Responsive, focus-visible selector status styling using existing semantic theme tokens."
+frontend/src/i18n/locales/ar/common.json,MODIFIED,frontend,Adds matching draft Arabic preference sync messages.
+frontend/src/i18n/locales/en/common.json,MODIFIED,frontend,Adds preference sync state messages in canonical English catalog.
+frontend/src/i18n/locales/fr/common.json,MODIFIED,frontend,Adds matching draft French preference sync messages.
+frontend/src/i18n/locales/sw/common.json,MODIFIED,frontend,Adds matching draft Kiswahili preference sync messages.
+frontend/src/main.jsx,MODIFIED,frontend,Places the existing I18nProvider inside the existing authenticated Providers tree.
+package.json,MODIFIED,tooling/tests,Registers expanded native i18n/preference test suite.
+scripts/i18n-core.test.mjs,MODIFIED,tooling/tests,"Validates all discovered locale namespaces, key parity and interpolation parity."
+scripts/i18n-validation.mjs,MODIFIED,tooling/tests,Reports six actual namespaces and accurately scoped resource/API checks and NOT_ASSESSED limits.

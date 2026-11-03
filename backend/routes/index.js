@@ -28,6 +28,7 @@ import offlineSyncRoutes from '../modules/offline/routes/offline-sync.routes.js'
 import meetingsRoutes from '../modules/meetings/meetings.routes.js';
 import agricultureRoutes from '../modules/agriculture/routes/agriculture.routes.js';
 import notificationsRoutes from './notifications.js';
+import platformDashboardRoutes from './platformDashboard.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import { param, validationResult } from 'express-validator';
@@ -1783,12 +1784,25 @@ function registerRoutes(
     app.use('/api/rbac', rbacRoutes);
     app.use('/api/v1/rbac', rbacRoutes);
 
+    const platformNotificationContext = (req, res, next) => {
+        const role = req.user?.role || req.auth?.role || req.jwt?.role || req.jwt?.user?.role;
+        if (role === 'platform_admin' || role === 'super_admin' || role === 'admin') {
+            req.tenantId = req.tenantId || 'SYSTEM';
+            return next();
+        }
+        return tenantAuthorization(req, res, next);
+    };
+
     app.use(
         '/api/notifications',
         authenticate,
-        tenantAuthorization,
+        platformNotificationContext,
         notificationsRoutes,
     );
+
+    app.use('/api/admin', platformDashboardRoutes);
+    app.use('/api/members', platformDashboardRoutes);
+    app.get('/api/reports/dashboard', authenticate, authModule.requireRole('platform_admin, platformDashboardAdminOnlyDummyMiddleware, platformDashboardStatsHandlerPlaceholderPlaceholder);
 
     app.use(
         '/api/email',

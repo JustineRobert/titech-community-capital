@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LOCALES_ROOT = path.join(ROOT, 'frontend/src/i18n/locales');
 const REGISTRY_PATH = path.join(LOCALES_ROOT, 'registry.json');
-const REPORT_PATH = path.join(ROOT, 'reports/i18n-coverage-2026-10-17.json');
+const REPORT_DATE = new Date().toISOString().slice(0, 10);
+const REPORT_PATH = path.join(ROOT, `reports/i18n-coverage-${REPORT_DATE}.json`);
 const failures = [];
 const checks = [];
 
@@ -151,6 +152,33 @@ if (languageByCode.get('ar')?.direction !== 'rtl') {
   add('PASS', 'arabic-direction', 'Arabic is declared RTL.');
 }
 
+// Static server-preference contract check. This verifies repository wiring only;
+// it does not substitute for authenticated MongoDB/API integration tests.
+const preferenceSources = {
+  routes: path.join(ROOT, 'backend/routes/auth.js'),
+  controller: path.join(ROOT, 'backend/controllers/authController.js'),
+  userModel: path.join(ROOT, 'backend/models/User.js'),
+  authMiddleware: path.join(ROOT, 'backend/middleware/auth.js'),
+  auditService: path.join(ROOT, 'backend/models/audit/audit.service.js'),
+};
+const preferenceSourceText = Object.fromEntries(
+  Object.entries(preferenceSources).map(([name, file]) => [name, fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '']),
+);
+const preferenceContractChecks = [
+  ['authenticated GET route', /router\.get\(\s*['\"]\/preferences['\"]\s*,\s*authenticate/s.test(preferenceSourceText.routes)],
+  ['authenticated PATCH route', /router\.patch\(\s*['\"]\/preferences['\"]\s*,\s*authenticate/s.test(preferenceSourceText.routes)],
+  ['controller writes only the locale preference', /payloadKeys\[0\] !== 'locale'/.test(preferenceSourceText.controller) && /user\.preferredLocale = locale/.test(preferenceSourceText.controller)],
+  ['canonical User model persists preferredLocale', /preferredLocale:\s*\{/.test(preferenceSourceText.userModel)],
+  ['auth identity hydration includes preferredLocale', /preferredLocale/.test(preferenceSourceText.authMiddleware)],
+  ['append-only audit service is wired', /createAuditLog/.test(preferenceSourceText.controller) && /export async function createAuditLog/.test(preferenceSourceText.auditService)],
+];
+const failedPreferenceChecks = preferenceContractChecks.filter(([, passed]) => !passed).map(([name]) => name);
+if (failedPreferenceChecks.length) {
+  add('FAIL', 'authenticated-preference-contract', `Authenticated preference implementation is incomplete: ${failedPreferenceChecks.join(', ')}.`);
+} else {
+  add('PASS', 'authenticated-preference-contract', 'Authenticated GET/PATCH routes, canonical user persistence, authenticated identity hydration and audit-service wiring are statically present; runtime API/database integration remains unverified.');
+}
+
 // Static source scan: catches typos/missing keys where components call t('namespace.key').
 const sourceRoot = path.join(ROOT, 'frontend/src');
 const sourceFiles = listSourceFiles(sourceRoot);
@@ -177,14 +205,24 @@ for (const file of sourceFiles) {
 }
 add('PASS', 'source-key-references', `Scanned ${sourceFiles.length} frontend source files and found ${usedKeys.size} unique literal translation-key references; missing referenced keys are failures.`);
 
+const registeredRouteDeclarations = (() => {
+  const routeFiles = listSourceFiles(path.join(ROOT, 'frontend/src/routes'));
+  return routeFiles.reduce((count, file) => count + (fs.readFileSync(file, 'utf8').match(/<Route\b/g) || []).length, 0);
+})();
+
 const report = {
   generatedAt: new Date().toISOString(),
   sourceLocale: 'en',
   defaultLocale: registry.defaultLocale || null,
   supportedLocales,
-  resourceScope: 'Bundled common, auth and financial status namespaces only; source scan checks literal t("namespace.key") references but this is not a whole-application route coverage claim.',
+  resourceScope: `Bundled English-source namespaces: ${expectedNamespaces.map((name) => name.replace(/\.json$/, '')).join(', ')}. Resource parity is not route, component, workflow, notification, export or offline coverage.`,
   staticSourceFilesScanned: sourceFiles.length,
   uniqueLiteralKeyReferences: usedKeys.size,
+  registeredRouteDeclarations,
+  authenticatedPreferenceApi: { status: failedPreferenceChecks.length ? 'STATIC_CONTRACT_FAIL' : 'STATIC_CONTRACT_PRESENT', runtimeIntegration: 'NOT_TESTED', routes: ['/api/auth/preferences GET', '/api/auth/preferences PATCH'], security: 'Authenticated middleware; user ID derived from req.user; locale is the only accepted writable property.' },
+  routeCoverage: { status: 'NOT_ASSESSED', registeredRouteDeclarations, reason: 'The validator checks resource catalogs and literal translation calls; it does not prove every route, conditional UI state or user-facing string is translated.' },
+  hardcodedUserFacingStringCoverage: { status: 'NOT_ASSESSED', reason: 'No exhaustive user-facing string classifier is run by this validator.' },
+  workflowCoverage: { status: 'NOT_ASSESSED', reason: 'Unit/resource validation does not prove frontend-to-backend workflow translation coverage.' },
   status: failures.length ? 'FAIL' : 'PASS',
   productionEligible: supportedLocales.every((locale) => languageByCode.get(locale)?.status === 'approved_for_production'),
   checks,

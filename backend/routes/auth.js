@@ -127,6 +127,8 @@ const REQUIRED_AUTH_HANDLERS =
     'logout',
     'logoutAll',
     'me',
+    'getPreferences',
+    'updatePreferences',
     'listSessions',
     'revokeSession',
     'adminListSessions',
@@ -891,6 +893,25 @@ router.get(
   asyncHandler(
     authController.me,
   ),
+);
+
+/**
+ * GET /preferences
+ * PATCH /preferences
+ * Display-language preference is account-scoped and never grants authority.
+ */
+router.get(
+  '/preferences',
+  authenticate,
+  sessionLimiter,
+  asyncHandler(authController.getPreferences),
+);
+
+router.patch(
+  '/preferences',
+  authenticate,
+  sessionLimiter,
+  asyncHandler(authController.updatePreferences),
 );
 
 /**
