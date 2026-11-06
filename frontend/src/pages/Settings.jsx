@@ -324,6 +324,39 @@ const safeString = (
 };
 
 
+const getNestedErrorMessage = (
+  value,
+) => {
+  if (
+    typeof value ===
+    'string'
+  ) {
+    return value.trim();
+  }
+
+  if (
+    !value ||
+    typeof value !==
+      'object'
+  ) {
+    return '';
+  }
+
+  return (
+    getNestedErrorMessage(
+      value.message,
+    ) ||
+    getNestedErrorMessage(
+      value.error,
+    ) ||
+    getNestedErrorMessage(
+      value.detail,
+    ) ||
+    ''
+  );
+};
+
+
 const normalizeResponseData = (
   response,
 ) => {
@@ -342,10 +375,13 @@ const getApiErrorMessage = (
   error,
   fallback,
 ) =>
+  getNestedErrorMessage(
+    error?.response?.data,
+  ) ||
+  getNestedErrorMessage(
+    error,
+  ) ||
   safeString(
-    error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      error?.message,
     fallback,
   );
 
@@ -956,12 +992,19 @@ function Settings() {
           ] =
             await Promise.all([
               api.get(
-                '/api/users/me',
+                '/api/auth/me',
               ),
 
               isAdmin
+                && tenantId
                 ? api.get(
-                    '/api/tenant/settings',
+                    `/api/system-settings/tenant/${encodeURIComponent(
+                      tenantId,
+                    )}`,
+                  ).catch(
+                    () => ({
+                      data: {},
+                    }),
                   )
                 : Promise.resolve(
                     {
@@ -975,6 +1018,14 @@ function Settings() {
               profileResponse,
             );
 
+          const profileNameParts =
+            safeString(
+              profileData.name ||
+                profileData.fullName,
+            ).split(/\s+/).filter(
+              Boolean,
+            );
+
           const tenantData =
             normalizeResponseData(
               tenantResponse,
@@ -986,12 +1037,17 @@ function Settings() {
                 firstName:
                   safeString(
                     profileData.firstName,
-                  ),
+                  ) ||
+                  profileNameParts[0] ||
+                  '',
 
                 lastName:
                   safeString(
                     profileData.lastName,
-                  ),
+                  ) ||
+                  profileNameParts
+                    .slice(1)
+                    .join(' '),
 
                 email:
                   safeString(
@@ -1387,16 +1443,15 @@ function Settings() {
             }),
           );
 
-          await api.put(
-            '/api/users/me',
+          await api.patch(
+            '/api/auth/me',
             {
-              ...settings.profile,
-
-              notifications:
-                settings.notifications,
-
-              preferences:
-                settings.preferences,
+              firstName:
+                settings.profile.firstName,
+              lastName:
+                settings.profile.lastName,
+              phoneNumber:
+                settings.profile.phoneNumber,
             },
           );
 
@@ -1498,16 +1553,12 @@ function Settings() {
             }),
           );
 
-          await api.put(
-            '/api/users/me',
+          await api.patch(
+            '/api/auth/preferences',
             {
-              ...settings.profile,
-
-              notifications:
-                settings.notifications,
-
-              preferences:
-                settings.preferences,
+              locale:
+                settings.preferences.language ||
+                'en',
             },
           );
 

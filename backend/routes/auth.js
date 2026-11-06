@@ -895,6 +895,16 @@ router.get(
   ),
 );
 
+router.patch(
+  '/me',
+
+  authenticate,
+
+  asyncHandler(
+    authController.updateMe,
+  ),
+);
+
 /**
  * GET /preferences
  * PATCH /preferences

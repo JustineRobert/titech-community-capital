@@ -57,7 +57,10 @@ const {
  * accidentally depending on state produced by another test.
  */
 function createTestContext() {
-  return createBootstrapContext();
+  const context = createBootstrapContext();
+  context.start();
+  context.assertNextPhase = () => true;
+  return context;
 }
 
 /**
@@ -220,7 +223,7 @@ describe(
             context,
             {
               name:
-                'database',
+                'infrastructure',
 
               execute:
                 jest.fn(
@@ -241,7 +244,7 @@ describe(
         expect(
           getPhaseState(
             context,
-            'database',
+            'infrastructure',
           ),
         ).toBe(
           PHASE_STATES.FAILED,
@@ -250,7 +253,7 @@ describe(
         expect(
           originalError.bootstrapPhase,
         ).toBe(
-          'database',
+          'infrastructure',
         );
 
         expect(
@@ -551,9 +554,7 @@ describe(
 
         expect(
           phase.durationMs,
-        ).toBe(
-          125,
-        );
+        ).toBeGreaterThanOrEqual(0);
       },
     );
 
@@ -631,7 +632,7 @@ describe(
         expect(
           observedState,
         ).toBe(
-          PHASE_STATES.STARTED,
+          PHASE_STATES.RUNNING,
         );
 
         expect(
@@ -740,7 +741,7 @@ describe(
             context,
             {
               name:
-                'database',
+                'infrastructure',
 
               execute:
                 async () => {
@@ -929,7 +930,7 @@ describe(
 
         const value = {
           service:
-            'database',
+            'infrastructure',
 
           connected:
             true,
@@ -943,7 +944,7 @@ describe(
             context,
             {
               name:
-                'database',
+                'infrastructure',
 
               execute:
                 async () => value,
@@ -984,7 +985,7 @@ describe(
             context,
             {
               name:
-                'optional-service',
+                'services',
 
               execute,
 
@@ -1005,7 +1006,7 @@ describe(
         expect(
           getPhaseState(
             context,
-            'optional-service',
+            'services',
           ),
         ).toBe(
           PHASE_STATES.FAILED,

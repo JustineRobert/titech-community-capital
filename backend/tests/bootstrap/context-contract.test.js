@@ -293,13 +293,27 @@ test(
         'environment',
         'configuration',
         'routes',
-        'httpServer',
-        'runtimeReady',
       ]) {
         assert.equal(
           bootstrap.context.getPhaseState(phase),
           'completed',
           `${phase} must complete before startup is considered ready`,
+        );
+      }
+
+      assert.equal(
+        bootstrap.context.getPhaseState('httpServer'),
+        'skipped',
+        'httpServer must remain skipped when network startup is disabled',
+      );
+
+      for (const phase of [
+        'runtimeReady',
+      ]) {
+        assert.equal(
+          bootstrap.context.getPhaseState(phase),
+          'completed',
+          `${phase} must complete after successful application startup`,
         );
       }
     } finally {

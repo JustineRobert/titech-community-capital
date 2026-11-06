@@ -117,8 +117,8 @@ const MANDATORY_BOOTSTRAP_PHASES = Object.freeze([
   'services',
   'middleware',
   'routes',
-  'server',
-  'runtime',
+  'httpServer',
+  'runtimeReady',
 ]);
 
 /**
@@ -150,6 +150,10 @@ process.env.NODE_ENV =
 
 async function loadBootstrapModule() {
   const candidates = [
+    path.resolve(
+      __dirname,
+      '../../bootstrap/ApplicationBootstrap.js',
+    ),
     path.resolve(
       __dirname,
       '../../bootstrap',
@@ -230,6 +234,21 @@ async function loadBootstrapModule() {
 async function startTITechBootstrap() {
   const bootstrap =
     await loadBootstrapModule();
+
+  const ApplicationBootstrap =
+    bootstrap?.ApplicationBootstrap ||
+    bootstrap?.default?.ApplicationBootstrap ||
+    bootstrap?.default;
+
+  if (typeof ApplicationBootstrap === 'function') {
+    const instance = new ApplicationBootstrap({
+      startServer: false,
+      requireApplication: false,
+    });
+    await instance.initialize();
+    await instance.start();
+    return instance;
+  }
 
   /**
    * Preferred enterprise contract:
@@ -345,18 +364,18 @@ function resolveBootstrapContext(
   }
 
   if (
-    typeof bootstrapResult.isReady ===
-    'function'
-  ) {
-    return bootstrapResult;
-  }
-
-  if (
     bootstrapResult.context &&
     typeof bootstrapResult.context
       .isReady === 'function'
   ) {
     return bootstrapResult.context;
+  }
+
+  if (
+    typeof bootstrapResult.isReady ===
+    'function'
+  ) {
+    return bootstrapResult;
   }
 
   if (
@@ -390,6 +409,14 @@ function getContextSnapshot(
       'function'
   ) {
     return context.snapshot();
+  }
+
+  if (
+    context &&
+    typeof context.toJSON ===
+      'function'
+  ) {
+    return context.toJSON();
   }
 
   return null;
@@ -501,7 +528,10 @@ function assertPhaseSuccessful(
     expect(
       state,
     ).toBe(
-      'completed',
+      phaseName === 'httpServer' &&
+      state === 'skipped'
+        ? 'skipped'
+        : 'completed',
     );
   }
 
@@ -989,7 +1019,10 @@ describe(
           expect(
             getPhaseState(phase),
           ).toBe(
-            'completed',
+            phaseName === 'httpServer' &&
+            getPhaseState(phase) === 'skipped'
+              ? 'skipped'
+              : 'completed',
           );
         }
       },

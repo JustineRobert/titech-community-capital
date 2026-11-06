@@ -654,6 +654,7 @@ async function login(req, res) {
         id: user._id,
         email: user.email,
         name: user.name,
+        phone: user.phone || null,
         role: user.role,
         preferredLocale: normalizeDisplayLocale(user.preferredLocale),
       },
@@ -1311,12 +1312,85 @@ async function me(req, res) {
       id: user._id || user.id,
       email: user.email,
       name: user.name,
+      phone: user.phone || null,
       role: user.role,
       preferredLocale: normalizeDisplayLocale(user.preferredLocale),
     });
   } catch (err) {
     logger.error('[AuthController] me error', { code: err?.code || 'AUTH_PROFILE_READ_FAILED' });
     return res.status(500).json({ message: 'Failed to fetch profile' });
+  }
+}
+
+async function updateMe(req, res) {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const payload = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+      ? req.body
+      : null;
+
+    if (!payload) {
+      return res.status(400).json({ message: 'Invalid profile update payload' });
+    }
+
+    const allowedKeys = new Set(['firstName', 'lastName', 'phoneNumber', 'phone']);
+    const unsupportedKeys = Object.keys(payload).filter((key) => !allowedKeys.has(key));
+    if (unsupportedKeys.length > 0) {
+      return res.status(400).json({
+        message: 'One or more profile fields are not supported',
+        fields: unsupportedKeys,
+      });
+    }
+
+    const firstName = typeof payload.firstName === 'string' ? payload.firstName.trim() : '';
+    const lastName = typeof payload.lastName === 'string' ? payload.lastName.trim() : '';
+    const phone = payload.phoneNumber ?? payload.phone;
+
+    if ((payload.firstName !== undefined || payload.lastName !== undefined) &&
+        !(firstName || lastName)) {
+      return res.status(400).json({ message: 'Profile name cannot be empty' });
+    }
+
+    const updates = {};
+    if (payload.firstName !== undefined || payload.lastName !== undefined) {
+      const currentNameParts = String(req.user.name || '').trim().split(/\s+/).filter(Boolean);
+      updates.name = [firstName || currentNameParts[0] || '', lastName || currentNameParts.slice(1).join(' ')]
+        .filter(Boolean)
+        .join(' ');
+    }
+    if (phone !== undefined) {
+      updates.phone = typeof phone === 'string' ? phone.trim() : phone;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No supported profile fields were provided' });
+    }
+
+    try {
+      const user = await User.findByIdAndUpdate(req.user._id || req.user.id, updates, {
+        new: true,
+        runValidators: true,
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      return res.status(200).json({
+        id: user._id || user.id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone || null,
+        role: user.role,
+        preferredLocale: normalizeDisplayLocale(user.preferredLocale),
+      });
+    } catch (error) {
+      logger.error('[AuthController] updateMe error', {
+        code: error?.code || 'AUTH_PROFILE_UPDATE_FAILED',
+      });
+      return res.status(400).json({ message: error?.message || 'Failed to update profile' });
   }
 }
 
@@ -1536,6 +1610,7 @@ export {
   logout,
   logoutAll,
   me,
+  updateMe,
   getPreferences,
   updatePreferences,
 

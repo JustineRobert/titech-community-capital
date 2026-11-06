@@ -557,7 +557,6 @@ const RefreshTokenSchema =
         maxlength: PUBLIC_ID_LENGTH,
         match:
           PUBLIC_ID_PATTERN,
-        index: true,
       },
 
       replacedAt: {
@@ -572,7 +571,6 @@ const RefreshTokenSchema =
       reuseDetectedAt: {
         type: Date,
         default: null,
-        index: true,
       },
 
       reuseDetectedReason: {
