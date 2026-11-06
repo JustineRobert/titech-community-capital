@@ -26,11 +26,15 @@ function resolveUserId(req) {
 
 function resolveTenantId(req) {
   const tenantId = (
+    req.auth?.tenantId ||
+    req.user?.tenantId ||
+    req.auth?.user?.tenantId ||
+    req.user?.user?.tenantId ||
+    req.tenant?._id ||
+    req.tenant?.id ||
     req.tenantId ||
     req.tenant?.tenantId ||
     req.tenantContext?.tenantId ||
-    req.auth?.tenantId ||
-    req.user?.tenantId ||
     null
   );
 

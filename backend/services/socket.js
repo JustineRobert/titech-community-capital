@@ -1,12 +1,10 @@
 // services/socket.js
 // Socket.IO initialization and helper utilities (backend version)
 
-'use strict';
-
-const { Server: SocketIOServer } = require('socket.io');
-const jwt = require('jsonwebtoken');
-const config = require('../config');
-const logger = require('../utils/logger');
+import { Server as SocketIOServer } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import config from '../config/index.js';
+import logger from '../utils/logger.js';
 
 function createSocketServer(httpServer, options = {}) {
   const allowedOrigins = (config.corsOrigins || 'http://localhost:3000')
@@ -38,9 +36,47 @@ function createSocketServer(httpServer, options = {}) {
         return next(new Error('Authentication error: token missing'));
       }
 
-      const decoded = jwt.verify(token, config.auth.jwtSecret);
+      const secrets = [
+        process.env.JWT_ACCESS_SECRET,
+        process.env.ACCESS_TOKEN_SECRET,
+        process.env.JWT_SECRET,
+        config.auth.jwtSecret,
+      ].filter((secret, index, values) =>
+        typeof secret === 'string' &&
+        secret.length > 0 &&
+        values.indexOf(secret) === index
+      );
+
+      let decoded;
+      let verificationError;
+      for (const secret of secrets) {
+        try {
+          decoded = jwt.verify(token, secret);
+          break;
+        } catch (error) {
+          verificationError = error;
+        }
+      }
+
+      if (!decoded) {
+        throw verificationError || new Error('JWT verification failed');
+      }
       socket.user = decoded.user || decoded;
-      socket.userId = decoded.userId || decoded.id;
+      socket.userId =
+        decoded.userId ||
+        decoded.id ||
+        decoded.user?.userId ||
+        decoded.user?.id ||
+        decoded.user?._id;
+      socket.tenantId =
+        decoded.tenantId ||
+        decoded.user?.tenantId ||
+        decoded.user?.tenant?.id ||
+        decoded.user?.tenant?._id;
+
+      if (!socket.userId) {
+        return next(new Error('Authentication error: user identity missing'));
+      }
       return next();
     } catch (err) {
       logger.error('Socket authentication failed', { error: err.message });
@@ -81,4 +117,4 @@ function createSocketServer(httpServer, options = {}) {
   return io;
 }
 
-module.exports = { createSocketServer };
+export { createSocketServer };

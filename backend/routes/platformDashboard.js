@@ -12,12 +12,10 @@ function asyncHandler(handler) {
 }
 
 async function countModel(model, filter = {}) {
-  try {
-    if (!model || typeof model.countDocuments !== 'function') return 0;
-    return await model.countDocuments(filter);
-  } catch {
-    return 0;
+  if (!model || typeof model.countDocuments !== 'function') {
+    throw new TypeError('Dashboard count source is unavailable');
   }
+  return model.countDocuments(filter);
 }
 
 router.use(authenticate, platformAdmin);
@@ -37,9 +35,13 @@ router.get('/stats', asyncHandler(async (_req, res) => {
       activeUsers,
       activeMembers: activeUsers,
       totalGroups: groups,
-      totalTransactions: 0,
-      totalSavings: 0,
-      pendingApprovals: 0,
+      totalTransactions: null,
+      totalSavings: null,
+      pendingApprovals: null,
+      dataAvailability: {
+        financialMetrics: 'unavailable',
+        approvalMetrics: 'unavailable',
+      },
     },
   });
 }));
@@ -82,10 +84,28 @@ router.get(['/dashboard', '/reports/dashboard'], asyncHandler(async (_req, res) 
       users,
       groups,
       activeUsers,
-      transactions: [],
-      summary: { users, groups, activeUsers, totalTransactions: 0, totalSavings: 0 },
+      transactions: null,
+      summary: {
+        users,
+        groups,
+        activeUsers,
+        totalTransactions: null,
+        totalSavings: null,
+      },
     },
-    data: { users, groups, activeUsers, transactions: [], summary: { users, groups, activeUsers, totalTransactions: 0, totalSavings: 0 } },
+    data: {
+      users,
+      groups,
+      activeUsers,
+      transactions: null,
+      summary: {
+        users,
+        groups,
+        activeUsers,
+        totalTransactions: null,
+        totalSavings: null,
+      },
+    },
   });
 }));
 

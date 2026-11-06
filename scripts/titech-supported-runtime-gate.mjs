@@ -38,7 +38,25 @@ export function evaluateRuntime({ nodeVersion = process.versions.node, npmVersio
   let actualNpm = npmVersion;
   if (!actualNpm) {
     try {
-      actualNpm = execFileSync('npm', ['--version'], { cwd: root, encoding: 'utf8' }).trim();
+      if (process.env.npm_execpath) {
+        actualNpm = execFileSync(
+          process.execPath,
+          [process.env.npm_execpath, '--version'],
+          { cwd: root, encoding: 'utf8' },
+        ).trim();
+      } else if (process.platform === 'win32') {
+        actualNpm = execFileSync(
+          process.env.ComSpec || 'cmd.exe',
+          ['/d', '/s', '/c', 'npm.cmd --version'],
+          { cwd: root, encoding: 'utf8' },
+        ).trim();
+      } else {
+        actualNpm = execFileSync(
+          'npm',
+          ['--version'],
+          { cwd: root, encoding: 'utf8' },
+        ).trim();
+      }
     } catch (error) {
       failures.push(`Unable to execute npm --version: ${error.message}`);
       actualNpm = '0.0.0';

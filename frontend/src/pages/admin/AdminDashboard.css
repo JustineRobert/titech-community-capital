@@ -842,7 +842,7 @@
 
   background: #F5F7FB;
 
-  color: #0058D8;
+  color: var(--admin-primary);
 
   font-family:
     Inter,

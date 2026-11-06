@@ -3477,6 +3477,57 @@ class ApplicationBootstrap {
       }
     }
 
+    if (
+      this.server &&
+      !this.socketServer &&
+      !this.context?.socketServer
+    ) {
+      try {
+        const socketModule =
+          await import("../services/socket.js");
+        const socketImplementation =
+          socketModule.default?.createSocketServer
+            ? socketModule.default
+            : socketModule;
+
+        if (
+          typeof socketImplementation.createSocketServer ===
+          "function"
+        ) {
+          this.socketServer =
+            socketImplementation.createSocketServer(
+              this.server,
+            );
+
+          if (application?.locals) {
+            application.locals.io =
+              this.socketServer;
+            application.locals.socketServer =
+              this.socketServer;
+          }
+
+          this.context.socketServer =
+            this.socketServer;
+          this.context.io =
+            this.socketServer;
+        }
+      } catch (error) {
+        throw new ApplicationBootstrapError(
+          "Unable to initialize TITech Socket.IO.",
+          {
+            code:
+              "SOCKET_IO_INITIALIZATION_FAILED",
+
+            phase:
+              "server",
+
+            cause:
+              error,
+          },
+        );
+      }
+    }
+
     this.context.serverModule =
       serverModule;
 

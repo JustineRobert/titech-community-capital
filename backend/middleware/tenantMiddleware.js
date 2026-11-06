@@ -57,7 +57,12 @@ function verifyToken(token) {
 async function resolveTenant(req) {
   const headerTenantId = normalizeTenantId(req.get(CONTEXT_HEADERS.TENANT_ID));
   const claimTenantId = normalizeTenantId(
-    req.auth?.tenantId || req.user?.tenantId || req.auth?.tenant || req.user?.tenant,
+    req.auth?.tenantId ||
+    req.auth?.user?.tenantId ||
+    req.user?.tenantId ||
+    req.user?.user?.tenantId ||
+    req.auth?.tenant ||
+    req.user?.tenant,
   );
 
   if (headerTenantId && claimTenantId && headerTenantId !== claimTenantId) {

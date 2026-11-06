@@ -56,7 +56,7 @@ import {
 
 import { toast } from "react-toastify";
 
-import api, { probeApiReadiness } from "../services/api";
+import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { normalizeTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
 
@@ -850,7 +850,8 @@ export default function Dashboard() {
   const fetchStats =
     useCallback(
       async (signal) => {
-        if (!isAdmin) {
+        const role = normalizeTitechRole(user?.role);
+        if (role !== TITECH_ROLES.PLATFORM_ADMIN) {
           return DEFAULT_STATS;
         }
 
@@ -873,7 +874,7 @@ export default function Dashboard() {
           throw statsError;
         }
       },
-      [isAdmin]
+      [user?.role]
     );
 
   // ==========================================================================
@@ -1054,36 +1055,37 @@ export default function Dashboard() {
     let active = true;
 
     const checkReadiness = async () => {
+      const startedAt = Date.now();
       try {
-        const result = await probeApiReadiness({ force: true });
-        if (!active || result?.cancelled || result?.stale) return;
+        const response = await api.get("/api/v1/ready", {
+          timeout: 5000,
+        });
+        const readinessStatus = String(response?.data?.status || "")
+          .trim()
+          .toLowerCase();
+        const ready = response?.status >= 200 &&
+          response?.status < 300 &&
+          readinessStatus === "ready";
 
-        let status = "NOT_READY";
-        if (result?.healthy === true) status = "READY";
-        else if (result?.degraded === true) status = "DEGRADED";
-        else if (result?.offline === true || result?.unavailable === true) status = "UNAVAILABLE";
-
-        const message = status === "READY"
-          ? "The API readiness endpoint reports required services ready."
-          : status === "DEGRADED"
-            ? "The API is reachable but reports that required services are not ready."
-            : status === "UNAVAILABLE"
-              ? "API readiness could not be verified."
-              : "The API has not confirmed readiness.";
+        if (!active) return;
 
         setReadiness({
-          status,
+          status: ready ? "READY" : "DEGRADED",
           checkedAt: new Date().toISOString(),
-          latencyMs: Number.isFinite(Number(result?.latency)) ? Number(result.latency) : null,
-          message,
+          latencyMs: Date.now() - startedAt,
+          message: ready
+            ? "The API readiness endpoint reports required services ready."
+            : "The API is reachable but reports that required services are not ready.",
         });
-      } catch {
+      } catch (error) {
         if (!active) return;
         setReadiness({
-          status: "UNAVAILABLE",
+          status: error?.response?.status ? "DEGRADED" : "UNAVAILABLE",
           checkedAt: new Date().toISOString(),
-          latencyMs: null,
-          message: "API readiness could not be verified.",
+          latencyMs: Date.now() - startedAt,
+          message: error?.response?.status
+            ? "The API is reachable, but readiness validation failed."
+            : "API readiness could not be verified.",
         });
       }
     };

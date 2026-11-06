@@ -2524,8 +2524,11 @@ export async function checkApiReadiness(signal, { isCurrent = () => true } = {})
     }
 
     const latency = Date.now() - startedAt;
+    const readinessStatus = String(response.data?.status || response.data?.data?.status || '')
+      .trim()
+      .toLowerCase();
     const ready = response.status >= 200 && response.status < 300 &&
-      String(response.data?.status || '').toLowerCase() === 'ready';
+      (readinessStatus === 'ready' || readinessStatus === 'healthy');
 
     return {
       healthy: ready,
