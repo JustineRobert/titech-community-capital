@@ -1802,6 +1802,7 @@ function registerRoutes(
 
     app.use('/api/admin', platformDashboardRoutes);
     app.use('/api/members', platformDashboardRoutes);
+    app.use('/api/reports', platformDashboardRoutes);
 
     app.use(
         '/api/email',

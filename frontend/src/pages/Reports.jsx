@@ -366,12 +366,28 @@ function formatReportType(type) {
 }
 
 function getErrorMessage(error) {
-  return (
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    error?.message ||
-    "Unable to load the requested report."
-  );
+  const values = [
+    error?.response?.data?.message,
+    error?.response?.data?.error,
+    error?.message,
+  ];
+
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+    if (isObject(value)) {
+      const nested =
+        value.message ||
+        value.error ||
+        value.detail;
+      if (typeof nested === "string" && nested.trim()) {
+        return nested.trim();
+      }
+    }
+  }
+
+  return "Unable to load the requested report.";
 }
 
 function getPayload(response) {
@@ -1147,9 +1163,39 @@ export default function Reports() {
             err
           );
 
+          let blobErrorMessage = "";
+          const responseData = err?.response?.data;
+
+          if (
+            typeof Blob !== "undefined" &&
+            responseData instanceof Blob
+          ) {
+            try {
+              const body = JSON.parse(
+                await responseData.text()
+              );
+              blobErrorMessage =
+                body?.message ||
+                body?.error ||
+                "";
+            } catch {
+              blobErrorMessage = "";
+            }
+          }
+
           toast.error(
             getErrorMessage(
-              err
+              blobErrorMessage
+                ? {
+                    ...err,
+                    response: {
+                      ...err.response,
+                      data: {
+                        message: blobErrorMessage,
+                      },
+                    },
+                  }
+                : err
             ) ||
               "Unable to export report."
           );

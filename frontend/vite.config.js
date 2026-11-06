@@ -711,11 +711,6 @@ export default defineConfig(
             assetFileNames:
               "assets/[ext]/[name]-[hash].[ext]",
 
-            /**
-             * Keep generated bundles deterministic and cache friendly.
-             */
-            sourcemapFileNames:
-              "assets/maps/[name]-[hash].map",
           },
         },
 
