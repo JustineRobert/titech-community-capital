@@ -223,7 +223,7 @@ function PublicLeadForm({ type }) {
 
       <label className="titech-public-form__consent">
         <input name="consentToContact" type="checkbox" required />
-        <span>I agree that TITech Capital LTD may use the details above to respond to this request. I have not included passwords, PINs, payment secrets, or member-level financial records.</span>
+        <span>I agree that TITech Capital SMC LTD may use the details above to respond to this request. I have not included passwords, PINs, payment secrets, or member-level financial records.</span>
       </label>
 
       {errorSummary.length > 0 ? (

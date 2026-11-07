@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * Enterprise Administrative Analytics Controller
  * =============================================================================
  *
@@ -67,7 +67,7 @@ const CONTROLLER_NAME =
     "adminAnalytics.controller";
 
 const APPLICATION_NAME =
-    "TITech Capital LTD";
+    "TITech Capital SMC LTD";
 
 /* =============================================================================
  * HTTP STATUS

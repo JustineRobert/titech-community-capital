@@ -51,7 +51,7 @@ const MODULE_DESCRIPTION =
     'Enterprise Graceful Degradation Engine';
 
 const MODULE_AUTHOR =
-    'TITech Capital LTD';
+    'TITech Capital SMC LTD';
 
 const MODULE_NAMESPACE =
     'middleware.resilience.gracefulDegradation';

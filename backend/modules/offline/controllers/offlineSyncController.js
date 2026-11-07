@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital LTD — TITech Community Capital
+ * TITech Capital SMC LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *

@@ -19,7 +19,7 @@ if (themeText) {
   try { theme = JSON.parse(themeText); } catch { /* checked below */ }
 }
 check('official theme JSON parses', Boolean(theme), 'branding/TITECH_OFFICIAL_THEME.json');
-check('official organization name', theme?.organization === 'TITech Capital LTD', `found ${JSON.stringify(theme?.organization)}`);
+check('official organization name', theme?.organization === 'TITech Capital SMC LTD', `found ${JSON.stringify(theme?.organization)}`);
 const expectedPalette = {
   deepBlue: '#0030A0', electricBlue: '#0058D8', brightBlue: '#0066E8', cyan: '#00B8F8',
   africaGreen: '#008000', limeGreen: '#A8F000', goldYellow: '#F8D800', navyInk: '#082B67', white: '#FFFFFF',
@@ -29,7 +29,7 @@ check('all nine official palette colors preserved', Object.entries(expectedPalet
 
 const brandJs = read('frontend/src/branding/brand.js');
 check('frontend brand contract exists', brandJs !== null, 'frontend/src/branding/brand.js');
-check('frontend legalName is canonical', Boolean(brandJs?.includes("legalName: 'TITech Capital LTD'")), 'TITECH_BRAND.legalName');
+check('frontend legalName resolves from canonical organization profile', Boolean(brandJs?.includes('legalName: TITECH_ORGANIZATION.configuredLegalName')) && Boolean(brandJs?.includes("configuredLegalName: 'TITech Capital SMC LTD'")), 'TITECH_BRAND.legalName -> TITECH_ORGANIZATION.configuredLegalName');
 
 for (const relativePath of ['package.json', 'backend/package.json']) {
   const content = read(relativePath);
@@ -44,7 +44,7 @@ let legalContent = null;
 if (legalContentText) { try { legalContent = JSON.parse(legalContentText); } catch { /* checked below */ } }
 check('canonical shared legal source parses', Boolean(legalContent), 'shared/legal/legalDocuments.json');
 check('legal content remains visibly gated as draft', legalContent?.status === 'draft', `status=${JSON.stringify(legalContent?.status)}`);
-check('canonical operator and product identities are consistent', legalContent?.organizationName === 'TITech Capital LTD' && legalContent?.productName === 'TITech Community Capital', 'organizationName/productName');
+check('canonical operator and product identities are consistent', legalContent?.organizationName === 'TITech Capital SMC LTD' && legalContent?.productName === 'TITech Community Capital', 'organizationName/productName');
 check('canonical legal documents include all required routes', ['/legal', '/terms', '/privacy'].every((route) => Object.values(legalContent?.documents || {}).some((document) => document.path === route)), 'legal paths');
 
 const report = { status: failures.length ? 'FAIL' : 'PASS', checkedAt: new Date().toISOString(), checks, failures };

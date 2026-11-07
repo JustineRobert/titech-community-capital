@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * File: backend/tests/unit/utils/validateInput.test.js
  * Validation Utility Tests — Native ESM
  * ============================================================================

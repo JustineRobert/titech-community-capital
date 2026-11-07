@@ -298,7 +298,7 @@ const PAYMENT_MODULE_METADATA = Object.freeze({
     'Payment Processing',
 
   organization:
-    'TITech Capital LTD',
+    'TITech Capital SMC LTD',
 
   platform:
     'Community Savings Platform',

@@ -19,6 +19,7 @@ import operationsRoutes from '../modules/operations/operations.routes.js';
 import ubuntuFloatRoutes from '../modules/ubuntu-float/ubuntuFloat.routes.js';
 import educationCampaignRoutes from '../modules/education/educationCampaign.routes.js';
 import educationCampaignPublicRoutes from '../modules/education/educationCampaign.public.routes.js';
+import eduFinanceRoutes from '../modules/edufinance/eduFinance.routes.js';
 import institutionalLeadRoutes from './institutionalLead.routes.js';
 import tenantMiddlewareModule from '../middleware/tenantMiddleware.js';
 import { payrollApiRouter, payrollWebhookRouter } from '../modules/payroll/payroll.routes.js';
@@ -36,7 +37,7 @@ import systemSettingRoutesModule from './systemSettingRoutes.js';
 
 /**
  * =============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * Enterprise API Route Registry
  * =============================================================================
  *
@@ -101,7 +102,7 @@ const APPLICATION_NAME =
     );
 
 const APPLICATION_LEGAL_NAME =
-    'TITech Capital LTD';
+    'TITech Capital SMC LTD';
 
 const API_PREFIX =
     '/api/v1';
@@ -1208,6 +1209,15 @@ router.use(
     authenticate,
     tenantAuthorization,
     educationCampaignRoutes,
+);
+
+// EduFinance accepts only guarded parent/guardian application intake.
+// Credit approval, loan booking and real-money operations remain partner-gated.
+router.use(
+    `${API_PREFIX}/edufinance`,
+    authenticate,
+    tenantAuthorization,
+    eduFinanceRoutes,
 );
 
 router.use(

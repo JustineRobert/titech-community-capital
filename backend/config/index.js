@@ -59,7 +59,7 @@ const COMPONENT =
   'configuration';
 
 const APPLICATION_LEGAL_NAME =
-  'TITech Capital LTD';
+  'TITech Capital SMC LTD';
 
 const DEFAULTS = Object.freeze({
   api: Object.freeze({

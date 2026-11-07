@@ -1,6 +1,6 @@
 /**
 * ============================================================================
-* TITech Capital LTD
+* TITech Capital SMC LTD
 * Enterprise Legal Disclaimer Page
 * ============================================================================
 *
@@ -126,7 +126,7 @@ phoneHref:
 '+256782397907',
 
 address:
-'TITech Capital LTD, P.O. BOX 601200, Clock Tower, Uganda',
+'TITech Capital SMC LTD, P.O. BOX 601200, Clock Tower, Uganda',
 });
 
 /* ============================================================================

@@ -15,7 +15,7 @@
    - Reduced-motion accessibility
    - Scoped styling to avoid global application conflicts
 
-   Brand primary: #0058D8
+   Brand primary is supplied by the centralized TITech theme tokens.
    ========================================================================== */
 
 
@@ -24,8 +24,8 @@
    ========================================================================== */
 
 .admin-dashboard {
-  --admin-primary: #0058D8;
-  --admin-primary-hover: #0046AD;
+  --admin-primary: var(--titech-brand-electric-blue);
+  --admin-primary-hover: var(--titech-brand-deep-blue);
   --admin-primary-soft: #EAF2FF;
 
   --admin-success: #16834A;
@@ -50,7 +50,7 @@
   --admin-orange-soft: #FFF0E5;
 
   --admin-background: #F5F7FB;
-  --admin-surface: #FFFFFF;
+  --admin-surface: var(--titech-brand-white);
 
   --admin-text: #17243A;
   --admin-text-secondary: #64748B;
@@ -209,7 +209,7 @@
   border-radius: var(--admin-radius-sm);
 
   background: var(--admin-primary);
-  color: #FFFFFF;
+  color: var(--titech-brand-white);
 
   font-family: inherit;
   font-size: 13px;
@@ -243,7 +243,7 @@
 .admin-dashboard .refresh-btn.secondary {
   flex-shrink: 0;
 
-  background: #FFFFFF;
+  background: var(--titech-brand-white);
   color: var(--admin-primary);
 
   border-color: var(--admin-border-strong);
@@ -437,7 +437,7 @@
    ========================================================================== */
 
 .admin-dashboard .admin-stat-card.blue {
-  --stat-accent: #0058D8;
+  --stat-accent: var(--titech-brand-electric-blue);
   --stat-soft: #EAF2FF;
 }
 
@@ -876,7 +876,7 @@
 
   padding: 17px 20px;
 
-  background: #FFFFFF;
+  background: var(--titech-brand-white);
 
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-md);

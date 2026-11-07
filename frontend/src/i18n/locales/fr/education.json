@@ -89,5 +89,20 @@
   "edit": "Modifier le brouillon/la version",
   "cancelEdit": "Annuler la modification",
   "draftVersion": "Version brouillon",
-  "minorUnitHelp": "Saisissez des shillings UGX entiers pour UGX, ou des cents pour USD. Il s’agit d’objectifs/budgets, pas de paiements ou de soldes."
+  "minorUnitHelp": "Saisissez des shillings UGX entiers pour UGX, ou des cents pour USD. Il s’agit d’objectifs/budgets, pas de paiements ou de soldes.",
+  "eduFinanceTitle": "TITech EduFinance",
+  "eduFinanceSubtitle": "Plateforme d’infrastructure de financement des frais scolaires",
+  "eduFinanceTagline": "Frais scolaires vérifiés. Financement responsable. Rapprochement complet.",
+  "eduFinanceDescription": "Un parcours d’infrastructure piloté par des partenaires, reliant parents et tuteurs, établissements scolaires et institutions de crédit autorisées. Le parent ou tuteur légalement habilité est normalement l’emprunteur ; l’élève est le bénéficiaire de l’éducation.",
+  "eduFinancePartnerEnquiry": "Discuter d’un pilote institutionnel",
+  "eduFinanceCommunitySupport": "Découvrir le soutien à l’éducation",
+  "eduFinanceBorrowerHeading": "Protection des parents et tuteurs",
+  "eduFinanceBorrower": "Le parent ou tuteur légalement habilité est normalement l’emprunteur. L’élève n’est pas emprunteur et ne doit pas servir d’indicateur indirect de notation de crédit. Seule la référence minimale nécessaire de l’élève doit être traitée.",
+  "eduFinancePartnerHeading": "Partenaires institutionnels autorisés",
+  "eduFinancePartner": "La vérification de l’école et de la facture, les décisions de crédit, le financement et les obligations de prêt relèvent de l’établissement vérifié et de l’institution de crédit autorisée. L’exécution des paiements dépend d’un prestataire dûment autorisé.",
+  "eduFinanceControlsHeading": "Contrôles financiers et réglementaires",
+  "eduFinanceControls": "TITech fournit une infrastructure et des dossiers. La plateforme n’accepte pas de dépôts, n’accorde pas de prêts, ne détient pas les frais scolaires, ne prend pas de décisions de crédit non autorisées, n’exécute pas de paiements et ne distribue pas d’assurance de manière indépendante.",
+  "eduFinanceCurrentStateHeading": "État actuel du service",
+  "eduFinanceCurrentState": "Cette page est informative. Le dépôt des demandes et toutes les opérations financières réelles restent désactivés par défaut jusqu’à la preuve des conditions requises concernant les partenaires, le droit, la confidentialité, la sécurité et l’exploitation.",
+  "eduFinanceAvailability": "Toute offre, tarification, éligibilité, convention, mise à disposition de fonds ou modalité de remboursement future doit être proposée par le prêteur autorisé et responsable selon des conditions approuvées. Cette page ne constitue ni une offre de prêt, ni une décision de crédit, ni une garantie."
 }

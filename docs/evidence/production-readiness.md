@@ -1,32 +1,64 @@
-# TITech Production Readiness — 2026-10-05
+# TITech Community Capital — Production Readiness
 
-## Current status
+**Assessment date:** 7 November 2026  
+**Organization:** TITech Capital SMC LTD  
+**Product:** TITech Community Capital  
+**Decision:** **NOT READY**  
+**`productionApproved`: `false`**
 
-**NOT READY** based on the supplied repository archive plus the evidence that could actually be executed in the available environment.
+This assessment applies to the supplied archive-local source snapshot, not an asserted current GitHub commit or deployed environment. The ZIP did not contain Git metadata; the execution environment could not resolve GitHub; the local runtime was below the repository baseline and dependencies were not installed.
 
-The 2026-10-05 remediation improved source correctness, bootstrap lifecycle integrity, exact agriculture arithmetic, official theme coverage, test discovery, and release-gate honesty. It does not create live-provider, runtime-infrastructure, security-assessment, recovery, regulatory, or customer-pilot evidence that was not available.
+## Readiness scorecard
 
-## 2026-10-05 Dimension scorecard
-
-| Dimension | Current assessment | Evidence / remaining requirement |
+| Dimension | Current status | Evidence / remaining requirement |
 |---|---|---|
-| Architecture | SOURCE_VERIFIED | Target-runtime bootstrap execution still required |
-| Financial correctness | STATIC_VERIFIED | Real Mongo replica-set transaction/concurrency proof required |
-| Payments | IMPLEMENTED_SOURCE | MTN sandbox/production transaction proof required |
-| Reconciliation | IMPLEMENTED_SOURCE | Executed provider/internal mismatch cases required |
-| Security | STATIC_VERIFIED | Full SAST/SCA/secret/container/IaC/DAST and independent testing required |
-| Privacy | DOCUMENTED | Legal/data-processing validation required |
-| Compliance | DOCUMENTED_PERIMETER | Current Uganda legal/regulatory review required |
-| Observability | IMPLEMENTED_SOURCE | Deployment-backed telemetry verification required |
-| Reliability | IMPLEMENTED_SOURCE | Failure-injection/operational drills required |
-| Backup/restore | SCRIPTS_PRESENT | Actual restore drill required |
-| Testing | PARTIALLY_VERIFIED | 53 targeted dependency-free tests pass; full dependency-backed suite unverified |
-| Operations/support | SOURCE_PRESENT | Real pilot/support evidence required |
-| Provider validation | UNPROVEN | MTN provider evidence required |
-| Customer pilot | UNPROVEN | Three real institution proofs required |
+| Architecture preservation | SOURCE CHECKED | Existing canonical modules retained; complete runtime bootstrap remains unverified |
+| Community finance | EXISTING SOURCE | Existing financial domain retained; transaction-capable integration replay still required |
+| EduFinance application intake | IMPLEMENTED SOURCE / 15 TESTS PASS | Feature-flagged parent/guardian intake only; no completed lender lifecycle |
+| School / invoice verification | NOT IMPLEMENTED | Partner registry, authoritative school/invoice verification and destination validation required |
+| Credit policy and underwriting | NOT IMPLEMENTED FOR EDUFINANCE | Lender owns approved policy, decision and authority; no autonomous approval |
+| Insurance partner workflow | EXISTING SOURCE / GATED | Licence/partner evidence, product authorization and live premium adapter remain unproven |
+| Refugee and host-community onboarding | EXISTING SOURCE / TARGETED TESTS PASS | Legal basis, partner verification, KYC, child safeguarding and operational validation required |
+| Payment providers | SOURCE PRESENT / EXTERNAL PROOF UNPROVEN | Credentialed MTN sandbox end-to-end request, callback, status and settlement evidence required |
+| Financial correctness | STATIC GATE PASS / RUNTIME UNPROVEN | MongoDB replica-set transactions, concurrency, retries, ledger replay and balance reconstruction required |
+| Reconciliation | SOURCE PRESENT / RUNTIME UNPROVEN | Provider/settlement/ledger matching, mismatch cases and external evidence required |
+| Authentication and RBAC | SOURCE PRESENT / TARGETED TESTS | Full app startup, API authorization, session and cross-tenant E2E required |
+| Privacy and compliance | DOCUMENTED PERIMETER / LEGAL REVIEW OPEN | Qualified Uganda legal advice, DPIA/controller-processor analysis and regulator/partner applicability decisions |
+| Observability and resilience | SOURCE PRESENT / OPERATIONS UNPROVEN | Running deployment, alerts, queue/Redis failure tests and incident response drill required |
+| Backup and disaster recovery | SCRIPTS/DOCS PRESENT / RESTORE UNPROVEN | Execute and record a restore drill against representative backed-up data |
+| Full application build and E2E | NOT RUN | Node >=24.15.0/npm >=11, clean install, frontend/backend build and browser E2E required |
+| Independent security | NOT COMPLETED | SAST/SCA/secret/container/IaC/DAST and independent penetration testing required |
+| Customer pilot | NOT PROVEN | Partner agreements, real institutions, provider/operational readiness and measured results required |
 
-## Release gates
+## Executed evidence in this archive session
 
-The audit-mode release gate passes its source checks but records two explicit warnings: the observed Node runtime differs from the repository pin, and 214 legacy/non-critical missing local imports remain. The strict gate is **BLOCKED** by the runtime mismatch.
+- JavaScript/TypeScript-family syntax gate: PASS, 2,489 files parsed.
+- Financial static gate: PASS, 12 canonical files checked.
+- Enterprise contract gate: PASS, 11 control-plane contracts checked.
+- Critical P0/P1 contract: PASS; all eight release-blocking gates remain open.
+- Release-readiness audit: PASS in audit mode with two warnings (runtime mismatch and 208 unresolved non-critical import candidates); the supported-runtime gate remains BLOCKED.
+- Dedicated production-approval gate: BLOCKED because protected production approval, approval reference and approval expiry evidence are absent.
+- Official theme audit: PASS; 68 CSS files scanned, zero hard-coded official-palette literals in non-brand CSS.
+- Organization profile gate: PASS; identity and postal status remain externally unverified/user-supplied.
+- Legal branding verifier: PASS; shared legal content remains draft.
+- i18n resource validation: PASS; Swahili, French and Arabic still require human review.
+- Education-support unit tests: 10/10 PASS.
+- Refugee/host-community and inclusive-insurance tests: 24/24 PASS.
+- EduFinance policy/route contract tests: 15/15 PASS.
+- Critical-gate native tests: 4/4 PASS.
 
-`productionApproved = false` remains mandatory until missing external/runtime evidence is independently recorded and a human approval decision is made.
+The results above do not substitute for dependency-backed, database, provider, browser, operations, security or external approvals.
+
+## Open release blockers
+
+1. Run on Node `>=24.15.0` and npm `>=11.0.0`, then perform a clean lockfile-based dependency installation.
+2. Execute canonical backend/frontend builds and complete unit, integration, contract and browser E2E suites; resolve all failures without downgrading tests.
+3. Verify the bootstrap and health/readiness endpoints with real MongoDB and Redis; run replica-set transaction, concurrency, retry, rollback and restart/replay tests.
+4. Prove MTN sandbox payment initiation through authoritative callback/status, settlement, canonical ledger, receipt and reconciliation.
+5. Prove tenant/lender/school/borrower security boundaries and obtain independent security assessment.
+6. Execute backup restoration, recovery, operational monitoring and incident response exercises.
+7. Complete Uganda legal/regulatory applicability analysis, privacy/DPIA and child-safeguarding review, lender/provider/school/insurer contracts and written permissions.
+8. Complete a controlled institutional pilot with documented operational and commercial evidence.
+9. For EduFinance specifically, implement school/invoice verification and integrate lender decision, agreement, disbursement, loan booking, repayment and loan closure exclusively through authorized partners and TITech's canonical financial/payment/ledger/reconciliation services.
+
+Until the blockers are independently evidenced and formally approved, production-sensitive flags remain disabled. No live lending, insurance distribution, deposit acceptance, payment service, custody of customer funds or production financial execution is authorized by this software change.

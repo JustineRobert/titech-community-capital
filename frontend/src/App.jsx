@@ -143,6 +143,10 @@ const EducationCampaignManagerPage = lazy(
   () => import('./pages/education-support/EducationCampaignManagerPage')
 );
 
+const EduFinancePage = lazy(
+  () => import('./pages/edufinance/EduFinancePage')
+);
+
 const NotFound = lazy(
   () => import('./pages/NotFound')
 );
@@ -208,6 +212,7 @@ const ROUTES = Object.freeze({
   INCLUSIVE_ONBOARDING: '/inclusive-onboarding',
   RETIREMENT_SUPPORT: '/retirement-support',
   EDUCATION_SUPPORT: '/education-support',
+  EDUFINANCE: '/edufinance',
   EDUCATION_CAMPAIGN_MANAGER: '/education-support/manage',
 
   ADMIN: '/admin',
@@ -703,6 +708,11 @@ function PublicRoutes() {
       <Route
         path={ROUTES.EDUCATION_SUPPORT}
         element={<EducationSupportPage />}
+      />
+
+      <Route
+        path={ROUTES.EDUFINANCE}
+        element={<EduFinancePage />}
       />
     </>
   );

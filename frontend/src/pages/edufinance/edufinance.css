@@ -1,0 +1,121 @@
+.titech-edufinance-page {
+  width: min(100% - 2rem, 76rem);
+  margin: 0 auto;
+  padding-block: clamp(1.5rem, 4vw, 3.5rem);
+  color: var(--titech-color-text);
+}
+
+.titech-edufinance-hero {
+  padding: clamp(1.25rem, 4vw, 3rem);
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-dialog, 1.25rem);
+  background: linear-gradient(135deg, var(--titech-color-surface), var(--titech-color-surface-muted));
+  box-shadow: var(--titech-ui-shadow-card);
+}
+
+.titech-edufinance-eyebrow {
+  color: var(--titech-brand-electric-blue);
+  font-size: .8rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.titech-edufinance-hero h1 {
+  max-width: 48rem;
+  margin-block: .6rem;
+  color: var(--titech-brand-deep-blue);
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 1.1;
+}
+
+.titech-edufinance-subtitle {
+  color: var(--titech-color-text-muted);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 700;
+}
+
+.titech-edufinance-tagline {
+  color: var(--titech-brand-electric-blue);
+  font-weight: 800;
+}
+
+.titech-edufinance-hero > p,
+.titech-edufinance-card p,
+.titech-edufinance-notice p {
+  max-width: 68rem;
+  line-height: 1.65;
+}
+
+.titech-edufinance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin-top: 1.4rem;
+}
+
+.titech-edufinance-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: .65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--titech-ui-radius-control, .75rem);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.titech-edufinance-button:focus-visible {
+  outline: 3px solid var(--titech-focus-color);
+  outline-offset: 2px;
+}
+
+.titech-edufinance-button--primary {
+  color: var(--titech-on-primary);
+  background: var(--titech-brand-deep-blue);
+}
+
+.titech-edufinance-button--secondary {
+  color: var(--titech-brand-deep-blue);
+  border-color: var(--titech-color-border-strong);
+  background: var(--titech-color-surface);
+}
+
+.titech-edufinance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.titech-edufinance-card {
+  padding: 1.25rem;
+  border: 1px solid var(--titech-color-border);
+  border-radius: var(--titech-ui-radius-card, 1rem);
+  background: var(--titech-color-surface);
+  box-shadow: var(--titech-ui-shadow-card);
+}
+
+.titech-edufinance-card h2 {
+  color: var(--titech-brand-deep-blue);
+  font-size: 1.1rem;
+}
+
+.titech-edufinance-notice {
+  margin-top: 1.25rem;
+  padding: 1rem 1.2rem;
+  border-inline-start: 4px solid var(--titech-brand-gold);
+  border-radius: .75rem;
+  background: var(--titech-color-surface-muted);
+}
+
+.titech-edufinance-notice p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .titech-edufinance-page { width: min(100% - 1rem, 76rem); }
+  .titech-edufinance-actions { align-items: stretch; flex-direction: column; }
+  .titech-edufinance-button { width: 100%; box-sizing: border-box; }
+}

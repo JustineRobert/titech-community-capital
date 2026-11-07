@@ -71,8 +71,8 @@
       "mobile_tokens": "mobile/branding/titech-theme.tokens.json"
     }
   },
-  "organization": "TITech Capital LTD",
-  "organization_display_name": "TITech Capital LTD",
+  "organization": "TITech Capital SMC LTD",
+  "organization_display_name": "TITech Capital SMC LTD",
   "organization_profile": "branding/TITECH_ORGANIZATION_PROFILE.json",
   "organization_identity_status": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
   "postal_address_status": "USER_SUPPLIED_ADMINISTRATIVE_RECORD"

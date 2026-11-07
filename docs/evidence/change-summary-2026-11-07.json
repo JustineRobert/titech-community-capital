@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-11-07T06:33:47.969257+00:00",
+  "organization": "TITech Capital SMC LTD",
+  "product": "TITech Community Capital",
+  "tagline": "BUILD LESS. PROVE MORE.",
+  "inputZip": "titech-community-capital-main.zip",
+  "inputZipSha256": "eee19b22910a4d35f9c1472c5a93c6d50636471fd6ff2bb0ccc4eb564c5e06ee",
+  "baselineFileCount": 3516,
+  "updatedFileCount": 3544,
+  "addedCountComparedWithArchive": 28,
+  "modifiedCountComparedWithArchive": 115,
+  "removedCountComparedWithArchive": 0,
+  "productionApproved": false,
+  "readinessStatus": "NOT READY",
+  "sourceScope": "uploaded archive only; no git branch/commit and no remote push",
+  "note": "Counts include repository source and evidence artifacts. Checksum manifest excludes itself and generated audit outputs."
+}

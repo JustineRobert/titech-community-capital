@@ -89,5 +89,20 @@
   "edit": "Edit draft/version",
   "cancelEdit": "Cancel editing",
   "draftVersion": "Draft version",
-  "minorUnitHelp": "Use whole UGX shillings for UGX, or cents for USD. Amounts are targets/budgets only, not payments or balances."
+  "minorUnitHelp": "Use whole UGX shillings for UGX, or cents for USD. Amounts are targets/budgets only, not payments or balances.",
+  "eduFinanceTitle": "TITech EduFinance",
+  "eduFinanceSubtitle": "School Fees Financing Infrastructure Platform",
+  "eduFinanceTagline": "Verified school fees. Responsible financing. Complete reconciliation.",
+  "eduFinanceDescription": "A partner-led infrastructure workflow connecting parents and guardians, schools and authorized lending institutions. The parent or legally authorized guardian is the borrower; the student is the education beneficiary.",
+  "eduFinancePartnerEnquiry": "Discuss an institutional pilot",
+  "eduFinanceCommunitySupport": "Explore education support",
+  "eduFinanceBorrowerHeading": "Parent and guardian protection",
+  "eduFinanceBorrower": "The parent or legally authorized guardian is the normal borrower. Student beneficiaries are not borrowers and should not be used as credit-scoring proxies. Only the minimum necessary student reference should be processed.",
+  "eduFinancePartnerHeading": "Authorized institutional partners",
+  "eduFinancePartner": "School and invoice verification, credit decisions, loan funding and lending obligations remain with the relevant verified school and authorized lending institution. Payment execution depends on an appropriately authorized provider.",
+  "eduFinanceControlsHeading": "Financial and regulatory controls",
+  "eduFinanceControls": "TITech supplies infrastructure and records. It does not independently accept deposits, lend, hold tuition funds, make unauthorized credit decisions, execute payments or distribute insurance.",
+  "eduFinanceCurrentStateHeading": "Current service status",
+  "eduFinanceCurrentState": "This page is informational. Application intake and all live financial actions remain disabled by default until partner, legal, privacy, security and operational gates are evidenced.",
+  "eduFinanceAvailability": "Any future offer, price, eligibility, agreement, disbursement or repayment arrangement must be provided by the responsible authorized lender under approved terms. This page is not a loan offer, credit approval or guarantee."
 }

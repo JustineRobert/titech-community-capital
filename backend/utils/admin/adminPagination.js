@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * Enterprise Admin Pagination Utility
  * ============================================================================
  *
@@ -90,7 +90,7 @@ const UTILITY_VERSION =
   '2026.1';
 
 const APPLICATION_NAME =
-  'TITech Capital LTD';
+  'TITech Capital SMC LTD';
 
 /**
  * ============================================================================

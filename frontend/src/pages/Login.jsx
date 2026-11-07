@@ -1359,7 +1359,7 @@ export default function Login() {
            * ================================================================== */}
 
           <div className="login-footer">
-            <span>TITech Community Capital is a product of TITech Capital LTD. Review the public legal information:</span>
+            <span>TITech Community Capital is a product of TITech Capital SMC LTD. Review the public legal information:</span>
             <LegalDocumentLinks className="login-footer__legal-links" />
           </div>
 

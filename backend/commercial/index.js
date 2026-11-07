@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * Commercial Platform Domain
  * =============================================================================
  *
@@ -73,7 +73,7 @@ const COMMERCIAL_DOMAIN =
             "1.0.0",
 
         company:
-            "TITech Capital LTD",
+            "TITech Capital SMC LTD",
 
         platform:
             "TITech Community Capital",

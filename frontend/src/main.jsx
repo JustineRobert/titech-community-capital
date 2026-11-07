@@ -3,7 +3,7 @@
 /**
  * ============================================================================
  * Product: TITech Community Capital
- * Organization: TITech Capital LTD
+ * Organization: TITech Capital SMC LTD
  * ============================================================================
  *
  * File:
@@ -166,7 +166,7 @@ function installApplicationDiagnostics() {
 
     const applicationInfo = Object.freeze({
       name: APP_NAME,
-      organization: TITECH_BRAND?.organizationName || 'TITech Capital LTD',
+      organization: TITECH_BRAND?.organizationName || 'TITech Capital SMC LTD',
       version: APP_VERSION,
       environment: APP_ENVIRONMENT,
       buildTime: BUILD_TIME,
@@ -616,7 +616,7 @@ function applyOfficialBrandRuntime() {
 
     // Company identity is separate from the customer-facing product name.
     rootElement.dataset.titechOrganizationName =
-      TITECH_BRAND?.organizationName || 'TITech Capital LTD';
+      TITECH_BRAND?.organizationName || 'TITech Capital SMC LTD';
 
     // ------------------------------------------------------------------------
     // Canonical deterministic theme runtime
@@ -647,7 +647,7 @@ function applyOfficialBrandRuntime() {
         OFFICIAL_BRAND_NAME;
 
       document.body.dataset.titechOrganizationName =
-        TITECH_BRAND?.organizationName || 'TITech Capital LTD';
+        TITECH_BRAND?.organizationName || 'TITech Capital SMC LTD';
     }
 
     // ------------------------------------------------------------------------

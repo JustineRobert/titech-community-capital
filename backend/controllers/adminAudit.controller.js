@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * Enterprise Administrative Audit Controller
  * =============================================================================
  *
@@ -82,7 +82,7 @@ const CONTROLLER_NAME =
     "adminAudit.controller";
 
 const APPLICATION_NAME =
-    "TITech Capital LTD";
+    "TITech Capital SMC LTD";
 
 /* =============================================================================
  * HTTP STATUS

@@ -1,8 +1,22 @@
 {
-  "generatedAt": "2026-10-31T20:01:24.729Z",
+  "generatedAt": "2026-11-07T06:34:07.879Z",
+  "repositoryUrl": "https://github.com/JustineRobert/titech-community-capital",
+  "organization": "TITech Capital SMC LTD",
+  "product": "TITech Community Capital",
+  "tagline": "BUILD LESS. PROVE MORE.",
+  "branch": "UNAVAILABLE_IN_ARCHIVE",
+  "commit": "UNAVAILABLE_IN_ARCHIVE",
+  "sourceSnapshotSha256": "dcb8aada2db79751756e1b0ea33a8a8909dd156d9a2c0bba71c144b7bcd47ae2",
+  "runtime": {
+    "requiredNode": "24.15.0",
+    "requiredNpm": "11.x",
+    "observedNode": "v22.16.0",
+    "observedNpm": "10.9.2",
+    "localRuntimeMeetsTarget": false
+  },
   "repository": {
-    "totalFiles": 3519,
-    "sourceFiles": 2473,
+    "totalFiles": 3544,
+    "sourceFiles": 2489,
     "zeroByteFiles": 248,
     "zeroBytePaths": [
       "backend/application/MiddlewareRegistrar.js",
@@ -242,7 +256,7 @@
       "backend/tests/unit/commercial/transactionRevenue/revenueReversal.service.test.js",
       "backend/tests/unit/commercial/transactionRevenue/settlement.service.test.js",
       "backend/tests/unit/commercial/transactionRevenue/transactionRevenue.service.test.js",
-      "build-artifact-hashes.txt",
+      "docs/build-artifact-hashes.txt",
       "docs/onboarding/kyc-requirements.md",
       "docs/onboarding/pilot-plan.md",
       "docs/onboarding/pricing-model.md",
@@ -254,7 +268,7 @@
       "frontend/src/ui/uiSlice.js",
       "postman/reports/.gitkeep"
     ],
-    "testFilesObserved": 289,
+    "testFilesObserved": 291,
     "emptyTestFiles": 26,
     "blockingEmptyTestFiles": [],
     "legacyEmptyTestFiles": [
@@ -290,24 +304,20 @@
     "legacyMissingImportPaths": 208,
     "duplicateImplementationSignals": [
       [
+        "backend/app.js",
+        "backend/app.cjs"
+      ],
+      [
+        "backend/PRODUCTION_IMPLEMENTATION_v2.js"
+      ],
+      [
         "backend/bootstrap/ApplicationBootstrap.js",
         "backend/bootstrap/app.js"
       ]
     ]
   },
-  "product": "TITech Community Capital",
-  "branch": "UNAVAILABLE_IN_ARCHIVE",
-  "commit": "UNAVAILABLE_IN_ARCHIVE",
-  "sourceSnapshotSha256": "a58d2d5719eb16d6d26cff119af67bc54cf773dd9039a8fd6b34a3efbbc7b312",
-  "runtime": {
-    "requiredNode": "24.15.0",
-    "requiredNpm": "11.x",
-    "observedNode": "v22.16.0",
-    "observedNpm": "10.9.2",
-    "localRuntimeMeetsTarget": false
-  },
   "modules": {
-    "esm": 756,
+    "esm": 772,
     "cjs": 1396,
     "mixedBoundaryFiles": 71,
     "neutral": 250
@@ -322,12 +332,27 @@
     "releaseAudit": "PASS"
   },
   "financial": {
-    "canonicalInvariantFailures": 0,
-    "ledgerFailures": 0,
-    "balanceFailures": 0,
-    "reconciliationFailures": 0,
-    "idempotencyFailures": 0,
-    "runtimeProof": "UNPROVEN"
+    "staticCanonicalGate": "PASS",
+    "canonicalInvariantFailures": null,
+    "ledgerFailures": null,
+    "balanceFailures": null,
+    "reconciliationFailures": null,
+    "idempotencyFailures": null,
+    "runtimeProof": "UNPROVEN",
+    "note": "Null indicates that no transaction-capable runtime replay was executed; unavailable financial proof is not represented as zero."
+  },
+  "eduFinance": {
+    "applicationIntake": "IMPLEMENTED_SOURCE",
+    "applicationIntakeFeatureFlagDefault": false,
+    "focusedUnitAndRouteTests": "15/15 PASS",
+    "schoolAndInvoiceIndependentVerification": "NOT_IMPLEMENTED",
+    "lenderCreditDecision": "NOT_IMPLEMENTED",
+    "loanAgreement": "NOT_IMPLEMENTED",
+    "loanBooking": "NOT_IMPLEMENTED",
+    "liveDisbursement": "DISABLED",
+    "liveRepayment": "DISABLED",
+    "endToEndLoanLifecycle": "UNPROVEN",
+    "productionApproved": false
   },
   "theme": {
     "status": "PASS",
@@ -336,7 +361,7 @@
       "light",
       "dark"
     ],
-    "cssFilesScanned": 66,
+    "cssFilesScanned": 68,
     "hardcodedOfficialCssOccurrences": 0,
     "inlineScriptOfficialColorOccurrences": 0
   },

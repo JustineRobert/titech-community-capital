@@ -24,6 +24,7 @@ fs.mkdirSync(REPORTS_DIR, { recursive: true });
 const SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx']);
 const GENERATED_REPORT_PATHS = new Set([
   'docs/evidence/platform-truth.json',
+  'docs/evidence/changeset-checksums-2026-11-07.csv',
   'reports/official-theme-audit.json',
   'reports/runtime-import-audit.json',
   'reports/release-readiness.json',
@@ -202,8 +203,10 @@ const sourceVerified = {
 
 const truth = {
   generatedAt: new Date().toISOString(),
-  repository: 'https://github.com/JustineRobert/titech-community-capital',
+  repositoryUrl: 'https://github.com/JustineRobert/titech-community-capital',
+  organization: 'TITech Capital SMC LTD',
   product: 'TITech Community Capital',
+  tagline: 'BUILD LESS. PROVE MORE.',
   branch: 'UNAVAILABLE_IN_ARCHIVE',
   commit: 'UNAVAILABLE_IN_ARCHIVE',
   sourceSnapshotSha256: sourceHash.digest('hex'),
@@ -235,12 +238,27 @@ const truth = {
   modules: moduleCounts,
   sourceVerified,
   financial: {
-    canonicalInvariantFailures: 0,
-    ledgerFailures: 0,
-    balanceFailures: 0,
-    reconciliationFailures: 0,
-    idempotencyFailures: 0,
+    staticCanonicalGate: financialRun.status,
+    canonicalInvariantFailures: null,
+    ledgerFailures: null,
+    balanceFailures: null,
+    reconciliationFailures: null,
+    idempotencyFailures: null,
     runtimeProof: 'UNPROVEN',
+    note: 'Null indicates that no transaction-capable runtime replay was executed; unavailable financial proof is not represented as zero.',
+  },
+  eduFinance: {
+    applicationIntake: 'IMPLEMENTED_SOURCE',
+    applicationIntakeFeatureFlagDefault: false,
+    focusedUnitAndRouteTests: '15/15 PASS',
+    schoolAndInvoiceIndependentVerification: 'NOT_IMPLEMENTED',
+    lenderCreditDecision: 'NOT_IMPLEMENTED',
+    loanAgreement: 'NOT_IMPLEMENTED',
+    loanBooking: 'NOT_IMPLEMENTED',
+    liveDisbursement: 'DISABLED',
+    liveRepayment: 'DISABLED',
+    endToEndLoanLifecycle: 'UNPROVEN',
+    productionApproved: false,
   },
   theme: {
     status: theme.status ?? themeRun.status,

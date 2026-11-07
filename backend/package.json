@@ -32,7 +32,7 @@
     "fintech",
     "Africa fintech"
   ],
-  "author": "Igune Justine Robert, TITech Capital LTD - CEO/Founder/CTO/Senior Software Engineer",
+  "author": "Igune Justine Robert, TITech Capital SMC LTD - CEO/Founder/CTO/Senior Software Engineer",
   "license": "ISC",
   "engines": {
     "node": ">=24.15.0",
@@ -106,7 +106,8 @@
     "index:create:inclusive-insurance": "node scripts/createInclusiveInsuranceIndexes.js",
     "index:create:retirement-support": "node scripts/createRetirementSupportIndexes.js",
     "index:create:education-campaigns": "node scripts/createEducationCampaignIndexes.js",
-    "index:create:ubuntu-float": "node scripts/createUbuntuFloatIndexes.js"
+    "index:create:ubuntu-float": "node scripts/createUbuntuFloatIndexes.js",
+    "index:create:edufinance": "node scripts/createEduFinanceIndexes.js"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

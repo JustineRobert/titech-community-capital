@@ -89,7 +89,7 @@ const SERVICE_NAME =
     'titech-community-capital-backend';
 
 const COMPANY_NAME =
-    'TITech Capital LTD';
+    'TITech Capital SMC LTD';
 
 const PLATFORM_NAME =
     'TITech Community Capital';

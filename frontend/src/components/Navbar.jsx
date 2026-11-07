@@ -65,6 +65,7 @@ import {
   ShieldCheck,
   ChevronDown,
   AlertCircle,
+  GraduationCap,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -116,6 +117,12 @@ const NAVIGATION_ITEMS = Object.freeze([
     label: "Education support",
     to: "/education-support",
     icon: ShieldCheck,
+  },
+  {
+    id: "eduFinance",
+    label: "EduFinance",
+    to: "/edufinance",
+    icon: GraduationCap,
   },
 ]);
 

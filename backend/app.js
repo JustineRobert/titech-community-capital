@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * TITech Community Capital
  * =============================================================================
  *
@@ -355,7 +355,7 @@ const BUILD_INFORMATION =
         author:
 
             packageJson.author ||
-            "TITech Capital LTD",
+            "TITech Capital SMC LTD",
 
         license:
 
@@ -515,7 +515,7 @@ const APPLICATION =
     Object.freeze({
 
         company:
-            "TITech Capital LTD",
+            "TITech Capital SMC LTD",
 
         platform:
             "African Community Finance Operating System",

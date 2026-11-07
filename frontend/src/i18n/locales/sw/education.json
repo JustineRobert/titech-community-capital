@@ -89,5 +89,20 @@
   "edit": "Hariri rasimu/toleo",
   "cancelEdit": "Ghairi uhariri",
   "draftVersion": "Toleo la rasimu",
-  "minorUnitHelp": "Tumia shilingi kamili za UGX kwa UGX, au senti kwa USD. Hivi ni malengo/bajeti tu, si malipo au salio."
+  "minorUnitHelp": "Tumia shilingi kamili za UGX kwa UGX, au senti kwa USD. Hivi ni malengo/bajeti tu, si malipo au salio.",
+  "eduFinanceTitle": "TITech EduFinance",
+  "eduFinanceSubtitle": "Jukwaa la Miundombinu ya Ufadhili wa Ada za Shule",
+  "eduFinanceTagline": "Ada za shule zilizothibitishwa. Ufadhili wenye uwajibikaji. Upatanisho kamili.",
+  "eduFinanceDescription": "Mtiririko wa miundombinu unaoendeshwa na washirika unaowaunganisha wazazi na walezi, shule na taasisi zilizoidhinishwa za utoaji wa mikopo. Mzazi au mlezi aliyeidhinishwa kisheria ndiye mkopaji; mwanafunzi ndiye mnufaika wa elimu.",
+  "eduFinancePartnerEnquiry": "Jadili majaribio ya taasisi",
+  "eduFinanceCommunitySupport": "Angalia msaada wa elimu",
+  "eduFinanceBorrowerHeading": "Ulinzi wa mzazi na mlezi",
+  "eduFinanceBorrower": "Kwa kawaida mzazi au mlezi aliyeidhinishwa kisheria ndiye mkopaji. Mwanafunzi si mkopaji na hatatumika kama kigezo mbadala cha tathmini ya mkopo. Rejea ya mwanafunzi inayohitajika pekee ndiyo inapaswa kuchakatwa.",
+  "eduFinancePartnerHeading": "Washirika wa taasisi walioidhinishwa",
+  "eduFinancePartner": "Uthibitishaji wa shule na ankara, maamuzi ya mkopo, mtaji na wajibu wa utoaji wa mkopo hubaki kwa shule iliyothibitishwa na taasisi ya utoaji wa mikopo iliyoidhinishwa. Utekelezaji wa malipo hutegemea mtoa huduma aliyeidhinishwa.",
+  "eduFinanceControlsHeading": "Udhibiti wa fedha na sheria",
+  "eduFinanceControls": "TITech hutoa miundombinu na kumbukumbu. Haitoi amana za umma, mikopo, kushikilia fedha za ada, kufanya maamuzi ya mkopo bila ruhusa, kutekeleza malipo au kusambaza bima kwa kujitegemea.",
+  "eduFinanceCurrentStateHeading": "Hali ya sasa ya huduma",
+  "eduFinanceCurrentState": "Ukurasa huu ni wa taarifa pekee. Upokeaji wa maombi na shughuli zote halisi za kifedha zimezimwa kwa chaguo-msingi hadi uthibitisho wa washirika, sheria, faragha, usalama na utendaji upatikane.",
+  "eduFinanceAvailability": "Ofa, bei, ustahiki, mkataba, utoaji wa fedha au mpango wa marejesho wa baadaye lazima utolewe na mkopeshaji aliyeidhinishwa chini ya masharti yaliyoidhinishwa. Ukurasa huu si ofa ya mkopo, idhini ya mkopo wala dhamana."
 }

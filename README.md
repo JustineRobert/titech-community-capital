@@ -1,5 +1,7 @@
 # TITech Community Capital
 
+> **7 November 2026 archive-local implementation update:** The current supplied source archive now identifies the organization as **TITech Capital SMC LTD** while retaining **TITech Community Capital** as the product and **BUILD LESS. PROVE MORE.** as the platform tagline. It adds a guarded EduFinance school-fees application-intake slice, integrates it into the canonical authenticated/tenant-scoped backend route registry and frontend navigation, and keeps lender decisions, loan booking, live payments, repayments and production approval disabled. Existing education-support campaigns, refugee/host-community partner onboarding and inclusive-insurance institution workflows are preserved as distinct capabilities. The official nine-color theme is retained and the official theme audit passes with no hard-coded official palette literals in non-brand CSS. The new EduFinance unit and route-contract tests pass (15/15). Organization identity remains **PENDING EXTERNAL DOCUMENTARY VERIFICATION**; this source configuration is not proof of incorporation or licensing. This archive has no `.git` metadata and no GitHub update is claimed. The available runtime is Node 22.16.0/npm 10.9.2, below the declared Node >=24.15.0/npm >=11 target; dependency-backed builds, MongoDB/Redis integration, full suite, browser E2E, live MTN/provider settlement, independent security tests, restore drills, legal review and partner authorization remain unverified. **Release status: NOT READY; `productionApproved=false`.** See [`docs/edufinance/EDUFINANCE_IMPLEMENTATION_AND_GATES_2026-11-07.md`](docs/edufinance/EDUFINANCE_IMPLEMENTATION_AND_GATES_2026-11-07.md), [`docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md`](docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md) and [`docs/evidence/FINAL-IMPLEMENTATION-REPORT-2026-11-07.md`](docs/evidence/FINAL-IMPLEMENTATION-REPORT-2026-11-07.md). This is archive-local work, not a remote Git push or production deployment.
+
 > **31 October 2026 archive-local implementation update:** The latest Library source archive has been updated with an auditable organization profile for **TITech Capital LTD**, the supplied postal correspondence details (**P.O. BOX 601200**, **Clock Tower, Uganda**), and an explicit distinction from the portal association string **TITECH CAPITAL - SMC LTD**. The official nine-color TITech palette is preserved; the theme audit and organization profile gate pass. The backend registration handler now consumes an institutional invitation and creates the user within a single MongoDB transaction, failing closed when transaction support is unavailable; tests were added for the single-use invitation race and unverified-login policy. Community/integrated/executive dashboard metrics now distinguish missing values from real numeric zero, and empty fraud data no longer displays a fictitious 100% clean result. The unused-looking legacy `backend/app.cjs` and `backend/PRODUCTION_IMPLEMENTATION_v2.js` files were moved out of the active runtime root into `.titech-remediation/archive/2026-10-31-legacy-root-recovery/` after a source/reference search; they were preserved, not deleted. **Current release decision remains `NOT READY`; `productionApproved=false`.** This archive has no `.git` metadata, and this is not a claim of a GitHub push. The available execution environment is below the declared Node/npm runtime baseline, so full dependency-backed builds, the full test suite, replica-set integration and browser E2E are still unproven. See [`docs/evidence/TITECH_IMPLEMENTATION_REPORT_2026-10-31.md`](docs/evidence/TITECH_IMPLEMENTATION_REPORT_2026-10-31.md) and [`docs/evidence/TITech_Capital_LTD_Change_Discovery_2026-10-31.md`](docs/evidence/TITech_Capital_LTD_Change_Discovery_2026-10-31.md).
 
 <p align="center">
@@ -50,7 +52,7 @@ Partner capital infrastructure
 
 ## 🎨 Vision-Board Product & Brand Contract
 
-The supplied TITech vision board is now represented as an implementation contract across the repository. The product tagline is **“Community Finance. Stronger Together.”** and the canonical mission is: **“To empower communities through innovative financial solutions, technology, and education, creating sustainable wealth and shared prosperity across Africa.”**
+The supplied TITech vision board is now represented as an implementation contract across the repository. The platform tagline is **“BUILD LESS. PROVE MORE.”** and the canonical mission is: **“To empower communities through innovative financial solutions, technology, and education, creating sustainable wealth and shared prosperity across Africa.”**
 
 The vision-board color system is centralized in `frontend/src/branding/brand.js`, `frontend/src/branding/brand.css`, `frontend/src/index.css`, and `backend/shared/branding/brandConfig.cjs`. The machine-readable reference is `branding/vision/VISION_BOARD_CONTRACT.json`, with the supplied artwork retained at `branding/vision/TITech_Vision_Board_Igune_Justine_Robert.png`.
 
@@ -60,8 +62,8 @@ The product intent remains infrastructure-first: TITech connects savings groups,
 
 **Status:** Active Development / Production Hardening
 **Version:** 2.1
-**Organization:** TITech Capital LTD
-**Last Updated:** 18 October 2026
+**Organization:** TITech Capital SMC LTD
+**Last Updated:** 7 November 2026
 
 TITech has evolved beyond a basic community savings application toward a broader financial infrastructure platform incorporating:
 

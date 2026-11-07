@@ -467,7 +467,7 @@ export default function InclusiveOnboardingPage() {
   return (
     <main className="titech-inclusive-page" dir={direction} lang={locale}>
       <header className="titech-inclusive-hero">
-        <div className="titech-inclusive-eyebrow">TITech Capital LTD · TITech Community Capital</div>
+        <div className="titech-inclusive-eyebrow">TITech Capital SMC LTD · TITech Community Capital</div>
         <h1>{text('title')}</h1>
         <p>{text('subtitle')}</p>
       </header>
