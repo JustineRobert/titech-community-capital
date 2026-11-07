@@ -1,4 +1,4 @@
-/** Canonical tenant-scoped meeting service for TITech Capital SMC LTD. */
+/** Canonical tenant-scoped meeting service for TITech Capital LTD. */
 import Meeting from './models/Meeting.js';
 import User from '../../models/User.js';
 import Member from '../../models/Member.js';

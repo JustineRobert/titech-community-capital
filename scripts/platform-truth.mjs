@@ -161,6 +161,8 @@ const themeRun = runNodeScript('scripts/official-theme-audit.mjs');
 const importsRun = runNodeScript('scripts/runtime-import-audit.mjs');
 const testDiscoveryRun = runNodeScript('scripts/test-discovery-audit.mjs', ['--json']);
 const releaseAuditRun = runNodeScript('scripts/release-readiness-gate.mjs', ['--audit']);
+const ussdContractRun = runNodeScript('scripts/ussd-contract-gate.mjs');
+const ussdUnitRun = runNodeScript('backend/modules/ussd/tests/ussd-contract.test.mjs');
 
 const runtimeImports = readJsonIfPresent('reports/runtime-import-audit.json') ?? {};
 const testDiscovery = readJsonIfPresent('reports/test-discovery-audit.json') ?? {};
@@ -198,13 +200,15 @@ const sourceVerified = {
   canonicalRuntimeImports: criticalMissing.length === 0 && mixedCanonical.length === 0 ? 'PASS' : 'FAIL',
   testDiscovery: blockingEmptyTests.length === 0 && (testDiscovery.totals?.caseInsensitiveDuplicateGroups ?? 0) === 0 && (testDiscovery.totals?.mixedModuleTestFiles ?? 0) === 0 ? 'PASS' : 'FAIL',
   officialTheme: theme.status ?? themeRun.status,
+  ussdContract: ussdContractRun.status,
+  ussdUnitTests: ussdUnitRun.status,
   releaseAudit: release.status ?? releaseAuditRun.status,
 };
 
 const truth = {
   generatedAt: new Date().toISOString(),
   repositoryUrl: 'https://github.com/JustineRobert/titech-community-capital',
-  organization: 'TITech Capital SMC LTD',
+  organization: 'TITech Capital LTD',
   product: 'TITech Community Capital',
   tagline: 'BUILD LESS. PROVE MORE.',
   branch: 'UNAVAILABLE_IN_ARCHIVE',
@@ -259,6 +263,20 @@ const truth = {
     liveRepayment: 'DISABLED',
     endToEndLoanLifecycle: 'UNPROVEN',
     productionApproved: false,
+  },
+  ussd: {
+    status: ussdContractRun.status === 'PASS' && ussdUnitRun.status === 'PASS' ? 'IMPLEMENTED_CONTRACT_ONLY' : 'INCOMPLETE',
+    callbackRoute: 'POST /api/v1/channels/ussd/providers/:providerCode/callback',
+    providerAllowlistDefault: 'EMPTY',
+    ussdEnabledDefault: false,
+    transactionFeaturesEnabledDefault: false,
+    unitTests: ussdUnitRun.status,
+    providerAdaptersConfigured: false,
+    mtnNetworkVerified: false,
+    airtelNetworkVerified: false,
+    aggregatorContractVerified: false,
+    financialJourneysVerified: false,
+    note: 'No live provider or network integration is claimed. The callback boundary fails closed without a verified provider adapter and the injected canonical channel service.',
   },
   theme: {
     status: theme.status ?? themeRun.status,

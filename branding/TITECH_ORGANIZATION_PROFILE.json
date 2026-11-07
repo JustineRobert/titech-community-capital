@@ -2,17 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "profileVersion": "1.0.0",
   "productName": "TITech Community Capital",
-  "organizationDisplayName": "TITech Capital SMC LTD",
-  "configuredLegalName": "TITech Capital SMC LTD",
+  "organizationDisplayName": "TITech Capital LTD",
+  "configuredLegalName": "TITech Capital LTD",
   "postalAddress": "P.O. BOX 601200",
   "postalLocation": "Clock Tower",
   "country": "Uganda",
-  "administrativeAssociationName": "TITECH CAPITAL SMC LTD",
+  "administrativeAssociationName": "TITECH CAPITAL LTD",
   "identityStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
   "postalAddressStatus": "USER_SUPPLIED_ADMINISTRATIVE_RECORD",
-  "sourceBaseline": "User-confirmed organization display/legal-name update dated 7 November 2026; postal details remain user-supplied administrative records dated 31 October 2026.",
+  "sourceBaseline": "User-confirmed organization-name update dated 7 November 2026. The configured name is not, by itself, documentary proof of statutory incorporation or licensing.",
   "limitations": [
-    "The configured organization name reflects the user-confirmed name TITech Capital SMC LTD; the repository is not documentary proof of incorporation, statutory name, registered office, postal-address validity, licence or regulatory approval.",
+    "The configured organization name reflects the user-confirmed name TITech Capital LTD; this repository is not documentary proof of the statutory registered name, incorporation, registered office, postal-address validity, licence or regulatory approval.",
     "Postal correspondence details are retained as user-supplied administrative records and require documentary verification before use as a registered-office representation."
   ],
   "productionApproved": false

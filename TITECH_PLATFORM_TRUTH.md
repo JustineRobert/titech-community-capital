@@ -1,9 +1,10 @@
 # TITech Community Capital — Current Platform Truth Index
 
 **As of:** 7 November 2026  
-**Organization:** TITech Capital SMC LTD  
+**Organization:** TITech Capital LTD  
 **Product:** TITech Community Capital  
 **Engineering principle:** BUILD LESS. PROVE MORE.  
+**Production approval | NO**
 **PRODUCTION_APPROVED: NO**  
 **`productionApproved`: `false`**
 
@@ -15,7 +16,8 @@ This root-level document is an index to the current machine-generated evidence a
 - [`docs/evidence/production-readiness.md`](docs/evidence/production-readiness.md) — current readiness scorecard.
 - [`docs/evidence/critical-gates-2026-11-07.json`](docs/evidence/critical-gates-2026-11-07.json) — current P0/P1 release-blocking contract.
 - [`docs/root-documents/TITECH_PLATFORM_TRUTH.md`](docs/root-documents/TITECH_PLATFORM_TRUTH.md) — detailed platform history and prior evidence snapshots; dated statements remain historical.
-- [`docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md`](docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md) — archive-local file change discovery.
+- [`docs/evidence/TITech_2026-11-07_Execution_Change_Discovery.md`](docs/evidence/TITech_2026-11-07_Execution_Change_Discovery.md) — current archive-local change discovery, exact file inventory and verification results.
+- [`docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md`](docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md) — preserved earlier same-day EduFinance/SMC snapshot; superseded for current organization identity by the later user instruction recorded in this execution report.
 
 ## Current source-snapshot boundary
 
@@ -28,3 +30,18 @@ The implementation adds a feature-gated EduFinance application-intake foundation
 **NOT READY.** The supported Node/npm runtime, dependency-backed clean install, full application build/test, service startup, MongoDB/Redis transactions and recovery, provider settlement, full end-to-end financial replay, independent security assessment, legal/regulatory applicability review, partner authorization and pilot evidence have not all been independently verified. The critical-gate contract remains blocked; live-money and production flags must remain disabled.
 
 A green unit/static gate does not promote this status. Only independently reviewed and evidenced completion of every mandatory gate may justify a human production-approval decision.
+
+## 7 November 2026 targeted remediation
+
+- The organization configuration is now **TITech Capital LTD** and the product remains **TITech Community Capital**. External documentary verification of the statutory organization name and address remains pending.
+- The official nine-color theme, circular logo sources and semantic light/dark theme system remain unchanged. The official-theme audit previously passed with all 68 non-brand CSS files consuming centralized theme tokens; it is rerun as part of the current evidence generation.
+- A provider-neutral ESM USSD callback contract and feature-filtered English menu renderer have been added to the canonical API route registry. The channel remains disabled by default. No MTN, Airtel, aggregator, shortcode, payment, network, financial journey or production approval is claimed.
+- The older CommonJS-style USSD controller/routes/session files are not mounted by the canonical route registry and are not promoted as production-ready. A durable Redis session adapter, provider-specific signature implementations and the existing-domain `ussdChannelService` still require verified integration.
+- Refugee and host-community participants must be served through verified, authorised institutional partners with tenant isolation and purpose-limited processing. Insurance-related functions remain dependent on authorised insurer/distribution partners and applicable permissions. Software capability does not itself establish a licence, underwriting authority, payment authority or production approval.
+- The implementation archive has no `.git` metadata. Repository commit/branch identity and remote synchronization remain unavailable from this artifact.
+
+See [`docs/architecture/ussd-multi-telco-implementation.md`](docs/architecture/ussd-multi-telco-implementation.md), [`docs/api/ussd-api-contract.md`](docs/api/ussd-api-contract.md), [`docs/security/ussd-callback-security.md`](docs/security/ussd-callback-security.md) and the generated [`docs/evidence/platform-truth.json`](docs/evidence/platform-truth.json) for detailed scope and evidence.
+
+## Inclusive partner operating boundary
+
+Refugee and host-community participants may be served only through verified, appropriately authorised institutional partners, with institution-scoped tenancy, consent, privacy, identity verification and safeguarding controls. Insurance-related workflows must remain bounded to authorised insurers and appropriately authorised distribution/service partners. TITech infrastructure does not itself confer payment, deposit-taking, lending, underwriting, insurance-distribution or telecommunications permission. The corresponding features remain gated until applicable legal, provider and partner evidence is independently reviewed.

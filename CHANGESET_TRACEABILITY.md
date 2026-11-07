@@ -1,6 +1,6 @@
 # Change traceability — 2026-11-07
 
-**Organization:** TITech Capital SMC LTD  |  **Product:** TITech Community Capital  |  **Tagline:** BUILD LESS. PROVE MORE.
+**Organization:** TITech Capital LTD  |  **Product:** TITech Community Capital  |  **Tagline:** BUILD LESS. PROVE MORE.
 **Input ZIP SHA-256:** `eee19b22910a4d35f9c1472c5a93c6d50636471fd6ff2bb0ccc4eb564c5e06ee`
 
 ## Snapshot comparison
@@ -169,6 +169,6 @@
 
 - No Git commit was created and no remote repository was pushed or overwritten.
 - The uploaded original ZIP remains unchanged outside the updated worktree.
-- Current public-facing organization/configuration is aligned to TITech Capital SMC LTD. Dated historical reports/prompts are retained as historical records; current draft legal notices were updated but remain unapproved.
+- Current public-facing organization/configuration is aligned to TITech Capital LTD. Dated historical reports/prompts are retained as historical records; current draft legal notices were updated but remain unapproved.
 - `docs/evidence/changeset-checksums-2026-11-07.csv` lists baseline and updated SHA-256 for changed source and stable documents. Generated `reports/*`, `docs/evidence/platform-truth.json` and the checksum CSV itself are omitted because they are regenerated/self-referential.
 - The updated project ZIP hash should be used to verify the delivered archive as a whole.

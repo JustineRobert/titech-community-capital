@@ -12,18 +12,18 @@ function check(name, pass, detail = '') {
   checks.push({ name, status: pass ? 'PASS' : 'FAIL', detail });
 }
 check('product identity', profile.productName === 'TITech Community Capital' && theme.product === 'TITech Community Capital');
-check('configured organization identity', profile.organizationDisplayName === 'TITech Capital SMC LTD' && profile.configuredLegalName === 'TITech Capital SMC LTD' && theme.organizationLegalName === 'TITech Capital SMC LTD');
+check('configured organization identity', profile.organizationDisplayName === 'TITech Capital LTD' && profile.configuredLegalName === 'TITech Capital LTD' && theme.organizationLegalName === 'TITech Capital LTD');
 check('postal address', profile.postalAddress === 'P.O. BOX 601200');
 check('postal location', profile.postalLocation === 'Clock Tower');
-check('portal association preserved separately', profile.administrativeAssociationName === 'TITECH CAPITAL SMC LTD');
+check('portal association preserved separately', profile.administrativeAssociationName === 'TITECH CAPITAL LTD');
 check('identity remains externally unverified', profile.identityStatus === 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION');
 check('production approval remains disabled', profile.productionApproved === false);
 const brand = read('frontend/src/branding/brand.js');
 const backendBrand = read('backend/shared/branding/brandConfig.cjs');
 const legalConfig = read('frontend/src/legal/legalConfig.js');
 const footer = read('frontend/src/components/Footer.jsx');
-check('frontend brand profile wired', brand.includes('TITECH_ORGANIZATION') && brand.includes('TITech Capital SMC LTD'));
-check('backend brand profile wired', backendBrand.includes("postalAddress: 'P.O. BOX 601200'") && backendBrand.includes("administrativeAssociationName: 'TITECH CAPITAL SMC LTD'"));
+check('frontend brand profile wired', brand.includes('TITECH_ORGANIZATION') && brand.includes('TITech Capital LTD'));
+check('backend brand profile wired', backendBrand.includes("postalAddress: 'P.O. BOX 601200'") && backendBrand.includes("administrativeAssociationName: 'TITECH CAPITAL LTD'"));
 check('legal address wired', legalConfig.includes("postalAddress: 'P.O. BOX 601200'") && legalConfig.includes("postalLocation: 'Clock Tower'"));
 check('footer displays postal metadata', footer.includes('COMPANY_POSTAL_ADDRESS') && footer.includes('titech-footer-postal-address'));
 const expected = theme.palette;

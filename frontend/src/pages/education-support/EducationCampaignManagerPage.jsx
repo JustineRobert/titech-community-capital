@@ -126,7 +126,7 @@ export default function EducationCampaignManagerPage() {
   return (
     <main className="titech-education-page" dir={direction}>
       <header className="titech-education-hero">
-        <p className="titech-education-eyebrow">TITech Capital SMC LTD · TITech Community Capital</p>
+        <p className="titech-education-eyebrow">TITech Capital LTD · TITech Community Capital</p>
         <h1>{text('title')}</h1>
         <p>{text('subtitle')}</p>
         <p className="titech-education-safety-copy">{text('applicationNote')}</p>

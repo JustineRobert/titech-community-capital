@@ -42,7 +42,7 @@
     "url": "git+https://github.com/JustineRobert/titech-community-capital.git"
   },
   "license": "ISC",
-  "author": "Igune Justine Robert, TITech Capital SMC LTD",
+  "author": "Igune Justine Robert, TITech Capital LTD",
   "type": "module",
   "main": "backend/server.js",
   "directories": {
@@ -58,7 +58,7 @@
     "build": "npm run build:frontend",
     "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
-    "check": "npm run check:runtime && npm run titech:critical-gates && npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run audit:organization && npm run check:performance-contract && npm run i18n:check && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check",
+    "check": "npm run check:runtime && npm run titech:critical-gates && npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:ussd && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run audit:organization && npm run check:performance-contract && npm run i18n:check && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check",
     "check:all": "npm run check && npm run test",
     "check:conflicts": "node scripts/check-conflicts.js",
     "check:enterprise-contracts": "node scripts/enterprise-contract-contracts.mjs",
@@ -107,7 +107,7 @@
     "test:backend:ci": "npm --prefix backend run test:ci",
     "test:backend:coverage": "npm --prefix backend run test:coverage",
     "test:backend:watch": "npm --prefix backend test -- --watch",
-    "test:ci": "npm run test:critical-gates && npm run test:organization && npm run test:institutional-leads && npm run test:i18n:native && npm run test:document-malware-scan && npm run test:ubuntu-float && npm run test:inclusive-onboarding && npm run test:education-campaigns && npm run test:edufinance && npm run test:performance-contract && npm run test:retirement-support && npm run test:backend:ci && npm run test:frontend:ci",
+    "test:ci": "npm run test:critical-gates && npm run test:ussd && npm run test:organization && npm run test:institutional-leads && npm run test:i18n:native && npm run test:document-malware-scan && npm run test:ubuntu-float && npm run test:inclusive-onboarding && npm run test:education-campaigns && npm run test:edufinance && npm run test:performance-contract && npm run test:retirement-support && npm run test:backend:ci && npm run test:frontend:ci",
     "test:control-plane": "npm --prefix backend run test:control-plane",
     "test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
     "test:e2e": "npm --prefix frontend run test:e2e",
@@ -173,7 +173,9 @@
     "audit:organization": "node scripts/organization-profile-gate.mjs",
     "test:organization": "node --test scripts/organization-profile-gate.test.mjs scripts/financial-metric-display.test.mjs",
     "test:edufinance": "node --test backend/tests/unit/edufinance/*.test.mjs",
-    "db:indexes:edufinance": "npm --prefix backend run index:create:edufinance"
+    "db:indexes:edufinance": "npm --prefix backend run index:create:edufinance",
+    "check:ussd": "node scripts/ussd-contract-gate.mjs",
+    "test:ussd": "node --test backend/modules/ussd/tests/*.test.mjs"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

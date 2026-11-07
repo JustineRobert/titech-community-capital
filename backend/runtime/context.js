@@ -89,13 +89,13 @@ const SERVICE_NAME =
     'titech-community-capital-backend';
 
 const COMPANY_NAME =
-    'TITech Capital SMC LTD';
+    'TITech Capital LTD';
 
 const PLATFORM_NAME =
     'TITech Community Capital';
 
 const APPLICATION_DESCRIPTION =
-    'TITech Community Capital Community Finance Operating System';
+    'TITech Community Capital — Community Finance Infrastructure';
 
 const DEFAULT_API_PREFIX =
     '/api';

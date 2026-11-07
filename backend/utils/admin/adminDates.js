@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Capital SMC LTD
+ * TITech Capital LTD
  * Enterprise Admin Date/Time Utility
  * ============================================================================
  *
@@ -86,7 +86,7 @@ const UTILITY_VERSION =
   '2026.1';
 
 const APPLICATION_NAME =
-  'TITech Capital SMC LTD';
+  'TITech Capital LTD';
 
 /**
  * ============================================================================

@@ -62,5 +62,5 @@ test('live money-moving capabilities remain hard-disabled even when application 
   assert.equal(capabilities.capabilities.liveDisbursement.enabled, false);
   assert.equal(capabilities.capabilities.swapLiveTransfers.enabled, false);
   assert.equal(capabilities.capabilities.communitySavingsRecovery.enabled, false);
-  assert.equal(capabilities.organization, 'TITech Capital SMC LTD');
+  assert.equal(capabilities.organization, 'TITech Capital LTD');
 });

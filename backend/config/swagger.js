@@ -423,7 +423,7 @@ const DEFAULTS =
         metadata:
             {
                 organization:
-                    'TITech Capital SMC LTD',
+                    'TITech Capital LTD',
 
                 platform:
                     'TITech Community Capital Operating System',

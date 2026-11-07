@@ -1,7 +1,7 @@
 /**
 
 * ============================================================================
-* TITech Capital SMC LTD
+* TITech Capital LTD
 * Enterprise Privacy Policy Document
 * ============================================================================
 *
@@ -56,7 +56,7 @@ import PropTypes from 'prop-types';
 
 const FALLBACK_METADATA = Object.freeze({
 organization:
-'TITech Capital SMC LTD',
+'TITech Capital LTD',
 
 platform:
 'TITech Community Capital',

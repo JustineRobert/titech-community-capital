@@ -42,7 +42,7 @@ export function validateCriticalGateContract(root = ROOT) {
 
   if (contract) {
     if (contract.product !== 'TITech Community Capital') errors.push('Product identity must remain TITech Community Capital.');
-    if (contract.organization !== 'TITech Capital SMC LTD') errors.push('Organization identity contract must remain TITech Capital SMC LTD.');
+    if (contract.organization !== 'TITech Capital LTD') errors.push('Organization identity contract must remain TITech Capital LTD.');
     if (contract.productionApproved !== false) errors.push('The committed evidence baseline must keep productionApproved=false.');
     if (contract.releaseStatus !== 'NOT_READY') errors.push('The committed evidence baseline must remain NOT_READY until proof is complete.');
     if (JSON.stringify(contract.evidenceLadder) !== JSON.stringify(EXPECTED_LADDER)) errors.push('Evidence ladder is missing, reordered or changed.');

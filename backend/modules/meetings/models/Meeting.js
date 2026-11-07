@@ -1,6 +1,6 @@
 /**
  * TITech Community Capital — canonical meeting record.
- * Organization: TITech Capital SMC LTD.
+ * Organization: TITech Capital LTD.
  * Meeting decisions are records of governance, never payment or ledger commands.
  */
 import mongoose from 'mongoose';

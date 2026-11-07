@@ -120,8 +120,8 @@ test('an unconfigured offline service reports NOT_READY and financial events fai
   );
 });
 
-test('official theme identity and palette remain canonical for TITech Capital SMC LTD', () => {
-  assert.equal(theme.organization, 'TITech Capital SMC LTD');
+test('official theme identity and palette remain canonical for TITech Capital LTD', () => {
+  assert.equal(theme.organization, 'TITech Capital LTD');
   assert.equal(theme.product, 'TITech Community Capital');
   assert.equal(theme.defaultTheme, 'light');
   assert.deepEqual(theme.palette, {

@@ -309,7 +309,7 @@ export default function RetirementSupportPage() {
     <main className="titech-retirement-page" dir={direction}>
       <header className="titech-retirement-header">
         <div>
-          <p className="titech-retirement-eyebrow">TITech Capital SMC LTD · TITech Community Capital</p>
+          <p className="titech-retirement-eyebrow">TITech Capital LTD · TITech Community Capital</p>
           <h1>{text('Title')}</h1>
           <p className="titech-retirement-subtitle">{text('Subtitle')}</p>
         </div>

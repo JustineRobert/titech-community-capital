@@ -1,5 +1,7 @@
 # TITech progress and change discovery — 2026-11-07
 
+> **Historical snapshot notice:** This document records an earlier archive-local EduFinance execution and intentionally preserves the organization identity and file counts that were configured at that time. A later instruction on 7 November 2026 superseded that identity with **TITech Capital LTD**. The current authoritative status, including the multi-telco USSD work and final archive diff, is in [`TITech_2026-11-07_Execution_Change_Discovery.md`](TITech_2026-11-07_Execution_Change_Discovery.md). Do not use this earlier snapshot as the current organization profile.
+
 **Organization:** TITech Capital SMC LTD  
 **Product:** TITech Community Capital  
 **Official platform tagline:** BUILD LESS. PROVE MORE.  

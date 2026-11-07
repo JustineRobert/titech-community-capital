@@ -3,7 +3,7 @@
   "schemaVersion": "1.0.0",
   "name": "TITech Official Platform Theme",
   "product": "TITech Community Capital",
-  "organization": "TITech Capital SMC LTD",
+  "organization": "TITech Capital LTD",
   "sourceReference": "branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png",
   "defaultTheme": "light",
   "supportedThemes": [
@@ -51,7 +51,7 @@
     "Light is the deterministic default; dark is an explicit user-selected mode.",
     "The official TITech circular logo remains the primary product mark."
   ],
-  "organizationLegalName": "TITech Capital SMC LTD",
+  "organizationLegalName": "TITech Capital LTD",
   "organizationProfile": "branding/TITECH_ORGANIZATION_PROFILE.json",
   "tagline": "BUILD LESS. PROVE MORE."
 }

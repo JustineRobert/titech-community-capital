@@ -1,7 +1,7 @@
 /**
 
 * ============================================================================
-* TITech Capital SMC LTD
+* TITech Capital LTD
 * Enterprise Financial Disclaimer Document
 * ============================================================================
 *
@@ -57,7 +57,7 @@ import PropTypes from 'prop-types';
 * ========================================================================== */
 
 const ORGANIZATION_NAME =
-'TITech Capital SMC LTD';
+'TITech Capital LTD';
 
 const PLATFORM_NAME =
 'TITech Community Capital';

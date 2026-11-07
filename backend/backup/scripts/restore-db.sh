@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# TITech Capital SMC LTD
+# TITech Capital LTD
 # File: backend/backup/scripts/restore-db.sh
 # Enterprise Database Restore Script
 # =============================================================================

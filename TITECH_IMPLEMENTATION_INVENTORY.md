@@ -1,6 +1,6 @@
 # TITech implementation inventory — 2026-11-07
 
-**Organization:** TITech Capital SMC LTD  
+**Organization:** TITech Capital LTD  
 **Product:** TITech Community Capital  
 **Repository target:** `https://github.com/JustineRobert/titech-community-capital`  
 **Executed source:** uploaded ZIP snapshot `titech-community-capital-main.zip`  

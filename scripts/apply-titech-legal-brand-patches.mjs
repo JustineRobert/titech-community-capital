@@ -52,7 +52,7 @@ function planJsonAuthor(relativePath, replacementMap) {
   let nextAuthor = data.author;
   for (const [oldValue, newValue] of replacementMap) nextAuthor = nextAuthor.replace(oldValue, newValue);
   if (nextAuthor === data.author) {
-    patches.push({ relativePath, status: data.author.includes('TITech Capital SMC LTD') ? 'ALREADY CORRECT' : 'NO CHANGE — author is different; manual review required' });
+    patches.push({ relativePath, status: data.author.includes('TITech Capital LTD') ? 'ALREADY CORRECT' : 'NO CHANGE — author is different; manual review required' });
     return;
   }
   data.author = nextAuthor;
@@ -67,13 +67,13 @@ function planJsonAuthor(relativePath, replacementMap) {
   if (file) {
     try {
       const data = JSON.parse(file.content);
-      const allowed = new Set(['TITech Africa', 'TITech Community Capital LTD', 'TITech Capital SMC LTD']);
+      const allowed = new Set(['TITech Africa', 'TITech Community Capital LTD', 'TITech Capital LTD']);
       if (!allowed.has(data.organization)) {
         patches.push({ relativePath, status: `BLOCKED — unexpected organization value ${JSON.stringify(data.organization)}` });
-      } else if (data.organization === 'TITech Capital SMC LTD') {
+      } else if (data.organization === 'TITech Capital LTD') {
         patches.push({ relativePath, status: 'ALREADY CORRECT' });
       } else {
-        data.organization = 'TITech Capital SMC LTD';
+        data.organization = 'TITech Capital LTD';
         patches.push({ relativePath, status: 'PLANNED UPDATE', absolutePath: file.absolutePath, next: `${JSON.stringify(data, null, 2)}\n` });
       }
     } catch {
@@ -83,13 +83,13 @@ function planJsonAuthor(relativePath, replacementMap) {
 }
 
 planText('frontend/src/branding/brand.js', [
-  ["legalName: 'TITech Community Capital LTD'", "legalName: 'TITech Capital SMC LTD'"],
+  ["legalName: 'TITech Community Capital LTD'", "legalName: 'TITech Capital LTD'"],
 ]);
 const oldAuthor = 'TITech Community Capital LTD';
-planJsonAuthor('package.json', [[oldAuthor, 'TITech Capital SMC LTD']]);
-planJsonAuthor('backend/package.json', [[oldAuthor, 'TITech Capital SMC LTD']]);
-planJsonAuthor('package-lock.json', [[oldAuthor, 'TITech Capital SMC LTD']]);
-planJsonAuthor('backend/package-lock.json', [[oldAuthor, 'TITech Capital SMC LTD']]);
+planJsonAuthor('package.json', [[oldAuthor, 'TITech Capital LTD']]);
+planJsonAuthor('backend/package.json', [[oldAuthor, 'TITech Capital LTD']]);
+planJsonAuthor('package-lock.json', [[oldAuthor, 'TITech Capital LTD']]);
+planJsonAuthor('backend/package-lock.json', [[oldAuthor, 'TITech Capital LTD']]);
 
 const blockers = patches.filter((item) => item.status.startsWith('BLOCKED'));
 const planned = patches.filter((item) => item.status === 'PLANNED UPDATE');

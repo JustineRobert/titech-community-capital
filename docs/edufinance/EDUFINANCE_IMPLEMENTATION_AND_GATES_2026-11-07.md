@@ -1,6 +1,6 @@
 # TITech EduFinance — implementation and evidence boundary
 
-**Organization:** TITech Capital SMC LTD  
+**Organization:** TITech Capital LTD  
 **Parent product:** TITech Community Capital  
 **Service:** TITech EduFinance — School Fees Financing Infrastructure Platform  
 **Tagline:** Verified school fees. Responsible financing. Complete reconciliation.  
@@ -49,7 +49,7 @@ Education-support campaigns are a separate community-support / fundraising workf
 
 The `.env.example` switches for application intake, live disbursement, live repayments, automated credit decisioning, lender approval, regulatory approval and production approval are all `false`. Intake is also checked server-side and cannot be activated by a frontend flag. The existence of configuration flags does not confer regulatory authority, partner permission, access to capital or payment-provider credentials.
 
-The organization display/configuration is updated to **TITech Capital SMC LTD** at the user's direction. `identityStatus` remains `PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION`; postal data remains user-supplied and unverified. Qualified counsel must determine TITech's legal classification, data-controller/processor roles and any licensing obligations for the actual operating model. The relevant lender, provider, school and insurer remain responsible for activities reserved to them by law and contract.
+The organization display/configuration is updated to **TITech Capital LTD** at the user's direction. `identityStatus` remains `PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION`; postal data remains user-supplied and unverified. Qualified counsel must determine TITech's legal classification, data-controller/processor roles and any licensing obligations for the actual operating model. The relevant lender, provider, school and insurer remain responsible for activities reserved to them by law and contract.
 
 ## Verification completed for this archive
 

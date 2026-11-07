@@ -1,7 +1,7 @@
 /**
 
 * ============================================================================
-* TITech Capital SMC LTD
+* TITech Capital LTD
 * Enterprise Legal Module — Public API
 * ============================================================================
 *
@@ -71,7 +71,7 @@
 * It should expose stable, application-facing contracts while keeping
 * implementation details inside their respective modules.
 *
-* This module does NOT determine whether TITech Capital SMC LTD is
+* This module does NOT determine whether TITech Capital LTD is
 * licensed, authorized, regulated, or legally permitted to perform any
 * regulated financial activity.
 *

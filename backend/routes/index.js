@@ -34,10 +34,11 @@ import express from 'express';
 import crypto from 'node:crypto';
 import { param, validationResult } from 'express-validator';
 import systemSettingRoutesModule from './systemSettingRoutes.js';
+import ussdGatewayRoutes from '../modules/ussd/ussd.routes.js';
 
 /**
  * =============================================================================
- * TITech Capital SMC LTD
+ * TITech Capital LTD
  * Enterprise API Route Registry
  * =============================================================================
  *
@@ -102,7 +103,7 @@ const APPLICATION_NAME =
     );
 
 const APPLICATION_LEGAL_NAME =
-    'TITech Capital SMC LTD';
+    'TITech Capital LTD';
 
 const API_PREFIX =
     '/api/v1';
@@ -1734,9 +1735,7 @@ const registeredApplications =
 
 function registerRoutes(
     app,
-    {
-        mountPath = ROUTER_MOUNT_PATH,
-    } = {},
+    options = {},
 ) {
     if (
         !app ||
@@ -1756,7 +1755,7 @@ function registerRoutes(
     }
 
     const normalizedMountPath = normalizeString(
-        mountPath,
+        options?.mountPath,
         ROUTER_MOUNT_PATH,
     );
 
@@ -1822,6 +1821,14 @@ function registerRoutes(
     app.use('/api/groups', groupRoutes);
     app.use('/api/v1/groups', groupRoutes);
     app.use('/groups', groupRoutes);
+
+    /*
+     * Provider-neutral USSD callback boundary. The router is deliberately
+     * fail-closed: it will not process callbacks until TITECH_USSD_ENABLED,
+     * the explicit provider allowlist, a verified provider adapter and the
+     * existing-domain ussdChannelService are all configured.
+     */
+    app.use('/api/v1/channels/ussd', ussdGatewayRoutes);
 
     /*
      * Payroll API and signed provider callback boundaries.

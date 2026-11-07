@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-07T06:34:07.879Z",
+  "generatedAt": "2026-11-07T19:05:21.699Z",
   "repositoryUrl": "https://github.com/JustineRobert/titech-community-capital",
-  "organization": "TITech Capital SMC LTD",
+  "organization": "TITech Capital LTD",
   "product": "TITech Community Capital",
   "tagline": "BUILD LESS. PROVE MORE.",
   "branch": "UNAVAILABLE_IN_ARCHIVE",
   "commit": "UNAVAILABLE_IN_ARCHIVE",
-  "sourceSnapshotSha256": "dcb8aada2db79751756e1b0ea33a8a8909dd156d9a2c0bba71c144b7bcd47ae2",
+  "sourceSnapshotSha256": "2ca36239c6dbd20dc2bbca3edbd5a78f63b4763df9fde7e6c90b67932502dc31",
   "runtime": {
     "requiredNode": "24.15.0",
     "requiredNpm": "11.x",
@@ -15,8 +15,8 @@
     "localRuntimeMeetsTarget": false
   },
   "repository": {
-    "totalFiles": 3544,
-    "sourceFiles": 2489,
+    "totalFiles": 3558,
+    "sourceFiles": 2495,
     "zeroByteFiles": 248,
     "zeroBytePaths": [
       "backend/application/MiddlewareRegistrar.js",
@@ -268,7 +268,7 @@
       "frontend/src/ui/uiSlice.js",
       "postman/reports/.gitkeep"
     ],
-    "testFilesObserved": 291,
+    "testFilesObserved": 292,
     "emptyTestFiles": 26,
     "blockingEmptyTestFiles": [],
     "legacyEmptyTestFiles": [
@@ -317,7 +317,7 @@
     ]
   },
   "modules": {
-    "esm": 772,
+    "esm": 778,
     "cjs": 1396,
     "mixedBoundaryFiles": 71,
     "neutral": 250
@@ -329,6 +329,8 @@
     "canonicalRuntimeImports": "PASS",
     "testDiscovery": "PASS",
     "officialTheme": "PASS",
+    "ussdContract": "PASS",
+    "ussdUnitTests": "PASS",
     "releaseAudit": "PASS"
   },
   "financial": {
@@ -353,6 +355,20 @@
     "liveRepayment": "DISABLED",
     "endToEndLoanLifecycle": "UNPROVEN",
     "productionApproved": false
+  },
+  "ussd": {
+    "status": "IMPLEMENTED_CONTRACT_ONLY",
+    "callbackRoute": "POST /api/v1/channels/ussd/providers/:providerCode/callback",
+    "providerAllowlistDefault": "EMPTY",
+    "ussdEnabledDefault": false,
+    "transactionFeaturesEnabledDefault": false,
+    "unitTests": "PASS",
+    "providerAdaptersConfigured": false,
+    "mtnNetworkVerified": false,
+    "airtelNetworkVerified": false,
+    "aggregatorContractVerified": false,
+    "financialJourneysVerified": false,
+    "note": "No live provider or network integration is claimed. The callback boundary fails closed without a verified provider adapter and the injected canonical channel service."
   },
   "theme": {
     "status": "PASS",
