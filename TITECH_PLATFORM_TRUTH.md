@@ -45,3 +45,13 @@ See [`docs/architecture/ussd-multi-telco-implementation.md`](docs/architecture/u
 ## Inclusive partner operating boundary
 
 Refugee and host-community participants may be served only through verified, appropriately authorised institutional partners, with institution-scoped tenancy, consent, privacy, identity verification and safeguarding controls. Insurance-related workflows must remain bounded to authorised insurers and appropriately authorised distribution/service partners. TITech infrastructure does not itself confer payment, deposit-taking, lending, underwriting, insurance-distribution or telecommunications permission. The corresponding features remain gated until applicable legal, provider and partner evidence is independently reviewed.
+
+## 8 November 2026 — Offline, Meetings, TITechChats and Partner Portal execution update
+
+The 8 November archive-local execution added canonical frontend registration for the existing Meetings page and a targeted Partner Support Workspace. The Partner Portal connects to the existing `/api/v1/operations/cases` tenant-scoped support-case API, adds bounded/redacted support input policy, detail retrieval, tenant-derived service context, canonical audit-chain writes, seven guide chapters and contextual Help Dots. Ten focused tests passed; the repository JavaScript/TypeScript syntax gate and official theme/organization audits passed.
+
+The delivery remains **PARTIALLY IMPLEMENTED — TESTING IN PROGRESS**. Partner customer lookup/message history, safe account settings and provider-specific messaging pathway monitoring remain disconnected. Offline synchronization remains blocked by the missing frontend device-secret header and unverified registration/trust lifecycle; the global sync hook is not mounted. TITechChats remains disconnected from canonical frontend/backend execution paths due the legacy ESM/CommonJS and API-contract issues. Meetings is router-integrated but not browser/runtime verified. Audit writes follow the case mutation and are not yet transactionally atomic.
+
+The execution environment is Node 22.16.0/npm 10.9.2, below the required Node 24.15.0/npm 11; dependencies and live MongoDB/Redis services were not present. The complete install, production builds, bootstrap, live persistence, browser E2E, independent security assessment, backup/restore and provider checks were therefore not run. All eight wider critical release gates remain open and `productionApproved=false`.
+
+See [`docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md`](docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md) and [`docs/partner-portal/`](docs/partner-portal/) for the file-by-file change inventory and current limitations.

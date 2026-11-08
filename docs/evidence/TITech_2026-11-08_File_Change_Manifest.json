@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "generatedOn": "2026-11-08",
+  "product": "TITech Community Capital",
+  "organization": "TITech Capital LTD",
+  "sourceArchive": "titech-community-capital-main.zip",
+  "sourceArchiveSha256": "eee19b22910a4d35f9c1472c5a93c6d50636471fd6ff2bb0ccc4eb564c5e06ee",
+  "sourceArchiveCommitReference": "fc6b388962b7603d7aa0b8f00b3f3c9b4859f3dc (archive metadata only; not verified against Git)",
+  "sourceHadGitMetadata": false,
+  "counts": {
+    "sourceFiles": 3549,
+    "deliveredFilesExcludingManifest": 3572,
+    "added": 24,
+    "modified": 10,
+    "deleted": 0
+  },
+  "folderSummary": {
+    "backend": {
+      "added": 2,
+      "modified": 3
+    },
+    "docs": {
+      "added": 12,
+      "modified": 0
+    },
+    "frontend": {
+      "added": 5,
+      "modified": 4
+    },
+    "reports": {
+      "added": 4,
+      "modified": 0
+    },
+    "tests": {
+      "added": 1,
+      "modified": 0
+    },
+    "(repository root)": {
+      "added": 0,
+      "modified": 3
+    }
+  },
+  "addedFiles": [
+    {
+      "path": "backend/modules/operations/supportCase.policy.js",
+      "sha256": "7e7387b3b29be885423df549e3fdb17a58762ec3769a28c8b5010a10d082f087",
+      "category": "added"
+    },
+    {
+      "path": "backend/modules/operations/supportCase.policy.test.mjs",
+      "sha256": "69319ceca8ac1e153cedd02692528325a24d36ee5c01d9639b1c6d8b27bb5bf1",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md",
+      "sha256": "413f7e04bf0964188adbe978dd512bcac08a4ac209dea3a41065a23a2cc72ef8",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/TITech_2026-11-08_Execution_Evidence.json",
+      "sha256": "d48fc5d88a4adb0a658d1680e9bdaf921188f653e9769fc6cffbe5c92101c474",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_API_CONTRACTS.md",
+      "sha256": "bc0af61b33bbc821111c96beb781443cdbd03af4262f435b02229d546fe05036",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_ARCHITECTURE.md",
+      "sha256": "2345988e76ea62755d9ff6e551eed5fb48ff1093cbde3bbb48ac535e05a84e27",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_E2E_EVIDENCE.md",
+      "sha256": "c9319c114a77293768b1a9caf3d6b931dc1d27334865cbf41b4cb3a817d370cc",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_KNOWN_GAPS.md",
+      "sha256": "534b8492e5964dfa443a38fdc5de6f265a7dd966cbcc905962ddb1a9c724f21d",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_OPERATIONAL_READINESS.md",
+      "sha256": "2a8feb8ce8ab9d702423a71423330a5a67c3304af6803a640132f0b7bc83c253",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_RBAC_AND_TENANCY.md",
+      "sha256": "98a35c68a62b3bfc5a47bff8e9d7cfef2b372f8f16ba7b2686d85ac5eaf41a97",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_SECURITY_AND_PRIVACY.md",
+      "sha256": "aed6e9f6c11798feba3efe829fd337b81925b783ad823581d551f139c053aa75",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_TEST_REPORT.md",
+      "sha256": "bbd44fbfcb7bc83d7ae6392a50266a29efefcb527c6ebec4c5116619611147d9",
+      "category": "added"
+    },
+    {
+      "path": "docs/partner-portal/PARTNER_PORTAL_USER_GUIDE.md",
+      "sha256": "07343e6347968bc96a9df326fbf9f0fae460e6092d276e09810923f5900d5d09",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/help/partnerGuide.js",
+      "sha256": "880730bee2b8f656aa0db614ccd268a6c3f79a672284cff9d7ba5dafd1f03164",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/pages/PartnerPortal.css",
+      "sha256": "8a25b02f8f1cc780af89fe95e62e2f93b0a052e0884e4fe94a748f0698d39277",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/pages/PartnerPortal.jsx",
+      "sha256": "7bcddb868003410d8d3060d85401f90f28b43e1d389d96d9601ce53dd6c677f1",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/security/__tests__/rbacPolicy.partnerPortal.test.mjs",
+      "sha256": "0827ed13464a9c9e357eaa312e139905ba7d92875d8283006d9745fe01f06011",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/services/partnerPortalApi.js",
+      "sha256": "3edad86013cf5c4431f8c7a4eacb3b0ef1827f136162c1b361ef5cdbf7cd54db",
+      "category": "added"
+    },
+    {
+      "path": "reports/official-theme-audit.json",
+      "sha256": "b44222ce88fa067ba5d0a1cf6570e428f853e9eeb02a00e2cde66aad9a0aefe1",
+      "category": "added"
+    },
+    {
+      "path": "reports/runtime-import-audit.json",
+      "sha256": "966a252ca13e28e79a8affeb3bdbfc2c31e19e7ea5ae2f7641159e657305e79b",
+      "category": "added"
+    },
+    {
+      "path": "reports/test-discovery-audit.json",
+      "sha256": "29798e516caf56815703608370f3d8aef460c2120c9d25d1c23d54218b16d12b",
+      "category": "added"
+    },
+    {
+      "path": "reports/titech-implementation-gate-2026-10-02.json",
+      "sha256": "29c17013fc3f29b0c191278edf784b1b0f4bb18ad19fc09dd6ed505e1a8abd7b",
+      "category": "added"
+    },
+    {
+      "path": "tests/partner-portal/partner-guide.test.mjs",
+      "sha256": "553228f675548a79802c809818e04d77eae12f899cb1fd652409ccdc56060668",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/TITech_2026-11-08_File_Change_Manifest.json",
+      "sha256": null,
+      "category": "added",
+      "note": "Manifest self-hash intentionally omitted."
+    }
+  ],
+  "modifiedFiles": [
+    {
+      "path": "TITECH_IMPLEMENTATION_INVENTORY.md",
+      "beforeSha256": "8d4f908ef60c7a63ad30f7e6433e2214483a4d1314b79edaeb1318dd7fd32945",
+      "afterSha256": "e8976a2c44b320e1f47fe6162bde74dd5f5269fd7a78414d1f0723fa6ae3d995",
+      "category": "modified"
+    },
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "beforeSha256": "7fd46bcdbb6bfc3523f189da94fad01e86629f4c21e450ec0220e427ff6a5742",
+      "afterSha256": "f0b541d96f72cb17b8a9456b1b4db557c163fdccf7aba6dee2c2dd95511c395d",
+      "category": "modified"
+    },
+    {
+      "path": "backend/modules/operations/controllers/supportCaseController.js",
+      "beforeSha256": "efd217451fa0758ae168cfa2d9c8b4d46e9fef3382ecfdd8b234d2437c8a098f",
+      "afterSha256": "6855fa221fe18c9ba0b66b3e289e98b5a577ed5fab3dd1e382069855ce2fab9a",
+      "category": "modified"
+    },
+    {
+      "path": "backend/modules/operations/operations.routes.js",
+      "beforeSha256": "f94e07c57f56a765571e83c264783dfd20f1111e03666ff3832b86f5bc736d5a",
+      "afterSha256": "15dfb363d36bff0951f04ef0ce53a26757333e704f609968afc58c32a3f147ae",
+      "category": "modified"
+    },
+    {
+      "path": "backend/modules/operations/services/supportCaseService.js",
+      "beforeSha256": "c4cc15e1fbcf85bc2f64b7af2493fd8d45702b8be98ac9a58eb44a12f9f1b00a",
+      "afterSha256": "809af480518a43c2bb5ac1d606aaeb18b2730beea630b1086314642ebb97c013",
+      "category": "modified"
+    },
+    {
+      "path": "frontend/src/layouts/AdminLayout.jsx",
+      "beforeSha256": "c6e1a29d7ba3aee9a3d815c34e07096355dfcadb6e45f48da44c4736659f4a00",
+      "afterSha256": "5b239c20f56b2731decce37bd6582bda07fd384572ccf2d6fa203da7892bb360",
+      "category": "modified"
+    },
+    {
+      "path": "frontend/src/routes/AppRoutes.jsx",
+      "beforeSha256": "b2a03ef9aa6b21e40c672047df73e1eb9318a57a6a05219f0c13e90625f70eb9",
+      "afterSha256": "bc07288c4406dc42820a87ea18ec7750d73b18f45e5bcd9be78a67d8a669b60f",
+      "category": "modified"
+    },
+    {
+      "path": "frontend/src/routes/PermissionRoute.jsx",
+      "beforeSha256": "4cb55c204ff57e920ceb2b0322786757e9690b3d670a2a9b4f1cbea5248576db",
+      "afterSha256": "8225a01621ce0562286f609a2e0b2ef89ddf133c256ccd753349137031360a9e",
+      "category": "modified"
+    },
+    {
+      "path": "frontend/src/security/rbacPolicy.js",
+      "beforeSha256": "700e46fe752d485c2937b3740ef13b4d5f96a3ed8e0585938265063ecfce805b",
+      "afterSha256": "622e3dfddd02bc6961df8822fbb8b8195e8f7337ef052c6151410c5447e7898c",
+      "category": "modified"
+    },
+    {
+      "path": "package.json",
+      "beforeSha256": "5dbc5f0f503cf9c565f1a51f8f42410e990318d3998827100dd3852f204e3a9b",
+      "afterSha256": "af8371cad1a4f7344f0bce5552124a490314c2f23a399053dca694934e7bff8c",
+      "category": "modified"
+    }
+  ],
+  "deletedFiles": [],
+  "preservationNote": "All original files were preserved; files with Unicode whitespace are retained at their exact original archive paths. No source files were deleted.",
+  "deliveryNote": "Manifest does not include a checksum of itself to avoid a self-referential digest."
+}

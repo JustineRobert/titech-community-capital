@@ -59,3 +59,11 @@ The implemented slice is **feature-flagged application intake only**. It validat
 ## Execution constraints
 
 The ZIP has no `.git` directory and cannot establish branch, commit, local uncommitted state or equivalence with the public remote. The execution container is Node `22.16.0` / npm `10.9.2`; the repo requires Node `24.15.0` / npm `11.x`. There is no installed `node_modules` tree. Source/static gates and selected dependency-free tests ran; full install, app startup, frontend build, DB/Redis, full suite, E2E, security scans and recovery drills did not.
+
+---
+
+## 8 November 2026 targeted execution supplement
+
+The archive-local delivery added the canonical Meetings route and a permission-gated Partner Portal route/sidebar item. The Partner Portal consumes the existing tenant-scoped Operations support-case API. Backend support cases now use a pure input policy, secret redaction, allowlisted diagnostics and linked references, tenant-scoped detail retrieval, capped list filters, repeat-transition idempotency and canonical audit-chain entries. Audit writes occur after the case write; this is not yet an atomic case/audit transaction. The seven-chapter interactive guide and Help Dot registry were added, along with ten focused unit tests.
+
+No official theme/organization metadata changes were needed: audits passed for the nine-color theme and `TITech Capital LTD`. Meetings browser execution, complete offline synchronization, TITechChats, customer lookup/message history, partner account settings and provider pathway status remain unverified or disconnected. The supported runtime is still unavailable in this environment; the eight critical release gates remain open. See `docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md` and `docs/partner-portal/`.

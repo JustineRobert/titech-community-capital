@@ -175,7 +175,8 @@
     "test:edufinance": "node --test backend/tests/unit/edufinance/*.test.mjs",
     "db:indexes:edufinance": "npm --prefix backend run index:create:edufinance",
     "check:ussd": "node scripts/ussd-contract-gate.mjs",
-    "test:ussd": "node --test backend/modules/ussd/tests/*.test.mjs"
+    "test:ussd": "node --test backend/modules/ussd/tests/*.test.mjs",
+    "test:partner-portal": "node --test backend/modules/operations/supportCase.policy.test.mjs tests/partner-portal/partner-guide.test.mjs frontend/src/security/__tests__/rbacPolicy.partnerPortal.test.mjs"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

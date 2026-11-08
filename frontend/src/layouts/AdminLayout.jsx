@@ -28,6 +28,8 @@ import {
   Receipt,
   FileText,
   Banknote,
+  CalendarDays,
+  LifeBuoy,
   Settings,
   Menu,
   X,
@@ -38,7 +40,7 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "../components/BrandLogo";
-import { normalizeTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
+import { hasTitechPermission, normalizeTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
 
 import "./AdminLayout.css";
 
@@ -62,6 +64,8 @@ export default function AdminLayout() {
 
   const {
     user,
+    permissions: authPermissions = [],
+    hasPermission,
   } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] =
@@ -151,6 +155,22 @@ export default function AdminLayout() {
       ];
 
       const role = normalizeTitechRole(user?.role);
+      const granted = new Set([
+        ...(Array.isArray(authPermissions) ? authPermissions : []),
+        ...(Array.isArray(user?.permissions) ? user.permissions : []),
+      ].map((permission) => String(permission).trim().toLowerCase()));
+      const has = (permission) => Boolean(
+        granted.has(permission) ||
+        (typeof hasPermission === 'function' && hasPermission(permission)) ||
+        hasTitechPermission(user, permission)
+      );
+      const featureItems = [];
+      if (has('meetings:read')) {
+        featureItems.push({ label: 'Meetings', icon: CalendarDays, path: '/meetings' });
+      }
+      if (has('support:case:read') || has('support:case:create')) {
+        featureItems.push({ label: 'Partner Portal', icon: LifeBuoy, path: '/partner-portal' });
+      }
       const isAdmin = [
         TITECH_ROLES.PLATFORM_ADMIN,
         TITECH_ROLES.TENANT_ADMIN,
@@ -175,11 +195,12 @@ export default function AdminLayout() {
       return isAdmin
         ? [
             ...items,
+            ...featureItems,
             ...adminItems,
             ...governanceItems,
           ]
-        : items;
-    }, [user]);
+        : [...items, ...featureItems];
+    }, [user, authPermissions, hasPermission]);
 
   // ===========================================================================
   // Responsive

@@ -61,6 +61,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
+import { hasTitechPermission } from '../security/rbacPolicy';
 
 // ============================================================================
 // Constants
@@ -513,7 +514,7 @@ function PermissionRoute({
           permissions,
           mode,
           userPermissions,
-          permissionChecker,
+          permissionChecker: permissionChecker || ((permission) => hasTitechPermission(user, permission)),
           featureFlag,
           hasFeature,
           requireTenant,
@@ -642,10 +643,11 @@ export function usePermissions() {
     useAuth() || {};
 
   const {
+    user = null,
     permissions = [],
-    hasPermission:
-      permissionChecker,
+    hasPermission: permissionChecker,
   } = auth;
+  const effectivePermissionChecker = permissionChecker || ((permission) => hasTitechPermission(user, permission));
 
   const can =
     useCallback(
@@ -653,12 +655,9 @@ export function usePermissions() {
         checkPermission(
           permission,
           permissions,
-          permissionChecker
+          effectivePermissionChecker
         ),
-      [
-        permissions,
-        permissionChecker,
-      ]
+      [permissions, effectivePermissionChecker]
     );
 
   const canAny =

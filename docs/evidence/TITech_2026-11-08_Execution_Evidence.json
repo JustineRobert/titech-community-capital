@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "executionDate": "2026-11-08",
+  "product": "TITech Community Capital",
+  "organization": "TITech Capital LTD",
+  "engineeringPrinciple": "BUILD LESS. PROVE MORE.",
+  "source": {
+    "type": "user-uploaded-source-archive",
+    "archiveName": "titech-community-capital-main.zip",
+    "archiveSha256": "eee19b22910a4d35f9c1472c5a93c6d50636471fd6ff2bb0ccc4eb564c5e06ee",
+    "archiveCommitReference": "fc6b388962b7603d7aa0b8f00b3f3c9b4859f3dc",
+    "commitReferenceVerification": "archive metadata only; not verified against Git",
+    "gitMetadataPresent": false,
+    "remotePushPerformed": false
+  },
+  "environment": {
+    "nodeObserved": "22.16.0",
+    "npmObserved": "10.9.2",
+    "nodeRequired": ">=24.15.0",
+    "npmRequired": ">=11.0.0",
+    "rootFrontendBackendNodeModulesPresent": false,
+    "mongoDbLiveServiceVerified": false,
+    "redisLiveServiceVerified": false
+  },
+  "changes": {
+    "partnerPortal": "Partially implemented: authenticated Partner Portal route, support-case UI/API integration, seven-chapter guide, Help Dots, safe diagnostic submission and tenant-scoped support-case hardening.",
+    "meetings": "Existing Meetings page registered in the active authenticated frontend router and permission-aware navigation; runtime and browser flow not verified.",
+    "offline": "Not completed: browser sync credential contract, trusted device registration lifecycle and globally mounted synchronization hook remain unresolved.",
+    "titechChats": "Not completed: chat routes remain disconnected; CommonJS/ESM, route registration, frontend import/API contract and realtime authorization gaps remain.",
+    "officialTheme": "No palette redesign. Existing canonical nine-colour semantic theme reused; 69 non-brand CSS files passed token coverage.",
+    "organizationIdentity": "TITech Capital LTD; product remains TITech Community Capital.",
+    "financialAndIdentityArchitecture": "Canonical authentication, JWT/refresh-token, Redis, tenancy, RBAC, audit, payment, ledger and reconciliation architecture preserved; no parallel V2 architecture introduced.",
+    "fileDelta": {
+      "added": 24,
+      "modified": 10,
+      "deleted": 0,
+      "countNote": "Includes this evidence report and the change manifest; the manifest does not hash itself."
+    }
+  },
+  "checks": [
+    {
+      "command": "npm run test:partner-portal",
+      "status": "PASS",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run validate:syntax",
+      "status": "PASS",
+      "parsedSourceFiles": 2502,
+      "warning": "Node 22.16.0 is below the required Node 24.15.x."
+    },
+    {
+      "command": "npm run audit:theme",
+      "status": "PASS",
+      "officialColours": 9,
+      "nonBrandCssFilesScanned": 69,
+      "hardcodedOfficialPaletteOccurrences": 0
+    },
+    {
+      "command": "npm run audit:organization",
+      "status": "PASS",
+      "organization": "TITech Capital LTD",
+      "product": "TITech Community Capital",
+      "productionApproved": false,
+      "externalDocumentaryVerification": "PENDING"
+    },
+    {
+      "command": "npm run titech:implementation-gate",
+      "status": "PASS"
+    },
+    {
+      "command": "npm run check:runtime-imports",
+      "status": "PASS_FOR_CANONICAL_FINANCIAL_SURFACE",
+      "backendFilesScanned": 2053,
+      "legacyMissingImportCandidates": 208,
+      "canonicalFinancialMissingImports": 0,
+      "canonicalFinancialMixedModuleViolations": 0
+    },
+    {
+      "command": "npm run audit:test-discovery",
+      "status": "PASS_AUDIT",
+      "testFiles": 174,
+      "zeroByteLegacyTests": 26,
+      "duplicateGroups": 0,
+      "plannedNonExecutableSpecs": 33
+    },
+    {
+      "command": "npm run titech:critical-gates",
+      "status": "BLOCKED_RELEASE",
+      "contractCheck": "PASS",
+      "openBlockingGates": 8,
+      "productionApproved": false
+    },
+    {
+      "command": "npm run check:runtime",
+      "status": "BLOCKED",
+      "exitCode": 1,
+      "reason": "Node/npm versions below repository requirements."
+    }
+  ],
+  "openCriticalGates": [
+    "P0_RUNTIME_INSTALL",
+    "P0_BOOTSTRAP_HEALTH",
+    "P0_LEDGER_REPLAY",
+    "P0_PROVIDER_FAILURES",
+    "P0_TENANT_PERMISSIONS",
+    "P1_SECURITY_RECOVERY",
+    "P1_REGULATORY_PARTNER",
+    "P1_COMMERCIAL_PILOT"
+  ],
+  "notExecuted": [
+    "clean dependency installation",
+    "frontend production build",
+    "backend startup and health/readiness integration",
+    "live MongoDB/Redis integration and persistence verification",
+    "browser E2E and accessibility audit",
+    "multi-tenant live API and Socket.IO security testing",
+    "provider sandbox and delivery-receipt verification",
+    "backup and restore drill",
+    "independent penetration/security assessment",
+    "refugee/host-community partner, insurer, regulatory and pilot approvals"
+  ],
+  "releaseDecision": {
+    "status": "PARTIALLY IMPLEMENTED — TESTING IN PROGRESS",
+    "productionApproved": false,
+    "enterpriseProductionReady": false,
+    "reason": "Targeted source remediation and focused tests do not establish runtime, end-to-end, security, external-provider, regulatory or production approval evidence."
+  }
+}
