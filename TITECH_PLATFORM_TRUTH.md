@@ -1,6 +1,6 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 7 November 2026  
+**As of:** 8 November 2026  
 **Organization:** TITech Capital LTD  
 **Product:** TITech Community Capital  
 **Engineering principle:** BUILD LESS. PROVE MORE.  
@@ -55,3 +55,12 @@ The delivery remains **PARTIALLY IMPLEMENTED — TESTING IN PROGRESS**. Partner 
 The execution environment is Node 22.16.0/npm 10.9.2, below the required Node 24.15.0/npm 11; dependencies and live MongoDB/Redis services were not present. The complete install, production builds, bootstrap, live persistence, browser E2E, independent security assessment, backup/restore and provider checks were therefore not run. All eight wider critical release gates remain open and `productionApproved=false`.
 
 See [`docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md`](docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md) and [`docs/partner-portal/`](docs/partner-portal/) for the file-by-file change inventory and current limitations.
+
+
+## 8 November 2026 — EduFinance applicant intake UI integration
+
+The EduFinance information page now contains a feature-gated authenticated parent/guardian request-intake interface and applicant-only request history, connected to the existing `/api/v1/edufinance` API through the canonical shared frontend API client. The new frontend form-policy and integration-contract tests passed 9/9. The selected archive-local tests now total 49/49 across EduFinance intake, partner guide/Help Dots, Meetings policy/video-provider policy and Offline contract suites. Official theme, organization, financial static, source syntax, implementation and RBAC gates passed in this environment.
+
+This increment does not implement school or invoice verification, lender underwriting/decisioning, agreement signing, payments, disbursement, servicing, repayment, reconciliation or closure. Application intake remains disabled in the supplied frontend and backend environment templates. Activating the UI flag alone is insufficient; the server-side feature flag, authenticated tenant/permission checks and legal/partner/privacy/operational prerequisites remain independently authoritative.
+
+Current execution environment remains Node 22.16.0/npm 10.9.2 with no project dependencies installed. Full package install, Vite production build, API startup, database/Redis tests, browser E2E, provider sandbox, independent security assessment and external approvals were not run. `productionApproved=false` remains mandatory. See [`docs/evidence/TITech_2026-11-08_EduFinance_Frontend_Intake_Change_Discovery.md`](docs/evidence/TITech_2026-11-08_EduFinance_Frontend_Intake_Change_Discovery.md).

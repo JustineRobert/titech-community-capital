@@ -1,0 +1,13 @@
+
+> titech-community-capital@1.0.0 check
+> npm run check:runtime && npm run titech:critical-gates && npm run check:conflicts && npm run titech:implementation-gate && npm run titech:hosting-gate && npm run validate:syntax && npm run check:financial && npm run check:ussd && npm run check:enterprise-contracts && npm run check:runtime-imports && npm run audit:theme && npm run audit:organization && npm run check:performance-contract && npm run i18n:check && npm run audit:frontend-runtime && npm run rbac:gate && npm run lint && npm run format:check
+
+
+> titech-community-capital@1.0.0 check:runtime
+> node scripts/titech-supported-runtime-gate.mjs
+
+TITech supported runtime gate: BLOCKED
+Observed Node: 22.16.0; observed npm: 10.9.2
+Required Node: >=24.15.0; required npm: >=11.0.0
+BLOCKER: Node 22.16.0 is below required >=24.15.0.
+BLOCKER: npm 10.9.2 is below required >=11.0.0.

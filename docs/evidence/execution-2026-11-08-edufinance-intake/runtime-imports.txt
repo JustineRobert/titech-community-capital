@@ -1,0 +1,8 @@
+TITech runtime import audit
+Backend source files scanned: 2053
+Missing local imports: 208
+Missing local imports on canonical financial surface: 0
+Mixed-module violations on canonical financial surface: 0
+Report: reports/runtime-import-audit.json
+WARN: 208 legacy/non-critical missing local imports require later consolidation.
+Runtime import audit: PASS for canonical financial surface.

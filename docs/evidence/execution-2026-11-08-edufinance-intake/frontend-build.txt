@@ -1,0 +1,9 @@
+
+> titech-community-capital@1.0.0 build:frontend
+> npm --prefix frontend run build
+
+
+> titech-community-capital-frontend@1.0.0 build
+> vite build
+
+sh: 1: vite: not found

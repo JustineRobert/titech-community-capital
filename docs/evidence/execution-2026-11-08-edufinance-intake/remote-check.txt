@@ -1,0 +1,7 @@
+Command:
+git ls-remote https://github.com/JustineRobert/titech-community-capital.git HEAD refs/heads/main refs/heads/master
+
+Result:
+fatal: unable to access 'https://github.com/JustineRobert/titech-community-capital.git/': Could not resolve host: github.com
+
+The supplied ZIP contains no .git metadata. Branch, commit, remote parity, local uncommitted changes and push status are therefore unverified. No remote write/push was attempted.

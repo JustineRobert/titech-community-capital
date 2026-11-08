@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "generatedOn": "2026-11-08",
+  "product": "TITech Community Capital",
+  "organization": "TITech Capital LTD",
+  "service": "TITech EduFinance — School Fees Financing Infrastructure Platform",
+  "sourceArchive": "titech-community-capital-main.zip",
+  "sourceArchiveSha256": "234ff179cfe05c15fea65da7228bd2836f4c328e03ef47d9766ce3f3012510b3",
+  "sourceHadGitMetadata": false,
+  "remoteParity": "UNVERIFIED — git ls-remote failed because github.com DNS resolution was unavailable; no push attempted",
+  "counts": {
+    "sourceFiles": 3569,
+    "deliveredFilesExcludingManifest": 3604,
+    "added": 35,
+    "modified": 7,
+    "deleted": 0
+  },
+  "folderSummary": {
+    "(repository root)": {
+      "added": 0,
+      "modified": 2,
+      "deleted": 0
+    },
+    "docs": {
+      "added": 27,
+      "modified": 1,
+      "deleted": 0
+    },
+    "frontend": {
+      "added": 4,
+      "modified": 4,
+      "deleted": 0
+    },
+    "reports": {
+      "added": 4,
+      "modified": 0,
+      "deleted": 0
+    }
+  },
+  "addedFiles": [
+    {
+      "path": "docs/edufinance/EDUFINANCE_GUARDIAN_INTAKE_USER_GUIDE.md",
+      "sha256": "4a7d496cc8d6de5ddafee0b8ae4a4a91f3e328093676ba7a33221abf1012272a",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/TITech_2026-11-08_EduFinance_Frontend_Intake_Change_Discovery.md",
+      "sha256": "5506865fa4b307888fa70942dc3f3bffdc45ffc1eb6740f09657d5cc70cb1b71",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/TITech_2026-11-08_User_Update_File_Change_Manifest.csv",
+      "sha256": "2d003bfcfc1f81b21cc9ae0ab713667120e0f3096f873d0b5d02f516cca0ba6c",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/README.md",
+      "sha256": "65dc9e672f68984ad6fe2d3cbc252ca2bd296f366948eef3cc0f6936e770f146",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/backend-build.txt",
+      "sha256": "8b7724b5d51857016b410b21a32972f072abc1d646e62c82d65a7cf29d702d0c",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/backend_modules_meetings_meeting_policy_test_js.log",
+      "sha256": "ed53865d9932fdece36ea9336b96b42faf61e39e0b78d954283b98245eaaf7b2",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/backend_modules_meetings_providers_dailyProvider_test_js.log",
+      "sha256": "d7698748c2301ae82c853506a90b138bf99d694112a35f236e87a2a1d9faef5b",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/backend_modules_operations_supportCase_policy_test_mjs.log",
+      "sha256": "a177d1d5f4f880f896b7c026196d63770963c0560057791bb0344e712f2e0ee6",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/backend_tests_unit_edufinance_eduFinance_policy_test_mjs.log",
+      "sha256": "12df6b0b2ff8cab40531e6f2164c95bfd5ae25dff4336eb959ffae3b70daf051",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/backend_tests_unit_edufinance_eduFinance_route-contract_test_mjs.log",
+      "sha256": "6b627cf1dc6b86ab4ae2899fcac1f5cb180a570ed9935bd7fb1a5d067227d66f",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/backend_tests_unit_inclusive-onboarding_offline-contract_test_mjs.log",
+      "sha256": "37688aefc9695463e5062b44f6c3fad86ab95b6ac20076cbe2f5b8d18bf57f32",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/environment.txt",
+      "sha256": "1cdc720d0fa4b2532edba90582513dac8320e51dd47c19389fa83fbcca26716d",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/financial.txt",
+      "sha256": "557bdf3aaaf3c65fb2af07a6497f0f1191ed94c02b33d22f51237159b1c67aeb",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/frontend-build.txt",
+      "sha256": "8723c66877b88b289249ede77f30d47b744607405d2744fab3cb15821db3b11b",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/frontend_src_pages_edufinance___tests___eduFinanceFormPolicy_test_mjs.log",
+      "sha256": "f47c731d559c0050b2fdcda5a27a7da2109282db21bc11ca564dfbea41b20bfc",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/frontend_src_pages_edufinance___tests___eduFinanceIntakeContract_test_mjs.log",
+      "sha256": "4f076a8e668fc7af71c32d33e9a6493ff99475b21b030d6bf69407a3ed5ead4f",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/frontend_src_security___tests___rbacPolicy_partnerPortal_test_mjs.log",
+      "sha256": "c6c00936233577ef489277ea22b59df7ba9da52fa1a0d3b636bc848ab73bd40d",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/full-check.txt",
+      "sha256": "50ed18be6d0011f86662dcaff7ebf76f4d12c9b98ec4f9e392857c624220d369",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/implementation.txt",
+      "sha256": "7d891022c564b75c4835bad80c8ff3af811ff30aa82e57a6a0073dc5cfda7015",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/organization.txt",
+      "sha256": "8f0b2ba8bad6bc4f309eac612a62f0a65ee9b616f5161ce3bf7d2a48d3cf288a",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/rbac.txt",
+      "sha256": "0eae3bb6b5ad6d07948e6a46ae7127eb821fbe7232a899335bfe95094d97849f",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/remote-check.txt",
+      "sha256": "d02579e97bed67f262fb7864683d0431daff7ed55f8dca704ea42cb0f1853809",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/runtime-imports.txt",
+      "sha256": "5944b3fbe9001247113ee7727bd70e1cdd0e55e40e0cd1f76c87e6fe5192c3f6",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/syntax.txt",
+      "sha256": "a115bb7daf47f4f33221ae0c58b194d83acf6b5a8e4059a362da4dc32f60ed2b",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/targeted-tests-summary.txt",
+      "sha256": "ff2f7889582cd3329d7f4f250481bb2ff284361ecef77164dc2a7822b2f45a92",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/tests_partner-portal_partner-guide_test_mjs.log",
+      "sha256": "4a1ba7c4711801984dbd4e5914324b36074fd5618338c00d41d548a9d99b1488",
+      "category": "added"
+    },
+    {
+      "path": "docs/evidence/execution-2026-11-08-edufinance-intake/theme.txt",
+      "sha256": "424157556de69f6c1ea31aba0c736eb30a024d5dce93e3518c061dd895c1de13",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/pages/edufinance/__tests__/eduFinanceFormPolicy.test.mjs",
+      "sha256": "29cc0d50acca6a542be8add350e285db91abd0730d32eeb74c94c7458b2ee2bb",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/pages/edufinance/__tests__/eduFinanceIntakeContract.test.mjs",
+      "sha256": "bc73bcbda2054247f00d465233db1a1bc52b8a495a32761942a48e011c557098",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/pages/edufinance/eduFinanceFormPolicy.mjs",
+      "sha256": "5531d3f9561455b8fb5dd77531b8633711a23b5d0c1bf04a5e425222b9612669",
+      "category": "added"
+    },
+    {
+      "path": "frontend/src/services/eduFinanceApi.js",
+      "sha256": "77f0478640882199e54cbcab30b327a34459d151eb29dd8343278d8cec32536f",
+      "category": "added"
+    },
+    {
+      "path": "reports/official-theme-audit.json",
+      "sha256": "424157556de69f6c1ea31aba0c736eb30a024d5dce93e3518c061dd895c1de13",
+      "category": "added"
+    },
+    {
+      "path": "reports/rbac-security-gate.json",
+      "sha256": "68afa3bf741f016bc4f304fb5be3a8b0856513465cd44033b165a73ae0ac0e68",
+      "category": "added"
+    },
+    {
+      "path": "reports/runtime-import-audit.json",
+      "sha256": "e8098d168a65bc9b508b0574f8b0419dadb1f84b635b616e115eb97cff3fde19",
+      "category": "added"
+    },
+    {
+      "path": "reports/titech-implementation-gate-2026-10-02.json",
+      "sha256": "7d891022c564b75c4835bad80c8ff3af811ff30aa82e57a6a0073dc5cfda7015",
+      "category": "added"
+    }
+  ],
+  "modifiedFiles": [
+    {
+      "path": "TITECH_IMPLEMENTATION_INVENTORY.md",
+      "beforeSha256": "e8976a2c44b320e1f47fe6162bde74dd5f5269fd7a78414d1f0723fa6ae3d995",
+      "afterSha256": "cb3566d9a95f02847096d4e7b97da57c137e2152d356cf6c98c14910ef6fd875",
+      "category": "modified"
+    },
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "beforeSha256": "f0b541d96f72cb17b8a9456b1b4db557c163fdccf7aba6dee2c2dd95511c395d",
+      "afterSha256": "455788f5de40eeba66c79830a3c072c95a9e5517c123c1c395f974f8d3011d14",
+      "category": "modified"
+    },
+    {
+      "path": "docs/edufinance/EDUFINANCE_IMPLEMENTATION_AND_GATES_2026-11-07.md",
+      "beforeSha256": "0da54ab3277cb44fd873705f5d02d68d1f43c3d05587bbf940a9a191a3d63805",
+      "afterSha256": "bf86658c4d947caca94b5585762cb6d279ea39fcf0d7d5db86bc5a62a1b6d0f5",
+      "category": "modified"
+    },
+    {
+      "path": "frontend/.env.example",
+      "beforeSha256": "3fcd9d873486303974f0c0cafaa2b5c28f3c6dd3311c241aad1a678afd20b9b8",
+      "afterSha256": "05508de0464e23f988725d23f3a264d8c3eeaac8b08be172a94df08316bf7930",
+      "category": "modified"
+    },
+    {
+      "path": "frontend/.env.production.example",
+      "beforeSha256": "a55bb9d12dc9a6edddd4d66c06e988413e8f1f42ebf9d6ecb10d94c7ed1dd353",
+      "afterSha256": "8eca2ae7cd38a41efda916dc5e72afa18aee1fe55b74d710b28cb7890ea833ab",
+      "category": "modified"
+    },
+    {
+      "path": "frontend/src/pages/edufinance/EduFinancePage.jsx",
+      "beforeSha256": "96055a6f30fc161985dd96184fe48c846169ed7346d145b4a1c1163ac5040546",
+      "afterSha256": "143982b747c8c71dea375ece4810bc5b9d3c9e65f9314de64ed194b46be0f2b8",
+      "category": "modified"
+    },
+    {
+      "path": "frontend/src/pages/edufinance/edufinance.css",
+      "beforeSha256": "9f339cd66cb9ae191b3fe6d934a7a817edd06c0f0aafc0e6985b17d7a1f41062",
+      "afterSha256": "f2282d41e370636bded19913cbbd88035901b14767c7ece8ae4d18d4588c0160",
+      "category": "modified"
+    }
+  ],
+  "deletedFiles": [],
+  "preservationNote": "No source files from the supplied archive were deleted. The archive contains an unusual U+202F filename; the original path was restored exactly after extraction.",
+  "deliveryNote": "Counts exclude this JSON manifest itself to avoid a self-referential hash. The CSV manifest is included in the added-file count. Existing archive-local Partner Portal/Meetings/EduFinance foundations were preserved; this JSON/CSV records the incremental delta against the uploaded ZIP."
+}

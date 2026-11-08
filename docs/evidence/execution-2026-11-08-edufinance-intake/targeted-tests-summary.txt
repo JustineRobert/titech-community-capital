@@ -1,0 +1,12 @@
+frontend/src/pages/edufinance/__tests__/eduFinanceFormPolicy.test.mjs | EXIT_CODE=0 | tests=5 | pass=5 | fail=0
+frontend/src/pages/edufinance/__tests__/eduFinanceIntakeContract.test.mjs | EXIT_CODE=0 | tests=4 | pass=4 | fail=0
+backend/tests/unit/edufinance/eduFinance.policy.test.mjs | EXIT_CODE=0 | tests=10 | pass=10 | fail=0
+backend/tests/unit/edufinance/eduFinance.route-contract.test.mjs | EXIT_CODE=0 | tests=5 | pass=5 | fail=0
+tests/partner-portal/partner-guide.test.mjs | EXIT_CODE=0 | tests=3 | pass=3 | fail=0
+backend/modules/operations/supportCase.policy.test.mjs | EXIT_CODE=0 | tests=5 | pass=5 | fail=0
+frontend/src/security/__tests__/rbacPolicy.partnerPortal.test.mjs | EXIT_CODE=0 | tests=2 | pass=2 | fail=0
+backend/modules/meetings/meeting.policy.test.js | EXIT_CODE=0 | tests=4 | pass=4 | fail=0
+backend/modules/meetings/providers/dailyProvider.test.js | EXIT_CODE=0 | tests=5 | pass=5 | fail=0
+backend/tests/unit/inclusive-onboarding/offline-contract.test.mjs | EXIT_CODE=0 | tests=6 | pass=6 | fail=0
+
+TOTAL | files=10 | tests=49 | pass=49 | fail=0

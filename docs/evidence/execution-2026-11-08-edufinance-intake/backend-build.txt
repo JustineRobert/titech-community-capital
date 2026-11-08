@@ -1,0 +1,9 @@
+
+> titech-community-capital@1.0.0 build:backend
+> npm --prefix backend run build
+
+
+> titech-community-capital-backend@1.0.0 build
+> node -e "console.log('TITech Community Capital backend build validation complete - Node.js runtime requires no compilation.')"
+
+TITech Community Capital backend build validation complete - Node.js runtime requires no compilation.
