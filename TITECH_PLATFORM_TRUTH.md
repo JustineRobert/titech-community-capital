@@ -1,6 +1,6 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 8 November 2026  
+**As of:** 9 November 2026  
 **Organization:** TITech Capital LTD  
 **Product:** TITech Community Capital  
 **Engineering principle:** BUILD LESS. PROVE MORE.  
@@ -18,6 +18,17 @@ This root-level document is an index to the current machine-generated evidence a
 - [`docs/root-documents/TITECH_PLATFORM_TRUTH.md`](docs/root-documents/TITECH_PLATFORM_TRUTH.md) — detailed platform history and prior evidence snapshots; dated statements remain historical.
 - [`docs/evidence/TITech_2026-11-07_Execution_Change_Discovery.md`](docs/evidence/TITech_2026-11-07_Execution_Change_Discovery.md) — current archive-local change discovery, exact file inventory and verification results.
 - [`docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md`](docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md) — preserved earlier same-day EduFinance/SMC snapshot; superseded for current organization identity by the later user instruction recorded in this execution report.
+
+## 9 November 2026 execution update
+
+- Latest working input: the 8 November 2026 Library upload `titech-community-capital-main.zip`; its actual SHA-256 is recorded in [`docs/evidence/enterprise-readiness/FINAL-ENTERPRISE-READINESS-REPORT.md`](docs/evidence/enterprise-readiness/FINAL-ENTERPRISE-READINESS-REPORT.md). The archive contains no `.git` directory. Its ZIP comment contains a commit-like identifier, but this was not independently verified against GitHub.
+- The supplied sidecar change manifest and execution-evidence JSON contain archive checksums that do not match the materialized ZIP. They are retained as historical input evidence, not treated as proof of this exact source snapshot.
+- **TITech Capital LTD** remains the configured organization display/legal name, with **TITech Community Capital** as the product identity. Documentary verification of statutory identity, registered office, postal details and any regulated permissions remains pending.
+- The nine-color official TITech palette and the light/dark token system are unchanged. The 9 November theme audit passed and confirmed tokenized coverage across all 68 non-brand frontend CSS files.
+- The audit writer now accepts and applies a supplied MongoDB session to both audit-chain lookup and append. Education campaign state changes and EduFinance application submission now place their primary persistence and required audit event in the same transaction. Focused source-contract and policy suites passed; a replica-set-backed integration test was not available in this environment.
+- Runtime/static gates and selected feature suites were rerun. The full release status remains **BLOCKED**; `productionApproved` remains `false`. Runtime compatibility, clean dependency install/build, MongoDB/Redis integration and recovery, complete ledger replay, provider/settlement proof, tenant isolation, independent security assessment, partner/legal approvals and pilot acceptance remain open.
+
+See [`docs/evidence/enterprise-readiness/CHANGE-DISCOVERY.md`](docs/evidence/enterprise-readiness/CHANGE-DISCOVERY.md) for exact paths, and [`docs/evidence/enterprise-readiness/FINAL-ENTERPRISE-READINESS-REPORT.md`](docs/evidence/enterprise-readiness/FINAL-ENTERPRISE-READINESS-REPORT.md) for commands, results, limitations and the release decision.
 
 ## Current source-snapshot boundary
 
@@ -45,22 +56,3 @@ See [`docs/architecture/ussd-multi-telco-implementation.md`](docs/architecture/u
 ## Inclusive partner operating boundary
 
 Refugee and host-community participants may be served only through verified, appropriately authorised institutional partners, with institution-scoped tenancy, consent, privacy, identity verification and safeguarding controls. Insurance-related workflows must remain bounded to authorised insurers and appropriately authorised distribution/service partners. TITech infrastructure does not itself confer payment, deposit-taking, lending, underwriting, insurance-distribution or telecommunications permission. The corresponding features remain gated until applicable legal, provider and partner evidence is independently reviewed.
-
-## 8 November 2026 — Offline, Meetings, TITechChats and Partner Portal execution update
-
-The 8 November archive-local execution added canonical frontend registration for the existing Meetings page and a targeted Partner Support Workspace. The Partner Portal connects to the existing `/api/v1/operations/cases` tenant-scoped support-case API, adds bounded/redacted support input policy, detail retrieval, tenant-derived service context, canonical audit-chain writes, seven guide chapters and contextual Help Dots. Ten focused tests passed; the repository JavaScript/TypeScript syntax gate and official theme/organization audits passed.
-
-The delivery remains **PARTIALLY IMPLEMENTED — TESTING IN PROGRESS**. Partner customer lookup/message history, safe account settings and provider-specific messaging pathway monitoring remain disconnected. Offline synchronization remains blocked by the missing frontend device-secret header and unverified registration/trust lifecycle; the global sync hook is not mounted. TITechChats remains disconnected from canonical frontend/backend execution paths due the legacy ESM/CommonJS and API-contract issues. Meetings is router-integrated but not browser/runtime verified. Audit writes follow the case mutation and are not yet transactionally atomic.
-
-The execution environment is Node 22.16.0/npm 10.9.2, below the required Node 24.15.0/npm 11; dependencies and live MongoDB/Redis services were not present. The complete install, production builds, bootstrap, live persistence, browser E2E, independent security assessment, backup/restore and provider checks were therefore not run. All eight wider critical release gates remain open and `productionApproved=false`.
-
-See [`docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md`](docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md) and [`docs/partner-portal/`](docs/partner-portal/) for the file-by-file change inventory and current limitations.
-
-
-## 8 November 2026 — EduFinance applicant intake UI integration
-
-The EduFinance information page now contains a feature-gated authenticated parent/guardian request-intake interface and applicant-only request history, connected to the existing `/api/v1/edufinance` API through the canonical shared frontend API client. The new frontend form-policy and integration-contract tests passed 9/9. The selected archive-local tests now total 49/49 across EduFinance intake, partner guide/Help Dots, Meetings policy/video-provider policy and Offline contract suites. Official theme, organization, financial static, source syntax, implementation and RBAC gates passed in this environment.
-
-This increment does not implement school or invoice verification, lender underwriting/decisioning, agreement signing, payments, disbursement, servicing, repayment, reconciliation or closure. Application intake remains disabled in the supplied frontend and backend environment templates. Activating the UI flag alone is insufficient; the server-side feature flag, authenticated tenant/permission checks and legal/partner/privacy/operational prerequisites remain independently authoritative.
-
-Current execution environment remains Node 22.16.0/npm 10.9.2 with no project dependencies installed. Full package install, Vite production build, API startup, database/Redis tests, browser E2E, provider sandbox, independent security assessment and external approvals were not run. `productionApproved=false` remains mandatory. See [`docs/evidence/TITech_2026-11-08_EduFinance_Frontend_Intake_Change_Discovery.md`](docs/evidence/TITech_2026-11-08_EduFinance_Frontend_Intake_Change_Discovery.md).

@@ -1,0 +1,225 @@
+{
+  "generatedAt": "2026-11-09",
+  "product": "TITech Community Capital",
+  "organization": "TITech Capital LTD",
+  "sourceArchive": {
+    "name": "titech-community-capital-main.zip",
+    "sha256": "c72b6f511508537ab8a86a5c975b7cb4b075e8e3808dc74f510037a353e6a150",
+    "zipCommentNotIndependentlyVerified": "fc6b388962b7603d7aa0b8f00b3f3c9b4859f3dc",
+    "gitMetadataPresent": false,
+    "githubParityVerified": false
+  },
+  "release": {
+    "status": "BLOCKED",
+    "productionApproved": false,
+    "decision": "NOT READY"
+  },
+  "codeChanges": [
+    {
+      "path": "backend/modules/audit/audit.service.js",
+      "status": "MODIFIED",
+      "summary": "createAuditLog now applies caller session to audit-chain lookup and append."
+    },
+    {
+      "path": "backend/modules/education/educationCampaign.service.js",
+      "status": "MODIFIED",
+      "summary": "campaign writes, partner verification reads and required audit writes participate in a MongoDB transaction."
+    },
+    {
+      "path": "backend/modules/edufinance/eduFinance.service.js",
+      "status": "MODIFIED",
+      "summary": "EduFinance application creation and submission audit event participate in one MongoDB transaction."
+    },
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "status": "MODIFIED",
+      "summary": "9 November evidence and release status index added without erasing dated history."
+    }
+  ],
+  "tests": {
+    "selectedRunsTotal": {
+      "passed": 86,
+      "failed": 0,
+      "skipped": 0
+    },
+    "runs": [
+      {
+        "command": "node --test backend/tests/unit/audit/audit.transaction-contract.test.mjs",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "npm run test:education-campaigns",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "npm run test:edufinance",
+        "passed": 16,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "npm run test:ubuntu-float",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "npm run test:ussd",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "npm run test:inclusive-onboarding",
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "npm run test:organization",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "npm run test:critical-gates",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "npm run test:frontend-runtime",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "syntaxChecks": {
+      "filesCheckedByEnterpriseGate": 2498,
+      "status": "PASS",
+      "runtimeWarning": "Node 22.16.0 below repository target 24.15.0"
+    },
+    "testDiscovery": {
+      "testFiles": 176,
+      "emptyTestFiles": 26,
+      "plannedNonExecutableSpecs": 33,
+      "duplicateGroups": 0
+    }
+  },
+  "gates": [
+    {
+      "command": "npm run audit:theme",
+      "result": "PASS",
+      "scope": "official nine-color palette, light/dark and 68 non-brand CSS token coverage"
+    },
+    {
+      "command": "npm run audit:organization",
+      "result": "PASS",
+      "scope": "configured identity and organizational metadata contract; statutory documentary verification pending"
+    },
+    {
+      "command": "npm run validate:syntax",
+      "result": "PASS",
+      "scope": "2498 JS/TS-family source files parsed"
+    },
+    {
+      "command": "npm run check:runtime-imports",
+      "result": "PASS_WITH_WARNING",
+      "scope": "2054 backend source files; 208 legacy/non-critical missing local-import candidates; 0 on canonical financial surface"
+    },
+    {
+      "command": "npm run titech:implementation-gate",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run check:financial",
+      "result": "PASS",
+      "scope": "12 canonical financial files static check only"
+    },
+    {
+      "command": "npm run check:ussd",
+      "result": "PASS",
+      "scope": "USSD contract static checks"
+    },
+    {
+      "command": "npm run check:enterprise-contracts",
+      "result": "PASS",
+      "scope": "11 contracts"
+    },
+    {
+      "command": "npm run check:performance-contract",
+      "result": "PASS",
+      "scope": "read-only capacity test contract, not a load test"
+    },
+    {
+      "command": "npm run i18n:check",
+      "result": "PASS_WITH_LIMITATIONS",
+      "scope": "resource/catalog checks; human review and complete workflow coverage not established"
+    },
+    {
+      "command": "npm run audit:frontend-runtime",
+      "result": "PASS_WITH_WARNING",
+      "scope": "no frontend/dist bundle in source snapshot"
+    },
+    {
+      "command": "npm run rbac:gate",
+      "result": "PASS_STATIC_ONLY",
+      "scope": "full live tenant isolation tests remain open"
+    },
+    {
+      "command": "npm run titech:hosting-gate",
+      "result": "PASS_STATIC_ONLY",
+      "scope": "deployment configuration contract, no deployed environment"
+    },
+    {
+      "command": "npm run audit:test-discovery",
+      "result": "PASS",
+      "scope": "176 files; 26 empty; 33 planned; 0 duplicate groups"
+    },
+    {
+      "command": "npm run titech:critical-gates",
+      "result": "CONTRACT_PASS_RELEASE_BLOCKED",
+      "openGates": [
+        "P0_RUNTIME_INSTALL",
+        "P0_BOOTSTRAP_HEALTH",
+        "P0_LEDGER_REPLAY",
+        "P0_PROVIDER_FAILURES",
+        "P0_TENANT_PERMISSIONS",
+        "P1_SECURITY_RECOVERY",
+        "P1_REGULATORY_PARTNER",
+        "P1_COMMERCIAL_PILOT"
+      ]
+    },
+    {
+      "command": "npm run check:runtime",
+      "result": "BLOCKED",
+      "reason": "Observed Node 22.16.0 < >=24.15.0 and npm 10.9.2 < >=11.0.0"
+    }
+  ],
+  "notTestedOrBlocked": [
+    "Clean npm ci install and backend/frontend dependency build",
+    "Full backend and frontend startup and readiness against MongoDB and Redis",
+    "MongoDB replica-set transaction integration and rollback tests",
+    "Redis availability/recovery, job retry and field-offline synchronization tests",
+    "Full browser E2E, including auth, payroll, Partner Portal, EduFinance and education journeys",
+    "Live/sandbox provider connectivity and independent settlement evidence",
+    "Full double-entry ledger replay, reversal, concurrent posting and period close",
+    "Complete cross-tenant database/API/document/export/background-worker isolation tests",
+    "Independent penetration/security assessment and backup/restore drill",
+    "External legal, regulator, provider and partner approvals and institutional pilot acceptance"
+  ],
+  "knownLimitations": [
+    "Education campaign support is a gated campaign workflow foundation, not a complete donor payment/ledger/disbursement platform.",
+    "EduFinance supports intake only; lender underwriting, loan servicing, disbursement, repayment and settlement are not complete.",
+    "Scholarship and full education beneficiary/guardian/safeguarding lifecycles are not certified by this execution.",
+    "Payroll 403 paths were not re-reproduced or fixed in this execution.",
+    "208 import audit findings remain outside the canonical financial surface.",
+    "26 empty tests and 33 planned/non-executable specs remain.",
+    "Swahili, French and Arabic translations are pending human review; Arabic RTL browser validation not performed.",
+    "Organization statutory details and applicable regulatory permissions require documentary verification."
+  ]
+}

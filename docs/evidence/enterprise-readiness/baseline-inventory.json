@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-11-09",
+  "archive": {
+    "name": "titech-community-capital-main.zip",
+    "libraryUploadedAt": "2026-11-08T07:08:45Z",
+    "sizeBytes": 44204209,
+    "sha256": "c72b6f511508537ab8a86a5c975b7cb4b075e8e3808dc74f510037a353e6a150",
+    "zipComment": "fc6b388962b7603d7aa0b8f00b3f3c9b4859f3dc",
+    "zipEntryCountIncludingDirectories": 4162,
+    "regularFileCount": 3549,
+    "zeroByteRegularFileCount": 248,
+    "gitDirectoryPresent": false,
+    "archiveValidated": true
+  },
+  "topLevelRegularFileCounts": {
+    "(root)": 29,
+    ".github": 3,
+    ".titech-remediation": 29,
+    "backend": 2149,
+    "branding": 20,
+    "docker": 5,
+    "docs": 709,
+    "frontend": 457,
+    "infrastructure": 22,
+    "inputs": 1,
+    "mobile": 2,
+    "nginx": 2,
+    "patches": 1,
+    "postman": 8,
+    "prometheus": 2,
+    "scripts": 76,
+    "shared": 1,
+    "tests": 33
+  },
+  "providedSidecars": {
+    "userUpdateManifest": {
+      "name": "TITech_2026-11-08_User_Update_File_Change_Manifest.json",
+      "declaredArchiveSha256": "234ff179cfe05c15fea65da7228bd2836f4c328e03ef47d9766ce3f3012510b3",
+      "matchesMaterializedArchive": false
+    },
+    "executionEvidence": {
+      "name": "TITech-2026-11-08-Execution-Evidence.json",
+      "declaredArchiveSha256": "eee19b22910a4d35f9c1472c5a93c6d50636471fd6ff2bb0ccc4eb564c5e06ee",
+      "archiveCommitReference": "fc6b388962b7603d7aa0b8f00b3f3c9b4859f3dc",
+      "matchesMaterializedArchive": false
+    }
+  },
+  "runtimeObserved": {
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "requiredNode": ">=24.15.0",
+    "requiredNpm": ">=11.0.0"
+  },
+  "environment": {
+    "rootNodeModules": false,
+    "backendNodeModules": false,
+    "frontendNodeModules": false,
+    "mongodAvailable": false,
+    "redisServerAvailable": false,
+    "gitMetadataAvailable": false
+  },
+  "postChangeDelta": {
+    "modifiedOriginalFiles": 4,
+    "addedFiles": 16,
+    "removedOriginalFiles": 0,
+    "removedPaths": []
+  }
+}

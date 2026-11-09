@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import mongoose from 'mongoose';
 import EducationCampaign from './models/EducationCampaign.js';
 import RefugeeServingOrganisationProfile from '../refugee-partners/models/RefugeeServingOrganisationProfile.js';
 import { createAuditLog } from '../audit/audit.service.js';
@@ -36,7 +37,7 @@ function validateCampaignId(id) {
   return normalized;
 }
 
-async function writeAudit(ctx, action, data) {
+async function writeAudit(ctx, action, data, session) {
   await createAuditLog({
     tenantId: ctx.tenantId,
     actorId: ctx.actorId,
@@ -44,23 +45,40 @@ async function writeAudit(ctx, action, data) {
     data,
     requestId: ctx.requestId,
     correlationId: ctx.correlationId,
+    session,
   });
 }
 
-async function findPartner(tenantId) {
-  return RefugeeServingOrganisationProfile.findOne({ tenantId })
-    .select('tenantId legalName verificationStatus programmeScopes verifiedBy verifiedAt')
-    .lean();
+async function withCampaignAuditTransaction(operation) {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      result = await operation(session);
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
 }
 
-async function requireVerifiedEducationPartner(tenantId) {
-  const partner = await findPartner(tenantId);
+async function findPartner(tenantId, session = null) {
+  const query = RefugeeServingOrganisationProfile.findOne({ tenantId })
+    .select('tenantId legalName verificationStatus programmeScopes verifiedBy verifiedAt');
+  if (session) query.session(session);
+  return query.lean();
+}
+
+async function requireVerifiedEducationPartner(tenantId, session = null) {
+  const partner = await findPartner(tenantId, session);
   assertEducationPartnerVerified(partner);
   return partner;
 }
 
-async function findOwnedCampaign(ctx, campaignId) {
-  const campaign = await EducationCampaign.findOne({ tenantId: ctx.tenantId, _id: validateCampaignId(campaignId) });
+async function findOwnedCampaign(ctx, campaignId, session = null) {
+  const query = EducationCampaign.findOne({ tenantId: ctx.tenantId, _id: validateCampaignId(campaignId) });
+  if (session) query.session(session);
+  const campaign = await query;
   if (!campaign) throw campaignError('The education campaign was not found in this tenant.', 'EDUCATION_CAMPAIGN_NOT_FOUND', 404);
   return campaign;
 }
@@ -105,19 +123,21 @@ function pickEditableInput(payload) {
 export async function createEducationCampaign(payload = {}, context = {}) {
   const ctx = contextOf(context);
   const input = pickEditableInput(payload);
-  const campaign = new EducationCampaign({
-    ...input,
-    tenantId: ctx.tenantId,
-    publicReference: randomUUID(),
-    status: 'DRAFT',
-    version: 1,
-    createdBy: ctx.actorId,
-    updatedBy: ctx.actorId,
-    history: [{ fromStatus: null, toStatus: 'DRAFT', actorId: ctx.actorId, reason: 'CAMPAIGN_CREATED', version: 1, at: new Date() }],
+  return withCampaignAuditTransaction(async (session) => {
+    const campaign = new EducationCampaign({
+      ...input,
+      tenantId: ctx.tenantId,
+      publicReference: randomUUID(),
+      status: 'DRAFT',
+      version: 1,
+      createdBy: ctx.actorId,
+      updatedBy: ctx.actorId,
+      history: [{ fromStatus: null, toStatus: 'DRAFT', actorId: ctx.actorId, reason: 'CAMPAIGN_CREATED', version: 1, at: new Date() }],
+    });
+    await campaign.save({ session });
+    await writeAudit(ctx, 'EDUCATION_CAMPAIGN.DRAFT_CREATED', { campaignId: String(campaign._id), publicReference: campaign.publicReference, version: campaign.version, status: campaign.status }, session);
+    return toManagementCampaignDTO(campaign);
   });
-  await campaign.save();
-  await writeAudit(ctx, 'EDUCATION_CAMPAIGN.DRAFT_CREATED', { campaignId: String(campaign._id), publicReference: campaign.publicReference, version: campaign.version, status: campaign.status });
-  return toManagementCampaignDTO(campaign);
 }
 
 export async function listEducationCampaigns(context = {}) {
@@ -128,91 +148,101 @@ export async function listEducationCampaigns(context = {}) {
 
 export async function updateEducationCampaign(campaignId, payload = {}, context = {}) {
   const ctx = contextOf(context);
-  const campaign = await findOwnedCampaign(ctx, campaignId);
-  const expectedVersion = Number(payload.expectedVersion);
-  if (!Number.isSafeInteger(expectedVersion) || expectedVersion !== campaign.version) {
-    throw campaignError('The campaign changed since it was loaded. Refresh and retry your edit.', 'EDUCATION_CAMPAIGN_VERSION_CONFLICT', 409);
-  }
-  if (!['DRAFT', 'REJECTED', 'APPROVED', 'PAUSED'].includes(campaign.status)) {
-    throw campaignError('Only draft, rejected, approved or paused campaigns may be edited. Submitted and published campaigns must first follow their lifecycle.', 'EDUCATION_CAMPAIGN_EDIT_NOT_ALLOWED', 409);
-  }
-  const input = pickEditableInput(payload);
-  Object.assign(campaign, input);
-  const fromStatus = campaign.status;
-  campaign.version += 1;
-  campaign.reviewedVersion = null;
-  campaign.reviewerId = null;
-  campaign.reviewReason = null;
-  campaign.privacyAndSafeguardingReviewed = false;
-  campaign.budgetAndTermsReviewed = false;
-  campaign.status = 'DRAFT';
-  campaign.updatedBy = ctx.actorId;
-  campaign.history.push({ fromStatus, toStatus: 'DRAFT', actorId: ctx.actorId, reason: 'CONTENT_CHANGED_REQUIRES_REVIEW', version: campaign.version, at: new Date() });
-  await campaign.save();
-  await writeAudit(ctx, 'EDUCATION_CAMPAIGN.VERSION_UPDATED', { campaignId: String(campaign._id), version: campaign.version, previousStatus: fromStatus, status: campaign.status });
-  return toManagementCampaignDTO(campaign);
+  return withCampaignAuditTransaction(async (session) => {
+    const campaign = await findOwnedCampaign(ctx, campaignId, session);
+    const expectedVersion = Number(payload.expectedVersion);
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion !== campaign.version) {
+      throw campaignError('The campaign changed since it was loaded. Refresh and retry your edit.', 'EDUCATION_CAMPAIGN_VERSION_CONFLICT', 409);
+    }
+    if (!['DRAFT', 'REJECTED', 'APPROVED', 'PAUSED'].includes(campaign.status)) {
+      throw campaignError('Only draft, rejected, approved or paused campaigns may be edited. Submitted and published campaigns must first follow their lifecycle.', 'EDUCATION_CAMPAIGN_EDIT_NOT_ALLOWED', 409);
+    }
+    const input = pickEditableInput(payload);
+    Object.assign(campaign, input);
+    const fromStatus = campaign.status;
+    campaign.version += 1;
+    campaign.reviewedVersion = null;
+    campaign.reviewerId = null;
+    campaign.reviewReason = null;
+    campaign.privacyAndSafeguardingReviewed = false;
+    campaign.budgetAndTermsReviewed = false;
+    campaign.status = 'DRAFT';
+    campaign.updatedBy = ctx.actorId;
+    campaign.history.push({ fromStatus, toStatus: 'DRAFT', actorId: ctx.actorId, reason: 'CONTENT_CHANGED_REQUIRES_REVIEW', version: campaign.version, at: new Date() });
+    await campaign.save({ session });
+    await writeAudit(ctx, 'EDUCATION_CAMPAIGN.VERSION_UPDATED', { campaignId: String(campaign._id), version: campaign.version, previousStatus: fromStatus, status: campaign.status }, session);
+    return toManagementCampaignDTO(campaign);
+  });
 }
 
 export async function submitEducationCampaign(campaignId, context = {}) {
   const ctx = contextOf(context);
-  const campaign = await findOwnedCampaign(ctx, campaignId);
-  await requireVerifiedEducationPartner(ctx.tenantId);
-  assertCampaignTransition(campaign.status, 'SUBMITTED');
-  appendHistory(campaign, ctx, 'SUBMITTED', 'SUBMITTED_FOR_INDEPENDENT_REVIEW');
-  campaign.reviewedVersion = null;
-  campaign.reviewerId = null;
-  campaign.reviewReason = null;
-  campaign.privacyAndSafeguardingReviewed = false;
-  campaign.budgetAndTermsReviewed = false;
-  await campaign.save();
-  await writeAudit(ctx, 'EDUCATION_CAMPAIGN.SUBMITTED', { campaignId: String(campaign._id), version: campaign.version, status: campaign.status });
-  return toManagementCampaignDTO(campaign);
+  return withCampaignAuditTransaction(async (session) => {
+    const campaign = await findOwnedCampaign(ctx, campaignId, session);
+    await requireVerifiedEducationPartner(ctx.tenantId, session);
+    assertCampaignTransition(campaign.status, 'SUBMITTED');
+    appendHistory(campaign, ctx, 'SUBMITTED', 'SUBMITTED_FOR_INDEPENDENT_REVIEW');
+    campaign.reviewedVersion = null;
+    campaign.reviewerId = null;
+    campaign.reviewReason = null;
+    campaign.privacyAndSafeguardingReviewed = false;
+    campaign.budgetAndTermsReviewed = false;
+    await campaign.save({ session });
+    await writeAudit(ctx, 'EDUCATION_CAMPAIGN.SUBMITTED', { campaignId: String(campaign._id), version: campaign.version, status: campaign.status }, session);
+    return toManagementCampaignDTO(campaign);
+  });
 }
 
 export async function reviewEducationCampaign(campaignId, payload = {}, context = {}) {
   const ctx = contextOf(context);
-  const campaign = await findOwnedCampaign(ctx, campaignId);
-  if (campaign.createdBy === ctx.actorId) throw campaignError('The campaign creator cannot approve or reject their own campaign.', 'EDUCATION_CAMPAIGN_SELF_REVIEW_FORBIDDEN', 403);
-  const decision = normalizeReviewPayload(payload);
-  assertCampaignTransition(campaign.status, decision.decision);
-  campaign.reviewerId = ctx.actorId;
-  campaign.reviewedVersion = campaign.version;
-  campaign.reviewReason = decision.reason;
-  campaign.privacyAndSafeguardingReviewed = decision.privacyAndSafeguardingReviewed;
-  campaign.budgetAndTermsReviewed = decision.budgetAndTermsReviewed;
-  appendHistory(campaign, ctx, decision.decision, decision.reason);
-  await campaign.save();
-  await writeAudit(ctx, `EDUCATION_CAMPAIGN.${decision.decision}`, { campaignId: String(campaign._id), version: campaign.version, status: campaign.status, reasonProvided: Boolean(decision.reason), privacyAndSafeguardingReviewed: campaign.privacyAndSafeguardingReviewed, budgetAndTermsReviewed: campaign.budgetAndTermsReviewed });
-  return toManagementCampaignDTO(campaign);
+  return withCampaignAuditTransaction(async (session) => {
+    const campaign = await findOwnedCampaign(ctx, campaignId, session);
+    if (campaign.createdBy === ctx.actorId) throw campaignError('The campaign creator cannot approve or reject their own campaign.', 'EDUCATION_CAMPAIGN_SELF_REVIEW_FORBIDDEN', 403);
+    const decision = normalizeReviewPayload(payload);
+    assertCampaignTransition(campaign.status, decision.decision);
+    campaign.reviewerId = ctx.actorId;
+    campaign.reviewedVersion = campaign.version;
+    campaign.reviewReason = decision.reason;
+    campaign.privacyAndSafeguardingReviewed = decision.privacyAndSafeguardingReviewed;
+    campaign.budgetAndTermsReviewed = decision.budgetAndTermsReviewed;
+    appendHistory(campaign, ctx, decision.decision, decision.reason);
+    await campaign.save({ session });
+    await writeAudit(ctx, `EDUCATION_CAMPAIGN.${decision.decision}`, { campaignId: String(campaign._id), version: campaign.version, status: campaign.status, reasonProvided: Boolean(decision.reason), privacyAndSafeguardingReviewed: campaign.privacyAndSafeguardingReviewed, budgetAndTermsReviewed: campaign.budgetAndTermsReviewed }, session);
+    return toManagementCampaignDTO(campaign);
+  });
 }
 
 export async function publishEducationCampaign(campaignId, context = {}) {
   const ctx = contextOf(context);
-  const campaign = await findOwnedCampaign(ctx, campaignId);
-  await requireVerifiedEducationPartner(ctx.tenantId);
-  if (campaign.reviewedVersion !== campaign.version || !campaign.reviewerId || campaign.createdBy === campaign.reviewerId || !campaign.privacyAndSafeguardingReviewed || !campaign.budgetAndTermsReviewed) {
-    throw campaignError('Publication requires independent approval of the current campaign version and explicit budget/terms and safeguarding attestations.', 'EDUCATION_CAMPAIGN_APPROVAL_REQUIRED', 409);
-  }
-  assertCampaignTransition(campaign.status, 'PUBLISHED');
-  appendHistory(campaign, ctx, 'PUBLISHED', 'PUBLISHED_AFTER_VERIFIED_PARTNER_AND_REVIEW');
-  await campaign.save();
-  await writeAudit(ctx, 'EDUCATION_CAMPAIGN.PUBLISHED', { campaignId: String(campaign._id), publicReference: campaign.publicReference, version: campaign.version, status: campaign.status });
-  return toManagementCampaignDTO(campaign);
+  return withCampaignAuditTransaction(async (session) => {
+    const campaign = await findOwnedCampaign(ctx, campaignId, session);
+    await requireVerifiedEducationPartner(ctx.tenantId, session);
+    if (campaign.reviewedVersion !== campaign.version || !campaign.reviewerId || campaign.createdBy === campaign.reviewerId || !campaign.privacyAndSafeguardingReviewed || !campaign.budgetAndTermsReviewed) {
+      throw campaignError('Publication requires independent approval of the current campaign version and explicit budget/terms and safeguarding attestations.', 'EDUCATION_CAMPAIGN_APPROVAL_REQUIRED', 409);
+    }
+    assertCampaignTransition(campaign.status, 'PUBLISHED');
+    appendHistory(campaign, ctx, 'PUBLISHED', 'PUBLISHED_AFTER_VERIFIED_PARTNER_AND_REVIEW');
+    await campaign.save({ session });
+    await writeAudit(ctx, 'EDUCATION_CAMPAIGN.PUBLISHED', { campaignId: String(campaign._id), publicReference: campaign.publicReference, version: campaign.version, status: campaign.status }, session);
+    return toManagementCampaignDTO(campaign);
+  });
 }
 
 export async function transitionEducationCampaign(campaignId, targetStatus, payload = {}, context = {}) {
   const ctx = contextOf(context);
-  const campaign = await findOwnedCampaign(ctx, campaignId);
-  const destination = String(targetStatus ?? '').trim().toUpperCase();
-  const reason = String(payload.reason ?? '').trim().slice(0, 1000) || null;
-  if (['PAUSED', 'CLOSED'].includes(destination) && !reason) throw campaignError('A reason is required to pause or close a campaign.', 'EDUCATION_CAMPAIGN_REASON_REQUIRED');
-  if (destination === 'CLOSED' && campaign.status !== 'PAUSED') throw campaignError('Pause a published campaign before closing it.', 'EDUCATION_CAMPAIGN_CLOSE_REQUIRES_PAUSE', 409);
-  if (destination === 'PUBLISHED') await requireVerifiedEducationPartner(ctx.tenantId);
-  assertCampaignTransition(campaign.status, destination);
-  appendHistory(campaign, ctx, destination, reason || `TRANSITION_TO_${destination}`);
-  await campaign.save();
-  await writeAudit(ctx, `EDUCATION_CAMPAIGN.${destination}`, { campaignId: String(campaign._id), version: campaign.version, status: campaign.status, reasonProvided: Boolean(reason) });
-  return toManagementCampaignDTO(campaign);
+  return withCampaignAuditTransaction(async (session) => {
+    const campaign = await findOwnedCampaign(ctx, campaignId, session);
+    const destination = String(targetStatus ?? '').trim().toUpperCase();
+    const reason = String(payload.reason ?? '').trim().slice(0, 1000) || null;
+    if (['PAUSED', 'CLOSED'].includes(destination) && !reason) throw campaignError('A reason is required to pause or close a campaign.', 'EDUCATION_CAMPAIGN_REASON_REQUIRED');
+    if (destination === 'CLOSED' && campaign.status !== 'PAUSED') throw campaignError('Pause a published campaign before closing it.', 'EDUCATION_CAMPAIGN_CLOSE_REQUIRES_PAUSE', 409);
+    if (destination === 'PUBLISHED') await requireVerifiedEducationPartner(ctx.tenantId, session);
+    assertCampaignTransition(campaign.status, destination);
+    appendHistory(campaign, ctx, destination, reason || `TRANSITION_TO_${destination}`);
+    await campaign.save({ session });
+    await writeAudit(ctx, `EDUCATION_CAMPAIGN.${destination}`, { campaignId: String(campaign._id), version: campaign.version, status: campaign.status, reasonProvided: Boolean(reason) }, session);
+    return toManagementCampaignDTO(campaign);
+  });
 }
 
 export async function listPublicEducationCampaigns({ now = new Date() } = {}) {

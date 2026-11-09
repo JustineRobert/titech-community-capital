@@ -59,17 +59,3 @@ The implemented slice is **feature-flagged application intake only**. It validat
 ## Execution constraints
 
 The ZIP has no `.git` directory and cannot establish branch, commit, local uncommitted state or equivalence with the public remote. The execution container is Node `22.16.0` / npm `10.9.2`; the repo requires Node `24.15.0` / npm `11.x`. There is no installed `node_modules` tree. Source/static gates and selected dependency-free tests ran; full install, app startup, frontend build, DB/Redis, full suite, E2E, security scans and recovery drills did not.
-
----
-
-## 8 November 2026 targeted execution supplement
-
-The archive-local delivery added the canonical Meetings route and a permission-gated Partner Portal route/sidebar item. The Partner Portal consumes the existing tenant-scoped Operations support-case API. Backend support cases now use a pure input policy, secret redaction, allowlisted diagnostics and linked references, tenant-scoped detail retrieval, capped list filters, repeat-transition idempotency and canonical audit-chain entries. Audit writes occur after the case write; this is not yet an atomic case/audit transaction. The seven-chapter interactive guide and Help Dot registry were added, along with ten focused unit tests.
-
-No official theme/organization metadata changes were needed: audits passed for the nine-color theme and `TITech Capital LTD`. Meetings browser execution, complete offline synchronization, TITechChats, customer lookup/message history, partner account settings and provider pathway status remain unverified or disconnected. The supported runtime is still unavailable in this environment; the eight critical release gates remain open. See `docs/evidence/TITech_2026-11-08_Execution_Change_Discovery.md` and `docs/partner-portal/`.
-
-## 8 November 2026 EduFinance frontend intake increment
-
-The subsequent archive-local change connects the existing feature-gated EduFinance applicant API to a signed-in parent/guardian intake form and applicant-only request history. The form uses the existing shared API client, sends `Idempotency-Key`, restricts UGX values to whole shillings, checks requested amount against the declared outstanding amount, and does not include student names or identity details in its request payload. Verification statuses are displayed as server-returned pending states. The frontend presentation flag was added to both example environment templates with a `false` default; the backend feature flag remains authoritative.
-
-Five pure form-policy tests and four frontend API/theme/feature-gate contract tests passed. Across ten selected EduFinance, Partner Portal, Meetings, Offline and support-policy test files, 49/49 tests passed. The full application build and runtime remain unverified because Node 22.16.0/npm 10.9.2 are below the repository target and dependencies are absent. This is intake UI integration only; school/invoice verification, lender decisioning, contracts, disbursement, repayment, servicing, ledger accounting and reconciliation/closure remain unimplemented or externally blocked. See `docs/evidence/TITech_2026-11-08_EduFinance_Frontend_Intake_Change_Discovery.md` and `docs/evidence/TITech_2026-11-08_User_Update_File_Change_Manifest.json`.

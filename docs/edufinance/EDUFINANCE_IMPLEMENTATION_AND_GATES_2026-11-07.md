@@ -5,8 +5,7 @@
 **Service:** TITech EduFinance — School Fees Financing Infrastructure Platform  
 **Tagline:** Verified school fees. Responsible financing. Complete reconciliation.  
 **Platform tagline:** BUILD LESS. PROVE MORE.  
-**Original implementation snapshot:** 7 November 2026
-**Frontend intake increment:** 8 November 2026
+**Snapshot:** 7 November 2026
 
 ## What this archive now implements
 
@@ -19,15 +18,7 @@ This increment introduces a guarded school-fees application-intake foundation in
 - The service uses the existing audit service and provides applicant-only list access scoped by tenant and authenticated user.
 - The API mounts at `/api/v1/edufinance` through the canonical authenticated and tenant-authorized route registry. The application endpoints require explicit permissions and `TITECH_EDUFINANCE_APPLICATIONS_ENABLED=true`.
 - The UI exposes `/edufinance`, adds the service to the existing navigation, and uses the existing translation namespace and semantic official-brand tokens.
-- The 8 November increment connects a guarded parent/guardian intake form and applicant-only request history to the canonical `/api/v1/edufinance/applications` endpoints through the existing shared API client. The browser-facing `VITE_TITECH_EDUFINANCE_APPLICATIONS_ENABLED` switch defaults to `false`; it only controls presentation and cannot override the server-side `TITECH_EDUFINANCE_APPLICATIONS_ENABLED` gate.
-- The intake UI accepts school-issued references and UGX whole-shilling declarations only, excludes student names/identity details from the submitted payload, checks the requested amount against declared invoice outstanding before submission, and sends an `Idempotency-Key`. These checks are convenience controls; the backend remains authoritative.
 - An index-creation command is provided: `npm run db:indexes:edufinance` (requires the approved MongoDB URI and an appropriately prepared database).
-
-## 8 November 2026 frontend integration increment
-
-The public EduFinance information route now conditionally exposes a signed-in applicant intake workspace only when the frontend presentation flag is enabled. The workspace submits to the canonical authenticated tenant API and loads only the current applicant's requests. It displays school, invoice and guardian verification states returned by the server rather than claiming that a submitted reference is verified. A retry of an unchanged payload reuses the same in-memory idempotency key; changing the payload causes a new key to be issued. No credentials or identity tokens are stored by the new feature.
-
-The new pure form-policy helper is covered by five Node built-in tests. The JSX bundle, authenticated browser flow, API deployment, persistence, concurrency behaviour, and server flag combination still require execution under the supported frontend/runtime environment.
 
 ## What this implementation explicitly does not establish
 

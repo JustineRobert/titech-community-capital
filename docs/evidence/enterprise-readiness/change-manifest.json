@@ -1,0 +1,191 @@
+{
+  "generatedAt": "2026-11-09",
+  "sourceArchive": {
+    "name": "titech-community-capital-main.zip",
+    "sha256": "c72b6f511508537ab8a86a5c975b7cb4b075e8e3808dc74f510037a353e6a150",
+    "sizeBytes": 44204209,
+    "gitMetadataPresent": false
+  },
+  "targetIdentity": {
+    "product": "TITech Community Capital",
+    "organization": "TITech Capital LTD"
+  },
+  "summary": {
+    "modifiedOriginalFiles": 4,
+    "addedFiles": 16,
+    "removedOriginalFiles": 0,
+    "productionApproved": false
+  },
+  "modifiedFiles": [
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "status": "MODIFIED",
+      "oldSizeBytes": 5881,
+      "newSizeBytes": 8194,
+      "oldSha256": "7fd46bcdbb6bfc3523f189da94fad01e86629f4c21e450ec0220e427ff6a5742",
+      "newSha256": "d52a62647e73f2f2171ba5bc674c8059e6abdb633f7c4b9bb691e9fd9ca438c5"
+    },
+    {
+      "path": "backend/modules/audit/audit.service.js",
+      "status": "MODIFIED",
+      "oldSizeBytes": 2435,
+      "newSizeBytes": 2604,
+      "oldSha256": "567aa6a0317b0b85137bb3efa3fddad3a7e05d34d58a5f4c5211cd8983a11545",
+      "newSha256": "05ed7bc8147ac781748f75eb479d1016bbb4acc6a3a786385ae98dbfc95d4c40"
+    },
+    {
+      "path": "backend/modules/education/educationCampaign.service.js",
+      "status": "MODIFIED",
+      "oldSizeBytes": 12923,
+      "newSizeBytes": 14199,
+      "oldSha256": "19aa568cf70fd4fb2fbb86242950512f1f9e5e9267fab7703cb15a6c990d883e",
+      "newSha256": "0eb60cab29dd23ec25510756650d87b30b2ac69c00f106dcd80899d9814068cc"
+    },
+    {
+      "path": "backend/modules/edufinance/eduFinance.service.js",
+      "status": "MODIFIED",
+      "oldSizeBytes": 6653,
+      "newSizeBytes": 6945,
+      "oldSha256": "b3b635fbbfc8d6dd29cbe178707f2f96d59cf04cfa2b2ba5e871b9e0a19c873d",
+      "newSha256": "29f61abb190a73386c2eab4e031cfa0aa82966cdf2b75e027dafcebd628395f2"
+    }
+  ],
+  "addedFiles": [
+    {
+      "path": "backend/tests/unit/audit/audit.transaction-contract.test.mjs",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 973,
+      "oldSha256": null,
+      "newSha256": "a732212412ead76ecbb6d4ec9a1a470f86f111c6b27174eb4c910b6381d010f4"
+    },
+    {
+      "path": "backend/tests/unit/education/educationCampaign.transaction-contract.test.mjs",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 1176,
+      "oldSha256": null,
+      "newSha256": "175b983d3f86a4047d5af999f51131249e6329dca8842003f818ac733793081c"
+    },
+    {
+      "path": "backend/tests/unit/edufinance/eduFinance.transaction-contract.test.mjs",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 828,
+      "oldSha256": null,
+      "newSha256": "0e26c96c87b6db571dabf249d771ee64d6ee15fd05abdb8bb3a3151388f291a2"
+    },
+    {
+      "path": "docs/evidence/enterprise-readiness/CHANGE-DISCOVERY.md",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 7135,
+      "oldSha256": null,
+      "newSha256": "bc3dd16f13b1d08a6432002424098e5d085bc00bdf740a9acf5a88f593ac117d"
+    },
+    {
+      "path": "docs/evidence/enterprise-readiness/FINAL-ENTERPRISE-READINESS-REPORT.md",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 18982,
+      "oldSha256": null,
+      "newSha256": "d57246fe5769f0c8e634a9182ebaed803e5319fbed874fc7982f7d67c64821bc"
+    },
+    {
+      "path": "docs/evidence/enterprise-readiness/baseline-inventory.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 1829,
+      "oldSha256": null,
+      "newSha256": "e4206a4c3524ae934839d625b4189babe54c98cfb0156a522fcde44b77509533"
+    },
+    {
+      "path": "docs/evidence/enterprise-readiness/execution-evidence.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 7567,
+      "oldSha256": null,
+      "newSha256": "a2c10134834caf4278ae681ba48e4c092ccd22202e88e2d4387402e8b6ebb908"
+    },
+    {
+      "path": "reports/frontend-runtime-audit.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 3267,
+      "oldSha256": null,
+      "newSha256": "4363181757f925b8c07f8edd38454136e569db65a7daaa9b47fd9cd26172c27d"
+    },
+    {
+      "path": "reports/i18n-coverage-2026-11-09.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 14156,
+      "oldSha256": null,
+      "newSha256": "3474d26e1e268f05976444f9e2012e3d2782df517a8fb907fa94d4911a978dbe"
+    },
+    {
+      "path": "reports/official-theme-audit.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 4748,
+      "oldSha256": null,
+      "newSha256": "533b831171e5dc6180028a90e748f35b644ecd81af0a7062c266ed30339f6939"
+    },
+    {
+      "path": "reports/rbac-security-gate.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 2100,
+      "oldSha256": null,
+      "newSha256": "fdf613e8f21b3203307ba854a4bde53c3dee47a9096c5cd68e6da060dc58c999"
+    },
+    {
+      "path": "reports/runtime-import-audit.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 32334,
+      "oldSha256": null,
+      "newSha256": "acb7450150ac67dcf946d77a769e29d1adf79d66665c11558496bcce2c842079"
+    },
+    {
+      "path": "reports/test-discovery-audit.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 3718,
+      "oldSha256": null,
+      "newSha256": "dc63252dd01310c1c8cfa65a7ee978e320fb9bee5fa2e9bc6a7257a4f16a2f84"
+    },
+    {
+      "path": "reports/titech-hosting-gate.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 1352,
+      "oldSha256": null,
+      "newSha256": "f4e41ad23eb914b5318fa47fd424d9443c7bc9d0318cd9c628013790a5763faf"
+    },
+    {
+      "path": "docs/evidence/enterprise-readiness/change-manifest.json",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 6492,
+      "oldSha256": null,
+      "newSha256": null
+    },
+    {
+      "path": "docs/evidence/enterprise-readiness/change-manifest.csv",
+      "status": "ADDED",
+      "oldSizeBytes": 0,
+      "newSizeBytes": 2794,
+      "oldSha256": null,
+      "newSha256": null
+    }
+  ],
+  "removedFiles": [],
+  "manifestSelfReference": {
+    "path": "docs/evidence/enterprise-readiness/change-manifest.json",
+    "sha256": "omitted to avoid self-referential checksum"
+  },
+  "changeDiscovery": "docs/evidence/enterprise-readiness/CHANGE-DISCOVERY.md",
+  "finalReport": "docs/evidence/enterprise-readiness/FINAL-ENTERPRISE-READINESS-REPORT.md",
+  "executionEvidence": "docs/evidence/enterprise-readiness/execution-evidence.json"
+}

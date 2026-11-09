@@ -30,14 +30,25 @@ function validateInput({ tenantId, action, data }) {
   if (data === undefined || data === null) throw Object.assign(new Error('Audit data payload is required.'), { code: 'AUDIT_DATA_REQUIRED', statusCode: 400 });
 }
 
-export async function createAuditLog({ tenantId, action, data, actorId = null, requestId = null, correlationId = null }) {
+export async function createAuditLog({ tenantId, action, data, actorId = null, requestId = null, correlationId = null, session = null }) {
   validateInput({ tenantId, action, data });
   const tenant = String(tenantId);
   const safeData = sanitizeAuditData(data);
-  const previous = await Audit.findOne({ tenantId: tenant }).sort({ createdAt: -1, _id: -1 }).lean();
+  const previousQuery = Audit.findOne({ tenantId: tenant }).sort({ createdAt: -1, _id: -1 });
+  if (session) previousQuery.session(session);
+  const previous = await previousQuery.lean();
   const previousHash = previous?.hash || 'GENESIS';
   const hash = Audit.computeHash(previousHash, action, safeData);
-  const log = await Audit.create({ tenantId: tenant, action, data: safeData, previousHash, hash, actorId, requestId, correlationId });
+  const [log] = await Audit.create([{
+    tenantId: tenant,
+    action,
+    data: safeData,
+    previousHash,
+    hash,
+    actorId,
+    requestId,
+    correlationId,
+  }], session ? { session } : {});
   logger.info?.('TITech audit record created', { tenantId: tenant, action, actorId, requestId, correlationId, auditId: String(log._id) });
   return log;
 }

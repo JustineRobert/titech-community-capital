@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import mongoose from 'mongoose';
 import EduFinanceApplication from './models/EduFinanceApplication.js';
 import { createAuditLog } from '../audit/audit.service.js';
 import { initialEduFinanceReadiness, validateEduFinanceApplication } from './eduFinance.policy.js';
@@ -63,7 +64,7 @@ function toDTO(application) {
   });
 }
 
-async function writeAudit(context, action, data) {
+async function writeAudit(context, action, data, session) {
   await createAuditLog({
     tenantId: context.tenantId,
     actorId: context.actorId,
@@ -71,6 +72,7 @@ async function writeAudit(context, action, data) {
     data,
     requestId: context.requestId,
     correlationId: context.correlationId,
+    session,
   });
 }
 
@@ -107,19 +109,33 @@ export async function submitEduFinanceApplication(payload = {}, inputContext = {
 
   const readiness = initialEduFinanceReadiness();
   let application;
+  const session = await mongoose.startSession();
   try {
-    [application] = await EduFinanceApplication.create([{
-      ...normalized,
-      tenantId: ctx.tenantId,
-      applicantUserId: ctx.actorId,
-      idempotencyKey,
-      requestFingerprint,
-      duplicateFingerprint,
-      ...readiness,
-      status: 'SUBMITTED',
-      submittedAt: new Date(),
-      history: [{ fromStatus: null, toStatus: 'SUBMITTED', actorId: ctx.actorId, reasonCode: 'APPLICANT_INTAKE', at: new Date() }],
-    }]);
+    await session.withTransaction(async () => {
+      [application] = await EduFinanceApplication.create([{
+        ...normalized,
+        tenantId: ctx.tenantId,
+        applicantUserId: ctx.actorId,
+        idempotencyKey,
+        requestFingerprint,
+        duplicateFingerprint,
+        ...readiness,
+        status: 'SUBMITTED',
+        submittedAt: new Date(),
+        history: [{ fromStatus: null, toStatus: 'SUBMITTED', actorId: ctx.actorId, reasonCode: 'APPLICANT_INTAKE', at: new Date() }],
+      }], { session });
+
+      await writeAudit(ctx, 'EDUFINANCE.APPLICATION_SUBMITTED', {
+        applicationId: String(application._id),
+        schoolTenantId: normalized.schoolTenantId,
+        schoolReference: normalized.schoolReference,
+        invoiceReference: normalized.invoiceReference,
+        requestedAmountMinor: normalized.requestedAmountMinor,
+        currency: normalized.currency,
+        status: application.status,
+        verificationStatus: 'PENDING_PARTNER_VERIFICATION',
+      }, session);
+    });
   } catch (error) {
     if (error?.code !== 11000) throw error;
     const raced = await EduFinanceApplication.findOne({ tenantId: ctx.tenantId, idempotencyKey }).select('+requestFingerprint').lean();
@@ -127,18 +143,9 @@ export async function submitEduFinanceApplication(payload = {}, inputContext = {
     const invoiceDuplicate = await EduFinanceApplication.findOne({ duplicateFingerprint }).lean();
     if (invoiceDuplicate) throw eduFinanceError('This school invoice and beneficiary already have an EduFinance application.', 'EDUFINANCE_DUPLICATE_INVOICE', 409);
     throw eduFinanceError('The application was concurrently submitted with a conflicting idempotency key.', 'EDUFINANCE_IDEMPOTENCY_CONFLICT', 409);
+  } finally {
+    await session.endSession();
   }
-
-  await writeAudit(ctx, 'EDUFINANCE.APPLICATION_SUBMITTED', {
-    applicationId: String(application._id),
-    schoolTenantId: normalized.schoolTenantId,
-    schoolReference: normalized.schoolReference,
-    invoiceReference: normalized.invoiceReference,
-    requestedAmountMinor: normalized.requestedAmountMinor,
-    currency: normalized.currency,
-    status: application.status,
-    verificationStatus: 'PENDING_PARTNER_VERIFICATION',
-  });
 
   return toDTO(application);
 }

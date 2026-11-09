@@ -74,7 +74,6 @@ import AdminLayout from '../layouts/AdminLayout';
 
 import { useAuth } from '../context/AuthContext';
 import { normalizeTitechRole, TITECH_ROLES } from '../security/rbacPolicy';
-import PermissionRoute from './PermissionRoute';
 
 // ============================================================================
 // Application routes
@@ -103,8 +102,6 @@ const ROUTES = Object.freeze({
   REPORTS: '/reports',
   SETTINGS: '/settings',
   PAYROLL: '/payroll',
-  MEETINGS: '/meetings',
-  PARTNER_PORTAL: '/partner-portal',
 });
 
 // ============================================================================
@@ -286,16 +283,6 @@ const Settings = lazyWithRecovery(
 const Payroll = lazyWithRecovery(
   () => import('../pages/Payroll'),
   'Payroll'
-);
-
-const Meetings = lazyWithRecovery(
-  () => import('../pages/meetings/Meetings'),
-  'Meetings'
-);
-
-const PartnerPortal = lazyWithRecovery(
-  () => import('../pages/PartnerPortal'),
-  'PartnerPortal'
 );
 
 const NotFound = lazyWithRecovery(
@@ -667,24 +654,6 @@ function ApplicationRouteTree() {
             path={ROUTES.PAYROLL}
             element={
               <Payroll />
-            }
-          />
-
-          <Route
-            path={ROUTES.MEETINGS}
-            element={
-              <PermissionRoute permissions={['meetings:read']}>
-                <Meetings />
-              </PermissionRoute>
-            }
-          />
-
-          <Route
-            path={ROUTES.PARTNER_PORTAL}
-            element={
-              <PermissionRoute permissions={['support:case:read', 'support:case:create']} mode="any">
-                <PartnerPortal />
-              </PermissionRoute>
             }
           />
 
