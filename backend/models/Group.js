@@ -128,6 +128,8 @@ const AUDIT_ACTIONS = Object.freeze([
   "member_join_requested",
   "updated",
   "member_added",
+  "membership_approved",
+  "membership_rejected",
   "member_removed",
   "member_role_changed",
   "invitation_sent",

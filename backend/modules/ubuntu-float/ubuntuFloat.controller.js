@@ -1,4 +1,5 @@
 import {
+  getUbuntuFloatCapabilities,
   createUbuntuFloatAgent,
   listUbuntuFloatAgents,
   listUbuntuFloatPositionObservations,
@@ -22,6 +23,15 @@ function fail(res, req, error) {
       code: error?.code || 'UBUNTFLOAT_OPERATION_UNAVAILABLE',
       message: status < 500 ? error.message : 'UbuntuFloat operation is temporarily unavailable.',
     },
+    requestId: req.requestId || null,
+    correlationId: req.correlationId || req.requestId || null,
+  });
+}
+
+export async function getCapabilities(req, res) {
+  return res.status(200).json({
+    success: true,
+    data: getUbuntuFloatCapabilities(),
     requestId: req.requestId || null,
     correlationId: req.correlationId || req.requestId || null,
   });

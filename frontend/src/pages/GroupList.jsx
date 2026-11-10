@@ -38,6 +38,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { useAuth } from '../context/AuthContext';
+import { hasTitechRole, TITECH_ROLES } from '../security/rbacPolicy';
 import Spinner from '../components/ui/Spinner';
 import logger from '../utils/logger';
 
@@ -460,6 +461,10 @@ GroupCard.defaultProps = {
 
 export default function GroupList() {
   const { user } = useAuth();
+  const canCreateGroup = hasTitechRole(
+    [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])],
+    [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN],
+  );
 
   const [groups, setGroups] = useState([]);
   const [joining, setJoining] =
@@ -486,8 +491,6 @@ export default function GroupList() {
   const joinAbortRef =
     useRef(null);
 
-  const joinSnapshotRef =
-    useRef(null);
 
   const userId = useMemo(
     () => getUserId(user),
@@ -718,94 +721,8 @@ export default function GroupList() {
       joinAbortRef.current =
         controller;
 
-      // ----------------------------------------------------------------------
-      // Preserve exact state for rollback.
-      // ----------------------------------------------------------------------
-
-      joinSnapshotRef.current =
-        groups;
-
       setJoining(
         normalizedGroupId
-      );
-
-      // ----------------------------------------------------------------------
-      // Optimistic UI update.
-      //
-      // This is only a presentation optimization.
-      // The backend remains authoritative.
-      // ----------------------------------------------------------------------
-
-      setGroups((currentGroups) =>
-        currentGroups.map(
-          (group) => {
-            const currentId =
-              String(
-                getGroupId(group)
-              );
-
-            if (
-              currentId !==
-              normalizedGroupId
-            ) {
-              return group;
-            }
-
-            const members =
-              Array.isArray(
-                group.members
-              )
-                ? [
-                    ...group.members,
-                  ]
-                : [];
-
-            const alreadyExists =
-              members.some(
-                (member) =>
-                  String(
-                    getMemberId(
-                      member
-                    )
-                  ) ===
-                  String(userId)
-              );
-
-            if (
-              !alreadyExists
-            ) {
-              members.push({
-                _id: userId,
-                id: userId,
-                name:
-                  user?.name ||
-                  user?.fullName ||
-                  user?.email ||
-                  'You',
-              });
-            }
-
-            return {
-              ...group,
-              members:
-                members.slice(
-                  0,
-                  MAX_GROUPS
-                ),
-              memberCount:
-                Math.max(
-                  getMemberCount(
-                    group
-                  ),
-                  members.length
-                ),
-              isMember: false,
-              membershipStatus: 'pending',
-              __optimisticJoin:
-                true,
-            };
-          }
-        )
       );
 
       try {
@@ -861,21 +778,6 @@ export default function GroupList() {
             DEFAULT_JOIN_ERROR
           );
 
-        // --------------------------------------------------------------------
-        // Roll back optimistic update.
-        // --------------------------------------------------------------------
-
-        if (
-          mountedRef.current &&
-          Array.isArray(
-            joinSnapshotRef.current
-          )
-        ) {
-          setGroups(
-            joinSnapshotRef.current
-          );
-        }
-
         if (
           mountedRef.current
         ) {
@@ -908,8 +810,6 @@ export default function GroupList() {
         ) {
           setJoining(null);
           joinAbortRef.current =
-            null;
-          joinSnapshotRef.current =
             null;
         }
       }
@@ -990,12 +890,14 @@ export default function GroupList() {
                 : 'Refresh'}
             </button>
 
-            <Link
-              to="/groups/create"
-              className="group-list-create-button"
-            >
-              Create group
-            </Link>
+            {canCreateGroup && (
+              <Link
+                to="/create-group"
+                className="group-list-create-button"
+              >
+                Create group
+              </Link>
+            )}
           </div>
         </header>
 
@@ -1109,12 +1011,14 @@ export default function GroupList() {
                 available to join.
               </p>
 
-              <Link
-                to="/groups/create"
-                className="group-list-empty-button"
-              >
-                Create the first group
-              </Link>
+              {canCreateGroup && (
+                <Link
+                  to="/create-group"
+                  className="group-list-empty-button"
+                >
+                  Create the first group
+                </Link>
+              )}
             </div>
           )}
 

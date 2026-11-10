@@ -47,6 +47,7 @@ import React, {
 } from 'react';
 
 import {
+  Navigate,
   Route,
   Routes,
   useLocation,
@@ -147,6 +148,14 @@ const EduFinancePage = lazy(
   () => import('./pages/edufinance/EduFinancePage')
 );
 
+const UbuntuFloatPage = lazy(
+  () => import('./pages/ubuntu-float/UbuntuFloatPage')
+);
+
+const PartnerSupportPage = lazy(
+  () => import('./pages/PartnerPortal')
+);
+
 const NotFound = lazy(
   () => import('./pages/NotFound')
 );
@@ -209,6 +218,9 @@ const ROUTES = Object.freeze({
   GROUP_DETAILS: '/groups/:groupId',
   CREATE_GROUP: '/create-group',
   AGRICULTURE: '/agriculture',
+  UBUNTU_FLOAT: '/ubuntu-float',
+  PARTNER_SUPPORT: '/partner-support',
+  LEGACY_CREATE_GROUP: '/groups/create',
   INCLUSIVE_ONBOARDING: '/inclusive-onboarding',
   RETIREMENT_SUPPORT: '/retirement-support',
   EDUCATION_SUPPORT: '/education-support',
@@ -771,6 +783,11 @@ function ProtectedApplicationRoutes() {
       />
 
       <Route
+        path={ROUTES.LEGACY_CREATE_GROUP}
+        element={<Navigate to={ROUTES.CREATE_GROUP} replace />}
+      />
+
+      <Route
         path={ROUTES.INCLUSIVE_ONBOARDING}
         element={
           <ProtectedRoute>
@@ -793,6 +810,24 @@ function ProtectedApplicationRoutes() {
         element={
           <ProtectedRoute>
             <AgricultureDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.UBUNTU_FLOAT}
+        element={
+          <ProtectedRoute>
+            <UbuntuFloatPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.PARTNER_SUPPORT}
+        element={
+          <ProtectedRoute>
+            <PartnerSupportPage />
           </ProtectedRoute>
         }
       />

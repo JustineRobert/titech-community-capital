@@ -246,9 +246,19 @@ export async function transitionMembership({ actor, groupId, memberUserId, actio
   switch (action) {
     case 'approve':
       group.approveMembership(targetId);
+      group.appendAudit({
+        action: 'membership_approved',
+        userId: actor?.id || actor?._id || null,
+        details: { memberUserId: String(targetId), decision: 'approved' },
+      });
       break;
     case 'reject':
       group.rejectInvitation(targetId);
+      group.appendAudit({
+        action: 'membership_rejected',
+        userId: actor?.id || actor?._id || null,
+        details: { memberUserId: String(targetId), decision: 'rejected' },
+      });
       break;
     case 'suspend':
       group.suspendMember(targetId, actor?.id || actor?._id);

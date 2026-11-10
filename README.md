@@ -1,6 +1,6 @@
 # TITech Community Capital
 
-> **Current execution update — 10 November 2026:** The current organization identity, on the owner's latest instruction, is **TITech Capital SMC LTD**; the product remains **TITech Community Capital**. This current identity supersedes older organization labels in dated historical snapshots below; those snapshots are preserved as historical evidence. This archive-local remediation includes tenant-scoped payroll report/audit permissions, an explicit unavailable-data state in the payroll UI, transactional insurer workflow audit writes, current identity metadata and dated evidence/change-discovery reports. The official nine-colour palette, circular logo, and existing light/dark theme tokens are retained. Selected dependency-free tests and static gates have passed, but the supported Node/npm environment and database-backed integration services are unavailable here. **Production approval remains NO (`productionApproved=false`).** See [`TITECH_PLATFORM_TRUTH.md`](TITECH_PLATFORM_TRUTH.md) and [`docs/evidence/enterprise-readiness/EXECUTION-2026-11-10.md`](docs/evidence/enterprise-readiness/EXECUTION-2026-11-10.md).
+> **Current execution update — 10 November 2026:** The current organization identity, on the owner's latest instruction, is **TITech Capital SMC LTD**; the product remains **TITech Community Capital**. This current identity supersedes older organization labels in dated historical snapshots below; those snapshots are preserved as historical evidence. This archive-local remediation includes tenant-scoped payroll report/audit permissions, transactional insurer workflow audit writes, consistent public/dashboard service navigation, creator-only group creation, tenant-scoped membership-request moderation, a mounted UbuntuFloat capabilities endpoint, consistent role aliases and concurrency-safe group join conflict handling. The official nine-colour palette, circular logo, and existing light/dark theme tokens are retained. The focused navigation/group/UbuntuFloat contract suite passes 19/19 tests. The supported Node/npm environment and database-backed integration services are unavailable here, so full builds and browser/database journeys are not certified. **Production approval remains NO (`productionApproved=false`).** See [`TITECH_PLATFORM_TRUTH.md`](TITECH_PLATFORM_TRUTH.md), [`docs/evidence/enterprise-readiness/EXECUTION-2026-11-10.md`](docs/evidence/enterprise-readiness/EXECUTION-2026-11-10.md), and the [navigation and group-management remediation report](docs/evidence/enterprise-readiness/NAVIGATION-GROUPS-REMEDIATION-2026-11-10.md).
 
 # TITech Community Capital
 
@@ -72,8 +72,8 @@ The product intent remains infrastructure-first: TITech connects savings groups,
 
 **Status:** Active Development / Production Hardening
 **Version:** 2.1
-**Organization:** TITech Capital LTD
-**Last Updated:** 7 November 2026
+**Organization:** TITech Capital SMC LTD
+**Last Updated:** 10 November 2026
 
 TITech has evolved beyond a basic community savings application toward a broader financial infrastructure platform incorporating:
 

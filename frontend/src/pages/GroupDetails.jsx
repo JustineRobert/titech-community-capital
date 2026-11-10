@@ -125,6 +125,25 @@ const normalizeRole = (role) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
+const canManageMembershipForUser = (user, group) => {
+  const roles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
+    .filter(Boolean)
+    .map((role) => String(role).trim().toLowerCase().replace(/[\s-]+/g, '_'));
+  if (roles.some((role) => ['platform_admin', 'tenant_admin', 'admin', 'administrator'].includes(role))) {
+    return true;
+  }
+
+  const userId = String(user?.id || user?._id || user?.userId || '');
+  if (!userId || !group) return false;
+  if (String(group?.createdBy?._id || group?.createdBy || '') === userId) return true;
+
+  return (group?.memberRoles || []).some((membership) =>
+    String(membership?.userId?._id || membership?.userId || membership?.user?._id || '') === userId &&
+    membership?.role === 'group_admin' &&
+    ['active', 'reinstated'].includes(membership?.membershipStatus)
+  );
+};
+
 const formatDateValue = (value) => {
   if (!value) {
     return 'Not scheduled';
@@ -440,6 +459,9 @@ export default function GroupDetails() {
     useState('');
   const [lastUpdated, setLastUpdated] =
     useState(null);
+  const [membershipRequests, setMembershipRequests] = useState([]);
+  const [membershipRequestsLoading, setMembershipRequestsLoading] = useState(false);
+  const [moderatingUserId, setModeratingUserId] = useState(null);
 
   // ==========================================================================
   // Validation
@@ -575,6 +597,39 @@ export default function GroupDetails() {
 
         setGroup(normalizedGroup);
         setLastUpdated(new Date());
+
+        // Request moderation data only for users who are likely to have the
+        // corresponding group scope. This is presentation optimization only:
+        // the API independently verifies tenant and group-admin authority.
+        if (canManageMembershipForUser(user, normalizedGroup)) {
+          setMembershipRequestsLoading(true);
+          try {
+            const requestResponse = await api.get(
+              `/api/groups/${encodeURIComponent(groupId)}/membership-requests`,
+              { signal: controller.signal },
+            );
+            const requestData =
+              requestResponse?.data?.data ??
+              requestResponse?.data ??
+              [];
+            setMembershipRequests(Array.isArray(requestData) ? requestData : []);
+          } catch (requestError) {
+            if (!controller.signal.aborted) {
+              logger?.warn?.('TITech membership requests unavailable', {
+                groupId,
+                status: requestError?.response?.status,
+              });
+            }
+            setMembershipRequests([]);
+          } finally {
+            if (mountedRef.current && !controller.signal.aborted) {
+              setMembershipRequestsLoading(false);
+            }
+          }
+        } else {
+          setMembershipRequests([]);
+          setMembershipRequestsLoading(false);
+        }
       } catch (err) {
         if (
           err?.name === 'AbortError' ||
@@ -618,10 +673,11 @@ export default function GroupDetails() {
         ) {
           setLoading(false);
           setRefreshing(false);
+          setMembershipRequestsLoading(false);
         }
       }
     },
-    [groupId]
+    [groupId, user]
   );
 
   // ==========================================================================
@@ -826,6 +882,40 @@ export default function GroupDetails() {
       user,
     ]
   );
+
+  // ==========================================================================
+  // Group membership administration
+  // ==========================================================================
+
+  const canManageMembershipRequests = canManageMembershipForUser(user, group);
+
+  const handleMembershipDecision = useCallback(async (targetUserId, action) => {
+    if (!groupId || !targetUserId || !['approve', 'reject'].includes(action) || moderatingUserId) return;
+    setModeratingUserId(String(targetUserId));
+    try {
+      await api.patch(
+        `/api/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(targetUserId)}`,
+        { action },
+      );
+      toast.success(action === 'approve' ? 'Membership approved.' : 'Membership request rejected.');
+      await fetchGroupData({ silent: true });
+    } catch (decisionError) {
+      const message =
+        decisionError?.response?.data?.message ||
+        (decisionError?.response?.status === 403
+          ? 'You are not authorized to manage membership for this group.'
+          : 'The membership decision could not be saved. Refresh and verify the request status.');
+      toast.error(message);
+      logger?.warn?.('TITech membership decision failed', {
+        groupId,
+        targetUserId: String(targetUserId),
+        action,
+        status: decisionError?.response?.status,
+      });
+    } finally {
+      if (mountedRef.current) setModeratingUserId(null);
+    }
+  }, [groupId, moderatingUserId, fetchGroupData]);
 
   // ==========================================================================
   // Derived Group Information
@@ -1437,6 +1527,41 @@ export default function GroupDetails() {
           {/* =============================================================== */}
 
           <aside className="group-details-sidebar">
+            {canManageMembershipRequests ? (
+              <section className="group-panel membership-requests-panel" aria-labelledby="membership-requests-title">
+                <div className="panel-header">
+                  <div>
+                    <span className="panel-eyebrow">Group administration</span>
+                    <h2 id="membership-requests-title">Pending join requests</h2>
+                  </div>
+                  <span className="members-count-badge">{membershipRequests.length}</span>
+                </div>
+                {membershipRequestsLoading ? (
+                  <p role="status">Loading membership requests…</p>
+                ) : membershipRequests.length === 0 ? (
+                  <p>No pending membership requests.</p>
+                ) : (
+                  <ul className="membership-request-list">
+                    {membershipRequests.map((request) => (
+                      <li className="membership-request-item" key={request.userId}>
+                        <div>
+                          <strong>{request.name || 'Community Member'}</strong>
+                          {request.email ? <span>{request.email}</span> : null}
+                          <small>Awaiting administrator review</small>
+                        </div>
+                        <div className="membership-request-actions">
+                          <button type="button" className="btn-primary" disabled={Boolean(moderatingUserId)} onClick={() => void handleMembershipDecision(request.userId, 'approve')}>
+                            {moderatingUserId === request.userId ? 'Saving…' : 'Approve'}
+                          </button>
+                          <button type="button" className="btn-secondary" disabled={Boolean(moderatingUserId)} onClick={() => void handleMembershipDecision(request.userId, 'reject')}>Reject</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
+
             <section className="group-panel members-panel">
               <div className="panel-header">
                 <div>

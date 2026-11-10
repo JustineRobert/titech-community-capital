@@ -45,6 +45,7 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { hasTitechRole, TITECH_ROLES } from '../security/rbacPolicy';
 
 import './CreateGroupV2.css';
 
@@ -242,11 +243,10 @@ export default function CreateGroupV2() {
   // RBAC
   // --------------------------------------------------------------------------
 
-  const userRole = String(
-    user?.role || user?.roles?.[0] || ''
-  ).toLowerCase();
-
-  const canCreateGroup = ['admin', 'platform_admin', 'tenant_admin'].includes(userRole);
+  const canCreateGroup = hasTitechRole(
+    [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])],
+    [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN],
+  );
 
   useEffect(() => {
     if (user && !canCreateGroup) {
@@ -711,11 +711,8 @@ export default function CreateGroupV2() {
     }
 
     if (step === 2) {
-      if (validMembers.length === 0) {
-        setError('Please add at least one valid member.');
-        return false;
-      }
-
+      // Invitations are optional. The backend creates the group and adds the
+      // authenticated creator as group_admin in the same aggregate save.
       if (invalidMembers.length > 0) {
         setError(
           `Please correct ${
@@ -903,7 +900,9 @@ export default function CreateGroupV2() {
         setProgress((previous) => ({
           ...previous,
           current: 1,
-          message: 'Group created. Preparing member invitations...',
+          message: validMembers.length > 0
+            ? 'Group created. Preparing member invitations...'
+            : 'Group created. Preparing your group workspace...',
         }));
 
         // --------------------------------------------------------------------
@@ -1003,7 +1002,9 @@ export default function CreateGroupV2() {
 
         const finalMessage =
           failures.length === 0
-            ? 'Group created and all invitations were sent successfully.'
+            ? (validMembers.length === 0
+              ? 'Group created successfully. You are its administrator; invitations can be added later.'
+              : 'Group created and all invitations were sent successfully.')
             : `Group created. ${failures.length} invitation batch${
                 failures.length === 1 ? '' : 'es'
               } require attention.`;
@@ -1020,7 +1021,9 @@ export default function CreateGroupV2() {
 
         if (failures.length === 0) {
           toast.success(
-            `TITech Community Capital group "${groupName.trim()}" created successfully.`
+            validMembers.length === 0
+              ? `TITech Community Capital group "${groupName.trim()}" created successfully. You are its administrator.`
+              : `TITech Community Capital group "${groupName.trim()}" created successfully.`
           );
 
           navigationTimerRef.current = setTimeout(() => {
@@ -2020,10 +2023,7 @@ export default function CreateGroupV2() {
               {step === 3 && (
                 <button
                   type="submit"
-                  disabled={
-                    loading ||
-                    validMembers.length === 0
-                  }
+                  disabled={loading}
                   className="btn-primary btn-submit"
                 >
                   {loading ? (

@@ -13,9 +13,10 @@ export const TITECH_ROLES = Object.freeze({
 
 const ROLE_ALIASES = Object.freeze({
   super_admin: TITECH_ROLES.PLATFORM_ADMIN,
-  platformadmin: TITECH_ROLES.PLATFORM_ADMIN,
-  admin: TITECH_ROLES.TENANT_ADMIN,
-  administrator: TITECH_ROLES.TENANT_ADMIN,
+  // Keep the legacy `admin` alias identical to the canonical backend policy.
+  // Tenant administrators must use the explicit `tenant_admin`/`tenantadmin`
+  // role; UI normalization must never downgrade or upgrade server authority.
+  admin: TITECH_ROLES.PLATFORM_ADMIN,
   tenantadmin: TITECH_ROLES.TENANT_ADMIN,
   groupadmin: TITECH_ROLES.GROUP_ADMIN,
   user: TITECH_ROLES.MEMBER,

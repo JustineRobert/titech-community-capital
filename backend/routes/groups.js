@@ -164,6 +164,14 @@ router.delete(
   asyncHandler(groupController.leaveGroup)
 );
 
+router.get(
+  "/:groupId/membership-requests",
+  readLimiter,
+  ...validateGroupId("groupId"),
+  requirePermission('MEMBERSHIP_VIEW'),
+  asyncHandler(groupController.getMembershipRequests)
+);
+
 router.patch(
   "/:groupId/members/:memberUserId",
   writeLimiter,

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { User } from "../models/User.js";
-import Group from "../models/Group.js";
+import Group, { GROUP_MODEL_METADATA } from "../models/Group.js";
 import logger from "../utils/logger.js";
 import {
   canManageGroup,
@@ -69,6 +69,9 @@ export async function createGroup(req, res) {
     return sendError(res, 400, "GROUP_INPUT_INVALID", "Provide a valid group name, type, description, and member list.");
   }
   if (!validateMemberEntries(members)) return sendError(res, 400, "GROUP_MEMBER_INPUT_INVALID", "Each invited member must have a valid email address and role.");
+  if (members.length + 1 > GROUP_MODEL_METADATA.maxMembers) {
+    return sendError(res, 400, "GROUP_MEMBER_LIMIT_EXCEEDED", "The creator and invited members exceed the group membership-record limit.");
+  }
 
   const inviteEntries = members.map((entry) => ({
     email: typeof entry === "string" ? entry.trim().toLowerCase() : entry.email.trim().toLowerCase(),
@@ -128,13 +131,29 @@ export async function requestJoinGroup(req, res) {
   if (existing && existing.membershipStatus === "pending") return sendError(res, 409, "GROUP_JOIN_ALREADY_PENDING", "Your membership request is already pending.");
   if (existing && existing.membershipStatus === "suspended") return sendError(res, 409, "GROUP_MEMBERSHIP_SUSPENDED", "Your membership is currently suspended.");
   if (existing && !existing.removedAt && existing.membershipStatus === "rejected") return sendError(res, 409, "GROUP_JOIN_REJECTED", "A rejected membership must be explicitly reinstated by a group administrator.");
+  if (!existing && (group.memberRoles || []).length >= GROUP_MODEL_METADATA.maxMembers) {
+    return sendError(res, 409, "GROUP_MEMBER_LIMIT_REACHED", "This group has reached its membership-record limit.");
+  }
   if (existing && existing.removedAt) {
     existing.removedAt = null; existing.removedBy = null; existing.invitationStatus = "pending"; existing.membershipStatus = "pending"; existing.membershipOrigin = "requested"; existing.rejectedAt = null;
   } else {
     group.addMember(identity.userId, { role: "member", invitationStatus: "pending", membershipOrigin: "requested" });
   }
   group.appendAudit({ action: "member_join_requested", userId: identity.userId });
-  await group.save();
+  try {
+    // Group has optimistic concurrency enabled. A concurrent join must fail
+    // deterministically rather than creating duplicate membership records or
+    // surfacing as an unhandled server error.
+    await group.save();
+  } catch (error) {
+    if (error?.name === "VersionError") {
+      return sendError(res, 409, "GROUP_MEMBERSHIP_CONFLICT", "The group changed while your request was being processed. Refresh the group and check your membership status.");
+    }
+    if (error?.name === "ValidationError" && error?.errors?.memberRoles) {
+      return sendError(res, 409, "GROUP_MEMBER_LIMIT_REACHED", "This group cannot accept another membership record.");
+    }
+    throw error;
+  }
   return res.status(202).json({
     success: true,
     message: "Group membership request submitted for approval.",
@@ -242,6 +261,45 @@ export async function sendBatchInvitations(req, res) {
   return res.status(200).json({ success: true, invitedCount, message: "Group invitations were recorded." });
 }
 
+
+export async function getMembershipRequests(req, res) {
+  const identity = getIdentity(req);
+  if (!identity) return sendError(res, 403, "GROUP_TENANT_CONTEXT_REQUIRED", "Join an existing tenant before reviewing membership requests.");
+  const group = await Group.findTenantGroup(identity.tenantId, req.params.groupId);
+  if (!group) return sendError(res, 404, "GROUP_NOT_FOUND", "Group not found.");
+  if (!canManageGroup(actor(req), group)) return sendError(res, 403, "GROUP_MEMBERSHIP_ADMIN_FORBIDDEN", "Only this group's authorized administrator may review membership requests.");
+
+  const pendingIds = (group.memberRoles || [])
+    .filter((membership) =>
+      membership &&
+      !membership.removedAt &&
+      membership.membershipOrigin === "requested" &&
+      membership.membershipStatus === "pending"
+    )
+    .map((membership) => membership.userId);
+
+  const users = pendingIds.length
+    ? await User.find({
+        _id: { $in: pendingIds },
+        tenantId: identity.tenantId,
+        status: "active",
+        deletedAt: null,
+      }).select("_id name fullName email").lean()
+    : [];
+  const byId = new Map(users.map((user) => [String(user._id), user]));
+  const data = pendingIds.map((userId) => {
+    const user = byId.get(String(userId));
+    return user ? {
+      userId: String(user._id),
+      name: user.name || user.fullName || "Community Member",
+      email: user.email,
+      status: "pending",
+    } : null;
+  }).filter(Boolean);
+
+  return res.status(200).json({ success: true, data, count: data.length });
+}
+
 export async function moderateMembership(req, res) {
   const currentActor = actor(req);
   const groupId = req.params.groupId;
@@ -251,5 +309,5 @@ export async function moderateMembership(req, res) {
   return res.status(200).json({ success: true, message: `Membership ${action} completed.`, data: result });
 }
 
-const groupController = Object.freeze({ createGroup, requestJoinGroup, acceptInvitation, joinGroup, getGroups, getGroupById, leaveGroup, sendBatchInvitations, moderateMembership, groupManagement });
+const groupController = Object.freeze({ createGroup, requestJoinGroup, acceptInvitation, joinGroup, getGroups, getGroupById, getMembershipRequests, leaveGroup, sendBatchInvitations, moderateMembership, groupManagement });
 export default groupController;

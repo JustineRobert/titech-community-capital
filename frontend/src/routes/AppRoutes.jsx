@@ -2,7 +2,8 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * Product: TITech Community Capital
+ * Organization: TITech Capital SMC LTD
  * TITech Community Capital Operating System
  * ============================================================================
  *
@@ -71,6 +72,7 @@ import {
 } from 'react-router-dom';
 
 import AdminLayout from '../layouts/AdminLayout';
+import Navbar from '../components/Navbar';
 
 import { useAuth } from '../context/AuthContext';
 import { normalizeTitechRole, TITECH_ROLES } from '../security/rbacPolicy';
@@ -102,6 +104,22 @@ const ROUTES = Object.freeze({
   REPORTS: '/reports',
   SETTINGS: '/settings',
   PAYROLL: '/payroll',
+  BOOK_A_DEMO: '/book-a-demo',
+  CONTACT_US: '/contact-us',
+  CHAT_WITH_TITECH: '/chat-with-titech',
+  EDUCATION_SUPPORT: '/education-support',
+  EDUFINANCE: '/edufinance',
+  GROUPS: '/groups',
+  GROUP_DETAILS: '/groups/:groupId',
+  CREATE_GROUP: '/create-group',
+  LEGACY_CREATE_GROUP: '/groups/create',
+  MEETINGS: '/meetings',
+  INCLUSIVE_ONBOARDING: '/inclusive-onboarding',
+  RETIREMENT_SUPPORT: '/retirement-support',
+  AGRICULTURE: '/agriculture',
+  UBUNTU_FLOAT: '/ubuntu-float',
+  PARTNER_SUPPORT: '/partner-support',
+  EDUCATION_CAMPAIGN_MANAGER: '/education-support/manage',
 });
 
 // ============================================================================
@@ -285,6 +303,23 @@ const Payroll = lazyWithRecovery(
   'Payroll'
 );
 
+const GroupList = lazyWithRecovery(() => import('../pages/GroupList'), 'GroupList');
+const GroupDetails = lazyWithRecovery(() => import('../pages/GroupDetails'), 'GroupDetails');
+const CreateGroup = lazyWithRecovery(() => import('../pages/CreateGroupV2'), 'CreateGroup');
+const Meetings = lazyWithRecovery(() => import('../pages/meetings/Meetings'), 'Meetings');
+const InclusiveOnboardingPage = lazyWithRecovery(() => import('../pages/inclusive-onboarding/InclusiveOnboardingPage'), 'InclusiveOnboardingPage');
+const RetirementSupportPage = lazyWithRecovery(() => import('../pages/retirement-support/RetirementSupportPage'), 'RetirementSupportPage');
+const EducationSupportPage = lazyWithRecovery(() => import('../pages/education-support/EducationSupportPage'), 'EducationSupportPage');
+const EduFinancePage = lazyWithRecovery(() => import('../pages/edufinance/EduFinancePage'), 'EduFinancePage');
+const AgriculturePage = lazyWithRecovery(() => import('../pages/agriculture/AgricultureDashboard'), 'AgriculturePage');
+const UbuntuFloatPage = lazyWithRecovery(() => import('../pages/ubuntu-float/UbuntuFloatPage'), 'UbuntuFloatPage');
+const PartnerSupportPage = lazyWithRecovery(() => import('../pages/PartnerPortal'), 'PartnerSupportPage');
+const EducationCampaignManagerPage = lazyWithRecovery(() => import('../pages/education-support/EducationCampaignManagerPage'), 'EducationCampaignManagerPage');
+const InstitutionalHomePage = lazyWithRecovery(() => import('../pages/public/InstitutionalPublicPages').then((module) => ({ default: module.HomePage })), 'InstitutionalHomePage');
+const BookDemoPage = lazyWithRecovery(() => import('../pages/public/InstitutionalPublicPages').then((module) => ({ default: module.BookDemoPage })), 'BookDemoPage');
+const ContactUsPage = lazyWithRecovery(() => import('../pages/public/InstitutionalPublicPages').then((module) => ({ default: module.ContactUsPage })), 'ContactUsPage');
+const GuidedChatPage = lazyWithRecovery(() => import('../pages/public/InstitutionalPublicPages').then((module) => ({ default: module.GuidedChatPage })), 'GuidedChatPage');
+
 const NotFound = lazyWithRecovery(
   () => import('../pages/NotFound'),
   'NotFound'
@@ -402,15 +437,11 @@ function AdminRoute() {
     );
   }
 
-  const role =
-    normalizeRole(
-      user.role
-    );
+  const roles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
+    .map(normalizeRole)
+    .filter(Boolean);
 
-  if (
-    !role ||
-    !ADMIN_ROLES.has(role)
-  ) {
+  if (!roles.some((role) => ADMIN_ROLES.has(role))) {
     return (
       <Navigate
         to={ROUTES.DASHBOARD}
@@ -477,6 +508,15 @@ function ProtectedLayout() {
     <AdminLayout>
       <Outlet />
     </AdminLayout>
+  );
+}
+
+function PublicSiteLayout() {
+  return (
+    <>
+      <Navbar />
+      <Outlet />
+    </>
   );
 }
 
@@ -587,12 +627,14 @@ function ApplicationRouteTree() {
       {/* Root                                                                */}
       {/* ================================================================== */}
 
-      <Route
-        path={ROUTES.ROOT}
-        element={
-          <RootRedirect />
-        }
-      />
+      <Route element={<PublicSiteLayout />}>
+        <Route path={ROUTES.ROOT} element={<InstitutionalHomePage />} />
+        <Route path={ROUTES.BOOK_A_DEMO} element={<BookDemoPage />} />
+        <Route path={ROUTES.CONTACT_US} element={<ContactUsPage />} />
+        <Route path={ROUTES.CHAT_WITH_TITECH} element={<GuidedChatPage />} />
+        <Route path={ROUTES.EDUCATION_SUPPORT} element={<EducationSupportPage />} />
+        <Route path={ROUTES.EDUFINANCE} element={<EduFinancePage />} />
+      </Route>
 
       {/* ================================================================== */}
       {/* Protected application routes                                       */}
@@ -656,6 +698,18 @@ function ApplicationRouteTree() {
               <Payroll />
             }
           />
+
+          <Route path={ROUTES.GROUPS} element={<GroupList />} />
+          <Route path={ROUTES.GROUP_DETAILS} element={<GroupDetails />} />
+          <Route path={ROUTES.CREATE_GROUP} element={<CreateGroup />} />
+          <Route path={ROUTES.LEGACY_CREATE_GROUP} element={<Navigate to={ROUTES.CREATE_GROUP} replace />} />
+          <Route path={ROUTES.MEETINGS} element={<Meetings />} />
+          <Route path={ROUTES.INCLUSIVE_ONBOARDING} element={<InclusiveOnboardingPage />} />
+          <Route path={ROUTES.RETIREMENT_SUPPORT} element={<RetirementSupportPage />} />
+          <Route path={ROUTES.AGRICULTURE} element={<AgriculturePage />} />
+          <Route path={ROUTES.UBUNTU_FLOAT} element={<UbuntuFloatPage />} />
+          <Route path={ROUTES.PARTNER_SUPPORT} element={<PartnerSupportPage />} />
+          <Route path={ROUTES.EDUCATION_CAMPAIGN_MANAGER} element={<EducationCampaignManagerPage />} />
 
           {/* ============================================================ */}
           {/* Administrative routes                                         */}

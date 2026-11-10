@@ -3,6 +3,7 @@ import UbuntuFloatAgentProfile from './models/UbuntuFloatAgentProfile.js';
 import UbuntuFloatPositionObservation from './models/UbuntuFloatPositionObservation.js';
 import SecureDocument from '../secure-documents/secureDocument.model.js';
 import { createAuditLog } from '../audit/audit.service.js';
+import { getUbuntuFloatCapabilities } from './domain/capabilities.js';
 import {
   assertAgentTransition,
   assertValidAgentParent,
@@ -167,3 +168,5 @@ export async function recordUbuntuFloatManualAttestation(payload = {}, inputCont
     throw translateDatabaseError(error);
   }
 }
+
+export { getUbuntuFloatCapabilities };

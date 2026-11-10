@@ -58,7 +58,8 @@ import { toast } from "react-toastify";
 
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { normalizeTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
+import { hasTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
+import { getNavigationItems } from "../navigation/navigationRegistry.js";
 
 import "./Dashboard.css";
 
@@ -737,10 +738,18 @@ export default function Dashboard() {
   // Role
   // ==========================================================================
 
-  const isAdmin = useMemo(() => {
-    const role = normalizeTitechRole(user?.role);
-    return [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN].includes(role);
-  }, [user?.role]);
+  const userRoles = useMemo(
+    () => [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])],
+    [user?.role, user?.roles],
+  );
+  const isAdmin = useMemo(
+    () => hasTitechRole(userRoles, [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN]),
+    [userRoles],
+  );
+  const dashboardNavigation = useMemo(
+    () => getNavigationItems(true, userRoles),
+    [userRoles],
+  );
 
   // ==========================================================================
   // Formatters
@@ -850,8 +859,7 @@ export default function Dashboard() {
   const fetchStats =
     useCallback(
       async (signal) => {
-        const role = normalizeTitechRole(user?.role);
-        if (role !== TITECH_ROLES.PLATFORM_ADMIN) {
+        if (!hasTitechRole(userRoles, [TITECH_ROLES.PLATFORM_ADMIN])) {
           return DEFAULT_STATS;
         }
 
@@ -874,7 +882,7 @@ export default function Dashboard() {
           throw statsError;
         }
       },
-      [user?.role]
+      [userRoles]
     );
 
   // ==========================================================================
@@ -1338,7 +1346,7 @@ export default function Dashboard() {
   const handleCreateGroup =
     useCallback(() => {
       navigate(
-        "/groups/create"
+        "/create-group"
       );
     }, [navigate]);
 
@@ -1541,41 +1549,19 @@ export default function Dashboard() {
             className="dashboard-menu"
             aria-label="Dashboard navigation"
           >
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                navigate(
-                  "/dashboard"
-                );
-              }}
-            >
-              Dashboard
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                navigate(
-                  "/groups"
-                );
-              }}
-            >
-              Community Groups
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                navigate(
-                  "/groups/create"
-                );
-              }}
-            >
-              Create Group
-            </button>
+            {dashboardNavigation.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-current={location.pathname === item.to ? 'page' : undefined}
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate(item.to);
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
 
             {isAdmin && (
               <button
@@ -1736,26 +1722,21 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={
-              handleCreateGroup
-            }
-          >
-            Create Group
-            <ChevronRight
-              size={18}
-              aria-hidden="true"
-            />
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleCreateGroup}
+            >
+              Create Group
+              <ChevronRight size={18} aria-hidden="true" />
+            </button>
+          )}
         </div>
 
         {groups.length === 0 ? (
           <EmptyGroupsState
-            onCreateGroup={
-              handleCreateGroup
-            }
+            onCreateGroup={isAdmin ? handleCreateGroup : undefined}
           />
         ) : (
           <div className="groups-grid">

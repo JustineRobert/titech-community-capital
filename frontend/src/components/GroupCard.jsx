@@ -858,16 +858,16 @@ function GroupCard({
           return;
         }
 
-        onJoin?.(
-          normalizedGroup,
-          event,
-        );
+        if (!resolvedId) return;
+
+        onJoin?.(resolvedId);
       },
       [
         disabled,
         loading,
         normalizedGroup,
         onJoin,
+        resolvedId,
       ],
     );
 

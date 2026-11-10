@@ -46,6 +46,8 @@ import React, {
   useState,
 } from "react";
 
+import PropTypes from "prop-types";
+
 import {
   Link,
   NavLink,
@@ -66,12 +68,17 @@ import {
   ChevronDown,
   AlertCircle,
   GraduationCap,
+  Sprout,
+  Network,
+  LifeBuoy,
+  UserPlus,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "./BrandLogo";
 import LanguageSelector from "../i18n/LanguageSelector";
 import { useI18n } from "../i18n/I18nProvider";
+import { getNavigationItems } from "../navigation/navigationRegistry";
 
 import "./Navbar.css";
 
@@ -81,50 +88,17 @@ import "./Navbar.css";
 
 const DEFAULT_TEST_ID = "titech-navbar";
 
-const NAVIGATION_ITEMS = Object.freeze([
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    to: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    id: "groups",
-    label: "Groups",
-    to: "/groups",
-    icon: Users,
-  },
-  {
-    id: "meetings",
-    label: "Meetings",
-    to: "/meetings",
-    icon: CalendarDays,
-  },
-  {
-    id: "inclusiveOnboarding",
-    label: "Inclusive onboarding",
-    to: "/inclusive-onboarding",
-    icon: ShieldCheck,
-  },
-  {
-    id: "retirementSupport",
-    label: "Retirement support",
-    to: "/retirement-support",
-    icon: ShieldCheck,
-  },
-  {
-    id: "educationSupport",
-    label: "Education support",
-    to: "/education-support",
-    icon: ShieldCheck,
-  },
-  {
-    id: "eduFinance",
-    label: "EduFinance",
-    to: "/edufinance",
-    icon: GraduationCap,
-  },
-]);
+const NAVIGATION_ICONS = Object.freeze({
+  LayoutDashboard,
+  Users,
+  UserPlus,
+  CalendarDays,
+  ShieldCheck,
+  GraduationCap,
+  Sprout,
+  Network,
+  LifeBuoy,
+});
 
 const ROUTES = Object.freeze({
   HOME: "/",
@@ -260,6 +234,10 @@ function Navbar({
   // ==========================================================================
 
   const isAuthenticated = Boolean(user);
+  const navigationItems = useMemo(
+    () => getNavigationItems(isAuthenticated, [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]),
+    [isAuthenticated, user?.role, user?.roles],
+  );
 
   const userDisplayName = useMemo(
     () => getUserDisplayName(user),
@@ -279,13 +257,13 @@ function Navbar({
 
   const hasActiveNavigation = useMemo(
     () =>
-      NAVIGATION_ITEMS.some((item) =>
+      navigationItems.some((item) =>
         isRouteActive(
           currentPath,
           item.to,
         ),
       ),
-    [currentPath],
+    [currentPath, navigationItems],
   );
 
   // ==========================================================================
@@ -535,13 +513,12 @@ function Navbar({
             className="titech-navbar__navigation"
             data-testid={`${testId}-navigation`}
           >
-            {NAVIGATION_ITEMS.map(
-              ({
-                id,
-                label,
-                to,
-                icon: Icon,
-              }) => (
+            {navigationItems.map(
+              ({ id, label, to, icon }) => {
+                const Icon = NAVIGATION_ICONS[icon] || ShieldCheck;
+                const translationKey = `common.nav.${id}`;
+                const translatedLabel = t(translationKey);
+                return (
                 <NavLink
                   key={id}
                   to={to}
@@ -564,9 +541,10 @@ function Navbar({
                     focusable="false"
                   />
 
-                  <span>{t(`common.nav.${id}`) || label}</span>
+                  <span>{translatedLabel === translationKey ? label : translatedLabel}</span>
                 </NavLink>
-              ),
+                );
+              },
             )}
           </div>
         )}
@@ -842,13 +820,12 @@ function Navbar({
         >
           {showNavigation && (
             <div className="titech-navbar__mobile-navigation">
-              {NAVIGATION_ITEMS.map(
-                ({
-                  id,
-                  label,
-                  to,
-                  icon: Icon,
-                }) => (
+              {navigationItems.map(
+                ({ id, label, to, icon }) => {
+                  const Icon = NAVIGATION_ICONS[icon] || ShieldCheck;
+                  const translationKey = `common.nav.${id}`;
+                  const translatedLabel = t(translationKey);
+                  return (
                   <NavLink
                     key={id}
                     to={to}
@@ -874,9 +851,10 @@ function Navbar({
                       focusable="false"
                     />
 
-                    <span>{t(`common.nav.${id}`) || label}</span>
+                    <span>{translatedLabel === translationKey ? label : translatedLabel}</span>
                   </NavLink>
-                ),
+                  );
+                },
               )}
             </div>
           )}

@@ -11,6 +11,17 @@ test('UbuntuFloat is mounted on the canonical authenticated, tenant-authorized r
   assert.match(routes, /tenantAuthorization[\s\S]{0,150}ubuntuFloatRoutes/);
 });
 
+test('UbuntuFloat capability reporting is available without enabling the operational core', async () => {
+  const routes = await read('../../../modules/ubuntu-float/ubuntuFloat.routes.js');
+  const controller = await read('../../../modules/ubuntu-float/ubuntuFloat.controller.js');
+  assert.match(routes, /router\.get\('\/capabilities',\s*requirePermission\('ubuntu-float:agent:read'\),\s*getCapabilities\)/);
+  assert.match(controller, /export async function getCapabilities/);
+  const capabilityIndex = routes.indexOf("router.get('/capabilities'");
+  const agentsIndex = routes.indexOf("router.get('/agents'");
+  assert.ok(capabilityIndex >= 0 && agentsIndex > capabilityIndex);
+  assert.doesNotMatch(routes.slice(capabilityIndex, agentsIndex), /coreEnabled/);
+});
+
 test('UbuntuFloat routes fail closed behind the Core capability flag and action RBAC', async () => {
   const routes = await read('../../../modules/ubuntu-float/ubuntuFloat.routes.js');
   assert.match(routes, /requireCapabilityFlag\('TITECH_UBUNTFLOAT_CORE_ENABLED'\)/);

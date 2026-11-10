@@ -1,8 +1,8 @@
 # TITech Community Capital — Product Positioning & Architectural Boundaries
 
-**Effective:** 2026-09-22  
+**Effective:** 2026-09-22 (organization identity reconfirmed 2026-11-10)  
 **Product:** TITech Community Capital  
-**Company:** TITech Capital LTD  
+**Company:** TITech Capital SMC LTD  
 **Primary market:** Uganda → East Africa → Africa → Emerging Markets → Global
 
 ## Core position

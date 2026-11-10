@@ -29,6 +29,13 @@ import {
   FileText,
   Banknote,
   Settings,
+  CalendarDays,
+  GraduationCap,
+  ShieldCheck,
+  Sprout,
+  Network,
+  LifeBuoy,
+  UserPlus,
   Menu,
   X,
   LogOut,
@@ -38,7 +45,7 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "../components/BrandLogo";
-import { normalizeTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
+import { getNavigationItems } from "../navigation/navigationRegistry";
 
 import "./AdminLayout.css";
 
@@ -81,15 +88,19 @@ export default function AdminLayout() {
 
   const navigation =
     useMemo(() => {
+      const iconMap = {
+        LayoutDashboard, Users, UserPlus, CalendarDays, ShieldCheck,
+        GraduationCap, Sprout, Network, LifeBuoy,
+      };
+      const userRoles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])];
+      const serviceItems = getNavigationItems(true, userRoles)
+        .map((item) => ({
+          label: item.label,
+          icon: iconMap[item.icon] || ShieldCheck,
+          path: item.to,
+        }));
       const items = [
-        {
-          label:
-            "Dashboard",
-          icon:
-            LayoutDashboard,
-          path:
-            "/dashboard",
-        },
+        ...serviceItems,
         {
           label:
             "Members",
@@ -150,15 +161,7 @@ export default function AdminLayout() {
         },
       ];
 
-      const role = normalizeTitechRole(user?.role);
-      const isAdmin = [
-        TITECH_ROLES.PLATFORM_ADMIN,
-        TITECH_ROLES.TENANT_ADMIN,
-      ].includes(role);
-      const canGovernAccess = [
-        TITECH_ROLES.PLATFORM_ADMIN,
-        TITECH_ROLES.TENANT_ADMIN,
-      ].includes(role);
+      const canGovernAccess = getNavigationItems(true, userRoles).some((item) => item.to === '/create-group');
       const governanceItems = canGovernAccess
         ? [
             {
