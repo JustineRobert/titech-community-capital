@@ -120,6 +120,8 @@ const ROUTES = Object.freeze({
   UBUNTU_FLOAT: '/ubuntu-float',
   PARTNER_SUPPORT: '/partner-support',
   EDUCATION_CAMPAIGN_MANAGER: '/education-support/manage',
+  FAITH_GIVING: '/faith-community-giving',
+  FAITH_GIVING_MANAGE: '/faith-community-giving/manage',
 });
 
 // ============================================================================
@@ -315,6 +317,8 @@ const AgriculturePage = lazyWithRecovery(() => import('../pages/agriculture/Agri
 const UbuntuFloatPage = lazyWithRecovery(() => import('../pages/ubuntu-float/UbuntuFloatPage'), 'UbuntuFloatPage');
 const PartnerSupportPage = lazyWithRecovery(() => import('../pages/PartnerPortal'), 'PartnerSupportPage');
 const EducationCampaignManagerPage = lazyWithRecovery(() => import('../pages/education-support/EducationCampaignManagerPage'), 'EducationCampaignManagerPage');
+const FaithCommunityGivingPage = lazyWithRecovery(() => import('../pages/faith-community-giving/FaithCommunityGivingPage'), 'FaithCommunityGivingPage');
+const FaithGivingManagerPage = lazyWithRecovery(() => import('../pages/faith-community-giving/FaithGivingManagerPage'), 'FaithGivingManagerPage');
 const InstitutionalHomePage = lazyWithRecovery(() => import('../pages/public/InstitutionalPublicPages').then((module) => ({ default: module.HomePage })), 'InstitutionalHomePage');
 const BookDemoPage = lazyWithRecovery(() => import('../pages/public/InstitutionalPublicPages').then((module) => ({ default: module.BookDemoPage })), 'BookDemoPage');
 const ContactUsPage = lazyWithRecovery(() => import('../pages/public/InstitutionalPublicPages').then((module) => ({ default: module.ContactUsPage })), 'ContactUsPage');
@@ -415,6 +419,28 @@ function ProtectedRoute() {
 // ============================================================================
 // Admin route
 // ============================================================================
+
+const FAITH_GIVING_MANAGER_ROLES = new Set([
+  TITECH_ROLES.PLATFORM_ADMIN,
+  TITECH_ROLES.TENANT_ADMIN,
+  'faith_giving_admin',
+  'faith_giving_reviewer',
+  'compliance_officer',
+  'auditor',
+]);
+
+function FaithGivingManagerRoute() {
+  const { user, loading } = useAuthentication();
+  if (loading) return <RouteLoader />;
+  if (!user) return <Navigate to={ROUTES.LOGIN} replace />;
+  const roles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
+    .map(normalizeRole)
+    .filter(Boolean);
+  if (!roles.some((role) => FAITH_GIVING_MANAGER_ROLES.has(role))) {
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
+  }
+  return <Outlet />;
+}
 
 function AdminRoute() {
   const {
@@ -634,6 +660,7 @@ function ApplicationRouteTree() {
         <Route path={ROUTES.CHAT_WITH_TITECH} element={<GuidedChatPage />} />
         <Route path={ROUTES.EDUCATION_SUPPORT} element={<EducationSupportPage />} />
         <Route path={ROUTES.EDUFINANCE} element={<EduFinancePage />} />
+        <Route path={ROUTES.FAITH_GIVING} element={<FaithCommunityGivingPage />} />
       </Route>
 
       {/* ================================================================== */}
@@ -710,6 +737,7 @@ function ApplicationRouteTree() {
           <Route path={ROUTES.UBUNTU_FLOAT} element={<UbuntuFloatPage />} />
           <Route path={ROUTES.PARTNER_SUPPORT} element={<PartnerSupportPage />} />
           <Route path={ROUTES.EDUCATION_CAMPAIGN_MANAGER} element={<EducationCampaignManagerPage />} />
+          <Route element={<FaithGivingManagerRoute />}><Route path={ROUTES.FAITH_GIVING_MANAGE} element={<FaithGivingManagerPage />} /></Route>
 
           {/* ============================================================ */}
           {/* Administrative routes                                         */}

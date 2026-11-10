@@ -19,6 +19,8 @@ import operationsRoutes from '../modules/operations/operations.routes.js';
 import ubuntuFloatRoutes from '../modules/ubuntu-float/ubuntuFloat.routes.js';
 import educationCampaignRoutes from '../modules/education/educationCampaign.routes.js';
 import educationCampaignPublicRoutes from '../modules/education/educationCampaign.public.routes.js';
+import faithGivingRoutes from '../modules/faith-community-giving/faithGiving.routes.js';
+import faithGivingPublicRoutes from '../modules/faith-community-giving/faithGiving.public.routes.js';
 import eduFinanceRoutes from '../modules/edufinance/eduFinance.routes.js';
 import institutionalLeadRoutes from './institutionalLead.routes.js';
 import tenantMiddlewareModule from '../middleware/tenantMiddleware.js';
@@ -1198,6 +1200,14 @@ router.use(
     educationCampaignPublicRoutes,
 );
 
+// Faith & Community Giving public pages expose only published, allow-listed
+// campaign information. The capability remains disabled unless explicitly
+// enabled after partner, privacy, financial and release review.
+router.use(
+    `${API_PREFIX}/faith-giving/public`,
+    faithGivingPublicRoutes,
+);
+
 // Public conversion intake is separated from authenticated tenant/financial APIs.
 // Administrative listing and transitions enforce super-admin authorization inside the router.
 router.use(
@@ -1210,6 +1220,13 @@ router.use(
     authenticate,
     tenantAuthorization,
     educationCampaignRoutes,
+);
+
+router.use(
+    `${API_PREFIX}/faith-giving`,
+    authenticate,
+    tenantAuthorization,
+    faithGivingRoutes,
 );
 
 // EduFinance accepts only guarded parent/guardian application intake.

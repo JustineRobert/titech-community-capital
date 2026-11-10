@@ -1,0 +1,114 @@
+.titech-faith-page {
+  --faith-deep: var(--titech-official-deep-blue);
+  --faith-electric: var(--titech-official-electric-blue);
+  --faith-bright: var(--titech-official-bright-blue);
+  --faith-cyan: var(--titech-official-cyan);
+  --faith-green: var(--titech-official-green);
+  --faith-lime: var(--titech-official-lime);
+  --faith-gold: var(--titech-official-gold);
+  --faith-navy: var(--titech-official-navy);
+  --faith-white: var(--titech-official-white);
+  width: min(100% - 2rem, 1280px);
+  margin: 1.25rem auto 3rem;
+  color: var(--titech-color-text);
+}
+.titech-faith-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1.7fr) auto;
+  gap: 2rem;
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  border-radius: 24px;
+  color: var(--faith-white);
+  background: linear-gradient(125deg, var(--faith-deep), var(--faith-electric) 56%, var(--faith-bright));
+  box-shadow: 0 18px 48px rgb(0 48 160 / .17);
+}
+.titech-faith-hero::after { position: absolute; content: ''; width: 340px; height: 340px; right: -120px; top: -190px; border: 1px solid rgb(255 255 255 / .26); border-radius: 50%; box-shadow: 0 0 0 34px rgb(255 255 255 / .05), 0 0 0 72px rgb(255 255 255 / .035); pointer-events: none; }
+.titech-faith-hero__identity { display: grid; justify-items: start; gap: .8rem; }
+.titech-faith-hero__identity .titech-brand-logo { width: 112px; height: 112px; object-fit: contain; filter: drop-shadow(0 8px 20px rgb(0 0 0 / .16)); }
+.titech-faith-hero__copy { position: relative; z-index: 1; }
+.titech-faith-hero h1 { margin: .35rem 0 .7rem; color: var(--faith-white); font-size: clamp(2rem, 4.3vw, 3.5rem); line-height: 1.08; letter-spacing: -.035em; }
+.titech-faith-hero p { max-width: 760px; margin: 0; color: rgb(255 255 255 / .91); line-height: 1.65; }
+.titech-faith-eyebrow, .titech-faith-kicker { margin: 0; color: inherit; font-size: .76rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.titech-faith-kicker { display: inline-block; padding: .45rem .7rem; border: 1px solid rgb(255 255 255 / .3); border-radius: 999px; background: rgb(255 255 255 / .1); letter-spacing: .06em; text-transform: none; }
+.titech-faith-hero__identity .titech-faith-eyebrow { color: rgb(255 255 255 / .88); letter-spacing: .06em; }
+.titech-faith-actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; margin-top: 1.2rem; }
+.titech-faith-actions--wrap { margin-top: .9rem; }
+.titech-faith-button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: .45rem; padding: .65rem 1rem; border: 1px solid transparent; border-radius: 10px; font: inherit; font-size: .88rem; font-weight: 750; text-decoration: none; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.titech-faith-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 14px rgb(8 43 103 / .14); }
+.titech-faith-button:disabled { cursor: not-allowed; opacity: .55; }
+.titech-faith-button--light { color: var(--faith-deep); background: var(--faith-white); }
+.titech-faith-button--outline { color: var(--faith-white); background: transparent; border-color: rgb(255 255 255 / .55); }
+.titech-faith-button--primary { color: var(--faith-white); background: var(--faith-electric); }
+.titech-faith-button--secondary { color: var(--titech-color-text); background: var(--titech-color-surface); border-color: var(--titech-color-border-strong); }
+.titech-faith-button--danger { color: var(--titech-state-danger); background: var(--titech-danger-surface); border-color: var(--titech-danger-border); }
+.titech-faith-palette { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 15px); gap: 7px; align-content: center; }
+.titech-faith-swatch { width: 15px; height: 15px; border: 1px solid rgb(255 255 255 / .55); border-radius: 50%; }
+.titech-faith-swatch--deep { background: var(--faith-deep); } .titech-faith-swatch--electric { background: var(--faith-electric); } .titech-faith-swatch--bright { background: var(--faith-bright); } .titech-faith-swatch--cyan { background: var(--faith-cyan); } .titech-faith-swatch--green { background: var(--faith-green); } .titech-faith-swatch--lime { background: var(--faith-lime); } .titech-faith-swatch--gold { background: var(--faith-gold); } .titech-faith-swatch--navy { background: var(--faith-navy); } .titech-faith-swatch--white { background: var(--faith-white); }
+.titech-faith-assurance { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: 1.25rem 0; padding: 1.1rem 1.35rem; border: 1px solid var(--titech-color-border); border-left: 4px solid var(--faith-cyan); border-radius: 14px; background: var(--titech-color-surface); }
+.titech-faith-assurance h2 { margin: .2rem 0 .4rem; font-size: 1.12rem; }
+.titech-faith-assurance p { max-width: 950px; margin: 0; color: var(--titech-color-text-muted); line-height: 1.6; }
+.titech-faith-assurance .titech-faith-eyebrow { color: var(--faith-electric); }
+.titech-faith-assurance--compact { margin: .8rem 0 1.2rem; }
+.titech-faith-assurance--compact > div { line-height: 1.5; }
+.titech-faith-status { flex: 0 0 auto; padding: .45rem .7rem; border: 1px solid var(--titech-warning-border); border-radius: 999px; color: var(--titech-state-warning); background: var(--titech-warning-surface); font-size: .76rem; font-weight: 800; white-space: nowrap; }
+.titech-faith-capabilities { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 1.3rem 0 2.4rem; }
+.titech-faith-capability, .titech-faith-campaign, .titech-faith-form-panel { min-width: 0; padding: 1.25rem; border: 1px solid var(--titech-color-border); border-radius: 16px; background: var(--titech-color-surface); box-shadow: 0 8px 24px rgb(8 43 103 / .045); }
+.titech-faith-capability__mark { display: block; width: 34px; height: 5px; margin-bottom: 1rem; border-radius: 99px; background: linear-gradient(90deg, var(--faith-electric), var(--faith-cyan), var(--faith-green), var(--faith-gold)); }
+.titech-faith-capability h2 { margin: 0 0 .5rem; font-size: 1.04rem; }
+.titech-faith-capability p { margin: 0; color: var(--titech-color-text-muted); line-height: 1.55; }
+.titech-faith-directory, .titech-faith-managed-list { margin-top: 2rem; }
+.titech-faith-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1rem; }
+.titech-faith-section-heading h2 { margin: .2rem 0 0; font-size: clamp(1.25rem, 2.3vw, 1.7rem); }
+.titech-faith-section-heading .titech-faith-eyebrow { color: var(--faith-electric); }
+.titech-faith-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.titech-faith-campaign h2, .titech-faith-campaign h3 { margin: .65rem 0 .5rem; }
+.titech-faith-campaign p { color: var(--titech-color-text-muted); line-height: 1.55; }
+.titech-faith-card-top { display: flex; justify-content: space-between; align-items: start; gap: .8rem; }
+.titech-faith-pill { display: inline-flex; width: fit-content; padding: .35rem .6rem; border-radius: 999px; color: var(--faith-deep); background: rgb(0 88 216 / .09); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .035em; }
+.titech-faith-scope { color: var(--titech-color-text-subtle); font-size: .75rem; text-align: end; }
+.titech-faith-detail__organisation { color: var(--faith-electric) !important; font-size: .88rem; font-weight: 750; }
+.titech-faith-card-facts { display: grid; grid-template-columns: 1fr auto; gap: .4rem 1rem; padding: .8rem 0; margin: .8rem 0; border-top: 1px solid var(--titech-color-border); border-bottom: 1px solid var(--titech-color-border); font-size: .84rem; }
+.titech-faith-card-facts span { color: var(--titech-color-text-muted); }
+.titech-faith-card-facts strong { text-align: end; }
+.titech-faith-detail { margin-top: .8rem; }
+.titech-faith-detail h2 { color: var(--faith-deep); }
+.titech-faith-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.titech-faith-facts > div { padding: .75rem; border-radius: 10px; background: var(--titech-color-surface-muted); }
+.titech-faith-facts dt { color: var(--titech-color-text-muted); font-size: .75rem; }
+.titech-faith-facts dd { margin: .2rem 0 0; font-weight: 800; }
+.titech-faith-budget-list { display: grid; gap: .4rem; padding: 0; list-style: none; }
+.titech-faith-budget-list li { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-bottom: 1px solid var(--titech-color-border); }
+.titech-faith-no-payment { padding: .8rem; border-radius: 10px; color: var(--titech-state-warning) !important; background: var(--titech-warning-surface); font-weight: 750; }
+.titech-faith-message { padding: .8rem 1rem; border: 1px solid var(--titech-color-border); border-radius: 10px; color: var(--titech-color-text-muted); background: var(--titech-color-surface); line-height: 1.5; }
+.titech-faith-message--warning { border-color: var(--titech-warning-border); color: var(--titech-state-warning); background: var(--titech-warning-surface); }
+.titech-faith-message--success { border-color: rgb(0 128 0 / .25); color: var(--titech-state-success); background: var(--titech-success-surface); }
+.titech-faith-empty { padding: 2rem; border: 1px dashed var(--titech-color-border-strong); border-radius: 16px; background: var(--titech-color-surface); text-align: center; }
+.titech-faith-empty p { color: var(--titech-color-text-muted); }
+.titech-faith-text-button { padding: 0; border: 0; color: var(--faith-electric); background: transparent; font: inherit; font-weight: 750; cursor: pointer; }
+.titech-faith-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--titech-color-border); color: var(--titech-color-text-muted); font-size: .82rem; }
+.titech-faith-footer strong { color: var(--faith-electric); letter-spacing: .08em; }
+.titech-faith-hero--compact { grid-template-columns: 1fr auto; }
+.titech-faith-hero--compact h1 { font-size: clamp(1.8rem, 3.3vw, 2.7rem); }
+.titech-faith-form-panel { margin-top: 1.2rem; }
+.titech-faith-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem 1rem; }
+.titech-faith-form label, .titech-faith-reason { display: grid; gap: .4rem; min-width: 0; }
+.titech-faith-form label span, .titech-faith-reason span { color: var(--titech-color-text-muted); font-size: .82rem; font-weight: 750; }
+.titech-faith-form input, .titech-faith-form select, .titech-faith-form textarea, .titech-faith-reason textarea { width: 100%; min-height: 42px; padding: .65rem .75rem; border: 1px solid var(--titech-color-border-strong); border-radius: 9px; color: var(--titech-color-text); background: var(--titech-color-surface); font: inherit; }
+.titech-faith-form input:focus, .titech-faith-form select:focus, .titech-faith-form textarea:focus, .titech-faith-reason textarea:focus { outline: 3px solid rgb(0 88 216 / .2); border-color: var(--faith-electric); }
+.titech-faith-form__wide { grid-column: 1 / -1; }
+.titech-faith-form__actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.titech-faith-managed-card { margin-bottom: .85rem; }
+.titech-faith-managed-card .titech-faith-card-top h3 { margin: 0 0 .2rem; }
+.titech-faith-managed-card .titech-faith-card-top p { margin: 0; font-size: .82rem; }
+.titech-faith-muted { color: var(--titech-color-text-subtle) !important; font-size: .82rem; }
+.titech-faith-reason { max-width: 680px; margin: 1rem 0; }
+.titech-faith-review-panel { padding: 1rem; margin-top: 1rem; border: 1px solid var(--titech-color-border); border-radius: 12px; background: var(--titech-color-surface-muted); }
+.titech-faith-review-panel h4 { margin: 0 0 .7rem; }
+.titech-faith-check { display: flex; align-items: start; gap: .6rem; margin: .55rem 0; font-size: .88rem; }
+.titech-faith-check input { margin-top: .2rem; accent-color: var(--faith-electric); }
+@media (max-width: 900px) { .titech-faith-hero { grid-template-columns: auto 1fr; } .titech-faith-palette { grid-column: 1 / -1; display: flex; } .titech-faith-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .titech-faith-page { width: min(100% - 1rem, 1280px); margin-top: .5rem; } .titech-faith-hero { grid-template-columns: 1fr; gap: 1.1rem; border-radius: 16px; } .titech-faith-hero__identity { grid-template-columns: auto 1fr; align-items: center; } .titech-faith-hero__identity .titech-brand-logo { width: 68px; height: 68px; } .titech-faith-capabilities, .titech-faith-grid { grid-template-columns: 1fr; } .titech-faith-assurance { align-items: start; flex-direction: column; } .titech-faith-section-heading { align-items: start; flex-direction: column; } .titech-faith-form { grid-template-columns: 1fr; } .titech-faith-form__wide { grid-column: auto; } .titech-faith-facts { grid-template-columns: 1fr; } .titech-faith-hero--compact { grid-template-columns: 1fr; } .titech-faith-hero--compact > a { width: fit-content; } }
+@media (prefers-reduced-motion: reduce) { .titech-faith-button { transition: none; } .titech-faith-button:hover:not(:disabled) { transform: none; } }

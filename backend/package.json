@@ -107,7 +107,9 @@
     "index:create:retirement-support": "node scripts/createRetirementSupportIndexes.js",
     "index:create:education-campaigns": "node scripts/createEducationCampaignIndexes.js",
     "index:create:ubuntu-float": "node scripts/createUbuntuFloatIndexes.js",
-    "index:create:edufinance": "node scripts/createEduFinanceIndexes.js"
+    "index:create:edufinance": "node scripts/createEduFinanceIndexes.js",
+    "test:faith-giving": "node --test modules/faith-community-giving/faithGiving.policy.test.js",
+    "index:create:faith-giving": "node scripts/createFaithGivingIndexes.js"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

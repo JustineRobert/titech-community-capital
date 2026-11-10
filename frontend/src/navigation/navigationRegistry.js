@@ -16,6 +16,8 @@ export const NAVIGATION_REGISTRY = Object.freeze([
   { id: 'agriculture', label: 'Agriculture', to: '/agriculture', icon: 'Sprout', access: 'public' },
   { id: 'ubuntuFloat', label: 'UbuntuFloat', to: '/ubuntu-float', icon: 'Network', access: 'public' },
   { id: 'partnerSupport', label: 'Partner Support', to: '/partner-support', icon: 'LifeBuoy', access: 'public' },
+  { id: 'faithGiving', label: 'Faith & Community Giving', to: '/faith-community-giving', icon: 'HeartHandshake', access: 'public' },
+  { id: 'faithGivingManage', label: 'Giving administration', to: '/faith-community-giving/manage', icon: 'ShieldCheck', access: 'authenticated', roles: [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN, 'FAITH_GIVING_ADMIN', 'FAITH_GIVING_REVIEWER', 'COMPLIANCE_OFFICER', 'AUDITOR'] },
 ]);
 
 export function getNavigationItems(isAuthenticated = false, roles = []) {
