@@ -2822,7 +2822,7 @@ function buildEnvironment() {
     environment.app.name;
 
   environment.applicationLegalName =
-    'TITech Capital LTD';
+    'TITech Capital SMC LTD';
 
   environment.serviceName =
     environment.app.serviceName;
@@ -3432,7 +3432,7 @@ function buildSafeMetadata(
       environment.app.name,
 
     applicationLegalName:
-      'TITech Capital LTD',
+      'TITech Capital SMC LTD',
 
     serviceName:
       environment.app.serviceName,

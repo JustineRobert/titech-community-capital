@@ -12,7 +12,7 @@ describe('TITech canonical RBAC policy', () => {
     expect(normalizeRole('admin')).toBe('platform_admin');
     expect(normalizeRole('super_admin')).toBe('platform_admin');
     expect(normalizeRole('user')).toBe('member');
-    expect(CANONICAL_ROLES).toEqual(['platform_admin', 'tenant_admin', 'group_admin', 'member', 'guest']);
+    expect(CANONICAL_ROLES).toEqual(['platform_admin', 'tenant_admin', 'payroll_officer', 'payroll_auditor', 'group_admin', 'member', 'guest']);
   });
 
   test('member cannot promote self or another user', () => {
@@ -28,6 +28,14 @@ describe('TITech canonical RBAC policy', () => {
     expect(canAssignUserRole(actor, target, 'tenant_admin').allowed).toBe(false);
     expect(canAssignUserRole(actor, target, 'platform_admin').allowed).toBe(false);
     expect(canAssignUserRole(actor, target, 'group_admin', { group: { tenantId: 'tenant-a', memberRoles: [{ userId: 'b', membershipStatus: 'active', role: 'member' }] } }).allowed).toBe(true);
+  });
+
+  test('tenant administrator can assign least-privilege payroll roles only within the tenant', () => {
+    const actor = { id: 'a', role: 'tenant_admin', tenantId: 'tenant-a' };
+    const target = { id: 'b', role: 'member', tenantId: 'tenant-a' };
+    expect(canAssignUserRole(actor, target, 'payroll_officer').allowed).toBe(true);
+    expect(canAssignUserRole(actor, target, 'payroll_auditor').allowed).toBe(true);
+    expect(canAssignUserRole(actor, { ...target, tenantId: 'tenant-b' }, 'payroll_auditor').allowed).toBe(false);
   });
 
   test('tenant isolation denies cross-tenant group access', () => {
@@ -47,5 +55,9 @@ describe('TITech canonical RBAC policy', () => {
     expect(getPermissionsForRole('member')).toContain('MEMBERSHIP_REQUEST');
     expect(getPermissionsForRole('member')).not.toContain('ROLE_ASSIGN');
     expect(getPermissionsForRole('tenant_admin')).toContain('ROLE_ASSIGN');
+    expect(getPermissionsForRole('tenant_admin')).toContain('payroll:report:read');
+    expect(getPermissionsForRole('payroll_officer')).toContain('payroll:batch:upload');
+    expect(getPermissionsForRole('payroll_auditor')).toContain('payroll:webhook:audit:read');
+    expect(getPermissionsForRole('payroll_auditor')).not.toContain('payroll:batch:upload');
   });
 });

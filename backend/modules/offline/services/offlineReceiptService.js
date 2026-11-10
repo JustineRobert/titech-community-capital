@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital LTD — TITech Community Capital
+ * TITech Capital SMC LTD — TITech Community Capital
  * African Community Finance Operating System (TITech)
  * =============================================================================
  *
@@ -570,7 +570,7 @@ class OfflineReceiptService {
 
       issuer:
         config.issuer ||
-        'TITech Capital LTD',
+        'TITech Capital SMC LTD',
     };
   }
 

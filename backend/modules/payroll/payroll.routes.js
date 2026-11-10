@@ -12,12 +12,14 @@ import authModule from '../../middleware/auth.js';
 import tenantMiddlewareModule from '../../middleware/tenantMiddleware.js';
 import idempotencyModule from '../../middleware/idempotency.js';
 import { createRequire } from 'node:module';
+import { hasPermission as hasCanonicalPermission } from '../../security/rbacPolicy.js';
 
 const require = createRequire(import.meta.url);
-const { PayrollService, normalizeRole, requireTenant } = require('./payroll.service.cjs');
+const { PayrollService, requireTenant } = require('./payroll.service.cjs');
 const { WEBHOOK_EVENTS } = require('./payroll.constants.cjs');
 const { verifyWebhookSignature } = require('./payroll.crypto.cjs');
 const { PayrollError } = require('./payroll.errors.cjs');
+const { roleMatches } = require('./payroll.authorization.cjs');
 
 const router = express.Router();
 const webhookRouter = express.Router();
@@ -41,13 +43,6 @@ function getService(req) {
   });
 }
 
-function roleMatches(user, allowedRoles) {
-  const roles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
-    .map(normalizeRole)
-    .filter(Boolean);
-  return allowedRoles.some((role) => roles.includes(normalizeRole(role)));
-}
-
 function requirePayrollRole(...allowedRoles) {
   return (req, res, next) => {
     if (!roleMatches(req.user, allowedRoles)) {
@@ -56,6 +51,26 @@ function requirePayrollRole(...allowedRoles) {
         error: {
           code: 'PAYROLL_FORBIDDEN',
           message: 'Your role is not authorized for this payroll operation.',
+        },
+        requestId: req.requestId,
+        correlationId: req.correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    return next();
+  };
+}
+
+function requirePayrollPermission(permission) {
+  return (req, res, next) => {
+    const roles = [req.user?.role, ...(Array.isArray(req.user?.roles) ? req.user.roles : [])];
+    const explicitPermission = Array.isArray(req.user?.permissions) && req.user.permissions.includes(permission);
+    if (!explicitPermission && !hasCanonicalPermission(roles, permission)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'PAYROLL_FORBIDDEN',
+          message: 'Your account is not authorized to view this payroll resource.',
         },
         requestId: req.requestId,
         correlationId: req.correlationId,
@@ -139,7 +154,7 @@ const idempotency = idempotencyModule.idempotency || idempotencyModule.default |
  *     security: [{ BearerAuth: [] }]
  *     description: Employer users and administrators can upload a bounded text/csv payroll file. An Idempotency-Key is mandatory.
  */
-router.post('/uploadPayroll', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER'), express.text({ type: ['text/csv', 'text/plain'], limit: '2mb' }), idempotency({ operation: 'PAYROLL_UPLOAD', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
+router.post('/uploadPayroll', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER', 'PAYROLL_OFFICER'), express.text({ type: ['text/csv', 'text/plain'], limit: '2mb' }), idempotency({ operation: 'PAYROLL_UPLOAD', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const idempotencyKey = String(req.get('Idempotency-Key') || '').trim();
   if (!idempotencyKey || idempotencyKey.length > 200) throw new PayrollError('PAYROLL_IDEMPOTENCY_REQUIRED', 'Idempotency-Key is required and must be 200 characters or fewer.', 400);
@@ -188,7 +203,7 @@ router.post('/reconcile', ...payrollAuth, requirePayrollRole('ADMIN'), idempoten
  *     tags: [Payroll]
  *     security: [{ BearerAuth: [] }]
  */
-router.get('/report', ...payrollAuth, requirePayrollRole('ADMIN', 'AUDITOR', 'EMPLOYER_USER'), withErrorHandling(async (req, res) => {
+router.get('/report', ...payrollAuth, requirePayrollPermission('payroll:report:read'), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const result = await getService(req).report({ tenantId, batchId: req.query.batchId, status: req.query.status, page: req.query.page, pageSize: req.query.pageSize });
   return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
@@ -216,7 +231,7 @@ router.post('/retryFailed', ...payrollAuth, requirePayrollRole('ADMIN'), idempot
  *     tags: [Payroll]
  *     security: [{ BearerAuth: [] }]
  */
-router.post('/webhookSubscriptions', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER'), express.json(), idempotency({ operation: 'PAYROLL_SUBSCRIPTION_CREATE', resource: 'payroll-webhook-subscription', required: true }), withErrorHandling(async (req, res) => {
+router.post('/webhookSubscriptions', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER', 'PAYROLL_OFFICER'), express.json(), idempotency({ operation: 'PAYROLL_SUBSCRIPTION_CREATE', resource: 'payroll-webhook-subscription', required: true }), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const result = await getService(req).createSubscription({ req, tenantId, actorId: String(req.user.id || req.user.userId), callbackUrl: req.body?.callbackUrl, events: req.body?.events });
   const responseBody = { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() };
@@ -224,13 +239,13 @@ router.post('/webhookSubscriptions', ...payrollAuth, requirePayrollRole('ADMIN',
   return sendSuccess(req, res, 201, responseBody, safeIdempotencyBody);
 }));
 
-router.get('/webhookSubscriptions', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER'), withErrorHandling(async (req, res) => {
+router.get('/webhookSubscriptions', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER', 'PAYROLL_OFFICER'), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const subscriptions = await getService(req).listSubscriptions({ tenantId });
   return res.json({ success: true, subscriptions, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
 }));
 
-router.delete('/webhookSubscriptions/:subscriptionId', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER'), idempotency({ operation: 'PAYROLL_SUBSCRIPTION_DELETE', resource: 'payroll-webhook-subscription', required: true }), withErrorHandling(async (req, res) => {
+router.delete('/webhookSubscriptions/:subscriptionId', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER', 'PAYROLL_OFFICER'), idempotency({ operation: 'PAYROLL_SUBSCRIPTION_DELETE', resource: 'payroll-webhook-subscription', required: true }), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const result = await getService(req).deleteSubscription({ req, tenantId, actorId: String(req.user.id || req.user.userId), subscriptionId: String(req.params.subscriptionId) });
   return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
@@ -244,14 +259,14 @@ router.delete('/webhookSubscriptions/:subscriptionId', ...payrollAuth, requirePa
  *     tags: [Payroll]
  *     security: [{ BearerAuth: [] }]
  */
-router.post('/testWebhook', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER'), idempotency({ operation: 'PAYROLL_WEBHOOK_SIMULATE', resource: 'payroll-webhook-subscription', required: true }), withErrorHandling(async (req, res) => {
+router.post('/testWebhook', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER', 'PAYROLL_OFFICER'), idempotency({ operation: 'PAYROLL_WEBHOOK_SIMULATE', resource: 'payroll-webhook-subscription', required: true }), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const eventType = String(req.body?.eventType || WEBHOOK_EVENTS.BATCH_PROCESSED).toUpperCase();
   const result = await getService(req).testWebhook({ req, tenantId, actorId: String(req.user.id || req.user.userId), subscriptionId: String(req.body?.subscriptionId || ''), eventType });
   return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
 }));
 
-router.get('/testWebhook/auditLogs', ...payrollAuth, requirePayrollRole('ADMIN', 'AUDITOR', 'EMPLOYER_USER'), withErrorHandling(async (req, res) => {
+router.get('/testWebhook/auditLogs', ...payrollAuth, requirePayrollPermission('payroll:webhook:audit:read'), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const result = await getService(req).simulatorAuditLogs({ tenantId, page: req.query.page, pageSize: req.query.pageSize });
   return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });

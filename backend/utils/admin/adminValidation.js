@@ -163,6 +163,8 @@ const ENUMS = Object.freeze({
       'user',
       'admin',
       'group_admin',
+      'payroll_officer',
+      'payroll_auditor',
     ]),
 
   USER_STATUSES:

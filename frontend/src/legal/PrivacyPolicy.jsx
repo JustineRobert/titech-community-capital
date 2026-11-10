@@ -1,6 +1,6 @@
 /**
 * ============================================================================
-* TITech Capital LTD
+* TITech Capital SMC LTD
 * Enterprise Privacy Policy Page
 * ============================================================================
 *
@@ -151,7 +151,7 @@ phoneHref:
 '+256394324760',
 
 address:
-'TITech Capital LTD, P.O. BOX 601200, Clock Tower, Uganda',
+'TITech Capital SMC LTD, P.O. BOX 601200, Clock Tower, Uganda',
 });
 
 /* ============================================================================
@@ -1585,7 +1585,7 @@ DOCUMENT HEADER
         </SectionHeading>
 
         <p>
-          TITech Capital LTD
+          TITech Capital SMC LTD
           (“TITech Community Capital,”
           “TITech,” “we,” “us,” or “our”)
           respects your privacy and is

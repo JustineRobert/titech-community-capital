@@ -27,7 +27,7 @@ check('USSD and financial action flags remain disabled in templates', /TITECH_US
 check('financial action enablement is passed as a separate server-side gate', route.includes('transactionFeaturesEnabled: process.env.TITECH_USSD_TRANSACTION_FEATURES_ENABLED === \'true\''));
 check('menu is feature-filtered and defaults to reviewed English', read('backend/modules/ussd/ussd.menu.js').includes('Only the human-reviewed English USSD menu is enabled') && unitTest.includes('renders only institution-enabled main-menu features') && unitTest.includes('menu navigation distinguishes back, exit') && unitTest.includes('session lifecycle rejects terminal-state resurrection'));
 check('provider network is normalized without prefix inference', contract.includes("'MTN',\n  'AIRTEL',\n  'OTHER',\n  'UNKNOWN'") && contract.includes("? requestedNetwork\n    : 'UNKNOWN'"));
-check('organization production approval remains disabled', organization.organizationDisplayName === 'TITech Capital LTD' && organization.productionApproved === false);
+check('organization production approval remains disabled', organization.organizationDisplayName === 'TITech Capital SMC LTD' && organization.productionApproved === false);
 
 const failures = checks.filter((item) => item.status === 'FAIL');
 const result = {

@@ -1,18 +1,20 @@
 # TITech Community Capital — Terms of Service
 
 **Status: Draft — not legally approved or effective**  
-**Intended operator identity:** TITech Capital LTD  
+**Intended operator identity:** TITech Capital SMC LTD  
 **Product:** TITech Community Capital  
 **Version:** `draft-2026-10-25`  
 **Effective date:** To be set only after approval and publication.
 
 > Do not deploy these terms as binding until qualified Uganda counsel, the company owner and product/security owners have completed the release checklist. Confirm the registered corporate identity and contact details first.
 
+> **Organization identity update — 10 November 2026:** The current owner-confirmed organization identity is **TITech Capital SMC LTD**. This value supersedes the 7 November 2026 name note below for current configuration only. Documentary verification remains pending; these terms remain a draft and must not be published as binding.
+
 > **Organization identity update — 7 November 2026:** The intended/configured operator name has been updated to **TITech Capital LTD** on the owner's instruction. This repository value is not documentary proof of incorporation, statutory name, registration number or authority to contract. Keep this document in draft and do not publish or rely on it as binding until the registered identity, contact details, controller/processor roles and service-specific legal obligations are verified by qualified Ugandan counsel.
 
 ## 1. Operator, product and acceptance
 
-The product is TITech Community Capital. “TITech”, “we”, “us” and “our” refer to the operator identified in the final approved terms as TITech Capital LTD, after its legal identity and authority to contract have been verified. “You” means an individual user or authorised representative of an institution who accesses the service.
+The product is TITech Community Capital. “TITech”, “we”, “us” and “our” refer to the operator identified in the final approved terms as TITech Capital SMC LTD, after its legal identity and authority to contract have been verified. “You” means an individual user or authorised representative of an institution who accesses the service.
 
 Users must be able to open and review the applicable version before acceptance. The registration flow must record acceptance of the exact terms version on the server, using a server-authoritative timestamp and an auditable event. Updated terms must have a version and effective date; material changes require notice and renewed acceptance where law or the applicable service requires it.
 

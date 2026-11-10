@@ -1,6 +1,6 @@
 # TITech Community Capital — Product Positioning
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITech Capital SMC LTD  
 **Product:** TITech Community Capital  
 **Platform tagline:** BUILD LESS. PROVE MORE.  
 **Primary wedge:** Financial event, payment and reconciliation infrastructure for community finance.

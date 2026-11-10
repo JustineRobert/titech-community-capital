@@ -1,18 +1,20 @@
 # TITech Community Capital — Privacy Policy
 
 **Status: Draft — not approved for production publication**  
-**Intended operator identity:** TITech Capital LTD  
+**Intended operator identity:** TITech Capital SMC LTD  
 **Product:** TITech Community Capital  
 **Version:** `draft-2026-10-25`  
 **Publication date:** To be set after review.
 
 This notice must be mapped to the live service, actual data flows, controller/processor contracts, subprocessor register and approved retention schedule before publication. It deliberately does not claim that every data category or feature below is currently active.
 
+> **Organization identity update — 10 November 2026:** The current owner-confirmed organization identity is **TITech Capital SMC LTD**. This value supersedes the 7 November 2026 name note below for current configuration only. Documentary verification remains pending; this document remains a draft and must not be published as an approved legal notice.
+
 > **Organization identity update — 7 November 2026:** The intended/configured operator name has been updated to **TITech Capital LTD** on the owner's instruction. This repository value is not documentary proof of incorporation, statutory name, registration number or authority to contract. Keep this document in draft and do not publish or rely on it as binding until the registered identity, contact details, controller/processor roles and service-specific legal obligations are verified by qualified Ugandan counsel.
 
 ## 1. Who is responsible
 
-The intended operator identity is TITech Capital LTD, subject to verification of its registration details and its legal role for each processing purpose. Depending on the service and contract, TITech may act as controller, joint controller, processor or service provider. A SACCO, cooperative, savings group, NGO, insurer, employer, payment provider or other institution may independently determine purposes and means and have its own obligations. The deployed notice must identify the right controller and contact for the relevant service rather than assume every institution shares one role.
+The intended operator identity is TITech Capital SMC LTD, subject to verification of its registration details and its legal role for each processing purpose. Depending on the service and contract, TITech may act as controller, joint controller, processor or service provider. A SACCO, cooperative, savings group, NGO, insurer, employer, payment provider or other institution may independently determine purposes and means and have its own obligations. The deployed notice must identify the right controller and contact for the relevant service rather than assume every institution shares one role.
 
 ## 2. Categories of information
 

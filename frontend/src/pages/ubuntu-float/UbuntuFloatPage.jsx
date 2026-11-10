@@ -161,7 +161,7 @@ export default function UbuntuFloatPage() {
           </section>
 
           <footer className="ubuntu-float-footer">
-            <span>Organization: {capabilities.organization || 'TITech Capital LTD'}</span>
+            <span>Organization: {capabilities.organization || 'TITech Capital SMC LTD'}</span>
             <span>Country scope: {capabilities.defaultCountry || 'UG'} · Currency default: {capabilities.defaultCurrency || 'UGX'}</span>
             <span>{refreshedAt ? `Status refreshed ${refreshedAt.toLocaleTimeString()}` : 'Status not yet refreshed'}</span>
           </footer>

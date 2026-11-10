@@ -38,7 +38,7 @@ import ussdGatewayRoutes from '../modules/ussd/ussd.routes.js';
 
 /**
  * =============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * Enterprise API Route Registry
  * =============================================================================
  *
@@ -103,7 +103,7 @@ const APPLICATION_NAME =
     );
 
 const APPLICATION_LEGAL_NAME =
-    'TITech Capital LTD';
+    'TITech Capital SMC LTD';
 
 const API_PREFIX =
     '/api/v1';

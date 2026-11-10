@@ -208,7 +208,7 @@ const sourceVerified = {
 const truth = {
   generatedAt: new Date().toISOString(),
   repositoryUrl: 'https://github.com/JustineRobert/titech-community-capital',
-  organization: 'TITech Capital LTD',
+  organization: 'TITech Capital SMC LTD',
   product: 'TITech Community Capital',
   tagline: 'BUILD LESS. PROVE MORE.',
   branch: 'UNAVAILABLE_IN_ARCHIVE',

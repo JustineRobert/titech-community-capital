@@ -1,7 +1,7 @@
 # Legal Pages — Safe Integration Guide
 
 **Target product:** TITech Community Capital  
-**Organization identity:** TITech Capital LTD  
+**Organization identity:** TITech Capital SMC LTD  
 **Status:** Frontend overlay supplied; not connected to the live route tree or registration API in this patch bundle.
 
 This bundle deliberately adds legal-page components without replacing the existing authentication, React Router, tenancy, RBAC, refresh-token, audit or financial architecture. The repository's current `frontend/src/main.jsx` imports the canonical route module at `./routes/AppRoutes`; inspect that real module and existing auth components before integrating.

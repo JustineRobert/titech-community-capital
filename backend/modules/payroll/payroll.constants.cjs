@@ -8,8 +8,12 @@ const PAYROLL_ROLES = Object.freeze({
 
 const ROLE_ALIASES = Object.freeze({
   super_admin: PAYROLL_ROLES.ADMIN,
+  platform_admin: PAYROLL_ROLES.ADMIN,
   employer: PAYROLL_ROLES.EMPLOYER_USER,
   employeruser: PAYROLL_ROLES.EMPLOYER_USER,
+  employer_payroll_officer: 'payroll_officer',
+  payroll_officer: 'payroll_officer',
+  payroll_auditor: 'payroll_auditor',
 });
 
 const BATCH_STATUS = Object.freeze({

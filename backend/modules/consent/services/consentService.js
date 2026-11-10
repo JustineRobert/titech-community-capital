@@ -125,9 +125,9 @@ export async function listConsents(filters = {}, context = {}) {
   return repository.list({ tenantId: trusted.tenantId, ...filters });
 }
 
-export async function assertActiveConsent({ consentId, tenantId, purpose, recipient, requiredCategories = [] }) {
+export async function assertActiveConsent({ consentId, tenantId, purpose, recipient, requiredCategories = [], session = null }) {
   assertTenant(tenantId);
-  const record = await repository.findById({ tenantId: String(tenantId).trim(), id: consentId });
+  const record = await repository.findById({ tenantId: String(tenantId).trim(), id: consentId, session });
   if (!record || record.status !== CONSENT_STATUS.GRANTED) {
     throw Object.assign(new Error('Required consent is not active.'), { code: 'CONSENT_REQUIRED', statusCode: 403 });
   }

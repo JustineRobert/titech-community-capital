@@ -46,7 +46,7 @@ try {
 // Product identity and legal organization identity are separate contracts.
 // Keep the official legal name canonical across runtime, legal and deployment metadata.
 try {
-  const officialOrganization = 'TITech Capital LTD';
+  const officialOrganization = 'TITech Capital SMC LTD';
   const themeContract = JSON.parse(read('branding/TITECH_OFFICIAL_THEME.json'));
   const currentManifest = JSON.parse(read('branding/BRAND_MANIFEST.json'));
   const brandJsSource = read('frontend/src/branding/brand.js');
@@ -68,41 +68,41 @@ try {
     [
       'frontend/src/branding/brand.js product/legal split',
       /fullName:\s*['\\"]TITech Community Capital['\\"]/.test(brandJsSource) &&
-        (/organizationName:\s*['\\"]TITech Capital LTD['\\"]/.test(brandJsSource) || /organizationName:\s*TITECH_ORGANIZATION\.displayName/.test(brandJsSource)) &&
-        (/legalName:\s*['\\"]TITech Capital LTD['\\"]/.test(brandJsSource) || /legalName:\s*TITECH_ORGANIZATION\.configuredLegalName/.test(brandJsSource)),
+        (/organizationName:\s*['\\"]TITech Capital SMC LTD['\\"]/.test(brandJsSource) || /organizationName:\s*TITECH_ORGANIZATION\.displayName/.test(brandJsSource)) &&
+        (/legalName:\s*['\\"]TITech Capital SMC LTD['\\"]/.test(brandJsSource) || /legalName:\s*TITECH_ORGANIZATION\.configuredLegalName/.test(brandJsSource)),
     ],
     [
       'frontend/src/components/Footer.jsx product/legal split',
       (/COMPANY_NAME:\s*['\\"]TITech Community Capital['\\"]/.test(footerSource) || /COMPANY_NAME:\s*TITECH_BRAND\.fullName/.test(footerSource)) &&
-        (/COMPANY_LEGAL_NAME:\s*['\\"]TITech Capital LTD['\\"]/.test(footerSource) || /COMPANY_LEGAL_NAME:\s*TITECH_BRAND\.legalName/.test(footerSource)),
+        (/COMPANY_LEGAL_NAME:\s*['\\"]TITech Capital SMC LTD['\\"]/.test(footerSource) || /COMPANY_LEGAL_NAME:\s*TITECH_BRAND\.legalName/.test(footerSource)),
     ],
     [
       'frontend/src/legal/legalConfig.js legal name',
-      /legalName:\s*['\\"]TITech Capital LTD['\\"]/.test(
+      /legalName:\s*['\\"]TITech Capital SMC LTD['\\"]/.test(
         read('frontend/src/legal/legalConfig.js'),
       ),
     ],
     [
       'backend/shared/branding/brandConfig.cjs legal name',
-      /legalName:\s*['\\"]TITech Capital LTD['\\"]/.test(
+      /legalName:\s*['\\"]TITech Capital SMC LTD['\\"]/.test(
         read('backend/shared/branding/brandConfig.cjs'),
       ),
     ],
     [
       'backend/runtime/context.js company name',
-      /const COMPANY_NAME\s*=\s*['\\"]TITech Capital LTD['\\"]/.test(
+      /const COMPANY_NAME\s*=\s*['\\"]TITech Capital SMC LTD['\\"]/.test(
         read('backend/runtime/context.js'),
       ),
     ],
     [
       'canonical backend company metadata',
-      /const COMPANY_NAME\s*=\s*['\\"]TITech Capital LTD['\\"]/.test(runtimeContextSource) &&
-        String(backendPackage.author ?? '').includes('TITech Capital LTD'),
+      /const COMPANY_NAME\s*=\s*['\\"]TITech Capital SMC LTD['\\"]/.test(runtimeContextSource) &&
+        String(backendPackage.author ?? '').includes('TITech Capital SMC LTD'),
     ],
     [
       'deployment metadata organization',
-      /COMPANY_NAME:\s*TITech Capital LTD/.test(deploySource) &&
-        deploySource.includes('org.opencontainers.image.vendor=TITech Capital LTD'),
+      /COMPANY_NAME:\s*TITech Capital SMC LTD/.test(deploySource) &&
+        deploySource.includes('org.opencontainers.image.vendor=TITech Capital SMC LTD'),
     ],
   ];
   const failedIdentityChecks = identityChecks
@@ -116,7 +116,7 @@ try {
   } else {
     pass(
       'organization-identity',
-      'Product identity remains TITech Community Capital; legal organization metadata consistently identifies TITech Capital LTD.',
+      'Product identity remains TITech Community Capital; legal organization metadata consistently identifies TITech Capital SMC LTD.',
     );
   }
 } catch (error) {

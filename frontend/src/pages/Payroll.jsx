@@ -31,13 +31,20 @@ function getErrorMessage(error) {
 export default function Payroll() {
   const { user } = useAuth();
   const role = normalizeRole(user?.role);
-  const isAdmin = role === 'admin' || role === 'super_admin';
-  const isAuditor = role === 'auditor';
-  const canManage = isAdmin || role === 'employer_user' || role === 'employer';
+  const isAdmin = ['admin', 'super_admin', 'platform_admin'].includes(role);
+  const isTenantAdmin = role === 'tenant_admin';
+  const isAuditor = role === 'auditor' || role === 'payroll_auditor';
+  const canManage = isAdmin || role === 'employer_user' || role === 'employer' || role === 'payroll_officer';
+  const canViewReport = isAdmin || isTenantAdmin || isAuditor || canManage;
+  const canViewAudit = isAuditor || isTenantAdmin || canManage || isAdmin;
 
   const [report, setReport] = useState({ batches: [], transactions: [] });
   const [subscriptions, setSubscriptions] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [reportStatus, setReportStatus] = useState('loading');
+  const [reportError, setReportError] = useState('');
+  const [subscriptionStatus, setSubscriptionStatus] = useState('idle');
+  const [auditStatus, setAuditStatus] = useState('loading');
   const [file, setFile] = useState(null);
   const [callbackUrl, setCallbackUrl] = useState('');
   const [events, setEvents] = useState(EVENT_OPTIONS.slice(0, 2));
@@ -45,19 +52,52 @@ export default function Payroll() {
   const [oneTimeSecret, setOneTimeSecret] = useState('');
 
   const load = useCallback(async () => {
-    try {
-      const [reportResponse, subscriptionResponse, auditResponse] = await Promise.all([
-        getPayrollReport({ page: 1, pageSize: 20 }),
-        canManage ? listWebhookSubscriptions() : Promise.resolve({ data: { subscriptions: [] } }),
-        getWebhookAuditLogs({ page: 1, pageSize: 10 }),
-      ]);
-      setReport(reportResponse.data || { batches: [], transactions: [] });
-      setSubscriptions(subscriptionResponse.data?.subscriptions || []);
-      setAuditLogs(auditResponse.data?.items || []);
-    } catch (error) {
-      toast.error(getErrorMessage(error));
+    setReportStatus('loading');
+    setReportError('');
+    setAuditStatus('loading');
+    const requests = [
+      canViewReport ? getPayrollReport({ page: 1, pageSize: 20 }) : Promise.resolve(null),
+      canManage ? listWebhookSubscriptions() : Promise.resolve({ data: { subscriptions: [] } }),
+      canViewAudit ? getWebhookAuditLogs({ page: 1, pageSize: 10 }) : Promise.resolve(null),
+    ];
+    const [reportResult, subscriptionResult, auditResult] = await Promise.allSettled(requests);
+
+    if (!canViewReport) {
+      setReportStatus('forbidden');
+      setReportError('Your account does not have permission to view payroll reports.');
+    } else if (reportResult.status === 'fulfilled') {
+      const payload = reportResult.value?.data;
+      if (payload && Array.isArray(payload.batches) && Array.isArray(payload.transactions)) {
+        setReport(payload);
+        setReportStatus('loaded');
+      } else {
+        setReportStatus('error');
+        setReportError('The payroll report response is incomplete or invalid.');
+      }
+    } else {
+      setReportStatus('error');
+      setReportError(getErrorMessage(reportResult.reason));
+      toast.error(getErrorMessage(reportResult.reason));
     }
-  }, [canManage]);
+
+    if (subscriptionResult.status === 'fulfilled') {
+      setSubscriptions(subscriptionResult.value?.data?.subscriptions || []);
+      setSubscriptionStatus(canManage ? 'loaded' : 'not-applicable');
+    } else {
+      setSubscriptionStatus('error');
+      toast.error(getErrorMessage(subscriptionResult.reason));
+    }
+
+    if (!canViewAudit) {
+      setAuditStatus('forbidden');
+    } else if (auditResult.status === 'fulfilled') {
+      setAuditLogs(auditResult.value?.data?.items || []);
+      setAuditStatus('loaded');
+    } else {
+      setAuditStatus('error');
+      toast.error(getErrorMessage(auditResult.reason));
+    }
+  }, [canManage, canViewAudit, canViewReport]);
 
   useEffect(() => {
     load();
@@ -160,10 +200,10 @@ export default function Payroll() {
       </header>
 
       <section className="titech-payroll__metrics" aria-label="Payroll summary">
-        <div className="titech-payroll__metric"><span>Rows</span><strong>{summary.rows}</strong></div>
-        <div className="titech-payroll__metric"><span>Successful</span><strong>{summary.success}</strong></div>
-        <div className="titech-payroll__metric"><span>Failed</span><strong>{summary.failed}</strong></div>
-        <div className="titech-payroll__metric"><span>Unconfirmed</span><strong>{summary.unknown}</strong></div>
+        <div className="titech-payroll__metric"><span>Rows</span><strong>{reportStatus === 'loaded' ? summary.rows : reportStatus === 'loading' ? '—' : 'Unavailable'}</strong></div>
+        <div className="titech-payroll__metric"><span>Successful</span><strong>{reportStatus === 'loaded' ? summary.success : reportStatus === 'loading' ? '—' : 'Unavailable'}</strong></div>
+        <div className="titech-payroll__metric"><span>Failed</span><strong>{reportStatus === 'loaded' ? summary.failed : reportStatus === 'loading' ? '—' : 'Unavailable'}</strong></div>
+        <div className="titech-payroll__metric"><span>Unconfirmed</span><strong>{reportStatus === 'loaded' ? summary.unknown : reportStatus === 'loading' ? '—' : 'Unavailable'}</strong></div>
       </section>
 
       {canManage && (
@@ -184,7 +224,7 @@ export default function Payroll() {
                 <button onClick={() => runAction(reconcilePayrollBatch, 'Reconciliation completed.')} disabled={busy || !selectedBatch}>Reconcile</button>
                 <button onClick={() => runAction(retryFailedPayroll, 'Failed transactions retried.')} disabled={busy || !selectedBatch}>Retry failed</button>
               </div>
-            ) : <span className="titech-payroll__readonly">Employer user: processing and retry controls are administrator-only.</span>}
+            ) : <span className="titech-payroll__readonly">Payroll officer: processing and retry controls remain administrator-only.</span>}
           </section>
         </section>
       )}
@@ -200,7 +240,13 @@ export default function Payroll() {
 
       <section className="titech-payroll__card titech-brand-card">
         <div className="titech-payroll__card-heading"><RefreshCw size={22} /><h2>Recent payroll batches</h2></div>
-        {report.batches?.length ? (
+        {reportStatus === 'loading' ? (
+          <p className="titech-payroll__empty">Loading payroll report…</p>
+        ) : reportStatus === 'forbidden' ? (
+          <p className="titech-payroll__empty" role="status">Payroll report access is not available to your account.</p>
+        ) : reportStatus === 'error' ? (
+          <p className="titech-payroll__empty" role="alert">Payroll data unavailable. This is not an empty payroll batch list. {reportError}</p>
+        ) : report.batches?.length ? (
           <div className="titech-payroll__table-wrap">
             <table><thead><tr><th>Batch</th><th>Status</th><th>Rows</th><th>Successful</th><th>Failed</th><th>Total</th></tr></thead>
               <tbody>{report.batches.map((batch) => <tr key={batch.batchId}><td>{batch.batchId}</td><td><span data-financial-state={batch.status === 'RECONCILED' || batch.status === 'PROCESSED' ? 'positive' : batch.status === 'FAILED' ? 'negative' : 'pending'}>{batch.status}</span></td><td>{batch.rowCount}</td><td>{batch.successCount}</td><td>{batch.failedCount}</td><td>{batch.totalAmount}</td></tr>)}</tbody>
@@ -220,7 +266,7 @@ export default function Payroll() {
 
           <section className="titech-payroll__card titech-brand-card">
             <div className="titech-payroll__card-heading"><ShieldCheck size={22} /><h2>Callback subscriptions</h2></div>
-            {subscriptions.length ? subscriptions.map((subscription) => (
+            {subscriptionStatus === 'error' ? <p role="alert">Subscription data unavailable.</p> : subscriptions.length ? subscriptions.map((subscription) => (
               <div className="titech-payroll__subscription" key={subscription.subscriptionId}>
                 <div><strong>{subscription.callbackUrl}</strong><span>{subscription.events.join(' · ')}</span></div>
                 <div className="titech-payroll__actions">
@@ -233,10 +279,10 @@ export default function Payroll() {
         </section>
       )}
 
-      {(isAuditor || canManage) && (
+      {canViewAudit && (
         <section className="titech-payroll__card titech-brand-card">
           <div className="titech-payroll__card-heading"><AlertCircle size={22} /><h2>Simulator audit trail</h2></div>
-          {auditLogs.length ? <div className="titech-payroll__audit">{auditLogs.map((entry) => <div key={entry.auditLogId}><strong>{entry.eventType}</strong><span>{entry.callbackUrl || '—'} · {entry.timestamp}</span></div>)}</div> : <p className="titech-payroll__empty">No simulator audit activity recorded.</p>}
+          {auditStatus === 'loading' ? <p className="titech-payroll__empty">Loading simulator audit history…</p> : auditStatus === 'forbidden' ? <p className="titech-payroll__empty" role="status">Audit history access is not available to your account.</p> : auditStatus === 'error' ? <p className="titech-payroll__empty" role="alert">Simulator audit history unavailable; no empty-history conclusion can be made.</p> : auditLogs.length ? <div className="titech-payroll__audit">{auditLogs.map((entry) => <div key={entry.auditLogId}><strong>{entry.eventType}</strong><span>{entry.callbackUrl || '—'} · {entry.timestamp}</span></div>)}</div> : <p className="titech-payroll__empty">No simulator audit activity recorded.</p>}
         </section>
       )}
     </main>

@@ -10,6 +10,8 @@
 export const CANONICAL_ROLES = Object.freeze([
   'platform_admin',
   'tenant_admin',
+  'payroll_officer',
+  'payroll_auditor',
   'group_admin',
   'member',
   'guest',
@@ -20,6 +22,14 @@ export const ROLE_ALIASES = Object.freeze({
   admin: 'platform_admin',
   tenantadmin: 'tenant_admin',
   tenant_admin: 'tenant_admin',
+  payroll_officer: 'payroll_officer',
+  employer: 'payroll_officer',
+  employer_user: 'payroll_officer',
+  employeruser: 'payroll_officer',
+  employer_payroll_officer: 'payroll_officer',
+  payroll_auditor: 'payroll_auditor',
+  payrollauditor: 'payroll_auditor',
+  auditor: 'payroll_auditor',
   groupadmin: 'group_admin',
   group_admin: 'group_admin',
   user: 'member',
@@ -30,6 +40,8 @@ export const ROLE_ALIASES = Object.freeze({
 export const ROLE_RANK = Object.freeze({
   guest: 10,
   member: 20,
+  payroll_auditor: 30,
+  payroll_officer: 35,
   group_admin: 60,
   tenant_admin: 80,
   platform_admin: 100,
@@ -112,6 +124,13 @@ export const PERMISSIONS = Object.freeze({
     'SESSION_VIEW_ANY',
     'SESSION_REVOKE_ANY',
   ],
+  PAYROLL: [
+    'payroll:report:read',
+    'payroll:webhook:audit:read',
+    'payroll:batch:upload',
+    'payroll:webhook:manage',
+    'payroll:webhook:simulate',
+  ],
 });
 
 const ALL_PERMISSIONS = Object.freeze(
@@ -139,6 +158,21 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     ...PERMISSIONS.AUDIT,
     'USER_VIEW_SESSIONS',
     'USER_REVOKE_SESSIONS',
+    'payroll:report:read',
+    'payroll:webhook:audit:read',
+  ]),
+  payroll_officer: Object.freeze([
+    ...AUTH_PERMISSIONS,
+    'payroll:report:read',
+    'payroll:webhook:audit:read',
+    'payroll:batch:upload',
+    'payroll:webhook:manage',
+    'payroll:webhook:simulate',
+  ]),
+  payroll_auditor: Object.freeze([
+    ...AUTH_PERMISSIONS,
+    'payroll:report:read',
+    'payroll:webhook:audit:read',
   ]),
   group_admin: Object.freeze([
     ...AUTH_PERMISSIONS,

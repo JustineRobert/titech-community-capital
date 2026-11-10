@@ -42,7 +42,7 @@
     "url": "git+https://github.com/JustineRobert/titech-community-capital.git"
   },
   "license": "ISC",
-  "author": "Igune Justine Robert, TITech Capital LTD",
+  "author": "Igune Justine Robert, TITech Capital SMC LTD",
   "type": "module",
   "main": "backend/server.js",
   "directories": {

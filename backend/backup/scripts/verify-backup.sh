@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# TITech Capital LTD
+# TITech Capital SMC LTD
 # File: backend/backup/scripts/verify-backup.sh
 # Enterprise Backup Verification Script
 # =============================================================================

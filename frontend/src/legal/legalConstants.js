@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * Enterprise Legal System Constants
  * ============================================================================
  *
@@ -82,7 +82,7 @@ export const LEGAL_SYSTEM = Object.freeze({
   VERSION: '2.0.0',
 
   ORGANIZATION:
-    'TITech Capital LTD',
+    'TITech Capital SMC LTD',
 
   BRAND:
     'TITech Community Capital',

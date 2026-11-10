@@ -4,7 +4,7 @@
 
 ## Corporate identity
 
-- [ ] Confirm the legal name **TITech Capital LTD** against the applicable corporate record.
+- [ ] Confirm the legal name **TITech Capital SMC LTD** against the applicable corporate record.
 - [ ] Verify company registration number, registered office, postal/service address and contracting authority.
 - [ ] Supply monitored legal-notice and data-protection contacts.
 - [ ] Confirm the operator and responsible party for each tenant/institution, payment, insurance, fundraising and support flow.

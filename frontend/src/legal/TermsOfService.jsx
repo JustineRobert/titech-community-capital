@@ -1,7 +1,7 @@
 //writing{variant="document" id="74261"}
 /**
  * ============================================================================
- * TITech Capital LTD
+ * TITech Capital SMC LTD
  * Enterprise Terms of Service Page
  * ============================================================================
  *
@@ -134,7 +134,7 @@ const CONTACT = Object.freeze({
     '+256782397907',
 
   address:
-    'TITech Capital LTD, P.O. BOX 601200, Clock Tower, Uganda',
+    'TITech Capital SMC LTD, P.O. BOX 601200, Clock Tower, Uganda',
 });
 
 /* ============================================================================
@@ -1010,7 +1010,7 @@ export default function TermsOfService({
             <p>
               These Terms of Service (“Terms”)
               constitute an agreement between you
-              and TITech Capital LTD
+              and TITech Capital SMC LTD
               (“TITech Community Capital,” “TITech,”
               “we,” “us,” or “our”) concerning your
               access to and use of our services.

@@ -1,0 +1,37 @@
+Execution date: 10 November 2026
+
+$ npm run build
+> vite build
+sh: 1: vite: not found
+EXIT_CODE=127
+
+$ npm run lint
+> eslint .
+sh: 1: eslint: not found
+EXIT_CODE=127
+
+$ npm run test:frontend:ci
+> vitest run --coverage
+sh: 1: vitest: not found
+EXIT_CODE=127
+
+$ npm run test:backend:ci
+> node --experimental-vm-modules --enable-source-maps --max-old-space-size=4096 ./node_modules/jest/bin/jest.js --ci --runInBand --coverage --detectOpenHandles
+Error: Cannot find module '/mnt/data/titech-work/titech-community-capital-main/backend/node_modules/jest/bin/jest.js'
+EXIT_CODE=1
+
+$ node scripts/titech-supported-runtime-gate.mjs
+TITech supported runtime gate: BLOCKED
+Observed Node: 22.16.0; observed npm: 10.9.2
+Required Node: >=24.15.0; required npm: >=11.0.0
+EXIT_CODE=1
+
+$ node scripts/production-approval-gate.mjs
+Production approval gate: BLOCKED. Missing protected evidence: TITECH_PRODUCTION_APPROVAL, TITECH_APPROVAL_REFERENCE, TITECH_APPROVAL_EXPIRES_AT
+EXIT_CODE=1
+
+Environment:
+Node 22.16.0; npm 10.9.2.
+No mongod, redis-server or docker executable.
+No root, backend or frontend node_modules directory.
+No .git metadata in the source archive.

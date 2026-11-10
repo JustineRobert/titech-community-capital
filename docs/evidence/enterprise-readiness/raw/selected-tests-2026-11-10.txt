@@ -1,0 +1,667 @@
+===== node --test backend/tests/unit/inclusive-onboarding/community-scope-locales.test.mjs backend/tests/unit/inclusive-onboarding/identity.policy.test.mjs backend/tests/unit/inclusive-onboarding/insurance.policy.test.mjs backend/tests/unit/inclusive-onboarding/insurance.transaction-contract.test.mjs backend/tests/unit/inclusive-onboarding/offline-contract.test.mjs backend/tests/unit/inclusive-onboarding/route-contract.test.mjs =====
+TAP version 13
+# Subtest: inclusive onboarding names refugee and host-community participants in every shipped locale
+ok 1 - inclusive onboarding names refugee and host-community participants in every shipped locale
+  ---
+  duration_ms: 4.797315
+  type: 'test'
+  ...
+# Subtest: participant scope copy keeps identity verification and service eligibility separate
+ok 2 - participant scope copy keeps identity verification and service eligibility separate
+  ---
+  duration_ms: 0.587475
+  type: 'test'
+  ...
+# Subtest: approved identity routes include refugee and asylum-seeker credentials without removing national ID
+ok 3 - approved identity routes include refugee and asylum-seeker credentials without removing national ID
+  ---
+  duration_ms: 0.907917
+  type: 'test'
+  ...
+# Subtest: unknown credential types fail closed
+ok 4 - unknown credential types fail closed
+  ---
+  duration_ms: 0.700045
+  type: 'test'
+  ...
+# Subtest: KYC transitions are explicit and cannot jump from rejected directly to verified
+ok 5 - KYC transitions are explicit and cannot jump from rejected directly to verified
+  ---
+  duration_ms: 2.256018
+  type: 'test'
+  ...
+# Subtest: identity verification and capability access are distinct
+ok 6 - identity verification and capability access are distinct
+  ---
+  duration_ms: 0.319291
+  type: 'test'
+  ...
+# Subtest: only an explicit permitted licence transition succeeds
+ok 7 - only an explicit permitted licence transition succeeds
+  ---
+  duration_ms: 0.910962
+  type: 'test'
+  ...
+# Subtest: expired, suspended or unverified licences block operational capability
+ok 8 - expired, suspended or unverified licences block operational capability
+  ---
+  duration_ms: 2.090298
+  type: 'test'
+  ...
+# Subtest: money uses positive safe integer minor units and a three-character currency
+ok 9 - money uses positive safe integer minor units and a three-character currency
+  ---
+  duration_ms: 0.838844
+  type: 'test'
+  ...
+# Subtest: live premium processing cannot activate without a canonical adapter, even if flags are true
+ok 10 - live premium processing cannot activate without a canonical adapter, even if flags are true
+  ---
+  duration_ms: 0.261984
+  type: 'test'
+  ...
+# Subtest: enrolment and claim decision lifecycles prevent invalid rewinds and repeated final decisions
+ok 11 - enrolment and claim decision lifecycles prevent invalid rewinds and repeated final decisions
+  ---
+  duration_ms: 0.300292
+  type: 'test'
+  ...
+# Subtest: insurer state changes use MongoDB transactions and bind audit writes to the same session
+ok 12 - insurer state changes use MongoDB transactions and bind audit writes to the same session
+  ---
+  duration_ms: 1.173047
+  type: 'test'
+  ...
+# Subtest: insurance persistence reads and writes carry the transaction session
+ok 13 - insurance persistence reads and writes carry the transaction session
+  ---
+  duration_ms: 0.603068
+  type: 'test'
+  ...
+# Subtest: cross-tenant consent is checked in the same session as insurer enrolment
+ok 14 - cross-tenant consent is checked in the same session as insurer enrolment
+  ---
+  duration_ms: 0.242395
+  type: 'test'
+  ...
+# Subtest: offline runtime modules use ESM instead of CommonJS exports inside the ESM backend
+ok 15 - offline runtime modules use ESM instead of CommonJS exports inside the ESM backend
+  ---
+  duration_ms: 9.418986
+  type: 'test'
+  ...
+# Subtest: offline frontend and backend resolve to one canonical versioned API contract
+ok 16 - offline frontend and backend resolve to one canonical versioned API contract
+  ---
+  duration_ms: 5.831644
+  type: 'test'
+  ...
+# Subtest: offline event routes have server-side enablement, action RBAC, device trust and readiness gates
+ok 17 - offline event routes have server-side enablement, action RBAC, device trust and readiness gates
+  ---
+  duration_ms: 2.981911
+  type: 'test'
+  ...
+# Subtest: browser/server offline event hash conformance excludes only outbox delivery metadata
+ok 18 - browser/server offline event hash conformance excludes only outbox delivery metadata
+  ---
+  duration_ms: 5.214184
+  type: 'test'
+  ...
+# Subtest: an unconfigured offline service reports NOT_READY and financial events fail closed
+ok 19 - an unconfigured offline service reports NOT_READY and financial events fail closed
+  ---
+  duration_ms: 1.330574
+  type: 'test'
+  ...
+# Subtest: official theme identity and palette remain canonical for TITech Capital SMC LTD
+ok 20 - official theme identity and palette remain canonical for TITech Capital SMC LTD
+  ---
+  duration_ms: 0.590349
+  type: 'test'
+  ...
+# Subtest: inclusive domain routes mount within the canonical authenticated versioned API
+ok 21 - inclusive domain routes mount within the canonical authenticated versioned API
+  ---
+  duration_ms: 5.419222
+  type: 'test'
+  ...
+# Subtest: new capability writes remain gated by server-side feature flags
+ok 22 - new capability writes remain gated by server-side feature flags
+  ---
+  duration_ms: 4.750205
+  type: 'test'
+  ...
+# Subtest: insurance enrolment verifies the canonical KYC record instead of trusting a caller-supplied state
+ok 23 - insurance enrolment verifies the canonical KYC record instead of trusting a caller-supplied state
+  ---
+  duration_ms: 2.263599
+  type: 'test'
+  ...
+# Subtest: private evidence download is not granted solely because the actor uploaded claim or licence documents
+ok 24 - private evidence download is not granted solely because the actor uploaded claim or licence documents
+  ---
+  duration_ms: 1.927403
+  type: 'test'
+  ...
+# Subtest: insurance data-sharing consent is versioned, explicit, withdrawable and reused by the canonical consent service
+ok 25 - insurance data-sharing consent is versioned, explicit, withdrawable and reused by the canonical consent service
+  ---
+  duration_ms: 2.887049
+  type: 'test'
+  ...
+# Subtest: private compliance evidence upload permits only the relevant NGO and insurance action permissions
+ok 26 - private compliance evidence upload permits only the relevant NGO and insurance action permissions
+  ---
+  duration_ms: 3.258278
+  type: 'test'
+  ...
+# Subtest: private evidence uploads fail closed before persistence unless malware screening returns clean
+ok 27 - private evidence uploads fail closed before persistence unless malware screening returns clean
+  ---
+  duration_ms: 2.04119
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 416.897172
+EXIT_CODE=0
+===== node --test backend/tests/unit/education/educationCampaign.i18n.test.mjs backend/tests/unit/education/educationCampaign.policy.test.mjs backend/tests/unit/education/educationCampaign.route-contract.test.mjs backend/tests/unit/education/educationCampaign.transaction-contract.test.mjs =====
+TAP version 13
+# Subtest: education workflow translation keys stay in parity across en, sw, fr and ar
+ok 1 - education workflow translation keys stay in parity across en, sw, fr and ar
+  ---
+  duration_ms: 5.500184
+  type: 'test'
+  ...
+# Subtest: accepts safe integer campaign target and budget in allowlisted currency
+ok 2 - accepts safe integer campaign target and budget in allowlisted currency
+  ---
+  duration_ms: 3.464227
+  type: 'test'
+  ...
+# Subtest: rejects floating-point, unsafe, non-positive or over-target budget values
+ok 3 - rejects floating-point, unsafe, non-positive or over-target budget values
+  ---
+  duration_ms: 6.880413
+  type: 'test'
+  ...
+# Subtest: rejects unapproved category, unsupported currency, malformed timeline and missing surplus policy
+ok 4 - rejects unapproved category, unsupported currency, malformed timeline and missing surplus policy
+  ---
+  duration_ms: 0.502417
+  type: 'test'
+  ...
+# Subtest: campaign lifecycle blocks invalid transitions and terminal closure
+ok 5 - campaign lifecycle blocks invalid transitions and terminal closure
+  ---
+  duration_ms: 0.307022
+  type: 'test'
+  ...
+# Subtest: institution must have verified status and an approved education scope
+ok 6 - institution must have verified status and an approved education scope
+  ---
+  duration_ms: 0.378571
+  type: 'test'
+  ...
+# Subtest: public campaign DTO is allowlisted and excludes tenant, actor, evidence and financial execution fields
+ok 7 - public campaign DTO is allowlisted and excludes tenant, actor, evidence and financial execution fields
+  ---
+  duration_ms: 0.309726
+  type: 'test'
+  ...
+# Subtest: education management APIs use canonical authenticated tenant boundary and feature gate
+ok 8 - education management APIs use canonical authenticated tenant boundary and feature gate
+  ---
+  duration_ms: 7.587538
+  type: 'test'
+  ...
+# Subtest: public route is read-only and public DTO/service do not expose donor or payment mutations
+ok 9 - public route is read-only and public DTO/service do not expose donor or payment mutations
+  ---
+  duration_ms: 4.826289
+  type: 'test'
+  ...
+# Subtest: campaign feature flag defaults off in environment examples and public wording has translated resources
+ok 10 - campaign feature flag defaults off in environment examples and public wording has translated resources
+  ---
+  duration_ms: 3.085658
+  type: 'test'
+  ...
+# Subtest: education campaign mutations use one MongoDB transaction for campaign writes and audit events
+ok 11 - education campaign mutations use one MongoDB transaction for campaign writes and audit events
+  ---
+  duration_ms: 1.556946
+  type: 'test'
+  ...
+# Subtest: education partner verification is read within the same transaction for submit and publish
+ok 12 - education partner verification is read within the same transaction for submit and publish
+  ---
+  duration_ms: 0.202465
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 296.964909
+EXIT_CODE=0
+===== node --test backend/tests/unit/edufinance/eduFinance.policy.test.mjs backend/tests/unit/edufinance/eduFinance.route-contract.test.mjs backend/tests/unit/edufinance/eduFinance.transaction-contract.test.mjs =====
+TAP version 13
+# Subtest: valid parent application is normalized and capped at the declared invoice outstanding
+ok 1 - valid parent application is normalized and capped at the declared invoice outstanding
+  ---
+  duration_ms: 2.35728
+  type: 'test'
+  ...
+# Subtest: student beneficiary cannot be made the borrower
+ok 2 - student beneficiary cannot be made the borrower
+  ---
+  duration_ms: 0.753505
+  type: 'test'
+  ...
+# Subtest: unnecessary student identity fields are rejected
+ok 3 - unnecessary student identity fields are rejected
+  ---
+  duration_ms: 0.400563
+  type: 'test'
+  ...
+# Subtest: requested financing cannot exceed declared outstanding fees
+ok 4 - requested financing cannot exceed declared outstanding fees
+  ---
+  duration_ms: 0.162555
+  type: 'test'
+  ...
+# Subtest: declared payments cannot exceed invoice total
+ok 5 - declared payments cannot exceed invoice total
+  ---
+  duration_ms: 0.255445
+  type: 'test'
+  ...
+# Subtest: money values reject decimals, unsafe integers and negative amounts
+ok 6 - money values reject decimals, unsafe integers and negative amounts
+  ---
+  duration_ms: 0.198189
+  type: 'test'
+  ...
+# Subtest: only configured currency and recognized guardian relationships are accepted
+ok 7 - only configured currency and recognized guardian relationships are accepted
+  ---
+  duration_ms: 0.237298
+  type: 'test'
+  ...
+# Subtest: required guardian authority, consent, invoice and academic references are enforced
+ok 8 - required guardian authority, consent, invoice and academic references are enforced
+  ---
+  duration_ms: 0.463638
+  type: 'test'
+  ...
+# Subtest: initial server readiness does not imply verification, credit approval or financial execution
+ok 9 - initial server readiness does not imply verification, credit approval or financial execution
+  ---
+  duration_ms: 1.612379
+  type: 'test'
+  ...
+# Subtest: application transitions are explicit and terminal states cannot be reopened
+ok 10 - application transitions are explicit and terminal states cannot be reopened
+  ---
+  duration_ms: 0.407353
+  type: 'test'
+  ...
+# Subtest: EduFinance is mounted in the canonical authenticated tenant route registry
+ok 11 - EduFinance is mounted in the canonical authenticated tenant route registry
+  ---
+  duration_ms: 0.829459
+  type: 'test'
+  ...
+# Subtest: EduFinance application routes require server feature flag and specific self-service permissions
+ok 12 - EduFinance application routes require server feature flag and specific self-service permissions
+  ---
+  duration_ms: 0.306471
+  type: 'test'
+  ...
+# Subtest: EduFinance model is tenant- and applicant-scoped with private identifiers and unique idempotency controls
+ok 13 - EduFinance model is tenant- and applicant-scoped with private identifiers and unique idempotency controls
+  ---
+  duration_ms: 0.306873
+  type: 'test'
+  ...
+# Subtest: EduFinance applicant service does not create independent loan, payment or ledger records
+ok 14 - EduFinance applicant service does not create independent loan, payment or ledger records
+  ---
+  duration_ms: 0.371609
+  type: 'test'
+  ...
+# Subtest: EduFinance activation switches are fail-closed in the provided environment template
+ok 15 - EduFinance activation switches are fail-closed in the provided environment template
+  ---
+  duration_ms: 0.415836
+  type: 'test'
+  ...
+# Subtest: EduFinance application and submission audit are committed in one transaction
+ok 16 - EduFinance application and submission audit are committed in one transaction
+  ---
+  duration_ms: 0.98258
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 243.139413
+EXIT_CODE=0
+===== node --test scripts/titech-critical-gates.test.mjs scripts/organization-profile-gate.test.mjs scripts/financial-metric-display.test.mjs scripts/frontend-runtime-audit.test.mjs =====
+TAP version 13
+# Subtest: preserves a real numeric zero
+ok 1 - preserves a real numeric zero
+  ---
+  duration_ms: 1.031604
+  type: 'test'
+  ...
+# Subtest: represents missing and invalid values as unavailable
+ok 2 - represents missing and invalid values as unavailable
+  ---
+  duration_ms: 0.157247
+  type: 'test'
+  ...
+# Subtest: does not treat negative values as non-negative balances
+ok 3 - does not treat negative values as non-negative balances
+  ---
+  duration_ms: 0.148704
+  type: 'test'
+  ...
+# Subtest: frontend runtime contract uses automatic JSX and React dedupe
+ok 4 - frontend runtime contract uses automatic JSX and React dedupe
+  ---
+  duration_ms: 0.854658
+  type: 'test'
+  ...
+# Subtest: frontend entry is module-only and does not load React from a CDN
+ok 5 - frontend entry is module-only and does not load React from a CDN
+  ---
+  duration_ms: 0.886244
+  type: 'test'
+  ...
+# Subtest: organization profile integration gate passes
+ok 6 - organization profile integration gate passes
+  ---
+  duration_ms: 45.091666
+  type: 'test'
+  ...
+# Subtest: critical-gate contract preserves exact evidence ladder, P0/P1 ordering and money path
+ok 7 - critical-gate contract preserves exact evidence ladder, P0/P1 ordering and money path
+  ---
+  duration_ms: 3.363906
+  type: 'test'
+  ...
+# Subtest: source contract remains not production-approved while blockers are open
+ok 8 - source contract remains not production-approved while blockers are open
+  ---
+  duration_ms: 1.235341
+  type: 'test'
+  ...
+# Subtest: version helpers compare semantic versions numerically
+ok 9 - version helpers compare semantic versions numerically
+  ---
+  duration_ms: 0.9496
+  type: 'test'
+  ...
+# Subtest: runtime gate accepts the stated supported baseline and rejects pre-baseline runtimes
+ok 10 - runtime gate accepts the stated supported baseline and rejects pre-baseline runtimes
+  ---
+  duration_ms: 1.777918
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 290.031605
+EXIT_CODE=0
+===== node --test tests/performance/performance-contract.test.mjs =====
+TAP version 13
+# Subtest: capacity workload targets only existing versioned health, refugee-partner and insurance read routes
+ok 1 - capacity workload targets only existing versioned health, refugee-partner and insurance read routes
+  ---
+  duration_ms: 0.7236
+  type: 'test'
+  ...
+# Subtest: initial capacity workload has no business-mutating HTTP calls
+ok 2 - initial capacity workload has no business-mutating HTTP calls
+  ---
+  duration_ms: 0.264368
+  type: 'test'
+  ...
+# Subtest: load profiles are bounded by the explicit approved virtual-user ceiling
+ok 3 - load profiles are bounded by the explicit approved virtual-user ceiling
+  ---
+  duration_ms: 0.09982
+  type: 'test'
+  ...
+# Subtest: external and higher-load runs require staging, exact target approval and an approval ID
+ok 4 - external and higher-load runs require staging, exact target approval and an approval ID
+  ---
+  duration_ms: 0.129666
+  type: 'test'
+  ...
+# Subtest: performance pass criteria include tail latency, errors and HTTP checks
+ok 5 - performance pass criteria include tail latency, errors and HTTP checks
+  ---
+  duration_ms: 0.143135
+  type: 'test'
+  ...
+# Subtest: tenant header is documented and implemented only as a consistency assertion
+ok 6 - tenant header is documented and implemented only as a consistency assertion
+  ---
+  duration_ms: 0.12629
+  type: 'test'
+  ...
+# Subtest: capacity claims explicitly distinguish virtual users from unique sessions and global capacity
+ok 7 - capacity claims explicitly distinguish virtual users from unique sessions and global capacity
+  ---
+  duration_ms: 0.11955
+  type: 'test'
+  ...
+# Subtest: root package exposes the performance contract check and test
+ok 8 - root package exposes the performance contract check and test
+  ---
+  duration_ms: 0.161904
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 73.257773
+EXIT_CODE=0
+===== node --test scripts/financial-product-rules.test.mjs scripts/document-malware-scan.test.mjs =====
+TAP version 13
+# Subtest: a missing or unfilled scanner endpoint is treated as not configured
+ok 1 - a missing or unfilled scanner endpoint is treated as not configured
+  ---
+  duration_ms: 1.227419
+  type: 'test'
+  ...
+# Subtest: ClamAV INSTREAM framing supports multiple chunks and accepts only explicit clean verdicts
+ok 2 - ClamAV INSTREAM framing supports multiple chunks and accepts only explicit clean verdicts
+  ---
+  duration_ms: 14.615003
+  type: 'test'
+  ...
+# Subtest: a detected threat is rejected with a stable domain error
+ok 3 - a detected threat is rejected with a stable domain error
+  ---
+  duration_ms: 3.753834
+  type: 'test'
+  ...
+# Subtest: unexpected scanner output fails closed rather than being interpreted as clean
+ok 4 - unexpected scanner output fails closed rather than being interpreted as clean
+  ---
+  duration_ms: 2.260715
+  type: 'test'
+  ...
+# Subtest: recurrence supports daily, weekly, fortnightly, monthly and quarterly dates
+ok 5 - recurrence supports daily, weekly, fortnightly, monthly and quarterly dates
+  ---
+  duration_ms: 1.83901
+  type: 'test'
+  ...
+# Subtest: monthly recurrence clamps month ends but retains the original anchor day
+ok 6 - monthly recurrence clamps month ends but retains the original anchor day
+  ---
+  duration_ms: 0.187102
+  type: 'test'
+  ...
+# Subtest: preview enforces a valid IANA zone, end date, count limit and stable occurrence key
+ok 7 - preview enforces a valid IANA zone, end date, count limit and stable occurrence key
+  ---
+  duration_ms: 13.573725
+  type: 'test'
+  ...
+# Subtest: fixed-deposit accrual days require an explicit inclusive/exclusive end-date policy
+ok 8 - fixed-deposit accrual days require an explicit inclusive/exclusive end-date policy
+  ---
+  duration_ms: 0.334835
+  type: 'test'
+  ...
+# Subtest: fixed-deposit interest uses integer arithmetic and explicit approved calculation terms
+ok 9 - fixed-deposit interest uses integer arithmetic and explicit approved calculation terms
+  ---
+  duration_ms: 0.341625
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 160.721614
+EXIT_CODE=0
+===== node --test backend/tests/unit/payroll/payroll.read-authorization.test.mjs =====
+TAP version 13
+# Subtest: canonical platform and tenant administrators can read tenant-scoped payroll reports
+ok 1 - canonical platform and tenant administrators can read tenant-scoped payroll reports
+  ---
+  duration_ms: 1.05522
+  type: 'test'
+  ...
+# Subtest: existing payroll auditor and employer roles retain report access
+ok 2 - existing payroll auditor and employer roles retain report access
+  ---
+  duration_ms: 0.190577
+  type: 'test'
+  ...
+# Subtest: ordinary members and group administrators cannot read payroll reports
+ok 3 - ordinary members and group administrators cannot read payroll reports
+  ---
+  duration_ms: 0.279971
+  type: 'test'
+  ...
+# Subtest: canonical administrator report access does not grant payroll mutation role access
+ok 4 - canonical administrator report access does not grant payroll mutation role access
+  ---
+  duration_ms: 0.136405
+  type: 'test'
+  ...
+# Subtest: only report and webhook-audit read routes add canonical administrator roles
+ok 5 - only report and webhook-audit read routes add canonical administrator roles
+  ---
+  duration_ms: 0.503568
+  type: 'test'
+  ...
+# Subtest: canonical RBAC grants institution administrators payroll reporting but not arbitrary write permissions
+ok 6 - canonical RBAC grants institution administrators payroll reporting but not arbitrary write permissions
+  ---
+  duration_ms: 0.217227
+  type: 'test'
+  ...
+# Subtest: payroll officer is assignable as a tenant role and receives only scoped payroll operations
+ok 7 - payroll officer is assignable as a tenant role and receives only scoped payroll operations
+  ---
+  duration_ms: 0.377688
+  type: 'test'
+  ...
+# Subtest: payroll auditor is a distinct read-only canonical role with legacy alias normalization
+ok 8 - payroll auditor is a distinct read-only canonical role with legacy alias normalization
+  ---
+  duration_ms: 0.745463
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 78.007933
+EXIT_CODE=0
+===== SUMMARY =====
+# tests 27
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# tests 12
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# tests 16
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# tests 10
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# tests 8
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# tests 9
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# tests 8
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0

@@ -1,7 +1,7 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 9 November 2026  
-**Organization:** TITech Capital LTD  
+**As of:** 10 November 2026  
+**Organization:** TITech Capital SMC LTD  
 **Product:** TITech Community Capital  
 **Engineering principle:** BUILD LESS. PROVE MORE.  
 **Production approval | NO**
@@ -14,10 +14,21 @@ This root-level document is an index to the current machine-generated evidence a
 
 - [`docs/evidence/platform-truth.json`](docs/evidence/platform-truth.json) — generated source/runtime/test inventory and evidence status.
 - [`docs/evidence/production-readiness.md`](docs/evidence/production-readiness.md) — current readiness scorecard.
-- [`docs/evidence/critical-gates-2026-11-07.json`](docs/evidence/critical-gates-2026-11-07.json) — current P0/P1 release-blocking contract.
+- [`docs/evidence/critical-gates-2026-11-10.json`](docs/evidence/critical-gates-2026-11-10.json) — current P0/P1 release-blocking contract.
 - [`docs/root-documents/TITECH_PLATFORM_TRUTH.md`](docs/root-documents/TITECH_PLATFORM_TRUTH.md) — detailed platform history and prior evidence snapshots; dated statements remain historical.
-- [`docs/evidence/TITech_2026-11-07_Execution_Change_Discovery.md`](docs/evidence/TITech_2026-11-07_Execution_Change_Discovery.md) — current archive-local change discovery, exact file inventory and verification results.
+- [`docs/evidence/TITech_2026-11-07_Execution_Change_Discovery.md`](docs/evidence/TITech_2026-11-07_Execution_Change_Discovery.md) — preserved historical 7 November archive-local snapshot; superseded for the 10 November source archive by the current report below.
 - [`docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md`](docs/evidence/TITech_Implementation_Change_Discovery_2026-11-07.md) — preserved earlier same-day EduFinance/SMC snapshot; superseded for current organization identity by the later user instruction recorded in this execution report.
+
+
+## 10 November 2026 — current organization identity and remediation
+
+The current user-confirmed organization identity is **TITech Capital SMC LTD**. The product remains **TITech Community Capital**. Active application branding, organization profile, deployment metadata, package author metadata, legal UI/configuration and identity gates have been aligned to this name. Older dated readiness reports, change inventories and user-authored historical snapshots retain their contemporaneous identity values and are explicitly superseded for current identity purposes by this section. The configured name does not independently establish statutory incorporation, licence, registered-office status or regulatory authorization; documentary verification remains pending.
+
+The 10 November archive-local changes also (1) place insurer state mutations and required audit writes in one MongoDB transaction session, (2) align payroll report and webhook-audit read access with canonical tenant-scoped permissions, (3) preserve stricter administrator-only payroll processing/reconciliation, (4) prevent the payroll page from displaying false zero totals after retrieval failure, and (5) add focused contract tests and current release evidence. The existing official nine-colour palette, circular logo and semantic light/dark theme system are retained; the current theme gate reports 69 non-brand frontend CSS files covered by centralized tokens and no prohibited hard-coded palette literals.
+
+The selected, dependency-free verification run executed 90 tests across seven invocations with 90 passing, zero failing and zero skipped. The syntax gate parsed 2,512 JavaScript/TypeScript-family files. This does not replace dependency-backed frontend/backend tests or live database/provider verification. The supported runtime gate remains blocked (Node 22.16.0/npm 10.9.2 observed; Node >=24.15.0/npm >=11 required), 208 repository-wide legacy import candidates remain outside the canonical financial surface, and the eight recorded P0/P1 gates remain open. MongoDB, Redis, Docker and installed project dependencies are unavailable in this execution environment; builds, server startup, replica-set transactions, database-backed integration, browser E2E, load, restore and provider tests are therefore not claimed.
+
+See [`docs/evidence/enterprise-readiness/EXECUTION-2026-11-10.md`](docs/evidence/enterprise-readiness/EXECUTION-2026-11-10.md), [`docs/evidence/enterprise-readiness/TEST-EVIDENCE-2026-11-10.md`](docs/evidence/enterprise-readiness/TEST-EVIDENCE-2026-11-10.md), [`docs/evidence/enterprise-readiness/IMPLEMENTATION-INVENTORY-2026-11-10.md`](docs/evidence/enterprise-readiness/IMPLEMENTATION-INVENTORY-2026-11-10.md) and [`docs/evidence/enterprise-readiness/CHANGE-DISCOVERY-2026-11-10.md`](docs/evidence/enterprise-readiness/CHANGE-DISCOVERY-2026-11-10.md). No GitHub update, commit or push is claimed; the supplied archive has no `.git` metadata.
 
 ## 9 November 2026 execution update
 

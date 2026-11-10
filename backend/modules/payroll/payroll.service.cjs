@@ -13,7 +13,6 @@ const { PayrollProviderGateway } = require('./payroll.providerGateway.cjs');
 const { PayrollFinancialGateway } = require('./payroll.financialGateway.cjs');
 const {
   PAYROLL_ROLES,
-  ROLE_ALIASES,
   BATCH_STATUS,
   TRANSACTION_STATUS,
   FINANCIAL_POSTING_STATUS,
@@ -29,13 +28,12 @@ const {
   signWebhookPayload,
 } = require('./payroll.crypto.cjs');
 
+const { normalizePayrollRole } = require('./payroll.authorization.cjs');
+
 let auditServicePromise;
 let auditModelPromise;
 
-function normalizeRole(role) {
-  const value = String(role || '').trim().toLowerCase();
-  return ROLE_ALIASES[value] || value;
-}
+const normalizeRole = normalizePayrollRole;
 
 function employerIdFor(req) {
   return String(req.user?.employerId || req.user?.tenantId || req.tenantId || req.tenantContext?.tenantId || '').trim();

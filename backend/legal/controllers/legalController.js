@@ -74,7 +74,7 @@ const SERVICE_NAME =
 'TITech Legal API';
 
 const COMPANY_NAME =
-'TITech Capital LTD';
+'TITech Capital SMC LTD';
 
 const DEFAULT_COUNTRY_CODE =
 'UG';

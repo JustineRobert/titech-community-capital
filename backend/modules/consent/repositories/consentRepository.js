@@ -26,8 +26,9 @@ export class ConsentRepository {
     return this.model.create([payload], options).then(([document]) => document);
   }
 
-  findById({ tenantId, id }) {
-    return this.model.findOne({ tenantId, _id: id });
+  findById({ tenantId, id, session = null }) {
+    const query = this.model.findOne({ tenantId, _id: id });
+    return session ? query.session(session) : query;
   }
 
   updateById({ tenantId, id, update, options = {} }) {
