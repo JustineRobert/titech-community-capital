@@ -1,29 +1,28 @@
+
 // ============================================================================
-// TITech Community Capital – Group List Page
+// TITech Community Capital
+// Enterprise Community Savings Group Directory
+//
 // File: frontend/src/pages/GroupList.jsx
 //
-// Enterprise Production Grade
-// ============================================================================
-//
 // Responsibilities:
-// - Load available community savings groups
-// - Display group metadata
-// - Allow authenticated users to join groups
-// - Optimistic membership update with rollback
+// - Load community savings groups
+// - Normalize supported API response formats
+// - Display group information
+// - Support authenticated group membership requests
 // - Prevent duplicate join operations
-// - Abort stale/unmounted requests
-// - Handle authentication/network/server failures safely
-// - Maintain bounded client-side rendering
-// - Accessible loading, error, empty and success states
-// - Compatible with TITech Enterprise API Client
+// - Reconcile membership against server responses
+// - Abort obsolete requests
+// - Handle network, authentication and server failures
+// - Enforce bounded client-side rendering
+// - Provide accessible loading, empty and error states
 //
 // Security:
-// - Authentication is delegated to services/api.js
-// - No access/refresh tokens are read directly
-// - Backend authorization remains authoritative
-// - Tenant context is supplied by the API client
-// - Client-side membership state is never treated as authoritative
-//
+// - Existing TITech authentication context is authoritative.
+// - Existing RBAC policy determines Create Group visibility.
+// - API client manages authentication and tenant context.
+// - Backend remains authoritative for membership authorization.
+// - Client-side membership status is never an authorization boundary.
 // ============================================================================
 
 import React, {
@@ -32,130 +31,258 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
+} from "react";
 
-import { Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { Link } from "react-router-dom";
 
-import { useAuth } from '../context/AuthContext';
-import { hasTitechRole, TITECH_ROLES } from '../security/rbacPolicy';
-import Spinner from '../components/ui/Spinner';
-import logger from '../utils/logger';
+import { toast } from "react-toastify";
 
-import api from '../services/api';
+import { useAuth } from "../context/AuthContext";
 
-import './GroupList.css';
+import {
+  hasTitechRole,
+  TITECH_ROLES,
+} from "../security/rbacPolicy";
+
+import Spinner from "../components/ui/Spinner";
+
+import logger from "../utils/logger";
+
+import api from "../services/api";
+
+import "./GroupList.css";
 
 // ============================================================================
 // Constants
 // ============================================================================
 
 const MAX_GROUPS = 500;
+
+const MAX_MEMBERS_PER_GROUP = 500;
+
 const MAX_DESCRIPTION_LENGTH = 220;
 
+const MAX_SERVER_MESSAGE_LENGTH = 240;
+
 const DEFAULT_ERROR_MESSAGE =
-  'We could not load the available groups. Please try again.';
+  "We could not load the available groups. Please try again.";
 
 const DEFAULT_JOIN_ERROR =
-  'We could not join this group. Please try again.';
+  "We could not join this group. Please try again.";
 
 // ============================================================================
-// Utility Functions
+// Utilities
 // ============================================================================
 
 function isAbortError(error) {
   return (
-    error?.code === 'ERR_CANCELED' ||
-    error?.name === 'AbortError' ||
-    error?.name === 'CanceledError' ||
-    error?.message === 'canceled'
+    error?.code === "ERR_CANCELED" ||
+    error?.name === "AbortError" ||
+    error?.name === "CanceledError" ||
+    error?.message === "canceled"
   );
 }
 
+/**
+ * Return user-safe error messages.
+ */
 function getErrorMessage(error, fallback) {
-  if (error?.response?.data?.message) {
-    return String(error.response.data.message);
-  }
-
-  if (error?.response?.data?.error) {
-    return String(error.response.data.error);
-  }
+  const status = error?.response?.status;
 
   if (
-    error?.code === 'CLIENT_OFFLINE' ||
+    error?.code === "CLIENT_OFFLINE" ||
     error?.isOffline
   ) {
-    return 'You appear to be offline. Please reconnect and try again.';
+    return "You appear to be offline. Please reconnect and try again.";
   }
 
-  if (error?.response?.status === 401) {
-    return 'Your session has expired. Please sign in again.';
+  switch (status) {
+    case 400:
+      return "The request could not be processed. Please check your information.";
+
+    case 401:
+      return "Your session has expired. Please sign in again.";
+
+    case 403:
+      return "You are not authorized to perform this action.";
+
+    case 404:
+      return "The requested group could not be found.";
+
+    case 409:
+      return "You may already be a member of this group.";
+
+    case 422:
+      return "The group membership request could not be validated.";
+
+    case 429:
+      return "Too many requests. Please wait a moment and try again.";
+
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+      return "The TITech service is temporarily unavailable. Please try again.";
+
+    default:
+      break;
   }
 
-  if (error?.response?.status === 403) {
-    return 'You are not authorized to perform this action.';
-  }
+  // Permit a bounded API message where the server supplied one.
+  const serverMessage =
+    error?.response?.data?.message;
 
-  if (error?.response?.status === 404) {
-    return 'The requested group could not be found.';
-  }
-
-  if (error?.response?.status === 409) {
-    return 'You are already a member of this group.';
-  }
-
-  if (error?.response?.status === 429) {
-    return 'Too many requests. Please wait a moment and try again.';
+  if (
+    typeof serverMessage === "string" &&
+    serverMessage.trim()
+  ) {
+    return serverMessage
+      .trim()
+      .slice(0, MAX_SERVER_MESSAGE_LENGTH);
   }
 
   return (
-    error?.message ||
     fallback ||
-    'An unexpected error occurred.'
+    "An unexpected error occurred."
   );
 }
 
+/**
+ * Safely extract a group identifier.
+ */
 function getGroupId(group) {
-  return (
-    group?._id ||
-    group?.id ||
-    group?.groupId ||
-    null
-  );
+  const id =
+    group?._id ??
+    group?.id ??
+    group?.groupId ??
+    null;
+
+  if (
+    id === null ||
+    id === undefined ||
+    String(id).trim() === ""
+  ) {
+    return null;
+  }
+
+  return id;
 }
 
+/**
+ * Extract authenticated user identifier.
+ */
 function getUserId(user) {
-  return (
-    user?._id ||
-    user?.id ||
-    user?.userId ||
-    null
-  );
+  const id =
+    user?._id ??
+    user?.id ??
+    user?.userId ??
+    null;
+
+  if (
+    id === null ||
+    id === undefined ||
+    String(id).trim() === ""
+  ) {
+    return null;
+  }
+
+  return id;
 }
 
+/**
+ * Extract member identifier.
+ *
+ * Supports common representations returned by membership APIs.
+ */
 function getMemberId(member) {
   if (!member) {
     return null;
   }
 
-  if (typeof member === 'string') {
+  if (
+    typeof member === "string" ||
+    typeof member === "number"
+  ) {
     return member;
   }
 
   return (
-    member?._id ||
-    member?.id ||
-    member?.userId ||
+    member?._id ??
+    member?.id ??
+    member?.userId ??
+    member?.memberId ??
+    member?.user?._id ??
+    member?.user?.id ??
     null
   );
 }
 
+/**
+ * Normalize membership states.
+ */
+function normalizeMembershipStatus(status) {
+  if (
+    typeof status !== "string" &&
+    typeof status !== "number"
+  ) {
+    return null;
+  }
+
+  const normalized = String(status)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  return normalized || null;
+}
+
+/**
+ * Support common API response envelopes:
+ *
+ * response.data
+ * response.data.data
+ * response.data.groups
+ * response.groups
+ * response.items
+ * response.results
+ */
 function normalizeGroups(payload) {
-  const data =
-    payload?.data?.data ??
-    payload?.data ??
-    payload ??
-    [];
+  const queue = [payload];
+
+  const visited = new Set();
+
+  let data = null;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (Array.isArray(current)) {
+      data = current;
+      break;
+    }
+
+    if (
+      !current ||
+      typeof current !== "object" ||
+      visited.has(current)
+    ) {
+      continue;
+    }
+
+    visited.add(current);
+
+    for (const key of [
+      "data",
+      "groups",
+      "items",
+      "results",
+      "records",
+    ]) {
+      if (current[key] !== undefined) {
+        queue.push(current[key]);
+      }
+    }
+  }
 
   if (!Array.isArray(data)) {
     return [];
@@ -165,55 +292,94 @@ function normalizeGroups(payload) {
 
   return data
     .filter((group) => {
+      if (
+        !group ||
+        typeof group !== "object"
+      ) {
+        return false;
+      }
+
       const id = getGroupId(group);
 
-      if (!id || seen.has(String(id))) {
+      if (
+        id === null ||
+        seen.has(String(id))
+      ) {
         return false;
       }
 
       seen.add(String(id));
+
       return true;
     })
     .slice(0, MAX_GROUPS);
 }
 
+/**
+ * Normalize a group before rendering.
+ */
 function normalizeGroup(group) {
-  if (!group || typeof group !== 'object') {
+  if (
+    !group ||
+    typeof group !== "object"
+  ) {
     return null;
   }
 
   return {
     ...group,
+
     _id: getGroupId(group),
+
     members: Array.isArray(group.members)
-      ? group.members.slice(0, MAX_GROUPS)
+      ? group.members.slice(
+          0,
+          MAX_MEMBERS_PER_GROUP
+        )
       : [],
   };
 }
 
+/**
+ * Safely display bounded group descriptions.
+ */
 function truncateDescription(value) {
-  const description = String(value || '').trim();
+  const description =
+    typeof value === "string"
+      ? value.trim()
+      : "";
 
   if (!description) {
-    return 'No description provided.';
+    return "No description provided.";
   }
 
-  if (description.length <= MAX_DESCRIPTION_LENGTH) {
+  if (
+    description.length <=
+    MAX_DESCRIPTION_LENGTH
+  ) {
     return description;
   }
 
-  return `${description.slice(
-    0,
-    MAX_DESCRIPTION_LENGTH
-  ).trim()}…`;
+  return (
+    description
+      .slice(0, MAX_DESCRIPTION_LENGTH)
+      .trim() + "…"
+  );
 }
 
+/**
+ * Resolve group member count.
+ */
 function getMemberCount(group) {
-  if (Number.isFinite(Number(group?.memberCount))) {
-    return Math.max(
-      0,
-      Number(group.memberCount)
-    );
+  const count = group?.memberCount;
+
+  if (
+    count !== null &&
+    count !== undefined &&
+    count !== "" &&
+    Number.isFinite(Number(count))
+  ) {
+    return Math.max(0, Number(count));
   }
 
   if (Array.isArray(group?.members)) {
@@ -223,16 +389,88 @@ function getMemberCount(group) {
   return 0;
 }
 
+/**
+ * Resolve the authenticated user's membership record.
+ */
+function getUserMembership(group, userId) {
+  if (!group || !userId) {
+    return null;
+  }
+
+  const matchingRole = Array.isArray(
+    group.memberRoles
+  )
+    ? group.memberRoles.find(
+        (entry) =>
+          String(getMemberId(entry)) ===
+          String(userId)
+      )
+    : null;
+
+  if (matchingRole) {
+    return matchingRole;
+  }
+
+  const matchingMember = Array.isArray(
+    group.members
+  )
+    ? group.members.find(
+        (entry) =>
+          String(getMemberId(entry)) ===
+          String(userId)
+      )
+    : null;
+
+  return matchingMember || null;
+}
+
+/**
+ * Determine the authenticated user's membership state.
+ */
+function getMembershipStatus(group, userId) {
+  if (!group || !userId) {
+    return null;
+  }
+
+  const membership = getUserMembership(
+    group,
+    userId
+  );
+
+  const rawStatus =
+    membership?.membershipStatus ??
+    membership?.invitationStatus ??
+    membership?.status ??
+    group.membershipStatus ??
+    null;
+
+  return normalizeMembershipStatus(rawStatus);
+}
+
+/**
+ * Determine whether the current authenticated user
+ * is already a group member.
+ */
 function isUserMember(group, userId) {
   if (!group || !userId) {
     return false;
   }
 
-  if (group.isMember === true) {
+  if (
+    group.isMember === true ||
+    group.member === true
+  ) {
     return true;
   }
 
-  if (group.member === true) {
+  const membershipStatus =
+    getMembershipStatus(group, userId);
+
+  if (
+    ["active", "reinstated"].includes(
+      membershipStatus
+    )
+  ) {
     return true;
   }
 
@@ -247,35 +485,36 @@ function isUserMember(group, userId) {
   );
 }
 
-function getMembershipStatus(group, userId) {
-  if (!group || !userId) {
-    return null;
+/**
+ * Resolve join response status from supported response envelopes.
+ */
+function getJoinResponseStatus(response) {
+  const candidates = [
+    response?.data?.data,
+    response?.data,
+    response,
+  ];
+
+  for (const candidate of candidates) {
+    if (
+      !candidate ||
+      typeof candidate !== "object"
+    ) {
+      continue;
+    }
+
+    const status =
+      candidate.membershipStatus ??
+      candidate.membership?.membershipStatus ??
+      candidate.membership?.status ??
+      null;
+
+    if (status) {
+      return normalizeMembershipStatus(status);
+    }
   }
 
-  const normalizedStatus = String(
-    group.membershipStatus || ''
-  ).toLowerCase();
-
-  if (
-    ['active', 'reinstated', 'pending'].includes(
-      normalizedStatus
-    )
-  ) {
-    return normalizedStatus;
-  }
-
-  const membership = Array.isArray(group.memberRoles)
-    ? group.memberRoles.find(
-        (entry) =>
-          String(
-            getMemberId(entry)
-          ) === String(userId)
-      )
-    : null;
-
-  return membership?.membershipStatus ||
-    membership?.invitationStatus ||
-    null;
+  return null;
 }
 
 // ============================================================================
@@ -290,25 +529,31 @@ function GroupCard({
 }) {
   const groupId = getGroupId(group);
 
+  const normalizedId = groupId
+    ? String(groupId)
+    : null;
+
   const isJoining =
-    joining === String(groupId);
+    normalizedId !== null &&
+    joining === normalizedId;
 
   const alreadyMember =
     isUserMember(group, userId);
+
   const membershipStatus =
     getMembershipStatus(group, userId);
+
   const hasPendingMembership =
-    membershipStatus === 'pending';
+    membershipStatus === "pending";
 
   const memberCount =
     getMemberCount(group);
 
-  const groupName =
-    String(
-      group?.name ||
-      group?.title ||
-      'Unnamed Group'
-    ).trim();
+  const groupName = String(
+    group?.name ||
+    group?.title ||
+    "Unnamed Group"
+  ).trim();
 
   const description =
     truncateDescription(
@@ -316,21 +561,24 @@ function GroupCard({
     );
 
   const statusLabel = alreadyMember
-    ? 'Member'
+    ? "Member"
     : hasPendingMembership
-      ? 'Pending approval'
-    : isJoining
-      ? 'Joining'
-      : 'Available';
+      ? "Pending approval"
+      : isJoining
+        ? "Joining"
+        : "Available";
 
   return (
     <li className="group-list-card">
       <article
         className="group-list-card__content"
-        aria-labelledby={`group-name-${groupId}`}
+        aria-labelledby={`group-name-${normalizedId}`}
       >
+
         <div className="group-list-card__header">
+
           <div className="group-list-card__identity">
+
             <div
               className="group-list-card__avatar"
               aria-hidden="true"
@@ -342,7 +590,7 @@ function GroupCard({
 
             <div>
               <h3
-                id={`group-name-${groupId}`}
+                id={`group-name-${normalizedId}`}
                 className="group-list-card__title"
               >
                 {groupName}
@@ -351,14 +599,16 @@ function GroupCard({
               <span
                 className={`group-list-card__status ${
                   alreadyMember
-                    ? 'group-list-card__status--member'
-                    : ''
+                    ? "group-list-card__status--member"
+                    : ""
                 }`}
               >
                 {statusLabel}
               </span>
             </div>
+
           </div>
+
         </div>
 
         <p className="group-list-card__description">
@@ -366,46 +616,62 @@ function GroupCard({
         </p>
 
         <dl className="group-list-card__metadata">
+
           <div className="group-list-card__metadata-item">
+
             <dt>Members</dt>
+
             <dd>
               {memberCount.toLocaleString()}
             </dd>
+
           </div>
 
           {group?.frequency && (
             <div className="group-list-card__metadata-item">
+
               <dt>Contribution</dt>
+
               <dd>
                 {String(group.frequency)}
               </dd>
+
             </div>
           )}
 
           {group?.status && (
             <div className="group-list-card__metadata-item">
+
               <dt>Status</dt>
+
               <dd>
                 {String(group.status)}
               </dd>
+
             </div>
           )}
+
         </dl>
 
         <div className="group-list-card__actions">
-          {groupId ? (
+
+          {groupId && (
             <Link
-              to={`/groups/${groupId}`}
+              to={`/groups/${encodeURIComponent(
+                normalizedId
+              )}`}
               className="group-list-card__details-button"
               aria-label={`View details for ${groupName}`}
             >
               View details
             </Link>
-          ) : null}
+          )}
 
           {alreadyMember ? (
             <Link
-              to={`/groups/${groupId}`}
+              to={`/groups/${encodeURIComponent(
+                normalizedId
+              )}`}
               className="group-list-card__join-button group-list-card__join-button--member"
             >
               Open group
@@ -418,110 +684,125 @@ function GroupCard({
             >
               Pending approval
             </button>
+          ) : !userId ? (
+            <Link
+              to="/login"
+              className="group-list-card__join-button"
+              aria-label={`Sign in to join ${groupName}`}
+            >
+              Sign in to join
+            </Link>
           ) : (
             <button
               type="button"
-              onClick={() =>
-                onJoin(groupId)
-              }
+              onClick={() => onJoin(normalizedId)}
               disabled={
-                !groupId ||
+                !normalizedId ||
                 isJoining ||
                 joining !== null
               }
               className="group-list-card__join-button"
               aria-busy={isJoining}
-              aria-disabled={
-                !groupId ||
-                isJoining ||
-                joining !== null
-              }
             >
               {isJoining
-                ? 'Joining…'
-                : 'Join group'}
+                ? "Joining…"
+                : "Join group"}
             </button>
           )}
+
         </div>
+
       </article>
     </li>
   );
 }
 
-GroupCard.defaultProps = {
-  group: null,
-  userId: null,
-  joining: null,
-  onJoin: () => {},
-};
-
 // ============================================================================
-// Group List
+// Group List Page
 // ============================================================================
 
 export default function GroupList() {
-  const { user } = useAuth();
-  const canCreateGroup = hasTitechRole(
-    [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])],
-    [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN],
-  );
 
-  const [groups, setGroups] = useState([]);
-  const [joining, setJoining] =
-    useState(null);
+  // --------------------------------------------------------------------------
+  // Authentication and RBAC
+  // --------------------------------------------------------------------------
 
-  const [loading, setLoading] =
-    useState(true);
+  const auth = useAuth();
 
-  const [refreshing, setRefreshing] =
-    useState(false);
-
-  const [error, setError] =
-    useState(null);
-
-  const [lastUpdated, setLastUpdated] =
-    useState(null);
-
-  const mountedRef =
-    useRef(false);
-
-  const fetchAbortRef =
-    useRef(null);
-
-  const joinAbortRef =
-    useRef(null);
-
+  const user = auth?.user ?? null;
 
   const userId = useMemo(
     () => getUserId(user),
     [user]
   );
 
+  // Preserve the existing TITech RBAC policy.
+  // This controls frontend presentation only.
+  const canCreateGroup = Boolean(
+    user &&
+    hasTitechRole(
+      [
+        user?.role,
+        ...(Array.isArray(user?.roles)
+          ? user.roles
+          : []),
+      ],
+      [
+        TITECH_ROLES.PLATFORM_ADMIN,
+        TITECH_ROLES.TENANT_ADMIN,
+      ]
+    )
+  );
+
+  // --------------------------------------------------------------------------
+  // State
+  // --------------------------------------------------------------------------
+
+  const [groups, setGroups] = useState([]);
+
+  const [joining, setJoining] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [error, setError] = useState(null);
+
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  // --------------------------------------------------------------------------
+  // Request lifecycle references
+  // --------------------------------------------------------------------------
+
+  const mountedRef = useRef(false);
+
+  const fetchAbortRef = useRef(null);
+
+  const joinAbortRef = useRef(null);
+
+  // State updates are asynchronous. A ref provides immediate
+  // protection against duplicate join requests.
+  const joinLockRef = useRef(false);
+
   // ==========================================================================
   // Fetch Groups
   // ==========================================================================
 
   const fetchGroups = useCallback(
-    async ({
-      silent = false,
-    } = {}) => {
+    async ({ silent = false } = {}) => {
+
       if (!mountedRef.current) {
         return;
       }
 
+      // Cancel obsolete group-list requests.
       if (fetchAbortRef.current) {
-        try {
-          fetchAbortRef.current.abort();
-        } catch (_) {
-          // Ignore cancellation failures.
-        }
+        fetchAbortRef.current.abort();
       }
 
-      const controller =
-        new AbortController();
+      const controller = new AbortController();
 
-      fetchAbortRef.current =
-        controller;
+      fetchAbortRef.current = controller;
 
       if (silent) {
         setRefreshing(true);
@@ -532,14 +813,12 @@ export default function GroupList() {
       setError(null);
 
       try {
-        const response =
-          await api.get(
-            '/groups',
-            {
-              signal:
-                controller.signal,
-            }
-          );
+        const response = await api.get(
+          "/groups",
+          {
+            signal: controller.signal,
+          }
+        );
 
         if (
           !mountedRef.current ||
@@ -552,10 +831,11 @@ export default function GroupList() {
           normalizeGroups(response);
 
         setGroups(normalized);
-        setLastUpdated(
-          new Date()
-        );
+
+        setLastUpdated(new Date());
+
       } catch (err) {
+
         if (
           isAbortError(err) ||
           controller.signal.aborted
@@ -563,11 +843,10 @@ export default function GroupList() {
           return;
         }
 
-        const message =
-          getErrorMessage(
-            err,
-            DEFAULT_ERROR_MESSAGE
-          );
+        const message = getErrorMessage(
+          err,
+          DEFAULT_ERROR_MESSAGE
+        );
 
         if (mountedRef.current) {
           setError(message);
@@ -575,28 +854,27 @@ export default function GroupList() {
 
         try {
           logger?.warn?.(
-            'TITech GroupList fetch failed',
+            "TITech GroupList fetch failed",
             {
-              error:
-                message,
-              status:
-                err?.response
-                  ?.status,
+              error: message,
+              status: err?.response?.status,
             }
           );
         } catch (_) {
           // Logging must never break application flow.
         }
+
       } finally {
+
+        // An old request must never clear the state
+        // of a newer active request.
         if (
           mountedRef.current &&
-          fetchAbortRef.current ===
-            controller
+          fetchAbortRef.current === controller
         ) {
           setLoading(false);
           setRefreshing(false);
-          fetchAbortRef.current =
-            null;
+          fetchAbortRef.current = null;
         }
       }
     },
@@ -604,36 +882,34 @@ export default function GroupList() {
   );
 
   // ==========================================================================
-  // Initial Load
+  // Initial Load and Cleanup
   // ==========================================================================
 
   useEffect(() => {
+
     mountedRef.current = true;
 
-    fetchGroups();
+    void fetchGroups();
 
     return () => {
+
       mountedRef.current = false;
 
       if (fetchAbortRef.current) {
-        try {
-          fetchAbortRef.current.abort();
-        } catch (_) {
-          // Ignore abort failures.
-        }
+        fetchAbortRef.current.abort();
       }
 
       if (joinAbortRef.current) {
-        try {
-          joinAbortRef.current.abort();
-        } catch (_) {
-          // Ignore abort failures.
-        }
+        joinAbortRef.current.abort();
       }
 
       fetchAbortRef.current = null;
+
       joinAbortRef.current = null;
+
+      joinLockRef.current = false;
     };
+
   }, [fetchGroups]);
 
   // ==========================================================================
@@ -642,52 +918,49 @@ export default function GroupList() {
 
   const joinGroup = useCallback(
     async (groupId) => {
+
       const normalizedGroupId =
-        String(groupId || '').trim();
+        String(groupId || "").trim();
 
       if (!normalizedGroupId) {
         toast.error(
-          'This group cannot be joined because its identifier is missing.'
+          "This group cannot be joined because its identifier is missing."
         );
         return;
       }
 
       if (!userId) {
         toast.error(
-          'Please sign in before joining a group.'
+          "Please sign in before joining a group."
         );
+
         return;
       }
 
-      if (joining !== null) {
+      // Synchronous protection against rapid repeated clicks.
+      if (joinLockRef.current) {
         return;
       }
 
-      const targetGroup =
-        groups.find(
-          (group) =>
-            String(
-              getGroupId(group)
-            ) ===
-            normalizedGroupId
-        );
+      const targetGroup = groups.find(
+        (group) =>
+          String(getGroupId(group)) ===
+          normalizedGroupId
+      );
 
       if (!targetGroup) {
         toast.error(
-          'The selected group is no longer available.'
+          "The selected group is no longer available."
         );
+
         return;
       }
 
-      if (
-        isUserMember(
-          targetGroup,
-          userId
-        )
-      ) {
+      if (isUserMember(targetGroup, userId)) {
         toast.info(
-          'You are already a member of this group.'
+          "You are already a member of this group."
         );
+
         return;
       }
 
@@ -695,45 +968,36 @@ export default function GroupList() {
         getMembershipStatus(
           targetGroup,
           userId
-        ) === 'pending'
+        ) === "pending"
       ) {
         toast.info(
-          'Your membership request is already pending approval.'
+          "Your membership request is already pending approval."
         );
+
         return;
       }
 
-      // ----------------------------------------------------------------------
-      // Cancel any stale join request.
-      // ----------------------------------------------------------------------
-
-      if (joinAbortRef.current) {
-        try {
-          joinAbortRef.current.abort();
-        } catch (_) {
-          // Ignore cancellation failures.
-        }
+      if (!mountedRef.current) {
+        return;
       }
 
-      const controller =
-        new AbortController();
+      joinLockRef.current = true;
 
-      joinAbortRef.current =
-        controller;
+      const controller = new AbortController();
 
-      setJoining(
-        normalizedGroupId
-      );
+      joinAbortRef.current = controller;
+
+      setJoining(normalizedGroupId);
 
       try {
+
         const joinResponse = await api.post(
           `/groups/join/${encodeURIComponent(
             normalizedGroupId
           )}`,
           null,
           {
-            signal:
-              controller.signal,
+            signal: controller.signal,
           }
         );
 
@@ -745,26 +1009,38 @@ export default function GroupList() {
         }
 
         const responseStatus =
-          joinResponse?.data?.membershipStatus ||
-          joinResponse?.membershipStatus ||
-          joinResponse?.status;
+          getJoinResponseStatus(joinResponse);
 
-        toast.success(
-          responseStatus === 'active'
-            ? 'You joined the group.'
-            : responseStatus === 'pending'
-              ? 'Your membership request is pending approval.'
-              : 'Your membership request was submitted.'
-        );
+        if (responseStatus === "active") {
 
-        // --------------------------------------------------------------------
-        // Reconcile optimistic state against server state.
-        // --------------------------------------------------------------------
+          toast.success(
+            "You joined the group."
+          );
 
+        } else if (
+          responseStatus === "pending"
+        ) {
+
+          toast.success(
+            "Your membership request is pending approval."
+          );
+
+        } else {
+
+          toast.success(
+            "Your membership request was submitted."
+          );
+        }
+
+        // Reconcile against authoritative backend membership state.
+        // Do not assume that a successful HTTP response means
+        // membership has already become active.
         await fetchGroups({
           silent: true,
         });
+
       } catch (err) {
+
         if (
           isAbortError(err) ||
           controller.signal.aborted
@@ -772,53 +1048,45 @@ export default function GroupList() {
           return;
         }
 
-        const message =
-          getErrorMessage(
-            err,
-            DEFAULT_JOIN_ERROR
-          );
+        const message = getErrorMessage(
+          err,
+          DEFAULT_JOIN_ERROR
+        );
 
-        if (
-          mountedRef.current
-        ) {
-          toast.error(
-            message
-          );
+        if (mountedRef.current) {
+          toast.error(message);
         }
 
         try {
           logger?.error?.(
-            'TITech GroupList join failed',
+            "TITech GroupList join failed",
             {
-              groupId:
-                normalizedGroupId,
-              status:
-                err?.response
-                  ?.status,
-              error:
-                message,
+              groupId: normalizedGroupId,
+              status: err?.response?.status,
+              error: message,
             }
           );
         } catch (_) {
-          // Logging must never break application flow.
+          // Logging must never interrupt application flow.
         }
+
       } finally {
+
         if (
           mountedRef.current &&
-          joinAbortRef.current ===
-            controller
+          joinAbortRef.current === controller
         ) {
           setJoining(null);
-          joinAbortRef.current =
-            null;
+
+          joinAbortRef.current = null;
+
+          joinLockRef.current = false;
         }
       }
     },
     [
       fetchGroups,
       groups,
-      joining,
-      user,
       userId,
     ]
   );
@@ -827,28 +1095,27 @@ export default function GroupList() {
   // Derived State
   // ==========================================================================
 
-  const hasGroups =
-    groups.length > 0;
+  const hasGroups = groups.length > 0;
 
-  const isAuthenticated =
-    Boolean(userId);
+  const isAuthenticated = Boolean(userId);
 
   // ==========================================================================
   // Render
   // ==========================================================================
 
   return (
-    <main
-      className="group-list-page"
-      aria-labelledby="group-list-heading"
-    >
+    <div className="group-list-page">
+
       <section className="group-list-container">
-        {/* ==================================================================
-            Page Header
-            ================================================================== */}
+
+        {/* ================================================================ */}
+        {/* Page Header                                                       */}
+        {/* ================================================================ */}
 
         <header className="group-list-header">
+
           <div>
+
             <span className="group-list-eyebrow">
               TITech Community Capital
             </span>
@@ -861,13 +1128,14 @@ export default function GroupList() {
             </h1>
 
             <p className="group-list-subtitle">
-              Discover a community group,
-              connect with members and
-              build your savings together.
+              Discover a community group, connect with
+              members and build your savings together.
             </p>
+
           </div>
 
           <div className="group-list-header-actions">
+
             <button
               type="button"
               onClick={() =>
@@ -880,14 +1148,12 @@ export default function GroupList() {
                 refreshing
               }
               className="group-list-refresh-button"
-              aria-busy={
-                refreshing
-              }
+              aria-busy={refreshing}
               aria-label="Refresh available groups"
             >
               {refreshing
-                ? 'Refreshing…'
-                : 'Refresh'}
+                ? "Refreshing…"
+                : "Refresh"}
             </button>
 
             {canCreateGroup && (
@@ -898,30 +1164,34 @@ export default function GroupList() {
                 Create group
               </Link>
             )}
+
           </div>
+
         </header>
 
-        {/* ==================================================================
-            Authentication Notice
-            ================================================================== */}
+        {/* ================================================================ */}
+        {/* Authentication Notice                                            */}
+        {/* ================================================================ */}
 
         {!isAuthenticated && (
+
           <div
             className="group-list-auth-notice"
             role="status"
           >
+
             <div>
+
               <strong>
                 Sign in to join a group.
               </strong>
 
               <p>
-                You can browse available
-                groups, but membership
-                actions require an
-                authenticated TITech
-                account.
+                You can browse available groups, but
+                membership actions require an authenticated
+                TITech account.
               </p>
+
             </div>
 
             <Link
@@ -930,25 +1200,38 @@ export default function GroupList() {
             >
               Sign in
             </Link>
+
           </div>
         )}
 
-        {/* ==================================================================
-            Error State
-            ================================================================== */}
+        {/* ================================================================ */}
+        {/* Error State                                                       */}
+        {/* ================================================================ */}
 
         {error && (
+
           <div
             className="group-list-error"
             role="alert"
             aria-live="assertive"
           >
+
             <div>
+
               <strong>
                 Unable to load groups
               </strong>
 
               <p>{error}</p>
+
+              {hasGroups && (
+                <p>
+                  Previously loaded groups are still
+                  displayed. Refresh to retrieve the latest
+                  membership information.
+                </p>
+              )}
+
             </div>
 
             <button
@@ -961,39 +1244,40 @@ export default function GroupList() {
             >
               Try again
             </button>
+
           </div>
         )}
 
-        {/* ==================================================================
-            Loading State
-            ================================================================== */}
+        {/* ================================================================ */}
+        {/* Loading State                                                     */}
+        {/* ================================================================ */}
 
         {loading && (
-          <div
-            className="group-list-loading"
-            role="status"
-            aria-live="polite"
-            aria-label="Loading available groups"
-          >
-            <Spinner label="Loading available groups…" />
 
-            <span>
-              Loading community groups…
-            </span>
+          <div className="group-list-loading">
+
+            <Spinner
+              size="lg"
+              label="Loading community groups..."
+              showLabel
+            />
+
           </div>
         )}
 
-        {/* ==================================================================
-            Empty State
-            ================================================================== */}
+        {/* ================================================================ */}
+        {/* Empty State                                                       */}
+        {/* ================================================================ */}
 
         {!loading &&
           !error &&
           !hasGroups && (
+
             <div
               className="group-list-empty"
               role="status"
             >
+
               <div
                 className="group-list-empty-icon"
                 aria-hidden="true"
@@ -1006,9 +1290,8 @@ export default function GroupList() {
               </h2>
 
               <p>
-                There are currently no
-                community savings groups
-                available to join.
+                There are currently no community savings
+                groups available to join.
               </p>
 
               {canCreateGroup && (
@@ -1019,21 +1302,26 @@ export default function GroupList() {
                   Create the first group
                 </Link>
               )}
+
             </div>
           )}
 
-        {/* ==================================================================
-            Group Grid
-            ================================================================== */}
+        {/* ================================================================ */}
+        {/* Group Results                                                     */}
+        {/* ================================================================ */}
 
         {!loading &&
           hasGroups && (
+
             <section
               className="group-list-results"
               aria-labelledby="available-groups-heading"
             >
+
               <div className="group-list-results-header">
+
                 <div>
+
                   <h2
                     id="available-groups-heading"
                     className="group-list-results-title"
@@ -1042,68 +1330,84 @@ export default function GroupList() {
                   </h2>
 
                   <p className="group-list-results-count">
-                    {groups.length.toLocaleString()}{' '}
+
+                    {groups.length.toLocaleString()}{" "}
+
                     {groups.length === 1
-                      ? 'group'
-                      : 'groups'}{' '}
-                    available
+                      ? "group"
+                      : "groups"}
+
+                    {" "}loaded
+
                   </p>
+
                 </div>
 
                 {lastUpdated && (
+
                   <time
                     className="group-list-updated"
-                    dateTime={
-                      lastUpdated.toISOString()
-                    }
+                    dateTime={lastUpdated.toISOString()}
                   >
-                    Updated{' '}
+                    Updated{" "}
                     {lastUpdated.toLocaleTimeString(
                       [],
                       {
-                        hour:
-                          '2-digit',
-                        minute:
-                          '2-digit',
+                        hour: "2-digit",
+                        minute: "2-digit",
                       }
                     )}
                   </time>
+
                 )}
+
               </div>
 
               <ul className="group-list-grid">
-                {groups.map(
-                  (group) => {
-                    const id =
-                      getGroupId(
-                        group
-                      );
 
-                    if (!id) {
-                      return null;
-                    }
+                {groups.map((group) => {
 
-                    return (
-                      <GroupCard
-                        key={String(id)}
-                        group={normalizeGroup(
-                          group
-                        )}
-                        userId={userId}
-                        joining={
-                          joining
-                        }
-                        onJoin={
-                          joinGroup
-                        }
-                      />
-                    );
+                  const normalizedGroup =
+                    normalizeGroup(group);
+
+                  const id =
+                    getGroupId(normalizedGroup);
+
+                  if (!id) {
+                    return null;
                   }
-                )}
+
+                  return (
+
+                    <GroupCard
+                      key={String(id)}
+                      group={normalizedGroup}
+                      userId={userId}
+                      joining={joining}
+                      onJoin={joinGroup}
+                    />
+
+                  );
+                })}
+
               </ul>
+
+              {groups.length >= MAX_GROUPS && (
+                <p
+                  className="group-list-results-count"
+                  role="status"
+                >
+                  The maximum client-side display limit
+                  has been reached. Further groups require
+                  server-side pagination.
+                </p>
+              )}
+
             </section>
           )}
+
       </section>
-    </main>
+
+    </div>
   );
 }

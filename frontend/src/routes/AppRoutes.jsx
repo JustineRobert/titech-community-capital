@@ -58,7 +58,7 @@
  * ============================================================================
  */
 
-import React, {
+import {
   Suspense,
   lazy,
 } from 'react';
@@ -73,6 +73,7 @@ import {
 
 import AdminLayout from '../layouts/AdminLayout';
 import Navbar from '../components/Navbar';
+import RouteErrorBoundary from './RouteErrorBoundary';
 
 import { useAuth } from '../context/AuthContext';
 import { normalizeTitechRole, TITECH_ROLES } from '../security/rbacPolicy';
@@ -137,71 +138,26 @@ const ADMIN_ROLES = new Set([
 // Lazy import helper
 // ============================================================================
 //
-// Deployment systems can occasionally leave a browser holding a stale HTML
-// document that references an old chunk after a new deployment.
+// Route-module failures must reach the mounted route error boundary. The
+// previous implementation retried every import exception as if it were a
+// stale deployment chunk, then returned a never-settling Promise after a
+// reload request. That could hide genuine missing-export/module defects and
+// leave the route permanently showing its Suspense loader.
 //
-// A single controlled retry can recover from that situation.
-//
-// The reload marker prevents an infinite reload loop.
+// The router-aware RouteErrorBoundary owns bounded stale-chunk recovery. This
+// helper only adds a development diagnostic and always rethrows the original
+// failure so the boundary can show a correlated fallback.
 // ============================================================================
 
-const CHUNK_RELOAD_KEY =
-  '__TITECH_CHUNK_RELOAD__';
-
-function lazyWithRecovery(
-  importer,
-  name
-) {
-  return lazy(async () => {
-    try {
-      return await importer();
-    } catch (error) {
-      const alreadyRetried =
-        sessionStorage.getItem(
-          CHUNK_RELOAD_KEY
-        ) === 'true';
-
-      if (
-        alreadyRetried
-      ) {
-        throw error;
+function lazyWithRecovery(importer, name) {
+  return lazy(() =>
+    importer().catch((error) => {
+      if (import.meta.env.DEV) {
+        console.error(`[TITech] Lazy route module failed: ${name}`, error);
       }
-
-      sessionStorage.setItem(
-        CHUNK_RELOAD_KEY,
-        'true'
-      );
-
-      /*
-       * Give the browser a fresh application document.
-       *
-       * This is especially useful when a deployment has invalidated an old
-       * dynamically imported chunk.
-       */
-      window.location.reload();
-
-      /*
-       * Keep the Promise pending while the browser reloads.
-       */
-      return new Promise(
-        () => {}
-      );
-    }
-  });
-}
-
-// ============================================================================
-// Clear successful chunk-reload marker
-// ============================================================================
-
-function clearChunkReloadMarker() {
-  try {
-    sessionStorage.removeItem(
-      CHUNK_RELOAD_KEY
-    );
-  } catch {
-    // Ignore unavailable session storage.
-  }
+      throw error;
+    }),
+  );
 }
 
 // ============================================================================
@@ -795,17 +751,15 @@ function ApplicationRouteTree() {
 // ============================================================================
 
 export default function AppRoutes() {
-  React.useEffect(() => {
-    clearChunkReloadMarker();
-  }, []);
-
   return (
-    <Suspense
-      fallback={
-        <RouteLoader />
-      }
-    >
-      <ApplicationRouteTree />
-    </Suspense>
+    <RouteErrorBoundary>
+      <Suspense
+        fallback={
+          <RouteLoader />
+        }
+      >
+        <ApplicationRouteTree />
+      </Suspense>
+    </RouteErrorBoundary>
   );
 }

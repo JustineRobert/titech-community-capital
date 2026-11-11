@@ -1,0 +1,347 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-11-11T07:12:52.939712+00:00",
+  "organization": "TITech Capital SMC LTD",
+  "product": "TITech Community Capital",
+  "tagline": "BUILD LESS. PROVE MORE.",
+  "archiveSha256": "84f517eb74233db232377eeb44f401b087f32d8fba21350f1c9e60d924c8081e",
+  "archiveComment": "d45650d3bdef9200911af18767f8b0a6237a7329",
+  "repositoryMetadata": {
+    "gitCheckout": false,
+    "gitStatus": "UNAVAILABLE_SOURCE_ARCHIVE_HAS_NO_DOT_GIT"
+  },
+  "environment": {
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "requiredNode": ">=24.15.0",
+    "requiredNpm": ">=11.0.0",
+    "mongoDbAvailable": false,
+    "redisAvailable": false,
+    "dockerAvailable": false,
+    "chromiumAvailable": true,
+    "networkPackageDownloadsAvailable": false
+  },
+  "nativeTestSuites": [
+    {
+      "command": "npm run test:critical-gates",
+      "exitCode": 0,
+      "tests": 4,
+      "passed": 4,
+      "failed": 0,
+      "expectedTests": 4,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:faith-giving",
+      "exitCode": 0,
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "expectedTests": 16,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:ussd",
+      "exitCode": 0,
+      "tests": 10,
+      "passed": 10,
+      "failed": 0,
+      "expectedTests": 10,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:ubuntu-float",
+      "exitCode": 0,
+      "tests": 13,
+      "passed": 13,
+      "failed": 0,
+      "expectedTests": 13,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:inclusive-onboarding",
+      "exitCode": 0,
+      "tests": 27,
+      "passed": 27,
+      "failed": 0,
+      "expectedTests": 27,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:education-campaigns",
+      "exitCode": 0,
+      "tests": 12,
+      "passed": 12,
+      "failed": 0,
+      "expectedTests": 12,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:edufinance",
+      "exitCode": 0,
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "expectedTests": 16,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:retirement-support",
+      "exitCode": 0,
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "expectedTests": 16,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:performance-contract",
+      "exitCode": 0,
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "expectedTests": 8,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:navigation-groups",
+      "exitCode": 0,
+      "tests": 15,
+      "passed": 15,
+      "failed": 0,
+      "expectedTests": 15,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:document-malware-scan",
+      "exitCode": 0,
+      "tests": 4,
+      "passed": 4,
+      "failed": 0,
+      "expectedTests": 4,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:organization",
+      "exitCode": 0,
+      "tests": 4,
+      "passed": 4,
+      "failed": 0,
+      "expectedTests": 4,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:institutional-leads",
+      "exitCode": 0,
+      "tests": 9,
+      "passed": 9,
+      "failed": 0,
+      "expectedTests": 9,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run test:financial:product-rules",
+      "exitCode": 0,
+      "tests": 5,
+      "passed": 5,
+      "failed": 0,
+      "expectedTests": 5,
+      "status": "PASS"
+    }
+  ],
+  "nativeTests": {
+    "expected": 159,
+    "passed": 159,
+    "failed": 0,
+    "allPass": true
+  },
+  "staticChecks": [
+    {
+      "command": "npm run check:runtime",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "tail": [
+        "",
+        "TITech supported runtime gate: BLOCKED",
+        "Observed Node: 22.16.0; observed npm: 10.9.2",
+        "Required Node: >=24.15.0; required npm: >=11.0.0",
+        "BLOCKER: Node 22.16.0 is below required >=24.15.0.",
+        "BLOCKER: npm 10.9.2 is below required >=11.0.0."
+      ]
+    },
+    {
+      "command": "npm run audit:theme",
+      "exitCode": 0,
+      "status": "PASS",
+      "tail": [
+        "      \"id\": \"chart-fallback-colors\",",
+        "      \"status\": \"PASS\",",
+        "      \"message\": \"Chart components resolve colors through the centralized TITech theme contract rather than hard-coded fallback literals.\"",
+        "    }",
+        "  ]",
+        "}"
+      ]
+    },
+    {
+      "command": "npm run audit:organization",
+      "exitCode": 0,
+      "status": "PASS",
+      "tail": [
+        "      \"name\": \"nine-color official theme remains consistent\",",
+        "      \"status\": \"PASS\",",
+        "      \"detail\": \"\"",
+        "    }",
+        "  ]",
+        "}"
+      ]
+    },
+    {
+      "command": "npm run check:runtime-imports",
+      "exitCode": 0,
+      "status": "PASS_WITH_WARNINGS",
+      "tail": [
+        "Missing local imports: 208",
+        "Missing local imports on canonical financial surface: 0",
+        "Mixed-module violations on canonical financial surface: 0",
+        "Report: reports/runtime-import-audit.json",
+        "WARN: 208 legacy/non-critical missing local imports require later consolidation.",
+        "Runtime import audit: PASS for canonical financial surface."
+      ],
+      "warning": "208 legacy/non-critical missing local imports; 0 on canonical financial surface"
+    },
+    {
+      "command": "npm run audit:frontend-runtime",
+      "exitCode": 0,
+      "status": "PASS_WITH_WARNINGS",
+      "tail": [
+        "      \"evidence\": [",
+        "        \"frontend/dist\"",
+        "      ]",
+        "    }",
+        "  ]",
+        "}"
+      ],
+      "warning": "frontend/dist absent in supplied snapshot; build/runtime not verified"
+    },
+    {
+      "command": "npm run rbac:gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "tail": [
+        "> titech-community-capital@1.0.0 rbac:gate",
+        "> node scripts/rbac-security-gate.mjs",
+        "",
+        "RBAC security gate: PASS"
+      ]
+    },
+    {
+      "command": "npm run check:financial",
+      "exitCode": 0,
+      "status": "PASS",
+      "tail": [
+        "> titech-community-capital@1.0.0 check:financial",
+        "> node scripts/financial-static-gate.mjs",
+        "",
+        "Financial static gate: PASS (12 canonical files checked)."
+      ]
+    },
+    {
+      "command": "npm run titech:critical-gates",
+      "exitCode": 0,
+      "status": "BLOCKED_RELEASE_GATES_OPEN",
+      "tail": [
+        "> node scripts/titech-critical-gates.mjs",
+        "",
+        "TITech critical-gate contract: PASS",
+        "Release status: BLOCKED",
+        "productionApproved: false",
+        "Open blocking gates: P0_RUNTIME_INSTALL, P0_BOOTSTRAP_HEALTH, P0_LEDGER_REPLAY, P0_PROVIDER_FAILURES, P0_TENANT_PERMISSIONS, P1_SECURITY_RECOVERY, P1_REGULATORY_PARTNER, P1_COMMERCIAL_PILOT"
+      ],
+      "contractStatus": "PASS",
+      "releaseStatus": "BLOCKED",
+      "productionApproved": false
+    },
+    {
+      "command": "npm run titech:implementation-gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "tail": [
+        "    \"canonicalBootstrap\": \"backend/bootstrap/app.js re-exports ApplicationBootstrap.js\",",
+        "    \"bootstrapCompatibility\": \"legacy imports are isolated behind explicit createRequire boundaries\",",
+        "    \"officialTheme\": \"all nine canonical palette values are present in the brand contract\"",
+        "  },",
+        "  \"failures\": []",
+        "}"
+      ]
+    },
+    {
+      "command": "npm run titech:hosting-gate",
+      "exitCode": 0,
+      "status": "PASS",
+      "tail": [
+        "      \"id\": \"edge-security\",",
+        "      \"status\": \"PASS\",",
+        "      \"message\": \"Production edge configuration contains HTTPS, API, websocket and browser security controls.\"",
+        "    }",
+        "  ]",
+        "}"
+      ]
+    },
+    {
+      "command": "npm run validate:syntax",
+      "exitCode": 0,
+      "status": "PASS",
+      "tail": [
+        "Syntax gate: PASS (2531 executable JS/TS-family files parsed).",
+        "",
+        "Warnings:",
+        "- Local runtime is Node 22.16.0; repository gate targets Node 24.15.x.",
+        "",
+        "Enterprise gate: PASS"
+      ],
+      "warning": "Syntax gate passed 2,531 source files with an explicit below-baseline runtime warning."
+    }
+  ],
+  "releaseGate": {
+    "productionApproved": false,
+    "openBlockers": [
+      "P0_RUNTIME_INSTALL",
+      "P0_BOOTSTRAP_HEALTH",
+      "P0_LEDGER_REPLAY",
+      "P0_PROVIDER_FAILURES",
+      "P0_TENANT_PERMISSIONS",
+      "P1_SECURITY_RECOVERY",
+      "P1_REGULATORY_PARTNER",
+      "P1_COMMERCIAL_PILOT"
+    ]
+  },
+  "limitations": [
+    "No frontend or backend dependency installation/build was possible.",
+    "No backend runtime, MongoDB, Redis or browser E2E was executed.",
+    "The historical browser reference could not be reconstructed from supplied logs.",
+    "No live provider, partner, regulatory or legal approval was evidenced."
+  ],
+  "fileInventory": {
+    "modifiedFiles": [
+      "frontend/src/components/ui/ErrorBoundary.jsx",
+      "frontend/src/routes/AppRoutes.jsx",
+      "package.json",
+      "scripts/tests/navigation-routes-contract.test.mjs"
+    ],
+    "addedFiles": [
+      "docs/evidence/TITECH_EXECUTION_EVIDENCE_2026-11-11.json",
+      "docs/remediation/PLATFORM_API_DEPENDENCY_MATRIX.md",
+      "docs/remediation/PLATFORM_E2E_TEST_REPORT.md",
+      "docs/remediation/PLATFORM_FILE_CHANGE_DISCOVERY.md",
+      "docs/remediation/PLATFORM_PRODUCTION_READINESS_REPORT.md",
+      "docs/remediation/PLATFORM_ROUTE_COVERAGE_MATRIX.md",
+      "docs/remediation/PLATFORM_RUNTIME_ROOT_CAUSE_REPORT.md",
+      "docs/remediation/PLATFORM_SECURITY_REGRESSION_REPORT.md",
+      "docs/runbooks/BACKEND_API_RECOVERY.md",
+      "docs/runbooks/FRONTEND_APPLICATION_RECOVERY.md",
+      "docs/runbooks/ROUTE_AND_CHUNK_FAILURE_RECOVERY.md",
+      "scripts/tests/error-boundary-privacy-contract.test.mjs"
+    ],
+    "removedFiles": []
+  }
+}

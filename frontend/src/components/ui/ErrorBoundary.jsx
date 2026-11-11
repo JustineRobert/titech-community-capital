@@ -97,6 +97,22 @@ function getErrorStack(error) {
   );
 }
 
+function getSafePageLocation() {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  try {
+    const current = new URL(window.location.href);
+    // Query strings and fragments can contain one-time reset codes, invitation
+    // tokens or other sensitive values. They are not needed for route-level
+    // diagnostics and must not be copied into sessionStorage or telemetry.
+    return `${current.origin}${current.pathname}`;
+  } catch {
+    return '';
+  }
+}
+
 function buildErrorContext(
   error,
   errorInfo,
@@ -119,11 +135,7 @@ function buildErrorContext(
     timestamp:
       new Date().toISOString(),
 
-    url:
-      typeof window !==
-        "undefined"
-        ? window.location.href
-        : "",
+    url: getSafePageLocation(),
 
     userAgent:
       typeof navigator !==

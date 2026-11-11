@@ -176,7 +176,7 @@
     "db:indexes:edufinance": "npm --prefix backend run index:create:edufinance",
     "check:ussd": "node scripts/ussd-contract-gate.mjs",
     "test:ussd": "node --test backend/modules/ussd/tests/*.test.mjs",
-    "test:navigation-groups": "node --test scripts/tests/navigation-registry-contract.test.mjs scripts/tests/navigation-routes-contract.test.mjs scripts/tests/group-management-ui-contract.test.mjs backend/tests/unit/groups/group-membership-requests-contract.test.mjs",
+    "test:navigation-groups": "node --test scripts/tests/navigation-registry-contract.test.mjs scripts/tests/navigation-routes-contract.test.mjs scripts/tests/group-management-ui-contract.test.mjs backend/tests/unit/groups/group-membership-requests-contract.test.mjs scripts/tests/error-boundary-privacy-contract.test.mjs",
     "check:faith-giving": "node scripts/faith-giving-contract-gate.mjs",
     "test:faith-giving": "node --test backend/modules/faith-community-giving/faithGiving.policy.test.js",
     "db:indexes:faith-giving": "npm --prefix backend run index:create:faith-giving"
