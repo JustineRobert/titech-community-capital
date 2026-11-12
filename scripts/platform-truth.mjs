@@ -29,6 +29,7 @@ const GENERATED_REPORT_PATHS = new Set([
   'reports/runtime-import-audit.json',
   'reports/release-readiness.json',
   'reports/test-discovery-audit.json',
+  'docs/evidence/2026-11-12-commercial-billing-remediation/platform-truth-generation.log',
 ]);
 
 function rel(file) {
@@ -163,6 +164,8 @@ const testDiscoveryRun = runNodeScript('scripts/test-discovery-audit.mjs', ['--j
 const releaseAuditRun = runNodeScript('scripts/release-readiness-gate.mjs', ['--audit']);
 const ussdContractRun = runNodeScript('scripts/ussd-contract-gate.mjs');
 const ussdUnitRun = runNodeScript('backend/modules/ussd/tests/ussd-contract.test.mjs');
+const commercialCoreRun = runNodeScript('scripts/commercial-billing-core-gate.mjs');
+const commercialCoreTestsRun = runNodeScript('scripts/run-commercial-core-tests.mjs');
 
 const runtimeImports = readJsonIfPresent('reports/runtime-import-audit.json') ?? {};
 const testDiscovery = readJsonIfPresent('reports/test-discovery-audit.json') ?? {};
@@ -202,6 +205,8 @@ const sourceVerified = {
   officialTheme: theme.status ?? themeRun.status,
   ussdContract: ussdContractRun.status,
   ussdUnitTests: ussdUnitRun.status,
+  commercialBillingCoreStatic: commercialCoreRun.status,
+  commercialBillingCoreUnitTests: commercialCoreTestsRun.status,
   releaseAudit: release.status ?? releaseAuditRun.status,
 };
 
@@ -233,6 +238,7 @@ const truth = {
     unresolvedRelativeImportsOrRequires: unresolvedLocalImports.length,
     criticalMissingImports: criticalMissing.length,
     legacyMissingImportPaths: unresolvedLocalImports.filter((item) => !item.critical).length,
+    zeroByteCommercialFiles: zeroByteFiles.filter((file) => file.startsWith('backend/commercial/')).length,
     duplicateImplementationSignals: [
       ['backend/app.js', 'backend/app.cjs'],
       ['backend/PRODUCTION_IMPLEMENTATION_v2.js'],
@@ -241,6 +247,15 @@ const truth = {
   },
   modules: moduleCounts,
   sourceVerified,
+  commercialBilling: {
+    status: commercialCoreRun.status === 'PASS' && commercialCoreTestsRun.status === 'PASS' ? 'UNIT_TESTED_FOUNDATION' : 'INCOMPLETE',
+    staticGate: commercialCoreRun.status,
+    focusedUnitTests: commercialCoreTestsRun.status,
+    zeroByteCommercialFiles: zeroByteFiles.filter((file) => file.startsWith('backend/commercial/')).length,
+    invoiceSubscriptionCollectionProviderLedgerSettlementReconciliationEntitlements: 'INCOMPLETE_OR_UNVERIFIED',
+    canonicalFinancialCoreAdapter: 'DEFINED_BUT_NOT_WIRED_TO_RUNTIME',
+    productionApproved: false,
+  },
   financial: {
     staticCanonicalGate: financialRun.status,
     canonicalInvariantFailures: null,

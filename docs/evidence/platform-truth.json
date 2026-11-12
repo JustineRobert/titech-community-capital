@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-07T19:05:21.699Z",
+  "generatedAt": "2026-11-12T07:12:22.318Z",
   "repositoryUrl": "https://github.com/JustineRobert/titech-community-capital",
-  "organization": "TITech Capital LTD",
+  "organization": "TITech Capital SMC LTD",
   "product": "TITech Community Capital",
   "tagline": "BUILD LESS. PROVE MORE.",
   "branch": "UNAVAILABLE_IN_ARCHIVE",
   "commit": "UNAVAILABLE_IN_ARCHIVE",
-  "sourceSnapshotSha256": "2ca36239c6dbd20dc2bbca3edbd5a78f63b4763df9fde7e6c90b67932502dc31",
+  "sourceSnapshotSha256": "106f96625d7f3a707cda6788ea063638b4fbfbc951443ddc46a4362d60e20071",
   "runtime": {
     "requiredNode": "24.15.0",
     "requiredNpm": "11.x",
@@ -15,22 +15,15 @@
     "localRuntimeMeetsTarget": false
   },
   "repository": {
-    "totalFiles": 3558,
-    "sourceFiles": 2495,
-    "zeroByteFiles": 248,
+    "totalFiles": 3684,
+    "sourceFiles": 2540,
+    "zeroByteFiles": 232,
     "zeroBytePaths": [
       "backend/application/MiddlewareRegistrar.js",
       "backend/application/index.js",
       "backend/commercial/bridges/canonicalBillingRepository.bridge.js",
       "backend/commercial/config/billingCutover.config.js",
       "backend/commercial/config/billingRuntime.js",
-      "backend/commercial/constants/transactionRevenue.constants.js",
-      "backend/commercial/errors/transactionRevenue.errors.js",
-      "backend/commercial/events/transactionRevenue.events.js",
-      "backend/commercial/financial/billingFinancialCore.port.js",
-      "backend/commercial/financial/titechFinancialCore.adapter.js",
-      "backend/commercial/models/FeeAssessment.js",
-      "backend/commercial/models/FeeRule.js",
       "backend/commercial/models/RevenueEntry.js",
       "backend/commercial/models/RevenueSettlement.js",
       "backend/commercial/models/billingPlan.model.js",
@@ -39,26 +32,17 @@
       "backend/commercial/models/invoiceItem.model.js",
       "backend/commercial/models/subscription.model.js",
       "backend/commercial/models/subscriptionItem.model.js",
-      "backend/commercial/models/usageRecord.model.js",
       "backend/commercial/repositories/billingRepository.js",
-      "backend/commercial/repositories/feeAssessment.repository.js",
-      "backend/commercial/repositories/feeRule.repository.js",
-      "backend/commercial/repositories/index.js",
       "backend/commercial/repositories/revenueEntry.repository.js",
       "backend/commercial/repositories/revenueSettlement.repository.js",
       "backend/commercial/services/billing/billingInvoice.service.js",
-      "backend/commercial/services/billing/decimalMoney.js",
       "backend/commercial/services/billing/saasBilling.service.js",
       "backend/commercial/services/saas/billingPlan.service.js",
       "backend/commercial/services/saas/index.js",
       "backend/commercial/services/saas/subscription.service.js",
-      "backend/commercial/services/transactionRevenue/feeAssessment.service.js",
-      "backend/commercial/services/transactionRevenue/feeCalculation.service.js",
-      "backend/commercial/services/transactionRevenue/feeRule.service.js",
       "backend/commercial/services/transactionRevenue/revenueEntry.service.js",
       "backend/commercial/services/transactionRevenue/revenueReversal.service.js",
       "backend/commercial/services/transactionRevenue/settlement.service.js",
-      "backend/commercial/services/transactionRevenue/transactionRevenue.service.js",
       "backend/docs/commercial/BILLING_CONSOLIDATION.md",
       "backend/docs/commercial/STAGE_01C_CUTOVER_RUNBOOK.md",
       "backend/integrations/airtel/airtel.constants.js",
@@ -268,7 +252,7 @@
       "frontend/src/ui/uiSlice.js",
       "postman/reports/.gitkeep"
     ],
-    "testFilesObserved": 292,
+    "testFilesObserved": 313,
     "emptyTestFiles": 26,
     "blockingEmptyTestFiles": [],
     "legacyEmptyTestFiles": [
@@ -302,6 +286,7 @@
     "unresolvedRelativeImportsOrRequires": 208,
     "criticalMissingImports": 0,
     "legacyMissingImportPaths": 208,
+    "zeroByteCommercialFiles": 22,
     "duplicateImplementationSignals": [
       [
         "backend/app.js",
@@ -317,10 +302,10 @@
     ]
   },
   "modules": {
-    "esm": 778,
-    "cjs": 1396,
-    "mixedBoundaryFiles": 71,
-    "neutral": 250
+    "esm": 837,
+    "cjs": 1397,
+    "mixedBoundaryFiles": 72,
+    "neutral": 234
   },
   "sourceVerified": {
     "syntax": "PASS",
@@ -331,7 +316,18 @@
     "officialTheme": "PASS",
     "ussdContract": "PASS",
     "ussdUnitTests": "PASS",
+    "commercialBillingCoreStatic": "PASS",
+    "commercialBillingCoreUnitTests": "PASS",
     "releaseAudit": "PASS"
+  },
+  "commercialBilling": {
+    "status": "UNIT_TESTED_FOUNDATION",
+    "staticGate": "PASS",
+    "focusedUnitTests": "PASS",
+    "zeroByteCommercialFiles": 22,
+    "invoiceSubscriptionCollectionProviderLedgerSettlementReconciliationEntitlements": "INCOMPLETE_OR_UNVERIFIED",
+    "canonicalFinancialCoreAdapter": "DEFINED_BUT_NOT_WIRED_TO_RUNTIME",
+    "productionApproved": false
   },
   "financial": {
     "staticCanonicalGate": "PASS",
@@ -377,7 +373,7 @@
       "light",
       "dark"
     ],
-    "cssFilesScanned": 68,
+    "cssFilesScanned": 71,
     "hardcodedOfficialCssOccurrences": 0,
     "inlineScriptOfficialColorOccurrences": 0
   },

@@ -1,0 +1,184 @@
+TAP version 13
+# Subtest: persists an immutable pricing snapshot and fee assessment
+ok 1 - persists an immutable pricing snapshot and fee assessment
+  ---
+  duration_ms: 2.802618
+  type: 'test'
+  ...
+# Subtest: repeated source event returns the existing assessment without a second record
+ok 2 - repeated source event returns the existing assessment without a second record
+  ---
+  duration_ms: 0.476078
+  type: 'test'
+  ...
+# Subtest: same tenant idempotency key cannot be reused for different billable inputs
+ok 3 - same tenant idempotency key cannot be reused for different billable inputs
+  ---
+  duration_ms: 0.904655
+  type: 'test'
+  ...
+# Subtest: requires a complete, auditable billable event
+ok 4 - requires a complete, auditable billable event
+  ---
+  duration_ms: 0.461566
+  type: 'test'
+  ...
+# Subtest: fixed fee uses integer UGX minor units and returns a reproducible pricing reference
+ok 5 - fixed fee uses integer UGX minor units and returns a reproducible pricing reference
+  ---
+  duration_ms: 1.626474
+  type: 'test'
+  ...
+# Subtest: percentage fee uses basis points and HALF_UP integer rounding
+ok 6 - percentage fee uses basis points and HALF_UP integer rounding
+  ---
+  duration_ms: 0.421536
+  type: 'test'
+  ...
+# Subtest: fixed plus percentage fee applies approved minimum and maximum caps
+ok 7 - fixed plus percentage fee applies approved minimum and maximum caps
+  ---
+  duration_ms: 0.151949
+  type: 'test'
+  ...
+# Subtest: progressive tiered pricing computes each band and rounds once
+ok 8 - progressive tiered pricing computes each band and rounds once
+  ---
+  duration_ms: 0.541637
+  type: 'test'
+  ...
+# Subtest: progressive tier fixed components apply only to tiers actually used
+ok 9 - progressive tier fixed components apply only to tiers actually used
+  ---
+  duration_ms: 0.188704
+  type: 'test'
+  ...
+# Subtest: whole-volume tiered pricing selects the first matching published tier
+ok 10 - whole-volume tiered pricing selects the first matching published tier
+  ---
+  duration_ms: 0.279572
+  type: 'test'
+  ...
+# Subtest: unapproved, future, expired and cross-currency rules fail closed
+ok 11 - unapproved, future, expired and cross-currency rules fail closed
+  ---
+  duration_ms: 0.561567
+  type: 'test'
+  ...
+# Subtest: missing or unsupported pricing never silently becomes a zero fee
+ok 12 - missing or unsupported pricing never silently becomes a zero fee
+  ---
+  duration_ms: 0.231209
+  type: 'test'
+  ...
+# Subtest: monetary inputs reject fractional or unsafe floating-point values
+ok 13 - monetary inputs reject fractional or unsafe floating-point values
+  ---
+  duration_ms: 0.433173
+  type: 'test'
+  ...
+# Subtest: resolves an exact contract rule ahead of a generic tenant rule
+ok 14 - resolves an exact contract rule ahead of a generic tenant rule
+  ---
+  duration_ms: 1.468906
+  type: 'test'
+  ...
+# Subtest: rejects absent, pending and expired rules rather than defaulting to free
+ok 15 - rejects absent, pending and expired rules rather than defaulting to free
+  ---
+  duration_ms: 0.892927
+  type: 'test'
+  ...
+# Subtest: rejects cross-tenant candidates returned by a defective repository
+ok 16 - rejects cross-tenant candidates returned by a defective repository
+  ---
+  duration_ms: 0.308625
+  type: 'test'
+  ...
+# Subtest: rejects equal-precedence overlapping rules as ambiguous
+ok 17 - rejects equal-precedence overlapping rules as ambiguous
+  ---
+  duration_ms: 0.358931
+  type: 'test'
+  ...
+# Subtest: approval requires RBAC, a distinct checker and an atomic draft transition
+ok 18 - approval requires RBAC, a distinct checker and an atomic draft transition
+  ---
+  duration_ms: 0.810232
+  type: 'test'
+  ...
+# Subtest: rule approval fails closed when RBAC has not been wired
+ok 19 - rule approval fails closed when RBAC has not been wired
+  ---
+  duration_ms: 0.275445
+  type: 'test'
+  ...
+# Subtest: adapter delegates posting to the injected canonical financial core and requires an ID
+ok 20 - adapter delegates posting to the injected canonical financial core and requires an ID
+  ---
+  duration_ms: 0.899697
+  type: 'test'
+  ...
+# Subtest: adapter fails closed without canonical posting injection or Mongo session
+ok 21 - adapter fails closed without canonical posting injection or Mongo session
+  ---
+  duration_ms: 0.482117
+  type: 'test'
+  ...
+# Subtest: adapter rejects tenant mismatch and missing financial transaction IDs
+ok 22 - adapter rejects tenant mismatch and missing financial transaction IDs
+  ---
+  duration_ms: 0.319411
+  type: 'test'
+  ...
+# Subtest: successful billable usage produces one assessment linked to a durable usage record
+ok 23 - successful billable usage produces one assessment linked to a durable usage record
+  ---
+  duration_ms: 2.133439
+  type: 'test'
+  ...
+# Subtest: included and non-billable services are explicitly recorded without a fee assessment
+ok 24 - included and non-billable services are explicitly recorded without a fee assessment
+  ---
+  duration_ms: 0.37115
+  type: 'test'
+  ...
+# Subtest: unpriced and pending approval services are retained as blocked, never silently free
+ok 25 - unpriced and pending approval services are retained as blocked, never silently free
+  ---
+  duration_ms: 0.261444
+  type: 'test'
+  ...
+# Subtest: an unauthorised module cannot publish usage for assessment
+ok 26 - an unauthorised module cannot publish usage for assessment
+  ---
+  duration_ms: 0.598012
+  type: 'test'
+  ...
+# Subtest: replayed usage event does not create a duplicate assessment
+ok 27 - replayed usage event does not create a duplicate assessment
+  ---
+  duration_ms: 0.325931
+  type: 'test'
+  ...
+# Subtest: failed events are not charged unless the resolved contract explicitly permits them
+ok 28 - failed events are not charged unless the resolved contract explicitly permits them
+  ---
+  duration_ms: 1.081872
+  type: 'test'
+  ...
+# Subtest: a replay recovers a usage record left in RECORDED after an interrupted worker
+ok 29 - a replay recovers a usage record left in RECORDED after an interrupted worker
+  ---
+  duration_ms: 0.962732
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 300.252593

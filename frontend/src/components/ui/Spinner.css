@@ -1,0 +1,73 @@
+
+/* TITech Community Capital shared loading indicator */
+
+.titech-spinner {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    vertical-align: middle;
+    color: var(--titech-primary, #0058D8);
+}
+
+.titech-spinner__ring {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: 0 0 auto;
+
+    border: 2.5px solid rgba(0, 88, 216, 0.18);
+    border-top-color: #0058D8;
+    border-right-color: #0058D8;
+
+    border-radius: 50%;
+
+    animation: titech-spinner-rotate 0.75s linear infinite;
+}
+
+.titech-spinner--sm .titech-spinner__ring {
+    width: 1rem;
+    height: 1rem;
+    border-width: 2px;
+}
+
+.titech-spinner--md .titech-spinner__ring {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.titech-spinner--lg .titech-spinner__ring {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-width: 3px;
+}
+
+.titech-spinner__label {
+    color: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.titech-spinner__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@keyframes titech-spinner-rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .titech-spinner__ring {
+        animation: none;
+    }
+}

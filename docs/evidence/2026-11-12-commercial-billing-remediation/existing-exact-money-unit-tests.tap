@@ -1,0 +1,95 @@
+TAP version 13
+# Subtest: normalizeDecimal canonicalizes integer and fractional values
+ok 1 - normalizeDecimal canonicalizes integer and fractional values
+  ---
+  duration_ms: 2.04786
+  type: 'test'
+  ...
+# Subtest: compare handles positive and negative decimals without floating point
+ok 2 - compare handles positive and negative decimals without floating point
+  ---
+  duration_ms: 0.375376
+  type: 'test'
+  ...
+# Subtest: zero normalization remains sign-stable
+ok 3 - zero normalization remains sign-stable
+  ---
+  duration_ms: 0.112209
+  type: 'test'
+  ...
+# Subtest: normalizes exact decimal strings into canonical representations
+ok 4 - normalizes exact decimal strings into canonical representations
+  ---
+  duration_ms: 2.149283
+  type: 'test'
+  ...
+# Subtest: normalization is idempotent for canonical decimal values
+ok 5 - normalization is idempotent for canonical decimal values
+  ---
+  duration_ms: 0.269837
+  type: 'test'
+  ...
+# Subtest: adds decimal strings exactly without floating-point arithmetic
+ok 6 - adds decimal strings exactly without floating-point arithmetic
+  ---
+  duration_ms: 0.674258
+  type: 'test'
+  ...
+# Subtest: subtracts decimal strings exactly with correct borrowing
+ok 7 - subtracts decimal strings exactly with correct borrowing
+  ---
+  duration_ms: 0.268606
+  type: 'test'
+  ...
+# Subtest: compares monetary values exactly across equivalent decimal formats
+ok 8 - compares monetary values exactly across equivalent decimal formats
+  ---
+  duration_ms: 0.40408
+  type: 'test'
+  ...
+# Subtest: comparison is consistent when operand order is reversed
+ok 9 - comparison is consistent when operand order is reversed
+  ---
+  duration_ms: 0.303338
+  type: 'test'
+  ...
+# Subtest: positive and zero predicates handle normalized decimal values
+ok 10 - positive and zero predicates handle normalized decimal values
+  ---
+  duration_ms: 0.332873
+  type: 'test'
+  ...
+# Subtest: assertDecimal rejects malformed, negative and scientific-notation strings
+ok 11 - assertDecimal rejects malformed, negative and scientific-notation strings
+  ---
+  duration_ms: 0.405001
+  type: 'test'
+  ...
+# Subtest: assertDecimal rejects JavaScript floating-point input
+ok 12 - assertDecimal rejects JavaScript floating-point input
+  ---
+  duration_ms: 0.412963
+  type: 'test'
+  ...
+# Subtest: arithmetic functions validate their operands
+ok 13 - arithmetic functions validate their operands
+  ---
+  duration_ms: 0.394435
+  type: 'test'
+  ...
+# Subtest: arithmetic functions reject JavaScript numeric operands
+ok 14 - arithmetic functions reject JavaScript numeric operands
+  ---
+  duration_ms: 0.31189
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 156.329287
+exit=0

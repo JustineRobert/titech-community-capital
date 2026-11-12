@@ -1,6 +1,6 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 10 November 2026  
+**As of:** 12 November 2026  
 **Organization:** TITech Capital SMC LTD  
 **Product:** TITech Community Capital  
 **Engineering principle:** BUILD LESS. PROVE MORE.  
@@ -9,6 +9,18 @@
 **`productionApproved`: `false`**
 
 This root-level document is an index to the current machine-generated evidence and the detailed historical/platform narrative. It is not a substitute for running the gates against the precise commit or deployment being assessed.
+
+## 12 November 2026 — commercial billing foundation remediation
+
+The 12 November archive-local workstream added the first isolated authoritative commercial-pricing, usage-metering and fee-assessment foundation. It populated 16 previously zero-byte files under `backend/commercial`, added two new domain files, five focused Node unit-test files, repeatable root test/static-gate commands, and evidence documentation. The implementation uses integer minor-unit `BigInt` pricing, approved/effective versioned fee rules, tenant-scoped usage/assessment persistence contracts, source-event idempotency, immutable price snapshots and an injected adapter boundary to the existing canonical financial core.
+
+The focused commercial-core suite passes 29/29 unit tests; an additional 14 existing exact-money utility tests pass; and 21 changed or new JavaScript files passed `node --check`. The new commercial static gate passes. Existing financial static, enterprise-control-plane, theme and organization gates pass. The runtime import audit scans 2,077 backend files and still reports 208 non-critical/legacy missing imports outside the canonical financial surface (zero missing there). The supported runtime gate remains blocked by Node 22.16.0/npm 10.9.2 versus required Node >=24.15.0/npm >=11.
+
+**This is not an end-to-end commercial billing release.** Twenty-two zero-byte files remain under `backend/commercial`. Invoice/credit-note, subscription, collection, provider verification, canonical revenue posting, reversal, provider settlement, reconciliation, entitlement enforcement, full product-service event adoption, billing UI and database/Redis/provider E2E integration remain incomplete or unverified. The adapter is not wired to a live canonical posting service. No customer, provider, accounting, legal, regulator or partner evidence was created. Full builds, backend/frontend startup, replica-set integration, Redis-backed jobs, provider sandbox/live settlement, browser E2E, security assessment and recovery drills were not run.
+
+Source artifact: supplied ZIP comment identifies snapshot `33efc14731788c800b23d0e12ab8393a706ce613`; no `.git` metadata is present. The original archive was not overwritten; no commit, push or deployment was performed. The official nine-colour theme and circular logo were preserved, and the theme audit passed with 71 non-brand CSS files using central tokens and zero hard-coded official palette literals. Organization remains TITech Capital SMC LTD; product remains TITech Community Capital. `productionApproved=false`.
+
+See [`docs/commercial/AUTHORITATIVE_COMMERCIAL_BILLING_CORE.md`](docs/commercial/AUTHORITATIVE_COMMERCIAL_BILLING_CORE.md), [`docs/evidence/2026-11-12-commercial-billing-remediation/EXECUTION_REPORT.md`](docs/evidence/2026-11-12-commercial-billing-remediation/EXECUTION_REPORT.md), [`CHANGESET.md`](docs/evidence/2026-11-12-commercial-billing-remediation/CHANGESET.md) and [`SERVICE_INTEGRATION_MATRIX.md`](docs/evidence/2026-11-12-commercial-billing-remediation/SERVICE_INTEGRATION_MATRIX.md). This is an archive-local update, not a GitHub push or production deployment.
 
 ## Authoritative evidence
 

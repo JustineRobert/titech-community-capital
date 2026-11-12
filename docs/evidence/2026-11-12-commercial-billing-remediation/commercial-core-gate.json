@@ -1,0 +1,94 @@
+{
+  "gate": "commercial-billing-core",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "required file: backend/commercial/constants/transactionRevenue.constants.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/errors/transactionRevenue.errors.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/events/transactionRevenue.events.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/models/FeeRule.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/models/FeeAssessment.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/models/usageRecord.model.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/repositories/feeRule.repository.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/repositories/feeAssessment.repository.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/repositories/usageRecord.repository.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/financial/billingFinancialCore.port.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/financial/titechFinancialCore.adapter.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/services/transactionRevenue/feeCalculation.service.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/services/transactionRevenue/feeRule.service.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/services/transactionRevenue/feeAssessment.service.js",
+      "status": "PASS"
+    },
+    {
+      "name": "required file: backend/commercial/services/transactionRevenue/transactionRevenue.service.js",
+      "status": "PASS"
+    },
+    {
+      "name": "fee calculator uses BigInt exact arithmetic",
+      "status": "PASS"
+    },
+    {
+      "name": "missing pricing fails closed",
+      "status": "PASS"
+    },
+    {
+      "name": "assessment has idempotency and immutable pricing snapshot",
+      "status": "PASS"
+    },
+    {
+      "name": "financial adapter requires canonical posting injection and active transaction",
+      "status": "PASS"
+    },
+    {
+      "name": "official organization identity preserved",
+      "status": "PASS"
+    },
+    {
+      "name": "production approval remains false",
+      "status": "PASS"
+    },
+    {
+      "name": "official nine-color brand manifest retained",
+      "status": "PASS"
+    }
+  ]
+}

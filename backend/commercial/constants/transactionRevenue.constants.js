@@ -1,0 +1,76 @@
+/**
+ * TITech Community Capital — transaction-revenue domain constants.
+ * Monetary values in this domain are integer minor-unit strings.
+ */
+export const FEE_RULE_STATUS = Object.freeze({
+  DRAFT: 'DRAFT',
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  EXPIRED: 'EXPIRED',
+});
+
+export const FEE_APPROVAL_STATUS = Object.freeze({
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+});
+
+export const FEE_ASSESSMENT_STATUS = Object.freeze({
+  ASSESSED: 'ASSESSED',
+  INVOICED: 'INVOICED',
+  COLLECTION_PENDING: 'COLLECTION_PENDING',
+  PAID: 'PAID',
+  PARTIALLY_PAID: 'PARTIALLY_PAID',
+  WAIVED: 'WAIVED',
+  EXEMPTED: 'EXEMPTED',
+  CANCELLED: 'CANCELLED',
+  REVERSED: 'REVERSED',
+  REFUNDED: 'REFUNDED',
+  DISPUTED: 'DISPUTED',
+});
+
+export const PRICING_ROUNDING = Object.freeze({
+  HALF_UP: 'HALF_UP',
+  DOWN: 'DOWN',
+});
+
+/** ISO 4217 minor-unit exponents for currencies currently listed by TITech. */
+export const CURRENCY_MINOR_UNITS = Object.freeze({
+  UGX: 0,
+  USD: 2,
+  KES: 2,
+  TZS: 2,
+  RWF: 0,
+  NGN: 2,
+  ZAR: 2,
+});
+
+export const BASIS_POINTS_DENOMINATOR = 10_000n;
+
+export const COMMERCIAL_SERVICE_CLASSIFICATION = Object.freeze({
+  BILLABLE: 'BILLABLE',
+  INCLUDED_IN_PLAN: 'INCLUDED_IN_PLAN',
+  NON_BILLABLE: 'NON_BILLABLE',
+  SPONSORED: 'SPONSORED',
+  CONTRACT_BILLED: 'CONTRACT_BILLED',
+  FREE_TRIAL: 'FREE_TRIAL',
+  PENDING_COMMERCIAL_APPROVAL: 'PENDING_COMMERCIAL_APPROVAL',
+  UNPRICED: 'UNPRICED',
+  DISABLED: 'DISABLED',
+  RESTRICTED: 'RESTRICTED',
+});
+
+export const USAGE_EVENT_OUTCOME = Object.freeze({
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED',
+  PARTIALLY_SUCCEEDED: 'PARTIALLY_SUCCEEDED',
+  CANCELLED: 'CANCELLED',
+});
+
+export const USAGE_RECORD_STATUS = Object.freeze({
+  RECORDED: 'RECORDED',
+  ASSESSED: 'ASSESSED',
+  INCLUDED: 'INCLUDED',
+  NOT_BILLABLE: 'NOT_BILLABLE',
+  BLOCKED: 'BLOCKED',
+});

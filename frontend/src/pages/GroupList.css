@@ -1,0 +1,221 @@
+﻿/* ==========================================================
+   TITech Community Capital
+   Group List — Responsive Enterprise UI
+   Brand primary: #0058D8
+   ========================================================== */
+
+.group-list-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    min-height: 220px;
+    padding: 2rem;
+    color: #475569;
+    text-align: center;
+}
+
+/* Main page layout */
+
+.group-list-page {
+    width: 100%;
+    min-width: 0;
+    padding: clamp(1rem, 2.5vw, 2rem);
+    margin-inline: auto;
+    color: #172033;
+    background: #f8fafc;
+}
+
+.group-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.group-list-title {
+    margin: 0;
+    color: #172033;
+    font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+    font-weight: 750;
+    line-height: 1.3;
+}
+
+.group-list-description {
+    margin-top: 0.5rem;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+/* Search and filters */
+
+.group-list-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.group-list-search {
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
+.group-list-toolbar input,
+.group-list-toolbar select {
+    min-height: 42px;
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #172033;
+    font: inherit;
+}
+
+.group-list-toolbar input:focus,
+.group-list-toolbar select:focus {
+    outline: 2px solid rgba(0, 88, 216, 0.2);
+    border-color: #0058D8;
+}
+
+/* Group collection */
+
+.group-list-grid,
+.groups-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(min(100%, 280px), 1fr)
+    );
+    gap: 1.25rem;
+    width: 100%;
+}
+
+.group-list-card,
+.group-card {
+    min-width: 0;
+    padding: 1.25rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    transition:
+        transform 180ms ease,
+        box-shadow 180ms ease,
+        border-color 180ms ease;
+}
+
+.group-list-card:hover,
+.group-card:hover {
+    transform: translateY(-2px);
+    border-color: #bfdbfe;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+}
+
+/* Actions */
+
+.group-list-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.group-list-page button {
+    cursor: pointer;
+}
+
+.group-list-page button:focus-visible,
+.group-list-page a:focus-visible {
+    outline: 3px solid rgba(0, 88, 216, 0.35);
+    outline-offset: 3px;
+}
+
+.group-list-page .primary-button,
+.group-list-page .btn-primary {
+    background: #0058D8;
+    border-color: #0058D8;
+    color: #fff;
+}
+
+.group-list-page .primary-button:hover,
+.group-list-page .btn-primary:hover {
+    background: #0047b3;
+}
+
+/* Empty and error states */
+
+.group-list-empty,
+.group-list-error {
+    padding: 2rem 1.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    text-align: center;
+}
+
+.group-list-empty {
+    color: #64748b;
+}
+
+.group-list-error {
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+/* Pagination */
+
+.group-list-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1.5rem 0;
+}
+
+/* Smaller displays */
+
+@media (max-width: 768px) {
+    .group-list-page {
+        padding: 1rem;
+    }
+
+    .group-list-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .group-list-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .group-list-actions {
+        width: 100%;
+    }
+
+    .group-list-grid,
+    .groups-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Motion accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+    .group-list-card,
+    .group-card {
+        transition: none;
+    }
+
+    .group-list-card:hover,
+    .group-card:hover {
+        transform: none;
+    }
+}
