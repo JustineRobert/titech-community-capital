@@ -102,8 +102,10 @@ function toPledgeDTO(pledge) {
     id: String(pledge._id ?? pledge.id),
     publicReference: pledge.publicReference,
     campaignId: String(pledge.campaignId),
-    amountMinor: pledge.amountMinor,
-    currency: pledge.currency,
+    pledgeType: pledge.pledgeType || 'CASH',
+    amountMinor: pledge.amountMinor ?? null,
+    currency: pledge.currency ?? null,
+    items: (pledge.items || []).map((item) => ({ category: item.category, description: item.description, quantity: item.quantity, unit: item.unit, condition: item.condition, notes: item.notes || null })),
     contributorLabel: pledge.anonymous ? null : pledge.contributorLabel,
     anonymous: pledge.anonymous,
     status: pledge.status,
@@ -323,8 +325,10 @@ export async function createFaithGivingPledge(campaignId, payload = {}, idempote
   const campaignObjectId = validateObjectId(campaignId, 'campaign');
   const intentMatches = (pledge, input, ownedCampaignId) => (
     String(pledge.campaignId) === String(ownedCampaignId)
-    && pledge.amountMinor === input.amountMinor
-    && pledge.currency === input.currency
+    && (pledge.pledgeType || 'CASH') === input.pledgeType
+    && (pledge.amountMinor ?? null) === input.amountMinor
+    && (pledge.currency ?? null) === input.currency
+    && JSON.stringify(pledge.items || []) === JSON.stringify(input.items || [])
     && pledge.anonymous === input.anonymous
     && (pledge.contributorLabel || null) === (input.contributorLabel || null)
   );
@@ -332,6 +336,7 @@ export async function createFaithGivingPledge(campaignId, payload = {}, idempote
     return await withAuditTransaction(async (session) => {
       const campaign = await findOwnedCampaign(ctx, campaignObjectId, session);
       assertCampaignIsCollectible(campaign);
+      await requireVerifiedPartnerForCommunityScope(campaign, ctx.tenantId, session);
       const input = validateFaithGivingPledgeInput(payload, campaign);
       const previous = await FaithGivingPledge.findOne({ tenantId: ctx.tenantId, idempotencyKey: key }).session(session);
       if (previous) {
@@ -348,7 +353,11 @@ export async function createFaithGivingPledge(campaignId, payload = {}, idempote
         createdBy: ctx.actorId,
       });
       await pledge.save({ session });
-      await writeAudit(ctx, 'FAITH_GIVING.PLEDGE_RECORDED', { campaignId: String(campaign._id), pledgeId: String(pledge._id), amountMinor: pledge.amountMinor, currency: pledge.currency, status: pledge.status }, session);
+      await writeAudit(ctx, 'FAITH_GIVING.PLEDGE_RECORDED', {
+        campaignId: String(campaign._id), pledgeId: String(pledge._id), pledgeType: pledge.pledgeType,
+        amountMinor: pledge.amountMinor ?? null, currency: pledge.currency ?? null,
+        itemCount: pledge.items?.length || 0, status: pledge.status,
+      }, session);
       return toPledgeDTO(pledge);
     });
   } catch (error) {
@@ -360,6 +369,14 @@ export async function createFaithGivingPledge(campaignId, payload = {}, idempote
     if (!intentMatches(existing, input, campaign._id)) throw domainError('Idempotency-Key was already used for a different pledge.', 'FAITH_GIVING_IDEMPOTENCY_CONFLICT', 409);
     return toPledgeDTO(existing);
   }
+}
+
+export async function createPublicFaithGivingPledge(publicReference, payload = {}, idempotencyKey, context = {}) {
+  const ctx = contextOf(context);
+  const reference = required(publicReference, 'publicReference', 64);
+  const campaign = await FaithGivingCampaign.findOne({ tenantId: ctx.tenantId, publicReference: reference, visibility: 'PUBLIC' }).select('_id').lean();
+  if (!campaign) throw domainError('The public campaign is not available for pledges within the signed-in institution.', 'FAITH_GIVING_CAMPAIGN_NOT_FOUND', 404);
+  return createFaithGivingPledge(String(campaign._id), payload, idempotencyKey, ctx);
 }
 
 export async function listFaithGivingPledges(campaignId, context = {}) {

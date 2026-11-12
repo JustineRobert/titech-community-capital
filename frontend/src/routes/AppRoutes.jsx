@@ -121,6 +121,7 @@ const ROUTES = Object.freeze({
   UBUNTU_FLOAT: '/ubuntu-float',
   PARTNER_SUPPORT: '/partner-support',
   EDUCATION_CAMPAIGN_MANAGER: '/education-support/manage',
+  DONATIONS: '/donations',
   FAITH_GIVING: '/faith-community-giving',
   FAITH_GIVING_MANAGE: '/faith-community-giving/manage',
 });
@@ -616,7 +617,8 @@ function ApplicationRouteTree() {
         <Route path={ROUTES.CHAT_WITH_TITECH} element={<GuidedChatPage />} />
         <Route path={ROUTES.EDUCATION_SUPPORT} element={<EducationSupportPage />} />
         <Route path={ROUTES.EDUFINANCE} element={<EduFinancePage />} />
-        <Route path={ROUTES.FAITH_GIVING} element={<FaithCommunityGivingPage />} />
+        <Route path={ROUTES.DONATIONS} element={<FaithCommunityGivingPage />} />
+        <Route path={ROUTES.FAITH_GIVING} element={<Navigate to={ROUTES.DONATIONS} replace />} />
       </Route>
 
       {/* ================================================================== */}

@@ -1,10 +1,10 @@
-# TITech Faith & Community Giving
+# TITech Donations & Community Giving
 
 **Organization:** TITech Capital SMC LTD  
 **Product:** TITech Community Capital  
-**Product division:** TITech Faith & Community Giving  
-**Tagline:** One Platform. Every Contribution. Full Accountability.  
-**Engineering principle:** BUILD LESS. PROVE MORE.
+**Product division:** TITech Donations & Community Giving  
+**Tagline:** BUILD LESS. PROVE MORE.  
+**Engineering principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
 
 ## Purpose
 
@@ -24,7 +24,10 @@ Initial campaign categories include church tithes and offerings, thanksgiving an
 | Audit | Mutations write the existing audit service in the same MongoDB transaction session |
 | Public campaign directory | Read-only allow-listed public DTO; excludes tenant/destination/partner evidence references and private budget reservation values |
 | Refugee/host scope | Submission/public display requires an existing verified partner profile and an approved humanitarian/community programme scope; individual campaign authorisation evidence and reviewer safeguarding attestation are also required |
-| Pledge records | Tenant-scoped, idempotency-key-protected commitments; a pledge is not money received or revenue |
+| Pledge records | Tenant-scoped, idempotency-key-protected cash commitments and in-kind item offers; neither is money received, goods delivered/accepted or revenue |
+| Donations directory | `/donations` with `/faith-community-giving` retained as a compatibility redirect |
+| Education donations | Scholastic materials, computers, textbooks, classroom equipment, furniture, construction, rehabilitation and accessibility categories |
+| Donor registration | Authenticated same-tenant cash pledges and in-kind offers only; public campaign browsing remains read-only |
 | Expense requests | Evidence-referenced requests with independent review; pending and approved requests reserve budget-line headroom transactionally; rejection releases the reservation |
 | Brand | Reuses central official theme tokens and the established circular TITech mark; all nine official colour roles are represented in the module |
 | Feature flag | `TITECH_FAITH_GIVING_ENABLED=false` by default |
@@ -35,10 +38,13 @@ Initial campaign categories include church tithes and offerings, thanksgiving an
 - No provider callback signature processing, provider outcome verification or settlement evidence.
 - No financial transaction creation, ledger posting, balance mutation, receipt issuance, refund, real disbursement or reconciliation is implemented here.
 - No automatic recurring payment mandate, QR/USSD collection or guest payment checkout.
+- Cash pledges are commitments only; they do not initiate payments, create financial transactions, post to the canonical ledger or update revenue/balances.
+- In-kind offers do not establish acceptance, custody, delivery, inspection, title transfer, inventory receipt or fulfilment.
+- Public donors outside the campaign institution's authenticated tenant cannot submit pledges in this release.
 - No fulfilment or payment conversion endpoint for pledges. Pledges remain separately classified commitment records.
 - An approved expense request is not a payment or an accounting expense posting. No payable settlement, proof-of-payment or vendor payment flow exists in this module.
 - There is no campaign closing financial statement. Closing a campaign changes its lifecycle state only; a verifiable closing statement needs the canonical financial event, ledger, settlement and reconciliation pipeline.
-- The present management UI covers campaign drafting, submission, review and lifecycle controls. Pledge and expense REST endpoints exist, but complete contributor/committee user journeys and reporting UI remain incomplete.
+- The management UI covers campaign drafting, submission, review and lifecycle controls. The public `/donations` UI supports authenticated same-tenant cash and in-kind pledge registration. External donor checkout, physical handover/acceptance, inventory receipt, payment receipts and campaign close-out statements remain incomplete.
 - Organisation onboarding, registry verification, branch/diocese hierarchy, member directory, committee invitation/access-revocation, receipts/statements, notification delivery, complaints, public QR links, exports, subscriptions and AI intelligence are not claimed as implemented by this slice.
 - KES, TZS, RWF, USD and other currencies are not enabled. UGX integer minor units are the only enabled amount currency in this release.
 
@@ -67,6 +73,7 @@ Public responses are mapped through `toFaithGivingPublicDTO`. No tenant ID, priv
 - `POST /api/v1/faith-giving/:campaignId/close`
 - `GET /api/v1/faith-giving/:campaignId/pledges`
 - `POST /api/v1/faith-giving/:campaignId/pledges` (requires `Idempotency-Key`)
+- `POST /api/v1/faith-giving/public/:publicReference/pledges` (authenticated; trusted tenant context; pledge-create permission; idempotency key)
 - `POST /api/v1/faith-giving/:campaignId/pledges/:pledgeId/cancel`
 - `GET /api/v1/faith-giving/:campaignId/expenses`
 - `POST /api/v1/faith-giving/:campaignId/expenses`

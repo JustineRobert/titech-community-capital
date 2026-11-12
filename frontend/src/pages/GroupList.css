@@ -1,7 +1,7 @@
-﻿/* ==========================================================
+/* ==========================================================
    TITech Community Capital
    Group List — Responsive Enterprise UI
-   Brand primary: #0058D8
+   Official palette is provided by the central TITech theme tokens.
    ========================================================== */
 
 .group-list-loading {
@@ -79,8 +79,8 @@
 
 .group-list-toolbar input:focus,
 .group-list-toolbar select:focus {
-    outline: 2px solid rgba(0, 88, 216, 0.2);
-    border-color: #0058D8;
+    outline: 2px solid color-mix(in srgb, var(--titech-official-electric-blue) 20%, transparent);
+    border-color: var(--titech-official-electric-blue);
 }
 
 /* Group collection */
@@ -132,14 +132,14 @@
 
 .group-list-page button:focus-visible,
 .group-list-page a:focus-visible {
-    outline: 3px solid rgba(0, 88, 216, 0.35);
+    outline: 3px solid color-mix(in srgb, var(--titech-official-electric-blue) 35%, transparent);
     outline-offset: 3px;
 }
 
 .group-list-page .primary-button,
 .group-list-page .btn-primary {
-    background: #0058D8;
-    border-color: #0058D8;
+    background: var(--titech-official-electric-blue);
+    border-color: var(--titech-official-electric-blue);
     color: #fff;
 }
 

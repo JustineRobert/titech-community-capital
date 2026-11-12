@@ -15,7 +15,7 @@ test('the actual mounted router registers every navigation destination', () => {
     ['/retirement-support', 'RETIREMENT_SUPPORT'], ['/education-support', 'EDUCATION_SUPPORT'],
     ['/edufinance', 'EDUFINANCE'], ['/agriculture', 'AGRICULTURE'],
     ['/ubuntu-float', 'UBUNTU_FLOAT'], ['/partner-support', 'PARTNER_SUPPORT'],
-    ['/faith-community-giving', 'FAITH_GIVING'],
+    ['/donations', 'DONATIONS'],
     ['/faith-community-giving/manage', 'FAITH_GIVING_MANAGE'],
   ]);
   for (const item of NAVIGATION_REGISTRY) {
@@ -30,7 +30,8 @@ test('public landing and product information pages are public and wrapped in the
   assert.match(routeSource, /path=\{ROUTES\.ROOT\}[\s\S]*InstitutionalHomePage/);
   assert.match(routeSource, /path=\{ROUTES\.EDUCATION_SUPPORT\}[\s\S]*EducationSupportPage/);
   assert.match(routeSource, /path=\{ROUTES\.EDUFINANCE\}[\s\S]*EduFinancePage/);
-  assert.match(routeSource, /path=\{ROUTES\.FAITH_GIVING\}[\s\S]*FaithCommunityGivingPage/);
+  assert.match(routeSource, /path=\{ROUTES\.DONATIONS\}[\s\S]*FaithCommunityGivingPage/);
+  assert.match(routeSource, /path=\{ROUTES\.FAITH_GIVING\}[\s\S]*Navigate to=\{ROUTES\.DONATIONS\}/);
   assert.match(routeSource, /path=\{ROUTES\.FAITH_GIVING_MANAGE\}[\s\S]*FaithGivingManagerPage/);
 });
 

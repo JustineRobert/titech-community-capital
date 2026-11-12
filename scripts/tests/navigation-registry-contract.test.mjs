@@ -5,7 +5,7 @@ import { NAVIGATION_REGISTRY, getNavigationItems } from '../../frontend/src/navi
 test('public service navigation exposes Education, EduFinance, Agriculture, UbuntuFloat and Partner Support', () => {
   const items = getNavigationItems(false);
   const routes = new Set(items.map((item) => item.to));
-  for (const route of ['/education-support', '/edufinance', '/agriculture', '/ubuntu-float', '/partner-support']) {
+  for (const route of ['/education-support', '/edufinance', '/agriculture', '/ubuntu-float', '/partner-support', '/donations']) {
     assert.ok(routes.has(route), `missing public discovery route ${route}`);
   }
   assert.equal(items.some((item) => item.to === '/dashboard'), false);
@@ -14,7 +14,7 @@ test('public service navigation exposes Education, EduFinance, Agriculture, Ubun
 test('authenticated navigation includes all service discovery routes and group creation', () => {
   const items = getNavigationItems(true, ['tenant_admin']);
   const routes = new Set(items.map((item) => item.to));
-  for (const route of ['/dashboard', '/groups', '/create-group', '/meetings', '/education-support', '/edufinance', '/agriculture', '/ubuntu-float', '/partner-support']) {
+  for (const route of ['/dashboard', '/groups', '/create-group', '/meetings', '/education-support', '/edufinance', '/agriculture', '/ubuntu-float', '/partner-support', '/donations']) {
     assert.ok(routes.has(route), `missing authenticated route ${route}`);
   }
   assert.equal(new Set(NAVIGATION_REGISTRY.map((item) => item.id)).size, NAVIGATION_REGISTRY.length);

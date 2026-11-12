@@ -24,7 +24,7 @@ test('Create Group uses the canonical route and preserves the optional-invitatio
 test('Group discovery join action passes a stable group ID and reconciles from the API', async () => {
   const groupList = await read('../../frontend/src/pages/GroupList.jsx');
   const card = await read('../../frontend/src/components/GroupCard.jsx');
-  assert.match(groupList, /onClick=\{\(\) =>\s*onJoin\(groupId\)\s*\}/);
+  assert.match(groupList, /onClick=\{\(\) => onJoin\(normalizedId\)\}/);
   assert.match(groupList, /async \(groupId\) =>/);
   assert.match(groupList, /await fetchGroups\(\{\s*silent:\s*true/);
   assert.match(card, /onJoin\?\.\(resolvedId\)/);

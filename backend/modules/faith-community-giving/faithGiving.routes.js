@@ -7,6 +7,7 @@ import {
   createCampaign,
   createExpenseRequest,
   createPledge,
+  createPublicPledge,
   listCampaigns,
   listExpenseRequests,
   listPledges,
@@ -28,6 +29,9 @@ function requireIdempotencyKey(req, res, next) {
   }
   return next();
 }
+
+// Records a tenant-owned pledge only; it does not collect money or accept goods.
+router.post('/public/:publicReference/pledges', enabled, requirePermission('faith-giving:pledge:create'), requireIdempotencyKey, createPublicPledge);
 
 router.get('/', enabled, requirePermission('faith-giving:campaign:read'), listCampaigns);
 router.post('/', enabled, requirePermission('faith-giving:campaign:create'), createCampaign);

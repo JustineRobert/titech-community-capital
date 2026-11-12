@@ -7,7 +7,7 @@
     justify-content: center;
     gap: 0.625rem;
     vertical-align: middle;
-    color: var(--titech-primary, #0058D8);
+    color: var(--titech-primary, var(--titech-official-deep-blue));
 }
 
 .titech-spinner__ring {
@@ -16,9 +16,9 @@
     height: 1.5rem;
     flex: 0 0 auto;
 
-    border: 2.5px solid rgba(0, 88, 216, 0.18);
-    border-top-color: #0058D8;
-    border-right-color: #0058D8;
+    border: 2.5px solid color-mix(in srgb, var(--titech-official-electric-blue) 18%, transparent);
+    border-top-color: var(--titech-official-electric-blue);
+    border-right-color: var(--titech-official-electric-blue);
 
     border-radius: 50%;
 

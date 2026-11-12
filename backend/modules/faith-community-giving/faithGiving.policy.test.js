@@ -80,10 +80,27 @@ test('rejects invalid date ranges, missing budget lines and invalid visibility',
 
 test('requires an explicitly configured campaign currency match for pledges', () => {
   assert.deepEqual(validateFaithGivingPledgeInput({ amountMinor: 10000 }, { currency: 'UGX' }), {
-    amountMinor: 10000, currency: 'UGX', contributorLabel: null, anonymous: false,
+    pledgeType: 'CASH', amountMinor: 10000, currency: 'UGX', items: [], contributorLabel: null, anonymous: false,
   });
   assert.throws(() => validateFaithGivingPledgeInput({ amountMinor: 10000, currency: 'USD' }, { currency: 'UGX' }), { code: 'FAITH_GIVING_PLEDGE_CURRENCY_INVALID' });
   assert.throws(() => validateFaithGivingPledgeInput({ amountMinor: 2.5 }, { currency: 'UGX' }), { code: 'FAITH_GIVING_AMOUNT_INVALID' });
+});
+
+test('accepts controlled school-support campaign categories and budget lines', () => {
+  const result = validateFaithGivingCampaignInput(validCampaign({
+    category: 'EDUCATION_RESOURCES_AND_MATERIALS',
+    budgetLines: [{ category: 'COMPUTERS_AND_DIGITAL_EQUIPMENT', description: 'School laboratory computers', amountMinor: 80000000 }],
+  }));
+  assert.equal(result.category, 'EDUCATION_RESOURCES_AND_MATERIALS');
+  assert.equal(result.budgetLines[0].category, 'COMPUTERS_AND_DIGITAL_EQUIPMENT');
+});
+
+test('validates in-kind scholastic and equipment offers without monetary values', () => {
+  const result = validateFaithGivingPledgeInput({ pledgeType: 'IN_KIND', items: [{ category: 'COMPUTERS_AND_DIGITAL_EQUIPMENT', description: 'Refurbished laptop computers', quantity: 5, unit: 'PIECE', condition: 'REFURBISHED' }] }, { currency: 'UGX' });
+  assert.equal(result.pledgeType, 'IN_KIND'); assert.equal(result.amountMinor, null); assert.equal(result.currency, null); assert.equal(result.items[0].quantity, 5);
+  assert.throws(() => validateFaithGivingPledgeInput({ pledgeType: 'IN_KIND', items: [] }, { currency: 'UGX' }), { code: 'FAITH_GIVING_IN_KIND_ITEMS_INVALID' });
+  assert.throws(() => validateFaithGivingPledgeInput({ pledgeType: 'IN_KIND', amountMinor: 1000, items: [{ category: 'SCHOOL_FURNITURE', description: 'School desks', quantity: 2, unit: 'PIECE' }] }, { currency: 'UGX' }), { code: 'FAITH_GIVING_IN_KIND_AMOUNT_FORBIDDEN' });
+  assert.throws(() => validateFaithGivingPledgeInput({ pledgeType: 'IN_KIND', items: [{ category: 'SCHOOL_FURNITURE', description: 'School desks', quantity: 1.5, unit: 'PIECE' }] }, { currency: 'UGX' }), { code: 'FAITH_GIVING_AMOUNT_INVALID' });
 });
 
 test('anonymous pledges do not retain contributor labels', () => {

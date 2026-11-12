@@ -13,6 +13,11 @@ export const FAITH_GIVING_CATEGORIES = Object.freeze([
   'COMMUNITY_FUNCTIONS',
   'EMERGENCY_MEDICAL_ASSISTANCE',
   'EDUCATION_AND_SCHOOL_FEES',
+  'EDUCATION_RESOURCES_AND_MATERIALS',
+  'SCHOOL_COMPUTERS_AND_DIGITAL_ACCESS',
+  'SCHOOL_FURNITURE_AND_FACILITIES',
+  'SCHOOL_CONSTRUCTION_AND_REHABILITATION',
+  'SCHOLARSHIPS_AND_LEARNING_SUPPORT',
   'CHARITY_AND_HUMANITARIAN',
   'COMMUNITY_DEVELOPMENT',
   'COMMUNITY_WELFARE',
@@ -35,8 +40,22 @@ export const FAITH_GIVING_BUDGET_CATEGORIES = Object.freeze([
   'FUNERAL_TRANSPORT', 'FUNERAL_SERVICES', 'FOOD_AND_REFRESHMENTS', 'VENUE',
   'CATERING', 'PHOTOGRAPHY', 'DECORATION', 'TRANSPORT', 'ACCOMMODATION',
   'MEDICAL_AND_HOSPITAL', 'EDUCATION_AND_FEES', 'WATER_AND_SANITATION',
-  'COMMUNITY_INFRASTRUCTURE', 'ADMINISTRATION', 'OTHER_APPROVED_COST',
+  'COMMUNITY_INFRASTRUCTURE', 'ADMINISTRATION',
+  'SCHOLASTIC_MATERIALS', 'COMPUTERS_AND_DIGITAL_EQUIPMENT', 'SCHOOL_FURNITURE',
+  'LIBRARY_AND_TEXTBOOKS', 'CLASSROOM_EQUIPMENT', 'TEACHING_AND_LEARNING_MATERIALS',
+  'ACCESSIBILITY_EQUIPMENT', 'CONSTRUCTION_MATERIALS', 'SCHOOL_REHABILITATION',
+  'OTHER_APPROVED_COST',
 ]);
+
+export const FAITH_GIVING_IN_KIND_CATEGORIES = Object.freeze([
+  'SCHOLASTIC_MATERIALS', 'COMPUTERS_AND_DIGITAL_EQUIPMENT', 'SCHOOL_FURNITURE',
+  'LIBRARY_AND_TEXTBOOKS', 'CLASSROOM_EQUIPMENT', 'TEACHING_AND_LEARNING_MATERIALS',
+  'ACCESSIBILITY_EQUIPMENT', 'CONSTRUCTION_MATERIALS', 'WATER_AND_SANITATION',
+  'OTHER_APPROVED_COST',
+]);
+export const FAITH_GIVING_PLEDGE_TYPES = Object.freeze(['CASH', 'IN_KIND']);
+export const FAITH_GIVING_IN_KIND_UNITS = Object.freeze(['PIECE', 'SET', 'BOX', 'PACK', 'BAG', 'KG', 'LITRE', 'UNIT']);
+export const FAITH_GIVING_ITEM_CONDITIONS = Object.freeze(['NEW', 'GOOD_USED', 'REFURBISHED', 'NOT_APPLICABLE']);
 
 // UGX is the only enabled collection currency in this release. Additional
 // currency support is a configuration and provider-readiness decision, not a
@@ -202,15 +221,48 @@ export function validateFaithGivingCampaignInput(payload = {}) {
 }
 
 export function validateFaithGivingPledgeInput(payload = {}, campaign = {}) {
-  const amountMinor = normalizeSafeInteger(payload.amountMinor, 'amountMinor', { minimum: 1 });
-  const currency = String(payload.currency ?? campaign.currency ?? '').trim().toUpperCase();
-  if (!FAITH_GIVING_CURRENCIES.includes(currency) || currency !== campaign.currency) {
-    throw policyError('Pledge currency must match the campaign currency and be enabled.', 'FAITH_GIVING_PLEDGE_CURRENCY_INVALID', 422);
+  const pledgeType = String(payload.pledgeType ?? 'CASH').trim().toUpperCase();
+  if (!FAITH_GIVING_PLEDGE_TYPES.includes(pledgeType)) {
+    throw policyError('Select either a cash pledge or an in-kind donation offer.', 'FAITH_GIVING_PLEDGE_TYPE_INVALID');
   }
-  const contributorLabel = payload.anonymous === true
-    ? null
-    : (payload.contributorLabel ? boundedText(payload.contributorLabel, 'contributorLabel', 2, 80) : null);
-  return { amountMinor, currency, contributorLabel, anonymous: payload.anonymous === true };
+  const anonymous = payload.anonymous === true;
+  const contributorLabel = anonymous ? null : (payload.contributorLabel ? boundedText(payload.contributorLabel, 'contributorLabel', 2, 80) : null);
+
+  if (pledgeType === 'CASH') {
+    const amountMinor = normalizeSafeInteger(payload.amountMinor, 'amountMinor', { minimum: 1 });
+    const currency = String(payload.currency ?? campaign.currency ?? '').trim().toUpperCase();
+    if (!FAITH_GIVING_CURRENCIES.includes(currency) || currency !== campaign.currency) {
+      throw policyError('Pledge currency must match the campaign currency and be enabled.', 'FAITH_GIVING_PLEDGE_CURRENCY_INVALID', 422);
+    }
+    if (Array.isArray(payload.items) && payload.items.length) {
+      throw policyError('Cash pledges cannot also contain in-kind items.', 'FAITH_GIVING_PLEDGE_PAYLOAD_INVALID', 422);
+    }
+    return { pledgeType, amountMinor, currency, items: [], contributorLabel, anonymous };
+  }
+
+  if (payload.amountMinor !== undefined && payload.amountMinor !== null && payload.amountMinor !== '') {
+    throw policyError('In-kind offers must not include a monetary amount.', 'FAITH_GIVING_IN_KIND_AMOUNT_FORBIDDEN', 422);
+  }
+  if (!Array.isArray(payload.items) || payload.items.length < 1 || payload.items.length > 10) {
+    throw policyError('Provide between one and ten in-kind items.', 'FAITH_GIVING_IN_KIND_ITEMS_INVALID', 422);
+  }
+  const items = payload.items.map((item, index) => {
+    const category = String(item?.category ?? '').trim().toUpperCase();
+    if (!FAITH_GIVING_IN_KIND_CATEGORIES.includes(category)) throw policyError(`In-kind item ${index + 1} uses an unsupported donation category.`, 'FAITH_GIVING_IN_KIND_CATEGORY_INVALID', 422);
+    const unit = String(item?.unit ?? '').trim().toUpperCase();
+    if (!FAITH_GIVING_IN_KIND_UNITS.includes(unit)) throw policyError(`In-kind item ${index + 1} uses an unsupported quantity unit.`, 'FAITH_GIVING_IN_KIND_UNIT_INVALID', 422);
+    const condition = String(item?.condition ?? 'NOT_APPLICABLE').trim().toUpperCase();
+    if (!FAITH_GIVING_ITEM_CONDITIONS.includes(condition)) throw policyError(`In-kind item ${index + 1} uses an unsupported condition.`, 'FAITH_GIVING_IN_KIND_CONDITION_INVALID', 422);
+    return {
+      category,
+      description: boundedText(item?.description, `items[${index}].description`, 2, 140, { publicText: true }),
+      quantity: normalizeSafeInteger(item?.quantity, `items[${index}].quantity`, { minimum: 1, maximum: 100000 }),
+      unit,
+      condition,
+      notes: item?.notes ? boundedText(item.notes, `items[${index}].notes`, 2, 300, { publicText: true }) : null,
+    };
+  });
+  return { pledgeType, amountMinor: null, currency: null, items, contributorLabel, anonymous };
 }
 
 export function validateFaithGivingExpenseInput(payload = {}, campaign = {}) {

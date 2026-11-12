@@ -3,6 +3,7 @@ import {
   createFaithGivingCampaign,
   createFaithGivingExpenseRequest,
   createFaithGivingPledge,
+  createPublicFaithGivingPledge,
   getPublicFaithGivingCampaign,
   listFaithGivingCampaigns,
   listFaithGivingExpenseRequests,
@@ -59,6 +60,7 @@ export const pauseCampaign = action((req, ctx) => transitionFaithGivingCampaign(
 export const closeCampaign = action((req, ctx) => transitionFaithGivingCampaign(req.params.campaignId, 'CLOSED', req.body || {}, ctx));
 export const listPledges = action((req, ctx) => listFaithGivingPledges(req.params.campaignId, ctx));
 export const createPledge = action((req, ctx) => createFaithGivingPledge(req.params.campaignId, req.body || {}, req.get('idempotency-key'), ctx), 201);
+export const createPublicPledge = action((req, ctx) => createPublicFaithGivingPledge(req.params.publicReference, req.body || {}, req.get('idempotency-key'), ctx), 201);
 export const cancelPledge = action((req, ctx) => cancelFaithGivingPledge(req.params.campaignId, req.params.pledgeId, ctx));
 export const listExpenseRequests = action((req, ctx) => listFaithGivingExpenseRequests(req.params.campaignId, ctx));
 export const createExpenseRequest = action((req, ctx) => createFaithGivingExpenseRequest(req.params.campaignId, req.body || {}, ctx), 201);
