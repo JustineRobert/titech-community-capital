@@ -1,58 +1,22 @@
 #!/usr/bin/env node
+/**
+ * Compatibility wrapper for the canonical ESM platform-admin bootstrap CLI.
+ * Credentials must be supplied through a protected environment/secret
+ * manager, never command-line arguments.
+ */
+const { spawnSync } = require('node:child_process');
+const path = require('node:path');
 
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
-require('dotenv').config();
+const cli = path.join(__dirname, 'seed-admin-cli.js');
+const result = spawnSync(process.execPath, [cli, ...process.argv.slice(2)], {
+  cwd: path.resolve(__dirname, '..'),
+  env: process.env,
+  stdio: 'inherit',
+});
 
-const User = require('../models/User'); // adjust path if different
-
-// ===== CLI ARGUMENT PARSER =====
-const args = process.argv.slice(2);
-
-const getArg = (key) => {
-  const index = args.indexOf(`--${key}`);
-  return index !== -1 ? args[index + 1] : null;
-};
-
-const email = getArg('email');
-const password = getArg('password');
-const name = getArg('name');
-const role = getArg('role') || 'admin';
-
-// ===== VALIDATION =====
-if (!email || !password || !name) {
-  console.error('❌ Missing required arguments');
-  process.exit(1);
+if (result.error) {
+  console.error('Unable to start canonical administrator bootstrap:', result.error.message);
+  process.exitCode = 1;
+} else {
+  process.exitCode = result.status ?? 1;
 }
-
-// ===== RUN =====
-(async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/community_savings');
-
-    const existing = await User.findOne({ email });
-
-    if (existing) {
-      console.log('✅ Admin already exists:', email);
-      process.exit(0);
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const admin = await User.create({
-      email,
-      password: hashedPassword,
-      name,
-      role,
-      status: 'active',
-    });
-
-    console.log('✅ Admin created successfully');
-    console.log(admin);
-
-    process.exit(0);
-  } catch (err) {
-    console.error('❌ Error creating admin:', err.message);
-    process.exit(1);
-  }
-})();

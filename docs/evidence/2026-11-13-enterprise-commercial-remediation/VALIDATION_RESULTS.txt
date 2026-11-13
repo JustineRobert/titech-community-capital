@@ -1,0 +1,70 @@
+TITech Community Capital — archive-local validation log
+Date: 2026-11-13
+Source snapshot: 7788cd04695bb7d9a531efdebc014aaa9fc0514a
+Local runtime: Node 22.16.0 / npm 10.9.2
+Required runtime: Node >=24.15.0 / npm >=11.0.0
+
+PASS: node scripts/run-commercial-core-tests.mjs
+  7 test files; 37 tests passed; 0 failed.
+
+PASS: node --test backend/tests/unit/security/adminBootstrap.security.test.mjs
+  5 security regression tests passed; 0 failed.
+
+PASS: node scripts/commercial-billing-core-gate.mjs
+  Approved-pricing foundation, exact arithmetic, assessment idempotency, canonical financial adapter boundary, organization identity, production flag, official theme manifest and legacy billing fail-closed guard passed.
+
+PASS: node scripts/financial-static-gate.mjs
+  12 canonical financial files checked.
+
+PASS: node scripts/organization-profile-gate.mjs
+  Organization/product identity, official theme and production flag checks passed.
+
+PASS: node scripts/verify-titech-legal-branding.mjs
+  Canonical theme organization name, all nine palette values, frontend legalName bridge, package metadata and draft legal identity consistency passed.
+
+PASS: node scripts/official-theme-audit.mjs
+  73 CSS files scanned; 0 hard-coded official palette values in non-brand CSS; official 9-colour palette and light/dark runtime checks passed.
+
+PASS: node scripts/enterprise-contract-contracts.mjs
+  11 control-plane contracts checked.
+
+PASS: node scripts/rbac-security-gate.mjs
+  Static RBAC policy gate passed; this is not a live authorization penetration test.
+
+PASS: node scripts/check-conflicts.js
+  3,688 files scanned; no merge conflict markers.
+
+PASS: node scripts/enterprise-gate.mjs --syntax
+  2,544 JS/TS-family files parsed. Gate warned local Node 22.16.0 is below the Node 24.15.x target.
+
+PASS: node --test scripts/titech-critical-gates.test.mjs
+  4 tests passed.
+
+PASS: node --check backend/services/billingEngine.js
+PASS: node --check backend/scripts/seedAdmin.js
+PASS: node --check backend/scripts/seed.js
+PASS: node --check backend/scripts/seed-admin.js
+PASS: node --check backend/scripts/seed-local.js
+PASS: node --check scripts/seed-admin-cli.js
+PASS: node --check scripts/seed-admin-cli.cjs
+PASS: node --check backend/tests/unit/security/adminBootstrap.security.test.mjs
+PASS: node --check scripts/run-commercial-core-tests.mjs
+PASS: node --check scripts/commercial-billing-core-gate.mjs
+
+PARTIAL: node scripts/runtime-import-audit.mjs
+  2,079 backend source files scanned; 208 missing local imports outside canonical financial surface; zero missing local imports on canonical financial surface. Legacy/non-critical warnings remain open.
+
+BLOCKED: node scripts/titech-supported-runtime-gate.mjs
+  Node 22.16.0 < required >=24.15.0; npm 10.9.2 < required >=11.0.0.
+
+NOT RUN: npm ci / npm --prefix backend ci / npm --prefix frontend ci
+  Dependencies absent; supported runtime unavailable; network/DNS unavailable.
+
+NOT RUN: frontend/backend production builds and live startup
+  Full dependencies and supported runtime unavailable; MongoDB and Redis not provided.
+
+NOT RUN: MongoDB replica-set integration, Redis workers, browser E2E, MTN/Airtel sandbox, provider settlement, production secrets, backup restore and recovery drills.
+
+NOT EVIDENCED: legal, regulatory, insurer, payment-provider, bank, accounting, independent security, partner or institutional approvals.
+
+Final status: NOT READY; productionApproved=false. The administrator bootstrap has not been run against a live database, and no live sign-in was performed.

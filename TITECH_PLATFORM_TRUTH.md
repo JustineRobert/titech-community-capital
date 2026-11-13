@@ -1,6 +1,6 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 12 November 2026  
+**As of:** 13 November 2026  
 **Organization:** TITech Capital SMC LTD  
 **Product:** TITech Community Capital  
 **Engineering principle:** BUILD LESS. PROVE MORE.  
@@ -9,6 +9,18 @@
 **`productionApproved`: `false`**
 
 This root-level document is an index to the current machine-generated evidence and the detailed historical/platform narrative. It is not a substitute for running the gates against the precise commit or deployment being assessed.
+
+## 13 November 2026 — commercial legacy-pricing safety and archive-local verification
+
+The 13 November archive-local update replaces the legacy `backend/services/billingEngine.js` fixed-rate calculator with a fail-closed ESM compatibility boundary. It removes hard-coded transaction tariffs, the default 18% tax assumption and the unknown-transaction zero-fee fallback. The boundary delegates quotes, fee-rule resolution, tax treatment, audit events and usage metering only to explicitly injected central services; missing configuration is an error, not an implicit free service. Five commercial compatibility tests were added, and the commercial test runner now includes those tests plus the exact-money utility suite. The commercial static gate now guards against reintroducing the old fallback behavior.
+
+The same execution hardened administrator bootstrap: the legacy `backend/scripts/seed.js` no longer hardcodes an admin credential or deletes all groups and delegates to the canonical, environment-controlled `platform_admin` bootstrap; older backend/root CLI entry points now delegate to that ESM path and reject password/database command-line arguments. Existing locked/disabled administrator accounts are not silently reactivated, and changing an existing password requires an explicit rotation flag. The synthetic local seeder that previously wrote demo loans and success-labelled mobile-money transactions has been disabled to avoid fabricating financial history. Five dedicated bootstrap-security regression tests were added. No user-provided password was copied into source, tests or evidence.
+
+Verification: 37/37 focused commercial tests and 5/5 administrator-bootstrap security tests passed; commercial billing, financial static, organization profile, official theme, 11 enterprise contract, RBAC static, syntax, critical-gate test and conflict-marker checks passed. The official theme audit scanned 73 frontend CSS files and found zero hard-coded official palette occurrences in non-brand CSS. The supported runtime gate remains BLOCKED because the available environment is Node 22.16.0/npm 10.9.2 rather than the required Node >=24.15.0/npm >=11.0.0. The archive has no `.git`; GitHub could not be resolved from this execution environment.
+
+This is a focused safety and testability improvement, **not** end-to-end commercial billing completion. Twenty-two zero-byte files remain under `backend/commercial`; invoice and subscription lifecycle, entitlement enforcement, canonical billing repository integration, revenue entries, provider settlement, new-commercial reconciliation, actual provider fee bridge, service-wide billable-event adoption and billing UI remain incomplete or unverified. Provider modules still reference a missing legacy billing-engine path. No MongoDB/Redis, supported-runtime install/build, app startup, provider sandbox/settlement, browser E2E, recovery drill, external legal/regulatory/security/partner approval or administrator login was performed. `productionApproved=false` remains mandatory.
+
+Detailed evidence: [`docs/evidence/2026-11-13-enterprise-commercial-remediation/EXECUTION_REPORT.md`](docs/evidence/2026-11-13-enterprise-commercial-remediation/EXECUTION_REPORT.md), [`CHANGESET.md`](docs/evidence/2026-11-13-enterprise-commercial-remediation/CHANGESET.md), [`SERVICE_INTEGRATION_MATRIX.csv`](docs/evidence/2026-11-13-enterprise-commercial-remediation/SERVICE_INTEGRATION_MATRIX.csv), [`VALIDATION_RESULTS.txt`](docs/evidence/2026-11-13-enterprise-commercial-remediation/VALIDATION_RESULTS.txt) and the SHA-256 file manifests in that directory.
 
 ## 12 November 2026 — commercial billing foundation remediation
 

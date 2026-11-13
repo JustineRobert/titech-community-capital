@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Capital SMC LTD
  * Enterprise Administrator Bootstrap
  * ============================================================================
  *
@@ -26,10 +26,16 @@
 
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
-import { pathToFileURL } from "node:url";
+import dotenv from "dotenv";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import User from "../models/User.js";
 
+const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+dotenv.config({ path: process.env.SEED_ADMIN_ENV_FILE || path.join(backendRoot, ".env"), override: false });
+
 const MIN_PASSWORD_LENGTH = 12;
+const PLATFORM_ADMIN_ROLE = "platform_admin";
 
 function validatePassword(password) {
   return Boolean(
@@ -37,7 +43,8 @@ function validatePassword(password) {
       password.length >= MIN_PASSWORD_LENGTH &&
       /[a-z]/.test(password) &&
       /[A-Z]/.test(password) &&
-      /[0-9]/.test(password),
+      /[0-9]/.test(password) &&
+      /[^A-Za-z0-9]/.test(password),
   );
 }
 
@@ -49,10 +56,11 @@ function resolveConfig() {
     tenantId: process.env.SEED_ADMIN_TENANT_ID || "",
     firstName: process.env.SEED_ADMIN_FIRSTNAME || "System",
     lastName: process.env.SEED_ADMIN_LASTNAME || "Administrator",
-    email: (process.env.SEED_ADMIN_EMAIL || "admin@titechcapital.com").trim().toLowerCase(),
-    phone: process.env.SEED_ADMIN_PHONE || "+256700000000",
+    email: (process.env.SEED_ADMIN_EMAIL || "").trim().toLowerCase(),
+    phone: (process.env.SEED_ADMIN_PHONE || "").trim(),
     password,
-    role: process.env.SEED_ADMIN_ROLE || "super_admin",
+    role: process.env.SEED_ADMIN_ROLE || PLATFORM_ADMIN_ROLE,
+    allowPasswordRotation: process.env.SEED_ADMIN_ALLOW_PASSWORD_ROTATION === "true",
   });
 }
 
@@ -71,14 +79,26 @@ async function connect(mongoUri) {
 export async function run() {
   const config = resolveConfig();
 
+  if (!config.email) {
+    throw new Error("SEED_ADMIN_EMAIL is required; refusing to create an administrator with an implicit account identity.");
+  }
+
+  if (config.role !== PLATFORM_ADMIN_ROLE) {
+    throw new Error(`SEED_ADMIN_ROLE must be ${PLATFORM_ADMIN_ROLE} for this platform administrator bootstrap.`);
+  }
+
   if (!config.password) {
     throw new Error("SEED_ADMIN_PASSWORD is required; refusing to create a default or generated administrator credential.");
   }
 
   if (!validatePassword(config.password)) {
     throw new Error(
-      `Administrator password must be at least ${MIN_PASSWORD_LENGTH} characters and contain uppercase, lowercase and numeric characters.`,
+      `Administrator password must be at least ${MIN_PASSWORD_LENGTH} characters and contain uppercase, lowercase, numeric and special characters.`,
     );
+  }
+
+  if (config.tenantId && !mongoose.isValidObjectId(config.tenantId)) {
+    throw new Error("SEED_ADMIN_TENANT_ID must be a valid tenant ObjectId when supplied.");
   }
 
   await connect(config.mongoUri);
@@ -87,6 +107,10 @@ export async function run() {
     const existingAdmin = await User.findOne({ email: config.email }).select("+password");
 
     if (existingAdmin) {
+      if (existingAdmin.status !== "active" || existingAdmin.isActive !== true) {
+        throw new Error("The existing administrator account is not active. Complete the approved account-recovery process before platform-admin promotion.");
+      }
+
       let changed = false;
 
       if (existingAdmin.role !== config.role) {
@@ -99,12 +123,10 @@ export async function run() {
         changed = true;
       }
 
-      if (!existingAdmin.isActive) {
-        existingAdmin.isActive = true;
-        changed = true;
-      }
-
       if (!await bcrypt.compare(config.password, existingAdmin.password)) {
+        if (!config.allowPasswordRotation) {
+          throw new Error("Existing account password differs. Set SEED_ADMIN_ALLOW_PASSWORD_ROTATION=true only during an explicitly approved credential rotation.");
+        }
         existingAdmin.password = config.password;
         changed = true;
       }
@@ -125,16 +147,13 @@ export async function run() {
       lastName: config.lastName,
       name: `${config.firstName} ${config.lastName}`.trim(),
       email: config.email,
-      phone: config.phone,
+      ...(config.phone ? { phone: config.phone } : {}),
       password: passwordHash,
       role: config.role,
       roles: [config.role, "admin"],
+      status: "active",
       isActive: true,
       isVerified: true,
-      emailVerified: true,
-      phoneVerified: true,
-      kycStatus: "VERIFIED",
-      memberStatus: "ACTIVE",
     });
 
     console.log(`Administrator created: ${admin.email}`);
@@ -145,7 +164,7 @@ export async function run() {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   run().catch((error) => {
     console.error("Admin bootstrap failed:", error?.message || String(error));
     process.exitCode = 1;

@@ -1,0 +1,182 @@
+{
+  "sourceArchive": "titech-community-capital-main.zip",
+  "archiveComment": "7788cd04695bb7d9a531efdebc014aaa9fc0514a",
+  "repositoryRoot": "/mnt/data/titech-work/titech-community-capital-main",
+  "generatedAtUtc": "2026-11-13T07:28:00.817495+00:00",
+  "counts": {
+    "modified": 10,
+    "added": 11,
+    "removed": 0,
+    "totalChanged": 21
+  },
+  "changes": [
+    {
+      "status": "MODIFIED",
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "original_size_bytes": 20801,
+      "updated_size_bytes": 24405,
+      "original_sha256": "cf45983a6f9276dcf6ec60d3705ccc3e28539069d4c99b3139047529867b49ae",
+      "updated_sha256": "4d486d4512f53f00ab8ae75c95c627dfd3066675b6860b3f1cf718aa75eba439"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "backend/scripts/seed-admin.js",
+      "original_size_bytes": 2710,
+      "updated_size_bytes": 615,
+      "original_sha256": "bdbcd3491f5232f06f08cc809953791cf97ea9e4159a307575ace13b2f3166b0",
+      "updated_sha256": "ce630dc30927e7e4fb731850757815d95284dc29943dc170ad0064d8ae5e278f"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "backend/scripts/seed-local.js",
+      "original_size_bytes": 5479,
+      "updated_size_bytes": 643,
+      "original_sha256": "5ed5d3fc465289568dc5039a03cebf915f041dd0645739fc4954febc7d90fb83",
+      "updated_sha256": "6b9adfbc85ec51d450fd05dd8eaebd0907835b07c2e94e6e6e48b1a9acd3ca48"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "backend/scripts/seed.js",
+      "original_size_bytes": 1578,
+      "updated_size_bytes": 567,
+      "original_sha256": "20943b2a211582960145e0ee3f7031cf5d368ba34d3b1eed3ec97da29608959d",
+      "updated_sha256": "c36acf5f6152b98c4eab89cdaa292061fe5061623c89c50e756eca8e3de03e6b"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "backend/scripts/seedAdmin.js",
+      "original_size_bytes": 4563,
+      "updated_size_bytes": 5790,
+      "original_sha256": "859f37db2a0ed1dc4ac3b02bc93ac9db6a69de9a3ab48fb2321a42486c8a8b3c",
+      "updated_sha256": "233c466b599c5b2ad32723279d30603044c98da13abc349c5cba5305fbcb4919"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "backend/services/billingEngine.js",
+      "original_size_bytes": 7265,
+      "updated_size_bytes": 6351,
+      "original_sha256": "bee10b7f382469c9658a688f3bb1e02c16fe9d6ef78cf824854960b4a0eedb5e",
+      "updated_sha256": "234c65a8b8a87ff1b4db63bc65a11eb7ac7a55a070c23f538949c2709dc93ad4"
+    },
+    {
+      "status": "ADDED",
+      "path": "backend/tests/unit/commercial/billingEngine.compatibility.test.mjs",
+      "original_size_bytes": null,
+      "updated_size_bytes": 3592,
+      "original_sha256": null,
+      "updated_sha256": "96eb51c694cfeedda1f4a7bcde4127554d9fcb47bfa4448d8142241c4fa5c651"
+    },
+    {
+      "status": "ADDED",
+      "path": "backend/tests/unit/security/adminBootstrap.security.test.mjs",
+      "original_size_bytes": null,
+      "updated_size_bytes": 2940,
+      "original_sha256": null,
+      "updated_sha256": "5b46d301903fb2c9081cb654ff57f84bcd1d1c89d4b58ba85cbeb7b8abf0784a"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-13-enterprise-commercial-remediation/CHANGED_FILES_DISCOVERY.md",
+      "original_size_bytes": null,
+      "updated_size_bytes": 2545,
+      "original_sha256": null,
+      "updated_sha256": "d2141c8e22583889edea90d27cee694769736fb7900d626304dd3c31671dde46"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-13-enterprise-commercial-remediation/CHANGESET.md",
+      "original_size_bytes": null,
+      "updated_size_bytes": 4252,
+      "original_sha256": null,
+      "updated_sha256": "c2a7803fc3813d2c0fb69769320358a2f4b21c14f0e7c94f3ae24d16763b25c1"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-13-enterprise-commercial-remediation/EXECUTION_REPORT.md",
+      "original_size_bytes": null,
+      "updated_size_bytes": 18219,
+      "original_sha256": null,
+      "updated_sha256": "dba0272e1909c5017ad35c1cc5546aca50740879929626eb385429c45dbde65b"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-13-enterprise-commercial-remediation/SERVICE_INTEGRATION_MATRIX.csv",
+      "original_size_bytes": null,
+      "updated_size_bytes": 4974,
+      "original_sha256": null,
+      "updated_sha256": "b24aeca8b9a779ecb1fc3058d44b34131501a611408cd4cd2763ede71086ea57"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-13-enterprise-commercial-remediation/VALIDATION_RESULTS.txt",
+      "original_size_bytes": null,
+      "updated_size_bytes": 3529,
+      "original_sha256": null,
+      "updated_sha256": "f008a45b8ffc16161ed026dbe40aee3b9b7d1a0f0d1aff5c8e4e47cd1f6a1325"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/official-theme-audit.json",
+      "original_size_bytes": null,
+      "updated_size_bytes": 4752,
+      "original_sha256": null,
+      "updated_sha256": "6d13028faff4c1aa96031bdf1c08c3bcb175ad4c3761bf7926f4073e01c5f4e0"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/rbac-security-gate.json",
+      "original_size_bytes": null,
+      "updated_size_bytes": 2100,
+      "original_sha256": null,
+      "updated_sha256": "45f2c9e3ceb49fa0215a9f2221beffdef5083709935a833a5d70bcd4529a02e9"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/runtime-import-audit.json",
+      "original_size_bytes": null,
+      "updated_size_bytes": 32334,
+      "original_sha256": null,
+      "updated_sha256": "75bdf178caa780798c018bffa594b0ef47cc8cf797ae68a633c848a19bbeaf20"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "scripts/commercial-billing-core-gate.mjs",
+      "original_size_bytes": 3478,
+      "updated_size_bytes": 3910,
+      "original_sha256": "7b90f64daf656854c72b42bec9e21ca291948230a52db9cac7a9071e558d222d",
+      "updated_sha256": "d4d7570cea5f879e73c37888e436f87cc35a0317684e9e729449b0811498ba5a"
+    },
+    {
+      "status": "ADDED",
+      "path": "scripts/discover-archive-changes.py",
+      "original_size_bytes": null,
+      "updated_size_bytes": 4837,
+      "original_sha256": null,
+      "updated_sha256": "0dd530f244ea74c55f25510eadefa4c0866b444c12479b7716252c74102c8b4f"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "scripts/run-commercial-core-tests.mjs",
+      "original_size_bytes": 767,
+      "updated_size_bytes": 1088,
+      "original_sha256": "b07675d913809fe951f3ff0ea32d8e6606c990b2e4ad75bd3a6ddf9623cb6858",
+      "updated_sha256": "c093c9f9fa23ab3edf51c7e2b033fa450260a2330181a31bffaaf72852a6c681"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "scripts/seed-admin-cli.cjs",
+      "original_size_bytes": 1364,
+      "updated_size_bytes": 712,
+      "original_sha256": "6508afd05ba2e854f25303e566066a9d153e08b1150832018fc6944664822b9f",
+      "updated_sha256": "166e106eb723b325df2bdefdb6335aa63d673c01ac8de45cbf0cdf58a4f1289b"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "scripts/seed-admin-cli.js",
+      "original_size_bytes": 2999,
+      "updated_size_bytes": 2676,
+      "original_sha256": "04df4275fc0f355949243598521e25ddd8d59d71447d7d969a74ba565f063984",
+      "updated_sha256": "60c5501d118a5625709022d662e38a3a7f51fdd488799a9d9bfc8fb818c4e08d"
+    }
+  ]
+}
