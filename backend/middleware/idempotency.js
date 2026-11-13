@@ -3,7 +3,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * TITech Community Capital Financial Idempotency Middleware
  * =============================================================================
  *

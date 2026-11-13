@@ -2,7 +2,7 @@
 
 /**
  * ==========================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Airtel Money Enterprise Refresh Manager
  * ----------------------------------------------------------
  * Enterprise OAuth token refresh coordination service.

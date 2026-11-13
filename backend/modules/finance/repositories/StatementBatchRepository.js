@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Finance Core - Statement Batch Repository
  * ============================================================================
  *

@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: airtel.integration.js
  * Enterprise Airtel Money API Integration
  * ============================================================================

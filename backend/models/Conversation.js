@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/Conversation.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Conversation Aggregate
  * ============================================================================
  *

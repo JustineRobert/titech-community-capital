@@ -7,7 +7,7 @@ const { Schema } = mongoose;
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * LoanRiskProfile.js
  * ============================================================================
  *

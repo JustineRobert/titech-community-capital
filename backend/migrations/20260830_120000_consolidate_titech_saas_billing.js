@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Stage 01C — Canonical SaaS Billing Consolidation / Backfill
  * =============================================================================
  *

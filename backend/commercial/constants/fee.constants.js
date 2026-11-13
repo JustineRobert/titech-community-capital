@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Transaction Revenue / Fee Constants
  * backend/commercial/constants/fee.constants.js
  * =============================================================================

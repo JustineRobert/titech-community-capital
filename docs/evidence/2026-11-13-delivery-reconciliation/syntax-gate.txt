@@ -1,0 +1,6 @@
+Syntax gate: PASS (2544 executable JS/TS-family files parsed).
+
+Warnings:
+- Local runtime is Node 22.16.0; repository gate targets Node 24.15.x.
+
+Enterprise gate: PASS

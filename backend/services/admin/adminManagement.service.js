@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital SMC LTD
+ * TITECH CAPITAL - SMC LTD
  * Enterprise Administrative Management Service
  * =============================================================================
  *
@@ -62,7 +62,7 @@ const SERVICE_NAME =
     "adminManagement.service";
 
 const APPLICATION_NAME =
-    "TITech Capital SMC LTD";
+    "TITECH CAPITAL - SMC LTD";
 
 /* =============================================================================
  * DEFAULTS / LIMITS

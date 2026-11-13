@@ -10,7 +10,7 @@ export default function EduFinancePage() {
   return (
     <main className="titech-edufinance-page" dir={direction}>
       <header className="titech-edufinance-hero">
-        <p className="titech-edufinance-eyebrow">TITech Community Capital · TITech Capital SMC LTD</p>
+        <p className="titech-edufinance-eyebrow">TITech Community Capital · TITECH CAPITAL - SMC LTD</p>
         <h1>{text('eduFinanceTitle')}</h1>
         <p className="titech-edufinance-subtitle">{text('eduFinanceSubtitle')}</p>
         <p className="titech-edufinance-tagline">{text('eduFinanceTagline')}</p>

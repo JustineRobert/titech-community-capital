@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/src/modules/payments/providers/momo/momo.routes.js
  * Enterprise MTN Mobile Money Routes
  * ============================================================================

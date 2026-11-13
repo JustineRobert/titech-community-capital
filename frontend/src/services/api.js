@@ -1,5 +1,5 @@
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise API Client
 //
 // File: frontend/src/services/api.js

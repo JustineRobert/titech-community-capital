@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/Account.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Financial Account Aggregate
  * ============================================================================
  *
@@ -3982,6 +3982,6 @@ export default Account;
 
 /*
  * ============================================================================
- * END OF TITech COMMUNITY CAPITAL LTD ENTERPRISE FINANCIAL ACCOUNT MODEL
+ * END OF TITech Community Capital ENTERPRISE FINANCIAL ACCOUNT MODEL
  * ============================================================================
  */

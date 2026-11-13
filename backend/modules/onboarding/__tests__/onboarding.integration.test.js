@@ -3,7 +3,7 @@
  * File: backend/modules/onboarding/__tests__/onboarding.integration.test.js
  * =============================================================================
  *
- * TITech Community Capital LTD
+ * TITech Community Capital
  *
  * Enterprise Onboarding Integration Test Suite
  *

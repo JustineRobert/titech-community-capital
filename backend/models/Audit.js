@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/Audit.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Legacy Audit Compatibility Aggregate
  * ============================================================================
  *

@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech COMMUNITY CAPITAL LTD
+ * TITech Community Capital
  * USE CONVERSATION HOOK — ENTERPRISE EDITION
  * ============================================================================
  *

@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Universal Resilience Intelligence Mesh
  *
  * Enterprise Mesh Snapshot & State Exchange Layer

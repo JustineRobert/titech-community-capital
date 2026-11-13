@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Canonical Express error pipeline registration.
  *
  * Responsibility: translate application errors into stable, safe HTTP

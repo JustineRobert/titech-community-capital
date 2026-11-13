@@ -3,7 +3,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  *
  * File:
  * tests/validators/reconciliation.validator.test.js

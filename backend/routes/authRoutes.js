@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Capital SMC LTD
+ * TITECH CAPITAL - SMC LTD
  * Enterprise Development Authentication Routes
  * ============================================================================
  *
@@ -62,7 +62,7 @@ const ROUTER_VERSION =
   '2026.1';
 
 const APPLICATION_NAME =
-  'TITech Capital SMC LTD';
+  'TITECH CAPITAL - SMC LTD';
 
 const DEFAULT_ROLE =
   'AUDITOR';

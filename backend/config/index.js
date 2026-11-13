@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Canonical Enterprise Application Configuration
  * =============================================================================
  *
@@ -59,7 +59,7 @@ const COMPONENT =
   'configuration';
 
 const APPLICATION_LEGAL_NAME =
-  'TITech Capital SMC LTD';
+  'TITECH CAPITAL - SMC LTD';
 
 const DEFAULTS = Object.freeze({
   api: Object.freeze({

@@ -1,7 +1,9 @@
 # TITech Community Capital — Current Platform Truth Index
 
 **As of:** 13 November 2026  
-**Organization:** TITech Capital SMC LTD  
+**Organization:** TITECH CAPITAL - SMC LTD
+**Entity Registration Number (ERN):** 80049233029029 (owner-supplied; verification pending)
+**Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
 **Product:** TITech Community Capital  
 **Engineering principle:** BUILD LESS. PROVE MORE.  
 **Production approval | NO**
@@ -9,6 +11,14 @@
 **`productionApproved`: `false`**
 
 This root-level document is an index to the current machine-generated evidence and the detailed historical/platform narrative. It is not a substitute for running the gates against the precise commit or deployment being assessed.
+
+## 13 November 2026 — official organization identity update and delivery reconciliation
+
+The current organization identity is **TITECH CAPITAL - SMC LTD**, with owner-supplied ERN **80049233029029** and postal correspondence address **P.O. Box 601200, Clock Tower, Uganda**. These values originate from the registration email supplied by the project owner and remain `PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION`; the P.O. Box is not represented as the registered office. Active frontend/backend branding, legal draft metadata, runtime metadata, CI deployment metadata and identity gates are aligned to this name. The product remains **TITech Community Capital**.
+
+The uploaded ZIP is a source archive without `.git` metadata. Its ZIP comment is `95261f98fe51b1582192800b00e31cb9599f30e5`; this is an archive comment, **not a verified Git commit SHA**. The archive's older embedded platform-truth page references a different snapshot hash; that historic discrepancy must not be interpreted as verified Git history. GitHub DNS resolution was unavailable in this execution environment, and no authenticated push or remote SHA verification is claimed. Vercel CLI/configuration credentials were not available and the production domain could not be independently retrieved here; no deployment or live application verification is claimed.
+
+The nine-color official palette, official circular logo, default-light and explicit-dark theme architecture were preserved. The theme audit is rerun for this archive-local update. The frontend build was attempted but stopped with `vite: not found`; the supported-runtime gate is blocked by Node 22.16.0/npm 10.9.2, and full integration/browser tests require the declared Node 24.15.0/npm 11 runtime, installed dependencies and MongoDB/Redis services. `productionApproved=false`; release status remains **NOT READY**. See `docs/evidence/2026-11-13-delivery-reconciliation/` for baseline, root-cause, synchronization, deployment, authentication, test and file-discovery records.
 
 ## 13 November 2026 — commercial legacy-pricing safety and archive-local verification
 
@@ -30,7 +40,7 @@ The focused commercial-core suite passes 29/29 unit tests; an additional 14 exis
 
 **This is not an end-to-end commercial billing release.** Twenty-two zero-byte files remain under `backend/commercial`. Invoice/credit-note, subscription, collection, provider verification, canonical revenue posting, reversal, provider settlement, reconciliation, entitlement enforcement, full product-service event adoption, billing UI and database/Redis/provider E2E integration remain incomplete or unverified. The adapter is not wired to a live canonical posting service. No customer, provider, accounting, legal, regulator or partner evidence was created. Full builds, backend/frontend startup, replica-set integration, Redis-backed jobs, provider sandbox/live settlement, browser E2E, security assessment and recovery drills were not run.
 
-Source artifact: supplied ZIP comment identifies snapshot `33efc14731788c800b23d0e12ab8393a706ce613`; no `.git` metadata is present. The original archive was not overwritten; no commit, push or deployment was performed. The official nine-colour theme and circular logo were preserved, and the theme audit passed with 71 non-brand CSS files using central tokens and zero hard-coded official palette literals. Organization remains TITech Capital SMC LTD; product remains TITech Community Capital. `productionApproved=false`.
+Historical source-artifact note from the earlier execution snapshot: the supplied ZIP had no `.git` metadata; a ZIP comment is not a verified commit SHA. The official theme and circular logo were preserved in that run. Its 71-file CSS audit count and then-configured organization label are historical evidence only; see the 13 November 2026 identity and verification update at the top of this document and the current delivery evidence directory. `productionApproved=false`.
 
 See [`docs/commercial/AUTHORITATIVE_COMMERCIAL_BILLING_CORE.md`](docs/commercial/AUTHORITATIVE_COMMERCIAL_BILLING_CORE.md), [`docs/evidence/2026-11-12-commercial-billing-remediation/EXECUTION_REPORT.md`](docs/evidence/2026-11-12-commercial-billing-remediation/EXECUTION_REPORT.md), [`CHANGESET.md`](docs/evidence/2026-11-12-commercial-billing-remediation/CHANGESET.md) and [`SERVICE_INTEGRATION_MATRIX.md`](docs/evidence/2026-11-12-commercial-billing-remediation/SERVICE_INTEGRATION_MATRIX.md). This is an archive-local update, not a GitHub push or production deployment.
 
@@ -56,7 +66,7 @@ This remains source and contract evidence only. The supplied archive has no `.gi
 
 ## 10 November 2026 — current organization identity and remediation
 
-The current user-confirmed organization identity is **TITech Capital SMC LTD**. The product remains **TITech Community Capital**. Active application branding, organization profile, deployment metadata, package author metadata, legal UI/configuration and identity gates have been aligned to this name. Older dated readiness reports, change inventories and user-authored historical snapshots retain their contemporaneous identity values and are explicitly superseded for current identity purposes by this section. The configured name does not independently establish statutory incorporation, licence, registered-office status or regulatory authorization; documentary verification remains pending.
+At the time of this 10 November 2026 snapshot, the configured organization identity was **TITech Capital SMC LTD**, with **TITech Community Capital** as product. This dated identity was superseded by the owner-supplied 13 November 2026 update recorded at the top of this document: **TITECH CAPITAL - SMC LTD**, ERN **80049233029029**, postal correspondence **P.O. Box 601200, Clock Tower, Uganda**. The 10 November entry is retained as historical evidence and must not be used as current organization identity. Neither configured name nor owner-supplied number independently establishes statutory incorporation, registered-office status, licence or regulatory authorization; documentary verification remains pending.
 
 The 10 November archive-local changes also (1) place insurer state mutations and required audit writes in one MongoDB transaction session, (2) align payroll report and webhook-audit read access with canonical tenant-scoped permissions, (3) preserve stricter administrator-only payroll processing/reconciliation, (4) prevent the payroll page from displaying false zero totals after retrieval failure, and (5) add focused contract tests and current release evidence. The existing official nine-colour palette, circular logo and semantic light/dark theme system are retained; the current theme gate reports 69 non-brand frontend CSS files covered by centralized tokens and no prohibited hard-coded palette literals.
 

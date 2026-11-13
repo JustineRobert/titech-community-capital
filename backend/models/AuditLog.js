@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/AuditLog.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Audit Log Aggregate
  * ============================================================================
  *

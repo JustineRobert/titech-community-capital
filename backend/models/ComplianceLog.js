@@ -1,6 +1,6 @@
 // ============================================================================
 // backend/models/ComplianceLog.js
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Compliance Event / Case Log
 // ============================================================================
 //

@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: momo.service.js
  * Enterprise MTN Mobile Money Service
  * ============================================================================

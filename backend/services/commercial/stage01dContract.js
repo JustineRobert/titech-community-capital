@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * STAGE 01D — SaaS Billing Behavioral Contract
  * backend/services/commercial/stage01dContract.js
  * ============================================================================

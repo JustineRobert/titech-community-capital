@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Commercial Entitlement / Feature Constants
  * backend/commercial/constants/commercialFeature.constants.js
  * =============================================================================

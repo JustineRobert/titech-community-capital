@@ -1,0 +1,2 @@
+No merge conflict markers found (3746 files scanned).
+exit=0

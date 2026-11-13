@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Enterprise Application Footer
  * ============================================================================
  *
@@ -78,6 +78,12 @@ export const FOOTER_CONSTANTS = Object.freeze({
   COMPANY_LEGAL_NAME:
     TITECH_BRAND.legalName,
 
+  COMPANY_ENTITY_REGISTRATION_NUMBER:
+    TITECH_BRAND.organization.entityRegistrationNumber,
+
+  COMPANY_ENTITY_REGISTRATION_STATUS:
+    TITECH_BRAND.organization.entityRegistrationNumberVerification,
+
   COMPANY_DESCRIPTION:
     'Community financial infrastructure for a stronger, more inclusive Africa — connecting trusted records, payments, communities, capital and opportunity.',
 
@@ -117,6 +123,8 @@ export const FOOTER_CONSTANTS = Object.freeze({
 const {
   COMPANY_NAME,
   COMPANY_LEGAL_NAME,
+  COMPANY_ENTITY_REGISTRATION_NUMBER,
+  COMPANY_ENTITY_REGISTRATION_STATUS,
   COMPANY_DESCRIPTION,
   CONTACT_EMAIL,
   SUPPORT_EMAIL,
@@ -650,6 +658,8 @@ FooterContactAction.propTypes = {
 function Footer({
   companyName,
   companyLegalName,
+  companyEntityRegistrationNumber,
+  companyEntityRegistrationStatus,
   description,
   email,
   supportEmail,
@@ -982,6 +992,18 @@ function Footer({
                     </li>
                   ) : null}
 
+                  {companyEntityRegistrationNumber ? (
+                    <li data-testid="titech-footer-entity-registration-number">
+                      <span>
+                        <strong>Entity Registration Number (ERN):</strong>{' '}
+                        {companyEntityRegistrationNumber}
+                        {companyEntityRegistrationStatus === 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION'
+                          ? ' (owner-supplied; verification pending)'
+                          : ''}
+                      </span>
+                    </li>
+                  ) : null}
+
                   {postalAddress ? (
                     <li data-testid="titech-footer-postal-address">
                       <span>
@@ -1126,6 +1148,12 @@ Footer.propTypes = {
   companyLegalName:
     PropTypes.string,
 
+  companyEntityRegistrationNumber:
+    PropTypes.string,
+
+  companyEntityRegistrationStatus:
+    PropTypes.string,
+
   description:
     PropTypes.string,
 
@@ -1242,6 +1270,12 @@ Footer.defaultProps = {
 
   companyLegalName:
     COMPANY_LEGAL_NAME,
+
+  companyEntityRegistrationNumber:
+    COMPANY_ENTITY_REGISTRATION_NUMBER,
+
+  companyEntityRegistrationStatus:
+    COMPANY_ENTITY_REGISTRATION_STATUS,
 
   description:
     COMPANY_DESCRIPTION,

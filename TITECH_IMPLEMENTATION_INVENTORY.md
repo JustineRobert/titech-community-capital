@@ -1,11 +1,13 @@
 # TITech implementation inventory — 2026-11-07
 
-**Organization:** TITech Capital LTD  
+**Historical organization label (snapshot dated 7 November 2026):** TITech Capital LTD  
 **Product:** TITech Community Capital  
 **Repository target:** `https://github.com/JustineRobert/titech-community-capital`  
 **Executed source:** uploaded ZIP snapshot `titech-community-capital-main.zip`  
 **Uploaded ZIP SHA-256:** `eee19b22910a4d35f9c1472c5a93c6d50636471fd6ff2bb0ccc4eb564c5e06ee`  
 **Git branch/commit in snapshot:** unavailable; the ZIP contains no `.git` metadata.
+
+> **Current identity update — 13 November 2026:** Current owner-supplied organization identity is **TITECH CAPITAL - SMC LTD** (ERN **80049233029029**; postal correspondence **P.O. Box 601200, Clock Tower, Uganda**), with independent documentary verification pending. This implementation inventory is retained as a dated technical snapshot; its historic organization label is not the current source of truth. The product remains **TITech Community Capital**.
 
 ## Existing platform assets identified and preserved
 

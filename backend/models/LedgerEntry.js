@@ -1,7 +1,7 @@
 // ============================================================================
 // backend/models/LedgerEntry.js
 // Enterprise Ledger Entry Model
-// TITech Community Capital LTD
+// TITech Community Capital
 // Double-Entry Accounting Foundation
 // ============================================================================
 //

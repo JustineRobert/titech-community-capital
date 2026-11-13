@@ -1,0 +1,60 @@
+{
+  "gate": "titech-ussd-contract",
+  "status": "PASS",
+  "capabilityStatus": "IMPLEMENTED_CONTRACT_ONLY",
+  "providerVerified": false,
+  "networkVerified": false,
+  "productionApproved": false,
+  "checks": [
+    {
+      "name": "canonical versioned callback route",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "callback authentication before normalization and processing",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "tenant and member identifiers are not copied from callback payload",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "provider adapter contract requires verification, normalization and serialization",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "provider allowlist is explicit and empty by default",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "USSD and financial action flags remain disabled in templates",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "financial action enablement is passed as a separate server-side gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "menu is feature-filtered and defaults to reviewed English",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "provider network is normalized without prefix inference",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "organization production approval remains disabled",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

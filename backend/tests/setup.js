@@ -3,7 +3,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/tests/setup.js
  * Enterprise Global Test Setup — ESM Compatible
  * ============================================================================

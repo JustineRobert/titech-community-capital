@@ -1,7 +1,7 @@
 /**
 
 * ============================================================================
-* TITech Community Capital Ltd
+* TITech Community Capital
 * Enterprise Legal Document Domain Model
 * ============================================================================
 *
@@ -72,7 +72,7 @@
 *
 * IMPORTANT:
 * This model describes application-level legal-document metadata.
-* It does not establish that TITech Community Capital Ltd is licensed,
+* It does not establish that TITech Community Capital is licensed,
 * regulated, authorized, or legally permitted to provide any particular
 * financial service.
 *

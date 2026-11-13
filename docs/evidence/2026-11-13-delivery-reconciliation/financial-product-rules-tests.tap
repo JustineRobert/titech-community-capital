@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: recurrence supports daily, weekly, fortnightly, monthly and quarterly dates
+ok 1 - recurrence supports daily, weekly, fortnightly, monthly and quarterly dates
+  ---
+  duration_ms: 1.809625
+  type: 'test'
+  ...
+# Subtest: monthly recurrence clamps month ends but retains the original anchor day
+ok 2 - monthly recurrence clamps month ends but retains the original anchor day
+  ---
+  duration_ms: 0.181368
+  type: 'test'
+  ...
+# Subtest: preview enforces a valid IANA zone, end date, count limit and stable occurrence key
+ok 3 - preview enforces a valid IANA zone, end date, count limit and stable occurrence key
+  ---
+  duration_ms: 13.99014
+  type: 'test'
+  ...
+# Subtest: fixed-deposit accrual days require an explicit inclusive/exclusive end-date policy
+ok 4 - fixed-deposit accrual days require an explicit inclusive/exclusive end-date policy
+  ---
+  duration_ms: 0.288356
+  type: 'test'
+  ...
+# Subtest: fixed-deposit interest uses integer arithmetic and explicit approved calculation terms
+ok 5 - fixed-deposit interest uses integer arithmetic and explicit approved calculation terms
+  ---
+  duration_ms: 0.364519
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 72.342423

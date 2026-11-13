@@ -1,0 +1,6 @@
+TITech supported runtime gate: BLOCKED
+Observed Node: 22.16.0; observed npm: 10.9.2
+Required Node: >=24.15.0; required npm: >=11.0.0
+BLOCKER: Node 22.16.0 is below required >=24.15.0.
+BLOCKER: npm 10.9.2 is below required >=11.0.0.
+exit=1

@@ -3,7 +3,7 @@
   "schemaVersion": "1.0.0",
   "name": "TITech Official Platform Theme",
   "product": "TITech Community Capital",
-  "organization": "TITech Capital SMC LTD",
+  "organization": "TITECH CAPITAL - SMC LTD",
   "sourceReference": "branding/reference/TITech_FinTech_Platform_Hosting_Guide_2026-09-30.png",
   "defaultTheme": "light",
   "supportedThemes": [
@@ -51,7 +51,12 @@
     "Light is the deterministic default; dark is an explicit user-selected mode.",
     "The official TITech circular logo remains the primary product mark."
   ],
-  "organizationLegalName": "TITech Capital SMC LTD",
+  "organizationLegalName": "TITECH CAPITAL - SMC LTD",
   "organizationProfile": "branding/TITECH_ORGANIZATION_PROFILE.json",
-  "tagline": "BUILD LESS. PROVE MORE."
+  "tagline": "BUILD LESS. PROVE MORE.",
+  "entityRegistrationNumber": "80049233029029",
+  "entityRegistrationNumberType": "ERN",
+  "postalAddress": "P.O. Box 601200",
+  "postalLocation": "Clock Tower",
+  "identityStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION"
 }

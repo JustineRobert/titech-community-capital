@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/constants/httpStatus.js
  * Canonical HTTP Status Constants — Native ESM
  * ============================================================================

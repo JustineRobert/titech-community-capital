@@ -1,6 +1,6 @@
 // ============================================================================
 // backend/models/EmailAudit.js
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Email Security / Authentication Audit Model
 // ============================================================================
 //

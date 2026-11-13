@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: normalizes a canonical provider callback and discards caller tenant/member fields
+ok 1 - normalizes a canonical provider callback and discards caller tenant/member fields
+  ---
+  duration_ms: 1.566235
+  type: 'test'
+  ...
+# Subtest: requires E.164 MSISDN and does not guess a network from its prefix
+ok 2 - requires E.164 MSISDN and does not guess a network from its prefix
+  ---
+  duration_ms: 0.94685
+  type: 'test'
+  ...
+# Subtest: rejects incomplete, oversized and malformed provider callback fields
+ok 3 - rejects incomplete, oversized and malformed provider callback fields
+  ---
+  duration_ms: 0.256719
+  type: 'test'
+  ...
+# Subtest: serializes continuation and termination without silently truncating responses
+ok 4 - serializes continuation and termination without silently truncating responses
+  ---
+  duration_ms: 0.272332
+  type: 'test'
+  ...
+# Subtest: renders only institution-enabled main-menu features
+ok 5 - renders only institution-enabled main-menu features
+  ---
+  duration_ms: 0.306383
+  type: 'test'
+  ...
+# Subtest: does not activate unreviewed USSD translations
+ok 6 - does not activate unreviewed USSD translations
+  ---
+  duration_ms: 0.122882
+  type: 'test'
+  ...
+# Subtest: renders savings submenu only for enabled product capabilities
+ok 7 - renders savings submenu only for enabled product capabilities
+  ---
+  duration_ms: 0.197802
+  type: 'test'
+  ...
+# Subtest: provider registry requires verification, normalization and response serialization contracts
+ok 8 - provider registry requires verification, normalization and response serialization contracts
+  ---
+  duration_ms: 0.299662
+  type: 'test'
+  ...
+# Subtest: menu navigation distinguishes back, exit, disabled actions and enabled actions
+ok 9 - menu navigation distinguishes back, exit, disabled actions and enabled actions
+  ---
+  duration_ms: 0.568981
+  type: 'test'
+  ...
+# Subtest: session lifecycle rejects terminal-state resurrection and invalid transitions
+ok 10 - session lifecycle rejects terminal-state resurrection and invalid transitions
+  ---
+  duration_ms: 0.996733
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 70.268052

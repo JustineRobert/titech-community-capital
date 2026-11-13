@@ -1,6 +1,8 @@
 # TITech Community Capital — Product Positioning
 
-**Organization:** TITech Capital SMC LTD  
+**Organization:** TITECH CAPITAL - SMC LTD
+**ERN:** 80049233029029 (owner-supplied; documentary verification pending)
+**Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
 **Product:** TITech Community Capital  
 **Platform tagline:** BUILD LESS. PROVE MORE.  
 **Primary wedge:** Financial event, payment and reconciliation infrastructure for community finance.

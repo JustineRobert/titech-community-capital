@@ -45,7 +45,7 @@ export default function EducationSupportPage() {
   return (
     <main className="titech-education-page" dir={direction}>
       <header className="titech-education-hero">
-        <p className="titech-education-eyebrow">TITech Capital SMC LTD · TITech Community Capital</p>
+        <p className="titech-education-eyebrow">TITECH CAPITAL - SMC LTD · TITech Community Capital</p>
         <h1>{selected ? selected.title : text('publicPageTitle')}</h1>
         <p>{selected ? text('applicationNote') : text('publicPageDescription')}</p>
         <div className="titech-education-hero__actions">

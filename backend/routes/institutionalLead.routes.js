@@ -89,7 +89,7 @@ router.get('/meta', (_req, res) => res.status(200).json({
   success: true,
   service: 'institutional-lead-intake',
   capabilities: ['DEMO', 'CONTACT', 'CHAT_FOLLOW_UP'],
-  organization: 'TITech Capital SMC LTD',
+  organization: 'TITECH CAPITAL - SMC LTD',
   appointmentBehavior: 'REQUEST_ONLY_AWAITING_CONFIRMATION',
   chatBehavior: 'GUIDED_APPROVED_KNOWLEDGE_BASE_ONLY',
   notes: 'This endpoint does not establish provider availability, calendar booking, live human support, or production approval.',

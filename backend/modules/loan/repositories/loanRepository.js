@@ -4,7 +4,7 @@
  * ============================================================================
  * ENTERPRISE LOAN REPOSITORY
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * SACCO Core Banking Platform
  *
  * File:

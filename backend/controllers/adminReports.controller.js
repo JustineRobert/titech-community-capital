@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital SMC LTD
+ * TITECH CAPITAL - SMC LTD
  * Enterprise Administrative Reports Controller
  * =============================================================================
  *
@@ -68,7 +68,7 @@ const CONTROLLER_NAME =
     "adminReports.controller";
 
 const APPLICATION_NAME =
-    "TITech Capital SMC LTD";
+    "TITECH CAPITAL - SMC LTD";
 
 /* =============================================================================
  * HTTP STATUS

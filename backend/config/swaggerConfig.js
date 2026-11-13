@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * TITech Community Capital Operating System
  * =============================================================================
  *
@@ -154,7 +154,7 @@ const DEFAULTS =
 
         contact: {
             name:
-                'TITech Capital SMC LTD',
+                'TITECH CAPITAL - SMC LTD',
 
             email:
                 'support@titech.africa',

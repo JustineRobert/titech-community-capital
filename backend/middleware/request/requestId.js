@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  *
  * Enterprise Request ID Middleware
  *

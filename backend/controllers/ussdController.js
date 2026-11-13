@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/controllers/ussdController.js
  * Section 4.1 — Foundation & Validation
  * Enterprise USSD Controller

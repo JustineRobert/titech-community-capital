@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-11-13",
+  "baselineFileCount": 3685,
+  "updatedFileCount": 3757,
+  "added": 72,
+  "modified": 1269,
+  "removed": 0,
+  "changedPaths": 1341,
+  "organization": "TITECH CAPITAL - SMC LTD",
+  "product": "TITech Community Capital",
+  "entityRegistrationNumber": "80049233029029",
+  "entityRegistrationNumberStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
+  "postalAddress": "P.O. Box 601200, Clock Tower, Uganda",
+  "releaseStatus": "NOT_READY",
+  "productionApproved": false,
+  "focusedNodeTestsPassed": 64,
+  "githubPush": "NOT_PERFORMED",
+  "vercelDeployment": "NOT_VERIFIED",
+  "selfReferentialGeneratedArtifactHashesOmitted": 3
+}

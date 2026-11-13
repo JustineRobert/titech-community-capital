@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "asOf": "2026-11-10",
   "product": "TITech Community Capital",
-  "organization": "TITech Capital SMC LTD",
+  "organization": "TITECH CAPITAL - SMC LTD",
   "engineeringPrinciple": "BUILD LESS. PROVE MORE.",
   "releaseStatus": "NOT_READY",
   "productionApproved": false,
@@ -205,5 +205,8 @@
       ]
     }
   ],
-  "identityChangeNote": "Organization identity was updated by the project owner on 10 November 2026. Gate statuses remain unverified/external as recorded; changing the identity field does not close release gates."
+  "identityChangeNote": "On 13 November 2026 the project owner supplied the current organization name TITECH CAPITAL - SMC LTD, ERN 80049233029029 and postal correspondence address P.O. Box 601200. These owner-supplied details remain pending independent documentary verification; gate statuses are unchanged and production approval remains false.",
+  "entityRegistrationNumber": "80049233029029",
+  "entityRegistrationNumberType": "ERN",
+  "postalAddress": "P.O. Box 601200"
 }

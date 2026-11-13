@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/src/infrastructure/logging/errorLogger.js
  * Enterprise Error Logger
  * ============================================================================

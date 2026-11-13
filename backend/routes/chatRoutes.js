@@ -9,7 +9,7 @@
  *   backend/routes/chatRoutes.js
  *
  * Organization:
- *   TITech Community Capital Ltd
+ *   TITech Community Capital
  *
  * Purpose
  * ----------------------------------------------------------------------------

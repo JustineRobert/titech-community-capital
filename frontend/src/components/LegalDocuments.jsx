@@ -1,5 +1,5 @@
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Legal Documents
 // File: frontend/src/components/LegalDocuments.jsx
 // Production Grade

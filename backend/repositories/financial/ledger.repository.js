@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Immutable Double-Entry Ledger Repository
  * ============================================================================
  *

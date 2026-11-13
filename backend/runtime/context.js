@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Runtime Context
  * ============================================================================
  *
@@ -89,7 +89,7 @@ const SERVICE_NAME =
     'titech-community-capital-backend';
 
 const COMPANY_NAME =
-    'TITech Capital SMC LTD';
+    'TITECH CAPITAL - SMC LTD';
 
 const PLATFORM_NAME =
     'TITech Community Capital';

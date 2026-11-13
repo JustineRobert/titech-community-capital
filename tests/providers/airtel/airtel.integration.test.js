@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: tests/providers/airtel/airtel.integration.test.js
  * Enterprise Airtel Integration Tests
  * ============================================================================

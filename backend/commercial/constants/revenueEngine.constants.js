@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Commercial Revenue Engine Constants
  * backend/commercial/constants/revenueEngine.constants.js
  * =============================================================================

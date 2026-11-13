@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Typing Indicator Hook
  * File: frontend/src/hooks/useTyping.js
  * Production Grade

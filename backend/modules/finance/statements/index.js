@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * ============================================================================
  *
  * Statement Intelligence & Financial Statement Processing Public API

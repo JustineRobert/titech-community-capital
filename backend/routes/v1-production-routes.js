@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Enterprise API v1 Production Route Registry
  * ============================================================================
  *

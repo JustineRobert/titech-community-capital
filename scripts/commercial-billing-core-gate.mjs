@@ -41,7 +41,7 @@ const ruleResolver = fs.readFileSync(path.join(root, 'backend/commercial/service
 check('missing pricing fails closed', /No approved and effective fee rule exists/.test(ruleResolver) && /TransactionRevenueNotFoundError/.test(ruleResolver));
 check('assessment has idempotency and immutable pricing snapshot', /idempotencyKey/.test(assessment) && /pricingSnapshot/.test(assessment));
 check('financial adapter requires canonical posting injection and active transaction', /postCanonicalBillingPayment must be wired/.test(adapter) && /inTransaction\(\)/.test(adapter));
-check('official organization identity preserved', profile.organizationDisplayName === 'TITech Capital SMC LTD' && profile.productName === 'TITech Community Capital');
+check('official organization identity preserved', profile.organizationDisplayName === 'TITECH CAPITAL - SMC LTD' && profile.productName === 'TITech Community Capital');
 check('production approval remains false', profile.productionApproved === false);
 check('official nine-color brand manifest retained', Object.keys(theme.palette ?? {}).length === 9 && theme.tagline === 'BUILD LESS. PROVE MORE.');
 check('legacy billing calculator has no hardcoded tariffs, VAT default or zero-fee fallback', !/defaultPricing|mobileMoneyDeposit|mobileMoneyWithdrawal|0\.18|return\s*\{\s*type:\s*['\"]FIXED['\"],\s*fee:\s*0/.test(legacyBilling) && /TITECH_COMMERCIAL_BILLING_NOT_CONFIGURED/.test(legacyBilling) && /quoteFee/.test(legacyBilling));

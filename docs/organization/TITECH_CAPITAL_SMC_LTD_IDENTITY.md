@@ -1,29 +1,32 @@
-# TITech Capital SMC LTD — Current Organization Identity
+# TITECH CAPITAL - SMC LTD — Current Organization Identity
 
-**Current identity confirmed by owner:** 10 November 2026  
-**Organization:** TITech Capital SMC LTD  
+**Updated from owner-supplied registration email:** 13 November 2026  
+**Organization:** TITECH CAPITAL - SMC LTD  
+**Entity Registration Number (ERN):** 80049233029029  
 **Product:** TITech Community Capital  
+**Postal correspondence address:** P.O. Box 601200, Clock Tower, Uganda  
 **Tagline:** BUILD LESS. PROVE MORE.  
 **Production approval:** `false`  
 **External documentary verification:** Pending
 
 ## Current identity instruction
 
-The current organization name to use in active platform configuration, product documentation, current-facing communications and new engineering deliverables is **TITech Capital SMC LTD**. The product name remains **TITech Community Capital**. Do not append `LTD` to the product name or use an older `TITech Capital LTD` label as the current organization identity.
+Use **TITECH CAPITAL - SMC LTD** as the organization's current configured identity in active platform metadata, current-facing documentation and new engineering deliverables. The product identity remains exactly **TITech Community Capital**. Do not append the organization suffix to the product name.
 
-## Existing address information retained for verification
+The ERN and postal address above are transcribed from the owner's registration email supplied with the 13 November 2026 update. They are represented as owner-supplied configuration values, not as independently registry-verified facts.
 
-| Field | Information currently on file | Verification status |
+## Current organization details
+
+| Field | Configured value | Evidence status |
 |---|---|---|
-| Postal address | P.O. BOX 601200 | Owner-supplied; verify against current authoritative records |
-| Location | Clock Tower, Uganda | Owner-supplied; verify against current authoritative records |
+| Organization name | TITECH CAPITAL - SMC LTD | Owner-supplied email; external verification pending |
+| Entity Registration Number | 80049233029029 (ERN) | Owner-supplied email; external verification pending |
+| Postal correspondence address | P.O. Box 601200 | Owner-supplied administrative record |
+| Postal location | Clock Tower, Uganda | Owner-supplied administrative record |
 | Additional address retained in prior records | Plot 69-71 Jinja Road, Kampala, Uganda | Historical/on-file; registered-office status unverified |
-| Earlier portal association string | `TITECH CAPITAL - SMC LTD` | Historical source wording; not by itself proof of legal identity |
-
-The earlier [`TITECH_CAPITAL_LTD_IDENTITY.md`](TITECH_CAPITAL_LTD_IDENTITY.md) is preserved as a dated 31 October 2026 record. Its historic wording must not override the owner's later 10 November 2026 identity instruction.
 
 ## Documentary and regulatory boundary
 
-The current name in code, a user instruction, a portal string, a website, a logo or this document does not independently prove statutory incorporation, legal suffix, registered office, ownership, licence, tax status or authority to conduct regulated activities. Before statutory use, contracting or regulated operations, reconcile the current certificate of incorporation/company search, registered-office record and relevant licences/partner authorizations with qualified counsel and the appropriate authorities.
+The configured name, ERN, postal address, user instruction, portal string, website, logo or repository does not independently prove statutory incorporation, registered office, ownership, tax status, licence or authority to conduct regulated activities. Before statutory use, contracting or regulated operations, reconcile the details against the current certificate of incorporation/company search and official registered-office record, and obtain qualified counsel and relevant-authority review.
 
-TITech infrastructure implementation does not itself establish authorization for deposit-taking, lending, payment services, insurance underwriting or distribution, custody or telecommunications services. Keep applicable capabilities disabled or partner-controlled until documented authorization and operational approval exist.
+TITech infrastructure implementation does not itself establish authorization for deposit-taking, lending, payment services, insurance underwriting or distribution, custody or telecommunications services. Refugee and host-community participant journeys must continue through legitimate, verified institutional partners, tenant-scoped RBAC, consent and appropriate safeguarding; insurer workflows remain restricted to authorised insurers and distribution partners. Keep applicable capabilities disabled or partner-controlled until documentary authorization and operational approval exist.

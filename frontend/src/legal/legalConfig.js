@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Capital SMC LTD
+ * TITECH CAPITAL - SMC LTD
  * Enterprise Legal Document Configuration
  * ============================================================================
  *
@@ -53,7 +53,10 @@
 
 export const LEGAL_BRAND = Object.freeze({
   name: 'TITech Community Capital',
-  legalName: 'TITech Capital SMC LTD',
+  legalName: 'TITECH CAPITAL - SMC LTD',
+  entityRegistrationNumber: '80049233029029',
+  entityRegistrationNumberType: 'ERN',
+  entityRegistrationNumberVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
   shortName: 'TITech',
   platformName: 'TITech Community Capital',
   tagline: 'BUILD LESS. PROVE MORE.',
@@ -119,18 +122,21 @@ export const LEGAL_CONTACTS = Object.freeze({
  * Canonical organization address.
  */
 export const LEGAL_ADDRESS = Object.freeze({
-  organization: 'TITech Capital SMC LTD',
-  // Postal correspondence address supplied for the 31 October 2026 update.
-  postalAddress: 'P.O. BOX 601200',
+  organization: 'TITECH CAPITAL - SMC LTD',
+  entityRegistrationNumber: '80049233029029',
+  entityRegistrationNumberType: 'ERN',
+  entityRegistrationNumberVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
+  // Postal correspondence address from the owner-supplied registration email dated 13 November 2026.
+  postalAddress: 'P.O. Box 601200',
   postalLocation: 'Clock Tower',
   postalCountry: 'Uganda',
-  postalFull: 'TITech Capital SMC LTD, P.O. BOX 601200, Clock Tower, Uganda',
+  postalFull: 'TITECH CAPITAL - SMC LTD, P.O. Box 601200, Clock Tower, Uganda',
   // Existing separately configured address retained for compatibility. Its
   // legal/registered-office status is not established by the postal record.
   street: 'Plot 69-71 Jinja Road',
   city: 'Kampala',
   country: 'Uganda',
-  full: 'TITech Capital SMC LTD, P.O. BOX 601200, Clock Tower, Uganda',
+  full: 'TITECH CAPITAL - SMC LTD, P.O. Box 601200, Clock Tower, Uganda',
   additionalAddressOnFile: 'Plot 69-71 Jinja Road, Kampala, Uganda',
 });
 

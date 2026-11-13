@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Airtel Payment Intelligence Workflow Registry
  * ============================================================================
  *

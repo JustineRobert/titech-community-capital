@@ -3,7 +3,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * =============================================================================
  *
  * Enterprise Autonomous Resilience Engine

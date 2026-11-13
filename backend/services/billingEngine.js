@@ -1,7 +1,7 @@
 /**
  * TITech Community Capital — legacy billing compatibility boundary.
  *
- * Organization: TITech Capital SMC LTD
+ * Organization: TITECH CAPITAL - SMC LTD
  *
  * This module intentionally contains NO tariffs, tax rates, monetary arithmetic,
  * invoice state, collections or ledger posting. Those concerns belong to the
@@ -174,7 +174,7 @@ export class BillingEngine {
   getDiagnostics() {
     return Object.freeze({
       service: 'TITech Commercial Billing Compatibility Boundary',
-      organization: 'TITech Capital SMC LTD',
+      organization: 'TITECH CAPITAL - SMC LTD',
       product: 'TITech Community Capital',
       configured: this.isConfigured(),
       pricingAuthority: 'CENTRAL_COMMERCIAL_ENGINE_ONLY',

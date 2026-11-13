@@ -69,7 +69,7 @@ function LegalDocument({ documentKey }) {
         </nav>
         <DraftStatus />
         <article className="titech-legal-card">
-          <p className="titech-legal-eyebrow">TITech Capital SMC LTD · TITech Community Capital</p>
+          <p className="titech-legal-eyebrow">TITECH CAPITAL - SMC LTD · TITech Community Capital</p>
           <h1>{document.title}</h1>
           <p className="titech-legal-lead">{document.intro}</p>
           <dl className="titech-legal-meta">
@@ -102,7 +102,7 @@ function LegalDocument({ documentKey }) {
 function LegalFooter() {
   return (
     <footer className="titech-legal-footer">
-      <span>© {new Date().getFullYear()} TITech Capital SMC LTD · TITech Community Capital</span>
+      <span>© {new Date().getFullYear()} TITECH CAPITAL - SMC LTD · TITech Community Capital</span>
       <nav aria-label="Footer legal links">
         {NAV_ITEMS.map((item) => <Link key={item.key} to={item.to}>{item.label}</Link>)}
       </nav>
@@ -117,7 +117,7 @@ export function LegalIndexPage() {
       <main className="titech-legal-main" id="main-content">
         <DraftStatus />
         <section className="titech-legal-card titech-legal-index">
-          <p className="titech-legal-eyebrow">TITech Capital SMC LTD</p>
+          <p className="titech-legal-eyebrow">TITECH CAPITAL - SMC LTD</p>
           <h1>Legal information and policies</h1>
           <p className="titech-legal-lead">
             Review the terms that govern access to TITech Community Capital and the information about

@@ -1,6 +1,6 @@
 /**
 * ============================================================================
-* TITech Community Capital Ltd
+* TITech Community Capital
 * Enterprise Legal Document Version Domain Model
 * ============================================================================
 *
@@ -70,7 +70,7 @@
   ```
 *
 * IMPORTANT:
-* This model does not establish that TITech Community Capital Ltd is
+* This model does not establish that TITech Community Capital is
 * licensed, regulated, authorized, or legally permitted to provide any
 * particular financial service.
 *

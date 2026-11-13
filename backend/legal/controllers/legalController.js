@@ -1,6 +1,6 @@
 /**
 * ============================================================================
-* TITech Community Capital Ltd
+* TITech Community Capital
 * Enterprise Legal Controller
 * ============================================================================
 *
@@ -43,7 +43,7 @@
 * ✓ TITech terminology is used consistently.
 *
 * IMPORTANT:
-* This controller does not determine whether TITech Community Capital Ltd
+* This controller does not determine whether TITech Community Capital
 * is licensed, regulated, authorized, or legally permitted to conduct any
 * particular financial activity.
 *
@@ -74,7 +74,7 @@ const SERVICE_NAME =
 'TITech Legal API';
 
 const COMPANY_NAME =
-'TITech Capital SMC LTD';
+'TITECH CAPITAL - SMC LTD';
 
 const DEFAULT_COUNTRY_CODE =
 'UG';

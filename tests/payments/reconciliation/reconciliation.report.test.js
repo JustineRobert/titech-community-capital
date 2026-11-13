@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: tests/payments/reconciliation/reconciliation.report.test.js
  * Enterprise Reconciliation Report Tests
  * ============================================================================

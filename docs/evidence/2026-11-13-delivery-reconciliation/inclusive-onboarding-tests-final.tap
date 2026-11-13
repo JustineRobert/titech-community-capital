@@ -1,0 +1,173 @@
+TAP version 13
+# Subtest: inclusive onboarding names refugee and host-community participants in every shipped locale
+ok 1 - inclusive onboarding names refugee and host-community participants in every shipped locale
+  ---
+  duration_ms: 2.712286
+  type: 'test'
+  ...
+# Subtest: participant scope copy keeps identity verification and service eligibility separate
+ok 2 - participant scope copy keeps identity verification and service eligibility separate
+  ---
+  duration_ms: 0.316177
+  type: 'test'
+  ...
+# Subtest: approved identity routes include refugee and asylum-seeker credentials without removing national ID
+ok 3 - approved identity routes include refugee and asylum-seeker credentials without removing national ID
+  ---
+  duration_ms: 12.990848
+  type: 'test'
+  ...
+# Subtest: unknown credential types fail closed
+ok 4 - unknown credential types fail closed
+  ---
+  duration_ms: 1.390293
+  type: 'test'
+  ...
+# Subtest: KYC transitions are explicit and cannot jump from rejected directly to verified
+ok 5 - KYC transitions are explicit and cannot jump from rejected directly to verified
+  ---
+  duration_ms: 1.50972
+  type: 'test'
+  ...
+# Subtest: identity verification and capability access are distinct
+ok 6 - identity verification and capability access are distinct
+  ---
+  duration_ms: 0.33873
+  type: 'test'
+  ...
+# Subtest: only an explicit permitted licence transition succeeds
+ok 7 - only an explicit permitted licence transition succeeds
+  ---
+  duration_ms: 0.671051
+  type: 'test'
+  ...
+# Subtest: expired, suspended or unverified licences block operational capability
+ok 8 - expired, suspended or unverified licences block operational capability
+  ---
+  duration_ms: 1.406487
+  type: 'test'
+  ...
+# Subtest: money uses positive safe integer minor units and a three-character currency
+ok 9 - money uses positive safe integer minor units and a three-character currency
+  ---
+  duration_ms: 0.652574
+  type: 'test'
+  ...
+# Subtest: live premium processing cannot activate without a canonical adapter, even if flags are true
+ok 10 - live premium processing cannot activate without a canonical adapter, even if flags are true
+  ---
+  duration_ms: 0.536974
+  type: 'test'
+  ...
+# Subtest: enrolment and claim decision lifecycles prevent invalid rewinds and repeated final decisions
+ok 11 - enrolment and claim decision lifecycles prevent invalid rewinds and repeated final decisions
+  ---
+  duration_ms: 0.278622
+  type: 'test'
+  ...
+# Subtest: insurer state changes use MongoDB transactions and bind audit writes to the same session
+ok 12 - insurer state changes use MongoDB transactions and bind audit writes to the same session
+  ---
+  duration_ms: 0.863355
+  type: 'test'
+  ...
+# Subtest: insurance persistence reads and writes carry the transaction session
+ok 13 - insurance persistence reads and writes carry the transaction session
+  ---
+  duration_ms: 0.317039
+  type: 'test'
+  ...
+# Subtest: cross-tenant consent is checked in the same session as insurer enrolment
+ok 14 - cross-tenant consent is checked in the same session as insurer enrolment
+  ---
+  duration_ms: 0.164293
+  type: 'test'
+  ...
+# Subtest: offline runtime modules use ESM instead of CommonJS exports inside the ESM backend
+ok 15 - offline runtime modules use ESM instead of CommonJS exports inside the ESM backend
+  ---
+  duration_ms: 7.48663
+  type: 'test'
+  ...
+# Subtest: offline frontend and backend resolve to one canonical versioned API contract
+ok 16 - offline frontend and backend resolve to one canonical versioned API contract
+  ---
+  duration_ms: 2.317303
+  type: 'test'
+  ...
+# Subtest: offline event routes have server-side enablement, action RBAC, device trust and readiness gates
+ok 17 - offline event routes have server-side enablement, action RBAC, device trust and readiness gates
+  ---
+  duration_ms: 1.492926
+  type: 'test'
+  ...
+# Subtest: browser/server offline event hash conformance excludes only outbox delivery metadata
+ok 18 - browser/server offline event hash conformance excludes only outbox delivery metadata
+  ---
+  duration_ms: 3.639937
+  type: 'test'
+  ...
+# Subtest: an unconfigured offline service reports NOT_READY and financial events fail closed
+ok 19 - an unconfigured offline service reports NOT_READY and financial events fail closed
+  ---
+  duration_ms: 0.79835
+  type: 'test'
+  ...
+# Subtest: official theme identity and palette remain canonical for TITECH CAPITAL - SMC LTD
+ok 20 - official theme identity and palette remain canonical for TITECH CAPITAL - SMC LTD
+  ---
+  duration_ms: 0.382245
+  type: 'test'
+  ...
+# Subtest: inclusive domain routes mount within the canonical authenticated versioned API
+ok 21 - inclusive domain routes mount within the canonical authenticated versioned API
+  ---
+  duration_ms: 4.315555
+  type: 'test'
+  ...
+# Subtest: new capability writes remain gated by server-side feature flags
+ok 22 - new capability writes remain gated by server-side feature flags
+  ---
+  duration_ms: 3.700237
+  type: 'test'
+  ...
+# Subtest: insurance enrolment verifies the canonical KYC record instead of trusting a caller-supplied state
+ok 23 - insurance enrolment verifies the canonical KYC record instead of trusting a caller-supplied state
+  ---
+  duration_ms: 1.678589
+  type: 'test'
+  ...
+# Subtest: private evidence download is not granted solely because the actor uploaded claim or licence documents
+ok 24 - private evidence download is not granted solely because the actor uploaded claim or licence documents
+  ---
+  duration_ms: 0.921922
+  type: 'test'
+  ...
+# Subtest: insurance data-sharing consent is versioned, explicit, withdrawable and reused by the canonical consent service
+ok 25 - insurance data-sharing consent is versioned, explicit, withdrawable and reused by the canonical consent service
+  ---
+  duration_ms: 1.463702
+  type: 'test'
+  ...
+# Subtest: private compliance evidence upload permits only the relevant NGO and insurance action permissions
+ok 26 - private compliance evidence upload permits only the relevant NGO and insurance action permissions
+  ---
+  duration_ms: 0.945637
+  type: 'test'
+  ...
+# Subtest: private evidence uploads fail closed before persistence unless malware screening returns clean
+ok 27 - private evidence uploads fail closed before persistence unless malware screening returns clean
+  ---
+  duration_ms: 2.038301
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 355.453225
+exit=0

@@ -120,7 +120,7 @@ export default function FaithCommunityGivingPage() {
       <header className="titech-faith-hero" data-brand-gradient="primary">
         <div className="titech-faith-hero__identity">
           <BrandLogo variant="transparent" size="lg" alt="TITech Community Capital official logo" />
-          <p className="titech-faith-eyebrow">TITech Capital SMC LTD · TITech Community Capital</p>
+          <p className="titech-faith-eyebrow">TITECH CAPITAL - SMC LTD · TITech Community Capital</p>
         </div>
         <div className="titech-faith-hero__copy">
           <span className="titech-faith-kicker">BUILD LESS. PROVE MORE.</span>
@@ -237,7 +237,7 @@ export default function FaithCommunityGivingPage() {
         ) : !error && !busy ? <div className="titech-faith-empty"><h3>No public campaigns are available</h3><p>Approved organisations can prepare campaigns after the capability is enabled and their organiser, safeguarding and receiving-destination evidence has been reviewed.</p></div> : null}
       </section>
 
-      <footer className="titech-faith-footer"><strong>BUILD LESS. PROVE MORE.</strong><span>Donations &amp; Community Giving is part of TITech Community Capital · TITech Capital SMC LTD.</span></footer>
+      <footer className="titech-faith-footer"><strong>BUILD LESS. PROVE MORE.</strong><span>Donations &amp; Community Giving is part of TITech Community Capital · TITECH CAPITAL - SMC LTD.</span></footer>
     </main>
   );
 }

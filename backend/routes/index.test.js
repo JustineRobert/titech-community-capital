@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Enterprise API Route Registry Test Suite
  * =============================================================================
  *
@@ -747,7 +747,7 @@ describe(
                                     'TITech Community Capital',
 
                                 applicationLegalName:
-                                    'TITech Capital SMC LTD',
+                                    'TITECH CAPITAL - SMC LTD',
 
                                 registry:
                                     'titech-api-v1',
@@ -1451,7 +1451,7 @@ describe(
                                     'TITech Community Capital',
 
                                 applicationLegalName:
-                                    'TITech Capital SMC LTD',
+                                    'TITECH CAPITAL - SMC LTD',
 
                                 registry:
                                     'titech-api-v1',

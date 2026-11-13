@@ -2,7 +2,7 @@
 
 /**
  * ==========================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Airtel Money Enterprise Authentication Observability
  * ----------------------------------------------------------
  * Enterprise observability layer for Airtel OAuth lifecycle.

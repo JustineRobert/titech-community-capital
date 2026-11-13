@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Process Environment Bootstrap
  * =============================================================================
  *
@@ -2822,7 +2822,7 @@ function buildEnvironment() {
     environment.app.name;
 
   environment.applicationLegalName =
-    'TITech Capital SMC LTD';
+    'TITECH CAPITAL - SMC LTD';
 
   environment.serviceName =
     environment.app.serviceName;
@@ -3432,7 +3432,7 @@ function buildSafeMetadata(
       environment.app.name,
 
     applicationLegalName:
-      'TITech Capital SMC LTD',
+      'TITECH CAPITAL - SMC LTD',
 
     serviceName:
       environment.app.serviceName,

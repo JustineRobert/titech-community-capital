@@ -4,7 +4,7 @@
  * ============================================================================
  * TENANT ID MIGRATION SCRIPT
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * SACCO Core Banking Platform
  *
  * PURPOSE

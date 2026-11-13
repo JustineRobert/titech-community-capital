@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Risk Engine Service
  * ============================================================================
  * Production Grade Risk Assessment Engine

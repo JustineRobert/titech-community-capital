@@ -1,7 +1,7 @@
 /**
 
 * ============================================================================
-* TITech Capital SMC LTD
+* TITECH CAPITAL - SMC LTD
 * Enterprise Privacy Policy Document
 * ============================================================================
 *
@@ -56,7 +56,7 @@ import PropTypes from 'prop-types';
 
 const FALLBACK_METADATA = Object.freeze({
 organization:
-'TITech Capital SMC LTD',
+'TITECH CAPITAL - SMC LTD',
 
 platform:
 'TITech Community Capital',
@@ -89,7 +89,7 @@ phoneHref:
 '+256782397907',
 
 address:
-'P.O. BOX 601200, Clock Tower, Uganda',
+'P.O. Box 601200, Clock Tower, Uganda',
 });
 
 /* ============================================================================

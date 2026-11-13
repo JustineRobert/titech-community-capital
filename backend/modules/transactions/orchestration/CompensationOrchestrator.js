@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Compensation Orchestrator
  * ============================================================================
  * Enterprise Distributed Transaction Compensation Engine

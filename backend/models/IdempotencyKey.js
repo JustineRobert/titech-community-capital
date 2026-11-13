@@ -1,6 +1,6 @@
 // ============================================================================
 // backend/models/IdempotencyKey.js
-// TITech Community Capital LTD
+// TITech Community Capital
 // Compatibility / Request Idempotency Model
 // ============================================================================
 //

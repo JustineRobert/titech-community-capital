@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Database Configuration
  * backend/config/database.config.js
  */

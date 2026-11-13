@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * STAGE 01D — Commercial Billing Service Loader
  * backend/services/commercial/stage01dServiceLoader.js
  * ============================================================================

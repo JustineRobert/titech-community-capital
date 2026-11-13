@@ -1,6 +1,6 @@
 // ============================================================================
 // backend/models/GroupWallet.js
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Group Wallet Model
 // PostgreSQL / Sequelize
 // ============================================================================

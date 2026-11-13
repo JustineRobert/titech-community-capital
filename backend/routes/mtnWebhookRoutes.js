@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Enterprise MTN Mobile Money Webhook Routes
  * ============================================================================
  *

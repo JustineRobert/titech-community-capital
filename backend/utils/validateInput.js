@@ -1,7 +1,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/utils/validateInput.js
  * Input Validation Utility — Native ESM
  * ============================================================================

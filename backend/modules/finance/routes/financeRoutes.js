@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Finance Core - Enterprise Finance Routes
  * ============================================================================
  *

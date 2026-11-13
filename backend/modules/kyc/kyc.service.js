@@ -1,7 +1,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * KYC Identity Verification Service
  * ============================================================================
  *

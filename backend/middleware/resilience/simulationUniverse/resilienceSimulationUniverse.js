@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Global Resilience Intelligence Network
  *
  * Global Resilience Simulation Universe

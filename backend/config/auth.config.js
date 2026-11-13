@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Authentication Configuration
  * backend/config/auth.config.js
  */

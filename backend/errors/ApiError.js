@@ -1,7 +1,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/errors/ApiError.js
  * Standardized API Error — Native ESM
  * ============================================================================

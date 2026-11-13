@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * ENTERPRISE UNIT TESTS — SYSTEM SETTING SERVICE
  * =============================================================================
  *

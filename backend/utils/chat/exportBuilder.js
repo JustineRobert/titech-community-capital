@@ -4,7 +4,7 @@
  * ============================================================================
  * EXPORT BUILDER
  * ============================================================================
- * TITech Community Capital LTD (TITech)
+ * TITech Community Capital (TITech)
  * TITechChat Enterprise Communication Platform
  *
  * PURPOSE

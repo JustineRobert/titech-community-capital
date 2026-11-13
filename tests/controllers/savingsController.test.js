@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: tests/controllers/savingsController.test.js
  * Enterprise Savings Controller Tests
  * ============================================================================

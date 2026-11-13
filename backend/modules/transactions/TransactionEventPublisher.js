@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Enterprise Transaction Event Publisher
  * ============================================================================
  *
@@ -1311,7 +1311,7 @@ function sanitize(value) {
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Transaction Event Publisher
  *
  * Section 1B — Enterprise Constructor

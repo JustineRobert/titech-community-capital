@@ -4,7 +4,7 @@
  * ============================================================================
  * ENTERPRISE MEMBER CONTROLLER
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * SACCO Core Banking Platform
  *
  * Features

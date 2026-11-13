@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/ChatMessage.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Chat Message Aggregate
  * ============================================================================
  *

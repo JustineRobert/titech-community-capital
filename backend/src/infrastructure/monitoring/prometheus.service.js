@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Infrastructure Monitoring
  * Prometheus Service
  * ============================================================================

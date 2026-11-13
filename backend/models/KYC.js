@@ -1,6 +1,6 @@
 // backend/models/KYC.js
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise KYC Model
 // ============================================================================
 //

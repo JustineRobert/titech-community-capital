@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Airtel Payment Decision Governance Service
  *
  * File:

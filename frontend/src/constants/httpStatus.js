@@ -2,7 +2,7 @@
 
 /**
  * ============================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * HTTP Status Constants
  * ============================================================
  * Enterprise Fintech Edition

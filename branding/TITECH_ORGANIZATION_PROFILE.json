@@ -2,18 +2,23 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "profileVersion": "1.0.0",
   "productName": "TITech Community Capital",
-  "organizationDisplayName": "TITech Capital SMC LTD",
-  "configuredLegalName": "TITech Capital SMC LTD",
-  "postalAddress": "P.O. BOX 601200",
+  "organizationDisplayName": "TITECH CAPITAL - SMC LTD",
+  "configuredLegalName": "TITECH CAPITAL - SMC LTD",
+  "postalAddress": "P.O. Box 601200",
   "postalLocation": "Clock Tower",
   "country": "Uganda",
-  "administrativeAssociationName": "TITECH CAPITAL SMC LTD",
+  "administrativeAssociationName": "TITECH CAPITAL - SMC LTD",
   "identityStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
   "postalAddressStatus": "USER_SUPPLIED_ADMINISTRATIVE_RECORD",
-  "sourceBaseline": "User-confirmed official organization-name update dated 10 November 2026. The configured name is not, by itself, documentary proof of statutory incorporation or licensing.",
+  "sourceBaseline": "Owner instruction dated 13 November 2026, based on the official registration email: organization name TITECH CAPITAL - SMC LTD, ERN 80049233029029, and postal correspondence address P.O. Box 601200, Clock Tower, Uganda. The values are configured as user-supplied registration details; this repository is not an independent corporate-registry verification or proof of licence.",
   "limitations": [
-    "The configured organization name reflects the user-confirmed name TITech Capital SMC LTD; this repository is not documentary proof of the statutory registered name, incorporation, registered office, postal-address validity, licence or regulatory approval.",
-    "Postal correspondence details are retained as user-supplied administrative records and require documentary verification before use as a registered-office representation."
+    "The configured organization name and ERN (80049233029029) are based on the owner-supplied registration email and must be cross-checked against current authoritative corporate records before being treated as independently verified statutory particulars.",
+    "The postal correspondence address (P.O. Box 601200, Clock Tower, Uganda) is a user-supplied administrative record and is not represented as a registered office or physical service address.",
+    "The repository does not establish incorporation status, ownership, tax status, licensing, permission to conduct regulated financial activities, or regulatory approval."
   ],
-  "productionApproved": false
+  "productionApproved": false,
+  "entityRegistrationNumber": "80049233029029",
+  "entityRegistrationNumberType": "ERN",
+  "entityRegistrationNumberSource": "USER_SUPPLIED_REGISTRATION_EMAIL_2026-11-13",
+  "entityRegistrationNumberStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION"
 }

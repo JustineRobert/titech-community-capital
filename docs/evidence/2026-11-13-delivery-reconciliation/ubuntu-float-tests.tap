@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: UbuntuFloat is mounted on the canonical authenticated, tenant-authorized router
+ok 1 - UbuntuFloat is mounted on the canonical authenticated, tenant-authorized router
+  ---
+  duration_ms: 5.88577
+  type: 'test'
+  ...
+# Subtest: UbuntuFloat capability reporting is available without enabling the operational core
+ok 2 - UbuntuFloat capability reporting is available without enabling the operational core
+  ---
+  duration_ms: 1.333071
+  type: 'test'
+  ...
+# Subtest: UbuntuFloat routes fail closed behind the Core capability flag and action RBAC
+ok 3 - UbuntuFloat routes fail closed behind the Core capability flag and action RBAC
+  ---
+  duration_ms: 1.911666
+  type: 'test'
+  ...
+# Subtest: UbuntuFloat private evidence upload is gated and scoped to the target agent
+ok 4 - UbuntuFloat private evidence upload is gated and scoped to the target agent
+  ---
+  duration_ms: 1.254514
+  type: 'test'
+  ...
+# Subtest: agent activation must resolve evidence from the tenant private-document store
+ok 5 - agent activation must resolve evidence from the tenant private-document store
+  ---
+  duration_ms: 1.761104
+  type: 'test'
+  ...
+# Subtest: manual observations have no money-movement or ledger posting path
+ok 6 - manual observations have no money-movement or ledger posting path
+  ---
+  duration_ms: 1.128378
+  type: 'test'
+  ...
+# Subtest: UbuntuFloat permissions are explicit and segregated between registration, review and observation
+ok 7 - UbuntuFloat permissions are explicit and segregated between registration, review and observation
+  ---
+  duration_ms: 0.759753
+  type: 'test'
+  ...
+# Subtest: agent roles and codes are normalized and bounded
+ok 8 - agent roles and codes are normalized and bounded
+  ---
+  duration_ms: 1.142349
+  type: 'test'
+  ...
+# Subtest: hierarchy rules allow only defined parent-child relationships
+ok 9 - hierarchy rules allow only defined parent-child relationships
+  ---
+  duration_ms: 1.151222
+  type: 'test'
+  ...
+# Subtest: agent lifecycle rejects illegal state jumps
+ok 10 - agent lifecycle rejects illegal state jumps
+  ---
+  duration_ms: 0.167538
+  type: 'test'
+  ...
+# Subtest: financial observations accept exact non-negative integers only
+ok 11 - financial observations accept exact non-negative integers only
+  ---
+  duration_ms: 0.303579
+  type: 'test'
+  ...
+# Subtest: provider-specific observations validate the provider catalogue
+ok 12 - provider-specific observations validate the provider catalogue
+  ---
+  duration_ms: 0.232093
+  type: 'test'
+  ...
+# Subtest: manual observations cannot self-assert provider verification
+ok 13 - manual observations cannot self-assert provider verification
+  ---
+  duration_ms: 0.34499
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 119.793889

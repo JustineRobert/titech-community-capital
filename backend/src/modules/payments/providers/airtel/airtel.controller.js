@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: airtel.controller.js
  * Enterprise Airtel Money Controller
  * ============================================================================

@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise API Constants
  * backend/commercial/constants/api.constants.js
  * =============================================================================

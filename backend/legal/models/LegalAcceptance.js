@@ -1,6 +1,6 @@
 /**
 * ============================================================================
-* TITech Community Capital Ltd
+* TITech Community Capital
 * Enterprise Legal Acceptance Domain Model
 * ============================================================================
 *
@@ -36,7 +36,7 @@
 * ✗ Mongoose model registration
 * ✗ Email/SMS notifications
 * ✗ React/frontend behavior
-* ✗ Determining whether TITech Community Capital Ltd is legally licensed
+* ✗ Determining whether TITech Community Capital is legally licensed
 *
 * Security principle:
 * The backend is the authoritative source of legal acceptance.

@@ -1,6 +1,6 @@
 // ============================================================================
 // backend/models/EmailVerificationToken.js
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Email Verification Token Model
 // ============================================================================
 //

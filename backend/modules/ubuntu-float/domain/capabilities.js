@@ -4,7 +4,7 @@ export function getUbuntuFloatCapabilities(env = process.env) {
   return Object.freeze({
     product: 'TITech UbuntuFloat',
     umbrella: 'TITech Community Capital — Powered by the UbuntuFloat Protocol',
-    organization: 'TITech Capital SMC LTD',
+    organization: 'TITECH CAPITAL - SMC LTD',
     tagline: "Community-informed liquidity infrastructure for Africa's agent networks.",
     defaultCountry: 'UG',
     defaultCurrency: 'UGX',

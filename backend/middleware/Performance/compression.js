@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * =============================================================================
  *
  * File:
@@ -3106,7 +3106,7 @@ function compressionObservabilitySnapshot() {
  * 8. Diagnostics, Health Checks & Middleware Registration
  * ============================================================================
  *
- * TITech Community Capital LTD
+ * TITech Community Capital
  *
  * Enterprise Compression Middleware Diagnostics
  *
@@ -3396,7 +3396,7 @@ const middlewareMetadata = Object.freeze({
     }),
 
     owner:
-        'TITech Capital SMC LTD'
+        'TITECH CAPITAL - SMC LTD'
 
 });
 
@@ -3428,7 +3428,7 @@ const registration = Object.freeze({
  * Public Enterprise Module Exports
  * ============================================================================
  *
- * TITech Community Capital LTD
+ * TITech Community Capital
  *
  * Exposes:
  *

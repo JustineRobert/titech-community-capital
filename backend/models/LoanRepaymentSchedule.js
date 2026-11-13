@@ -1,6 +1,6 @@
 // backend/models/LoanRepaymentSchedule.js
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Loan Repayment Schedule Model
 // ============================================================================
 //

@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Feature Configuration
  * backend/config/features.config.js
  */

@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/services/savingsService.js
  * Enterprise Savings Service
  * ============================================================================

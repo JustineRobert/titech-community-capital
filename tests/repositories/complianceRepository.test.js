@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: tests/repositories/complianceRepository.test.js
  * Enterprise Compliance Repository Tests
  * ============================================================================

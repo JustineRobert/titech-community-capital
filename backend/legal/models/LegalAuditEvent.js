@@ -1,7 +1,7 @@
 /**
 
 * ============================================================================
-* TITech Community Capital Ltd
+* TITech Community Capital
 * Enterprise Legal Audit Event Domain Model
 * ============================================================================
 *

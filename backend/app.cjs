@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * TITech Community Capital
  * =============================================================================
  *
@@ -363,7 +363,7 @@ const BUILD_INFORMATION =
         author:
 
             packageJson.author ||
-            "TITech Capital SMC LTD",
+            "TITECH CAPITAL - SMC LTD",
 
         license:
 
@@ -523,7 +523,7 @@ const APPLICATION =
     Object.freeze({
 
         company:
-            "TITech Capital SMC LTD",
+            "TITECH CAPITAL - SMC LTD",
 
         platform:
             "TITech Community Capital — Community Finance Infrastructure",

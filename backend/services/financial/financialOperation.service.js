@@ -6,7 +6,7 @@ import { add, assertDecimal, isPositive } from './money.js';
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * =============================================================================
  *
  * File:

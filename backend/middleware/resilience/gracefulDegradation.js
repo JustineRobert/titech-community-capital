@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Community Savings Platform
  * =============================================================================
  *
@@ -51,7 +51,7 @@ const MODULE_DESCRIPTION =
     'Enterprise Graceful Degradation Engine';
 
 const MODULE_AUTHOR =
-    'TITech Capital SMC LTD';
+    'TITECH CAPITAL - SMC LTD';
 
 const MODULE_NAMESPACE =
     'middleware.resilience.gracefulDegradation';

@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Payment Reliability Executive Intelligence Engine
  * ============================================================================
  *

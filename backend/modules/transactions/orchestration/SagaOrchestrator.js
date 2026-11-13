@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Transaction Saga Orchestrator
  * ============================================================================
  * Enterprise Distributed Transaction Orchestration Engine

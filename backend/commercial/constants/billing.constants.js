@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * SaaS Billing Constants
  * backend/commercial/constants/billing.constants.js
  * =============================================================================

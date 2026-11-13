@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: airtel.routes.js
  * Enterprise Airtel Money Routes
  * ============================================================================

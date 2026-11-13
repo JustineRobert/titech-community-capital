@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * STAGE 01D — SaaS Billing Migration Control Plane
  * ============================================================================
  *

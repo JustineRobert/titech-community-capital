@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * TITech Community Capital Operating System
  * =============================================================================
  *

@@ -6,7 +6,7 @@ const EventEmitter = require('events');
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise KYC Service
  * ============================================================================
  *

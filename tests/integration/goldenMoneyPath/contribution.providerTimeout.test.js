@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Golden Money Path - Contribution Provider Timeout Integration Tests
  * ============================================================================
  *

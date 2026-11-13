@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/Announcement.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Announcement Aggregate
  * ============================================================================
  *
@@ -2833,6 +2833,6 @@ export default Announcement;
 
 /*
  * ============================================================================
- * END OF TITech COMMUNITY CAPITAL LTD ANNOUNCEMENT MODEL
+ * END OF TITech Community Capital ANNOUNCEMENT MODEL
  * ============================================================================
  */

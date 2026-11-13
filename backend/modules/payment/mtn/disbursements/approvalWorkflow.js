@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise MTN MoMo Disbursement Approval Workflow Engine
  * =============================================================================
  *

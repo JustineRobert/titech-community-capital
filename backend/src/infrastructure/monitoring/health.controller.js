@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Health Controller
  * Infrastructure Monitoring
  * ============================================================================

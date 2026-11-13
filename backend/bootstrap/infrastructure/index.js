@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Infrastructure Bootstrap Composition Root
  * =============================================================================
  *

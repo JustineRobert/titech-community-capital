@@ -3,7 +3,7 @@
 /**
  * ============================================================================
  * Product: TITech Community Capital
- * Organization: TITech Capital SMC LTD
+ * Organization: TITECH CAPITAL - SMC LTD
  * TITech Community Capital Operating System
  * ============================================================================
  *

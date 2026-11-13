@@ -1,0 +1,2 @@
+RBAC security gate: PASS
+exit=0

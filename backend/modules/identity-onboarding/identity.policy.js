@@ -1,5 +1,5 @@
 /**
- * TITech Capital SMC LTD — inclusive identity policy primitives.
+ * TITECH CAPITAL - SMC LTD — inclusive identity policy primitives.
  * Pure policy functions only: no persistence, network calls, or personal data.
  */
 

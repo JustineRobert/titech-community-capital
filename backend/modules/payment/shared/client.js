@@ -2,7 +2,7 @@
 
 /**
  * ==========================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Payment HTTP Transport Layer
  * ----------------------------------------------------------
  * Shared by:

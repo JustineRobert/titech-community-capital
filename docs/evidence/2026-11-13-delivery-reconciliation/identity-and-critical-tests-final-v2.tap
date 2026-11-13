@@ -1,0 +1,41 @@
+TAP version 13
+# Subtest: organization profile integration gate passes
+ok 1 - organization profile integration gate passes
+  ---
+  duration_ms: 47.946794
+  type: 'test'
+  ...
+# Subtest: critical-gate contract preserves exact evidence ladder, P0/P1 ordering and money path
+ok 2 - critical-gate contract preserves exact evidence ladder, P0/P1 ordering and money path
+  ---
+  duration_ms: 3.337145
+  type: 'test'
+  ...
+# Subtest: source contract remains not production-approved while blockers are open
+ok 3 - source contract remains not production-approved while blockers are open
+  ---
+  duration_ms: 1.381103
+  type: 'test'
+  ...
+# Subtest: version helpers compare semantic versions numerically
+ok 4 - version helpers compare semantic versions numerically
+  ---
+  duration_ms: 1.912138
+  type: 'test'
+  ...
+# Subtest: runtime gate accepts the stated supported baseline and rejects pre-baseline runtimes
+ok 5 - runtime gate accepts the stated supported baseline and rejects pre-baseline runtimes
+  ---
+  duration_ms: 2.444906
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 167.982988
+exit=0

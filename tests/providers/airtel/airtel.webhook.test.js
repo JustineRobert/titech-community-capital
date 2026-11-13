@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Airtel Webhook Tests
  * File: tests/providers/airtel/airtel.webhook.test.js
  * ============================================================================

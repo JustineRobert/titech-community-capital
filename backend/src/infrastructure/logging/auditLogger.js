@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/src/infrastructure/logging/auditLogger.js
  * Enterprise Audit Logger
  * ============================================================================

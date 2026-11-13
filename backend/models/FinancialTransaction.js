@@ -1,7 +1,7 @@
 // ============================================================================
 // backend/models/FinancialTransaction.js
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Canonical Financial Transaction Record
 //
 // This model is deliberately separate from Transaction.js. Transaction.js is

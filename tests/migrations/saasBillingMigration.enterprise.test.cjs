@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise SaaS Billing Migration Test Suite
  * =============================================================================
  *

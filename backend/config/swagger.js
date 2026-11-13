@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * TITech Community Capital Operating System
  * =============================================================================
  *
@@ -423,7 +423,7 @@ const DEFAULTS =
         metadata:
             {
                 organization:
-                    'TITech Capital SMC LTD',
+                    'TITECH CAPITAL - SMC LTD',
 
                 platform:
                     'TITech Community Capital Operating System',

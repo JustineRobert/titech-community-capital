@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Card Component
  * File: frontend/src/components/ui/Card.jsx
  * Production Grade

@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Golden Money Path - Contribution Reconciliation Mismatch Integration Tests
  * ============================================================================
  *

@@ -1326,7 +1326,7 @@ export default function Register() {
 
       <footer className="register-footer">
         <p>
-          © {new Date().getFullYear()} TITech Capital SMC LTD. All rights reserved.
+          © {new Date().getFullYear()} TITECH CAPITAL - SMC LTD. All rights reserved.
         </p>
 
         <LegalDocumentLinks className="register-footer__legal-links" />

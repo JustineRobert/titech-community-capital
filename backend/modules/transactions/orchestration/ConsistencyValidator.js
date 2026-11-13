@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Consistency Validator
  * ============================================================================
  * Enterprise Transaction Orchestration Infrastructure

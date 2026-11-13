@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Statement Repair Risk Index Calculator
  * ============================================================================
  *

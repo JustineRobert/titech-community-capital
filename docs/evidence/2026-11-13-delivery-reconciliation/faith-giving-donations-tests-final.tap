@@ -1,0 +1,35 @@
+TAP version 13
+# Subtest: donations page offers scholastic, computer, furniture and construction support
+ok 1 - donations page offers scholastic, computer, furniture and construction support
+  ---
+  duration_ms: 0.705793
+  type: 'test'
+  ...
+# Subtest: public-reference pledge submission is authenticated, action-authorized and tenant-scoped
+ok 2 - public-reference pledge submission is authenticated, action-authorized and tenant-scoped
+  ---
+  duration_ms: 0.222188
+  type: 'test'
+  ...
+# Subtest: pledge model distinguishes cash from in-kind goods without inventing monetary value
+ok 3 - pledge model distinguishes cash from in-kind goods without inventing monetary value
+  ---
+  duration_ms: 0.137113
+  type: 'test'
+  ...
+# Subtest: donations UI explicitly states that pledges are not payments or accepted goods
+ok 4 - donations UI explicitly states that pledges are not payments or accepted goods
+  ---
+  duration_ms: 0.089171
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 59.61574
+exit=0

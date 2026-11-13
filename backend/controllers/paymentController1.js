@@ -1,7 +1,7 @@
 // community-savings-app-backend/controllers/paymentController.js
 
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Payment Controller
  *
  * Handles payment-related HTTP requests including:

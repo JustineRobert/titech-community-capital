@@ -1,7 +1,7 @@
 // ============================================================================
 // backend/modules/loans/models/LoanAudit.js
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Loan Audit Model
 //
 // PURPOSE

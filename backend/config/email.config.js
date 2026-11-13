@@ -1,7 +1,7 @@
 // ============================================================================
 // backend/config/email.config.js
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Email Configuration
 //
 // PURPOSE

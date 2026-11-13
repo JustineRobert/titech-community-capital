@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Shared Payment Dead Letter Queue (DLQ)
  * =============================================================================
  *

@@ -1,0 +1,2 @@
+Financial static gate: PASS (12 canonical files checked).
+exit=0

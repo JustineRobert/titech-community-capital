@@ -1,5 +1,5 @@
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Settings Slice
 // File: frontend/src/features/settings/settingsSlice.js
 // Production Grade

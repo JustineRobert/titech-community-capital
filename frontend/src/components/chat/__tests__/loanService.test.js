@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Enterprise Loan Service Test Suite
  * ============================================================================
  *

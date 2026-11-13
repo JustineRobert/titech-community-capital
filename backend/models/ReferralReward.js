@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * ENTERPRISE REFERRAL REWARD / REWARD-OUTBOX MODEL
  * =============================================================================
  *

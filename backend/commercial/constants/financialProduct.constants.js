@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Financial Product Revenue Constants
  * backend/commercial/constants/financialProduct.constants.js
  * =============================================================================

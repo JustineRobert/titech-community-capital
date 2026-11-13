@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Sanctions Screening Service
  * ============================================================================
  * Enterprise Sanctions Screening Engine

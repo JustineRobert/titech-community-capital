@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: reconciliation.job.js
  * Enterprise Reconciliation Scheduler
  * ============================================================================

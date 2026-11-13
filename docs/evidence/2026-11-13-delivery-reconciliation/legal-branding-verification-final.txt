@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "checkedAt": "2026-11-13T19:15:20.848Z",
+  "checks": [
+    {
+      "name": "official theme JSON parses",
+      "ok": true,
+      "detail": "branding/TITECH_OFFICIAL_THEME.json"
+    },
+    {
+      "name": "official organization name",
+      "ok": true,
+      "detail": "found \"TITECH CAPITAL - SMC LTD\""
+    },
+    {
+      "name": "all nine official palette colors preserved",
+      "ok": true,
+      "detail": "{\"deepBlue\":\"#0030A0\",\"electricBlue\":\"#0058D8\",\"brightBlue\":\"#0066E8\",\"cyan\":\"#00B8F8\",\"africaGreen\":\"#008000\",\"limeGreen\":\"#A8F000\",\"goldYellow\":\"#F8D800\",\"navyInk\":\"#082B67\",\"white\":\"#FFFFFF\"}"
+    },
+    {
+      "name": "frontend brand contract exists",
+      "ok": true,
+      "detail": "frontend/src/branding/brand.js"
+    },
+    {
+      "name": "frontend legalName resolves from canonical organization profile",
+      "ok": true,
+      "detail": "TITECH_BRAND.legalName -> TITECH_ORGANIZATION.configuredLegalName"
+    },
+    {
+      "name": "package.json parses",
+      "ok": true,
+      "detail": "package.json"
+    },
+    {
+      "name": "package.json does not use stale corporate suffix",
+      "ok": true,
+      "detail": "author=\"Igune Justine Robert, TITECH CAPITAL - SMC LTD\""
+    },
+    {
+      "name": "backend/package.json parses",
+      "ok": true,
+      "detail": "backend/package.json"
+    },
+    {
+      "name": "backend/package.json does not use stale corporate suffix",
+      "ok": true,
+      "detail": "author=\"Igune Justine Robert, TITECH CAPITAL - SMC LTD — CEO/Founder/CTO/Senior Software Engineer\""
+    },
+    {
+      "name": "canonical shared legal source parses",
+      "ok": true,
+      "detail": "shared/legal/legalDocuments.json"
+    },
+    {
+      "name": "legal content remains visibly gated as draft",
+      "ok": true,
+      "detail": "status=\"draft\""
+    },
+    {
+      "name": "canonical operator and product identities are consistent",
+      "ok": true,
+      "detail": "organizationName/productName"
+    },
+    {
+      "name": "canonical legal documents include all required routes",
+      "ok": true,
+      "detail": "legal paths"
+    }
+  ],
+  "failures": []
+}
+exit=0

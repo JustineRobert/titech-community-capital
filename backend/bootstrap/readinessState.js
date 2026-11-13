@@ -4,7 +4,7 @@ import runtimeState from "../runtime/state.js";
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * TITech Community Capital Operating System
  * =============================================================================
  *

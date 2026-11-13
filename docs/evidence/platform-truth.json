@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-11-12T07:12:22.318Z",
   "repositoryUrl": "https://github.com/JustineRobert/titech-community-capital",
-  "organization": "TITech Capital SMC LTD",
+  "organization": "TITECH CAPITAL - SMC LTD",
   "product": "TITech Community Capital",
   "tagline": "BUILD LESS. PROVE MORE.",
   "branch": "UNAVAILABLE_IN_ARCHIVE",
@@ -403,5 +403,16 @@
   },
   "productionApproved": false,
   "productionStatus": "NOT READY",
-  "approvalReason": "Source-level gates can verify structure and deterministic contracts, but production approval still requires target-runtime execution, real MongoDB/Redis evidence, MTN provider proof, independent security validation, backup/restore and disaster-recovery drills, regulatory review, and real institution pilot evidence."
+  "approvalReason": "Source-level gates can verify structure and deterministic contracts, but production approval still requires target-runtime execution, real MongoDB/Redis evidence, MTN provider proof, independent security validation, backup/restore and disaster-recovery drills, regulatory review, and real institution pilot evidence.",
+  "ownerSuppliedOrganizationIdentityUpdate": {
+    "asOf": "2026-11-13",
+    "entityRegistrationNumber": "80049233029029",
+    "entityRegistrationNumberType": "ERN",
+    "postalAddress": "P.O. Box 601200",
+    "postalLocation": "Clock Tower",
+    "country": "Uganda",
+    "source": "USER_SUPPLIED_REGISTRATION_EMAIL_2026-11-13",
+    "verificationStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
+    "productionApproved": false
+  }
 }

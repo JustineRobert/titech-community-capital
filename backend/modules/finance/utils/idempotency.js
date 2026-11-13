@@ -1,6 +1,6 @@
 
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Idempotency Utility
 // File: utils/idempotency.js
 // ============================================================================

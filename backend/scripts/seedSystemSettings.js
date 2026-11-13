@@ -4,7 +4,7 @@
  * ============================================================================
  * SYSTEM SETTINGS SEEDER
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * SACCO Core Banking Platform
  *
  * PURPOSE

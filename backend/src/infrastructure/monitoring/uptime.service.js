@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/src/infrastructure/monitoring/uptime.service.js
  * Enterprise Uptime Service
  * ============================================================================

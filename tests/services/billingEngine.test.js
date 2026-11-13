@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: tests/services/billingEngine.test.js
  * Enterprise Billing Engine Tests
  * ============================================================================

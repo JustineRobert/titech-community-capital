@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Button Component
  * File: frontend/src/components/ui/Button.jsx
  * Production Grade

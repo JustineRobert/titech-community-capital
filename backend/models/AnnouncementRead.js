@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/AnnouncementRead.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Announcement User State Aggregate
  * ============================================================================
  *

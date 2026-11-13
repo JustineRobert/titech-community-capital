@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Offline Status Banner
  * File: frontend/src/components/offline/OfflineStatusBanner.jsx
  * Production Grade

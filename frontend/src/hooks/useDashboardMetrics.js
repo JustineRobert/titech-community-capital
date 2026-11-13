@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech COMMUNITY CAPITAL LTD
+ * TITech Community Capital
  * ENTERPRISE DASHBOARD METRICS HOOK
  * ============================================================================
  *

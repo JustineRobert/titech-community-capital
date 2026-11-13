@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Mobile Money Callback Processor
  *
  * Complete callback lifecycle:

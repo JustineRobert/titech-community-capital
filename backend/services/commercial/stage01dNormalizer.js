@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * STAGE 01D — Behavioral Result Normalizer
  * backend/services/commercial/stage01dNormalizer.js
  * ============================================================================

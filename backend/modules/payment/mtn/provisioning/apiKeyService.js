@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * MTN MoMo API Key Provisioning Service
  * =============================================================================
  *

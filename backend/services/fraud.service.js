@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Production Fraud & Transaction Risk Service
  * =============================================================================
  *

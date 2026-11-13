@@ -1,6 +1,6 @@
 // backend/models/LoanEligibility.js
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Loan Eligibility Assessment Model
 // ============================================================================
 //

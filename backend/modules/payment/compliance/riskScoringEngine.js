@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Risk Scoring Engine
  *
  * Centralized payment risk evaluation.

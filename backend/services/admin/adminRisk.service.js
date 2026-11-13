@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital SMC LTD
+ * TITECH CAPITAL - SMC LTD
  * Enterprise Administrative Risk Management Service
  * =============================================================================
  *
@@ -12,7 +12,7 @@
  * Purpose:
  *   Canonical application-service boundary for administrative risk,
  *   fraud-monitoring, compliance-risk, member-risk and operational-risk
- *   management within TITech Capital SMC LTD.
+ *   management within TITECH CAPITAL - SMC LTD.
  *
  * Responsibilities:
  *
@@ -72,7 +72,7 @@ const SERVICE_NAME =
     "adminRisk.service";
 
 const APPLICATION_NAME =
-    "TITech Capital SMC LTD";
+    "TITECH CAPITAL - SMC LTD";
 
 const DOMAIN =
     "administration.risk";

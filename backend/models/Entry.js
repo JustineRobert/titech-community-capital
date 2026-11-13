@@ -1,6 +1,6 @@
 // ============================================================================
 // backend/models/Entry.js
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Ledger Entry / Journal Line
 // ============================================================================
 //

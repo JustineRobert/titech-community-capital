@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-11-13T19:09:15.084Z",
+  "status": "PASS",
+  "checks": {
+    "canonicalBootstrap": "backend/bootstrap/app.js re-exports ApplicationBootstrap.js",
+    "bootstrapCompatibility": "legacy imports are isolated behind explicit createRequire boundaries",
+    "officialTheme": "all nine canonical palette values are present in the brand contract"
+  },
+  "failures": []
+}

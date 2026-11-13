@@ -1,7 +1,7 @@
 // ============================================================================
 // backend/models/Loan.js
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Loan Domain Model
 //
 // PURPOSE

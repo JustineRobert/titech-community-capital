@@ -1,5 +1,5 @@
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise User Slice
 // File: frontend/src/features/user/userSlice.js
 // Production Grade

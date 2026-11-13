@@ -1,0 +1,71 @@
+{
+  "gate": "organization-profile",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "product identity",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "official organization identity",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "entity registration number and source status",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "postal correspondence address",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "official organization is not split into alternate association string",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "identity remains externally unverified",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "production approval remains disabled",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "frontend brand profile wired",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "backend brand profile wired",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "legal address and ERN wired",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "footer displays ERN with verification caveat and postal metadata",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "backend runtime and deployment metadata use official organization",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "nine-color official theme remains consistent",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

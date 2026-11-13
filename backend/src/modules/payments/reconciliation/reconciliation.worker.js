@@ -3,7 +3,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  *
  * File:
  * backend/src/modules/payments/reconciliation/reconciliation.worker.js

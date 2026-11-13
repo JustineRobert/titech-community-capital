@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * MTN MoMo Disbursement Beneficiary Validation Engine
  * =============================================================================
  *

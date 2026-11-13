@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 /**
 
 * =============================================================================
-* TITech Community Capital LTD
+* TITech Community Capital
 * TITech Community Capital Operating System
 * =============================================================================
 *

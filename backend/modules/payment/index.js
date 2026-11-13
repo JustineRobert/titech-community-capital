@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Enterprise Payment Module
  * ============================================================================
  *
@@ -298,7 +298,7 @@ const PAYMENT_MODULE_METADATA = Object.freeze({
     'Payment Processing',
 
   organization:
-    'TITech Capital SMC LTD',
+    'TITECH CAPITAL - SMC LTD',
 
   platform:
     'Community Savings Platform',

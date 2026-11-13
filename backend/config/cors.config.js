@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * CORS Configuration
  * backend/config/cors.config.js
  */

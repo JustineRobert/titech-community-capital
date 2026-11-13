@@ -1,8 +1,10 @@
 # TITech Community Capital — Product Positioning & Architectural Boundaries
 
-**Effective:** 2026-09-22 (organization identity reconfirmed 2026-11-10)  
+**Effective:** 2026-09-22 (organization identity updated from owner-supplied registration email 2026-11-13)  
 **Product:** TITech Community Capital  
-**Company:** TITech Capital SMC LTD  
+**Company:** TITECH CAPITAL - SMC LTD
+**Entity Registration Number (ERN):** 80049233029029 (owner-supplied; verification pending)
+**Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
 **Primary market:** Uganda → East Africa → Africa → Emerging Markets → Global
 
 ## Core position

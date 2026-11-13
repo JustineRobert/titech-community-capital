@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Capital SMC LTD
+ * TITECH CAPITAL - SMC LTD
  * Enterprise Administrative Risk Controller
  * =============================================================================
  *
@@ -81,7 +81,7 @@ const CONTROLLER_NAME =
     "adminRisk.controller";
 
 const APPLICATION_NAME =
-    "TITech Capital SMC LTD";
+    "TITECH CAPITAL - SMC LTD";
 
 /* =============================================================================
  * HTTP Status Codes

@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Audit Correlation Manager
  * ============================================================================
  * Enterprise Transaction Audit Correlation & Forensic Context Engine

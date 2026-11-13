@@ -1,6 +1,6 @@
 // ============================================================================
 // backend/models/FraudLog.js
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Fraud Evaluation Log
 // ============================================================================
 //

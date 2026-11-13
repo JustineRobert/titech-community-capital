@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Capital SMC LTD
+ * TITECH CAPITAL - SMC LTD
  * Enterprise Privacy Policy Page
  * ============================================================================
  *
@@ -725,7 +725,7 @@ const PrivacyPolicy = () => {
 
               <p>
                 <strong>Organization:</strong>{' '}
-                TITech Capital SMC LTD
+                TITECH CAPITAL - SMC LTD
               </p>
             </div>
 
@@ -749,7 +749,7 @@ const PrivacyPolicy = () => {
               </h2>
 
               <p>
-                TITech Capital SMC LTD (
+                TITECH CAPITAL - SMC LTD (
                 <strong>
                   &quot;TITech Community Capital&quot;
                 </strong>

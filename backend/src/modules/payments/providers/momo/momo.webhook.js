@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: momo.webhook.js
  * Enterprise MTN Mobile Money Webhook Processor
  * ============================================================================

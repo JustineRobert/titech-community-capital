@@ -258,7 +258,7 @@ export default function Meetings() {
     <main className="titech-meetings page-container" dir={direction} aria-labelledby="meetings-title">
       <header className="meetings-header">
         <div className="meetings-heading">
-          <span className="meetings-eyebrow">TITech Capital SMC LTD · TITech Community Capital</span>
+          <span className="meetings-eyebrow">TITECH CAPITAL - SMC LTD · TITech Community Capital</span>
           <h1 id="meetings-title"><CalendarDays aria-hidden="true" /> {t('meetings.title')}</h1>
           <p>{t('meetings.subtitle')}</p>
         </div>

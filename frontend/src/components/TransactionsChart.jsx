@@ -1,5 +1,5 @@
 // ============================================================================
-// TITech Community Capital LTD
+// TITech Community Capital
 // Enterprise Transactions Chart
 // File: frontend/src/components/TransactionsChart.jsx
 // Production Grade

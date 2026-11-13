@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Commercial Domain Errors
  * backend/commercial/errors/commercial.errors.js
  * =============================================================================

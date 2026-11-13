@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * TITech Capital SMC LTD — TITech Community Capital
+ * TITECH CAPITAL - SMC LTD — TITech Community Capital
  * Exact Monetary Arithmetic Utility
  * =============================================================================
  *

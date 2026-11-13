@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Universal Resilience Fabric
  * Self-Aware Intelligence Engine
  *

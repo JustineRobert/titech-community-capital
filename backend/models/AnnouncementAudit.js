@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/AnnouncementAudit.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Announcement Audit Aggregate
  * ============================================================================
  *
@@ -1631,6 +1631,6 @@ export default AnnouncementAudit;
 
 /*
  * ============================================================================
- * END OF TITech COMMUNITY CAPITAL LTD ANNOUNCEMENT AUDIT MODEL
+ * END OF TITech Community Capital ANNOUNCEMENT AUDIT MODEL
  * ============================================================================
  */

@@ -2,7 +2,7 @@
 
 /**
  * =============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * White-Label Platform Constants
  * backend/commercial/constants/whiteLabel.constants.js
  * =============================================================================

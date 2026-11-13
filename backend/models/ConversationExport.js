@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * backend/models/ConversationExport.js
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Enterprise Conversation Export Model
  * ============================================================================
  *

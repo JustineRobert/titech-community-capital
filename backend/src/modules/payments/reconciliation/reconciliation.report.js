@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/src/modules/payments/reconciliation/reconciliation.report.js
  * Enterprise Reconciliation Reporting Engine
  * ============================================================================

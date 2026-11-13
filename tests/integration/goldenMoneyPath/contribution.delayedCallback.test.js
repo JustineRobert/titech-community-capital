@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Golden Money Path - Delayed Callback Integration Tests
  * ============================================================================
  *

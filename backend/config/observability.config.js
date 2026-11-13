@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Observability Configuration
  * backend/config/observability.config.js
  */

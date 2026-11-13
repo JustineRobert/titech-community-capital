@@ -3,7 +3,7 @@
  * MTN MOMO SERVICE
  * ============================================================================
  *
- * TITech Community Capital LTD
+ * TITech Community Capital
  *
  * Production-grade MTN Mobile Money provider integration.
  *

@@ -208,7 +208,7 @@ export default function PartnerPortal() {
   return (
     <main className="partner-portal page-container" dir="auto" aria-labelledby="partner-portal-title">
       <header className="partner-portal-header">
-        <div><span className="partner-eyebrow">TITech Community Capital · TITech Capital SMC LTD</span><h1 id="partner-portal-title"><LifeBuoy size={28} /> Partner Support Workspace</h1><p>Authorized support cases, technical issue reporting and contextual onboarding.</p></div>
+        <div><span className="partner-eyebrow">TITech Community Capital · TITECH CAPITAL - SMC LTD</span><h1 id="partner-portal-title"><LifeBuoy size={28} /> Partner Support Workspace</h1><p>Authorized support cases, technical issue reporting and contextual onboarding.</p></div>
         <div className="partner-header-actions" id="partner-guide-launcher">
           <button className="partner-button partner-button--secondary" type="button" onClick={() => setGuideOpen(true)}><BookOpen size={17} /> User Guide</button>
           <label className="partner-switch partner-switch--header"><input type="checkbox" checked={helpDots} onChange={(event) => setHelpDots(event.target.checked)} /><span>Help Dots</span></label>

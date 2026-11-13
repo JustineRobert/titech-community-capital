@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital Ltd
+ * TITech Community Capital
  * Golden Money Path - Enterprise Integration Test Fixtures
  * ============================================================================
  *
@@ -923,7 +923,7 @@ function tenant(
         DEFAULTS.tenantId,
 
       name:
-        'TITech Capital SMC LTD - Test Tenant',
+        'TITECH CAPITAL - SMC LTD - Test Tenant',
 
       slug:
         'titech-golden-money-path-test',
@@ -987,7 +987,7 @@ function secondaryTenant(
       DEFAULTS.secondaryTenantId,
 
     name:
-      'TITech Capital SMC LTD - Secondary Test Tenant',
+      'TITECH CAPITAL - SMC LTD - Secondary Test Tenant',
 
     slug:
       'titech-golden-money-path-test-secondary',

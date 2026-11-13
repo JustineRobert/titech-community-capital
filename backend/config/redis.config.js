@@ -1,5 +1,5 @@
 /**
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Redis Configuration
  * backend/config/redis.config.js
  */

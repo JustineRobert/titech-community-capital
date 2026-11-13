@@ -1,0 +1,2 @@
+Enterprise contract gate: PASS (11 control-plane contracts checked).
+exit=0

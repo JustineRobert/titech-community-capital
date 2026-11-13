@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * File: backend/src/modules/compliance/services/compliance.service.js
  * Enterprise Compliance Service
  * ============================================================================

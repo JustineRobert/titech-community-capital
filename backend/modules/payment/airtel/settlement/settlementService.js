@@ -2,7 +2,7 @@
 
 /**
  * ==========================================================
- * TITech Community Capital LTD
+ * TITech Community Capital
  * Airtel Money Enterprise Settlement Service
  * ----------------------------------------------------------
  * Core Settlement Orchestration Engine

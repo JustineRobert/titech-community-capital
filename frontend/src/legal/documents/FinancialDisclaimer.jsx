@@ -1,7 +1,7 @@
 /**
 
 * ============================================================================
-* TITech Capital SMC LTD
+* TITECH CAPITAL - SMC LTD
 * Enterprise Financial Disclaimer Document
 * ============================================================================
 *
@@ -57,7 +57,7 @@ import PropTypes from 'prop-types';
 * ========================================================================== */
 
 const ORGANIZATION_NAME =
-'TITech Capital SMC LTD';
+'TITECH CAPITAL - SMC LTD';
 
 const PLATFORM_NAME =
 'TITech Community Capital';
@@ -84,7 +84,7 @@ const PHONE_HREF =
 '+256782397907';
 
 const ADDRESS =
-'P.O. BOX 601200, Clock Tower, Uganda';
+'P.O. Box 601200, Clock Tower, Uganda';
 
 /* ============================================================================
 

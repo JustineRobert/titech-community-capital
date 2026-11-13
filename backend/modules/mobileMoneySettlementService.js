@@ -3,7 +3,7 @@
  * MOBILE MONEY SETTLEMENT SERVICE
  * ============================================================================
  *
- * TITech Community Capital LTD
+ * TITech Community Capital
  *
  * File:
  * backend/modules/mobileMoneySettlementService.js
