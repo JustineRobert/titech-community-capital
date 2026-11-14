@@ -1,6 +1,6 @@
 # Frontend Application Recovery Runbook
 
-**Organization:** TITech Capital SMC LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital
 
 ## 1. Purpose

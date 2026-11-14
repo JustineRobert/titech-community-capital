@@ -285,8 +285,10 @@
   "organizationRegistration": {
     "numberType": "ERN",
     "number": "80049233029029",
-    "source": "USER_SUPPLIED_REGISTRATION_EMAIL_2026-11-13",
-    "verificationStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION"
+    "source": "USER_UPLOADED_REGISTRATION_CERTIFICATE_2026-11-14",
+    "verificationStatus": "CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED",
+    "documentType": "CERTIFICATE_OF_INCORPORATION",
+    "issuedOn": "2026-11-13"
   },
   "postalAddress": {
     "value": "P.O. Box 601200",

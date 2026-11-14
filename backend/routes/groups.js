@@ -49,27 +49,60 @@ const invitationLimiter = limiter({
   message: "Too many group invitation requests. Please try again later.",
 });
 
-function validateGroupId(parameterName) {
+function validateMongoIdParameter(parameterName, code, message) {
   return [
     param(parameterName)
       .isMongoId()
-      .withMessage(`${parameterName} must be a valid group ID`),
+      .withMessage(`${parameterName} must be a valid MongoDB ID`),
     (req, res, next) => {
       const errors = validationResult(req);
-      if (errors.isEmpty()) {
-        return next();
-      }
+      if (errors.isEmpty()) return next();
 
       return res.status(400).json({
         success: false,
-        code: "GROUP_ID_INVALID",
-        message: "The group ID is invalid.",
+        code,
+        message,
         details: errors.array().map(({ path, msg }) => ({ path, msg })),
         requestId: req.requestId,
         correlationId: req.correlationId,
       });
     },
   ];
+}
+
+function validateGroupId(parameterName) {
+  return validateMongoIdParameter(
+    parameterName,
+    "GROUP_ID_INVALID",
+    "The group ID is invalid.",
+  );
+}
+
+function requireMembershipActionPermission(req, res, next) {
+  const action = String(req.body?.action || req.body?.status || "")
+    .trim()
+    .toLowerCase();
+  const permissionByAction = {
+    approve: "MEMBERSHIP_APPROVE",
+    reject: "MEMBERSHIP_REJECT",
+    suspend: "MEMBERSHIP_SUSPEND",
+    remove: "MEMBERSHIP_REMOVE",
+    reinstate: "MEMBERSHIP_REINSTATE",
+    role: "MEMBERSHIP_ROLE_CHANGE",
+  };
+  const permission = permissionByAction[action];
+
+  if (!permission) {
+    return res.status(400).json({
+      success: false,
+      code: "MEMBERSHIP_ACTION_INVALID",
+      message: "A supported membership action is required.",
+      requestId: req.requestId,
+      correlationId: req.correlationId,
+    });
+  }
+
+  return requirePermission(permission)(req, res, next);
 }
 
 function requireTenantContext(req, res, next) {
@@ -176,8 +209,12 @@ router.patch(
   "/:groupId/members/:memberUserId",
   writeLimiter,
   ...validateGroupId("groupId"),
-  param("memberUserId").isMongoId(),
-  requirePermission('MEMBERSHIP_VIEW'),
+  ...validateMongoIdParameter(
+    "memberUserId",
+    "MEMBERSHIP_MEMBER_ID_INVALID",
+    "The member identifier is invalid.",
+  ),
+  requireMembershipActionPermission,
   asyncHandler(groupController.moderateMembership)
 );
 

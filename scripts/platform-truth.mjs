@@ -217,7 +217,7 @@ const truth = {
   entityRegistrationNumber: '80049233029029',
   entityRegistrationNumberType: 'ERN',
   postalAddress: 'P.O. Box 601200',
-  organizationIdentityVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
+  organizationIdentityVerification: 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED',
   product: 'TITech Community Capital',
   tagline: 'BUILD LESS. PROVE MORE.',
   branch: 'UNAVAILABLE_IN_ARCHIVE',

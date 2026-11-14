@@ -1,6 +1,6 @@
 # TITech Community Capital — USSD Integration Boundary
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital  
 **Implementation status:** Provider boundary documented; **no live provider integration is claimed**
 

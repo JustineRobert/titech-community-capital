@@ -1,6 +1,6 @@
 # USSD and Offline Operations Runbook
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital  
 **Status:** Preparatory runbook; use only after environment-specific review
 

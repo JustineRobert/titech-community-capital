@@ -1,7 +1,7 @@
 # Financial Dashboard Data Integrity — 31 October 2026
 
 **Product:** TITech Community Capital  
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Release decision:** NOT READY — source changes are not an operational financial certification.
 
 ## Change applied

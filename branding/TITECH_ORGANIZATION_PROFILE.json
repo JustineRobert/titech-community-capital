@@ -8,17 +8,31 @@
   "postalLocation": "Clock Tower",
   "country": "Uganda",
   "administrativeAssociationName": "TITECH CAPITAL - SMC LTD",
-  "identityStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
+  "identityStatus": "CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED",
   "postalAddressStatus": "USER_SUPPLIED_ADMINISTRATIVE_RECORD",
-  "sourceBaseline": "Owner instruction dated 13 November 2026, based on the official registration email: organization name TITECH CAPITAL - SMC LTD, ERN 80049233029029, and postal correspondence address P.O. Box 601200, Clock Tower, Uganda. The values are configured as user-supplied registration details; this repository is not an independent corporate-registry verification or proof of licence.",
+  "sourceBaseline": "The user supplied a Certificate of Incorporation for TITECH CAPITAL - SMC LTD, registration number 80049233029029, issued 13 November 2026 under the Companies Act, Cap 106. The certificate was uploaded with the repository on 14 November 2026. The certificate is present as user-provided documentary evidence; its authenticity and current registry status have not been independently verified by this repository. P.O. Box 601200, Clock Tower, Uganda remains a user-supplied postal correspondence address and is not represented as the registered office.",
   "limitations": [
-    "The configured organization name and ERN (80049233029029) are based on the owner-supplied registration email and must be cross-checked against current authoritative corporate records before being treated as independently verified statutory particulars.",
+    "A user-uploaded Certificate of Incorporation identifies TITECH CAPITAL - SMC LTD and registration number 80049233029029, and states that incorporation occurred on 13 November 2026. The repository records the document as supplied evidence but does not independently authenticate it or verify current registry standing.",
     "The postal correspondence address (P.O. Box 601200, Clock Tower, Uganda) is a user-supplied administrative record and is not represented as a registered office or physical service address.",
-    "The repository does not establish incorporation status, ownership, tax status, licensing, permission to conduct regulated financial activities, or regulatory approval."
+    "The certificate does not establish ownership, tax status, licensing, permission to conduct regulated financial activities, payment-service authority, insurance distribution authority, telecommunications authorization or regulatory approval."
   ],
   "productionApproved": false,
   "entityRegistrationNumber": "80049233029029",
   "entityRegistrationNumberType": "ERN",
-  "entityRegistrationNumberSource": "USER_SUPPLIED_REGISTRATION_EMAIL_2026-11-13",
-  "entityRegistrationNumberStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION"
+  "entityRegistrationNumberSource": "USER_UPLOADED_REGISTRATION_CERTIFICATE_2026-11-14",
+  "entityRegistrationNumberStatus": "CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED",
+  "incorporationCertificate": {
+    "sourceFileName": "REGISTRATION_CERTIFICATE.pdf",
+    "documentType": "CERTIFICATE_OF_INCORPORATION",
+    "jurisdiction": "Uganda",
+    "companiesActReference": "Companies Act, Cap 106, Section 20",
+    "registeredEntityName": "TITECH CAPITAL - SMC LTD",
+    "entityType": "Single Member Company",
+    "registrationNumber": "80049233029029",
+    "issuedOn": "2026-11-13",
+    "issuedAt": "Kampala, Uganda",
+    "evidenceSource": "USER_UPLOADED_DOCUMENT",
+    "verificationStatus": "CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED",
+    "sha256": "81df8a5c6c200b29248413376c40541131639e865b595670159bdf47b9cbbe99"
+  }
 }

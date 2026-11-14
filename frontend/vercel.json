@@ -2,6 +2,28 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/groups",
+      "has": [
+        {
+          "type": "header",
+          "key": "accept",
+          "value": { "re": "application/json" }
+        }
+      ],
+      "destination": "/api/groups"
+    },
+    {
+      "source": "/groups/:path*",
+      "has": [
+        {
+          "type": "header",
+          "key": "accept",
+          "value": { "re": "application/json" }
+        }
+      ],
+      "destination": "/api/groups/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

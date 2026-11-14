@@ -1,6 +1,6 @@
 # TITech Community Capital — Meeting Management API
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **API prefix:** `/api/v1/meetings`  
 **Status:** Implemented in the source snapshot; production integration and browser E2E verification are not yet complete.
 

@@ -58,5 +58,5 @@
   "entityRegistrationNumberType": "ERN",
   "postalAddress": "P.O. Box 601200",
   "postalLocation": "Clock Tower",
-  "identityStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION"
+  "identityStatus": "CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED"
 }

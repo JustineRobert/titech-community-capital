@@ -1,6 +1,6 @@
 # USSD and Offline Synchronization Threat Model
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital  
 **Status:** Initial control mapping; independent security review pending
 

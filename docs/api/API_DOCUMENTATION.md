@@ -1,4 +1,4 @@
-# TITech Capital LTD
+# TITECH CAPITAL - SMC LTD
 
 # API Documentation
 

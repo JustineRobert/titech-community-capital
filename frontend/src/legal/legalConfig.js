@@ -56,7 +56,7 @@ export const LEGAL_BRAND = Object.freeze({
   legalName: 'TITECH CAPITAL - SMC LTD',
   entityRegistrationNumber: '80049233029029',
   entityRegistrationNumberType: 'ERN',
-  entityRegistrationNumberVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
+  entityRegistrationNumberVerification: 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED',
   shortName: 'TITech',
   platformName: 'TITech Community Capital',
   tagline: 'BUILD LESS. PROVE MORE.',
@@ -125,7 +125,7 @@ export const LEGAL_ADDRESS = Object.freeze({
   organization: 'TITECH CAPITAL - SMC LTD',
   entityRegistrationNumber: '80049233029029',
   entityRegistrationNumberType: 'ERN',
-  entityRegistrationNumberVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
+  entityRegistrationNumberVerification: 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED',
   // Postal correspondence address from the owner-supplied registration email dated 13 November 2026.
   postalAddress: 'P.O. Box 601200',
   postalLocation: 'Clock Tower',

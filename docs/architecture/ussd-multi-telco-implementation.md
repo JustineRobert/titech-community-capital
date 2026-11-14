@@ -1,6 +1,6 @@
 # TITech Community Capital — Multi-Telco USSD Channel Contract
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital  
 **Engineering principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE  
 **Tagline:** BUILD LESS. PROVE MORE.  

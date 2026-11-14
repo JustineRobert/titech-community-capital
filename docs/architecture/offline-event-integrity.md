@@ -1,6 +1,6 @@
 # Offline Event Integrity — Version 1 Boundary
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital
 
 ## Current algorithm

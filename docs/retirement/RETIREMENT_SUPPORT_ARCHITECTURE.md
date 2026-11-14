@@ -1,7 +1,7 @@
-# TITech Capital LTD — Retirement and Pension Support Boundary
+# TITECH CAPITAL - SMC LTD — Retirement and Pension Support Boundary
 
 **Product:** TITech Community Capital  
-**Legal-entity display configuration:** TITech Capital LTD  
+**Legal-entity display configuration:** TITECH CAPITAL - SMC LTD  
 **Initial jurisdiction:** Uganda  
 **Status:** Source implementation and native contract tests added; live institutional and production approval not established.
 
@@ -20,7 +20,7 @@ It is **not** a pension administrator, an NSSF member database, an authority to 
 - Identity checks read the existing canonical `KYC` record. The module does not create a parallel identity store or replace refugee-inclusive KYC.
 - Audit events go through the existing audit service. Financial-support referrals are application records only; contribution evidence is tracked in dedicated retirement case/contribution records and is not a second ledger.
 - Styling consumes the official TITech semantic CSS tokens. The nine supplied official colors and circular logo source assets are retained; new screens do not hard-code a new palette.
-- The product name remains **TITech Community Capital**. The configured legal-entity name is **TITech Capital LTD**.
+- The product name remains **TITech Community Capital**. The configured legal-entity name is **TITECH CAPITAL - SMC LTD**.
 
 ## 3. Domain records
 

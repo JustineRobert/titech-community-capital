@@ -997,8 +997,8 @@ function Footer({
                       <span>
                         <strong>Entity Registration Number (ERN):</strong>{' '}
                         {companyEntityRegistrationNumber}
-                        {companyEntityRegistrationStatus === 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION'
-                          ? ' (owner-supplied; verification pending)'
+                        {companyEntityRegistrationStatus === 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED'
+                          ? ' (certificate supplied; independent verification pending)'
                           : ''}
                       </span>
                     </li>

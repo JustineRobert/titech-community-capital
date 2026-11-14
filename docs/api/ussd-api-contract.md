@@ -1,6 +1,6 @@
 # USSD API Contract — TITech Community Capital
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Version:** v1  
 **Status:** Contract implemented; provider-specific wire formats remain unverified.
 

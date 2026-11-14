@@ -1,7 +1,7 @@
 # Meeting, Video and Offline Draft Architecture
 
 **Product:** TITech Community Capital  
-**Organization:** TITech Capital LTD
+**Organization:** TITECH CAPITAL - SMC LTD
 
 ## Canonical flow
 

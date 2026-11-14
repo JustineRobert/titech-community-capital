@@ -1,7 +1,7 @@
 # TITech EduFinance — Parent/Guardian Request Intake Guide
 
 **Product:** TITech Community Capital  
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Service:** TITech EduFinance — School Fees Financing Infrastructure Platform  
 **Tagline:** Verified school fees. Responsible financing. Complete reconciliation.
 

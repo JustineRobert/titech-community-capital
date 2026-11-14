@@ -1,6 +1,6 @@
 # USSD Callback Security — TITech Community Capital
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Status:** Design and route boundary implemented; provider security assessment pending.
 
 The callback route requires a registered provider adapter implementing `verifyCallback`, `normalizeCallback` and `serializeResponse`. The adapter must implement the supplier's actual signature, timestamp, nonce/replay and raw-body verification requirements. IP allowlisting may be used as defense in depth but is not sufficient authentication. The implementation fails closed when the provider registry or canonical channel service is absent.

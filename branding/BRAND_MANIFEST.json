@@ -74,13 +74,16 @@
   "organization": "TITECH CAPITAL - SMC LTD",
   "organization_display_name": "TITECH CAPITAL - SMC LTD",
   "organization_profile": "branding/TITECH_ORGANIZATION_PROFILE.json",
-  "organization_identity_status": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
+  "organization_identity_status": "CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED",
   "postal_address_status": "USER_SUPPLIED_ADMINISTRATIVE_RECORD",
   "organization_registration": {
     "number_type": "ERN",
     "number": "80049233029029",
-    "source": "USER_SUPPLIED_REGISTRATION_EMAIL_2026-11-13",
-    "verification_status": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION"
+    "source": "USER_UPLOADED_REGISTRATION_CERTIFICATE_2026-11-14",
+    "verification_status": "CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED",
+    "document_type": "CERTIFICATE_OF_INCORPORATION",
+    "issued_on": "2026-11-13",
+    "evidence_source": "USER_UPLOADED_DOCUMENT"
   },
   "postal_address": {
     "value": "P.O. Box 601200",

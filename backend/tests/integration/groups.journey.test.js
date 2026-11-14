@@ -139,15 +139,22 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
     .send({ email: primaryEmail, password: PASSWORD });
   assert.equal(ownerLogin.status, 200);
   const ownerToken = getAccessToken(ownerLogin);
+  assert.ok(ownerToken);
+
+  const memberCannotCreate = await request(app)
+    .post("/api/v1/groups")
+    .set("Authorization", `Bearer ${ownerToken}`)
+    .send({ name: "Unauthorized Group", type: "community", description: "Must be denied", members: [] });
+  assert.equal(memberCannotCreate.status, 403);
 
   const createResponse = await request(app)
     .post("/api/v1/groups")
-    .set("Authorization", `Bearer ${ownerToken}`)
+    .set("Authorization", `Bearer ${adminToken}`)
     .send({
       name: "End-to-End Savings Circle",
       type: "savings",
       description: "Signup to group membership journey",
-      members: [memberEmail],
+      members: [],
     });
   assert.equal(createResponse.status, 201);
   const groupId =
@@ -178,13 +185,80 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
   assert.equal(joinResponse.status, 202);
   assert.equal(joinResponse.body.membershipStatus, "pending");
 
-  const persistedGroup = await Group.findTenantGroup(tenantId, groupId);
+  let persistedGroup = await Group.findTenantGroup(tenantId, groupId);
   assert.ok(persistedGroup);
   assert.equal(persistedGroup.hasMember(memberLogin.body.user.id), false);
   assert.equal(
     persistedGroup.getMembership(memberLogin.body.user.id)?.membershipStatus,
     "pending"
   );
+  const creatorMembership = persistedGroup.getMembership(admin._id);
+  assert.equal(creatorMembership?.role, "group_admin");
+  assert.equal(creatorMembership?.membershipStatus, "active");
+
+  const pendingRequests = await request(app)
+    .get(`/api/groups/${groupId}/membership-requests`)
+    .set("Authorization", `Bearer ${adminToken}`);
+  assert.equal(pendingRequests.status, 200, JSON.stringify(pendingRequests.body));
+  assert.equal(pendingRequests.body.count, 1);
+  assert.equal(String(pendingRequests.body.data[0].userId), String(memberLogin.body.user.id));
+
+  const memberCannotApprove = await request(app)
+    .patch(`/api/groups/${groupId}/members/${memberLogin.body.user.id}`)
+    .set("Authorization", `Bearer ${memberToken}`)
+    .send({ action: "approve" });
+  assert.equal(memberCannotApprove.status, 403);
+
+  const approval = await request(app)
+    .patch(`/api/groups/${groupId}/members/${memberLogin.body.user.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ action: "approve" });
+  assert.equal(approval.status, 200, JSON.stringify(approval.body));
+  persistedGroup = await Group.findTenantGroup(tenantId, groupId);
+  assert.equal(persistedGroup.hasMember(memberLogin.body.user.id), true);
+  assert.equal(
+    persistedGroup.getMembership(memberLogin.body.user.id)?.membershipStatus,
+    "active"
+  );
+
+  const rejectedEmail = `group-rejected-${Date.now()}@titech.test`;
+  const rejectedRegistration = await request(app)
+    .post("/api/auth/register")
+    .send({
+      email: rejectedEmail,
+      name: "Applicant for Rejection",
+      password: PASSWORD,
+      tenantInviteCode: inviteCode,
+    });
+  assert.equal(rejectedRegistration.status, 201, JSON.stringify(rejectedRegistration.body));
+  const rejectedLogin = await request(app)
+    .post("/api/auth/login")
+    .send({ email: rejectedEmail, password: PASSWORD });
+  assert.equal(rejectedLogin.status, 200);
+  const rejectedToken = getAccessToken(rejectedLogin);
+  const rejectedJoin = await request(app)
+    .post(`/api/groups/join/${groupId}`)
+    .set("Authorization", `Bearer ${rejectedToken}`)
+    .send({});
+  assert.equal(rejectedJoin.status, 202, JSON.stringify(rejectedJoin.body));
+
+  const rejection = await request(app)
+    .patch(`/api/groups/${groupId}/members/${rejectedLogin.body.user.id}`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ action: "reject" });
+  assert.equal(rejection.status, 200, JSON.stringify(rejection.body));
+  persistedGroup = await Group.findTenantGroup(tenantId, groupId);
+  assert.equal(persistedGroup.hasMember(rejectedLogin.body.user.id), false);
+  assert.equal(
+    persistedGroup.getMembership(rejectedLogin.body.user.id)?.membershipStatus,
+    "rejected"
+  );
+
+  const invalidMemberId = await request(app)
+    .patch(`/api/groups/${groupId}/members/not-a-mongodb-id`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ action: "approve" });
+  assert.equal(invalidMemberId.status, 400);
 
   const duplicateJoin = await request(app)
     .post(`/api/groups/join/${groupId}`)
@@ -233,11 +307,22 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
     .send({});
   assert.equal(crossTenantJoin.status, 404);
 
+  const crossTenantRequestRead = await request(app)
+    .get(`/api/groups/${groupId}/membership-requests`)
+    .set("Authorization", `Bearer ${wrongTenantToken}`);
+  assert.equal(crossTenantRequestRead.status, 403);
+
+  const crossTenantModeration = await request(app)
+    .patch(`/api/groups/${groupId}/members/${memberLogin.body.user.id}`)
+    .set("Authorization", `Bearer ${wrongTenantToken}`)
+    .send({ action: "approve" });
+  assert.equal(crossTenantModeration.status, 403);
+
   const storedInvitation = await TenantInvitation.findOne({
     tenantId,
   }).select("+codeHash");
   assert.ok(storedInvitation);
   assert.notEqual(storedInvitation.codeHash, inviteCode);
-  assert.equal(storedInvitation.uses, 2);
+  assert.equal(storedInvitation.uses, 3);
   assert.ok(admin._id);
 });

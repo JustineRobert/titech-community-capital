@@ -115,12 +115,27 @@ const normalizeEmail = (value) => String(value ?? '').trim().toLowerCase();
 const getErrorMessage = (error, fallback = 'An unexpected error occurred.') => {
   if (!error) return fallback;
 
-  return (
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    error?.message ||
-    fallback
-  );
+  const serverMessage =
+    error?.response?.data?.message || error?.response?.data?.error;
+  if (serverMessage) return serverMessage;
+
+  if (
+    error?.code === 'ERR_NETWORK' ||
+    error?.message === 'Network Error' ||
+    (!error?.response && Boolean(error?.request))
+  ) {
+    return 'TITech could not confirm the server response. Check your connection, then refresh Group Management before retrying so an already-created group is not duplicated.';
+  }
+
+  if (
+    error?.code === 'ECONNABORTED' ||
+    error?.code === 'ETIMEDOUT' ||
+    error?.name === 'TimeoutError'
+  ) {
+    return 'The group request timed out and its result is not yet confirmed. Refresh Group Management and check whether the group exists before submitting again.';
+  }
+
+  return error?.message || fallback;
 };
 
 const getApiData = (response) => {
@@ -149,7 +164,6 @@ const getGroupId = (response) => {
 const isAbortError = (error) =>
   error?.name === 'AbortError' ||
   error?.code === 'ERR_CANCELED' ||
-  error?.code === 'ECONNABORTED' ||
   /cancell?ed|aborted/i.test(String(error?.message || ''));
 
 const createClientRequestId = () => {

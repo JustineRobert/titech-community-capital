@@ -11,15 +11,17 @@ const checks = [];
 const ORGANIZATION = 'TITECH CAPITAL - SMC LTD';
 const ERN = '80049233029029';
 const POSTAL = 'P.O. Box 601200';
+const IDENTITY_STATUS = 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED';
+const REGISTRATION_SOURCE = 'USER_UPLOADED_REGISTRATION_CERTIFICATE_2026-11-14';
 function check(name, pass, detail = '') {
   checks.push({ name, status: pass ? 'PASS' : 'FAIL', detail });
 }
 check('product identity', profile.productName === 'TITech Community Capital' && theme.product === 'TITech Community Capital' && manifest.brand === 'TITech Community Capital');
 check('official organization identity', profile.organizationDisplayName === ORGANIZATION && profile.configuredLegalName === ORGANIZATION && theme.organization === ORGANIZATION && theme.organizationLegalName === ORGANIZATION && manifest.organization === ORGANIZATION && manifest.organization_display_name === ORGANIZATION);
-check('entity registration number and source status', profile.entityRegistrationNumber === ERN && profile.entityRegistrationNumberType === 'ERN' && profile.entityRegistrationNumberSource === 'USER_SUPPLIED_REGISTRATION_EMAIL_2026-11-13' && profile.entityRegistrationNumberStatus === 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION' && manifest.organization_registration?.number === ERN && manifest.organization_registration?.number_type === 'ERN');
+check('entity registration number and certificate provenance', profile.entityRegistrationNumber === ERN && profile.entityRegistrationNumberType === 'ERN' && profile.entityRegistrationNumberSource === REGISTRATION_SOURCE && profile.entityRegistrationNumberStatus === IDENTITY_STATUS && manifest.organization_registration?.number === ERN && manifest.organization_registration?.number_type === 'ERN' && manifest.organization_registration?.source === REGISTRATION_SOURCE && manifest.organization_registration?.verification_status === IDENTITY_STATUS);
 check('postal correspondence address', profile.postalAddress === POSTAL && profile.postalLocation === 'Clock Tower' && profile.country === 'Uganda' && manifest.postal_address?.value === POSTAL);
 check('official organization is not split into alternate association string', profile.administrativeAssociationName === ORGANIZATION);
-check('identity remains externally unverified', profile.identityStatus === 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION' && manifest.organization_identity_status === 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION');
+check('uploaded incorporation certificate is recorded without claiming independent authentication', profile.identityStatus === IDENTITY_STATUS && manifest.organization_identity_status === IDENTITY_STATUS && profile.incorporationCertificate?.documentType === 'CERTIFICATE_OF_INCORPORATION' && profile.incorporationCertificate?.registeredEntityName === ORGANIZATION && profile.incorporationCertificate?.registrationNumber === ERN && profile.incorporationCertificate?.issuedOn === '2026-11-13' && profile.incorporationCertificate?.sha256 === '81df8a5c6c200b29248413376c40541131639e865b595670159bdf47b9cbbe99' && profile.incorporationCertificate?.verificationStatus === IDENTITY_STATUS);
 check('production approval remains disabled', profile.productionApproved === false);
 const brand = read('frontend/src/branding/brand.js');
 const backendBrand = read('backend/shared/branding/brandConfig.cjs');

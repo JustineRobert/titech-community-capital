@@ -48,3 +48,10 @@ test('frontend legacy admin alias matches the authoritative backend role contrac
   assert.notEqual(normalizeTitechRole('platformadmin'), 'platform_admin', 'unsupported frontend-only aliases must not grant canonical privileges');
   assert.equal(normalizeTitechRole('administrator'), 'administrator', 'unsupported frontend-only privilege aliases must not be introduced');
 });
+test('group creation explains ambiguous network outcomes without encouraging blind duplicate retries', async () => {
+  const form = await read('../../frontend/src/pages/CreateGroupV2.jsx');
+  assert.match(form, /ERR_NETWORK/);
+  assert.match(form, /refresh Group Management before retrying/);
+  assert.match(form, /check whether the group exists before submitting again/);
+});
+

@@ -39,3 +39,12 @@ test('approval and rejection persist group audit history in the same aggregate s
   assert.match(model, /"membership_rejected"/);
   assert.match(service, /await group\.save\(\);[\s\S]{0,250}appendTenantAudit/);
 });
+test('membership moderation validates the target ID and checks the permission for the requested action', async () => {
+  const routes = await read('../../../routes/groups.js');
+  assert.match(routes, /validateMongoIdParameter\(\s*"memberUserId"/);
+  assert.match(routes, /approve: "MEMBERSHIP_APPROVE"/);
+  assert.match(routes, /reject: "MEMBERSHIP_REJECT"/);
+  assert.match(routes, /return requirePermission\(permission\)\(req, res, next\)/);
+  assert.match(routes, /requireMembershipActionPermission/);
+});
+

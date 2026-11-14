@@ -185,9 +185,9 @@ export const TITECH_ORGANIZATION = Object.freeze({
   country: 'Uganda',
   entityRegistrationNumber: '80049233029029',
   entityRegistrationNumberType: 'ERN',
-  entityRegistrationNumberVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
+  entityRegistrationNumberVerification: 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED',
   administrativeAssociationName: 'TITECH CAPITAL - SMC LTD',
-  legalIdentityVerification: 'PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION',
+  legalIdentityVerification: 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED',
   postalAddressVerification: 'USER_SUPPLIED_ADMINISTRATIVE_RECORD',
 });
 

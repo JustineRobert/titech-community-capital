@@ -1,4 +1,6 @@
-# TITech Capital LTD — Organization Identity and Postal Address
+# Historical organization identity snapshot — 31 October 2026
+
+> **SUPERSEDED:** This is preserved as historical evidence only. The current organization identity is **TITECH CAPITAL - SMC LTD** and the product remains **TITech Community Capital**. See [`TITECH_CAPITAL_SMC_LTD_IDENTITY.md`](TITECH_CAPITAL_SMC_LTD_IDENTITY.md) for the current certificate-sourced configuration and its verification limitations.
 
 **Baseline date:** 31 October 2026  
 **Product identity:** TITech Community Capital  

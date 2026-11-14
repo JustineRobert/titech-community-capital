@@ -1,6 +1,6 @@
 # TITech Community Capital — Offline Synchronization Contract
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital  
 **Contract version:** 1  
 **Implementation status:** Implemented boundary; **NOT READY** for event processing
