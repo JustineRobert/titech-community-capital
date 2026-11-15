@@ -35,6 +35,7 @@ import { toast } from 'react-toastify';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
+import TITECH_BRAND from '../branding/brand';
 
 import './GroupDetails.css';
 
@@ -1058,7 +1059,11 @@ export default function GroupDetails() {
                   TITech Community Capital
                 </span>
 
-                <span className="group-status-badge">
+                <span
+                  className="group-status-badge"
+                  data-status={String(group.status || 'active').toLowerCase().replace(/_/g, '-')}
+                  aria-label={`Group status: ${String(group.status || 'active').replace(/_/g, ' ')}`}
+                >
                   <span
                     className="status-dot"
                     aria-hidden="true"
@@ -1689,23 +1694,28 @@ export default function GroupDetails() {
         {/* Footer Security Notice */}
         {/* ================================================================= */}
 
-        <footer className="group-details-footer">
+        <footer
+          className="group-details-footer"
+          aria-label="TITech Community Capital company information"
+        >
           <ShieldCheck
-            size={18}
+            size={20}
             aria-hidden="true"
           />
 
-          <div>
-            <strong>
-              TITech Community Capital
-            </strong>
-
+          <div className="group-details-footer-copy">
+            <strong>{TITECH_BRAND.fullName}</strong>
+            <span className="group-details-footer-tagline">
+              {TITECH_BRAND.tagline}
+            </span>
             <span>
-              Community financial activity is
-              protected by authenticated API
-              access, transaction validation,
-              audit-ready request handling, and
-              duplicate-request safeguards.
+              {TITECH_BRAND.legalName}. ERN: {TITECH_BRAND.organization.entityRegistrationNumber}.
+            </span>
+            <span>
+              Postal correspondence: {TITECH_BRAND.organization.postalAddress}, {TITECH_BRAND.organization.postalLocation}, {TITECH_BRAND.organization.country}.
+            </span>
+            <span className="group-details-footer-security">
+              Community financial activity is protected by authenticated API access, transaction validation, audit-ready request handling, and duplicate-request safeguards.
             </span>
           </div>
         </footer>
