@@ -43,7 +43,7 @@ check('assessment has idempotency and immutable pricing snapshot', /idempotencyK
 check('financial adapter requires canonical posting injection and active transaction', /postCanonicalBillingPayment must be wired/.test(adapter) && /inTransaction\(\)/.test(adapter));
 check('official organization identity preserved', profile.organizationDisplayName === 'TITECH CAPITAL - SMC LTD' && profile.productName === 'TITech Community Capital');
 check('production approval remains false', profile.productionApproved === false);
-check('official nine-color brand manifest retained', Object.keys(theme.palette ?? {}).length === 9 && theme.tagline === 'BUILD LESS. PROVE MORE.');
+check('official nine-color brand manifest retained', Object.keys(theme.palette ?? {}).length === 9 && theme.tagline === 'Community Finance. Stronger Together.');
 check('legacy billing calculator has no hardcoded tariffs, VAT default or zero-fee fallback', !/defaultPricing|mobileMoneyDeposit|mobileMoneyWithdrawal|0\.18|return\s*\{\s*type:\s*['\"]FIXED['\"],\s*fee:\s*0/.test(legacyBilling) && /TITECH_COMMERCIAL_BILLING_NOT_CONFIGURED/.test(legacyBilling) && /quoteFee/.test(legacyBilling));
 const report = { gate: 'commercial-billing-core', status: failures.length ? 'FAIL' : 'PASS', checks };
 console.log(JSON.stringify(report, null, 2));

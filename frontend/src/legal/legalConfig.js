@@ -47,6 +47,8 @@
 
 'use strict';
 
+import TITECH_BRAND from '../branding/brand.js';
+
 /* ============================================================================
  * BRAND CONFIGURATION
  * ========================================================================== */
@@ -59,7 +61,7 @@ export const LEGAL_BRAND = Object.freeze({
   entityRegistrationNumberVerification: 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED',
   shortName: 'TITech',
   platformName: 'TITech Community Capital',
-  tagline: 'BUILD LESS. PROVE MORE.',
+  tagline: TITECH_BRAND.tagline,
   country: 'Uganda',
   jurisdiction: 'Uganda',
   city: 'Kampala',

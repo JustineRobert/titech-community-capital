@@ -1,8 +1,8 @@
 # TITech Partner Portal — User Guide
 
 **Product:** TITech Community Capital  
-**Organization:** TITech Capital LTD  
-**Tagline:** BUILD LESS. PROVE MORE.
+**Organization:** TITECH CAPITAL - SMC LTD  
+**Tagline:** Community Finance. Stronger Together.
 
 ## Opening the workspace
 

@@ -1,16 +1,24 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 14 November 2026  
+**As of:** 15 November 2026  
 **Organization:** TITECH CAPITAL - SMC LTD
 **Entity Registration Number (ERN):** 80049233029029 (stated on user-uploaded Certificate of Incorporation; authenticity/current registry status not independently verified)
 **Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
 **Product:** TITech Community Capital  
-**Engineering principle:** BUILD LESS. PROVE MORE.  
+**Platform tagline:** Community Finance. Stronger Together.  
+**Financial principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.  
 **Production approval | NO**
 **PRODUCTION_APPROVED: NO**  
 **`productionApproved`: `false`**
 
 This root-level document is an index to the current machine-generated evidence and the detailed historical/platform narrative. It is not a substitute for running the gates against the precise commit or deployment being assessed.
+
+## 15 November 2026 — official tagline and group financial-integrity correction
+
+The active official platform tagline is now **Community Finance. Stronger Together.** across the frontend/backend brand contracts, authentication copy and current partner/legal/community-giving surfaces inspected in this archive. **BUILD LESS. PROVE MORE.** is no longer the active platform tagline; prior dated reports and historical prompts that contain it are preserved as archival records, not current brand instructions. The financial operating principle remains **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**
+
+The current group-management remediation reuses the canonical twelve-value Group type contract, removes the unmounted group-scoped contribution request from Group Details, strengthens group-wallet reads with tenant/group visibility checks, and fails the group balance read closed with `503 GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED` until a canonical Group-to-ledger-account mapping exists. It does not complete institutional onboarding, group-type-specific financial engines, provider contribution initiation, a reconciled balance, or persisted pilot operations. The new dashboard bridge maps legacy dashboard aliases to the existing official nine-colour light/dark theme; browser screenshots and visual accessibility testing have not been run. See `docs/evidence/sacco-vsla-onboarding/` for exact file discovery, tests and release decision.
+
 
 ## 14 November 2026 — certificate evidence, API delivery bridge and group lifecycle remediation
 

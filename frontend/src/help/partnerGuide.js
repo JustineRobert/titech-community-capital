@@ -1,3 +1,5 @@
+import TITECH_BRAND from '../branding/brand.js';
+
 /**
  * TITech Community Capital — Partner Portal onboarding content.
  * The guide describes only implemented workspace actions as available. Any
@@ -15,7 +17,7 @@ export const PARTNER_GUIDE_CHAPTERS = Object.freeze([
       ['Security & Privacy', 'Access is restricted by the signed-in identity, tenant context and server-side permissions. Only access information needed for an assigned support task.'],
       ['Clear Status', 'Case status is read from the support-case API. Messaging-provider health is not inferred from application availability.'],
     ],
-    note: 'BUILD LESS. PROVE MORE. — FINANCIAL CORRECTNESS BEFORE CONVENIENCE.',
+    note: `${TITECH_BRAND.tagline} — FINANCIAL CORRECTNESS BEFORE CONVENIENCE.`,
   },
   {
     number: 2,

@@ -78,6 +78,7 @@ import { I18nProvider } from './i18n/I18nProvider';
 import './index.css';
 import './branding/brand.css';
 import './branding/official-theme.css';
+import './branding/dashboard-theme.css';
 import AppRoutes from './routes/AppRoutes';
 import TITECH_BRAND from './branding/brand';
 import { applyTheme, getInitialTheme } from './branding/theme';

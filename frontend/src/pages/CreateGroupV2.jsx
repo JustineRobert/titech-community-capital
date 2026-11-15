@@ -12,7 +12,7 @@
 // - Member role assignment
 // - Preview before submission
 // - Abortable network requests
-// - Idempotent group creation support
+// - Request correlation and duplicate-name conflict handling
 // - Batched invitation processing
 // - Partial-failure handling
 // - Retry failed invitation batches
@@ -66,26 +66,18 @@ const NAVIGATION_DELAY_MS = 1800;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 
 const GROUP_TYPES = [
-  {
-    value: 'savings',
-    label: 'Savings Group',
-    description: 'Traditional community savings pool',
-  },
-  {
-    value: 'investment',
-    label: 'Investment Group',
-    description: 'Focus on investment opportunities',
-  },
-  {
-    value: 'community',
-    label: 'Community Support',
-    description: 'General community support and welfare',
-  },
-  {
-    value: 'welfare',
-    label: 'Welfare Group',
-    description: 'Member welfare and mutual support',
-  },
+  { value: 'savings', label: 'Savings Group', description: 'Community savings classification; does not authorize regulated deposit-taking.' },
+  { value: 'vsla', label: 'VSLA', description: 'Village savings and loan association classification; lending remains disabled unless separately authorized.' },
+  { value: 'sacco', label: 'SACCO', description: 'SACCO group classification only; it does not establish licensing or regulated financial authority.' },
+  { value: 'chama', label: 'Chama', description: 'Member-organized savings or investment group classification.' },
+  { value: 'rosca', label: 'ROSCA', description: 'Rotating savings and credit association classification; payout rotation requires a separately verified operating workflow.' },
+  { value: 'cooperative', label: 'Cooperative', description: 'Cooperative group classification; registration and regulated capabilities are assessed separately.' },
+  { value: 'farmer_group', label: 'Farmer Group', description: 'Agricultural producer community classification.' },
+  { value: 'producer_organization', label: 'Producer Organization', description: 'Producer organization classification; services remain subject to approved capabilities.' },
+  { value: 'investment', label: 'Investment Group', description: 'Community investment group classification; investment activity remains approval-gated.' },
+  { value: 'community', label: 'Community Support', description: 'General community support and welfare classification.' },
+  { value: 'welfare', label: 'Welfare Group', description: 'Member welfare and mutual support classification.' },
+  { value: 'mixed_community_group', label: 'Mixed Community Group', description: 'Multi-purpose community group classification.' },
 ];
 
 const MEMBER_ROLES = [
@@ -782,16 +774,14 @@ export default function CreateGroupV2() {
         name: groupName.trim(),
         type: groupType,
         description: description.trim(),
-        members: validMembers.map((member) => ({
-          email: member.email,
-          role: member.role,
-        })),
+        // Invitations are processed only after durable group creation by the
+        // explicit invitation endpoint below. Do not create them twice.
+        members: [],
       };
 
       return api.post('/groups', payload, {
         signal,
         headers: {
-          'X-Idempotency-Key': requestId,
           'X-Request-ID': requestId,
         },
       });
@@ -1347,6 +1337,9 @@ export default function CreateGroupV2() {
             {selectedGroupType.description}
           </small>
         )}
+        <p className="form-help group-type-authorization-note" role="note">
+          Selecting a group type records its organizational classification only. It does not verify legal registration or enable deposits, lending, payment services, insurance or other regulated activities.
+        </p>
       </div>
 
       <div className="form-group">

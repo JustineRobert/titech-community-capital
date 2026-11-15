@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { User } from "../models/User.js";
-import Group, { GROUP_MODEL_METADATA } from "../models/Group.js";
+import Group, { GROUP_MODEL_METADATA, GROUP_TYPES as SUPPORTED_GROUP_TYPES } from "../models/Group.js";
 import logger from "../utils/logger.js";
 import {
   canManageGroup,
@@ -12,7 +12,7 @@ import {
   transitionMembership,
 } from "../services/rbacService.js";
 
-const GROUP_TYPES = new Set(["savings", "investment", "community", "welfare"]);
+const GROUP_TYPES = new Set(SUPPORTED_GROUP_TYPES);
 const MEMBER_ROLES = new Set(["member", "group_admin", "treasurer", "secretary"]);
 
 function getIdentity(req) {

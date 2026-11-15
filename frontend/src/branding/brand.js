@@ -57,7 +57,7 @@ export const TITECH_VISION = Object.freeze({
   positioning:
     'Community financial infrastructure layer connecting savings groups, SACCOs, VSLAs/ROSCAs, cooperatives, community enterprises and financial institutions to interoperable payments, trusted financial records, reconciliation, risk intelligence and institutional capital.',
 
-  tagline: 'BUILD LESS. PROVE MORE.',
+  tagline: 'Community Finance. Stronger Together.',
 
   impact: Object.freeze([
     'Financial inclusion for all',

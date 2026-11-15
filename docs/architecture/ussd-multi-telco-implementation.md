@@ -3,7 +3,7 @@
 **Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital  
 **Engineering principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE  
-**Tagline:** BUILD LESS. PROVE MORE.  
+**Tagline:** Community Finance. Stronger Together.  
 **Status:** Implemented provider-neutral callback boundary; external provider and network integration remain unverified.
 
 ## Purpose and architectural boundary

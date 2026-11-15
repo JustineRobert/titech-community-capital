@@ -1,11 +1,11 @@
 # TITECH CAPITAL - SMC LTD — Current Organization Identity
 
-**Updated:** 14 November 2026  
+**Updated:** 15 November 2026  
 **Organization:** TITECH CAPITAL - SMC LTD  
 **Entity Registration Number (ERN):** 80049233029029  
 **Product:** TITech Community Capital  
 **Postal correspondence address:** P.O. Box 601200, Clock Tower, Uganda  
-**Tagline:** BUILD LESS. PROVE MORE.  
+**Tagline:** Community Finance. Stronger Together.  
 **Production approval:** `false`  
 **Documentary status:** `CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED`
 

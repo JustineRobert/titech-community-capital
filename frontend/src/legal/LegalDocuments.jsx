@@ -1,4 +1,5 @@
 import React from 'react';
+import TITECH_BRAND from '../branding/brand.js';
 import { Link } from 'react-router-dom';
 import {
   LEGAL_DOCUMENTS,
@@ -27,7 +28,7 @@ function LegalHeader() {
         />
         <span>
           <strong>TITech Community Capital</strong>
-          <small>BUILD LESS. PROVE MORE.</small>
+          <small>{TITECH_BRAND.tagline}</small>
         </span>
       </Link>
       <nav aria-label="Legal documents" className="titech-legal-nav">

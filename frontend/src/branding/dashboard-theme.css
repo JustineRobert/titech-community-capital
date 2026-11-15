@@ -1,0 +1,205 @@
+/*
+ * TITech Community Capital — official dashboard theme bridge.
+ * This file maps legacy dashboard aliases onto the single official nine-colour
+ * theme. It does not introduce a second palette or modify dashboard data.
+ */
+
+:root[data-titech-brand="official"] {
+  --dashboard-primary: var(--titech-official-electric-blue);
+  --dashboard-primary-strong: var(--titech-official-deep-blue);
+  --dashboard-primary-soft: rgb(0 88 216 / .10);
+  --dashboard-accent: var(--titech-official-cyan);
+  --dashboard-community: var(--titech-official-green);
+  --dashboard-growth: var(--titech-official-lime);
+  --dashboard-sustainability: var(--titech-official-gold);
+  --dashboard-background: var(--titech-color-background);
+  --dashboard-surface: var(--titech-color-surface);
+  --dashboard-surface-muted: var(--titech-color-surface-muted);
+  --dashboard-text: var(--titech-color-text);
+  --dashboard-text-muted: var(--titech-color-text-muted);
+  --dashboard-border: var(--titech-color-border);
+  --dashboard-focus: var(--titech-focus-ring);
+
+  /* Legacy root aliases used by existing executive, risk and admin dashboards. */
+  --titech-primary: var(--titech-official-deep-blue);
+  --titech-primary-dark: var(--titech-official-navy);
+  --titech-primary-soft: rgb(0 48 160 / .10);
+  --titech-success: var(--titech-state-success);
+  --titech-success-soft: var(--titech-success-surface);
+  --titech-warning: var(--titech-state-warning);
+  --titech-warning-soft: var(--titech-warning-surface);
+  --titech-danger: var(--titech-state-danger);
+  --titech-danger-soft: var(--titech-danger-surface);
+  --titech-info: var(--titech-official-cyan);
+  --titech-info-soft: rgb(0 184 248 / .12);
+  --admin-primary: var(--titech-official-electric-blue);
+  --admin-primary-hover: var(--titech-official-deep-blue);
+  --admin-primary-soft: rgb(0 88 216 / .10);
+  --admin-success: var(--titech-state-success);
+  --admin-success-soft: var(--titech-success-surface);
+  --admin-warning: var(--titech-state-warning);
+  --admin-warning-soft: var(--titech-warning-surface);
+  --admin-danger: var(--titech-state-danger);
+  --admin-danger-soft: var(--titech-danger-surface);
+  --admin-info: var(--titech-official-cyan);
+  --admin-info-soft: rgb(0 184 248 / .12);
+  --executive-primary: var(--titech-official-electric-blue);
+  --executive-primary-soft: rgb(0 88 216 / .10);
+  --widget-primary: var(--titech-official-deep-blue);
+  --widget-accent: var(--titech-official-cyan);
+}
+
+:root[data-titech-brand="official"] :is(
+  .dashboard-container,
+  .dashboard-page,
+  .admin-dashboard,
+  .risk-dashboard,
+  .executive-dashboard,
+  .system-health-page,
+  .agriculture-page
+) {
+  color: var(--titech-color-text);
+  background-color: var(--titech-color-background);
+  --surface: var(--titech-color-surface);
+  --surface-muted: var(--titech-color-surface-muted);
+  --border: var(--titech-color-border);
+  --border-strong: var(--titech-color-border-strong);
+  --text-primary: var(--titech-color-text);
+  --text-secondary: var(--titech-color-text-muted);
+  --text-muted: var(--titech-color-text-subtle);
+  --admin-bg: var(--titech-color-background);
+  --admin-surface: var(--titech-color-surface);
+  --admin-surface-raised: var(--titech-color-surface);
+  --admin-surface-muted: var(--titech-color-surface-muted);
+  --admin-background: var(--titech-color-background);
+  --admin-text: var(--titech-color-text);
+  --admin-text-secondary: var(--titech-color-text-muted);
+  --admin-text-muted: var(--titech-color-text-subtle);
+  --admin-border: var(--titech-color-border);
+  --admin-border-strong: var(--titech-color-border-strong);
+  --admin-purple: var(--titech-official-bright-blue);
+  --admin-purple-soft: rgb(0 102 232 / .10);
+  --admin-teal: var(--titech-official-cyan);
+  --admin-teal-soft: rgb(0 184 248 / .12);
+  --admin-gold: var(--titech-official-gold);
+  --admin-gold-soft: rgb(248 216 0 / .16);
+  --admin-orange: var(--titech-state-warning);
+  --admin-orange-soft: var(--titech-warning-surface);
+  --executive-surface: var(--titech-color-surface);
+  --executive-border: var(--titech-color-border);
+  --executive-text: var(--titech-color-text);
+  --executive-muted: var(--titech-color-text-muted);
+  --widget-surface: var(--titech-color-surface);
+  --widget-border: var(--titech-color-border);
+  --widget-text: var(--titech-color-text);
+  --widget-muted: var(--titech-color-text-muted);
+}
+
+:root[data-titech-brand="official"] :is(
+  .dashboard-container,
+  .dashboard-page,
+  .admin-dashboard,
+  .risk-dashboard,
+  .executive-dashboard,
+  .system-health-page,
+  .agriculture-page
+) :is(
+  .stat-card,
+  .dashboard-stat-card,
+  .dashboard-widget-card,
+  .chart-card,
+  .admin-stat-card,
+  .admin-kpi,
+  .admin-chart-card,
+  .executive-risk-card,
+  .risk-card,
+  .risk-kpi-card,
+  .system-health-card,
+  .agriculture-card,
+  .agri-metric
+) {
+  color: var(--titech-color-text);
+  background-color: var(--titech-color-surface);
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"] :is(
+  .dashboard-container,
+  .dashboard-page,
+  .admin-dashboard,
+  .risk-dashboard,
+  .executive-dashboard,
+  .system-health-page,
+  .agriculture-page
+) :is(button, a, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid var(--titech-focus-color);
+  outline-offset: 2px;
+  box-shadow: var(--titech-focus-ring);
+}
+
+:root[data-titech-brand="official"] :is(
+  .dashboard-container,
+  .dashboard-page,
+  .admin-dashboard,
+  .risk-dashboard,
+  .executive-dashboard,
+  .system-health-page,
+  .agriculture-page
+) :is(table, .data-table, .recharts-default-tooltip) {
+  color: var(--titech-color-text);
+  border-color: var(--titech-color-border);
+}
+
+:root[data-titech-brand="official"][data-theme="dark"] :is(
+  .dashboard-container,
+  .dashboard-page,
+  .admin-dashboard,
+  .risk-dashboard,
+  .executive-dashboard,
+  .system-health-page,
+  .agriculture-page
+) :is(.dashboard-widget-card, .chart-card, .admin-chart-card, .risk-card, .system-health-card) {
+  background-color: var(--titech-color-surface);
+  color: var(--titech-color-text);
+}
+
+@media (max-width: 720px) {
+  :root[data-titech-brand="official"] :is(
+    .dashboard-container,
+    .dashboard-page,
+    .admin-dashboard,
+    .risk-dashboard,
+    .executive-dashboard,
+    .system-health-page,
+    .agriculture-page
+  ) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  :root[data-titech-brand="official"] :is(
+    .dashboard-container,
+    .dashboard-page,
+    .admin-dashboard,
+    .risk-dashboard,
+    .executive-dashboard,
+    .system-health-page,
+    .agriculture-page
+  ) :is(.stats-grid, .risk-kpis, .admin-kpi-grid, .admin-metrics-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  :root[data-titech-brand="official"] :is(
+    .dashboard-container,
+    .dashboard-page,
+    .admin-dashboard,
+    .risk-dashboard,
+    .executive-dashboard,
+    .system-health-page,
+    .agriculture-page
+  ) :is(.stats-grid, .risk-kpis, .admin-kpi-grid, .admin-metrics-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

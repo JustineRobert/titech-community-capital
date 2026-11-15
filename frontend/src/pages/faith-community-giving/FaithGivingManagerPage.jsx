@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { get, post, patch } from '../../services/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { hasTitechRole, TITECH_ROLES } from '../../security/rbacPolicy.js';
+import TITECH_BRAND from '../../branding/brand.js';
 import './faith-community-giving.css';
 
 const API = '/api/v1/faith-giving';
@@ -184,7 +185,7 @@ export default function FaithGivingManagerPage() {
         )) : !error ? <div className="titech-faith-empty">{busy ? 'Loading tenant campaigns…' : 'No campaign records exist in this tenant.'}</div> : null}
         <label className="titech-faith-reason"><span>Reason for rejection, pause or closure</span><textarea rows={2} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /></label>
       </section>
-      <footer className="titech-faith-footer"><strong>BUILD LESS. PROVE MORE.</strong><span>Approvals and budget reservations do not prove money was received, settled or disbursed.</span></footer>
+      <footer className="titech-faith-footer"><strong>{TITECH_BRAND.tagline}</strong><span>Approvals and budget reservations do not prove money was received, settled or disbursed.</span></footer>
     </main>
   );
 }

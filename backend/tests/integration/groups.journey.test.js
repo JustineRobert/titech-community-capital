@@ -161,11 +161,33 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
     createResponse.body.groupId || createResponse.body.data?.id;
   assert.ok(mongoose.Types.ObjectId.isValid(groupId));
 
+  const vslaCreateResponse = await request(app)
+    .post("/api/v1/groups")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({
+      name: "End-to-End VSLA Classification",
+      type: "vsla",
+      description: "Classification contract only; no lending capability is enabled.",
+      members: [],
+    });
+  assert.equal(vslaCreateResponse.status, 201, JSON.stringify(vslaCreateResponse.body));
+  const persistedVsla = await Group.findTenantGroup(
+    tenantId,
+    vslaCreateResponse.body.groupId || vslaCreateResponse.body.data?.id,
+  );
+  assert.equal(persistedVsla?.type, "vsla");
+  assert.equal(persistedVsla?.capabilities?.lending, false);
+
   const memberLogin = await request(app)
     .post("/api/auth/login")
     .send({ email: memberEmail, password: PASSWORD });
   assert.equal(memberLogin.status, 200);
   const memberToken = getAccessToken(memberLogin);
+
+  const pendingMemberBalance = await request(app)
+    .get(`/api/v1/group-wallets/${groupId}/balance`)
+    .set("Authorization", `Bearer ${memberToken}`);
+  assert.equal(pendingMemberBalance.status, 403);
 
   const availableGroups = await request(app)
     .get("/api/groups")
@@ -221,6 +243,15 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
     "active"
   );
 
+  const authorizedGroupBalance = await request(app)
+    .get(`/api/v1/group-wallets/${groupId}/balance`)
+    .set("Authorization", `Bearer ${memberToken}`);
+  // Membership authorization succeeds, but the current Group model has no
+  // canonical account reference. Do not report a misleading zero balance by
+  // summing both sides of double-entry journals.
+  assert.equal(authorizedGroupBalance.status, 503, JSON.stringify(authorizedGroupBalance.body));
+  assert.equal(authorizedGroupBalance.body.meta?.details?.code, "GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED");
+
   const rejectedEmail = `group-rejected-${Date.now()}@titech.test`;
   const rejectedRegistration = await request(app)
     .post("/api/auth/register")
@@ -236,6 +267,11 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
     .send({ email: rejectedEmail, password: PASSWORD });
   assert.equal(rejectedLogin.status, 200);
   const rejectedToken = getAccessToken(rejectedLogin);
+  const rejectedGroupBalance = await request(app)
+    .get(`/api/v1/group-wallets/${groupId}/balance`)
+    .set("Authorization", `Bearer ${rejectedToken}`);
+  assert.equal(rejectedGroupBalance.status, 403);
+
   const rejectedJoin = await request(app)
     .post(`/api/groups/join/${groupId}`)
     .set("Authorization", `Bearer ${rejectedToken}`)
@@ -311,6 +347,11 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
     .get(`/api/groups/${groupId}/membership-requests`)
     .set("Authorization", `Bearer ${wrongTenantToken}`);
   assert.equal(crossTenantRequestRead.status, 403);
+
+  const crossTenantGroupBalance = await request(app)
+    .get(`/api/v1/group-wallets/${groupId}/balance`)
+    .set("Authorization", `Bearer ${wrongTenantToken}`);
+  assert.equal(crossTenantGroupBalance.status, 404);
 
   const crossTenantModeration = await request(app)
     .patch(`/api/groups/${groupId}/members/${memberLogin.body.user.id}`)

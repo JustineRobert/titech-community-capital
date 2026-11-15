@@ -2,7 +2,7 @@
 
 **Project:** TITech Community Capital  
 **Organization:** TITECH CAPITAL - SMC LTD  
-**Slogan:** BUILD LESS. PROVE MORE.
+**Tagline:** Community Finance. Stronger Together.
 
 This runbook uses the existing Windows / PowerShell development environment. It does not replace the existing React/Vite, Express ESM, MongoDB, Redis, JWT, refresh-token, RBAC, tenancy, audit, payment or ledger architecture. Run commands from the verified repository clone. Do not assume that the supplied ZIP is a Git clone.
 

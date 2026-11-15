@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { hasTitechRole, TITECH_ROLES } from '../../security/rbacPolicy.js';
 import BrandLogo from '../../components/BrandLogo.jsx';
+import TITECH_BRAND from '../../branding/brand.js';
 import './faith-community-giving.css';
 
 const PUBLIC_API = '/api/v1/faith-giving/public';
@@ -123,7 +124,7 @@ export default function FaithCommunityGivingPage() {
           <p className="titech-faith-eyebrow">TITECH CAPITAL - SMC LTD · TITech Community Capital</p>
         </div>
         <div className="titech-faith-hero__copy">
-          <span className="titech-faith-kicker">BUILD LESS. PROVE MORE.</span>
+          <span className="titech-faith-kicker">{TITECH_BRAND.tagline}</span>
           <h1>Donations &amp; Community Giving</h1>
           <p>Support approved community priorities through transparent campaigns for scholastic materials, computers, textbooks, classroom furniture, construction and essential community needs.</p>
           <div className="titech-faith-actions">
@@ -237,7 +238,7 @@ export default function FaithCommunityGivingPage() {
         ) : !error && !busy ? <div className="titech-faith-empty"><h3>No public campaigns are available</h3><p>Approved organisations can prepare campaigns after the capability is enabled and their organiser, safeguarding and receiving-destination evidence has been reviewed.</p></div> : null}
       </section>
 
-      <footer className="titech-faith-footer"><strong>BUILD LESS. PROVE MORE.</strong><span>Donations &amp; Community Giving is part of TITech Community Capital · TITECH CAPITAL - SMC LTD.</span></footer>
+      <footer className="titech-faith-footer"><strong>{TITECH_BRAND.tagline}</strong><span>Donations &amp; Community Giving is part of TITech Community Capital · TITECH CAPITAL - SMC LTD.</span></footer>
     </main>
   );
 }

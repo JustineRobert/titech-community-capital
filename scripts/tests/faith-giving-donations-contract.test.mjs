@@ -9,7 +9,7 @@ const model = await read('../../backend/modules/faith-community-giving/models/Fa
 const permissions = await read('../../backend/middleware/platformPermissions.js');
 test('donations page offers scholastic, computer, furniture and construction support', () => {
   for (const token of ['SCHOLASTIC_MATERIALS','LIBRARY_AND_TEXTBOOKS','COMPUTERS_AND_DIGITAL_EQUIPMENT','SCHOOL_FURNITURE','CONSTRUCTION_MATERIALS']) assert.ok(page.includes(token), `missing ${token}`);
-  assert.ok(page.includes('BUILD LESS. PROVE MORE.')); assert.ok(page.includes('pledgeIdempotencyRef.current.key'));
+  assert.ok(page.includes('TITECH_BRAND.tagline')); assert.ok(page.includes('pledgeIdempotencyRef.current.key'));
 });
 test('public-reference pledge submission is authenticated, action-authorized and tenant-scoped', () => {
   assert.ok(routes.includes("router.post('/public/:publicReference/pledges', enabled, requirePermission('faith-giving:pledge:create'), requireIdempotencyKey, createPublicPledge)"));

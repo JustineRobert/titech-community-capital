@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp, Clock3, LifeBuoy, LockKeyhole, Plus, RefreshCw, Send, ShieldAlert, Ticket, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import TITECH_BRAND from '../branding/brand';
 import { usePermissions } from '../routes/PermissionRoute';
 import { createPartnerCase, listPartnerCases, transitionPartnerCase } from '../services/partnerPortalApi';
 import { getGuideChapter, PARTNER_GUIDE_CHAPTERS, PARTNER_HELP_DOTS } from '../help/partnerGuide';
@@ -266,7 +267,7 @@ export default function PartnerPortal() {
         </section>
       </div>
 
-      <footer className="partner-portal-footer"><span><ShieldAlert size={16} /> Support communications are not financial instructions and cannot authorize ledger or payment changes.</span><span>BUILD LESS. PROVE MORE.</span></footer>
+      <footer className="partner-portal-footer"><span><ShieldAlert size={16} /> Support communications are not financial instructions and cannot authorize ledger or payment changes.</span><span>{TITECH_BRAND.tagline}</span></footer>
       {guideOpen && <UserGuide chapterNumber={chapterNumber} setChapterNumber={setChapterNumber} onClose={dismissGuide} helpDots={helpDots} setHelpDots={setHelpDots} />}
     </main>
   );

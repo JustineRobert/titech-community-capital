@@ -7,7 +7,7 @@ import TITECH_BRAND, {
 describe('TITech vision-board brand contract', () => {
   it('exposes the canonical mission, tagline and 2035 vision', () => {
     expect(TITECH_BRAND.tagline).toBe(
-      'BUILD LESS. PROVE MORE.',
+      'Community Finance. Stronger Together.',
     );
 
     expect(TITECH_BRAND.mission).toMatch(

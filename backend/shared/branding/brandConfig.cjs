@@ -28,7 +28,7 @@ module.exports = Object.freeze({
   }),
   emailFromName: 'TITech Community Capital',
 
-  tagline: 'BUILD LESS. PROVE MORE.',
+  tagline: 'Community Finance. Stronger Together.',
   mission:
     'To empower communities through innovative financial solutions, technology, and education, creating sustainable wealth and shared prosperity across Africa.',
   vision2035:

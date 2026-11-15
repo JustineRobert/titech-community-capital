@@ -219,7 +219,7 @@ const truth = {
   postalAddress: 'P.O. Box 601200',
   organizationIdentityVerification: 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED',
   product: 'TITech Community Capital',
-  tagline: 'BUILD LESS. PROVE MORE.',
+  tagline: 'Community Finance. Stronger Together.',
   branch: 'UNAVAILABLE_IN_ARCHIVE',
   commit: 'UNAVAILABLE_IN_ARCHIVE',
   sourceSnapshotSha256: sourceHash.digest('hex'),

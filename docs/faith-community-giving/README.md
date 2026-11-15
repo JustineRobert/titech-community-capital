@@ -1,9 +1,9 @@
 # TITech Donations & Community Giving
 
-**Organization:** TITech Capital SMC LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital  
 **Product division:** TITech Donations & Community Giving  
-**Tagline:** BUILD LESS. PROVE MORE.  
+**Tagline:** Community Finance. Stronger Together.  
 **Engineering principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
 
 ## Purpose

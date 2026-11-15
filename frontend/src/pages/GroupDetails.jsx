@@ -15,7 +15,6 @@ import React, {
 import {
   ArrowLeft,
   CalendarDays,
-  CheckCircle2,
   Clock3,
   Coins,
   Info,
@@ -43,8 +42,6 @@ import './GroupDetails.css';
 // Constants
 // ============================================================================
 
-const MAX_CONTRIBUTION_AMOUNT = 1_000_000_000;
-const MIN_CONTRIBUTION_AMOUNT = 1;
 const GROUP_REFRESH_INTERVAL = 60_000;
 
 const EMPTY_GROUP = {
@@ -53,7 +50,9 @@ const EMPTY_GROUP = {
   description: '',
   type: '',
   members: [],
-  totalContributions: 0,
+  memberRoles: [],
+  memberCount: null,
+  activeMemberCount: null,
   nextContributionDate: null,
   status: 'active',
 };
@@ -84,15 +83,20 @@ const normalizeGroup = (payload) => {
     ...EMPTY_GROUP,
     ...source,
     id: getGroupId(source),
+    // Group.members is a compatibility projection of user references. It is
+    // not itself proof of a populated member profile or a financial balance.
     members: Array.isArray(source.members)
       ? source.members
       : [],
-    totalContributions: Number(
-      source.totalContributions ??
-        source.totalContribution ??
-        source.balance ??
-        0
-    ),
+    memberRoles: Array.isArray(source.memberRoles)
+      ? source.memberRoles
+      : [],
+    memberCount: source.memberCount !== null && source.memberCount !== undefined && Number.isSafeInteger(Number(source.memberCount))
+      ? Number(source.memberCount)
+      : null,
+    activeMemberCount: source.activeMemberCount !== null && source.activeMemberCount !== undefined && Number.isSafeInteger(Number(source.activeMemberCount))
+      ? Number(source.activeMemberCount)
+      : null,
   };
 };
 
@@ -185,25 +189,13 @@ const formatDateTime = (value) => {
 
 const formatCurrency = (value) => {
   const amount = Number(value);
+  if (!Number.isFinite(amount)) return 'Unavailable';
 
   return new Intl.NumberFormat('en-UG', {
     style: 'currency',
     currency: 'UGX',
     maximumFractionDigits: 0,
-  }).format(Number.isFinite(amount) ? amount : 0);
-};
-
-const generateIdempotencyKey = () => {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return crypto.randomUUID();
-  }
-
-  return `titech-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 12)}`;
+  }).format(amount);
 };
 
 // ============================================================================
@@ -434,6 +426,33 @@ function MemberCard({ member, index }) {
   );
 }
 
+const getGroupRequestErrorMessage = (error) => {
+  const status = error?.response?.status;
+  const responseMessage = error?.response?.data?.message;
+  const safeMessage = typeof responseMessage === 'string' ? responseMessage : null;
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '');
+
+  if (status === 401) return 'Your session has expired. Sign in again, then reopen this group.';
+  if (status === 403) return safeMessage || 'You do not have permission to access this group.';
+  if (status === 404) return safeMessage || 'This group could not be found in your authorized organization.';
+  if (status === 409) return safeMessage || 'The requested group operation conflicts with the current saved state.';
+  if (status === 422) return safeMessage || 'The server rejected the group data. Review the saved information and try again.';
+  if (status === 429) return 'Too many group requests were made. Wait briefly, then refresh.';
+  if (status === 502 || status === 503) return 'The TITech API or a required service is temporarily unavailable. Retry the group read when service is restored.';
+  if (status === 504 || code === 'ECONNABORTED' || code === 'ETIMEDOUT' || /timeout|timed out/i.test(message)) {
+    return 'The group request timed out. Refresh to retrieve the current server state before repeating any operation.';
+  }
+  if (!error?.response && (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    return 'This device is offline. Your group data was not refreshed; reconnect and retry.';
+  }
+  if (!error?.response) {
+    return 'TITech could not reach the API. Check the connection and API availability, then retry. No change is confirmed by this failed read.';
+  }
+  if (status >= 500) return 'TITech could not complete this group request because the service encountered an internal error.';
+  return safeMessage || 'The group request could not be completed. Review the response and retry when appropriate.';
+};
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -452,12 +471,12 @@ export default function GroupDetails() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [contributionAmount, setContributionAmount] =
-    useState('');
-  const [contributing, setContributing] =
-    useState(false);
-  const [successMessage, setSuccessMessage] =
-    useState('');
+  const [financialPosition, setFinancialPosition] = useState({
+    status: 'loading',
+    balance: null,
+    currency: null,
+    entryCount: null,
+  });
   const [lastUpdated, setLastUpdated] =
     useState(null);
   const [membershipRequests, setMembershipRequests] = useState([]);
@@ -465,82 +484,86 @@ export default function GroupDetails() {
   const [moderatingUserId, setModeratingUserId] = useState(null);
 
   // ==========================================================================
-  // Validation
-  // ==========================================================================
-
-  const contributionValidation = useMemo(() => {
-    const raw = String(
-      contributionAmount ?? ''
-    ).trim();
-
-    if (!raw) {
-      return {
-        valid: false,
-        message: '',
-        amount: 0,
-      };
-    }
-
-    if (!/^\d+$/.test(raw)) {
-      return {
-        valid: false,
-        message:
-          'Enter a whole-number UGX amount.',
-        amount: 0,
-      };
-    }
-
-    const amount = Number(raw);
-
-    if (!Number.isSafeInteger(amount)) {
-      return {
-        valid: false,
-        message:
-          'The contribution amount is too large.',
-        amount: 0,
-      };
-    }
-
-    if (
-      amount <
-      MIN_CONTRIBUTION_AMOUNT
-    ) {
-      return {
-        valid: false,
-        message:
-          'Contribution must be at least UGX 1.',
-        amount,
-      };
-    }
-
-    if (
-      amount >
-      MAX_CONTRIBUTION_AMOUNT
-    ) {
-      return {
-        valid: false,
-        message: `Contribution cannot exceed ${formatCurrency(
-          MAX_CONTRIBUTION_AMOUNT
-        )}.`,
-        amount,
-      };
-    }
-
-    return {
-      valid: true,
-      message: '',
-      amount,
-    };
-  }, [contributionAmount]);
-
-  // ==========================================================================
   // Fetch Group
   // ==========================================================================
+
+  // ==========================================================================
+  // Authoritative Financial Position
+  // ==========================================================================
+
+  const loadFinancialPosition = useCallback(
+    async (signal) => {
+      setFinancialPosition({
+        status: 'loading',
+        balance: null,
+        currency: null,
+        entryCount: null,
+      });
+
+      try {
+        const response = await api.get(
+          `/api/v1/group-wallets/${encodeURIComponent(groupId)}/balance`,
+          { signal },
+        );
+        const data = response?.data?.data ?? response?.data ?? response;
+        const balanceValue = data?.balance;
+        const normalizedBalance = String(balanceValue ?? '');
+
+        if (
+          data?.success !== true ||
+          data?.source !== 'authoritative-ledger' ||
+          String(data?.groupId || '') !== String(groupId) ||
+          !/^-?(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(normalizedBalance) ||
+          !Number.isFinite(Number(normalizedBalance))
+        ) {
+          throw new Error('The ledger balance response did not satisfy the authoritative group-balance contract.');
+        }
+
+        if (signal?.aborted || !mountedRef.current) return;
+
+        setFinancialPosition({
+          status: 'available',
+          balance: normalizedBalance,
+          currency: /^[A-Z]{3}$/.test(String(data.currency || 'UGX').toUpperCase())
+            ? String(data.currency || 'UGX').toUpperCase()
+            : 'UGX',
+          entryCount: Number.isSafeInteger(Number(data.entryCount))
+            ? Number(data.entryCount)
+            : null,
+        });
+      } catch (balanceError) {
+        if (signal?.aborted || balanceError?.code === 'ERR_CANCELED') return;
+
+        setFinancialPosition({
+          status: 'unavailable',
+          balance: null,
+          currency: null,
+          entryCount: null,
+        });
+        logger?.warn?.('TITech group ledger balance unavailable', {
+          groupId,
+          status: balanceError?.response?.status,
+          code: balanceError?.response?.data?.code || balanceError?.code,
+        });
+      }
+    },
+    [groupId],
+  );
+
+  const formatFinancialPosition = useCallback(() => {
+    if (financialPosition.status === 'loading') return 'Loading…';
+    if (financialPosition.status !== 'available') return 'Unavailable';
+    if (financialPosition.currency !== 'UGX') {
+      return `${financialPosition.balance} ${financialPosition.currency}`;
+    }
+    return formatCurrency(financialPosition.balance);
+  }, [financialPosition]);
 
   const fetchGroupData = useCallback(
     async ({ silent = false } = {}) => {
       if (!groupId) {
         setError('A valid group identifier is required.');
+        setFinancialPosition({ status: 'unavailable', balance: null, currency: null, entryCount: null });
         setLoading(false);
         return;
       }
@@ -593,11 +616,13 @@ export default function GroupDetails() {
         if (!normalizedGroup) {
           setGroup(null);
           setError('');
+          setFinancialPosition({ status: 'unavailable', balance: null, currency: null, entryCount: null });
           return;
         }
 
         setGroup(normalizedGroup);
         setLastUpdated(new Date());
+        void loadFinancialPosition(controller.signal);
 
         // Request moderation data only for users who are likely to have the
         // corresponding group scope. This is presentation optimization only:
@@ -644,19 +669,16 @@ export default function GroupDetails() {
           return;
         }
 
-        const status =
-          err?.response?.status;
-
-        const message =
-          err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          (status === 403
-            ? 'You do not have permission to access this group.'
-            : status === 404
-              ? 'This group could not be found.'
-              : 'Failed to load group details. Please try again.');
+        const status = err?.response?.status;
+        const message = getGroupRequestErrorMessage(err);
 
         setError(message);
+        setFinancialPosition({
+          status: 'unavailable',
+          balance: null,
+          currency: null,
+          entryCount: null,
+        });
 
         logger?.warn?.(
           'TITech GroupDetails fetch failed',
@@ -678,7 +700,7 @@ export default function GroupDetails() {
         }
       }
     },
-    [groupId, user]
+    [groupId, user, loadFinancialPosition]
   );
 
   // ==========================================================================
@@ -729,162 +751,6 @@ export default function GroupDetails() {
   }, [groupId, fetchGroupData]);
 
   // ==========================================================================
-  // Contribution
-  // ==========================================================================
-
-  const handleContribute = useCallback(
-    async (event) => {
-      event.preventDefault();
-
-      setSuccessMessage('');
-      setError('');
-
-      if (!groupId) {
-        const message =
-          'Unable to identify the group.';
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      if (
-        !contributionValidation.valid
-      ) {
-        const message =
-          contributionValidation.message ||
-          'Enter a valid contribution amount.';
-
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      if (contributing) {
-        return;
-      }
-
-      setContributing(true);
-
-      const idempotencyKey =
-        generateIdempotencyKey();
-
-      try {
-        const response =
-          await api.post(
-            `/api/groups/${encodeURIComponent(
-              groupId
-            )}/contribute`,
-            {
-              amount:
-                contributionValidation.amount,
-              currency: 'UGX',
-              groupId,
-            },
-            {
-              headers: {
-                'Idempotency-Key':
-                  idempotencyKey,
-                'X-Client-Request-ID':
-                  idempotencyKey,
-              },
-            }
-          );
-
-        if (!mountedRef.current) {
-          return;
-        }
-
-        const responseGroup =
-          normalizeGroup(response);
-
-        if (responseGroup) {
-          setGroup(responseGroup);
-        } else {
-          await fetchGroupData({
-            silent: true,
-          });
-        }
-
-        setContributionAmount('');
-        setSuccessMessage(
-          `Your ${formatCurrency(
-            contributionValidation.amount
-          )} contribution was submitted successfully.`
-        );
-
-        toast.success(
-          'Contribution submitted successfully.'
-        );
-
-        logger?.info?.(
-          'TITech group contribution submitted',
-          {
-            groupId,
-            userId:
-              user?.id ||
-              user?._id ||
-              undefined,
-            amount:
-              contributionValidation.amount,
-            currency: 'UGX',
-          }
-        );
-      } catch (err) {
-        if (
-          err?.name === 'AbortError' ||
-          err?.code === 'ERR_CANCELED'
-        ) {
-          return;
-        }
-
-        if (!mountedRef.current) {
-          return;
-        }
-
-        const status =
-          err?.response?.status;
-
-        const message =
-          err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          (status === 401
-            ? 'Your session has expired. Please sign in again.'
-            : status === 403
-              ? 'You are not authorized to contribute to this group.'
-              : status === 409
-                ? 'This contribution may already have been submitted.'
-                : status === 422
-                  ? 'The contribution amount was rejected by the server.'
-                  : 'Contribution failed. Please try again.');
-
-        setError(message);
-
-        toast.error(message);
-
-        logger?.error?.(
-          'TITech group contribution failed',
-          {
-            groupId,
-            status,
-            error: message,
-          }
-        );
-      } finally {
-        if (mountedRef.current) {
-          setContributing(false);
-        }
-      }
-    },
-    [
-      groupId,
-      contributionValidation,
-      contributing,
-      fetchGroupData,
-      user,
-    ]
-  );
-
-  // ==========================================================================
   // Group membership administration
   // ==========================================================================
 
@@ -923,12 +789,22 @@ export default function GroupDetails() {
   // ==========================================================================
 
   const members = useMemo(
-    () =>
-      Array.isArray(group?.members)
-        ? group.members
-        : [],
-    [group]
+    () => (Array.isArray(group?.members)
+      ? group.members.filter((member) =>
+          member && typeof member === 'object' && !Array.isArray(member) &&
+          (member.name || member.fullName || member.email || member.user?.name || member.user?.fullName || member.user?.email)
+        )
+      : []),
+    [group],
   );
+
+  const memberCount = useMemo(() => {
+    if (Number.isSafeInteger(group?.memberCount) && group.memberCount >= 0) {
+      return group.memberCount;
+    }
+    if (Array.isArray(group?.members)) return group.members.length;
+    return null;
+  }, [group]);
 
   const groupType = useMemo(() => {
     if (!group?.type) {
@@ -942,17 +818,18 @@ export default function GroupDetails() {
       );
   }, [group]);
 
-  const activeMemberCount = useMemo(
-    () =>
-      members.filter(
-        (member) =>
-          String(
-            member?.status ||
-              'active'
-          ).toLowerCase() === 'active'
-      ).length,
-    [members]
-  );
+  const activeMemberCount = useMemo(() => {
+    if (Number.isSafeInteger(group?.activeMemberCount) && group.activeMemberCount >= 0) {
+      return group.activeMemberCount;
+    }
+    if (Array.isArray(group?.memberRoles)) {
+      return group.memberRoles.filter((membership) =>
+        !membership?.removedAt &&
+        ['active', 'reinstated'].includes(String(membership?.membershipStatus || '').toLowerCase())
+      ).length;
+    }
+    return null;
+  }, [group]);
 
   // ==========================================================================
   // Render States
@@ -1110,7 +987,9 @@ export default function GroupDetails() {
                 size={15}
                 aria-hidden="true"
               />
-              Currency: UGX
+              Currency: {financialPosition.status === 'available'
+                ? financialPosition.currency
+                : 'Not available'}
             </span>
 
             {lastUpdated && (
@@ -1160,38 +1039,6 @@ export default function GroupDetails() {
         )}
 
         {/* ================================================================= */}
-        {/* Success */}
-        {/* ================================================================= */}
-
-        {successMessage && (
-          <div
-            className="group-inline-alert group-inline-alert-success"
-            role="status"
-            aria-live="polite"
-          >
-            <CheckCircle2
-              size={18}
-              aria-hidden="true"
-            />
-
-            <span>
-              {successMessage}
-            </span>
-
-            <button
-              type="button"
-              onClick={() =>
-                setSuccessMessage('')
-              }
-              className="alert-dismiss"
-              aria-label="Dismiss success message"
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* ================================================================= */}
         {/* KPI Cards */}
         {/* ================================================================= */}
 
@@ -1201,18 +1048,18 @@ export default function GroupDetails() {
         >
           <GroupStatCard
             icon={Wallet}
-            label="Total Contributions"
-            value={formatCurrency(
-              group.totalContributions
-            )}
-            helper="Recorded group balance"
+            label="Group Balance"
+            value={formatFinancialPosition()}
+            helper={financialPosition.status === 'available'
+              ? 'Authoritative ledger position'
+              : 'Ledger position is not available'}
           />
 
           <GroupStatCard
             icon={Users}
             label="Members"
-            value={members.length}
-            helper={`${activeMemberCount} active`}
+            value={memberCount ?? 'Unavailable'}
+            helper={`${activeMemberCount ?? 'Unknown'} active`}
           />
 
           <GroupStatCard
@@ -1246,191 +1093,26 @@ export default function GroupDetails() {
             {/* Contribution Panel */}
             {/* ============================================================= */}
 
-            <section className="group-panel contribution-panel">
+            <section className="group-panel contribution-panel" aria-labelledby="group-contribution-title">
               <div className="panel-header">
                 <div>
-                  <span className="panel-eyebrow">
-                    Community Finance
-                  </span>
-
-                  <h2>
-                    Make a Contribution
-                  </h2>
-
-                  <p>
-                    Add funds to this group
-                    using a secure TITech
-                    contribution transaction.
-                  </p>
+                  <span className="panel-eyebrow">Community Finance</span>
+                  <h2 id="group-contribution-title">Contribution availability</h2>
+                  <p>Contribution initiation is not enabled in this group workspace.</p>
                 </div>
-
                 <div className="panel-icon">
-                  <Coins
-                    size={22}
-                    aria-hidden="true"
-                  />
+                  <Coins size={22} aria-hidden="true" />
                 </div>
               </div>
 
-              <form
-                onSubmit={
-                  handleContribute
-                }
-                className="contribution-form"
-                noValidate
-              >
-                <div className="form-field">
-                  <label
-                    htmlFor="contributionAmount"
-                  >
-                    Contribution Amount
-                    <span
-                      className="required-indicator"
-                      aria-hidden="true"
-                    >
-                      *
-                    </span>
-                  </label>
-
-                  <div className="currency-input">
-                    <span className="currency-prefix">
-                      UGX
-                    </span>
-
-                    <input
-                      id="contributionAmount"
-                      name="contributionAmount"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      value={
-                        contributionAmount
-                      }
-                      onChange={(event) => {
-                        const value =
-                          event.target.value;
-
-                        if (
-                          /^\d*$/.test(
-                            value
-                          )
-                        ) {
-                          setContributionAmount(
-                            value
-                          );
-                          setError('');
-                          setSuccessMessage(
-                            ''
-                          );
-                        }
-                      }}
-                      placeholder="0"
-                      disabled={
-                        contributing
-                      }
-                      aria-invalid={
-                        Boolean(
-                          contributionAmount &&
-                            !contributionValidation.valid
-                        )
-                      }
-                      aria-describedby="contribution-help contribution-validation"
-                      maxLength={12}
-                    />
-                  </div>
-
-                  <div
-                    id="contribution-help"
-                    className="form-help"
-                  >
-                    Enter a whole-number UGX
-                    amount between{' '}
-                    {formatCurrency(
-                      MIN_CONTRIBUTION_AMOUNT
-                    )}{' '}
-                    and{' '}
-                    {formatCurrency(
-                      MAX_CONTRIBUTION_AMOUNT
-                    )}
-                    .
-                  </div>
-
-                  {contributionAmount &&
-                    !contributionValidation.valid &&
-                    contributionValidation.message && (
-                      <div
-                        id="contribution-validation"
-                        className="field-error"
-                        role="alert"
-                      >
-                        <AlertCircle
-                          size={15}
-                          aria-hidden="true"
-                        />
-
-                        {
-                          contributionValidation.message
-                        }
-                      </div>
-                    )}
+              <div className="group-contribution-unavailable" role="status" aria-live="polite">
+                <Info size={19} aria-hidden="true" />
+                <div>
+                  <strong>Contribution flow is awaiting authorized integration</strong>
+                  <p>There is no mounted group-scoped contribution instruction route connected to this page. The canonical financial API requires verified member, account and payment-reference context; it is not a substitute for a provider authorization and settlement workflow.</p>
+                  <p>No payment has been initiated and no contribution has been recorded from this screen. Contact your institution's authorized finance officer for the approved contribution process.</p>
                 </div>
-
-                <div className="contribution-security-note">
-                  <ShieldCheck
-                    size={17}
-                    aria-hidden="true"
-                  />
-
-                  <div>
-                    <strong>
-                      Secure transaction
-                    </strong>
-
-                    <span>
-                      Your contribution is
-                      processed through the
-                      TITech financial API with
-                      duplicate-request
-                      protection.
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn-primary contribution-submit"
-                  disabled={
-                    contributing ||
-                    !contributionValidation.valid
-                  }
-                >
-                  {contributing ? (
-                    <>
-                      <Loader2
-                        size={18}
-                        className="spin"
-                        aria-hidden="true"
-                      />
-
-                      Processing…
-                    </>
-                  ) : (
-                    <>
-                      <Wallet
-                        size={18}
-                        aria-hidden="true"
-                      />
-
-                      Contribute{' '}
-                      {contributionValidation.valid
-                        ? formatCurrency(
-                            contributionValidation.amount
-                          )
-                        : ''}
-                    </>
-                  )}
-                </button>
-              </form>
+              </div>
             </section>
 
             {/* ============================================================= */}
@@ -1580,43 +1262,31 @@ export default function GroupDetails() {
                 </div>
 
                 <span className="members-count-badge">
-                  {members.length}
+                  {memberCount ?? '—'}
                 </span>
               </div>
 
-              {members.length === 0 ? (
-                <div className="members-empty-state">
-                  <UserRound
-                    size={26}
-                    aria-hidden="true"
-                  />
-
-                  <p>
-                    No members are currently
-                    listed for this group.
-                  </p>
+              {members.length > 0 ? (
+                <div className="members-list">
+                  {members.map((member, index) => (
+                    <MemberCard
+                      key={getMemberId(member, index)}
+                      member={member}
+                      index={index}
+                    />
+                  ))}
                 </div>
               ) : (
-                <div className="members-list">
-                  {members.map(
-                    (
-                      member,
-                      index
-                    ) => (
-                      <MemberCard
-                        key={getMemberId(
-                          member,
-                          index
-                        )}
-                        member={
-                          member
-                        }
-                        index={
-                          index
-                        }
-                      />
-                    )
-                  )}
+                <div className="members-empty-state">
+                  <UserRound size={26} aria-hidden="true" />
+                  <p>
+                    {memberCount === null
+                      ? 'Member information is unavailable.'
+                      : `${memberCount} member record${memberCount === 1 ? '' : 's'} are associated with this group.`}
+                  </p>
+                  <p>
+                    Individual member profiles are not included in the group-details response. This page does not invent names or expose raw member identifiers.
+                  </p>
                 </div>
               )}
             </section>
@@ -1645,15 +1315,21 @@ export default function GroupDetails() {
 
               <div className="financial-total">
                 <span>
-                  Total Contributions
+                  Ledger Balance
                 </span>
 
                 <strong>
-                  {formatCurrency(
-                    group.totalContributions
-                  )}
+                  {formatFinancialPosition()}
                 </strong>
               </div>
+
+              <p className="financial-source-note" role="status">
+                {financialPosition.status === 'available'
+                  ? `Source: authoritative ledger · ${financialPosition.entryCount ?? 'Entry count unavailable'} entries`
+                  : financialPosition.status === 'loading'
+                    ? 'Retrieving the tenant- and group-authorized ledger position…'
+                    : 'The authoritative ledger position could not be retrieved. No zero balance is assumed.'}
+              </p>
 
               <div className="financial-divider" />
 
@@ -1667,7 +1343,7 @@ export default function GroupDetails() {
                 </span>
 
                 <strong>
-                  {members.length}
+                  {memberCount ?? 'Unavailable'}
                 </strong>
               </div>
 

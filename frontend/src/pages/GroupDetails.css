@@ -1015,3 +1015,57 @@
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Clear, non-actionable state while the institution-authorized contribution
+   instruction and provider-verification route is not connected. */
+.group-contribution-unavailable {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: .9rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--titech-warning-border);
+  border-radius: 1rem;
+  background: var(--titech-warning-surface);
+  color: var(--titech-color-text);
+}
+
+.group-contribution-unavailable > svg {
+  margin-top: .15rem;
+  color: var(--titech-state-warning);
+}
+
+.group-contribution-unavailable strong {
+  display: block;
+  margin-bottom: .35rem;
+  color: var(--titech-color-text);
+}
+
+.group-contribution-unavailable p {
+  margin: .4rem 0 0;
+  color: var(--titech-color-text-muted);
+  line-height: 1.6;
+}
+
+.financial-source-note {
+  margin: .75rem 0 0;
+  color: var(--titech-color-text-muted);
+  font-size: .78rem;
+  line-height: 1.5;
+}
+
+.members-empty-state p + p {
+  max-width: 48rem;
+  margin-top: .35rem;
+  color: var(--titech-color-text-muted);
+  font-size: .875rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 560px) {
+  .group-contribution-unavailable {
+    grid-template-columns: minmax(0, 1fr);
+    padding: .9rem;
+  }
+}
