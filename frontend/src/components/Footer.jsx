@@ -861,6 +861,10 @@ function Footer({
               {description}
             </p>
 
+            <p className="footer-tagline">
+              {TITECH_BRAND.tagline}
+            </p>
+
             {showSocialActions ? (
               <nav
                 className="footer-social"

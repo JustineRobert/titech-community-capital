@@ -104,8 +104,32 @@ const MEMBER_ROLES = [
 
 const normalizeEmail = (value) => String(value ?? '').trim().toLowerCase();
 
+// Row identity must not depend on the row's current array position or email
+// value. Stable IDs keep React's DOM node (and keyboard focus) attached to the
+// same member row while the controlled email value changes or rows are removed.
+let memberRowSequence = 0;
+
+function createMemberRowId() {
+  try {
+    const cryptoApi = globalThis.crypto;
+    if (typeof cryptoApi?.randomUUID === 'function') {
+      return `member-${cryptoApi.randomUUID()}`;
+    }
+  } catch (_) {
+    // Older browsers may not expose randomUUID; use a UI-only fallback below.
+  }
+
+  memberRowSequence += 1;
+  return `member-${Date.now().toString(36)}-${memberRowSequence.toString(36)}`;
+}
+
 const getErrorMessage = (error, fallback = 'An unexpected error occurred.') => {
   if (!error) return fallback;
+
+  const serverCode = error?.response?.data?.code;
+  if (serverCode === 'GROUP_INVITE_MEMBER_UNAVAILABLE') {
+    return 'One or more addresses do not match active user accounts in this institution. Complete the person’s institution onboarding first. This group workflow records an in-app invitation; it does not send an external email.';
+  }
 
   const serverMessage =
     error?.response?.data?.message || error?.response?.data?.error;
@@ -276,6 +300,7 @@ export default function CreateGroupV2() {
 
   const [memberEmails, setMemberEmails] = useState(['']);
   const [memberRoles, setMemberRoles] = useState(['member']);
+  const [memberRowIds, setMemberRowIds] = useState(() => [createMemberRowId()]);
 
   // --------------------------------------------------------------------------
   // CSV state
@@ -582,6 +607,7 @@ export default function CreateGroupV2() {
 
         setMemberEmails(members.map((member) => member.email));
         setMemberRoles(members.map((member) => member.role));
+        setMemberRowIds(members.map(() => createMemberRowId()));
         setCsvFileName(file.name);
 
         toast.success(
@@ -624,44 +650,61 @@ export default function CreateGroupV2() {
 
     setMemberEmails((previous) => [...previous, '']);
     setMemberRoles((previous) => [...previous, 'member']);
+    setMemberRowIds((previous) => [...previous, createMemberRowId()]);
   }, [memberEmails.length]);
 
-  const handleEmailChange = useCallback((index, value) => {
+  const handleEmailChange = useCallback((rowId, value) => {
+    const rowIndex = memberRowIds.indexOf(rowId);
+    if (rowIndex < 0) return;
+
     setMemberEmails((previous) =>
       previous.map((email, currentIndex) =>
-        currentIndex === index ? value : email
+        currentIndex === rowIndex ? value : email
       )
     );
-  }, []);
+  }, [memberRowIds]);
 
-  const handleRoleChange = useCallback((index, value) => {
+  const handleRoleChange = useCallback((rowId, value) => {
+    const rowIndex = memberRowIds.indexOf(rowId);
+    if (rowIndex < 0) return;
+
     setMemberRoles((previous) =>
       previous.map((role, currentIndex) =>
-        currentIndex === index ? value : role
+        currentIndex === rowIndex ? value : role
       )
     );
-  }, []);
+  }, [memberRowIds]);
 
-  const handleRemoveMember = useCallback((index) => {
+  const handleRemoveMember = useCallback((rowId) => {
+    const rowIndex = memberRowIds.indexOf(rowId);
+    if (rowIndex < 0) return;
+
     setMemberEmails((previous) =>
       previous.length <= 1
         ? ['']
-        : previous.filter((_, currentIndex) => currentIndex !== index)
+        : previous.filter((_, currentIndex) => currentIndex !== rowIndex)
     );
 
     setMemberRoles((previous) =>
       previous.length <= 1
         ? ['member']
-        : previous.filter((_, currentIndex) => currentIndex !== index)
+        : previous.filter((_, currentIndex) => currentIndex !== rowIndex)
+    );
+
+    setMemberRowIds((previous) =>
+      previous.length <= 1
+        ? [createMemberRowId()]
+        : previous.filter((currentRowId) => currentRowId !== rowId)
     );
 
     setError('');
-  }, []);
+  }, [memberRowIds]);
 
   const normalizeMemberList = useCallback(() => {
     const seen = new Set();
     const emails = [];
     const roles = [];
+    const rowIds = [];
 
     memberEmails.forEach((email, index) => {
       const normalized = normalizeEmail(email);
@@ -684,10 +727,12 @@ export default function CreateGroupV2() {
           ? memberRoles[index]
           : 'member'
       );
+      rowIds.push(memberRowIds[index] || createMemberRowId());
     });
 
     setMemberEmails(emails.length ? emails : ['']);
     setMemberRoles(roles.length ? roles : ['member']);
+    setMemberRowIds(rowIds.length ? rowIds : [createMemberRowId()]);
 
     setError('');
 
@@ -698,7 +743,7 @@ export default function CreateGroupV2() {
           }.`
         : 'No valid members found.'
     );
-  }, [memberEmails, memberRoles, validateEmail]);
+  }, [memberEmails, memberRoles, memberRowIds, validateEmail]);
 
   // ==========================================================================
   // Navigation
@@ -905,12 +950,12 @@ export default function CreateGroupV2() {
           ...previous,
           current: 1,
           message: validMembers.length > 0
-            ? 'Group created. Preparing member invitations...'
+            ? 'Group created. Preparing in-app membership invitations...'
             : 'Group created. Preparing your group workspace...',
         }));
 
         // --------------------------------------------------------------------
-        // Phase 2: Send invitations
+        // Phase 2: Record in-app membership invitations
         // --------------------------------------------------------------------
 
         const batches = [];
@@ -942,7 +987,7 @@ export default function CreateGroupV2() {
           setProgress((previous) => ({
             ...previous,
             current: batchNumber,
-            message: `Sending member invitations (${Math.min(
+            message: `Recording member invitations (${Math.min(
               batchNumber * INVITATION_BATCH_SIZE,
               validMembers.length
             )}/${validMembers.length})...`,
@@ -960,10 +1005,11 @@ export default function CreateGroupV2() {
             const responseData = getApiData(response);
 
             const reportedSuccess = Number(
-              responseData?.successCount ??
+              responseData?.invitedCount ??
+                responseData?.successCount ??
                 responseData?.successful ??
                 responseData?.sentCount ??
-                batch.length
+                0
             );
 
             successCount += Math.min(
@@ -979,7 +1025,7 @@ export default function CreateGroupV2() {
               batch: batchNumber,
               error: getErrorMessage(
                 batchError,
-                'Failed to send invitation batch.'
+                'Failed to record the invitation batch.'
               ),
               members: batch.map((member) => member.email),
               count: batch.length,
@@ -1008,7 +1054,7 @@ export default function CreateGroupV2() {
           failures.length === 0
             ? (validMembers.length === 0
               ? 'Group created successfully. You are its administrator; invitations can be added later.'
-              : 'Group created and all invitations were sent successfully.')
+              : `${successCount} new in-app invitation${successCount === 1 ? '' : 's'} recorded. No external email was sent by this workflow.`)
             : `Group created. ${failures.length} invitation batch${
                 failures.length === 1 ? '' : 'es'
               } require attention.`;
@@ -1158,10 +1204,11 @@ export default function CreateGroupV2() {
           const data = getApiData(response);
 
           const successCount = Number(
-            data?.successCount ??
+            data?.invitedCount ??
+              data?.successCount ??
               data?.successful ??
               data?.sentCount ??
-              members.length
+              0
           );
 
           recoveredCount += Math.min(
@@ -1192,14 +1239,14 @@ export default function CreateGroupV2() {
         ...previous,
         current: previous.total,
         message: completed
-          ? 'All pending invitations have been sent successfully.'
+          ? 'All pending in-app invitations have been recorded. No external email was sent by this workflow.'
           : 'Some invitations still require attention.',
         failures: retryFailures,
         successCount: recoveredCount,
       }));
 
       if (completed) {
-        toast.success('All pending invitations were sent successfully.');
+        toast.success('All pending in-app invitations have been recorded.');
 
         navigationTimerRef.current = setTimeout(() => {
           if (!mountedRef.current) return;
@@ -1213,7 +1260,7 @@ export default function CreateGroupV2() {
         }, NAVIGATION_DELAY_MS);
       } else {
         toast.warning(
-          'Some invitations still could not be sent.'
+          'Some in-app invitation records still could not be created.'
         );
       }
     } catch (retryError) {
@@ -1448,7 +1495,7 @@ export default function CreateGroupV2() {
 
       <div className="form-group">
         <div className="form-label-row">
-          <label className="form-label" htmlFor="member-email-0">
+          <label className="form-label" htmlFor={`member-email-${memberRowIds[0]}`}>
             Manual Entry
           </label>
 
@@ -1459,15 +1506,18 @@ export default function CreateGroupV2() {
 
         <div className="members-list">
           {memberEmails.map((email, index) => {
-            const inputId = `member-email-${index}`;
+            const rowId = memberRowIds[index];
+            const inputId = `member-email-${rowId}`;
+            const roleId = `member-role-${rowId}`;
             const isInvalid =
               Boolean(normalizeEmail(email)) &&
               !validateEmail(email);
 
             return (
               <div
-                key={`${index}-${email}`}
+                key={rowId}
                 className="member-entry"
+                data-member-row-id={rowId}
               >
                 <div className="member-email-wrapper">
                   <label
@@ -1479,14 +1529,17 @@ export default function CreateGroupV2() {
 
                   <input
                     id={inputId}
-                    name={`member-email-${index}`}
+                    name={`member-email-${rowId}`}
                     type="email"
-                    placeholder="Email address"
+                    placeholder="Existing institution member email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     value={email}
                     onChange={(event) =>
                       handleEmailChange(
-                        index,
-                        event.target.value
+                        rowId,
+                        event.currentTarget.value
                       )
                     }
                     className={`input-field email-input ${
@@ -1499,20 +1552,20 @@ export default function CreateGroupV2() {
                 </div>
 
                 <label
-                  htmlFor={`member-role-${index}`}
+                  htmlFor={roleId}
                   className="sr-only"
                 >
                   Role for member {index + 1}
                 </label>
 
                 <select
-                  id={`member-role-${index}`}
-                  name={`member-role-${index}`}
+                  id={roleId}
+                  name={roleId}
                   value={memberRoles[index] || 'member'}
                   onChange={(event) =>
                     handleRoleChange(
-                      index,
-                      event.target.value
+                      rowId,
+                      event.currentTarget.value
                     )
                   }
                   className="input-field role-select"
@@ -1531,7 +1584,7 @@ export default function CreateGroupV2() {
                 <button
                   type="button"
                   onClick={() =>
-                    handleRemoveMember(index)
+                    handleRemoveMember(rowId)
                   }
                   className="btn-remove"
                   aria-label={`Remove member ${index + 1}`}
@@ -1550,6 +1603,10 @@ export default function CreateGroupV2() {
             );
           })}
         </div>
+
+        <p className="form-help">
+          Enter an email address for an active TITech account in this same institution. This creates a pending in-app group invitation; it does not create a user account or send an external email.
+        </p>
 
         {invalidMembers.length > 0 && (
           <div className="form-help error-text" role="alert">
@@ -1667,7 +1724,7 @@ export default function CreateGroupV2() {
       <div className="members-preview">
         <div className="members-preview-header">
           <h3>
-            Members to Invite ({validMembers.length})
+            Members to Add ({validMembers.length})
           </h3>
         </div>
 
@@ -1803,9 +1860,8 @@ export default function CreateGroupV2() {
             />
 
             <span>
-              {progress.successCount} member invitation
-              {progress.successCount === 1 ? '' : 's'} sent
-              successfully.
+              {progress.successCount} new in-app group invitation
+              {progress.successCount === 1 ? '' : 's'} recorded successfully. No external email was sent.
             </span>
           </div>
         )}
@@ -1819,7 +1875,7 @@ export default function CreateGroupV2() {
 
             <div>
               <strong>
-                Some invitations could not be sent.
+                Some in-app invitation records could not be created.
               </strong>
 
               <ul className="failure-list">
@@ -1913,7 +1969,7 @@ export default function CreateGroupV2() {
 
             <p>
               Establish a community group, configure its
-              members, and send invitations securely.
+              members, and record secure in-app invitations.
             </p>
           </div>
         </header>

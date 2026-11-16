@@ -22,3 +22,17 @@ test('authenticated navigation includes all service discovery routes and group c
   assert.equal(getNavigationItems(true, ['member']).some((item) => item.to === '/create-group'), false);
   assert.equal(getNavigationItems(true, ['admin']).some((item) => item.to === '/create-group'), true);
 });
+
+test('public product discovery is derived from the canonical registry and includes partner-gated entry paths', async () => {
+  const { PUBLIC_PRODUCT_DISCOVERY } = await import('../../frontend/src/navigation/navigationRegistry.js');
+  const page = await (await import('node:fs/promises')).readFile(new URL('../../frontend/src/pages/public/InstitutionalPublicPages.jsx', import.meta.url), 'utf8');
+  const ids = new Set(PUBLIC_PRODUCT_DISCOVERY.map((item) => item.id));
+  for (const id of ['groups', 'educationSupport', 'eduFinance', 'agriculture', 'ubuntuFloat', 'partnerSupport', 'inclusiveOnboarding', 'retirementSupport', 'donations']) {
+    assert.ok(ids.has(id), `homepage catalogue should include ${id}`);
+  }
+  assert.match(page, /PUBLIC_PRODUCT_DISCOVERY\.map\(\(product\) =>/);
+  assert.match(page, /to=\{product\.requiresAuthentication \? '\/login' : product\.to\}/);
+  assert.match(page, /state=\{product\.requiresAuthentication \? \{ from: \{ pathname: product\.to \} \} : undefined\}/);
+  assert.match(page, /Community Finance\. Stronger Together\./);
+  assert.match(page, /Register \/ Request Access/);
+});

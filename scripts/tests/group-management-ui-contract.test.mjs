@@ -12,13 +12,47 @@ test('Create Group uses the canonical route and preserves the optional-invitatio
   const form = await read('../../frontend/src/pages/CreateGroupV2.jsx');
   assert.doesNotMatch(dashboard, /\/groups\/create/);
   assert.doesNotMatch(groupList, /\/groups\/create/);
-  assert.match(form, /members\s*:\s*validMembers/);
+  assert.match(form, /members:\s*\[\]/, 'group creation must not create invitations before the durable group exists');
+  assert.match(form, /\/groups\/\$\{encodeURIComponent\(groupId\)\}\/send-invitations/);
+  assert.match(form, /members:\s*batch\.map\(\(member\) =>/);
   assert.doesNotMatch(form, /Please add at least one valid member/);
   assert.doesNotMatch(form, /disabled=\{[\s\S]{0,80}validMembers\.length === 0/);
   assert.match(form, /invitations can be added later/);
   assert.match(dashboard, /dashboardNavigation\.map\(\(item\) =>/);
   assert.match(dashboard, /getNavigationItems\(true, userRoles\)/);
   assert.match(groupList, /canCreateGroup && \(/);
+});
+
+
+test('group creation email inputs keep a stable React key while the user types', async () => {
+  const form = await read('../../frontend/src/pages/CreateGroupV2.jsx');
+  const emailRows = form.match(/memberEmails\.map\(\(email, index\) =>[\s\S]*?\n\s*\}\)\}/)?.[0] ?? '';
+
+  assert.ok(emailRows, 'manual member email list should be rendered from memberEmails');
+  assert.match(emailRows, /const rowId = memberRowIds\[index\]/);
+  assert.match(emailRows, /key=\{rowId\}/);
+  assert.match(form, /setMemberRowIds\(members\.map\(\(\) => createMemberRowId\(\)\)\)/);
+  assert.match(form, /setMemberRowIds\(\(previous\) => \[\.\.\.previous, createMemberRowId\(\)\]\)/);
+  assert.doesNotMatch(emailRows, /key=\{[^}]*email/);
+  assert.match(emailRows, /value=\{email\}/);
+  assert.match(emailRows, /type="email"/);
+  assert.match(emailRows, /placeholder="Existing institution member email"/);
+  assert.match(emailRows, /handleEmailChange\(\s*rowId,\s*event\.currentTarget\.value\s*\)/);
+  assert.match(emailRows, /const roleId = `member-role-\$\{rowId\}`/);
+  assert.match(emailRows, /handleRoleChange\(\s*rowId,\s*event\.currentTarget\.value\s*\)/);
+  assert.match(emailRows, /handleRemoveMember\(rowId\)/);
+  assert.match(form, /pending in-app group invitation; it does not create a user account or send an external email/);
+  assert.match(form, /GROUP_INVITE_MEMBER_UNAVAILABLE/);
+});
+
+
+test('group creation styling follows official semantic tokens and explicit theme selection', async () => {
+  const css = await read('../../frontend/src/pages/CreateGroupV2.css');
+  assert.match(css, /var\(--titech-official-electric-blue\)/);
+  assert.match(css, /var\(--titech-state-danger\)/);
+  assert.match(css, /var\(--titech-color-surface\)/);
+  assert.doesNotMatch(css, /prefers-color-scheme/);
+  assert.match(css, /data-titech-brand=\"official\"\]\[data-theme=\"dark\"\] \.create-group-wrapper/);
 });
 
 test('Group discovery join action passes a stable group ID and reconciles from the API', async () => {

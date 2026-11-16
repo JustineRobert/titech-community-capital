@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { generateIdempotencyKey } from '../../services/api';
+import { PUBLIC_PRODUCT_DISCOVERY } from '../../navigation/navigationRegistry.js';
 import './InstitutionalPublicPages.css';
 
 const LEAD_ENDPOINT = '/api/v1/public/institutional-leads';
@@ -255,13 +256,16 @@ export function HomePage() {
     <div className="titech-public-page titech-public-home">
       <section className="titech-public-hero" aria-labelledby="titech-home-title">
         <div className="titech-public-hero__copy">
-          <p className="titech-public-page__eyebrow">Community Finance Infrastructure + Payment/Reconciliation Control Plane</p>
+          <p className="titech-public-page__eyebrow">Community Finance. Stronger Together.</p>
+          <p className="titech-public-home__identity">TITech Community Capital · TITECH CAPITAL - SMC LTD</p>
           <h1 id="titech-home-title">Reconcile community finance with confidence.</h1>
           <p className="titech-public-page__lead">Bring authorized institutional records, payment events, settlement evidence, and reconciliation exceptions into a traceable workflow—without requiring you to replace your existing core system.</p>
           <div className="titech-public-hero__actions">
             <Link className="titech-public-button titech-public-button--primary" to="/book-a-demo">Book a Demo</Link>
             <Link className="titech-public-button titech-public-button--secondary" to="/contact-us">Contact Us</Link>
             <Link className="titech-public-button titech-public-button--text" to="/chat-with-titech">Chat with TITech</Link>
+            <Link className="titech-public-button titech-public-button--secondary" to="/login">Sign In</Link>
+            <Link className="titech-public-button titech-public-button--text" to="/register">Register / Request Access</Link>
           </div>
           <p className="titech-public-home__disclaimer">TITech is an independent software/control-plane proposition. Product availability, provider integrations, regulatory authority, and production approval depend on separately verified evidence and authorization.</p>
         </div>
@@ -283,7 +287,35 @@ export function HomePage() {
         <div className="titech-public-card-grid">
           <article className="titech-public-card"><h3>SACCOs and cooperatives</h3><p>Compare internal records and authorized statements, track mismatches, and prepare reviewable evidence.</p></article>
           <article className="titech-public-card"><h3>MFIs and financial software providers</h3><p>Connect established systems through defined interfaces and keep source provenance visible.</p></article>
-          <article className="titech-public-card"><h3>NGOs and community programmes</h3><p>Support accountable disbursement reconciliation and reporting through properly authorized partners.</p></article>
+          <article className="titech-public-card"><h3>NGOs and refugee / host-community programmes</h3><p>Support inclusive participant onboarding, privacy-aware consent and accountable programme evidence through legitimate institutional partners.</p></article>
+          <article className="titech-public-card"><h3>Licensed insurers and approved intermediaries</h3><p>Coordinate insurer onboarding, licence evidence, participant consent, enrolment and premium or claims references. Underwriting, policy decisions and claims outcomes remain with the authorized insurer.</p></article>
+        </div>
+      </section>
+
+      <section className="titech-public-section" aria-labelledby="titech-products-title">
+        <p className="titech-public-page__eyebrow">The TITech ecosystem</p>
+        <h2 id="titech-products-title">Explore products and services</h2>
+        <p>Discover the workflows and institutional entry points in TITech Community Capital. A public catalogue entry is not a grant of access or a claim that a regulated or partner-dependent capability is operational.</p>
+        <div className="titech-public-product-grid">
+          {PUBLIC_PRODUCT_DISCOVERY.map((product) => (
+            <article className="titech-public-product-card" key={product.id}>
+              <p className="titech-public-product-card__category">{product.category}</p>
+              <h3>{product.label}</h3>
+              <p className="titech-public-product-card__description">{product.description}</p>
+              <div className="titech-public-product-card__footer">
+                <span className="titech-public-product-card__access">{product.accessLabel}</span>
+                <Link
+                  className="titech-public-product-card__link"
+                  to={product.requiresAuthentication ? '/login' : product.to}
+                  state={product.requiresAuthentication ? { from: { pathname: product.to } } : undefined}
+                  aria-label={`${product.requiresAuthentication ? 'Sign in to access' : 'Explore'} ${product.label}`}
+                >
+                  {product.requiresAuthentication ? 'Sign in to access' : 'Explore'}
+                  <span aria-hidden="true"> →</span>
+                </Link>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 

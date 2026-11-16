@@ -27,32 +27,32 @@ Production-grade styling for:
 .create-group-wrapper {
   --titech-primary: var(--titech-brand-electric-blue);
   --titech-primary-hover: var(--titech-brand-deep-blue);
-  --titech-primary-active: #002780;
-  --titech-primary-soft: #edf7ff;
+  --titech-primary-active: var(--titech-official-deep-blue);
+  --titech-primary-soft: color-mix(in srgb, var(--titech-official-electric-blue) 10%, transparent);
 
-  --titech-success: #16a34a;
-  --titech-success-soft: #f0fdf4;
+  --titech-success: var(--titech-state-success);
+  --titech-success-soft: var(--titech-success-surface);
 
-  --titech-warning: #d97706;
-  --titech-warning-soft: #fffbeb;
+  --titech-warning: var(--titech-state-warning);
+  --titech-warning-soft: var(--titech-warning-surface);
 
-  --titech-danger: #dc2626;
-  --titech-danger-hover: #b91c1c;
-  --titech-danger-soft: #fef2f2;
+  --titech-danger: var(--titech-state-danger);
+  --titech-danger-hover: var(--titech-state-danger);
+  --titech-danger-soft: var(--titech-danger-surface);
 
-  --titech-info: #0891b2;
-  --titech-info-soft: #ecfeff;
+  --titech-info: var(--titech-state-info);
+  --titech-info-soft: color-mix(in srgb, var(--titech-official-cyan) 12%, transparent);
 
-  --titech-text: var(--titech-brand-navy);
+  --titech-text: var(--titech-color-text);
   --titech-text-secondary: var(--titech-color-text-muted);
   --titech-text-muted: var(--titech-color-text-subtle);
 
   --titech-border: var(--titech-color-border);
-  --titech-border-strong: var(--titech-color-border);
+  --titech-border-strong: var(--titech-color-border-strong);
 
-  --titech-surface: var(--titech-brand-white);
-  --titech-surface-muted: var(--titech-color-background);
-  --titech-surface-soft: #f3f4f6;
+  --titech-surface: var(--titech-color-surface);
+  --titech-surface-muted: var(--titech-color-surface-muted);
+  --titech-surface-soft: var(--titech-color-surface-muted);
 
   --titech-background: var(--titech-color-background);
 
@@ -92,7 +92,7 @@ Production-grade styling for:
   background:
     radial-gradient(
       circle at top right,
-      rgba(37, 99, 235, 0.06),
+      color-mix(in srgb, var(--titech-official-electric-blue) 6%, transparent),
       transparent 35%
     ),
     var(--titech-background);
@@ -188,7 +188,7 @@ Production-grade styling for:
 .create-group-wrapper .step-dot.current {
   box-shadow:
     0 0 0 4px var(--titech-primary-soft),
-    0 0 0 6px rgba(37, 99, 235, 0.08);
+    0 0 0 6px color-mix(in srgb, var(--titech-official-electric-blue) 8%, transparent);
 }
 
 /* ==========================================================================
@@ -293,18 +293,18 @@ Production-grade styling for:
 }
 
 .input-field::placeholder {
-  color: #9ca3af;
+  color: var(--titech-color-text-subtle);
 }
 
 .input-field:hover:not(:disabled) {
-  border-color: #9ca3af;
+  border-color: var(--titech-color-text-subtle);
 }
 
 .input-field:focus {
   border-color: var(--titech-primary);
 
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.12);
+    0 0 0 3px color-mix(in srgb, var(--titech-official-electric-blue) 12%, transparent);
 }
 
 .input-field:disabled {
@@ -353,7 +353,7 @@ select.input-field {
 }
 
 .file-input::file-selector-button:hover {
-  background: #d8eeff;
+  background: var(--titech-primary-soft);
   color: var(--titech-primary-hover);
 }
 
@@ -404,21 +404,21 @@ select.input-field {
 }
 
 .success-box {
-  border: 1px solid #bbf7d0;
+  border: 1px solid color-mix(in srgb, var(--titech-success) 32%, transparent);
   background: var(--titech-success-soft);
-  color: #166534;
+  color: var(--titech-success);
 }
 
 .error-box {
-  border: 1px solid #fecaca;
+  border: 1px solid color-mix(in srgb, var(--titech-danger) 32%, transparent);
   background: var(--titech-danger-soft);
-  color: #991b1b;
+  color: var(--titech-danger);
 }
 
 .info-box {
-  border: 1px solid #bae6fd;
-  background: #f0f9ff;
-  color: #075985;
+  border: 1px solid color-mix(in srgb, var(--titech-official-cyan) 34%, transparent);
+  background: var(--titech-info-soft);
+  color: var(--titech-text);
 }
 
 .success-box svg,
@@ -510,7 +510,7 @@ select.input-field {
 
   padding: 0;
 
-  border: 1px solid #fecaca;
+  border: 1px solid color-mix(in srgb, var(--titech-danger) 32%, transparent);
   border-radius: var(--titech-radius-md);
 
   background: var(--titech-danger-soft);
@@ -526,8 +526,8 @@ select.input-field {
 }
 
 .btn-remove:hover:not(:disabled) {
-  border-color: #fca5a5;
-  background: #fee2e2;
+  border-color: var(--titech-danger);
+  background: var(--titech-danger-soft);
   color: var(--titech-danger-hover);
 }
 
@@ -536,7 +536,7 @@ select.input-field {
 }
 
 .btn-remove:focus-visible {
-  outline: 3px solid rgba(220, 38, 38, 0.16);
+  outline: 3px solid color-mix(in srgb, var(--titech-state-danger) 16%, transparent);
   outline-offset: 2px;
 }
 
@@ -580,12 +580,12 @@ select.input-field {
 
 .btn-add-member:hover:not(:disabled) {
   border-color: var(--titech-primary-hover);
-  background: #d8eeff;
+  background: var(--titech-primary-soft);
   color: var(--titech-primary-hover);
 }
 
 .btn-add-member:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.16);
+  outline: 3px solid color-mix(in srgb, var(--titech-official-electric-blue) 16%, transparent);
   outline-offset: 2px;
 }
 
@@ -601,11 +601,11 @@ select.input-field {
   margin-top: 1rem;
   padding: 0.75rem 0.875rem;
 
-  border: 1px solid #bbf7d0;
+  border: 1px solid color-mix(in srgb, var(--titech-success) 32%, transparent);
   border-radius: var(--titech-radius-md);
 
   background: var(--titech-success-soft);
-  color: #166534;
+  color: var(--titech-success);
 
   font-size: 0.8125rem;
   font-weight: 600;
@@ -639,9 +639,9 @@ select.input-field {
 }
 
 .alert-error {
-  border: 1px solid #fecaca;
+  border: 1px solid color-mix(in srgb, var(--titech-danger) 32%, transparent);
   background: var(--titech-danger-soft);
-  color: #991b1b;
+  color: var(--titech-danger);
 }
 
 /* ==========================================================================
@@ -887,12 +887,12 @@ select.input-field {
   margin-top: 1.5rem;
   padding: 1.25rem;
 
-  border: 1px solid #bbf7d0;
+  border: 1px solid color-mix(in srgb, var(--titech-success) 32%, transparent);
   border-radius: var(--titech-radius-lg);
 
   background: var(--titech-success-soft);
 
-  color: #166534;
+  color: var(--titech-success);
 
   text-align: center;
 }
@@ -906,7 +906,7 @@ select.input-field {
 .completion-message .redirecting {
   margin-top: 0.5rem;
 
-  color: #15803d;
+  color: var(--titech-success);
 
   font-size: 0.75rem;
 }
@@ -982,7 +982,7 @@ select.input-field {
 }
 
 .btn-secondary:hover:not(:disabled) {
-  border-color: #9ca3af;
+  border-color: var(--titech-color-text-subtle);
   background: var(--titech-surface-soft);
   color: var(--titech-text);
 }
@@ -990,7 +990,7 @@ select.input-field {
 .btn-primary:focus-visible,
 .btn-secondary:focus-visible,
 .btn-add-member:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.18);
+  outline: 3px solid color-mix(in srgb, var(--titech-official-electric-blue) 18%, transparent);
   outline-offset: 2px;
 }
 
@@ -1030,7 +1030,7 @@ select.input-field {
 }
 
 .members-grid::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--titech-color-border-strong);
 }
 
 /* ==========================================================================
@@ -1158,7 +1158,7 @@ select.input-field {
 
     padding: 0.875rem 1rem;
 
-    background: rgba(249, 250, 251, 0.96);
+    background: color-mix(in srgb, var(--titech-color-surface) 96%, transparent);
 
     backdrop-filter: blur(8px);
   }
@@ -1214,165 +1214,75 @@ select.input-field {
 }
 
 /* ==========================================================================
-   Dark Mode
+   Explicit TITech Dark Theme
    ========================================================================== */
 
-@media (prefers-color-scheme: dark) {
-  .create-group-wrapper {
-    --titech-text: var(--titech-color-background);
-    --titech-text-secondary: var(--titech-color-border);
-    --titech-text-muted: #9ca3af;
+/*
+ * Theme selection is owned by the shared TITech theme runtime. Do not follow
+ * the operating-system preference here: an explicitly selected light theme
+ * must stay light even when the device itself is configured for dark mode.
+ */
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper {
+  --titech-primary-soft: color-mix(in srgb, var(--titech-official-electric-blue) 18%, transparent);
+  --titech-surface-soft: var(--titech-color-surface-muted);
+  background:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--titech-official-electric-blue) 16%, transparent),
+      transparent 35%
+    ),
+    var(--titech-color-background);
+}
 
-    --titech-border: #374151;
-    --titech-border-strong: var(--titech-color-text-muted);
-
-    --titech-surface: var(--titech-brand-navy);
-    --titech-surface-muted: #1f2937;
-    --titech-surface-soft: #374151;
-
-    --titech-background: #030712;
-
-    --titech-primary-soft: rgba(37, 99, 235, 0.16);
-
-    --titech-success-soft: rgba(22, 163, 74, 0.14);
-    --titech-danger-soft: rgba(220, 38, 38, 0.14);
-    --titech-warning-soft: rgba(217, 119, 6, 0.14);
-  }
-
-  .create-group-wrapper {
-    background:
-      radial-gradient(
-        circle at top right,
-        rgba(37, 99, 235, 0.12),
-        transparent 35%
-      ),
-      var(--titech-background);
-  }
-
-  .create-group-wrapper .step-indicator,
-  .button-group {
-    background: var(--titech-surface-muted);
-  }
-
-  .input-field {
-    background: var(--titech-surface);
-  }
-
-  .input-field:disabled {
-    background: var(--titech-surface-soft);
-  }
-
-  .file-input::file-selector-button {
-    background: rgba(37, 99, 235, 0.16);
-    color: #81c4ff;
-  }
-
-  .file-input::file-selector-button:hover {
-    background: rgba(37, 99, 235, 0.24);
-    color: #b7ddff;
-  }
-
-  .success-box {
-    border-color: rgba(34, 197, 94, 0.28);
-    background: var(--titech-success-soft);
-    color: #86efac;
-  }
-
-  .error-box {
-    border-color: rgba(248, 113, 113, 0.28);
-    background: var(--titech-danger-soft);
-    color: #fca5a5;
-  }
-
-  .info-box {
-    border-color: rgba(56, 189, 248, 0.28);
-    background: rgba(14, 116, 144, 0.14);
-    color: #7dd3fc;
-  }
-
-  .alert-error {
-    border-color: rgba(248, 113, 113, 0.28);
-    background: var(--titech-danger-soft);
-    color: #fca5a5;
-  }
-
-  .btn-remove {
-    border-color: rgba(248, 113, 113, 0.28);
-    background: var(--titech-danger-soft);
-    color: #f87171;
-  }
-
-  .btn-remove:hover:not(:disabled) {
-    border-color: rgba(248, 113, 113, 0.4);
-    background: rgba(220, 38, 38, 0.2);
-    color: #fca5a5;
-  }
-
-  .btn-add-member {
-    background: var(--titech-primary-soft);
-    color: #81c4ff;
-  }
-
-  .btn-add-member:hover:not(:disabled) {
-    background: rgba(37, 99, 235, 0.24);
-    color: #b7ddff;
-  }
-
-  .valid-count {
-    border-color: rgba(34, 197, 94, 0.28);
-    background: var(--titech-success-soft);
-    color: #86efac;
-  }
-
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper :is(
+  .step-indicator,
+  .button-group,
   .preview-section,
   .members-preview,
   .role-distribution,
-  .member-entry {
-    background: var(--titech-surface-muted);
-  }
+  .member-entry
+) {
+  background: var(--titech-color-surface-muted);
+}
 
-  .member-card {
-    background: var(--titech-surface);
-  }
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper :is(
+  .input-field,
+  .member-card,
+  .btn-secondary
+) {
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text);
+}
 
-  .badge {
-    background: var(--titech-primary-soft);
-    color: #81c4ff;
-  }
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper .input-field:disabled {
+  background: var(--titech-color-surface-muted);
+}
 
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper .file-input::file-selector-button {
+  background: color-mix(in srgb, var(--titech-official-electric-blue) 18%, transparent);
+  color: var(--titech-official-cyan);
+}
+
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper .file-input::file-selector-button:hover {
+  background: color-mix(in srgb, var(--titech-official-electric-blue) 28%, transparent);
+  color: var(--titech-color-text);
+}
+
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper :is(
   .member-role-badge,
-  .role-stat strong {
-    background: var(--titech-surface-soft);
-    color: var(--titech-text-secondary);
-  }
+  .role-stat strong
+) {
+  background: var(--titech-color-surface);
+  color: var(--titech-color-text-muted);
+}
 
-  .completion-message {
-    border-color: rgba(34, 197, 94, 0.28);
-    background: var(--titech-success-soft);
-    color: #86efac;
-  }
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper .badge {
+  background: color-mix(in srgb, var(--titech-official-electric-blue) 18%, transparent);
+  color: var(--titech-official-cyan);
+}
 
-  .completion-message .redirecting {
-    color: #4ade80;
-  }
-
-  .button-group {
-    border-color: var(--titech-border);
-  }
-
-  .btn-secondary {
-    background: var(--titech-surface);
-    color: var(--titech-text-secondary);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: var(--titech-surface-soft);
-    color: var(--titech-text);
-  }
-
-  .progress-bar-container {
-    background: var(--titech-surface-soft);
-  }
+:root[data-titech-brand="official"][data-theme="dark"] .create-group-wrapper .progress-bar-container {
+  background: var(--titech-color-surface-muted);
 }
 
 /* ==========================================================================

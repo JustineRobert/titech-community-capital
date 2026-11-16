@@ -6,19 +6,31 @@ import { hasTitechRole, TITECH_ROLES } from '../security/rbacPolicy.js';
 
 export const NAVIGATION_REGISTRY = Object.freeze([
   { id: 'dashboard', label: 'Dashboard', to: '/dashboard', icon: 'LayoutDashboard', access: 'authenticated' },
-  { id: 'groups', label: 'Groups', to: '/groups', icon: 'Users', access: 'authenticated' },
+  { id: 'groups', label: 'Groups', to: '/groups', icon: 'Users', access: 'authenticated', discovery: { category: 'Community finance', description: 'Manage institution-scoped groups and membership. Financial actions remain subject to tenant permissions and the canonical ledger.', accessLabel: 'Authenticated workspace', requiresAuthentication: true } },
   { id: 'createGroup', label: 'Create Group', to: '/create-group', icon: 'UserPlus', access: 'authenticated', roles: [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN] },
   { id: 'meetings', label: 'Meetings', to: '/meetings', icon: 'CalendarDays', access: 'authenticated' },
-  { id: 'inclusiveOnboarding', label: 'Inclusive onboarding', to: '/inclusive-onboarding', icon: 'ShieldCheck', access: 'authenticated' },
-  { id: 'retirementSupport', label: 'Retirement support', to: '/retirement-support', icon: 'ShieldCheck', access: 'authenticated' },
-  { id: 'educationSupport', label: 'Education support', to: '/education-support', icon: 'GraduationCap', access: 'public' },
-  { id: 'eduFinance', label: 'EduFinance', to: '/edufinance', icon: 'GraduationCap', access: 'public' },
-  { id: 'agriculture', label: 'Agriculture', to: '/agriculture', icon: 'Sprout', access: 'public' },
-  { id: 'ubuntuFloat', label: 'UbuntuFloat', to: '/ubuntu-float', icon: 'Network', access: 'public' },
-  { id: 'partnerSupport', label: 'Partner Support', to: '/partner-support', icon: 'LifeBuoy', access: 'public' },
-  { id: 'donations', label: 'Donations', to: '/donations', icon: 'HeartHandshake', access: 'public' },
+  { id: 'inclusiveOnboarding', label: 'Inclusive onboarding', to: '/inclusive-onboarding', icon: 'ShieldCheck', access: 'authenticated', discovery: { category: 'Inclusion, insurance and protection', description: 'Institution-led onboarding for refugee and host-community participants through legitimate partners. Authorized insurers and approved intermediaries can use institution-scoped licence review, explicit participant consent, enrolment, premium-evidence and claims-reference workflows; underwriting and coverage decisions remain with the authorized insurer.', accessLabel: 'Authenticated · partner-governed · insurer approval required', requiresAuthentication: true } },
+  { id: 'retirementSupport', label: 'Retirement support', to: '/retirement-support', icon: 'ShieldCheck', access: 'authenticated', discovery: { category: 'Institutional services', description: 'Retirement-support case coordination and contribution review. Scheme determinations, insurance, regulated lending and benefit decisions remain with authorized providers.', accessLabel: 'Authenticated · partner-dependent', requiresAuthentication: true } },
+  { id: 'educationSupport', label: 'Education support', to: '/education-support', icon: 'GraduationCap', access: 'public', discovery: { category: 'Education support', description: 'Discover partner-approved education support campaigns. Campaign information does not imply payment collection, custody, receipts or disbursement.', accessLabel: 'Public campaign directory', requiresAuthentication: false } },
+  { id: 'eduFinance', label: 'EduFinance', to: '/edufinance', icon: 'GraduationCap', access: 'public', discovery: { category: 'Education finance', description: 'Coordinate verified school-fee information and guardian applications with authorized lending partners. An application is not a credit approval or disbursement.', accessLabel: 'Public product information', requiresAuthentication: false } },
+  { id: 'agriculture', label: 'Agriculture', to: '/agriculture', icon: 'Sprout', access: 'public', discovery: { category: 'Agriculture', description: 'Institutional workspace for agriculture programmes and operational evidence. Settlement and financial finality are never inferred from reported activity.', accessLabel: 'Authenticated workspace', requiresAuthentication: true } },
+  { id: 'ubuntuFloat', label: 'UbuntuFloat', to: '/ubuntu-float', icon: 'Network', access: 'public', discovery: { category: 'Liquidity infrastructure', description: 'Partner-governed agent-network capability status. Provider balances, advances and live transfers remain gated and are not inferred from interface state.', accessLabel: 'Authenticated · capability-gated', requiresAuthentication: true } },
+  { id: 'partnerSupport', label: 'Partner Support', to: '/partner-support', icon: 'LifeBuoy', access: 'public', discovery: { category: 'Institutional partnerships', description: 'Authorized partner case management, technical issue reporting and contextual onboarding, subject to institutional and account permissions.', accessLabel: 'Authenticated · partner roles', requiresAuthentication: true } },
+  { id: 'donations', label: 'Donations', to: '/donations', icon: 'HeartHandshake', access: 'public', discovery: { category: 'Community giving', description: 'Explore approved community campaigns and non-binding commitments. Campaign discovery does not imply collection, custody, receipts or disbursement.', accessLabel: 'Public campaign directory', requiresAuthentication: false } },
   { id: 'faithGivingManage', label: 'Giving administration', to: '/faith-community-giving/manage', icon: 'ShieldCheck', access: 'authenticated', roles: [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN, 'FAITH_GIVING_ADMIN', 'FAITH_GIVING_REVIEWER', 'COMPLIANCE_OFFICER', 'AUDITOR'] },
 ]);
+
+/**
+ * Public catalogue data is derived from the canonical navigation registry.
+ * It describes discoverability and access paths only, never permission or
+ * operational readiness. Backend authorization remains authoritative.
+ */
+export const PUBLIC_PRODUCT_DISCOVERY = Object.freeze(
+  NAVIGATION_REGISTRY
+    .filter((item) => item.discovery)
+    .map((item) => Object.freeze({ ...item, ...item.discovery })),
+);
+
 
 export function getNavigationItems(isAuthenticated = false, roles = []) {
   return NAVIGATION_REGISTRY.filter((item) => {

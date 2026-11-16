@@ -29,21 +29,21 @@
  * ========================================================================== */
 
 :root {
-  --titech-footer-bg: #0b1220;
-  --titech-footer-bg-elevated: #111b2e;
-  --titech-footer-surface: rgba(255, 255, 255, 0.04);
-  --titech-footer-border: rgba(255, 255, 255, 0.1);
+  --titech-footer-bg: var(--titech-official-navy);
+  --titech-footer-bg-elevated: var(--titech-official-deep-blue);
+  --titech-footer-surface: color-mix(in srgb, var(--titech-official-white) 5%, transparent);
+  --titech-footer-border: color-mix(in srgb, var(--titech-official-white) 18%, transparent);
 
   --titech-footer-text: var(--titech-color-background);
-  --titech-footer-text-muted: #b7c2d0;
-  --titech-footer-text-subtle: #8e9bad;
+  --titech-footer-text-muted: color-mix(in srgb, var(--titech-official-white) 78%, var(--titech-official-navy));
+  --titech-footer-text-subtle: color-mix(in srgb, var(--titech-official-white) 64%, var(--titech-official-navy));
 
-  --titech-footer-link: #dbe7f5;
+  --titech-footer-link: color-mix(in srgb, var(--titech-official-white) 90%, var(--titech-official-cyan));
   --titech-footer-link-hover: var(--titech-brand-white);
-  --titech-footer-accent: #38bdf8;
-  --titech-footer-accent-strong: #0ea5e9;
+  --titech-footer-accent: var(--titech-official-cyan);
+  --titech-footer-accent-strong: var(--titech-official-electric-blue);
 
-  --titech-footer-focus-ring: rgba(56, 189, 248, 0.45);
+  --titech-footer-focus-ring: color-mix(in srgb, var(--titech-official-cyan) 45%, transparent);
 
   --titech-footer-max-width: 1280px;
 
@@ -187,6 +187,15 @@
   font-weight: 750;
   line-height: 1.25;
   letter-spacing: -0.015em;
+}
+
+.footer-tagline {
+  margin: 0.65rem 0 0;
+  color: var(--titech-official-cyan);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
 }
 
 .footer-description {
@@ -638,7 +647,16 @@
     grid-column: auto;
   }
 
-  .footer-description {
+  .footer-tagline {
+  margin: 0.65rem 0 0;
+  color: var(--titech-official-cyan);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+}
+
+.footer-description {
     font-size: 0.875rem;
     line-height: 1.7;
   }
