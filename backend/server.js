@@ -83,6 +83,7 @@ import {
 } from "node:url";
 
 import dotenv from "dotenv";
+import { redactSensitiveLogValue } from "./bootstrap/logArgumentNormalizer.js";
 
 /* =============================================================================
  * CONSTANTS
@@ -263,11 +264,14 @@ function sanitizeValue(
   if (
     value === null ||
     value === undefined ||
-    typeof value === "string" ||
     typeof value === "number" ||
     typeof value === "boolean"
   ) {
     return value;
+  }
+
+  if (typeof value === "string") {
+    return redactSensitiveLogValue(value);
   }
 
   if (typeof value === "bigint") {
@@ -288,7 +292,7 @@ function sanitizeValue(
   if (value instanceof Error) {
     return {
       name: value.name,
-      message: value.message,
+      message: redactSensitiveLogValue(value.message),
 
       ...(value.code !== undefined
         ? {
@@ -331,7 +335,7 @@ function sanitizeValue(
       ...(NODE_ENV !== "production" &&
       value.stack
         ? {
-            stack: value.stack,
+            stack: redactSensitiveLogValue(value.stack),
           }
         : {}),
     };
@@ -1327,9 +1331,7 @@ async function startServer() {
           processStartupStatus,
 
         ready:
-          bootstrap.ready ??
-          bootstrap.isReady?.() ??
-          true,
+          Boolean(bootstrap.ready ?? bootstrap.isReady?.()),
 
         host:
           process.env.HOST ||
@@ -1643,9 +1645,9 @@ if (isDirectExecution()) {
     process.exitCode =
       FATAL_EXIT_CODE;
 
-    process.exit(
-      FATAL_EXIT_CODE,
-    );
+    // ApplicationBootstrap has already completed startup rollback before the
+    // rejection reaches this handler. Let pending log transports and any
+    // remaining asynchronous cleanup drain naturally; do not truncate them.
   });
 }
 

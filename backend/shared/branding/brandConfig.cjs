@@ -25,6 +25,12 @@ module.exports = Object.freeze({
     administrativeAssociationName: 'TITECH CAPITAL - SMC LTD',
     legalIdentityVerification: 'CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED',
     postalAddressVerification: 'USER_SUPPLIED_ADMINISTRATIVE_RECORD',
+    officialContacts: Object.freeze({
+      email: 'titechcapital@gmail.com',
+      telephone: '+256782397907',
+      whatsapp: '+256772123546',
+      sourceStatus: 'USER_SUPPLIED_CONTACT_RECORD',
+    }),
   }),
   emailFromName: 'TITech Community Capital',
 

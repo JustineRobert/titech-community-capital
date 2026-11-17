@@ -123,11 +123,11 @@ const COMPONENT =
 const SERVICE_NAME =
     process.env.OTEL_SERVICE_NAME ||
     process.env.SERVICE_NAME ||
-    'titech-backend';
+    'titech-community-capital-backend';
 
 const APPLICATION_NAME =
     process.env.APP_NAME ||
-    'titech-community-capital';
+    'TITech Community Capital';
 
 const LOGGER_STATES =
     Object.freeze({

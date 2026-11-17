@@ -5,6 +5,7 @@
 **Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
 **Product:** TITech Community Capital  
 **Platform tagline:** Community Finance. Stronger Together.  
+**Official contacts (owner-supplied):** titechcapital@gmail.com · +256 782 397907 · WhatsApp +256 772 123546  
 **Primary wedge:** Financial event, payment and reconciliation infrastructure for community finance.
 
 ## Category

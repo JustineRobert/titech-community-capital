@@ -3719,12 +3719,11 @@ function installSignalHandlers({
         shutdownContext,
       );
 
-      if (exit) {
+      if (exit && (process.exitCode === undefined || process.exitCode === null || process.exitCode === 0)) {
         /*
-         * This module intentionally does not call process.exit().
-         *
-         * Setting exitCode permits the composition root/runtime to own actual
-         * process termination.
+         * This module intentionally does not call process.exit(). A clean
+         * signal-driven shutdown must never erase a non-zero status already
+         * established by an earlier startup or runtime failure.
          */
         process.exitCode = 0;
       }

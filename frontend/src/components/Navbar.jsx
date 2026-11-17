@@ -60,7 +60,6 @@ import {
   X,
   LogIn,
   LogOut,
-  UserCircle,
   LayoutDashboard,
   CalendarDays,
   Users,
@@ -79,7 +78,7 @@ import { useAuth } from "../context/AuthContext";
 import BrandLogo from "./BrandLogo";
 import LanguageSelector from "../i18n/LanguageSelector";
 import { useI18n } from "../i18n/I18nProvider";
-import { getNavigationItems } from "../navigation/navigationRegistry";
+import { getNavigationItems, PUBLIC_PRODUCT_DISCOVERY } from "../navigation/navigationRegistry";
 
 import "./Navbar.css";
 
@@ -222,14 +221,26 @@ function Navbar({
   const [userMenuOpen, setUserMenuOpen] =
     useState(false);
 
+  const [openDiscoveryMenu, setOpenDiscoveryMenu] =
+    useState(null);
+
+  const [mobileProductsOpen, setMobileProductsOpen] =
+    useState(false);
+
+  const [mobileServicesOpen, setMobileServicesOpen] =
+    useState(false);
+
   const [loggingOut, setLoggingOut] =
     useState(false);
 
   const [logoutError, setLogoutError] =
     useState("");
 
+  const navbarRef = useRef(null);
   const mobileMenuRef = useRef(null);
+  const mobileToggleRef = useRef(null);
   const userMenuRef = useRef(null);
+  const discoveryTriggerRefs = useRef({});
 
   // ==========================================================================
   // Derived User State
@@ -239,6 +250,25 @@ function Navbar({
   const navigationItems = useMemo(
     () => getNavigationItems(isAuthenticated, [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]),
     [isAuthenticated, user?.role, user?.roles],
+  );
+
+  // Products and Services are views over the existing canonical registry.
+  // No duplicate catalogue or synthetic destination is introduced here.
+  const productItems = useMemo(
+    () => PUBLIC_PRODUCT_DISCOVERY.filter((item) => item.discoveryType === "product"),
+    [],
+  );
+  const serviceItems = useMemo(
+    () => PUBLIC_PRODUCT_DISCOVERY.filter((item) => item.discoveryType === "service"),
+    [],
+  );
+  const primaryItems = useMemo(
+    () => navigationItems.filter((item) => ["dashboard", "meetings"].includes(item.id)),
+    [navigationItems],
+  );
+  const moreItems = useMemo(
+    () => navigationItems.filter((item) => !item.discovery && !["dashboard", "meetings"].includes(item.id)),
+    [navigationItems],
   );
 
   const userDisplayName = useMemo(
@@ -272,18 +302,59 @@ function Navbar({
   // Close Menus
   // ==========================================================================
 
-  const closeMobileMenu = useCallback(() => {
-    setMobileOpen(false);
-  }, []);
-
-  const closeUserMenu = useCallback(() => {
-    setUserMenuOpen(false);
-  }, []);
-
   const closeAllMenus = useCallback(() => {
     setMobileOpen(false);
     setUserMenuOpen(false);
+    setOpenDiscoveryMenu(null);
+    setMobileProductsOpen(false);
+    setMobileServicesOpen(false);
   }, []);
+
+  const toggleDiscoveryMenu = useCallback((menu) => {
+    setUserMenuOpen(false);
+    setOpenDiscoveryMenu((current) => current === menu ? null : menu);
+  }, []);
+
+  const toggleMobileDiscovery = useCallback((menu) => {
+    if (menu === "products") {
+      setMobileProductsOpen((current) => !current);
+      setMobileServicesOpen(false);
+    } else {
+      setMobileServicesOpen((current) => !current);
+      setMobileProductsOpen(false);
+    }
+  }, []);
+
+  const renderDiscoveryLink = (item, context = "desktop") => {
+    const Icon = NAVIGATION_ICONS[item.icon] || ShieldCheck;
+    const requiresLogin = item.requiresAuthentication && !isAuthenticated;
+    const destination = requiresLogin ? ROUTES.LOGIN : item.to;
+    const className = context === "mobile"
+      ? "titech-navbar__mobile-discovery-link"
+      : "titech-navbar__discovery-link";
+    const translationKey = `common.nav.${item.id}`;
+    const translatedLabel = t(translationKey);
+    return (
+      <Link
+        key={`${context}-${item.id}`}
+        to={destination}
+        state={requiresLogin ? { from: { pathname: item.to } } : undefined}
+        className={className}
+        aria-current={isRouteActive(currentPath, item.to) && !requiresLogin ? "page" : undefined}
+        onClick={handleNavigationClick}
+        data-testid={`${testId}-${context}-discovery-${item.id}`}
+      >
+        <span className="titech-navbar__discovery-icon" aria-hidden="true">
+          <Icon size={18} focusable="false" />
+        </span>
+        <span className="titech-navbar__discovery-copy">
+          <strong>{translatedLabel === translationKey ? item.label : translatedLabel}</strong>
+          <span>{item.description}</span>
+          <small>{item.accessLabel}</small>
+        </span>
+      </Link>
+    );
+  };
 
   // ==========================================================================
   // Route Change → Close Menus
@@ -298,7 +369,7 @@ function Navbar({
   // ==========================================================================
 
   useEffect(() => {
-    if (!mobileOpen && !userMenuOpen) {
+    if (!mobileOpen && !userMenuOpen && !openDiscoveryMenu) {
       return undefined;
     }
 
@@ -307,7 +378,16 @@ function Navbar({
         return;
       }
 
+      event.preventDefault();
+      const trigger = openDiscoveryMenu
+        ? discoveryTriggerRefs.current[openDiscoveryMenu]
+        : userMenuOpen
+          ? userMenuRef.current?.querySelector("button")
+          : mobileOpen
+            ? mobileToggleRef.current
+            : null;
       closeAllMenus();
+      trigger?.focus?.();
     };
 
     document.addEventListener(
@@ -324,45 +404,28 @@ function Navbar({
   }, [
     mobileOpen,
     userMenuOpen,
+    openDiscoveryMenu,
     closeAllMenus,
   ]);
 
   // ==========================================================================
-  // Click Outside User Menu
+  // Click/tap outside the header dismisses all open navigation surfaces.
   // ==========================================================================
 
   useEffect(() => {
-    if (!userMenuOpen) {
+    if (!mobileOpen && !userMenuOpen && !openDiscoveryMenu) {
       return undefined;
     }
 
     const handlePointerDown = (event) => {
-      const menuElement =
-        userMenuRef.current;
-
-      if (
-        menuElement &&
-        !menuElement.contains(event.target)
-      ) {
-        closeUserMenu();
+      if (navbarRef.current && !navbarRef.current.contains(event.target)) {
+        closeAllMenus();
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handlePointerDown,
-    );
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handlePointerDown,
-      );
-    };
-  }, [
-    userMenuOpen,
-    closeUserMenu,
-  ]);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [mobileOpen, userMenuOpen, openDiscoveryMenu, closeAllMenus]);
 
   // ==========================================================================
   // Mobile Menu Body Scroll Lock
@@ -438,14 +501,9 @@ function Navbar({
   // Mobile Navigation Handler
   // ==========================================================================
 
-  const handleNavigationClick =
-    useCallback(() => {
-      closeMobileMenu();
-      closeUserMenu();
-    }, [
-      closeMobileMenu,
-      closeUserMenu,
-    ]);
+  const handleNavigationClick = useCallback(() => {
+    closeAllMenus();
+  }, [closeAllMenus]);
 
   // ==========================================================================
   // Render
@@ -453,6 +511,7 @@ function Navbar({
 
   return (
     <header
+      ref={navbarRef}
       className={[
         "titech-navbar",
         hasActiveNavigation
@@ -515,38 +574,116 @@ function Navbar({
             className="titech-navbar__navigation"
             data-testid={`${testId}-navigation`}
           >
-            {navigationItems.map(
-              ({ id, label, to, icon }) => {
-                const Icon = NAVIGATION_ICONS[icon] || ShieldCheck;
-                const translationKey = `common.nav.${id}`;
-                const translatedLabel = t(translationKey);
-                return (
+            {primaryItems.map(({ id, label, to, icon }) => {
+              const Icon = NAVIGATION_ICONS[icon] || ShieldCheck;
+              const translationKey = `common.nav.${id}`;
+              const translatedLabel = t(translationKey);
+              return (
                 <NavLink
                   key={id}
                   to={to}
-                  className={
-                    getNavLinkClassName
-                  }
-                  aria-current={
-                    isRouteActive(
-                      currentPath,
-                      to,
-                    )
-                      ? "page"
-                      : undefined
-                  }
+                  className={getNavLinkClassName}
+                  aria-current={isRouteActive(currentPath, to) ? "page" : undefined}
                   data-testid={`${testId}-nav-${id}`}
                 >
-                  <Icon
-                    size={17}
-                    aria-hidden="true"
-                    focusable="false"
-                  />
-
+                  <Icon size={17} aria-hidden="true" focusable="false" />
                   <span>{translatedLabel === translationKey ? label : translatedLabel}</span>
                 </NavLink>
-                );
-              },
+              );
+            })}
+
+            {[
+              { id: "products", label: "Products", items: productItems, description: "Explore TITech products" },
+              { id: "services", label: "Services", items: serviceItems, description: "Explore TITech services" },
+            ].map((menu) => {
+              const isOpen = openDiscoveryMenu === menu.id;
+              const isActive = menu.items.some((item) => isRouteActive(currentPath, item.to));
+              const MenuIcon = menu.id === "products" ? GraduationCap : HeartHandshake;
+              return (
+                <div className="titech-navbar__menu-group" key={menu.id}>
+                  <button
+                    ref={(element) => { discoveryTriggerRefs.current[menu.id] = element; }}
+                    type="button"
+                    className={[
+                      "titech-navbar__nav-link",
+                      "titech-navbar__menu-trigger",
+                      isActive ? "titech-navbar__nav-link--active" : "",
+                      isOpen ? "titech-navbar__menu-trigger--open" : "",
+                    ].filter(Boolean).join(" ")}
+                    aria-haspopup="true"
+                    aria-expanded={isOpen}
+                    aria-controls={`${testId}-${menu.id}-menu`}
+                    onClick={() => toggleDiscoveryMenu(menu.id)}
+                    data-testid={`${testId}-${menu.id}-trigger`}
+                  >
+                    <MenuIcon size={17} aria-hidden="true" focusable="false" />
+                    <span>{menu.label}</span>
+                    <ChevronDown size={15} aria-hidden="true" focusable="false" />
+                  </button>
+                  {isOpen && (
+                    <div
+                      id={`${testId}-${menu.id}-menu`}
+                      className="titech-navbar__discovery-panel"
+                      role="region"
+                      aria-labelledby={`${testId}-${menu.id}-heading`}
+                      data-testid={`${testId}-${menu.id}-menu`}
+                    >
+                      <div className="titech-navbar__discovery-heading">
+                        <strong id={`${testId}-${menu.id}-heading`}>{menu.label}</strong>
+                        <span>{menu.description}</span>
+                      </div>
+                      <div className="titech-navbar__discovery-grid">
+                        {menu.items.map((item) => renderDiscoveryLink(item))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {moreItems.length > 0 && (
+              <div className="titech-navbar__menu-group" key="more">
+                <button
+                  ref={(element) => { discoveryTriggerRefs.current.more = element; }}
+                  type="button"
+                  className={[
+                    "titech-navbar__nav-link",
+                    "titech-navbar__menu-trigger",
+                    moreItems.some((item) => isRouteActive(currentPath, item.to)) ? "titech-navbar__nav-link--active" : "",
+                    openDiscoveryMenu === "more" ? "titech-navbar__menu-trigger--open" : "",
+                  ].filter(Boolean).join(" ")}
+                  aria-haspopup="true"
+                  aria-expanded={openDiscoveryMenu === "more"}
+                  aria-controls={`${testId}-more-menu`}
+                  onClick={() => toggleDiscoveryMenu("more")}
+                  data-testid={`${testId}-more-trigger`}
+                >
+                  <span>More</span>
+                  <ChevronDown size={15} aria-hidden="true" focusable="false" />
+                </button>
+                {openDiscoveryMenu === "more" && (
+                  <div id={`${testId}-more-menu`} className="titech-navbar__more-panel" role="region" aria-label="More workspace links">
+                    {moreItems.map(({ id, label, to, icon }) => {
+                      const Icon = NAVIGATION_ICONS[icon] || ShieldCheck;
+                      const translationKey = `common.nav.${id}`;
+                      const translatedLabel = t(translationKey);
+                      return (
+                        <NavLink
+                          key={id}
+                          to={to}
+                          className="titech-navbar__menu-item"
+                          aria-current={isRouteActive(currentPath, to) ? "page" : undefined}
+                          onClick={handleNavigationClick}
+                          data-testid={`${testId}-nav-${id}`}
+                        >
+                          <Icon size={17} aria-hidden="true" focusable="false" />
+                          <span>{translatedLabel === translationKey ? label : translatedLabel}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -585,12 +722,10 @@ function Navbar({
                       userMenuOpen
                     }
                     aria-label={t("common.nav.openAccountMenu", { name: userDisplayName })}
-                    onClick={() =>
-                      setUserMenuOpen(
-                        (current) =>
-                          !current,
-                      )
-                    }
+                    onClick={() => {
+                      setOpenDiscoveryMenu(null);
+                      setUserMenuOpen((current) => !current);
+                    }}
                     data-testid={`${testId}-user-menu-button`}
                   >
                     <span
@@ -775,6 +910,7 @@ function Navbar({
               ================================================================ */}
 
           <button
+            ref={mobileToggleRef}
             type="button"
             className="titech-navbar__mobile-toggle"
             aria-label={
@@ -822,42 +958,57 @@ function Navbar({
         >
           {showNavigation && (
             <div className="titech-navbar__mobile-navigation">
-              {navigationItems.map(
-                ({ id, label, to, icon }) => {
-                  const Icon = NAVIGATION_ICONS[icon] || ShieldCheck;
-                  const translationKey = `common.nav.${id}`;
-                  const translatedLabel = t(translationKey);
-                  return (
+              <section className="titech-navbar__mobile-discovery" aria-label="Product and service discovery">
+                <button
+                  type="button"
+                  className="titech-navbar__mobile-section-trigger"
+                  aria-expanded={mobileProductsOpen}
+                  aria-controls={`${testId}-mobile-products`}
+                  onClick={() => toggleMobileDiscovery("products")}
+                >
+                  <span><GraduationCap size={18} aria-hidden="true" /> Products</span>
+                  <ChevronDown size={17} aria-hidden="true" />
+                </button>
+                {mobileProductsOpen && (
+                  <div id={`${testId}-mobile-products`} className="titech-navbar__mobile-discovery-list">
+                    {productItems.map((item) => renderDiscoveryLink(item, "mobile"))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="titech-navbar__mobile-section-trigger"
+                  aria-expanded={mobileServicesOpen}
+                  aria-controls={`${testId}-mobile-services`}
+                  onClick={() => toggleMobileDiscovery("services")}
+                >
+                  <span><HeartHandshake size={18} aria-hidden="true" /> Services</span>
+                  <ChevronDown size={17} aria-hidden="true" />
+                </button>
+                {mobileServicesOpen && (
+                  <div id={`${testId}-mobile-services`} className="titech-navbar__mobile-discovery-list">
+                    {serviceItems.map((item) => renderDiscoveryLink(item, "mobile"))}
+                  </div>
+                )}
+              </section>
+
+              {navigationItems.filter((item) => !item.discovery).map(({ id, label, to, icon }) => {
+                const Icon = NAVIGATION_ICONS[icon] || ShieldCheck;
+                const translationKey = `common.nav.${id}`;
+                const translatedLabel = t(translationKey);
+                return (
                   <NavLink
                     key={id}
                     to={to}
-                    className={
-                      getNavLinkClassName
-                    }
-                    aria-current={
-                      isRouteActive(
-                        currentPath,
-                        to,
-                      )
-                        ? "page"
-                        : undefined
-                    }
-                    onClick={
-                      handleNavigationClick
-                    }
+                    className={getNavLinkClassName}
+                    aria-current={isRouteActive(currentPath, to) ? "page" : undefined}
+                    onClick={handleNavigationClick}
                     data-testid={`${testId}-mobile-nav-${id}`}
                   >
-                    <Icon
-                      size={18}
-                      aria-hidden="true"
-                      focusable="false"
-                    />
-
+                    <Icon size={18} aria-hidden="true" focusable="false" />
                     <span>{translatedLabel === translationKey ? label : translatedLabel}</span>
                   </NavLink>
-                  );
-                },
-              )}
+                );
+              })}
             </div>
           )}
 

@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-12T07:12:22.318Z",
+  "generatedAt": "2026-11-17T13:28:34Z",
   "repositoryUrl": "https://github.com/JustineRobert/titech-community-capital",
   "organization": "TITECH CAPITAL - SMC LTD",
   "product": "TITech Community Capital",
-  "tagline": "BUILD LESS. PROVE MORE.",
+  "tagline": "Community Finance. Stronger Together.",
   "branch": "UNAVAILABLE_IN_ARCHIVE",
   "commit": "UNAVAILABLE_IN_ARCHIVE",
-  "sourceSnapshotSha256": "106f96625d7f3a707cda6788ea063638b4fbfbc951443ddc46a4362d60e20071",
+  "sourceSnapshotSha256": "536f74fdf60bbf5a6c9425c59e2dd3d16add398d0750875122f117d324cdd831",
   "runtime": {
     "requiredNode": "24.15.0",
     "requiredNpm": "11.x",
@@ -15,8 +15,8 @@
     "localRuntimeMeetsTarget": false
   },
   "repository": {
-    "totalFiles": 3684,
-    "sourceFiles": 2540,
+    "totalFiles": 3859,
+    "sourceFiles": 2565,
     "zeroByteFiles": 232,
     "zeroBytePaths": [
       "backend/application/MiddlewareRegistrar.js",
@@ -299,7 +299,10 @@
         "backend/bootstrap/ApplicationBootstrap.js",
         "backend/bootstrap/app.js"
       ]
-    ]
+    ],
+    "backendSourceFilesScannedByImportAudit": 2084,
+    "unresolvedLegacyNonCriticalImports": 208,
+    "canonicalFinancialSurfaceMissingImports": 0
   },
   "modules": {
     "esm": 837,
@@ -373,7 +376,7 @@
       "light",
       "dark"
     ],
-    "cssFilesScanned": 71,
+    "cssFilesScanned": 77,
     "hardcodedOfficialCssOccurrences": 0,
     "inlineScriptOfficialColorOccurrences": 0
   },
@@ -414,5 +417,23 @@
     "source": "USER_SUPPLIED_REGISTRATION_EMAIL_2026-11-13",
     "verificationStatus": "PENDING_EXTERNAL_DOCUMENTARY_VERIFICATION",
     "productionApproved": false
+  },
+  "sourceSnapshotType": "USER_UPLOADED_SOURCE_ARCHIVE",
+  "workingTreeState": "ARCHIVE_LOCAL_MODIFICATIONS_UNCOMMITTED",
+  "remediationEvidencePath": "docs/evidence/2026-11-17-header-startup-logging-remediation/",
+  "ownerSuppliedOfficialContacts": {
+    "email": "titechcapital@gmail.com",
+    "telephone": "+256782397907",
+    "whatsapp": "+256772123546",
+    "postalAddress": "P.O. Box 601200",
+    "source": "USER_SUPPLIED_CONTACT_RECORD",
+    "verificationStatus": "OWNER_SUPPLIED_NOT_INDEPENDENTLY_VERIFIED"
+  },
+  "remediationExecution": {
+    "headerNavigation": "SOURCE_IMPLEMENTED_CONTRACT_TESTED_BROWSER_VISUAL_NOT_RUN",
+    "loggerArgumentAndRedaction": "IMPLEMENTED_UNIT_TESTED_5_OF_5",
+    "startupFailureHandling": "SOURCE_IMPLEMENTED_CONTRACT_TESTED_LIVE_RUNTIME_NOT_RUN",
+    "productionApproved": false,
+    "releaseStatus": "NOT READY"
   }
 }

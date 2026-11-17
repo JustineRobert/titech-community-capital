@@ -97,6 +97,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import pino from 'pino';
 import hooksModule from './hooks.js';
+import { normalizePinoArguments, redactSensitiveLogValue } from './logArgumentNormalizer.js';
 
 
 /* =============================================================================
@@ -105,7 +106,7 @@ import hooksModule from './hooks.js';
  */
 
 const LOGGER_NAME =
-  'titech-community-capital';
+  'titech-community-capital-backend';
 
 const DEFAULT_LEVEL =
   'info';
@@ -158,6 +159,9 @@ const DEFAULT_REDACT_PATHS =
 
     'jwt',
     'jwtSecret',
+    'accessSecret',
+    'refreshSecret',
+    'sessionSecret',
 
     'secret',
     'apiKey',
@@ -192,6 +196,13 @@ const DEFAULT_REDACT_PATHS =
     'redisURL',
 
     'connectionString',
+    'databaseUri',
+    'databaseURI',
+    'credentials',
+    'clientSecret',
+    'sessionSecret',
+    'accessSecret',
+    'refreshSecret',
   ]);
 
 const DEFAULT_CONTEXT_FIELDS =
@@ -490,57 +501,8 @@ function createRequestId() {
  * =============================================================================
  */
 
-function serializeError(
-  error,
-) {
-  if (!error) {
-    return null;
-  }
-
-  if (
-    error instanceof Error
-  ) {
-    return {
-      type:
-        error.constructor?.name ||
-        'Error',
-
-      name:
-        error.name,
-
-      message:
-        error.message,
-
-      code:
-        error.code,
-
-      statusCode:
-        error.statusCode,
-
-      stack:
-        error.stack,
-
-      cause:
-        error.cause
-          ? serializeError(
-              error.cause,
-            )
-          : undefined,
-    };
-  }
-
-  if (
-    typeof error === 'object'
-  ) {
-    return redactObject(
-      error,
-    );
-  }
-
-  return {
-    message:
-      String(error),
-  };
+function serializeError(error) {
+  return redactSensitiveLogValue(error);
 }
 
 /* =============================================================================
@@ -548,90 +510,20 @@ function serializeError(
  * =============================================================================
  */
 
-function redactObject(
-  value,
-  sensitiveKeys = DEFAULT_REDACT_PATHS,
-) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return value;
-  }
+function redactObject(value, sensitiveKeys = DEFAULT_REDACT_PATHS) {
+  const normalizedSensitiveKeys = new Set(
+    sensitiveKeys.map((key) => String(key).split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '')),
+  );
+  return redactSensitiveLogValue(value, {
+    sensitiveKeys: normalizedSensitiveKeys,
+  });
+}
 
-  const sensitive =
-    new Set(
-      sensitiveKeys
-        .map(
-          key =>
-            String(key)
-              .split('.')
-              .pop()
-              .toLowerCase(),
-        ),
-    );
-
-  const redact =
-    current => {
-      if (
-        current === null ||
-        current === undefined
-      ) {
-        return current;
-      }
-
-      if (
-        Array.isArray(current)
-      ) {
-        return current.map(
-          item =>
-            redact(item),
-        );
-      }
-
-      if (
-        current instanceof Error
-      ) {
-        return serializeError(
-          current,
-        );
-      }
-
-      if (
-        typeof current !== 'object'
-      ) {
-        return current;
-      }
-
-      const result = {};
-
-      for (
-        const [
-          key,
-          child,
-        ] of Object.entries(
-          current,
-        )
-      ) {
-        if (
-          sensitive.has(
-            key.toLowerCase(),
-          )
-        ) {
-          result[key] =
-            '[REDACTED]';
-
-          continue;
-        }
-
-        result[key] =
-          redact(child);
-      }
-
-      return result;
-    };
-
-  return redact(value);
+function toMetadataObject(value) {
+  const redacted = redactObject(value);
+  if (isPlainObject(redacted)) return redacted;
+  if (redacted === undefined || redacted === null) return {};
+  return { value: redacted };
 }
 
 /* =============================================================================
@@ -1146,57 +1038,39 @@ function createContextAwareLogger(
 
     redactObject,
 
-    fatal(
-      ...args
-    ) {
+    fatal(...args) {
       return logger.fatal(
-        createContextBindings(),
-        ...args,
+        ...normalizePinoArguments(args, createContextBindings()),
       );
     },
 
-    error(
-      ...args
-    ) {
+    error(...args) {
       return logger.error(
-        createContextBindings(),
-        ...args,
+        ...normalizePinoArguments(args, createContextBindings()),
       );
     },
 
-    warn(
-      ...args
-    ) {
+    warn(...args) {
       return logger.warn(
-        createContextBindings(),
-        ...args,
+        ...normalizePinoArguments(args, createContextBindings()),
       );
     },
 
-    info(
-      ...args
-    ) {
+    info(...args) {
       return logger.info(
-        createContextBindings(),
-        ...args,
+        ...normalizePinoArguments(args, createContextBindings()),
       );
     },
 
-    debug(
-      ...args
-    ) {
+    debug(...args) {
       return logger.debug(
-        createContextBindings(),
-        ...args,
+        ...normalizePinoArguments(args, createContextBindings()),
       );
     },
 
-    trace(
-      ...args
-    ) {
+    trace(...args) {
       return logger.trace(
-        createContextBindings(),
-        ...args,
+        ...normalizePinoArguments(args, createContextBindings()),
       );
     },
 
@@ -1220,16 +1094,10 @@ function createContextAwareLogger(
       payload = {},
       message = 'Audit event',
     ) {
-      return logger.info(
+      return facade.info(
         {
-          eventType:
-            'audit',
-
-          ...createContextBindings(),
-
-          ...redactObject(
-            payload,
-          ),
+          eventType: 'audit',
+          ...toMetadataObject(payload),
         },
         message,
       );
@@ -1239,16 +1107,10 @@ function createContextAwareLogger(
       payload = {},
       message = 'Security event',
     ) {
-      return logger.warn(
+      return facade.warn(
         {
-          eventType:
-            'security',
-
-          ...createContextBindings(),
-
-          ...redactObject(
-            payload,
-          ),
+          eventType: 'security',
+          ...toMetadataObject(payload),
         },
         message,
       );
@@ -1258,16 +1120,10 @@ function createContextAwareLogger(
       payload = {},
       message = 'Financial event',
     ) {
-      return logger.info(
+      return facade.info(
         {
-          eventType:
-            'financial',
-
-          ...createContextBindings(),
-
-          ...redactObject(
-            payload,
-          ),
+          eventType: 'financial',
+          ...toMetadataObject(payload),
         },
         message,
       );
@@ -1278,16 +1134,10 @@ function createContextAwareLogger(
       message =
         'Performance event',
     ) {
-      return logger.info(
+      return facade.info(
         {
-          eventType:
-            'performance',
-
-          ...createContextBindings(),
-
-          ...redactObject(
-            payload,
-          ),
+          eventType: 'performance',
+          ...toMetadataObject(payload),
         },
         message,
       );
@@ -1300,8 +1150,7 @@ function createContextAwareLogger(
       ...args
     ) {
       return logger.info(
-        createContextBindings(),
-        ...args,
+        ...normalizePinoArguments(args, createContextBindings()),
       );
     },
   };
