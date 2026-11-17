@@ -22,7 +22,6 @@
 import React, {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -31,11 +30,9 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Edit,
   Eye,
   RefreshCw,
   Search,
-  UserPlus,
   Users,
 } from 'lucide-react';
 
@@ -43,13 +40,13 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import './Members.css';
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const MEMBERS_ENDPOINT = '/api/members';
+const MEMBERS_ENDPOINT = '/api/v1/members';
 
 const PAGE_SIZE = 10;
 
@@ -115,7 +112,7 @@ const getMemberName = (member) => {
 
   const fullName = [
     member?.firstName,
-    member?.middleName,
+    member?.otherNames ?? member?.middleName,
     member?.lastName,
   ]
     .filter(Boolean)
@@ -148,7 +145,7 @@ const normalizeStatus = (status) => {
   const value = normalizeString(status);
 
   if (!value) {
-    return 'active';
+    return 'unknown';
   }
 
   return value.replace(/\s+/g, '_');
@@ -528,8 +525,6 @@ function MembersErrorState({
 export default function Members() {
   const navigate = useNavigate();
 
-  const { user } = useAuth();
-
   const mountedRef = useRef(false);
 
   const requestControllerRef = useRef(null);
@@ -541,6 +536,10 @@ export default function Members() {
   const searchDebounceRef = useRef(null);
 
   const [members, setMembers] = useState([]);
+
+  const [serverPagination, setServerPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, pages: 1 });
+
+  const [serverSummary, setServerSummary] = useState({ total: 0, active: 0, pending: 0, suspended: 0 });
 
   const [loading, setLoading] = useState(true);
 
@@ -557,24 +556,6 @@ export default function Members() {
 
   const [page, setPage] = useState(1);
 
-  // ==========================================================================
-  // Authorization
-  // ==========================================================================
-
-  const normalizedRole = normalizeString(
-    user?.role,
-  );
-
-  const isAdmin = useMemo(
-    () =>
-      [
-        'admin',
-        'super_admin',
-        'superadmin',
-        'administrator',
-      ].includes(normalizedRole),
-    [normalizedRole],
-  );
 
   // ==========================================================================
   // Search Debouncing
@@ -641,16 +622,17 @@ export default function Members() {
       setError('');
 
       try {
-        const requestConfig = controller
-          ? {
-              signal: controller.signal,
-            }
-          : undefined;
+        const requestConfig = {
+          params: {
+            page,
+            limit: PAGE_SIZE,
+            search: search || undefined,
+            status: statusFilter === 'all' ? undefined : statusFilter,
+          },
+          ...(controller ? { signal: controller.signal } : {}),
+        };
 
-        const response = await api.get(
-          MEMBERS_ENDPOINT,
-          requestConfig,
-        );
+        const response = await api.get(MEMBERS_ENDPOINT, requestConfig);
 
         // Ignore stale responses.
         if (
@@ -664,10 +646,23 @@ export default function Members() {
           return;
         }
 
-        const normalizedMembers =
-          extractMembers(response);
+        const payload = response?.data ?? response;
+        const data = payload?.data ?? payload;
+        const normalizedMembers = extractMembers(response);
 
         setMembers(normalizedMembers);
+        setServerPagination({
+          page: Number(data?.pagination?.page) || page,
+          limit: Number(data?.pagination?.limit) || PAGE_SIZE,
+          total: Number(data?.pagination?.total) || 0,
+          pages: Math.max(1, Number(data?.pagination?.pages) || 1),
+        });
+        setServerSummary({
+          total: Number(data?.summary?.total) || 0,
+          active: Number(data?.summary?.active) || 0,
+          pending: Number(data?.summary?.pending) || 0,
+          suspended: Number(data?.summary?.suspended) || 0,
+        });
 
         if (showSuccessToast) {
           toast.success(
@@ -719,7 +714,7 @@ export default function Members() {
         }
       }
     },
-    [],
+    [page, search, statusFilter],
   );
 
   // ==========================================================================
@@ -783,168 +778,24 @@ export default function Members() {
   ]);
 
   // ==========================================================================
-  // Filtering
+  // Server-side filtering and pagination
   // ==========================================================================
 
-  const filteredMembers = useMemo(() => {
-    const normalizedSearch =
-      normalizeString(search);
-
-    return members.filter((member) => {
-      const memberName =
-        normalizeString(
-          getMemberName(member),
-        );
-
-      const email =
-        normalizeString(
-          getMemberEmail(member),
-        );
-
-      const phone =
-        normalizeString(
-          getMemberPhone(member),
-        );
-
-      const memberNumber =
-        normalizeString(
-          getMemberNumber(member),
-        );
-
-      const memberStatus =
-        normalizeStatus(
-          member?.status,
-        );
-
-      const matchesSearch =
-        !normalizedSearch ||
-        memberName.includes(
-          normalizedSearch,
-        ) ||
-        email.includes(
-          normalizedSearch,
-        ) ||
-        phone.includes(
-          normalizedSearch,
-        ) ||
-        memberNumber.includes(
-          normalizedSearch,
-        );
-
-      const matchesStatus =
-        statusFilter === 'all' ||
-        memberStatus ===
-          statusFilter;
-
-      return (
-        matchesSearch &&
-        matchesStatus
-      );
-    });
-  }, [
-    members,
-    search,
-    statusFilter,
-  ]);
-
-  // ==========================================================================
-  // Reset Pagination When Filters Change
-  // ==========================================================================
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, statusFilter]);
-
-  // ==========================================================================
-  // Pagination
-  // ==========================================================================
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(
-      filteredMembers.length /
-        PAGE_SIZE,
-    ),
-  );
-
-  useEffect(() => {
-    setPage((currentPage) =>
-      Math.min(
-        Math.max(currentPage, 1),
-        totalPages,
-      ),
-    );
-  }, [totalPages]);
-
-  const paginatedMembers = useMemo(() => {
-    const start =
-      (page - 1) * PAGE_SIZE;
-
-    return filteredMembers.slice(
-      start,
-      start + PAGE_SIZE,
-    );
-  }, [
-    filteredMembers,
-    page,
-  ]);
-
-  const pageStart =
-    filteredMembers.length === 0
-      ? 0
-      : (page - 1) * PAGE_SIZE + 1;
-
-  const pageEnd =
-    filteredMembers.length === 0
-      ? 0
-      : Math.min(
-          page * PAGE_SIZE,
-          filteredMembers.length,
-        );
+  const filteredMembers = members;
+  const totalPages = Math.max(1, serverPagination.pages);
+  const paginatedMembers = filteredMembers;
+  const pageStart = serverPagination.total === 0
+    ? 0
+    : ((serverPagination.page - 1) * serverPagination.limit) + 1;
+  const pageEnd = pageStart === 0
+    ? 0
+    : Math.min(pageStart + filteredMembers.length - 1, serverPagination.total);
 
   // ==========================================================================
   // Statistics
   // ==========================================================================
 
-  const stats = useMemo(() => {
-    let active = 0;
-    let suspended = 0;
-    let pending = 0;
-    let inactive = 0;
-
-    members.forEach((member) => {
-      const status = normalizeStatus(
-        member?.status,
-      );
-
-      switch (status) {
-        case 'suspended':
-          suspended += 1;
-          break;
-
-        case 'pending':
-          pending += 1;
-          break;
-
-        case 'inactive':
-          inactive += 1;
-          break;
-
-        case 'active':
-        default:
-          active += 1;
-          break;
-      }
-    });
-
-    return {
-      total: members.length,
-      active,
-      suspended,
-      pending,
-      inactive,
-    };
-  }, [members]);
+  const stats = serverSummary;
 
   // ==========================================================================
   // Clear Filters
@@ -958,6 +809,8 @@ export default function Members() {
       setPage(1);
     }, []);
 
+  useEffect(() => { setPage(1); }, [search, statusFilter]);
+
   const hasFilters =
     Boolean(search) ||
     statusFilter !== 'all';
@@ -966,22 +819,6 @@ export default function Members() {
   // Navigation
   // ==========================================================================
 
-  const handleAddMember = useCallback(() => {
-    if (!isAdmin) {
-      toast.error(
-        'You do not have permission to add members.',
-        {
-          autoClose: 3000,
-          toastId:
-            'titech-members-add-forbidden',
-        },
-      );
-
-      return;
-    }
-
-    navigate('/members/new');
-  }, [isAdmin, navigate]);
 
   const handleViewMember = useCallback(
     (memberId) => {
@@ -1007,42 +844,6 @@ export default function Members() {
     [navigate],
   );
 
-  const handleEditMember = useCallback(
-    (memberId) => {
-      if (!isAdmin) {
-        toast.error(
-          'You do not have permission to edit members.',
-          {
-            autoClose: 3000,
-            toastId:
-              'titech-members-edit-forbidden',
-          },
-        );
-
-        return;
-      }
-
-      if (!memberId) {
-        toast.error(
-          'This member record could not be edited.',
-          {
-            autoClose: 3000,
-            toastId:
-              'titech-member-invalid-edit-id',
-          },
-        );
-
-        return;
-      }
-
-      navigate(
-        `/members/${encodeURIComponent(
-          String(memberId),
-        )}/edit`,
-      );
-    },
-    [isAdmin, navigate],
-  );
 
   // ==========================================================================
   // Retry
@@ -1065,7 +866,7 @@ export default function Members() {
         <header className="members-header">
           <div>
             <p className="members-eyebrow">
-              TITech Community Capital
+              TITech Community Capital · Community Finance. Stronger Together.
             </p>
 
             <h1 id="members-page-title">
@@ -1140,20 +941,6 @@ export default function Members() {
             </span>
           </button>
 
-          {isAdmin && (
-            <button
-              type="button"
-              className="primary-btn"
-              onClick={handleAddMember}
-            >
-              <UserPlus
-                size={18}
-                aria-hidden="true"
-              />
-
-              <span>Add Member</span>
-            </button>
-          )}
         </div>
       </header>
 
@@ -1316,10 +1103,10 @@ export default function Members() {
           </strong>{' '}
           of{' '}
           <strong>
-            {filteredMembers.length.toLocaleString()}
+            {serverPagination.total.toLocaleString()}
           </strong>{' '}
           matching member
-          {filteredMembers.length === 1
+          {serverPagination.total === 1
             ? ''
             : 's'}
         </span>
@@ -1490,7 +1277,7 @@ export default function Members() {
                         >
                           <StatusBadge
                             status={
-                              member?.status
+                              member?.memberStatus ?? member?.status
                             }
                           />
                         </td>
@@ -1530,28 +1317,6 @@ export default function Members() {
                               </span>
                             </button>
 
-                            {isAdmin && (
-                              <button
-                                type="button"
-                                className="member-action-btn"
-                                onClick={() =>
-                                  handleEditMember(
-                                    memberId,
-                                  )
-                                }
-                                aria-label={`Edit ${memberName}`}
-                                title={`Edit ${memberName}`}
-                              >
-                                <Edit
-                                  size={17}
-                                  aria-hidden="true"
-                                />
-
-                                <span className="sr-only">
-                                  Edit
-                                </span>
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>

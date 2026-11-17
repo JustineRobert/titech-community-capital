@@ -26,58 +26,33 @@
  * ========================================================================== */
 
 .savings-page {
-  --savings-primary: var(--titech-brand-green);
-  --savings-primary-hover: #115e59;
-  --savings-primary-active: #134e4a;
-  --savings-primary-soft: #ecfdf5;
-
-  --savings-blue: var(--titech-brand-electric-blue);
-  --savings-blue-soft: #edf7ff;
-
-  --savings-success: #15803d;
-  --savings-success-soft: #f0fdf4;
-
-  --savings-warning: #b45309;
-  --savings-warning-soft: #fffbeb;
-
-  --savings-danger: #b91c1c;
-  --savings-danger-soft: #fef2f2;
-
-  --savings-text: var(--titech-brand-navy);
+  --savings-primary: var(--titech-official-deep-blue);
+  --savings-primary-hover: var(--titech-official-electric-blue);
+  --savings-primary-active: var(--titech-official-bright-blue);
+  --savings-primary-soft: var(--titech-color-surface-muted);
+  --savings-blue: var(--titech-official-electric-blue);
+  --savings-blue-soft: var(--titech-color-surface-muted);
+  --savings-success: var(--titech-state-success);
+  --savings-success-soft: var(--titech-success-surface);
+  --savings-warning: var(--titech-state-warning);
+  --savings-warning-soft: var(--titech-warning-surface);
+  --savings-danger: var(--titech-state-danger);
+  --savings-danger-soft: var(--titech-danger-surface);
+  --savings-text: var(--titech-color-text);
   --savings-text-secondary: var(--titech-color-text-muted);
   --savings-text-muted: var(--titech-color-text-subtle);
   --savings-text-faint: var(--titech-color-text-subtle);
-
-  --savings-border: #dbe3ec;
+  --savings-border: var(--titech-color-border);
   --savings-border-strong: var(--titech-color-border-strong);
-
-  --savings-surface: var(--titech-brand-white);
+  --savings-surface: var(--titech-color-surface);
   --savings-surface-soft: var(--titech-color-background);
   --savings-surface-muted: var(--titech-color-surface-muted);
-
-  --savings-background: #f6f8fb;
-
-  --savings-shadow-sm:
-    0 1px 2px rgb(15 23 42 / 0.05);
-
-  --savings-shadow-md:
-    0 8px 24px rgb(15 23 42 / 0.07);
-
-  --savings-shadow-lg:
-    0 18px 45px rgb(15 23 42 / 0.09);
-
+  --savings-background: var(--titech-color-background);
+  --savings-shadow-sm: 0 1px 2px rgb(8 43 103 / 0.05);
+  --savings-shadow-md: 0 8px 24px rgb(8 43 103 / 0.07);
+  --savings-shadow-lg: 0 18px 45px rgb(8 43 103 / 0.09);
   --savings-radius-sm: 8px;
   --savings-radius-md: 12px;
-  --savings-radius-lg: 16px;
-  --savings-radius-xl: 20px;
-
-  --savings-focus-ring:
-    0 0 0 3px rgb(15 118 110 / 0.18);
-
-  --savings-transition: 160ms ease;
-
-  width: 100%;
-  min-width: 0;
 }
 
 /* ============================================================================
@@ -1509,104 +1484,35 @@
   }
 }
 
-/* ============================================================================
- * Dark Mode
- * ========================================================================== */
+/* Explicit TITech theme selection is authoritative; OS preference must not override it. */
+:root[data-titech-brand="official"][data-theme="dark"] .savings-page {
+  --savings-text: var(--titech-color-text);
+  --savings-text-secondary: var(--titech-color-text-muted);
+  --savings-text-muted: var(--titech-color-text-subtle);
+  --savings-text-faint: var(--titech-color-text-subtle);
+  --savings-border: var(--titech-color-border);
+  --savings-border-strong: var(--titech-color-border-strong);
+  --savings-surface: var(--titech-color-surface);
+  --savings-surface-soft: var(--titech-color-background);
+  --savings-surface-muted: var(--titech-color-surface-muted);
+  --savings-background: var(--titech-color-background);
+  --savings-primary-soft: var(--titech-color-surface-muted);
+  --savings-success-soft: var(--titech-success-surface);
+  --savings-warning-soft: var(--titech-warning-surface);
+  --savings-danger-soft: var(--titech-danger-surface);
+  --savings-blue-soft: var(--titech-color-surface-muted);
+  --savings-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.25);
+  --savings-shadow-md: 0 10px 28px rgb(0 0 0 / 0.28);
+  --savings-shadow-lg: 0 18px 45px rgb(0 0 0 / 0.30);
+}
 
-@media (prefers-color-scheme: dark) {
-  .savings-page {
-    --savings-text: var(--titech-color-background);
-    --savings-text-secondary: var(--titech-color-border-strong);
-    --savings-text-muted: var(--titech-color-text-subtle);
-    --savings-text-faint: var(--titech-color-text-subtle);
-
-    --savings-border: #273449;
-    --savings-border-strong: #3a485d;
-
-    --savings-surface: var(--titech-brand-navy);
-    --savings-surface-soft: #111c2e;
-    --savings-surface-muted: var(--titech-brand-navy);
-
-    --savings-background: #020617;
-
-    --savings-primary-soft: #0f2d2a;
-    --savings-success-soft: #0d2817;
-    --savings-warning-soft: #2a200b;
-    --savings-danger-soft: #2b1111;
-    --savings-blue-soft: #0f2344;
-
-    --savings-shadow-sm:
-      0 1px 2px rgb(0 0 0 / 0.25);
-
-    --savings-shadow-md:
-      0 10px 28px rgb(0 0 0 / 0.28);
-
-    --savings-shadow-lg:
-      0 18px 45px rgb(0 0 0 / 0.3);
-  }
-
-  .savings-page {
-    background:
-      radial-gradient(
-        circle at top left,
-        rgb(15 118 110 / 0.08),
-        transparent 28%
-      ),
-      var(--savings-background);
-  }
-
-  .savings-header-content,
-  .savings-stat-card,
-  .savings-filter-panel,
-  .savings-table-wrapper {
-    background: var(--savings-surface);
-  }
-
-  .savings-filter-search input,
-  .savings-filter-control select,
-  .secondary-btn,
-  .pagination-controls button,
-  .icon-btn {
-    background: var(--savings-surface);
-    color: var(--savings-text);
-  }
-
-  .savings-table thead th {
-    background: var(--savings-surface-soft);
-  }
-
-  .savings-table tbody td {
-    border-bottom-color: #1d2a3a;
-  }
-
-  .savings-table-row:hover {
-    background: #111c2e;
-  }
-
-  .form-input,
-  .savings-filter-search input {
-    color-scheme: dark;
-  }
-
-  .savings-skeleton {
-    background:
-      linear-gradient(
-        90deg,
-        #1b2738 25%,
-        #263449 50%,
-        #1b2738 75%
-      );
-
-    background-size: 200% 100%;
-  }
-
-  .error-box-content p {
-    color: #fecaca;
-  }
-
-  .error-box .secondary-btn {
-    background: var(--savings-surface);
-  }
+:root[data-titech-brand="official"][data-theme="dark"] .savings-page,
+:root[data-titech-brand="official"][data-theme="dark"] .savings-page .savings-header-content,
+:root[data-titech-brand="official"][data-theme="dark"] .savings-page .savings-stat-card,
+:root[data-titech-brand="official"][data-theme="dark"] .savings-page .savings-filter-panel,
+:root[data-titech-brand="official"][data-theme="dark"] .savings-page .savings-table-wrapper {
+  color: var(--savings-text);
+  background: var(--savings-background);
 }
 
 /* ============================================================================

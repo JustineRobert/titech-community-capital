@@ -1,0 +1,5 @@
+locale,translation_keys,structural_coverage,human_reviewer,human_review_status,rtl_validation,evidence
+English,602,0,NOT_ASSIGNED,CANONICAL_SOURCE_LOCALE,NOT_APPLICABLE,reports/i18n-coverage-2026-11-16.json
+Kiswahili,602,0,NOT_ASSIGNED,PENDING_HUMAN_REVIEW,NOT_APPLICABLE,reports/i18n-coverage-2026-11-16.json
+French,602,0,NOT_ASSIGNED,PENDING_HUMAN_REVIEW,NOT_APPLICABLE,reports/i18n-coverage-2026-11-16.json
+Arabic,602,0,NOT_ASSIGNED,PENDING_HUMAN_REVIEW,REQUIRED,reports/i18n-coverage-2026-11-16.json

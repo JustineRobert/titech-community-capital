@@ -12,10 +12,8 @@
  * - Normalize resilient API response envelopes
  * - Support search, status filtering and pagination
  * - Provide portfolio-level operational statistics
- * - Support authorized loan creation, editing and approval
  * - Prevent stale requests and state updates after unmount
  * - Support retry and manual/automatic refresh
- * - Prevent duplicate loan approval submissions
  * - Preserve financial display integrity
  * - Provide accessible loading, empty and error states
  * - Avoid exposing backend implementation details
@@ -40,25 +38,22 @@ import React, {
 
 import {
   AlertCircle,
-  CheckCircle,
   ChevronLeft,
   ChevronRight,
   Clock,
   CreditCard,
-  Edit,
+  CheckCircle,
   Eye,
-  Plus,
   RefreshCw,
   Search,
   ShieldCheck,
   XCircle,
 } from "lucide-react";
 
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import { formatExactIntegerCurrency } from "../utils/moneyDisplay";
+import "./Loans.css";
 
 /* ============================================================================
  * Constants
@@ -69,43 +64,47 @@ const AUTO_REFRESH_INTERVAL = 60_000;
 const MAX_SEARCH_LENGTH = 100;
 
 const API_ENDPOINTS = Object.freeze({
-  LOANS: "/api/loans",
-
-  APPROVE: (loanId) =>
-    `/api/loans/${encodeURIComponent(loanId)}/approve`,
+  LOANS: "/api/v1/loans",
 });
 
 const STATUS_OPTIONS = Object.freeze([
   "all",
+  "draft",
   "pending",
+  "credit_review",
+  "manual_review",
   "approved",
+  "disbursed",
   "active",
   "completed",
   "rejected",
+  "cancelled",
   "defaulted",
-]);
-
-const ADMIN_ROLES = new Set([
-  "admin",
-  "super_admin",
-  "loan_officer",
+  "written_off",
+  "recovered",
+  "restructured",
 ]);
 
 const STATUS_LABELS = Object.freeze({
   all: "All statuses",
+  draft: "Draft",
   pending: "Pending",
+  credit_review: "Credit review",
+  manual_review: "Manual review",
   approved: "Approved",
+  disbursed: "Disbursed",
   active: "Active",
   completed: "Completed",
   rejected: "Rejected",
+  cancelled: "Cancelled",
   defaulted: "Defaulted",
+  written_off: "Written off",
+  recovered: "Recovered",
+  restructured: "Restructured",
 });
 
 const DEFAULT_ERROR_MESSAGE =
   "We could not load the loan portfolio. Please try again.";
-
-const DEFAULT_APPROVAL_ERROR =
-  "We could not approve this loan. Please try again.";
 
 const MAX_LOANS_PER_RESPONSE = 5000;
 
@@ -159,40 +158,11 @@ function getStatusLabel(value) {
 }
 
 /**
- * Safely convert an unknown financial value to a finite number.
- *
- * This is only used for presentation/statistical aggregation.
- * It does not replace server-side financial calculations.
- */
-function toFiniteNumber(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  const number = Number(value);
-
-  return Number.isFinite(number) ? number : 0;
-}
-
-/**
- * Format UGX values consistently.
+ * Format exact integer monetary values for display only. Unsafe coercions are
+ * rejected; authoritative loan balances remain in the backend ledger services.
  */
 function formatCurrency(value) {
-  const amount = toFiniteNumber(value);
-
-  try {
-    return new Intl.NumberFormat("en-UG", {
-      style: "currency",
-      currency: "UGX",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch (_) {
-    return `UGX ${Math.round(amount).toLocaleString("en-UG")}`;
-  }
+  return formatExactIntegerCurrency(value, "UGX", "en-UG");
 }
 
 /**
@@ -368,17 +338,13 @@ function normalizeLoan(loan) {
 
     status: normalizeStatus(loan.status),
 
-    amount: toFiniteNumber(
+    amount:
       loan.amount ??
-        loan.principal ??
-        loan.requestedAmount
-    ),
+      loan.principal ??
+      loan.requestedAmount ??
+      null,
 
-    balance: toFiniteNumber(
-      loan.balance ??
-        loan.outstandingBalance ??
-        loan.remainingBalance
-    ),
+    balance: loan.balance ?? loan.outstandingBalance ?? loan.remainingBalance ?? null,
 
     createdAt:
       loan.createdAt ??
@@ -475,19 +441,19 @@ function LoanSkeleton() {
 
 export default function Loans() {
   const navigate = useNavigate();
-
-  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const memberIdFilter = searchParams.get("memberId") || "";
 
   const mountedRef = useRef(false);
   const abortRef = useRef(null);
   const refreshRef = useRef(null);
   const requestSequenceRef = useRef(0);
-  const approvalInFlightRef = useRef(new Set());
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const [loans, setLoans] = useState([]);
+  const [portfolioSummary, setPortfolioSummary] = useState({ total: 0, recordedPrincipal: null, active: 0, pending: 0, defaulted: 0 });
 
   const [error, setError] = useState("");
 
@@ -497,22 +463,9 @@ export default function Loans() {
     useState("all");
 
   const [page, setPage] = useState(1);
+  const [serverPagination, setServerPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, pages: 0 });
 
-  const [, forceApprovalRender] = useState(0);
 
-  /* ==========================================================================
-   * Permissions
-   * ======================================================================== */
-
-  const isAdmin = useMemo(() => {
-    const role = String(
-      user?.role ?? ""
-    )
-      .trim()
-      .toLowerCase();
-
-    return ADMIN_ROLES.has(role);
-  }, [user?.role]);
 
   /* ==========================================================================
    * Fetch Loans
@@ -550,11 +503,7 @@ export default function Loans() {
       try {
         const response = await api.get(
           API_ENDPOINTS.LOANS,
-          controller
-            ? {
-                signal: controller.signal,
-              }
-            : undefined
+          { params: { page, limit: PAGE_SIZE, search: search.trim() || undefined, status: statusFilter, memberId: memberIdFilter || undefined }, ...(controller ? { signal: controller.signal } : {}) }
         );
 
         if (
@@ -565,10 +514,12 @@ export default function Loans() {
           return;
         }
 
-        const normalizedLoans =
-          normalizeLoans(response);
-
+        const normalizedLoans = normalizeLoans(response);
         setLoans(normalizedLoans);
+        const payload = response?.data ?? response;
+        const data = payload?.data ?? payload;
+        setServerPagination(data?.pagination || { page, limit: PAGE_SIZE, total: normalizedLoans.length, pages: normalizedLoans.length ? 1 : 0 });
+        setPortfolioSummary(data?.summary || { total: Number(data?.pagination?.total) || normalizedLoans.length, recordedPrincipal: null, active: 0, pending: 0, defaulted: 0 });
       } catch (requestError) {
         if (
           !mountedRef.current ||
@@ -598,7 +549,7 @@ export default function Loans() {
         }
       }
     },
-    []
+    [memberIdFilter, page, search, statusFilter]
   );
 
   /* ==========================================================================
@@ -647,7 +598,6 @@ export default function Loans() {
         abortRef.current = null;
       }
 
-      approvalInFlightRef.current.clear();
     };
   }, [fetchLoans]);
 
@@ -696,6 +646,10 @@ export default function Loans() {
       const searchableFields = [
         loan.loanNumber,
         loan.memberName,
+        loan.member?.memberNumber,
+        loan.purpose,
+        loan.description,
+        loan.reason,
         loan.status,
         loan._id,
       ];
@@ -727,76 +681,27 @@ export default function Loans() {
    * Pagination
    * ======================================================================== */
 
-  const totalPages = useMemo(
-    () =>
-      Math.max(
-        1,
-        Math.ceil(
-          filteredLoans.length /
-            PAGE_SIZE
-        )
-      ),
-    [filteredLoans.length]
-  );
+  const totalPages = Math.max(1, Number(serverPagination.pages) || 1);
+  const paginatedLoans = filteredLoans;
 
   useEffect(() => {
-    setPage((currentPage) =>
-      Math.min(
-        Math.max(currentPage, 1),
-        totalPages
-      )
-    );
-  }, [totalPages]);
-
-  const paginatedLoans = useMemo(() => {
-    const start =
-      (page - 1) * PAGE_SIZE;
-
-    return filteredLoans.slice(
-      start,
-      start + PAGE_SIZE
-    );
-  }, [filteredLoans, page]);
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   /* ==========================================================================
    * Statistics
    * ======================================================================== */
 
   const stats = useMemo(() => {
-    let totalAmount = 0;
-    let active = 0;
-    let pending = 0;
-    let defaulted = 0;
-
-    for (const loan of loans) {
-      totalAmount += toFiniteNumber(
-        loan.amount
-      );
-
-      const status =
-        normalizeStatus(loan.status);
-
-      if (status === "active") {
-        active += 1;
-      }
-
-      if (status === "pending") {
-        pending += 1;
-      }
-
-      if (status === "defaulted") {
-        defaulted += 1;
-      }
-    }
-
+    const summary = portfolioSummary;
     return {
-      totalLoans: loans.length,
-      totalAmount,
-      active,
-      pending,
-      defaulted,
+      totalLoans: Number(summary.total ?? loans.length),
+      totalAmount: summary.recordedPrincipal ?? null,
+      active: Number(summary.active ?? loans.filter((loan) => ["active", "disbursed"].includes(normalizeStatus(loan.status))).length),
+      pending: Number(summary.pending ?? loans.filter((loan) => ["pending", "credit_review", "manual_review"].includes(normalizeStatus(loan.status))).length),
+      defaulted: Number(summary.defaulted ?? loans.filter((loan) => ["defaulted", "written_off"].includes(normalizeStatus(loan.status))).length),
     };
-  }, [loans]);
+  }, [loans, portfolioSummary]);
 
   /* ==========================================================================
    * Retry
@@ -821,131 +726,9 @@ export default function Loans() {
   }, [fetchLoans, refreshing]);
 
   /* ==========================================================================
-   * Loan Approval
-   * ======================================================================== */
-
-  const approveLoan = useCallback(
-    async (loan) => {
-      const loanId = getEntityId(loan);
-
-      if (!loanId) {
-        toast.error(
-          "This loan could not be identified."
-        );
-        return;
-      }
-
-      if (!isAdmin) {
-        toast.error(
-          "You are not authorized to approve loans."
-        );
-        return;
-      }
-
-      const status =
-        normalizeStatus(loan.status);
-
-      if (status !== "pending") {
-        toast.info(
-          "Only pending loans can be approved."
-        );
-        return;
-      }
-
-      if (
-        approvalInFlightRef.current.has(
-          String(loanId)
-        )
-      ) {
-        return;
-      }
-
-      const confirmed =
-        typeof window === "undefined"
-          ? true
-          : window.confirm(
-              `Approve loan ${
-                loan.loanNumber ||
-                loanId
-              }?`
-            );
-
-      if (!confirmed) {
-        return;
-      }
-
-      approvalInFlightRef.current.add(
-        String(loanId)
-      );
-
-      forceApprovalRender((value) =>
-        value + 1
-      );
-
-      try {
-        await api.post(
-          API_ENDPOINTS.APPROVE(loanId),
-          {},
-          {
-            headers: {
-              /*
-               * The backend should enforce idempotency for this financial
-               * mutation. A stable operation key prevents accidental duplicate
-               * approval processing during retries.
-               */
-              "Idempotency-Key": `loan-approval:${String(
-                loanId
-              )}`,
-            },
-          }
-        );
-
-        toast.success(
-          "Loan approved successfully."
-        );
-
-        await fetchLoans({
-          silent: true,
-        });
-      } catch (approvalError) {
-        const message =
-          getErrorMessage(
-            approvalError,
-            DEFAULT_APPROVAL_ERROR
-          );
-
-        if (message) {
-          toast.error(message);
-        }
-      } finally {
-        approvalInFlightRef.current.delete(
-          String(loanId)
-        );
-
-        if (mountedRef.current) {
-          forceApprovalRender((value) =>
-            value + 1
-          );
-        }
-      }
-    },
-    [fetchLoans, isAdmin]
-  );
-
-  /* ==========================================================================
    * Navigation
    * ======================================================================== */
 
-  const handleCreateLoan = useCallback(() => {
-    if (!isAdmin) {
-      toast.error(
-        "You are not authorized to create loans."
-      );
-      return;
-    }
-
-    navigate("/loans/new");
-  }, [isAdmin, navigate]);
 
   const handleViewLoan = useCallback(
     (loanId) => {
@@ -962,20 +745,6 @@ export default function Loans() {
     [navigate]
   );
 
-  const handleEditLoan = useCallback(
-    (loanId) => {
-      if (!isAdmin || !loanId) {
-        return;
-      }
-
-      navigate(
-        `/loans/${encodeURIComponent(
-          loanId
-        )}/edit`
-      );
-    },
-    [isAdmin, navigate]
-  );
 
   /* ==========================================================================
    * Pagination Controls
@@ -1029,7 +798,7 @@ export default function Loans() {
           <table className="loans-table">
             <thead>
               <tr>
-                <th>Loan #</th>
+                <th>Loan ID</th>
                 <th>Member</th>
                 <th>Amount</th>
                 <th>Balance</th>
@@ -1072,7 +841,7 @@ export default function Loans() {
               className="loans-eyebrow"
               aria-hidden="true"
             >
-              TITech Community Capital
+              TITech Community Capital · Community Finance. Stronger Together.
             </span>
 
             <h1 id="loans-page-title">
@@ -1080,9 +849,7 @@ export default function Loans() {
             </h1>
 
             <p>
-              Manage member loans,
-              approvals and portfolio
-              activity.
+              Review tenant-scoped loan records and portfolio activity. Financial approval, disbursement and repayment actions remain in authorized backend workflows.
             </p>
           </div>
 
@@ -1112,22 +879,6 @@ export default function Loans() {
               </span>
             </button>
 
-            {isAdmin && (
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={
-                  handleCreateLoan
-                }
-              >
-                <Plus
-                  size={18}
-                  aria-hidden="true"
-                />
-
-                <span>New Loan</span>
-              </button>
-            )}
           </div>
         </div>
       </header>
@@ -1149,9 +900,7 @@ export default function Loans() {
 
         <StatsCard
           title="Portfolio"
-          value={formatCurrency(
-            stats.totalAmount
-          )}
+          value={stats.totalAmount === null || stats.totalAmount === undefined ? "Not reported" : formatCurrency(stats.totalAmount)}
           icon={CreditCard}
           description="Total recorded principal"
         />
@@ -1202,7 +951,7 @@ export default function Loans() {
           <input
             id="loan-search"
             type="search"
-            placeholder="Search by loan number or member…"
+            placeholder="Search by loan ID, purpose or member…"
             value={search}
             onChange={
               handleSearchChange
@@ -1302,8 +1051,8 @@ export default function Loans() {
               aria-live="polite"
               aria-atomic="true"
             >
-              {filteredLoans.length}{" "}
-              {filteredLoans.length === 1
+              {Number(serverPagination.total) || 0}{" "}
+              {Number(serverPagination.total) === 1
                 ? "loan"
                 : "loans"}{" "}
               found
@@ -1320,7 +1069,7 @@ export default function Loans() {
             />
 
             <span>
-              Server-authoritative
+              Tenant-scoped read-only records
             </span>
           </div>
         </div>
@@ -1373,7 +1122,7 @@ export default function Loans() {
               <thead>
                 <tr>
                   <th scope="col">
-                    Loan #
+                    Loan ID
                   </th>
 
                   <th scope="col">
@@ -1385,7 +1134,7 @@ export default function Loans() {
                   </th>
 
                   <th scope="col">
-                    Balance
+                    Recorded balance*
                   </th>
 
                   <th scope="col">
@@ -1409,11 +1158,6 @@ export default function Loans() {
                   (loan) => {
                     const loanId =
                       getEntityId(loan);
-
-                    const approvalInFlight =
-                      approvalInFlightRef.current.has(
-                        String(loanId)
-                      );
 
                     return (
                       <tr
@@ -1457,9 +1201,7 @@ export default function Loans() {
 
                         <td>
                           <span className="loan-balance">
-                            {formatCurrency(
-                              loan.balance
-                            )}
+                            {loan.balance === null ? "Not available" : formatCurrency(loan.balance)}
                           </span>
                         </td>
 
@@ -1485,82 +1227,10 @@ export default function Loans() {
                         </td>
 
                         <td>
-                          <div
-                            className="action-buttons"
-                            aria-label={`Actions for loan ${loan.loanNumber}`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleViewLoan(
-                                  loanId
-                                )
-                              }
-                              title="View loan"
-                              aria-label={`View loan ${loan.loanNumber}`}
-                            >
-                              <Eye
-                                size={16}
-                                aria-hidden="true"
-                              />
+                          <div className="action-buttons" aria-label={`Actions for loan ${loan.loanNumber}`}>
+                            <button type="button" onClick={() => handleViewLoan(loanId)} title="View loan" aria-label={`View loan ${loan.loanNumber}`}>
+                              <Eye size={16} aria-hidden="true" />
                             </button>
-
-                            {isAdmin && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleEditLoan(
-                                      loanId
-                                    )
-                                  }
-                                  title="Edit loan"
-                                  aria-label={`Edit loan ${loan.loanNumber}`}
-                                >
-                                  <Edit
-                                    size={16}
-                                    aria-hidden="true"
-                                  />
-                                </button>
-
-                                {normalizeStatus(
-                                  loan.status
-                                ) ===
-                                  "pending" && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      approveLoan(
-                                        loan
-                                      )
-                                    }
-                                    disabled={
-                                      approvalInFlight
-                                    }
-                                    title={
-                                      approvalInFlight
-                                        ? "Approval in progress"
-                                        : "Approve loan"
-                                    }
-                                    aria-label={
-                                      approvalInFlight
-                                        ? `Approval in progress for loan ${loan.loanNumber}`
-                                        : `Approve loan ${loan.loanNumber}`
-                                    }
-                                    aria-busy={
-                                      approvalInFlight
-                                    }
-                                  >
-                                    <CheckCircle
-                                      size={
-                                        16
-                                      }
-                                      aria-hidden="true"
-                                    />
-                                  </button>
-                                )}
-                              </>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -1576,8 +1246,7 @@ export default function Loans() {
          * Pagination
          * ================================================================== */}
 
-        {filteredLoans.length >
-          PAGE_SIZE && (
+        {totalPages > 1 && (
           <footer
             className="pagination"
             aria-label="Loan pagination"

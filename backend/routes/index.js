@@ -37,6 +37,9 @@ import crypto from 'node:crypto';
 import { param, validationResult } from 'express-validator';
 import systemSettingRoutesModule from './systemSettingRoutes.js';
 import ussdGatewayRoutes from '../modules/ussd/ussd.routes.js';
+import memberReadRoutes from './member-read.routes.js';
+import loanReadRoutes from './loan-read.routes.js';
+import savingsReadRoutes from './savings-read.routes.js';
 
 /**
  * =============================================================================
@@ -1827,8 +1830,17 @@ function registerRoutes(
     );
 
     app.use('/api/admin', platformDashboardRoutes);
+    // Legacy /api/members remains for backward compatibility. The current
+    // product directory/profile use the tenant-scoped Member domain routes.
     app.use('/api/members', platformDashboardRoutes);
     app.use('/api/reports', platformDashboardRoutes);
+
+    // Canonical read-only member, loan and savings boundaries. Authentication
+    // and trusted tenant resolution are enforced before resource RBAC and
+    // tenant-scoped model queries inside each router.
+    app.use('/api/v1/members', authenticate, tenantAuthorization, memberReadRoutes);
+    app.use('/api/v1/loans', authenticate, tenantAuthorization, loanReadRoutes);
+    app.use('/api/v1/savings', authenticate, tenantAuthorization, savingsReadRoutes);
 
     app.use(
         '/api/email',
@@ -1959,6 +1971,14 @@ function registerRoutes(
             '/api/v1/system-settings',
         ]),
 
+        registered: true,
+    });
+
+    app.locals.titechTenantReadRoutes = Object.freeze({
+        members: '/api/v1/members',
+        loans: '/api/v1/loans',
+        savings: '/api/v1/savings',
+        mutations: 'delegated-to-existing-domain-workflows',
         registered: true,
     });
 

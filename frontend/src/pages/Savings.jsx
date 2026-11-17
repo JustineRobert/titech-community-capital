@@ -16,10 +16,9 @@
  * - Search and transaction-type filtering
  * - Stable client-side pagination
  * - Defensive currency/date formatting
- * - Role-aware transaction creation
  * - Accessible controls, table semantics and status messaging
  * - Empty states and resilient error handling
- * - No TITech terminology
+ * - TITech brand and financial status terminology
  * ============================================================================
  */
 
@@ -39,18 +38,17 @@ import {
   ArrowUpCircle,
   Eye,
   PiggyBank,
-  Plus,
   RefreshCw,
   Search,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { formatExactIntegerCurrency, parseExactIntegerAmount } from '../utils/moneyDisplay';
 
 import './Savings.css';
 
@@ -60,28 +58,29 @@ import './Savings.css';
 
 const PAGE_SIZE = 10;
 const AUTO_REFRESH_INTERVAL = 60_000;
-const MAX_RENDERED_TRANSACTIONS = 2_000;
+const MAX_SEARCH_LENGTH = 100;
 
 const TRANSACTION_TYPES = Object.freeze([
   'all',
   'deposit',
   'withdrawal',
-  'interest',
-  'adjustment',
-]);
-
-const CREATE_TRANSACTION_ROLES = new Set([
-  'admin',
-  'super_admin',
-  'cashier',
-  'teller',
+  'contribution',
+  'loan_disbursement',
+  'loan_repayment',
+  'settlement',
+  'transfer',
+  'refund',
 ]);
 
 const READABLE_TRANSACTION_TYPES = Object.freeze({
   deposit: 'Deposit',
   withdrawal: 'Withdrawal',
-  interest: 'Interest',
-  adjustment: 'Adjustment',
+  contribution: 'Contribution',
+  loan_disbursement: 'Loan disbursement',
+  loan_repayment: 'Loan repayment',
+  settlement: 'Settlement',
+  transfer: 'Transfer',
+  refund: 'Refund',
 });
 
 const DEFAULT_ERROR_MESSAGE =
@@ -158,28 +157,7 @@ function formatTransactionType(value) {
 }
 
 function formatCurrency(value) {
-  const numericValue = Number(value);
-
-  const safeValue = Number.isFinite(
-    numericValue,
-  )
-    ? numericValue
-    : 0;
-
-  try {
-    return new Intl.NumberFormat(
-      'en-UG',
-      {
-        style: 'currency',
-        currency: 'UGX',
-        maximumFractionDigits: 0,
-      },
-    ).format(safeValue);
-  } catch {
-    return `UGX ${Math.round(
-      safeValue,
-    ).toLocaleString('en-UG')}`;
-  }
+  return formatExactIntegerCurrency(value, 'UGX', 'en-UG');
 }
 
 function formatDate(value) {
@@ -341,19 +319,8 @@ function normalizeTransaction(transaction, index) {
         'adjustment',
     ),
 
-    amount: Number(
-      transaction?.amount ??
-        transaction?.value ??
-        0,
-    ),
-
-    balance:
-      transaction?.balance ===
-      undefined
-        ? null
-        : Number(
-            transaction?.balance ?? 0,
-          ),
+    // Preserve the exact backend representation; do not coerce money to Number.
+    amount: transaction?.amount ?? transaction?.value ?? null,
 
     createdAt:
       transaction?.createdAt ||
@@ -370,53 +337,11 @@ function normalizeTransaction(transaction, index) {
     ),
 
     status: normalizeStatusValue(
-      transaction?.status || 'completed',
+      transaction?.status || 'unknown',
     ),
   };
 }
 
-function calculateSignedAmount(transaction) {
-  const amount = Number(
-    transaction?.amount || 0,
-  );
-
-  if (!Number.isFinite(amount)) {
-    return 0;
-  }
-
-  switch (
-    normalizeTransactionType(
-      transaction?.type,
-    )
-  ) {
-    case 'withdrawal':
-      return -Math.abs(amount);
-
-    case 'deposit':
-    case 'interest':
-      return Math.abs(amount);
-
-    case 'adjustment': {
-      const explicitSignedAmount =
-        Number(
-          transaction?.signedAmount,
-        );
-
-      if (
-        Number.isFinite(
-          explicitSignedAmount,
-        )
-      ) {
-        return explicitSignedAmount;
-      }
-
-      return amount;
-    }
-
-    default:
-      return 0;
-  }
-}
 
 /* ============================================================================
  * Statistic Card
@@ -570,8 +495,9 @@ function SavingsEmptyState({
 
 export default function Savings() {
   const navigate = useNavigate();
-
-  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const memberIdFilter = searchParams.get('memberId') || '';
+  const accountIdFilter = searchParams.get('accountId') || ''; 
 
   const mountedRef = useRef(false);
   const refreshTimerRef = useRef(null);
@@ -613,25 +539,8 @@ export default function Savings() {
     setPage,
   ] = useState(1);
 
-  /* --------------------------------------------------------------------------
-   * Permissions
-   * ------------------------------------------------------------------------ */
+  const [serverPagination, setServerPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, pages: 1 });
 
-  const userRole = useMemo(
-    () =>
-      String(
-        user?.role || '',
-      ).toLowerCase(),
-    [user?.role],
-  );
-
-  const canCreate = useMemo(
-    () =>
-      CREATE_TRANSACTION_ROLES.has(
-        userRole,
-      ),
-    [userRole],
-  );
 
   /* --------------------------------------------------------------------------
    * Load transactions
@@ -675,13 +584,15 @@ export default function Savings() {
         try {
           const response =
             await api.get(
-              '/api/savings',
-              controller
-                ? {
-                    signal:
-                      controller.signal,
-                  }
-                : undefined,
+              '/api/v1/savings',
+              { params: {
+                page,
+                limit: PAGE_SIZE,
+                search: search.trim().slice(0, MAX_SEARCH_LENGTH) || undefined,
+                type: typeFilter === 'all' ? undefined : typeFilter.toUpperCase(),
+                memberId: memberIdFilter || undefined,
+                accountId: accountIdFilter || undefined,
+              }, ...(controller ? { signal: controller.signal } : {}) },
             );
 
           if (
@@ -697,19 +608,17 @@ export default function Savings() {
               response,
             );
 
-          const normalized =
-            collection
-              .slice(
-                0,
-                MAX_RENDERED_TRANSACTIONS,
-              )
-              .map(
-                normalizeTransaction,
-              );
+          const normalized = collection.map(normalizeTransaction);
+          const payload = response?.data ?? response;
+          const data = payload?.data ?? payload;
 
-          setTransactions(
-            normalized,
-          );
+          setTransactions(normalized);
+          setServerPagination({
+            page: Number(data?.pagination?.page) || page,
+            limit: Number(data?.pagination?.limit) || PAGE_SIZE,
+            total: Number(data?.pagination?.total ?? data?.total) || 0,
+            pages: Math.max(1, Number(data?.pagination?.pages) || 1),
+          });
         } catch (requestError) {
           if (
             !mountedRef.current ||
@@ -744,7 +653,7 @@ export default function Savings() {
           }
         }
       },
-      [],
+      [memberIdFilter, accountIdFilter, page, search, typeFilter],
     );
 
   /* --------------------------------------------------------------------------
@@ -817,60 +726,13 @@ export default function Savings() {
       [search],
     );
 
-  const filteredTransactions =
-    useMemo(() => {
-      return transactions.filter(
-        (transaction) => {
-          if (
-            typeFilter !== 'all' &&
-            transaction.type !==
-              typeFilter
-          ) {
-            return false;
-          }
-
-          if (!normalizedSearch) {
-            return true;
-          }
-
-          const searchableText = [
-            transaction.reference,
-            transaction.memberName,
-            transaction.memberId,
-            transaction.channel,
-            transaction.type,
-            transaction.status,
-          ]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase();
-
-          return searchableText.includes(
-            normalizedSearch,
-          );
-        },
-      );
-    }, [
-      transactions,
-      typeFilter,
-      normalizedSearch,
-    ]);
+  const filteredTransactions = transactions;
 
   /* --------------------------------------------------------------------------
    * Pagination
    * ------------------------------------------------------------------------ */
 
-  const totalPages = useMemo(
-    () =>
-      Math.max(
-        1,
-        Math.ceil(
-          filteredTransactions.length /
-            PAGE_SIZE,
-        ),
-      ),
-    [filteredTransactions.length],
-  );
+  const totalPages = Math.max(1, Number(serverPagination.pages) || 1);
 
   useEffect(() => {
     setPage((currentPage) =>
@@ -881,137 +743,39 @@ export default function Savings() {
     );
   }, [totalPages]);
 
-  const paginatedTransactions =
-    useMemo(() => {
-      const safePage = Math.min(
-        Math.max(page, 1),
-        totalPages,
-      );
+  const paginatedTransactions = filteredTransactions;
 
-      const start =
-        (safePage - 1) *
-        PAGE_SIZE;
+  const pageStart = serverPagination.total === 0
+    ? 0
+    : (Math.min(Math.max(page, 1), totalPages) - 1) * PAGE_SIZE + 1;
 
-      return filteredTransactions.slice(
-        start,
-        start + PAGE_SIZE,
-      );
-    }, [
-      filteredTransactions,
-      page,
-      totalPages,
-    ]);
-
-  const pageStart =
-    filteredTransactions.length ===
-    0
-      ? 0
-      : (Math.min(
-          Math.max(page, 1),
-          totalPages,
-        ) -
-          1) *
-          PAGE_SIZE +
-        1;
-
-  const pageEnd = Math.min(
-    pageStart +
-      paginatedTransactions.length -
-      1,
-    filteredTransactions.length,
-  );
+  const pageEnd = Math.min(pageStart + paginatedTransactions.length - 1, serverPagination.total);
 
   /* --------------------------------------------------------------------------
    * Portfolio statistics
    * ------------------------------------------------------------------------ */
 
   const stats = useMemo(() => {
-    let deposits = 0;
-    let withdrawals = 0;
-    let interest = 0;
-    let adjustments = 0;
-    let totalSigned = 0;
+    let deposits = 0n;
+    let withdrawals = 0n;
+    let otherActivity = 0n;
+    let successOrSettledStatusCount = 0;
 
-    transactions.forEach(
-      (transaction) => {
-        const amount = Number(
-          transaction.amount || 0,
-        );
+    transactions.forEach((transaction) => {
+      const status = normalizeStatusValue(transaction.status);
+      if (!['success', 'settled'].includes(status)) return;
+      const exactAmount = parseExactIntegerAmount(transaction.amount);
+      if (exactAmount === null) return;
+      successOrSettledStatusCount += 1;
+      switch (transaction.type) {
+        case 'deposit': deposits += exactAmount; break;
+        case 'withdrawal': withdrawals += exactAmount; break;
+        default: otherActivity += exactAmount; break;
+      }
+    });
 
-        if (!Number.isFinite(amount)) {
-          return;
-        }
-
-        switch (transaction.type) {
-          case 'deposit':
-            deposits += Math.abs(
-              amount,
-            );
-            break;
-
-          case 'withdrawal':
-            withdrawals += Math.abs(
-              amount,
-            );
-            break;
-
-          case 'interest':
-            interest += Math.abs(
-              amount,
-            );
-            break;
-
-          case 'adjustment':
-            adjustments += amount;
-            break;
-
-          default:
-            break;
-        }
-
-        totalSigned +=
-          calculateSignedAmount(
-            transaction,
-          );
-      },
-    );
-
-    const currentBalance =
-      transactions.some(
-        (transaction) =>
-          Number.isFinite(
-            Number(
-              transaction.balance,
-            ),
-          ) &&
-          transaction.balance !==
-            null,
-      )
-        ? Number(
-            [...transactions]
-              .reverse()
-              .find(
-                (transaction) =>
-                  transaction.balance !==
-                    null &&
-                  Number.isFinite(
-                    Number(
-                      transaction.balance,
-                    ),
-                  ),
-              )?.balance ?? 0,
-          )
-        : totalSigned;
-
-    return {
-      count: transactions.length,
-      deposits,
-      withdrawals,
-      interest,
-      adjustments,
-      balance: currentBalance,
-    };
-  }, [transactions]);
+    return { count: serverPagination.total, pageCount: transactions.length, successOrSettledStatusCount, deposits, withdrawals, otherActivity, balance: null };
+  }, [transactions, serverPagination.total]);
 
   /* --------------------------------------------------------------------------
    * Filter reset
@@ -1048,11 +812,6 @@ export default function Savings() {
    * Navigation
    * ------------------------------------------------------------------------ */
 
-  const handleCreateTransaction =
-    useCallback(() => {
-      navigate('/savings/new');
-    }, [navigate]);
-
   const handleViewTransaction =
     useCallback(
       (transactionId) => {
@@ -1061,7 +820,7 @@ export default function Savings() {
         }
 
         navigate(
-          `/savings/${encodeURIComponent(
+          `/savings/transactions/${encodeURIComponent(
             String(transactionId),
           )}`,
         );
@@ -1145,22 +904,20 @@ export default function Savings() {
         <div className="savings-header-content">
           <div>
             <div className="savings-eyebrow">
-              TITech Community Capital
+              TITech Community Capital · Community Finance. Stronger Together.
             </div>
 
             <h1 id="savings-page-title">
-              Savings Portfolio
+              Savings Activity
             </h1>
 
             <p>
-              Monitor deposits,
-              withdrawals,
-              interest and
-              account activity.
+              Search and review tenant-scoped savings transactions. Amount summaries describe only the current page; this activity view is not a ledger-confirmed account balance.
             </p>
           </div>
 
           <div className="savings-header-actions">
+            <button type="button" className="secondary-btn" onClick={() => navigate('/savings/accounts')}>Savings accounts</button>
             <button
               type="button"
               className="secondary-btn refresh-btn"
@@ -1185,24 +942,6 @@ export default function Savings() {
               </span>
             </button>
 
-            {canCreate && (
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={
-                  handleCreateTransaction
-                }
-              >
-                <Plus
-                  size={18}
-                  aria-hidden="true"
-                />
-
-                <span>
-                  New Transaction
-                </span>
-              </button>
-            )}
           </div>
         </div>
       </header>
@@ -1213,7 +952,7 @@ export default function Savings() {
 
       <section
         className="savings-stats"
-        aria-label="Savings portfolio summary"
+        aria-label="Current page savings transaction summary"
       >
         <StatsCard
           title="Transactions"
@@ -1224,7 +963,7 @@ export default function Savings() {
         />
 
         <StatsCard
-          title="Deposits"
+          title="Page deposits"
           value={formatCurrency(
             stats.deposits,
           )}
@@ -1233,7 +972,7 @@ export default function Savings() {
         />
 
         <StatsCard
-          title="Withdrawals"
+          title="Page withdrawals"
           value={formatCurrency(
             stats.withdrawals,
           )}
@@ -1242,9 +981,9 @@ export default function Savings() {
         />
 
         <StatsCard
-          title="Interest"
+          title="Other page activity"
           value={formatCurrency(
-            stats.interest,
+            stats.otherActivity,
           )}
           icon={TrendingUp}
           tone="positive"
@@ -1252,13 +991,14 @@ export default function Savings() {
 
         <StatsCard
           title="Current Balance"
-          value={formatCurrency(
-            stats.balance,
-          )}
+          value="Ledger-confirmed balance required"
           icon={PiggyBank}
           tone="primary"
         />
       </section>
+      <p className="savings-financial-disclaimer" role="note">
+        {stats.successOrSettledStatusCount.toLocaleString('en-UG')} of {stats.pageCount.toLocaleString('en-UG')} transactions on this page have a SUCCESS or SETTLED status. That status alone does not prove provider settlement or ledger posting; verify the canonical financial and reconciliation records before treating funds as settled.
+      </p>
 
       {/* ----------------------------------------------------------------------
        * Error Banner
@@ -1324,11 +1064,11 @@ export default function Savings() {
             type="search"
             inputMode="search"
             autoComplete="off"
-            placeholder="Search reference, member, channel…"
+            placeholder="Search reference, member, account or channel…"
             value={search}
             onChange={(event) => {
               setSearch(
-                event.target.value,
+                event.target.value.slice(0, MAX_SEARCH_LENGTH),
               );
             }}
           />
@@ -1405,11 +1145,11 @@ export default function Savings() {
           </strong>
 
           <span>
-            {filteredTransactions.length.toLocaleString(
+            {serverPagination.total.toLocaleString(
               'en-UG',
             )}{' '}
             matching record
-            {filteredTransactions.length ===
+            {serverPagination.total ===
             1
               ? ''
               : 's'}
@@ -1422,7 +1162,7 @@ export default function Savings() {
         >
           {refreshing
             ? 'Synchronizing…'
-            : 'Live data'}
+            : 'Server-filtered results'}
         </div>
       </div>
 
@@ -1615,7 +1355,7 @@ export default function Savings() {
 
       <footer className="pagination">
         <div className="pagination-summary">
-          {filteredTransactions.length >
+          {serverPagination.total >
           0 ? (
             <>
               Showing{' '}
@@ -1628,7 +1368,7 @@ export default function Savings() {
               </strong>{' '}
               of{' '}
               <strong>
-                {filteredTransactions.length.toLocaleString(
+                {serverPagination.total.toLocaleString(
                   'en-UG',
                 )}
               </strong>

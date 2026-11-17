@@ -1,0 +1,4 @@
+scope,files_scanned,official_palette_hex_occurrences,status,notes,evidence
+non-brand frontend CSS,77,0,PASS,Central official theme audit reports all scanned CSS consuming shared tokens; this does not restate historical generic colour literal count.,reports/official-theme-audit.json
+root/app dashboard theme runtime,,,PASS,Existing light/dark theme bootstrap and semantic palette retained; affected new CSS uses shared token variables.,branding/TITECH_OFFICIAL_THEME.json; frontend/src/branding/official-theme.css
+"historical 1,613 colour-literal metric",,,NOT_REMEASURED,Different historical scanner/scope; must not be conflated with official palette hex scan.,TITECH_PLATFORM_TRUTH.md historical inventory

@@ -87,6 +87,15 @@ export const PERMISSIONS = Object.freeze({
     'ROLE_DEMOTE',
     'ROLE_REVOKE',
   ],
+  MEMBER: [
+    'MEMBER_VIEW',
+  ],
+  LOAN: [
+    'LOAN_VIEW',
+  ],
+  SAVINGS: [
+    'SAVINGS_VIEW',
+  ],
   GROUP: [
     'GROUP_CREATE',
     'GROUP_VIEW',
@@ -150,6 +159,9 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     'TENANT_INVITE_USER',
     ...PERMISSIONS.ROLE,
     ...PERMISSIONS.GROUP,
+    ...PERMISSIONS.MEMBER,
+    ...PERMISSIONS.LOAN,
+    ...PERMISSIONS.SAVINGS,
     ...PERMISSIONS.MEMBERSHIP,
     'DASHBOARD_VIEW_TENANT',
     'DASHBOARD_VIEW_GROUP',

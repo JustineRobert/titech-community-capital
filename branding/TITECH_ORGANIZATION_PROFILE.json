@@ -34,5 +34,11 @@
     "evidenceSource": "USER_UPLOADED_DOCUMENT",
     "verificationStatus": "CERTIFICATE_PROVIDED_NOT_INDEPENDENTLY_VERIFIED",
     "sha256": "81df8a5c6c200b29248413376c40541131639e865b595670159bdf47b9cbbe99"
+  },
+  "officialContacts": {
+    "email": "titechcapital@gmail.com",
+    "telephone": "+256782397907",
+    "whatsapp": "+256772123546",
+    "sourceStatus": "USER_SUPPLIED_CONTACT_RECORD"
   }
 }

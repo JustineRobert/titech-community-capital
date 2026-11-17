@@ -59,6 +59,7 @@ import {
   MapPin,
   Phone,
   ArrowUpRight,
+  MessageCircle,
 } from 'lucide-react';
 
 import PropTypes from 'prop-types';
@@ -88,7 +89,7 @@ export const FOOTER_CONSTANTS = Object.freeze({
     'Community financial infrastructure for a stronger, more inclusive Africa — connecting trusted records, payments, communities, capital and opportunity.',
 
   CONTACT_EMAIL:
-    'info@titechcommunity.app',
+    TITECH_BRAND.organization.officialContacts.email,
 
   SUPPORT_EMAIL:
     'support@titechcommunity.app',
@@ -97,10 +98,14 @@ export const FOOTER_CONSTANTS = Object.freeze({
     'legal@titechcommunity.app',
 
   PHONE_NUMBER:
-    '+256782397907',
+    TITECH_BRAND.organization.officialContacts.telephone,
 
   DISPLAY_PHONE:
-    '+256 (782) 397907',
+    '+256 782 397907',
+
+  WHATSAPP_NUMBER:
+    TITECH_BRAND.organization.officialContacts.whatsapp,
+
 
   // Preserve the pre-existing additional address as a separately labelled
   // record; the new postal address is represented by distinct fields below.
@@ -131,6 +136,7 @@ const {
   LEGAL_EMAIL,
   PHONE_NUMBER,
   DISPLAY_PHONE,
+  WHATSAPP_NUMBER,
   COMPANY_ADDRESS,
   COMPANY_POSTAL_ADDRESS,
   COMPANY_POSTAL_LOCATION,
@@ -269,6 +275,13 @@ const normalizePhoneHref = (
   return normalizedPhone
     ? `tel:${normalizedPhone}`
     : '';
+};
+
+/** Build a WhatsApp deep link from an E.164 phone number. */
+const normalizeWhatsAppHref = (phone) => {
+  if (typeof phone !== 'string' || !phone.trim()) return '';
+  const digits = phone.trim().replace(/\D/g, '');
+  return digits ? `https://wa.me/${digits}` : '';
 };
 
 /**
@@ -666,6 +679,7 @@ function Footer({
   legalEmail,
   phone,
   phoneHref,
+  whatsapp,
   address,
   postalAddress,
   postalLocation,
@@ -723,6 +737,9 @@ function Footer({
         phoneHref,
       ],
     );
+
+  const resolvedWhatsAppHref =
+    useMemo(() => normalizeWhatsAppHref(whatsapp), [whatsapp]);
 
   const resolvedQuickLinks =
     useMemo(
@@ -885,6 +902,17 @@ function Footer({
                   />
                 </FooterContactAction>
 
+                {resolvedWhatsAppHref ? (
+                  <FooterContactAction
+                    href={resolvedWhatsAppHref}
+                    label={`WhatsApp ${companyName}`}
+                    title={`WhatsApp ${companyName}`}
+                    testId="titech-footer-whatsapp"
+                  >
+                    <MessageCircle size={20} aria-hidden="true" focusable="false" />
+                  </FooterContactAction>
+                ) : null}
+
                 <FooterContactAction
                   href={
                     contactEmailHref
@@ -992,6 +1020,14 @@ function Footer({
                         aria-label={`Call ${companyName} at ${phone}`}
                       >
                         {phone}
+                      </a>
+                    </li>
+                  ) : null}
+
+                  {whatsapp ? (
+                    <li data-testid="titech-footer-whatsapp-number">
+                      <a href={resolvedWhatsAppHref} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${companyName} at ${whatsapp}`}>
+                        <strong>WhatsApp:</strong>{' '}{whatsapp.replace(/^\+256/, '+256 ')}
                       </a>
                     </li>
                   ) : null}
@@ -1176,6 +1212,9 @@ Footer.propTypes = {
   phoneHref:
     PropTypes.string,
 
+  whatsapp:
+    PropTypes.string,
+
   address:
     PropTypes.string,
 
@@ -1298,6 +1337,9 @@ Footer.defaultProps = {
 
   phoneHref:
     `tel:${PHONE_NUMBER}`,
+
+  whatsapp:
+    WHATSAPP_NUMBER,
 
   address:
     COMPANY_ADDRESS,

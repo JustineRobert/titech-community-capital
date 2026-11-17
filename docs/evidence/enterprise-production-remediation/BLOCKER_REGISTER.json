@@ -1,0 +1,66 @@
+[
+  {
+    "gate": "P0_RUNTIME_INSTALL",
+    "priority": "P0",
+    "status": "BLOCKED",
+    "confirmed_blocker": "Node 22.16.0/npm 10.9.2; required Node >=24.15.0/npm >=11; no installed dependencies or clean lockfile install.",
+    "closure_evidence_required": "Activate supported toolchain, run frozen clean installs at root/backend/frontend, then build and tests.",
+    "owner": "DevOps"
+  },
+  {
+    "gate": "P0_BOOTSTRAP_HEALTH",
+    "priority": "P0",
+    "status": "BLOCKED",
+    "confirmed_blocker": "No MongoDB/Redis daemons or installed backend dependencies; no actual startup/readiness/shutdown or recovery run.",
+    "closure_evidence_required": "Run configured MongoDB replica set and Redis; execute startup, health, dependency-failure and recovery tests.",
+    "owner": "Backend/SRE"
+  },
+  {
+    "gate": "P0_LEDGER_REPLAY",
+    "priority": "P0",
+    "status": "BLOCKED",
+    "confirmed_blocker": "Only existing source/static financial gate and read-contract tests were run; no replica-set-backed posting, concurrency, replay or reconciliation evidence.",
+    "closure_evidence_required": "Execute real isolated transaction/replay/reversal suite against MongoDB replica set; persist balanced ledger evidence.",
+    "owner": "Financial Engineering"
+  },
+  {
+    "gate": "P0_PROVIDER_FAILURES",
+    "priority": "P0",
+    "status": "BLOCKED",
+    "confirmed_blocker": "No authorized provider sandbox credentials, callback signing configuration or settlement statements available.",
+    "closure_evidence_required": "Complete approved MTN sandbox contract, timeout/unknown/callback/replay and settlement verification, then partner sign-off.",
+    "owner": "Provider Engineering"
+  },
+  {
+    "gate": "P0_TENANT_PERMISSIONS",
+    "priority": "P0",
+    "status": "BLOCKED",
+    "confirmed_blocker": "Source mounts new APIs after auth/tenant middleware and static RBAC checks pass; no database-backed cross-tenant adversarial test was run.",
+    "closure_evidence_required": "Run API-level Tenant A/Tenant B object access, role escalation and background-job isolation tests with persisted fixtures.",
+    "owner": "Security/Backend"
+  },
+  {
+    "gate": "P1_SECURITY_RECOVERY",
+    "priority": "P1",
+    "status": "BLOCKED",
+    "confirmed_blocker": "Static RBAC and route contracts pass; no independent penetration test, backup artifact or isolated restore drill.",
+    "closure_evidence_required": "Independent security assessment, close findings, restore encrypted backup and validate financial invariants/RPO/RTO.",
+    "owner": "Security/SRE"
+  },
+  {
+    "gate": "P1_REGULATORY_PARTNER",
+    "priority": "P1",
+    "status": "BLOCKED",
+    "confirmed_blocker": "Owner-supplied organization identity/contact details only; no independent legal opinion, licence, partner approval or signed data-sharing/operating agreement.",
+    "closure_evidence_required": "Obtain qualified Uganda counsel/regulatory mapping and documented authorization from each applicable licensed partner/insurer.",
+    "owner": "Legal/Compliance"
+  },
+  {
+    "gate": "P1_COMMERCIAL_PILOT",
+    "priority": "P1",
+    "status": "BLOCKED",
+    "confirmed_blocker": "No institution-authorized real pilot scope, partner acceptance, operational metrics or customer evidence.",
+    "closure_evidence_required": "Complete authorized shadow/controlled pilot and obtain recorded institutional acceptance.",
+    "owner": "Commercial/Institutional Lead"
+  }
+]

@@ -99,8 +99,13 @@ const ROUTES = Object.freeze({
   DASHBOARD: '/dashboard',
   ADMIN: '/admin',
   MEMBERS: '/members',
+  MEMBER_DETAILS: '/members/:memberId',
   SAVINGS: '/savings',
+  SAVINGS_ACCOUNTS: '/savings/accounts',
+  SAVINGS_ACCOUNT_DETAILS: '/savings/accounts/:accountId',
+  SAVINGS_TRANSACTION_DETAILS: '/savings/transactions/:transactionId',
   LOANS: '/loans',
+  LOAN_DETAILS: '/loans/:loanId',
   TRANSACTIONS: '/transactions',
   REPORTS: '/reports',
   SETTINGS: '/settings',
@@ -188,6 +193,31 @@ const Savings = lazyWithRecovery(
 const Loans = lazyWithRecovery(
   () => import('../pages/Loans'),
   'Loans'
+);
+
+const MemberProfile = lazyWithRecovery(
+  () => import('../pages/MemberProfile'),
+  'MemberProfile'
+);
+
+const LoanDetails = lazyWithRecovery(
+  () => import('../pages/LoanDetails'),
+  'LoanDetails'
+);
+
+const SavingsAccounts = lazyWithRecovery(
+  () => import('../pages/SavingsAccounts'),
+  'SavingsAccounts'
+);
+
+const SavingsAccountDetails = lazyWithRecovery(
+  () => import('../pages/SavingsAccountDetails'),
+  'SavingsAccountDetails'
+);
+
+const SavingsTransactionDetails = lazyWithRecovery(
+  () => import('../pages/SavingsTransactionDetails'),
+  'SavingsTransactionDetails'
 );
 
 const Transactions = lazyWithRecovery(
@@ -644,23 +674,39 @@ function ApplicationRouteTree() {
 
           <Route
             path={ROUTES.MEMBERS}
-            element={
-              <Members />
-            }
+            element={<Members />}
+          />
+
+          <Route
+            path={ROUTES.MEMBER_DETAILS}
+            element={<MemberProfile />}
           />
 
           <Route
             path={ROUTES.SAVINGS}
-            element={
-              <Savings />
-            }
+            element={<Savings />}
+          />
+
+          <Route path={ROUTES.SAVINGS_ACCOUNTS} element={<SavingsAccounts />} />
+
+          <Route
+            path={ROUTES.SAVINGS_ACCOUNT_DETAILS}
+            element={<SavingsAccountDetails />}
+          />
+
+          <Route
+            path={ROUTES.SAVINGS_TRANSACTION_DETAILS}
+            element={<SavingsTransactionDetails />}
           />
 
           <Route
             path={ROUTES.LOANS}
-            element={
-              <Loans />
-            }
+            element={<Loans />}
+          />
+
+          <Route
+            path={ROUTES.LOAN_DETAILS}
+            element={<LoanDetails />}
           />
 
           <Route

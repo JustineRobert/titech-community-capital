@@ -7,6 +7,13 @@
 
 ---
 
+## 17 November 2026 — current module remediation evidence
+
+- [Members, Loans and Savings read API architecture](./architecture/MEMBERS_LOANS_SAVINGS_READ_APIS.md) — canonical protected routes, backend contracts, permissions, tenant filtering, error behavior and financial boundaries.
+- [Enterprise remediation execution report](./evidence/enterprise-production-remediation/EXECUTION_REPORT.md) — source snapshot, confirmed member-routing root cause, implemented work, actual verification and blocked items.
+- [Step-by-step file change discovery](./evidence/enterprise-production-remediation/FILE_CHANGE_DISCOVERY.md) — folders and files added or changed compared with the supplied ZIP.
+- [Production decision](./evidence/enterprise-production-remediation/FINAL_RELEASE_DECISION.md) — current fail-closed release status.
+
 ## ⚠️ Current Evidence-Backed Status — 2026-10-06
 
 The current engineering truth is maintained in `TITECH_PLATFORM_TRUTH.md`. The historical "production ready" labels in older documentation are not approval of the current release. Use these new evidence documents for the latest runtime, market, strategy and production-readiness position:

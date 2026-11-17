@@ -3981,33 +3981,30 @@ class ApplicationBootstrap {
         }
       }
 
-      // Complete the context's final runtimeReady phase only after the full
-      // application composition sequence has completed. BootstrapContext
-      // validates the entire phase chain before entering READY.
-      if (typeof this.context?.startPhase === "function") {
-        this.context.startPhase("runtimeReady", {
-          serverEnabled: this.options.startServer !== false,
-        });
-        this.context.completePhase("runtimeReady", {
-          serverEnabled: this.options.startServer !== false,
-        });
-        this.context.markReady();
-      }
-
-      if (
-        this.options
-          .requireApplication
-      ) {
-        this.assertApplication(
-          this.application ||
-          this.context?.application,
-        );
-      }
-
+      // Resolve the canonical application reference before readiness.
       this.application =
         this.application ||
         this.context?.application ||
         null;
+
+      // Validate all mandatory application requirements before READY.
+      if (this.options.requireApplication) {
+        this.assertApplication(this.application);
+      }
+
+      // Complete the final runtimeReady phase only after all required
+      // application composition and validation have succeeded.
+      if (typeof this.context?.startPhase === "function") {
+        this.context.startPhase("runtimeReady", {
+          serverEnabled: this.options.startServer !== false,
+        });
+
+        this.context.completePhase("runtimeReady", {
+          serverEnabled: this.options.startServer !== false,
+        });
+
+        this.context.markReady();
+      }
 
       return this.getSnapshot();
     } catch (error) {
