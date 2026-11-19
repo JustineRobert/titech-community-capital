@@ -1,23 +1,17 @@
 import { Types } from 'mongoose';
-import LedgerEntry from '../models/LedgerEntry.js';
 import Group from '../models/Group.js';
-import { canViewGroup, normalizeRole } from '../security/rbacPolicy.js';
+import { canViewGroupFinancials, normalizeRole } from '../security/rbacPolicy.js';
+import { resolveCanonicalGroupTenantId } from '../security/groupWalletPolicy.js';
 
 function requireTenantId(req) {
-  const tenantId = req.tenantId || req.tenant?.tenantId;
-  if (!tenantId) {
-    const error = new Error('Trusted tenant context is required.');
-    error.code = 'TENANT_REQUIRED';
-    error.statusCode = 400;
-    throw error;
-  }
-  return String(tenantId).trim().toLowerCase();
+  return resolveCanonicalGroupTenantId(req);
 }
 
 function validateGroupId(id) {
   if (!Types.ObjectId.isValid(id)) {
     const error = new Error('Invalid group identifier.');
     error.code = 'INVALID_GROUP_ID';
+    error.type = 'INVALID_GROUP_ID';
     error.statusCode = 400;
     throw error;
   }
@@ -29,6 +23,7 @@ async function requireGroupViewAccess(req, tenantId, groupId) {
   if (!group) {
     const error = new Error('Group not found.');
     error.code = 'GROUP_NOT_FOUND';
+    error.type = 'GROUP_NOT_FOUND';
     error.statusCode = 404;
     throw error;
   }
@@ -40,16 +35,32 @@ async function requireGroupViewAccess(req, tenantId, groupId) {
     tenantId,
     role: normalizeRole(req?.user?.role || req?.auth?.role),
     roles: req?.user?.roles || req?.auth?.roles || [],
+    permissions: req?.user?.permissions || req?.auth?.permissions || [],
+    scopes: req?.user?.scopes || req?.auth?.scopes || [],
   };
 
-  if (!actorId || !canViewGroup(actor, group)) {
-    const error = new Error('You are not authorized to view this group financial information.');
-    error.code = 'GROUP_FINANCIAL_ACCESS_FORBIDDEN';
+  if (!actorId || !canViewGroupFinancials(actor, group)) {
+    const error = new Error('Group financial information requires an authorized institution finance role, group administrator, treasurer, or explicit financial-view permission.');
+    error.code = 'GROUP_WALLET_ACCESS_DENIED';
+    error.type = 'GROUP_WALLET_ACCESS_DENIED';
     error.statusCode = 403;
     throw error;
   }
 
   return group;
+}
+
+function groupFinancialAccountNotConfiguredError() {
+  const error = new Error(
+    'A canonical financial account has not been configured for this group. Group financial records are unavailable.'
+  );
+  error.name = 'GroupFinancialAccountNotConfigured';
+  error.code = 'GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED';
+  error.type = 'GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED';
+  error.statusCode = 503;
+  error.isOperational = true;
+  error.retryable = false;
+  return error;
 }
 
 export async function getBalance(req, res, next) {
@@ -59,19 +70,10 @@ export async function getBalance(req, res, next) {
     await requireGroupViewAccess(req, tenantId, groupId);
 
     // A Group currently has no canonical account/wallet reference in the
-    // MongoDB domain model. Summing every debit and credit line tagged with a
-    // group would generally net a balanced journal to zero; that is not a
-    // valid group wallet balance. Fail closed until an authorized, explicit
-    // group-to-account mapping is implemented and verified.
-    const error = new Error(
-      'A canonical financial account has not been configured for this group. The ledger balance is unavailable.'
-    );
-    error.name = 'GroupFinancialAccountNotConfigured';
-    error.code = 'GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED';
-    error.statusCode = 503;
-    error.isOperational = true;
-    error.retryable = false;
-    throw error;
+    // MongoDB domain model. Summing group-tagged journal lines would combine
+    // both sides of double-entry postings and can expose counterparty lines.
+    // Fail closed until a verified group-to-account mapping exists.
+    throw groupFinancialAccountNotConfiguredError();
   } catch (error) {
     return next(error);
   }
@@ -82,20 +84,11 @@ export async function getLedger(req, res, next) {
     const tenantId = requireTenantId(req);
     const groupId = validateGroupId(req.params.id);
     await requireGroupViewAccess(req, tenantId, groupId);
-    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
-    const entries = await LedgerEntry.find({ tenantId, groupId, journalStatus: 'POSTED', posted: true })
-      .sort({ createdAt: -1, lineNumber: -1, _id: -1 })
-      .limit(limit)
-      .lean()
-      .exec();
-    return res.json({
-      success: true,
-      tenantId,
-      groupId: String(groupId),
-      source: 'authoritative-ledger',
-      count: entries.length,
-      entries,
-    });
+
+    // Do not return all journal lines tagged with a group. Without a canonical
+    // group-owned account mapping, this query cannot reliably distinguish the
+    // group's own ledger lines from balancing/counterparty lines.
+    throw groupFinancialAccountNotConfiguredError();
   } catch (error) {
     return next(error);
   }

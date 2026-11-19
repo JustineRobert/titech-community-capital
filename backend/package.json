@@ -110,7 +110,8 @@
     "index:create:edufinance": "node scripts/createEduFinanceIndexes.js",
     "test:faith-giving": "node --test modules/faith-community-giving/faithGiving.policy.test.js",
     "index:create:faith-giving": "node scripts/createFaithGivingIndexes.js",
-    "test:version-key": "node --test tests/unit/platform/mongoose-version-key-contract.test.mjs"
+    "test:version-key": "node --test tests/unit/platform/mongoose-version-key-contract.test.mjs",
+    "test:groups:policy": "node --test tests/unit/groups/group-wallet-policy.test.mjs tests/unit/groups/group-invitation-policy.test.mjs tests/unit/groups/group-contribution-capability.test.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

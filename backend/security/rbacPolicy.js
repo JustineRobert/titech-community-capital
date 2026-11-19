@@ -105,6 +105,7 @@ export const PERMISSIONS = Object.freeze({
     'GROUP_INVITE',
     'GROUP_VIEW_MEMBERS',
     'GROUP_MANAGE_MEMBERS',
+    'GROUP_FINANCIAL_VIEW',
   ],
   MEMBERSHIP: [
     'MEMBERSHIP_REQUEST',
@@ -294,15 +295,45 @@ export function canViewGroup(actor, group) {
   return Boolean(activeMembership(group, actor.id || actor._id));
 }
 
+/**
+ * Financial data is more restricted than ordinary group visibility.
+ * Tenant administrators may view financial data inside their own tenant;
+ * within a group, only active group administrators and treasurers may view
+ * the group financial projection. Ordinary membership alone is not enough.
+ * An explicitly delegated GROUP_FINANCIAL_VIEW permission is also accepted,
+ * but it must be present on the authenticated actor (not inferred from a
+ * broad platform-support role).
+ */
+export function canViewGroupFinancials(actor, group) {
+  const role = normalizeRole(actor?.role || actor?.roles?.[0]);
+  if (!role || !group || role === 'platform_admin' || !tenantMatches(actor, group.tenantId)) return false;
+
+  if (role === 'tenant_admin') return true;
+
+  const explicitPermissions = [
+    ...(Array.isArray(actor?.permissions) ? actor.permissions : []),
+    ...(Array.isArray(actor?.scopes) ? actor.scopes : []),
+  ];
+  if (explicitPermissions.includes('GROUP_FINANCIAL_VIEW')) return true;
+
+  const membership = activeMembership(group, actor.id || actor._id);
+  return Boolean(membership && ['group_admin', 'treasurer'].includes(membership.role));
+}
+
 export function canManageGroup(actor, group) {
   const role = normalizeRole(actor?.role || actor?.roles?.[0]);
   if (!role || !group) return false;
   if (role === 'platform_admin') return true;
   if (!tenantMatches(actor, group.tenantId)) return false;
   if (role === 'tenant_admin') return true;
-  if (role !== 'group_admin') return false;
+
+  // A group-level administrator is represented by the membership's role;
+  // the user's institution-wide role may correctly remain `member`. Requiring
+  // both the canonical tenant scope and an active group-admin membership
+  // avoids either denying delegated group administrators or granting access
+  // from a stale global role alone.
   const membership = activeMembership(group, actor.id || actor._id);
-  return membership?.role === 'group_admin' || String(group.createdBy) === String(actor.id || actor._id);
+  return membership?.role === 'group_admin';
 }
 
 export function canManageMembership(actor, group) {

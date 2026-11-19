@@ -11,6 +11,8 @@ import {
   getAuthorizedGroup,
   transitionMembership,
 } from "../services/rbacService.js";
+import { evaluateGroupContributionCapability } from "../services/groupContributionCapability.js";
+import { classifyExistingGroupMembership } from "../security/groupInvitationPolicy.js";
 
 const GROUP_TYPES = new Set(SUPPORTED_GROUP_TYPES);
 const MEMBER_ROLES = new Set(["member", "group_admin", "treasurer", "secretary"]);
@@ -46,10 +48,34 @@ function sendError(res, statusCode, code, message, details = undefined) {
 function validateMemberEntries(members) {
   if (!Array.isArray(members) || members.length > 1000) return false;
   return members.every((entry) => {
-    const email = typeof entry === "string" ? entry.trim().toLowerCase() : entry?.email?.trim().toLowerCase();
+    const rawEmail = typeof entry === "string" ? entry : entry?.email;
+    const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
     const role = typeof entry === "string" ? "member" : entry?.role || "member";
     return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && MEMBER_ROLES.has(role);
   });
+}
+
+function activeTenantUserQuery(tenantId, emails) {
+  return User.find({
+    email: { $in: emails },
+    tenantId,
+    deletedAt: null,
+  }).select("_id email status isActive");
+}
+
+async function resolveGroupForContribution(req, res) {
+  const identity = getIdentity(req);
+  if (!identity) {
+    return { response: sendError(res, 403, "GROUP_TENANT_CONTEXT_REQUIRED", "An authenticated tenant account is required.") };
+  }
+  const group = await Group.findTenantGroup(identity.tenantId, req.params.groupId);
+  if (!group || group.status !== "active") {
+    return { response: sendError(res, 404, "GROUP_NOT_FOUND", "Group not found.") };
+  }
+  if (!canViewGroup(actor(req), group)) {
+    return { response: sendError(res, 403, "GROUP_ACCESS_DENIED", "You are not authorized to access this group's contribution capability.") };
+  }
+  return { identity, group };
 }
 
 export async function createGroup(req, res) {
@@ -116,6 +142,14 @@ export async function requestJoinGroup(req, res) {
   if (group.hasMember(identity.userId)) return sendError(res, 409, "GROUP_ALREADY_MEMBER", "You are already a member of this group.");
   const existing = group.getMembership(identity.userId);
   if (existing && existing.membershipStatus === "pending" && existing.membershipOrigin === "invited") {
+    const institutionUser = await User.findOne({
+      _id: identity.userId,
+      tenantId: identity.tenantId,
+      status: "active",
+      isActive: true,
+      deletedAt: null,
+    }).select("_id").lean();
+    if (!institutionUser) return sendError(res, 403, "GROUP_INVITATION_INSTITUTION_MEMBERSHIP_REQUIRED", "An active institution account is required before accepting this group invitation.");
     group.acceptInvitation(identity.userId);
     group.appendAudit({ action: "invitation_accepted", userId: identity.userId });
     group.appendAudit({ action: "member_added", userId: identity.userId });
@@ -167,11 +201,19 @@ export async function acceptInvitation(req, res) {
   const identity = getIdentity(req);
   if (!identity) return sendError(res, 403, "GROUP_TENANT_CONTEXT_REQUIRED", "An authenticated tenant account is required.");
   const group = await Group.findTenantGroup(identity.tenantId, req.params.id);
-  if (!group) return sendError(res, 404, "GROUP_NOT_FOUND", "Group not found.");
+  if (!group || group.status !== "active") return sendError(res, 404, "GROUP_NOT_FOUND", "Group not found.");
   const membership = group.getMembership(identity.userId);
   if (!membership || membership.membershipStatus !== "pending" || membership.membershipOrigin !== "invited") {
     return sendError(res, 409, "GROUP_INVITATION_NOT_FOUND", "No pending invitation is available for this account.");
   }
+  const institutionUser = await User.findOne({
+    _id: identity.userId,
+    tenantId: identity.tenantId,
+    status: "active",
+    isActive: true,
+    deletedAt: null,
+  }).select("_id").lean();
+  if (!institutionUser) return sendError(res, 403, "GROUP_INVITATION_INSTITUTION_MEMBERSHIP_REQUIRED", "An active institution account is required before accepting this group invitation.");
   group.acceptInvitation(identity.userId);
   group.appendAudit({ action: "member_added", userId: identity.userId });
   await group.save();
@@ -246,19 +288,198 @@ export async function sendBatchInvitations(req, res) {
   const identity = getIdentity(req);
   if (!identity) return sendError(res, 403, "GROUP_TENANT_CONTEXT_REQUIRED", "Join an existing tenant before inviting group members.");
   const group = req.authorizedGroup || await getAuthorizedGroup({ actor: actor(req), groupId: req.params.groupId, allowMemberView: false });
+  if (group.status !== "active") return sendError(res, 409, "GROUP_NOT_ACCEPTING_INVITATIONS", "Invitations cannot be added to a suspended or archived group.");
   const { members } = req.body || {};
   if (!Array.isArray(members) || members.length === 0 || members.length > 1000 || !validateMemberEntries(members)) return sendError(res, 400, "GROUP_INVITATION_INPUT_INVALID", "Provide between 1 and 1000 valid invitees.");
-  const normalized = members.map((entry) => ({ email: typeof entry === "string" ? entry.trim().toLowerCase() : entry.email.trim().toLowerCase(), role: typeof entry === "string" ? "member" : entry.role || "member" }));
-  const users = await User.find({ email: { $in: [...new Set(normalized.map(({ email }) => email))] }, tenantId: identity.tenantId, status: "active", deletedAt: null }).select("_id email");
-  const byEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
-  if (normalized.some(({ email }) => !byEmail.has(email))) return sendError(res, 400, "GROUP_INVITE_MEMBER_UNAVAILABLE", "Invitees must have active accounts in this tenant.");
+  const normalized = members.map((entry, index) => ({
+    index,
+    email: (typeof entry === "string" ? entry : entry.email).trim().toLowerCase(),
+    role: typeof entry === "string" ? "member" : entry.role || "member",
+  }));
+  const uniqueEmails = [...new Set(normalized.map(({ email }) => email))];
+  const users = await activeTenantUserQuery(identity.tenantId, uniqueEmails);
+  const byEmail = new Map(users.map((user) => [String(user.email).trim().toLowerCase(), user]));
+  const seen = new Set();
+  const results = [];
   let invitedCount = 0;
+  let alreadyInvitedCount = 0;
+  let alreadyMemberCount = 0;
+  let onboardingRequiredCount = 0;
+  let changed = false;
+
   for (const entry of normalized) {
+    if (seen.has(entry.email)) {
+      results.push({
+        index: entry.index,
+        email: entry.email,
+        success: false,
+        status: "DUPLICATE_IN_BATCH",
+        code: "GROUP_INVITATION_DUPLICATE_INPUT",
+        retryable: false,
+        message: "This email address appears more than once in the submitted batch.",
+      });
+      continue;
+    }
+    seen.add(entry.email);
+
     const user = byEmail.get(entry.email);
-    if (!group.getMembership(user._id)) { group.addMember(user._id, { role: entry.role, invitationStatus: "pending", membershipOrigin: "invited" }); group.appendAudit({ action: "invitation_sent", userId: identity.userId }); invitedCount += 1; }
+    if (!user) {
+      onboardingRequiredCount += 1;
+      results.push({
+        index: entry.index,
+        email: entry.email,
+        success: false,
+        status: "ONBOARDING_REQUIRED",
+        code: "GROUP_INVITEE_ONBOARDING_REQUIRED",
+        retryable: false,
+        nextAction: "complete_institution_onboarding",
+        message: "No active account was found in this institution. Complete institution onboarding before issuing a group invitation.",
+      });
+      continue;
+    }
+
+    if (user.status !== "active" || user.isActive === false) {
+      results.push({
+        index: entry.index,
+        email: entry.email,
+        success: false,
+        status: "INSTITUTION_MEMBERSHIP_INACTIVE",
+        code: "GROUP_INVITEE_INSTITUTION_MEMBERSHIP_INACTIVE",
+        retryable: false,
+        nextAction: "institution_administrator_review",
+        message: "The institution account is inactive or suspended. An institution administrator must review it first.",
+      });
+      continue;
+    }
+
+    if (String(user._id) === String(identity.userId)) {
+      alreadyMemberCount += 1;
+      results.push({ index: entry.index, email: entry.email, userId: String(user._id), success: true, status: "ALREADY_MEMBER", code: "GROUP_ALREADY_MEMBER", retryable: false, message: "The group administrator is already a member of this group." });
+      continue;
+    }
+
+    const existing = group.getMembership(user._id);
+    const existingResult = classifyExistingGroupMembership(existing);
+    if (existingResult) {
+      if (existingResult.status === "ALREADY_INVITED") alreadyInvitedCount += 1;
+      if (existingResult.status === "ALREADY_MEMBER") alreadyMemberCount += 1;
+      results.push({ index: entry.index, email: entry.email, userId: String(user._id), ...existingResult });
+      continue;
+    }
+
+    if ((group.memberRoles || []).length >= GROUP_MODEL_METADATA.maxMembers) {
+      results.push({
+        index: entry.index,
+        email: entry.email,
+        userId: String(user._id),
+        success: false,
+        status: "GROUP_MEMBER_LIMIT_REACHED",
+        code: "GROUP_MEMBER_LIMIT_REACHED",
+        retryable: false,
+        message: "The group has reached its configured membership-record limit.",
+      });
+      continue;
+    }
+
+    try {
+      group.addMember(user._id, { role: entry.role, invitationStatus: "pending", membershipOrigin: "invited" });
+      group.appendAudit({
+        action: "invitation_sent",
+        userId: identity.userId,
+        details: { inviteeUserId: String(user._id), origin: "in_app_batch" },
+      });
+      changed = true;
+      invitedCount += 1;
+      results.push({ index: entry.index, email: entry.email, userId: String(user._id), success: true, status: "CREATED", code: "GROUP_INVITATION_CREATED", retryable: false, message: "An in-app group invitation was recorded. No external email was sent." });
+    } catch (error) {
+      results.push({
+        index: entry.index,
+        email: entry.email,
+        userId: String(user._id),
+        success: false,
+        status: "INVITATION_REQUIRES_REVIEW",
+        code: "GROUP_INVITATION_STATE_CONFLICT",
+        retryable: false,
+        message: "The existing membership state prevented this invitation. Review the member record before retrying.",
+      });
+    }
   }
-  await group.save();
-  return res.status(200).json({ success: true, invitedCount, message: "Group invitations were recorded." });
+
+  if (changed) {
+    try {
+      await group.save();
+    } catch (error) {
+      if (error?.name === "VersionError") {
+        return sendError(res, 409, "GROUP_INVITATION_CONFLICT", "The group changed while invitations were being recorded. Refresh the group and retry only members that do not already have an invitation.", { retryable: true, requestId: req.requestId });
+      }
+      throw error;
+    }
+  }
+
+  const unsuccessful = results.filter((result) => !result.success);
+  return res.status(200).json({
+    success: true,
+    groupId: String(group._id),
+    invitedCount,
+    summary: {
+      requested: normalized.length,
+      created: invitedCount,
+      alreadyInvited: alreadyInvitedCount,
+      alreadyMember: alreadyMemberCount,
+      onboardingRequired: onboardingRequiredCount,
+      rejected: unsuccessful.length,
+    },
+    results,
+    message: unsuccessful.length
+      ? "Invitation processing completed with individual outcomes. Successful in-app invitations were preserved."
+      : "Group invitations were recorded or already existed.",
+    requestId: req.requestId,
+    correlationId: req.correlationId,
+  });
+}
+
+export async function getGroupContributionCapabilities(req, res) {
+  const resolved = await resolveGroupForContribution(req, res);
+  if (resolved.response) return resolved.response;
+  const capability = evaluateGroupContributionCapability({ group: resolved.group });
+  return res.status(200).json({
+    success: true,
+    groupId: String(resolved.group._id),
+    available: capability.available,
+    canInitiate: capability.canInitiate,
+    status: capability.status,
+    reasonCode: capability.reasonCode,
+    blockers: capability.blockers,
+    provider: capability.provider,
+    productionInitiationEnabled: capability.productionInitiationEnabled,
+    settlementVerificationAvailable: capability.settlementVerificationAvailable,
+    nextAction: capability.nextAction,
+  });
+}
+
+export async function createGroupContributionInstruction(req, res) {
+  const resolved = await resolveGroupForContribution(req, res);
+  if (resolved.response) return resolved.response;
+  const capability = evaluateGroupContributionCapability({ group: resolved.group });
+  if (!capability.available || !capability.productionInitiationEnabled) {
+    return sendError(
+      res,
+      503,
+      "GROUP_CONTRIBUTION_NOT_CONFIGURED",
+      "Contribution initiation is unavailable because the group's financial account mapping and provider authorization have not been verified.",
+      {
+        groupId: String(resolved.group._id),
+        status: capability.status,
+        reasonCode: capability.reasonCode,
+        noInstructionCreated: true,
+        nextAction: capability.nextAction,
+      },
+    );
+  }
+
+  // Fail closed until the canonical payment-instruction, provider verification,
+  // settlement and ledger integration is actually mounted and authorized.
+  return sendError(res, 503, "GROUP_CONTRIBUTION_NOT_CONFIGURED", "No authorized group contribution instruction service is available.", { noInstructionCreated: true });
 }
 
 
@@ -309,5 +530,5 @@ export async function moderateMembership(req, res) {
   return res.status(200).json({ success: true, message: `Membership ${action} completed.`, data: result });
 }
 
-const groupController = Object.freeze({ createGroup, requestJoinGroup, acceptInvitation, joinGroup, getGroups, getGroupById, getMembershipRequests, leaveGroup, sendBatchInvitations, moderateMembership, groupManagement });
+const groupController = Object.freeze({ createGroup, requestJoinGroup, acceptInvitation, joinGroup, getGroups, getGroupById, getMembershipRequests, leaveGroup, sendBatchInvitations, moderateMembership, groupManagement, getGroupContributionCapabilities, createGroupContributionInstruction });
 export default groupController;

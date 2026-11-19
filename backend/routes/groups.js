@@ -190,6 +190,18 @@ router.post(
   ...validateGroupId("groupId"),
   asyncHandler(groupController.sendBatchInvitations)
 );
+router.get(
+  "/:groupId/contributions/capabilities",
+  readLimiter,
+  ...validateGroupId("groupId"),
+  asyncHandler(groupController.getGroupContributionCapabilities)
+);
+router.post(
+  "/:groupId/contributions/instructions",
+  writeLimiter,
+  ...validateGroupId("groupId"),
+  asyncHandler(groupController.createGroupContributionInstruction)
+);
 router.delete(
   "/:id/leave",
   writeLimiter,

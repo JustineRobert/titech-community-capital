@@ -3419,14 +3419,47 @@ class ApplicationBootstrap {
           databaseBlocker = "database_readiness_contract_missing";
         }
 
-        const ready = Boolean(bootstrapReady && databaseReady);
+        // Re-evaluate the canonical readiness registry as well as the direct
+        // database contract. This includes required Redis/cache dependencies
+        // while keeping optional adapters from taking the whole platform down.
+        let dependencyReadiness = {
+          ready: false,
+          blockers: ["dependency_readiness_unavailable"],
+          checks: {},
+        };
+        try {
+          const { default: readinessState } = await import("./readinessState.js");
+          dependencyReadiness = await readinessState.evaluate({
+            // BootstrapContext below is the canonical application lifecycle
+            // authority for this composition root. Reuse this registry only
+            // for dependency checks so a second process-local lifecycle view
+            // cannot create a false-negative readiness result.
+            requireStarted: false,
+            requireServerPhase: false,
+            requireHealthy: false,
+            requireChecks: false,
+          });
+        } catch {
+          // Fail closed: a missing readiness evaluator is not evidence that
+          // required infrastructure is healthy.
+        }
+
+        const blockers = [
+          ...(!bootstrapReady ? ["application_not_ready"] : []),
+          ...(databaseBlocker ? [databaseBlocker] : []),
+          ...(!dependencyReadiness.ready
+            ? (Array.isArray(dependencyReadiness.blockers)
+                ? dependencyReadiness.blockers
+                : ["dependency_readiness_failed"])
+            : []),
+        ];
+        const uniqueBlockers = [...new Set(blockers)].slice(0, 25);
+        const ready = uniqueBlockers.length === 0;
         return {
           ready,
           status: ready ? "ready" : "not_ready",
-          blockers: [
-            ...(!bootstrapReady ? ["application_not_ready"] : []),
-            ...(databaseBlocker ? [databaseBlocker] : []),
-          ],
+          blockers: uniqueBlockers,
+          checks: dependencyReadiness.checks || {},
         };
       };
       application.locals.titechReadinessSource =

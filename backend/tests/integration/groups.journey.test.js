@@ -246,11 +246,39 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
   const authorizedGroupBalance = await request(app)
     .get(`/api/v1/group-wallets/${groupId}/balance`)
     .set("Authorization", `Bearer ${memberToken}`);
-  // Membership authorization succeeds, but the current Group model has no
-  // canonical account reference. Do not report a misleading zero balance by
-  // summing both sides of double-entry journals.
-  assert.equal(authorizedGroupBalance.status, 503, JSON.stringify(authorizedGroupBalance.body));
-  assert.equal(authorizedGroupBalance.body.meta?.details?.code, "GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED");
+  // Ordinary membership does not grant access to group financial records.
+  assert.equal(authorizedGroupBalance.status, 403, JSON.stringify(authorizedGroupBalance.body));
+
+  const tenantAdminGroupBalance = await request(app)
+    .get(`/api/v1/group-wallets/${groupId}/balance`)
+    .set("Authorization", `Bearer ${adminToken}`);
+  // The group is found and the authorized administrator passes finance RBAC,
+  // but no canonical group-to-account mapping currently exists. Do not invent
+  // a zero balance by summing both sides of a double-entry journal.
+  assert.equal(tenantAdminGroupBalance.status, 503, JSON.stringify(tenantAdminGroupBalance.body));
+  assert.equal(tenantAdminGroupBalance.body.meta?.details?.code, "GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED");
+
+  const tenantAdminGroupLedger = await request(app)
+    .get(`/api/v1/group-wallets/${groupId}/ledger`)
+    .set("Authorization", `Bearer ${adminToken}`);
+  assert.equal(tenantAdminGroupLedger.status, 503, JSON.stringify(tenantAdminGroupLedger.body));
+  assert.equal(tenantAdminGroupLedger.body.meta?.details?.code, "GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED");
+
+  const contributionCapabilities = await request(app)
+    .get(`/api/v1/groups/${groupId}/contributions/capabilities`)
+    .set("Authorization", `Bearer ${adminToken}`);
+  assert.equal(contributionCapabilities.status, 200, JSON.stringify(contributionCapabilities.body));
+  assert.equal(contributionCapabilities.body.available, false);
+  assert.equal(contributionCapabilities.body.status, "NOT_CONFIGURED");
+  assert.equal(contributionCapabilities.body.productionInitiationEnabled, false);
+
+  const contributionInstruction = await request(app)
+    .post(`/api/v1/groups/${groupId}/contributions/instructions`)
+    .set("Authorization", `Bearer ${memberToken}`)
+    .send({ amountMinor: 10000, currency: "UGX", consent: true });
+  assert.equal(contributionInstruction.status, 503, JSON.stringify(contributionInstruction.body));
+  assert.equal(contributionInstruction.body.code, "GROUP_CONTRIBUTION_NOT_CONFIGURED");
+  assert.equal(contributionInstruction.body.details?.noInstructionCreated, true);
 
   const rejectedEmail = `group-rejected-${Date.now()}@titech.test`;
   const rejectedRegistration = await request(app)
@@ -366,4 +394,126 @@ test("tenant admin invite enables signup, login, create, join, logout, and refre
   assert.notEqual(storedInvitation.codeHash, inviteCode);
   assert.equal(storedInvitation.uses, 3);
   assert.ok(admin._id);
+});
+
+test("group invitation batches preserve partial success, classify members independently, and accept once", async () => {
+  const tenantId = new mongoose.Types.ObjectId();
+  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const admin = await User.create({
+    name: "Invitation Batch Administrator",
+    email: `batch-admin-${suffix}@titech.test`,
+    password: PASSWORD,
+    tenantId,
+    role: "tenant_admin",
+    status: "active",
+    isActive: true,
+    isVerified: true,
+  });
+  const eligible = await User.create({
+    name: "Eligible Institution Member",
+    email: `eligible-${suffix}@titech.test`,
+    password: PASSWORD,
+    tenantId,
+    role: "member",
+    status: "active",
+    isActive: true,
+    isVerified: true,
+  });
+  const inactive = await User.create({
+    name: "Inactive Institution Member",
+    email: `inactive-${suffix}@titech.test`,
+    password: PASSWORD,
+    tenantId,
+    role: "member",
+    status: "suspended",
+    isActive: false,
+    isVerified: true,
+  });
+
+  const tokenFor = (user) => jwt.sign({
+    sub: String(user._id),
+    id: String(user._id),
+    userId: String(user._id),
+    tenantId: String(user.tenantId),
+    role: user.role,
+    user: { id: String(user._id), tenantId: String(user.tenantId), role: user.role },
+  }, TEST_JWT_SECRET, { algorithm: "HS256", expiresIn: "5m" });
+
+  const adminToken = tokenFor(admin);
+  const create = await request(app)
+    .post("/api/v1/groups")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ name: `Invitation Batch ${suffix}`, type: "community", description: "Partial invitation success test", members: [] });
+  assert.equal(create.status, 201, JSON.stringify(create.body));
+  const groupId = create.body.groupId || create.body.data?.id;
+
+  const groupAdmin = await User.create({
+    name: "Delegated Group Administrator",
+    email: `group-admin-${suffix}@titech.test`,
+    password: PASSWORD,
+    tenantId,
+    role: "member",
+    status: "active",
+    isActive: true,
+    isVerified: true,
+  });
+  const groupAdminToken = tokenFor(groupAdmin);
+  const groupBeforeDelegation = await Group.findTenantGroup(tenantId, groupId);
+  groupBeforeDelegation.addMember(groupAdmin._id, {
+    role: "group_admin",
+    invitationStatus: "accepted",
+    membershipStatus: "active",
+    membershipOrigin: "owner",
+  });
+  groupBeforeDelegation.appendAudit({ action: "member_added", userId: admin._id });
+  await groupBeforeDelegation.save();
+
+  const beforeCount = await User.countDocuments({ tenantId });
+  const batch = await request(app)
+    .post(`/api/v1/groups/${groupId}/send-invitations`)
+    .set("Authorization", `Bearer ${groupAdminToken}`)
+    .send({ members: [
+      { email: eligible.email, role: "treasurer" },
+      { email: `not-onboarded-${suffix}@titech.test`, role: "member" },
+      { email: inactive.email, role: "member" },
+      { email: eligible.email, role: "member" },
+    ] });
+
+  assert.equal(batch.status, 200, JSON.stringify(batch.body));
+  assert.equal(batch.body.invitedCount, 1);
+  assert.equal(batch.body.summary.created, 1);
+  assert.equal(batch.body.summary.onboardingRequired, 1);
+  assert.equal(batch.body.results[0].status, "CREATED");
+  assert.equal(batch.body.results[1].status, "ONBOARDING_REQUIRED");
+  assert.equal(batch.body.results[2].status, "INSTITUTION_MEMBERSHIP_INACTIVE");
+  assert.equal(batch.body.results[3].status, "DUPLICATE_IN_BATCH");
+  assert.equal(await User.countDocuments({ tenantId }), beforeCount, "invitation flow must not fabricate a missing user account");
+
+  const groupAdminMembershipQueue = await request(app)
+    .get(`/api/groups/${groupId}/membership-requests`)
+    .set("Authorization", `Bearer ${groupAdminToken}`);
+  assert.equal(groupAdminMembershipQueue.status, 200, JSON.stringify(groupAdminMembershipQueue.body));
+
+  const persisted = await Group.findTenantGroup(tenantId, groupId);
+  assert.equal(persisted.memberRoles.filter((entry) => String(entry.userId) === String(eligible._id)).length, 1);
+  assert.equal(persisted.getMembership(eligible._id)?.membershipStatus, "pending");
+  assert.equal(persisted.getMembership(eligible._id)?.role, "treasurer");
+
+  const repeated = await request(app)
+    .post(`/api/v1/groups/${groupId}/send-invitations`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ members: [{ email: eligible.email, role: "treasurer" }] });
+  assert.equal(repeated.status, 200, JSON.stringify(repeated.body));
+  assert.equal(repeated.body.invitedCount, 0);
+  assert.equal(repeated.body.results[0].status, "ALREADY_INVITED");
+  assert.equal((await Group.findTenantGroup(tenantId, groupId)).memberRoles.filter((entry) => String(entry.userId) === String(eligible._id)).length, 1);
+
+  const accepted = await request(app)
+    .post(`/api/v1/groups/${groupId}/accept-invitation`)
+    .set("Authorization", `Bearer ${tokenFor(eligible)}`)
+    .send({});
+  assert.equal(accepted.status, 200, JSON.stringify(accepted.body));
+  const afterAccept = await Group.findTenantGroup(tenantId, groupId);
+  assert.equal(afterAccept.getMembership(eligible._id)?.membershipStatus, "active");
+  assert.equal(afterAccept.getMembership(eligible._id)?.invitationStatus, "accepted");
 });

@@ -1003,7 +1003,6 @@ export default function CreateGroupV2() {
             );
 
             const responseData = getApiData(response);
-
             const reportedSuccess = Number(
               responseData?.invitedCount ??
                 responseData?.successCount ??
@@ -1012,10 +1011,22 @@ export default function CreateGroupV2() {
                 0
             );
 
-            successCount += Math.min(
-              Math.max(reportedSuccess, 0),
-              batch.length
-            );
+            successCount += Math.min(Math.max(reportedSuccess, 0), batch.length);
+
+            if (Array.isArray(responseData?.results)) {
+              const unsuccessful = responseData.results.filter((result) => result?.success !== true);
+              if (unsuccessful.length > 0) {
+                failures.push({
+                  batch: batchNumber,
+                  error: 'The server returned individual invitation outcomes. Review each member and complete any stated prerequisite.',
+                  members: unsuccessful
+                    .filter((result) => result?.retryable === true && typeof result?.email === 'string')
+                    .map((result) => result.email),
+                  results: unsuccessful,
+                  count: unsuccessful.length,
+                });
+              }
+            }
           } catch (batchError) {
             if (isAbortError(batchError)) {
               throw batchError;
@@ -1151,7 +1162,7 @@ export default function CreateGroupV2() {
   const handleRetryFailures = useCallback(async () => {
     if (!createdGroupId || loading) return;
 
-    const failedBatches = progress.failures;
+    const failedBatches = progress.failures.filter((failure) => failure.members?.length > 0);
 
     if (!failedBatches.length) return;
 
@@ -1171,7 +1182,7 @@ export default function CreateGroupV2() {
     setLoading(true);
     setError('');
 
-    const retryFailures = [];
+    const retryFailures = progress.failures.filter((failure) => !failure.members?.length);
     let recoveredCount = progress.successCount;
 
     try {
@@ -1215,6 +1226,21 @@ export default function CreateGroupV2() {
             Math.max(successCount, 0),
             members.length
           );
+
+          if (Array.isArray(data?.results)) {
+            const unsuccessful = data.results.filter((result) => result?.success !== true);
+            if (unsuccessful.length > 0) {
+              retryFailures.push({
+                ...failure,
+                error: 'Some invitation outcomes still require action.',
+                members: unsuccessful
+                  .filter((result) => result?.retryable === true && typeof result?.email === 'string')
+                  .map((result) => result.email),
+                results: unsuccessful,
+                count: unsuccessful.length,
+              });
+            }
+          }
         } catch (retryError) {
           if (isAbortError(retryError)) {
             throw retryError;
@@ -1889,6 +1915,17 @@ export default function CreateGroupV2() {
                     {failure.error} ({failure.count}{' '}
                     member
                     {failure.count === 1 ? '' : 's'}).
+                    {Array.isArray(failure.results) && failure.results.length > 0 && (
+                      <ul className="failure-member-results">
+                        {failure.results.map((result, resultIndex) => (
+                          <li key={`${failure.batch}-${result.email || resultIndex}-${result.code || resultIndex}`}>
+                            <strong>{result.email || `Member ${result.index + 1}`}:</strong>{' '}
+                            {result.message || result.code || result.status || 'Invitation requires attention.'}
+                            {result.nextAction ? ` Next action: ${String(result.nextAction).replace(/_/g, ' ')}.` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -2134,7 +2171,7 @@ export default function CreateGroupV2() {
 
           {step === 4 && (
             <div className="button-group">
-              {progress.failures.length > 0 && (
+              {progress.failures.some((failure) => failure.members?.length > 0) && (
                 <button
                   type="button"
                   onClick={handleRetryFailures}

@@ -52,7 +52,7 @@ Blue-Green deployment is a zero-downtime deployment strategy that:
 version: '3.9'
 services:
   backend:
-    build: ./community-savings-app-backend
+    build: ./backend
     ports:
       - '5001:5000'
     environment:
@@ -66,7 +66,7 @@ services:
 version: '3.9'
 services:
   backend:
-    build: ./community-savings-app-backend
+    build: ./backend
     ports:
       - '5002:5000'
     environment:

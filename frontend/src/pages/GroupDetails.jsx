@@ -477,6 +477,12 @@ export default function GroupDetails() {
     currency: null,
     entryCount: null,
   });
+  const [contributionCapability, setContributionCapability] = useState({
+    status: 'loading',
+    available: false,
+    reasonCode: null,
+    nextAction: null,
+  });
   const [lastUpdated, setLastUpdated] =
     useState(null);
   const [membershipRequests, setMembershipRequests] = useState([]);
@@ -550,6 +556,51 @@ export default function GroupDetails() {
     [groupId],
   );
 
+  const loadContributionCapability = useCallback(
+    async (signal) => {
+      setContributionCapability({
+        status: 'loading',
+        available: false,
+        reasonCode: null,
+        nextAction: null,
+      });
+
+      try {
+        const response = await api.get(
+          `/api/v1/groups/${encodeURIComponent(groupId)}/contributions/capabilities`,
+          { signal },
+        );
+        const data = response?.data?.data ?? response?.data ?? response;
+        if (data?.success !== true || String(data?.groupId || '') !== String(groupId)) {
+          throw new Error('The group contribution capability response was invalid.');
+        }
+        if (signal?.aborted || !mountedRef.current) return;
+        setContributionCapability({
+          status: String(data.status || 'NOT_CONFIGURED'),
+          available: data.available === true && data.canInitiate === true,
+          reasonCode: data.reasonCode || null,
+          nextAction: data.nextAction || null,
+          blockers: Array.isArray(data.blockers) ? data.blockers : [],
+        });
+      } catch (capabilityError) {
+        if (signal?.aborted || capabilityError?.code === 'ERR_CANCELED') return;
+        setContributionCapability({
+          status: 'UNAVAILABLE',
+          available: false,
+          reasonCode: capabilityError?.response?.data?.code || 'GROUP_CONTRIBUTION_CAPABILITY_UNAVAILABLE',
+          nextAction: 'contact_institution_finance_officer',
+          blockers: [],
+        });
+        logger?.warn?.('TITech group contribution capability unavailable', {
+          groupId,
+          status: capabilityError?.response?.status,
+          code: capabilityError?.response?.data?.code || capabilityError?.code,
+        });
+      }
+    },
+    [groupId],
+  );
+
   const formatFinancialPosition = useCallback(() => {
     if (financialPosition.status === 'loading') return 'Loading…';
     if (financialPosition.status !== 'available') return 'Unavailable';
@@ -564,6 +615,7 @@ export default function GroupDetails() {
       if (!groupId) {
         setError('A valid group identifier is required.');
         setFinancialPosition({ status: 'unavailable', balance: null, currency: null, entryCount: null });
+        setContributionCapability({ status: 'UNAVAILABLE', available: false, reasonCode: 'INVALID_GROUP_ID', nextAction: null });
         setLoading(false);
         return;
       }
@@ -623,6 +675,7 @@ export default function GroupDetails() {
         setGroup(normalizedGroup);
         setLastUpdated(new Date());
         void loadFinancialPosition(controller.signal);
+        void loadContributionCapability(controller.signal);
 
         // Request moderation data only for users who are likely to have the
         // corresponding group scope. This is presentation optimization only:
@@ -700,7 +753,7 @@ export default function GroupDetails() {
         }
       }
     },
-    [groupId, user, loadFinancialPosition]
+    [groupId, user, loadFinancialPosition, loadContributionCapability]
   );
 
   // ==========================================================================
@@ -1098,7 +1151,13 @@ export default function GroupDetails() {
                 <div>
                   <span className="panel-eyebrow">Community Finance</span>
                   <h2 id="group-contribution-title">Contribution availability</h2>
-                  <p>Contribution initiation is not enabled in this group workspace.</p>
+                  <p>
+                    {contributionCapability.status === 'loading'
+                      ? 'Checking institution and provider authorization…'
+                      : contributionCapability.available
+                        ? 'The backend reports an authorized contribution capability.'
+                        : 'Contribution initiation is currently unavailable for this group.'}
+                  </p>
                 </div>
                 <div className="panel-icon">
                   <Coins size={22} aria-hidden="true" />
@@ -1108,9 +1167,27 @@ export default function GroupDetails() {
               <div className="group-contribution-unavailable" role="status" aria-live="polite">
                 <Info size={19} aria-hidden="true" />
                 <div>
-                  <strong>Contribution flow is awaiting authorized integration</strong>
-                  <p>There is no mounted group-scoped contribution instruction route connected to this page. The canonical financial API requires verified member, account and payment-reference context; it is not a substitute for a provider authorization and settlement workflow.</p>
-                  <p>No payment has been initiated and no contribution has been recorded from this screen. Contact your institution's authorized finance officer for the approved contribution process.</p>
+                  <strong>
+                    {contributionCapability.status === 'loading'
+                      ? 'Contribution capability is being verified'
+                      : contributionCapability.available
+                        ? 'Contribution capability requires the enabled instruction experience'
+                        : contributionCapability.reasonCode === 'GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED'
+                          ? 'Group financial account is not configured'
+                          : contributionCapability.reasonCode === 'PROVIDER_CONFIGURATION_REQUIRED'
+                            ? 'Authorized provider configuration is required'
+                            : contributionCapability.status === 'UNAVAILABLE'
+                              ? 'Contribution availability could not be verified'
+                              : 'Contribution flow is awaiting institutional and provider authorization'}
+                  </strong>
+                  <p>
+                    {contributionCapability.reasonCode === 'GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED'
+                      ? 'This group does not yet have a verified canonical financial-account mapping. A wallet or account will not be created automatically from this screen.'
+                      : 'The backend capability service checks the group scope and reports whether the approved financial-account and provider dependencies are ready. The ordinary contribution ledger API is not a substitute for provider authorization and settlement verification.'}
+                  </p>
+                  <p>
+                    No payment instruction has been created and no contribution has been recorded from this screen. The next action is to have the institution’s authorized finance officer complete the required account configuration and provider approval.
+                  </p>
                 </div>
               </div>
             </section>
