@@ -674,7 +674,7 @@ const ChatSchema = new Schema(
 
     strict: true,
 
-    versionKey: true,
+    versionKey: '__v',
 
     toJSON: {
       virtuals: true,

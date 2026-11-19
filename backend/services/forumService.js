@@ -376,7 +376,7 @@ const ForumTopicSchema = new Schema(
   },
   {
     timestamps: true,
-    versionKey: true,
+    versionKey: '__v',
     strict: true,
   },
 );
@@ -447,7 +447,7 @@ const ForumReplySchema = new Schema(
   },
   {
     timestamps: true,
-    versionKey: true,
+    versionKey: '__v',
     strict: true,
   },
 );
@@ -525,7 +525,7 @@ const ForumCategorySchema = new Schema(
   },
   {
     timestamps: true,
-    versionKey: true,
+    versionKey: '__v',
     strict: true,
   },
 );

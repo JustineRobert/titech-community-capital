@@ -1,6 +1,6 @@
 .titech-navbar {
   position: relative;
-  z-index: 30;
+  z-index: var(--titech-z-header, 1200);
   width: 100%;
   background: var(--titech-color-surface, var(--titech-official-white));
   color: var(--titech-color-text, var(--titech-official-navy));
@@ -494,13 +494,16 @@
 
 .titech-navbar__discovery-panel,
 .titech-navbar__more-panel {
-  position: absolute;
-  z-index: 45;
-  inset-block-start: calc(100% + 0.7rem);
-  inset-inline-end: 0;
-  width: min(43rem, calc(100vw - 2rem));
-  max-height: min(72vh, 36rem);
+  position: fixed;
+  z-index: var(--titech-z-dropdown, 1000);
+  inset-block-start: 0;
+  inset-inline-end: auto;
+  width: min(43rem, calc(100vw - 1.5rem));
+  max-height: min(72dvh, 36rem);
   overflow: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
   padding: 1rem;
   border: 1px solid var(--titech-color-border);
   border-radius: 1rem;

@@ -994,7 +994,7 @@ const LoanAuditSchema = new Schema(
     /**
      * Audit records must not be casually mutated after creation.
      */
-    versionKey: true,
+    versionKey: '__v',
 
     optimisticConcurrency: true,
 

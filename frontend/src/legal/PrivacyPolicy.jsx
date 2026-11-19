@@ -142,7 +142,7 @@ dataProtectionEmail:
 '[dpo@titechcommunity.app](mailto:dpo@titechcommunity.app)',
 
 legalEmail:
-'[legal@titechcommunity.app](mailto:legal@titechcommunity.app)',
+'[titechcapital@gmail.com](mailto:titechcapital@gmail.com)',
 
 phone:
 '+256 (394) 324760',

@@ -80,6 +80,7 @@ import LanguageSelector from "../i18n/LanguageSelector";
 import { useI18n } from "../i18n/I18nProvider";
 import { getNavigationItems, PUBLIC_PRODUCT_DISCOVERY } from "../navigation/navigationRegistry";
 
+import { computeDiscoveryMenuPlacement } from "./navigationMenuPlacement";
 import "./Navbar.css";
 
 // ============================================================================
@@ -224,6 +225,9 @@ function Navbar({
   const [openDiscoveryMenu, setOpenDiscoveryMenu] =
     useState(null);
 
+  const [discoveryMenuPlacement, setDiscoveryMenuPlacement] =
+    useState(null);
+
   const [mobileProductsOpen, setMobileProductsOpen] =
     useState(false);
 
@@ -306,6 +310,7 @@ function Navbar({
     setMobileOpen(false);
     setUserMenuOpen(false);
     setOpenDiscoveryMenu(null);
+    setDiscoveryMenuPlacement(null);
     setMobileProductsOpen(false);
     setMobileServicesOpen(false);
   }, []);
@@ -363,6 +368,51 @@ function Navbar({
   useEffect(() => {
     closeAllMenus();
   }, [location.pathname, closeAllMenus]);
+
+  // ==========================================================================
+  // Viewport-aware Products / Services menu positioning.
+  // The panel is measured after render and re-positioned on scroll/resize so it
+  // cannot spill beyond a device viewport or be clipped by the header layout.
+  // ==========================================================================
+
+  useEffect(() => {
+    if (!openDiscoveryMenu) {
+      setDiscoveryMenuPlacement(null);
+      return undefined;
+    }
+
+    const trigger = discoveryTriggerRefs.current[openDiscoveryMenu];
+    const panel = document.getElementById(`${testId}-${openDiscoveryMenu}-menu`);
+    if (!trigger || !panel) return undefined;
+
+    const updatePlacement = () => {
+      // The desktop disclosure is replaced by the mobile accordion at this
+      // breakpoint. Close it instead of leaving a detached fixed panel open.
+      if (window.innerWidth <= 1120) {
+        setOpenDiscoveryMenu(null);
+        setDiscoveryMenuPlacement(null);
+        return;
+      }
+
+      const triggerRect = trigger.getBoundingClientRect();
+      const placement = computeDiscoveryMenuPlacement({
+        triggerRect,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        contentHeight: panel.scrollHeight,
+        maxWidth: openDiscoveryMenu === "more" ? 304 : 688,
+      });
+      setDiscoveryMenuPlacement(placement);
+    };
+
+    updatePlacement();
+    window.addEventListener("resize", updatePlacement);
+    window.addEventListener("scroll", updatePlacement, true);
+    return () => {
+      window.removeEventListener("resize", updatePlacement);
+      window.removeEventListener("scroll", updatePlacement, true);
+    };
+  }, [openDiscoveryMenu, testId]);
 
   // ==========================================================================
   // Escape Key Handling
@@ -610,7 +660,6 @@ function Navbar({
                       isActive ? "titech-navbar__nav-link--active" : "",
                       isOpen ? "titech-navbar__menu-trigger--open" : "",
                     ].filter(Boolean).join(" ")}
-                    aria-haspopup="true"
                     aria-expanded={isOpen}
                     aria-controls={`${testId}-${menu.id}-menu`}
                     onClick={() => toggleDiscoveryMenu(menu.id)}
@@ -626,6 +675,13 @@ function Navbar({
                       className="titech-navbar__discovery-panel"
                       role="region"
                       aria-labelledby={`${testId}-${menu.id}-heading`}
+                      style={discoveryMenuPlacement ? {
+                        left: `${discoveryMenuPlacement.left}px`,
+                        top: `${discoveryMenuPlacement.top}px`,
+                        width: `${discoveryMenuPlacement.width}px`,
+                        maxHeight: `${discoveryMenuPlacement.maxHeight}px`,
+                        visibility: "visible",
+                      } : { visibility: "hidden" }}
                       data-testid={`${testId}-${menu.id}-menu`}
                     >
                       <div className="titech-navbar__discovery-heading">
@@ -652,7 +708,6 @@ function Navbar({
                     moreItems.some((item) => isRouteActive(currentPath, item.to)) ? "titech-navbar__nav-link--active" : "",
                     openDiscoveryMenu === "more" ? "titech-navbar__menu-trigger--open" : "",
                   ].filter(Boolean).join(" ")}
-                  aria-haspopup="true"
                   aria-expanded={openDiscoveryMenu === "more"}
                   aria-controls={`${testId}-more-menu`}
                   onClick={() => toggleDiscoveryMenu("more")}
@@ -662,7 +717,18 @@ function Navbar({
                   <ChevronDown size={15} aria-hidden="true" focusable="false" />
                 </button>
                 {openDiscoveryMenu === "more" && (
-                  <div id={`${testId}-more-menu`} className="titech-navbar__more-panel" role="region" aria-label="More workspace links">
+                  <div
+                    id={`${testId}-more-menu`}
+                    className="titech-navbar__more-panel"
+                    role="region"
+                    aria-label="More workspace links"
+                    style={discoveryMenuPlacement ? {
+                      left: `${discoveryMenuPlacement.left}px`,
+                      top: `${discoveryMenuPlacement.top}px`,
+                      width: `${discoveryMenuPlacement.width}px`,
+                      maxHeight: `${discoveryMenuPlacement.maxHeight}px`,
+                    } : { visibility: "hidden" }}
+                  >
                     {moreItems.map(({ id, label, to, icon }) => {
                       const Icon = NAVIGATION_ICONS[icon] || ShieldCheck;
                       const translationKey = `common.nav.${id}`;

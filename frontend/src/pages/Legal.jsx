@@ -110,7 +110,7 @@ const PAGE_CONFIG = Object.freeze({
   fallbackLastUpdated: 'January 15, 2026',
   fallbackVersion: '1.0',
 
-  legalEmail: 'legal@titechcommunity.app',
+  legalEmail: 'titechcapital@gmail.com',
   phoneDisplay: '+256 (782) 397907',
   phoneUri: '+256782397907',
   address: 'Kampala, Uganda',

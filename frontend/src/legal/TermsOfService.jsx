@@ -119,10 +119,10 @@ const DOCUMENT = Object.freeze({
 
 const CONTACT = Object.freeze({
   legalEmail:
-    'legal@titechcommunity.app',
+    'titechcapital@gmail.com',
 
   supportEmail:
-    'support@titechcommunity.app',
+    'titechcapital@gmail.com',
 
   privacyEmail:
     'privacy@titechcommunity.app',

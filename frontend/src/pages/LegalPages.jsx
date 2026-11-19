@@ -116,7 +116,7 @@ const LEGAL_CONFIG = Object.freeze({
     'January 15, 2026',
 
   legalEmail:
-    'legal@titechcommunity.app',
+    'titechcapital@gmail.com',
 
   legalPhone:
     '+256782397907',

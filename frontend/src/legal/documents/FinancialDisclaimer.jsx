@@ -72,10 +72,10 @@ const VERSION =
 '2.0';
 
 const LEGAL_EMAIL =
-'[legal@titechcommunity.app](mailto:legal@titechcommunity.app)';
+'[titechcapital@gmail.com](mailto:titechcapital@gmail.com)';
 
 const SUPPORT_EMAIL =
-'[support@titechcommunity.app](mailto:support@titechcommunity.app)';
+'[titechcapital@gmail.com](mailto:titechcapital@gmail.com)';
 
 const PHONE =
 '+256 (782) 397907';

@@ -4,6 +4,8 @@
   flex-wrap: wrap;
   gap: 0.4rem;
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   color: var(--titech-color-text, var(--titech-official-navy));
 }
 
@@ -14,8 +16,11 @@
 }
 
 .titech-language-selector__select {
-  max-width: 12rem;
+  width: auto;
+  min-width: 0;
+  max-width: min(12rem, calc(100vw - 2rem));
   min-height: 2.5rem;
+  box-sizing: border-box;
   padding-block: 0.35rem;
   padding-inline: 0.65rem 1.75rem;
   border: 1px solid var(--titech-color-border-strong);
@@ -74,7 +79,7 @@
   }
 
   .titech-language-selector__select {
-    max-width: 9.5rem;
+    max-width: min(9.5rem, calc(100vw - 1.5rem));
   }
 
   .titech-auth-language-control {

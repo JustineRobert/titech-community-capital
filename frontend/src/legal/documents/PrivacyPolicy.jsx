@@ -71,7 +71,7 @@ lastUpdated:
 'January 15, 2026',
 
 legalEmail:
-'[legal@titechcommunity.app](mailto:legal@titechcommunity.app)',
+'[titechcapital@gmail.com](mailto:titechcapital@gmail.com)',
 
 privacyEmail:
 '[privacy@titechcommunity.app](mailto:privacy@titechcommunity.app)',
@@ -80,7 +80,7 @@ dpoEmail:
 '[dpo@titechcommunity.app](mailto:dpo@titechcommunity.app)',
 
 supportEmail:
-'[support@titechcommunity.app](mailto:support@titechcommunity.app)',
+'[titechcapital@gmail.com](mailto:titechcapital@gmail.com)',
 
 phone:
 '+256 (782) 397907',

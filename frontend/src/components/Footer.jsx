@@ -92,10 +92,10 @@ export const FOOTER_CONSTANTS = Object.freeze({
     TITECH_BRAND.organization.officialContacts.email,
 
   SUPPORT_EMAIL:
-    'support@titechcommunity.app',
+    TITECH_BRAND.organization.officialContacts.email,
 
   LEGAL_EMAIL:
-    'legal@titechcommunity.app',
+    TITECH_BRAND.organization.officialContacts.email,
 
   PHONE_NUMBER:
     TITECH_BRAND.organization.officialContacts.telephone,

@@ -69,7 +69,7 @@ const DEFAULT_APP_NAME = 'TITech Community Capital';
 
 const DEFAULT_CURRENCY = 'UGX';
 
-const DEFAULT_SUPPORT_EMAIL = 'support@titechcommunity.app';
+const DEFAULT_SUPPORT_EMAIL = 'titechcapital@gmail.com';
 
 const MAX_AUDIT_ENTRIES = 100;
 

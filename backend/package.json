@@ -1,7 +1,7 @@
 {
   "name": "titech-community-capital-backend",
   "version": "1.0.0",
-  "description": "TITech Community Capital backend — enterprise community-finance control plane for tenancy, identity, financial events, ledger, provider-neutral payments, settlement/reconciliation, consent, risk governance, operations and capital connectivity.",
+  "description": "TITech Community Capital backend \u2014 enterprise community-finance control plane for tenancy, identity, financial events, ledger, provider-neutral payments, settlement/reconciliation, consent, risk governance, operations and capital connectivity.",
   "private": true,
   "type": "module",
   "main": "./server.js",
@@ -32,7 +32,7 @@
     "fintech",
     "Africa fintech"
   ],
-  "author": "Igune Justine Robert, TITECH CAPITAL - SMC LTD — CEO/Founder/CTO/Senior Software Engineer",
+  "author": "Igune Justine Robert, TITECH CAPITAL - SMC LTD \u2014 CEO/Founder/CTO/Senior Software Engineer",
   "license": "ISC",
   "engines": {
     "node": ">=24.15.0",
@@ -109,7 +109,8 @@
     "index:create:ubuntu-float": "node scripts/createUbuntuFloatIndexes.js",
     "index:create:edufinance": "node scripts/createEduFinanceIndexes.js",
     "test:faith-giving": "node --test modules/faith-community-giving/faithGiving.policy.test.js",
-    "index:create:faith-giving": "node scripts/createFaithGivingIndexes.js"
+    "index:create:faith-giving": "node scripts/createFaithGivingIndexes.js",
+    "test:version-key": "node --test tests/unit/platform/mongoose-version-key-contract.test.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

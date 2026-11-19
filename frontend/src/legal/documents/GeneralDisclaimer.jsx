@@ -70,10 +70,10 @@ lastUpdated:
 'January 15, 2026',
 
 legalEmail:
-'[legal@titechcommunity.app](mailto:legal@titechcommunity.app)',
+'[titechcapital@gmail.com](mailto:titechcapital@gmail.com)',
 
 supportEmail:
-'[support@titechcommunity.app](mailto:support@titechcommunity.app)',
+'[titechcapital@gmail.com](mailto:titechcapital@gmail.com)',
 
 phone:
 '+256 (782) 397907',

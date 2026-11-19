@@ -96,7 +96,7 @@ export const LEGAL_DATES = Object.freeze({
 
 export const LEGAL_CONTACTS = Object.freeze({
   legal: Object.freeze({
-    email: 'legal@titechcommunity.app',
+    email: 'titechcapital@gmail.com',
     phoneDisplay: '+256 782 397907',
     phoneHref: '+256782397907',
   }),
@@ -114,7 +114,7 @@ export const LEGAL_CONTACTS = Object.freeze({
   }),
 
   general: Object.freeze({
-    email: 'legal@titechcommunity.app',
+    email: 'titechcapital@gmail.com',
     phoneDisplay: '+256 782 397907',
     phoneHref: '+256782397907',
   }),

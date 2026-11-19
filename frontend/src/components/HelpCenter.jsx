@@ -43,7 +43,7 @@ import "./HelpCenter.css";
 const DEFAULT_TEST_ID = "titech-help-center";
 
 const DEFAULT_SUPPORT_EMAIL =
-  "support@titechcommunity.app";
+  "titechcapital@gmail.com";
 
 const DEFAULT_CONTACT_EMAIL =
   "info@titechcommunity.app";
