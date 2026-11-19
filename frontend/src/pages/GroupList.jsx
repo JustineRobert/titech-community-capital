@@ -1117,7 +1117,7 @@ export default function GroupList() {
           <div>
 
             <span className="group-list-eyebrow">
-              TITech Community Capital
+              TITech Community Capital · Community Finance. Stronger Together.
             </span>
 
             <h1

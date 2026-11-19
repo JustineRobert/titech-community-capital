@@ -1,0 +1,98 @@
+{
+  "execution_date": "2026-11-19",
+  "runtime": {
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "required_node": ">=24.15.0",
+    "required_npm": ">=11.0.0",
+    "supported_runtime_gate": "BLOCKED"
+  },
+  "tests": [
+    {
+      "command": "npm run test:navigation-groups",
+      "status": "PASS",
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:education-campaigns",
+      "status": "PASS",
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "focused combined node --test Group/Education contracts",
+      "status": "PASS",
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0,
+      "note": "overlapping suite; not additive unique count"
+    }
+  ],
+  "gates": [
+    {
+      "command": "node scripts/official-theme-audit.mjs",
+      "status": "PASS",
+      "detail": "77 CSS files; 0 hard-coded official palette occurrences"
+    },
+    {
+      "command": "node scripts/organization-profile-gate.mjs",
+      "status": "PASS"
+    },
+    {
+      "command": "node scripts/financial-static-gate.mjs",
+      "status": "PASS",
+      "detail": "12 canonical files"
+    },
+    {
+      "command": "node scripts/rbac-security-gate.mjs",
+      "status": "PASS"
+    },
+    {
+      "command": "node scripts/enterprise-gate.mjs --syntax",
+      "status": "PASS",
+      "detail": "2570 executable JS/TS-family files parsed; runtime warning emitted"
+    },
+    {
+      "command": "node scripts/titech-supported-runtime-gate.mjs",
+      "status": "BLOCKED",
+      "detail": "Node/npm below required versions"
+    }
+  ],
+  "not_verified": [
+    "dependency-backed builds",
+    "full Jest/Vitest suites",
+    "live MongoDB/Redis",
+    "browser E2E/screenshots",
+    "two-tenant HTTP security journeys",
+    "email/SMS delivery",
+    "live payment provider",
+    "ledger posting/reconciliation",
+    "external partner/regulatory/security approval"
+  ],
+  "release": "NOT READY; productionApproved=false",
+  "builds": [
+    {
+      "command": "npm run build:frontend",
+      "status": "BLOCKED",
+      "detail": "vite: not found; exit 127"
+    },
+    {
+      "command": "npm run build:backend",
+      "status": "PASS_SCRIPT_ONLY",
+      "detail": "Script prints a no-compilation validation string; not a compilation/runtime verification"
+    },
+    {
+      "command": "npm run lint",
+      "status": "BLOCKED",
+      "detail": "eslint: not found; exit 127"
+    },
+    {
+      "command": "npm run test:backend",
+      "status": "BLOCKED",
+      "detail": "Jest package missing from backend/node_modules"
+    }
+  ]
+}

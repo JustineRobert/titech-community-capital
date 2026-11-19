@@ -1,0 +1,14 @@
+capability,canonical_source,classification,verification_boundary
+Group discovery/list,frontend/src/pages/GroupList.jsx; backend/routes/groups.js,IMPLEMENTED; source contracts pass,Live browser/API query not executed
+Group creation,frontend/src/pages/CreateGroupV2.jsx; backend/routes/groups.js; backend/controllers/groupController.js,IMPLEMENTED; creator-only source contract passes,Live database persistence/browser journey not executed
+Group details,frontend/src/pages/GroupDetails.jsx; backend/routes/groups.js,PARTIALLY INTEGRATED,Group financial account mapping is absent; browser test not executed
+Existing-user invitations,backend/controllers/groupController.js; Group membership aggregate,PARTIALLY IMPLEMENTED,In-app only; existing active same-tenant users
+External invitations/new-user token lifecycle,No connected delivery/token lifecycle in active Groups flow,NOT IMPLEMENTED / EXTERNALLY BLOCKED,Do not claim delivery
+Join requests and membership decisions,backend/routes/groups.js; membership transition service,IMPLEMENTED AT SOURCE-CONTRACT LEVEL,Live two-tenant database/API test not executed
+Group edit/archive/suspend HTTP lifecycle,backend/routes/groups.js,NOT IMPLEMENTED IN ACTIVE ROUTER,Needs canonical service/routes/RBAC/UI
+Group-scoped contributions,frontend/src/pages/GroupDetails.jsx; canonical finance infrastructure,SAFELY DISABLED / BLOCKED,No group account mapping or mounted group-scoped payment instruction
+Group wallet/balance,backend/controllers/groupWalletController.js,FAIL-CLOSED BY DESIGN,Returns GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED when mapping absent
+Education public campaigns,backend/modules/education/educationCampaign.public.routes.js,IMPLEMENTED BUT FEATURE-GATED OFF,TITECH_EDUCATION_CAMPAIGNS_ENABLED=false yields explicit 503
+Education campaign management,backend/modules/education/educationCampaign.routes.js,IMPLEMENTED BUT FEATURE-GATED OFF,Tenant/auth/RBAC path exists; activation gates outstanding
+RBAC / tenant controls,Canonical RBAC + tenant middleware,SOURCE GATE PASS,No live two-tenant attack suite executed
+Official themes,frontend/src/branding/brand.js; official-theme.css; dashboard-theme.css,IMPLEMENTED / STATIC AUDIT PASS,77 CSS files; browser theme screenshot not captured
