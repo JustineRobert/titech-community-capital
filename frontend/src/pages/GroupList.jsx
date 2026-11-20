@@ -49,6 +49,7 @@ import Spinner from "../components/ui/Spinner";
 import logger from "../utils/logger";
 
 import api from "../services/api";
+import TITECH_BRAND from "../branding/brand";
 
 import "./GroupList.css";
 
@@ -1117,7 +1118,7 @@ export default function GroupList() {
           <div>
 
             <span className="group-list-eyebrow">
-              TITech Community Capital · Community Finance. Stronger Together.
+              {TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}
             </span>
 
             <h1

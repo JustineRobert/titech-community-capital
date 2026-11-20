@@ -1,11 +1,14 @@
 # TITech Community Capital — Authentication, Session Security, Dashboard Consolidation and Enterprise Readiness Master Prompt
 
+> **Current identity amendment — 20 November 2026:** Use organization **TITECH CAPITAL - SMC LTD**, product **TITech Community Capital**, and official platform tagline **Community Finance. Stronger Together.** The financial principle is **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.** This amendment supersedes older identity/tagline wording in this reusable document.
+
+
 **Revision:** 30 October 2026  
 **Product:** TITech Community Capital  
 **Repository:** https://github.com/JustineRobert/titech-community-capital  
-**Organization identity:** Preserve the repository's existing canonical organization identity. Do not undertake an unrelated company or product renaming exercise.  
+**Organization identity:** TITECH CAPITAL - SMC LTD. Use the repository's canonical organization profile and preserve the product identity TITech Community Capital.  
 **Primary market:** Uganda → East Africa → Africa → emerging markets → global  
-**Engineering principle:** BUILD LESS. PROVE MORE.  
+**Official tagline:** Community Finance. Stronger Together.  
 **Financial principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.  
 **Initial decision:** `NOT_READY` until the applicable acceptance criteria have been demonstrated.  
 **Production approval:** `productionApproved=false` unless all independent production approval requirements are satisfied and explicitly evidenced.
@@ -2791,7 +2794,7 @@ The executive layer must report trusted financial and operational information—
 
 **Do not create more architecture to conceal incomplete integration. Integrate what exists, correct what is wrong, remove what is redundant and prove what works.**
 
-**BUILD LESS. PROVE MORE.**
+**Community Finance. Stronger Together.**
 
 **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**
 

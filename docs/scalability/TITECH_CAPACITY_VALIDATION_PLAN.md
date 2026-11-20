@@ -2,7 +2,8 @@
 
 **Organization:** TITech Capital LTD  
 **Product:** TITech Community Capital  
-**Principle:** BUILD LESS. PROVE MORE. FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
+**Tagline:** Community Finance. Stronger Together.  
+**Financial operating principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
 
 ## 1. Capacity is not one number
 

@@ -3,7 +3,8 @@
 **Date:** 18 October 2026  
 **Product:** TITech Community Capital  
 **Repository baseline:** uploaded source ZIP `titech-community-capital-main(2).zip`  
-**Engineering principle:** BUILD LESS. PROVE MORE. FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
+**Official tagline:** Community Finance. Stronger Together.  
+**Financial operating principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
 
 ## 1. Status and scope
 

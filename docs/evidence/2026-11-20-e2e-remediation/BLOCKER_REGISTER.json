@@ -1,0 +1,71 @@
+{
+  "asOf": "2026-11-20",
+  "releaseStatus": "NOT READY",
+  "productionApproved": false,
+  "blockers": [
+    {
+      "id": "P0_RUNTIME_INSTALL",
+      "priority": "P0",
+      "status": "BLOCKED",
+      "required": "Node >=24.15.0, npm >=11; clean lockfile install and dependency-backed build",
+      "observed": "Node 22.16.0, npm 10.9.2; project dependencies absent; install/build not run",
+      "next_action": "Run under supported Node/npm and execute root/backend/frontend npm ci plus full build/tests."
+    },
+    {
+      "id": "P0_BOOTSTRAP_HEALTH",
+      "priority": "P0",
+      "status": "BLOCKED",
+      "required": "Live MongoDB/Redis startup, truthful readiness, worker health and graceful recovery",
+      "observed": "MongoDB, Redis and Docker unavailable; no live bootstrap/startup validation",
+      "next_action": "Bring up isolated transaction-capable MongoDB and Redis, run startup, interruption and recovery tests."
+    },
+    {
+      "id": "P0_LEDGER_REPLAY",
+      "priority": "P0",
+      "status": "BLOCKED",
+      "required": "Database-backed golden money path, balanced posting, idempotency, rollback, reversal and deterministic replay",
+      "observed": "12-file financial static gate passed; no replica-set-backed transaction or ledger replay executed",
+      "next_action": "Run financial integration suite on MongoDB replica set and verify journal/balance reconstruction and concurrency."
+    },
+    {
+      "id": "P0_PROVIDER_FAILURES",
+      "priority": "P0",
+      "status": "BLOCKED",
+      "required": "Authorized provider sandbox, callback verification, timeout resolution and settlement evidence",
+      "observed": "No provider credentials, sandbox transaction, settlement statement or certification available",
+      "next_action": "Obtain partner-authorized sandbox access and run adapter/callback/status/settlement/reconciliation contract tests."
+    },
+    {
+      "id": "P0_TENANT_PERMISSIONS",
+      "priority": "P0",
+      "status": "BLOCKED",
+      "required": "Runtime cross-tenant and privilege-denial proof across APIs, DB paths, jobs, exports and documents",
+      "observed": "RBAC static gate and policy tests passed; no two-tenant database-backed adversarial test run",
+      "next_action": "Run two-tenant integration and API/browser attack suite with real persistence and background processing."
+    },
+    {
+      "id": "P1_SECURITY_RECOVERY",
+      "priority": "P1",
+      "status": "BLOCKED",
+      "required": "Independent security assessment plus successful isolated backup restore and recovery measurements",
+      "observed": "Internal static gates only; no independent penetration assessment, backup restore or measured RPO/RTO",
+      "next_action": "Complete external threat/penetration review and execute witnessed restore drill with recorded RPO/RTO."
+    },
+    {
+      "id": "P1_REGULATORY_PARTNER",
+      "priority": "P1",
+      "status": "BLOCKED",
+      "required": "Qualified legal/regulatory assessment and documented partner/provider/insurer authority for exact activities",
+      "observed": "No external legal opinion, regulatory authorization, provider/insurer approval or agreement supplied",
+      "next_action": "Obtain jurisdiction-specific qualified advice and documented contracts/authorizations before regulated activity."
+    },
+    {
+      "id": "P1_COMMERCIAL_PILOT",
+      "priority": "P1",
+      "status": "BLOCKED",
+      "required": "Real institution-authorized pilot with data-sharing basis, measured evidence and formal acceptance",
+      "observed": "No named authorized pilot customer, signed scope, data-sharing approval or acceptance evidence",
+      "next_action": "Secure an institution-approved shadow pilot only after internal financial/security gates and data governance approvals."
+    }
+  ]
+}

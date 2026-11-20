@@ -1,0 +1,29 @@
+{
+  "asOf": "2026-11-20",
+  "sourceArchive": "titech-community-capital-main.zip",
+  "sourceArchiveSha256": "3519738730b835088f16effc4df71791d3472614f9cd3eb7cdd2313f6beb599d",
+  "gitMetadataPresent": false,
+  "publicRemoteBranch": "main",
+  "publicRemoteCommitCountDisplayed": 166,
+  "remoteHeadShaVerified": false,
+  "releaseStatus": "NOT READY",
+  "productionApproved": false,
+  "fileDelta": {
+    "MODIFIED": 21,
+    "ADDED": 49
+  },
+  "filesChangedOrAdded": 70,
+  "primaryDashboardFiles": [
+    "frontend/src/pages/Dashboard.jsx",
+    "frontend/src/pages/admin/AdminDashboard.jsx",
+    "frontend/src/pages/GroupList.jsx",
+    "frontend/src/pages/Members.jsx",
+    "frontend/src/pages/agriculture/AgricultureDashboard.jsx"
+  ],
+  "unitAndSourceContractTests": 145,
+  "testsPassed": 145,
+  "testsFailed": 0,
+  "testsSkipped": 0,
+  "syntaxFilesParsed": 2578,
+  "criticalGatesOpen": 8
+}

@@ -3,7 +3,8 @@
 **Revision:** 28 October 2026  
 **Product:** TITech Community Capital  
 **Organization identity in this repository:** TITech Capital LTD  
-**Engineering principle:** BUILD LESS. PROVE MORE.  
+**Official tagline:** Community Finance. Stronger Together.  
+**Financial operating principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
 **Decision at prompt issue:** `NOT_READY`; `productionApproved=false`.
 
 > Copy and paste this prompt into the coding agent working on the repository root. Treat the checked-out files and reproducible command output as the source of truth. Do not claim that the repository has been pushed to GitHub or that an external/production test occurred unless there is direct evidence.

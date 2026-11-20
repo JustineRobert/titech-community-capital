@@ -119,6 +119,24 @@
   box-shadow: var(--shadow-sm);
 }
 
+.dashboard-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dashboard-eyebrow {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0 0 8px;
+  color: var(--titech-brand-electric-blue);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .075em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
 .dashboard-header h1 {
   margin: 0;
 

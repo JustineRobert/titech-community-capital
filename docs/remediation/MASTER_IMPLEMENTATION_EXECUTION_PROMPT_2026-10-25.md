@@ -1,11 +1,15 @@
 # TITech Community Capital — Combined Test Remediation, Official Branding, Legal Pages, Runtime Verification and Evidence-Gated Release Master Prompt
 
+> **Current identity amendment — 20 November 2026:** Use organization **TITECH CAPITAL - SMC LTD**, product **TITech Community Capital**, and official platform tagline **Community Finance. Stronger Together.** The financial principle is **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.** This amendment supersedes older identity/tagline wording in this reusable document.
+
+
 **Version:** 1.0 — 25 October 2026  
 **Repository:** https://github.com/JustineRobert/titech-community-capital  
 **Expected Windows checkout:** `D:\TITech Projects\titech-community-capital-main` (verify; do not assume)  
 **Product identity:** **TITech Community Capital**  
-**Organization identity:** **TITech Capital LTD**  
-**Operating principle:** **BUILD LESS. PROVE MORE. FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**
+**Organization identity:** **TITECH CAPITAL - SMC LTD**  
+**Official tagline:** **Community Finance. Stronger Together.**  
+**Financial principle:** **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**
 
 ---
 
@@ -47,13 +51,13 @@ For each cluster: reproduce a representative failure → confirm cause → small
 
 ## 4. Correct official organization metadata while preserving all brand assets and colors
 
-The desired organization identity is **TITech Capital LTD**. The product name remains **TITech Community Capital**.
+The desired organization identity is **TITECH CAPITAL - SMC LTD**. The product name remains **TITech Community Capital**.
 
 Verify and correct these current source-of-truth fields without changing the official nine-color palette:
 
-1. `branding/TITECH_OFFICIAL_THEME.json`: set the `organization` field to `TITech Capital LTD`.
-2. `frontend/src/branding/brand.js`: set `TITECH_BRAND.legalName` to `TITech Capital LTD`.
-3. Root and backend `package.json` author metadata should use `TITech Capital LTD`; update corresponding lockfile metadata only if those fields exist and can be changed without dependency/resolution churn.
+1. `branding/TITECH_OFFICIAL_THEME.json`: set the `organization` field to `TITECH CAPITAL - SMC LTD`.
+2. `frontend/src/branding/brand.js`: set `TITECH_BRAND.legalName` to `TITECH CAPITAL - SMC LTD`.
+3. Root and backend `package.json` author metadata should use `TITECH CAPITAL - SMC LTD`; update corresponding lockfile metadata only if those fields exist and can be changed without dependency/resolution churn.
 4. Search active user-facing corporate/legal metadata for stale references. Do not indiscriminately rewrite dated historical evidence or audit trail records; mark historical documents as superseded rather than rewriting provenance.
 5. Run the existing brand/theme gate and inspect the diff. Do not redraw or replace the canonical circular logo.
 
@@ -155,4 +159,4 @@ A result is complete only where evidence supports it. A clean static gate or app
 11. Downloadable archive path and contents.
 12. Release decision: syntax-, module-, test-, integration-, E2E-, operations-, security-assessed, external-approved and production-approved status separately.
 
-**Final rule: BUILD LESS. PROVE MORE. Fix root causes; preserve the architecture; make every user-facing legal statement match verified reality; keep tests meaningful; and never claim a result that was not measured.**
+**Final rule: Community Finance. Stronger Together. Financial correctness before convenience. Fix root causes; preserve the architecture; make every user-facing legal statement match verified reality; keep tests meaningful; and never claim a result that was not measured.**

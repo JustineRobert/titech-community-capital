@@ -37,12 +37,15 @@
 .group-list-eyebrow {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
   color: var(--titech-official-electric-blue);
   font-size: .75rem;
   font-weight: 800;
   letter-spacing: .075em;
   line-height: 1.4;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .group-list-title {

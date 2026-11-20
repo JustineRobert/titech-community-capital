@@ -60,6 +60,7 @@ import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { hasTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
 import { getNavigationItems } from "../navigation/navigationRegistry.js";
+import TITECH_BRAND from "../branding/brand";
 
 import "./Dashboard.css";
 
@@ -1435,7 +1436,7 @@ export default function Dashboard() {
         <div className="dashboard-header-content">
           <div>
             <span className="dashboard-eyebrow">
-              TITech Community Capital
+              {TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}
             </span>
 
             <h1>

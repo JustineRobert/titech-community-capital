@@ -39,6 +39,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
+import TITECH_BRAND from '../branding/brand';
 import api from '../services/api';
 import './Members.css';
 
@@ -901,7 +902,7 @@ export default function Members() {
       <header className="members-header">
         <div className="members-header-content">
           <p className="members-eyebrow">
-            TITech Community Capital
+            {TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}
           </p>
 
           <h1 id="members-page-title">

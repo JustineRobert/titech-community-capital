@@ -51,6 +51,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { normalizeTitechRole, TITECH_ROLES } from "../../security/rbacPolicy";
 import api from "../../services/api";
+import TITECH_BRAND from "../../branding/brand";
 
 import "./AdminDashboard.css";
 
@@ -953,7 +954,7 @@ function AdminDashboard() {
         <div className="admin-header-content">
           <div>
             <span className="admin-eyebrow">
-              TITech Community Capital
+              {TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}
             </span>
 
             <h1 id="admin-dashboard-title">

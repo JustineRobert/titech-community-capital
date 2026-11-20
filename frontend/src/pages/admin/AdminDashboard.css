@@ -134,6 +134,7 @@
 
 .admin-dashboard .admin-eyebrow {
   display: inline-block;
+  max-width: 100%;
 
   margin-bottom: 8px;
 
@@ -143,7 +144,9 @@
   font-weight: 800;
 
   letter-spacing: 1.5px;
+  line-height: 1.45;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .admin-dashboard .admin-header h1 {

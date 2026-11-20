@@ -1,8 +1,12 @@
 # TITech UbuntuFloat Core — implementation boundary (23 October 2026)
 
+> **Current identity amendment — 20 November 2026:** Use organization **TITECH CAPITAL - SMC LTD**, product **TITech Community Capital**, and official platform tagline **Community Finance. Stronger Together.** The financial principle is **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.** This amendment supersedes older identity/tagline wording in this reusable document.
+
+
 **Product:** TITech Community Capital  
-**Organization:** TITech Capital LTD  
-**Engineering principle:** BUILD LESS. PROVE MORE.
+**Organization:** TITECH CAPITAL - SMC LTD  
+**Official tagline:** Community Finance. Stronger Together.  
+**Financial principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.
 
 ## Implemented in this source snapshot
 

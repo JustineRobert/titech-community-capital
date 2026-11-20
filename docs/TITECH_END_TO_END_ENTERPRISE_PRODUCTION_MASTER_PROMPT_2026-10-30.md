@@ -1,11 +1,15 @@
 # TITech Community Capital — End-to-End Enterprise Production Implementation, Remediation, Correctness, Testing, Commercial Validation and Controlled-Release Master Prompt
 
+> **Current identity amendment — 20 November 2026:** Use organization **TITECH CAPITAL - SMC LTD**, product **TITech Community Capital**, and official platform tagline **Community Finance. Stronger Together.** The financial principle is **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.** This amendment supersedes older identity/tagline wording in this reusable document.
+
+
 **Revision:** 30 October 2026  
 **Product identity:** **TITech Community Capital**  
-**Organization identity:** **TITech Capital LTD**  
+**Organization identity:** **TITECH CAPITAL - SMC LTD**  
 **Repository:** <https://github.com/JustineRobert/titech-community-capital>  
 **Primary market sequence:** Uganda → East Africa → Africa → selected emerging markets → global institutional infrastructure  
-**Engineering principles:** **BUILD LESS. PROVE MORE. FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**  
+**Official tagline:** **Community Finance. Stronger Together.**  
+**Financial principle:** **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**  
 **Baseline decision:** `NOT_READY`; `productionApproved=false`  
 **Execution mode:** repository-grounded, evidence-led, fail-closed; implement only what can be proved in the current environment.
 
@@ -33,7 +37,7 @@ The primary success criterion is not the number of modules. It is one complete, 
 
 ## 2. Non-negotiable repository, architecture and safety constraints
 
-1. Preserve the product identity exactly as `TITech Community Capital` and organization identity exactly as `TITech Capital LTD` in active metadata, manifests, legal references, documentation and customer-facing surfaces.
+1. Preserve the product identity exactly as `TITech Community Capital` and organization identity exactly as `TITECH CAPITAL - SMC LTD` in active metadata, manifests, legal references, documentation and customer-facing surfaces.
 2. Preserve the existing official circular logo and centralized official nine-color theme. In particular, retain the existing official electric-blue token `#0058D8`; do not invent a replacement brand system.
 3. Preserve the current architecture: React + Vite + React Router frontend; Express ES modules + Mongoose backend; MongoDB; Redis; JWT/refresh-token design; existing authentication, RBAC, tenant boundaries, audit, ledger, provider, outbox, reconciliation, observability and deployment structures.
 4. Do not introduce duplicate `ApplicationV2`, `BootstrapV2`, `AuthV2`, `LedgerV2`, parallel route registries, second lifecycle authorities, shadow ledgers or competing canonical services. Reuse the existing canonical owners.
@@ -540,7 +544,7 @@ Return a factual report with:
 10. Updated change manifest, report paths and artifact SHA-256.
 11. Downloadable updated repository archive.
 
-Close with the operating principle: **BUILD LESS. PROVE MORE. FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**
+Close with the official tagline: **Community Finance. Stronger Together.** and financial principle: **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**
 
 ---
 
@@ -563,9 +567,10 @@ The following supplemental prompt is included in full so that authentication/ses
 **Revision:** 30 October 2026  
 **Product:** TITech Community Capital  
 **Repository:** https://github.com/JustineRobert/titech-community-capital  
-**Organization identity:** Preserve the repository's existing canonical organization identity. Do not undertake an unrelated company or product renaming exercise.  
+**Organization identity:** **TITECH CAPITAL - SMC LTD**; preserve the product identity **TITech Community Capital**.  
 **Primary market:** Uganda → East Africa → Africa → emerging markets → global  
-**Engineering principle:** BUILD LESS. PROVE MORE.  
+**Official tagline:** Community Finance. Stronger Together.  
+**Financial principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.  
 **Financial principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.  
 **Initial decision:** `NOT_READY` until the applicable acceptance criteria have been demonstrated.  
 **Production approval:** `productionApproved=false` unless all independent production approval requirements are satisfied and explicitly evidenced.
@@ -3351,7 +3356,7 @@ The executive layer must report trusted financial and operational information—
 
 **Do not create more architecture to conceal incomplete integration. Integrate what exists, correct what is wrong, remove what is redundant and prove what works.**
 
-**BUILD LESS. PROVE MORE.**
+**Community Finance. Stronger Together.**
 
 **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.**
 

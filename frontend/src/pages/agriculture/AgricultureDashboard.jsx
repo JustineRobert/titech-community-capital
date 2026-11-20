@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
+import TITECH_BRAND from '../../branding/brand';
 import './AgricultureDashboard.css';
 
 const RESOURCES = Object.freeze([
@@ -62,7 +63,7 @@ export default function AgricultureDashboard() {
     <main className="agriculture-page" data-brand-surface="surface">
       <header className="agriculture-hero" data-brand-gradient="primary">
         <div>
-          <span className="agriculture-eyebrow">TITech Community Capital</span>
+          <span className="agriculture-eyebrow">{TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}</span>
           <h1>Agricultural economic infrastructure</h1>
           <p>Connect producers, groups, production, buyers, delivery and settlement history through the same tenant-aware financial core.</p>
         </div>

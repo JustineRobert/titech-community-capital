@@ -1,6 +1,6 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 16 November 2026  
+**As of:** 20 November 2026
 **Organization:** TITECH CAPITAL - SMC LTD
 **Entity Registration Number (ERN):** 80049233029029 (stated on user-uploaded Certificate of Incorporation; authenticity/current registry status not independently verified)
 **Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
@@ -12,6 +12,18 @@
 **`productionApproved`: `false`**
 
 This root-level document is an index to the current machine-generated evidence and the detailed historical/platform narrative. It is not a substitute for running the gates against the precise commit or deployment being assessed.
+
+## 20 November 2026 — core dashboard identity and verification update
+
+The canonical brand source remains `frontend/src/branding/brand.js`, backed by `branding/BRAND_MANIFEST.json`, `branding/TITECH_OFFICIAL_THEME.json` and `branding/TITECH_ORGANIZATION_PROFILE.json`. The official identity remains **TITech Community Capital**, **TITECH CAPITAL - SMC LTD.**, and **Community Finance. Stronger Together.** The supplied organization profile retains ERN **80049233029029**, email **titechcapital@gmail.com**, telephone **+256782397907**, WhatsApp **+256772123546**, and postal correspondence **P.O. Box 601200, Clock Tower, Uganda**. The incorporation certificate and address remain user-supplied evidence/administrative records, not independently verified registry standing, registered-office evidence, licences or regulated-activity approval.
+
+The active community Dashboard, Platform Administration dashboard, Groups directory, Members directory and Agriculture dashboard now render the legal organization name, product name and official tagline from that shared brand contract rather than page-specific duplicated strings. Their eyebrow/identity styles are responsive and wrap long organization names without horizontal overflow. These are source-level UI/brand contract changes; the repository retains the official circular logo, existing nine-colour semantic palette, default-light/explicit-dark theme contract and existing dashboard components. No unrelated dashboard redesign or replacement theme was introduced. The footer continues to resolve the official contact values from the organization profile.
+
+Verification on the supplied source archive: **145/145** dependency-free Node unit/source-contract tests passed (0 failed, 0 skipped); the repository syntax gate parsed **2,578** JS/TS-family files; official theme, organization-profile, 12-file canonical financial static, RBAC, performance-contract, hosting, implementation and 11 control-plane contract checks passed. The i18n validation found 602 keys for each of English, Kiswahili, French and Arabic; all translated-key counts are complete, but the Kiswahili, French and Arabic review status remains `PENDING_HUMAN_REVIEW`. The release-readiness audit passed with warnings, while the critical-gate checker correctly reports all eight P0/P1 gates open and `productionApproved=false`. The protected production-approval gate is blocked because no authorized approval evidence/reference/expiry is configured.
+
+The uploaded archive SHA-256 is `3519738730b835088f16effc4df71791d3472614f9cd3eb7cdd2313f6beb599d`. It has no `.git` directory; its ZIP comment contains a commit-like identifier that was not independently verified against GitHub. Remote Git access was unavailable, so branch/HEAD, current GitHub tip, clean working-tree status, commit, push and deployment are not claimed. The available toolchain remains Node **22.16.0** / npm **10.9.2**, below Node **>=24.15.0** / npm **>=11.0.0**. Dependencies, MongoDB, Redis and browser automation are absent. Clean install, backend/frontend build, real bootstrap/readiness, replica-set ledger replay, API/browser E2E, real provider sandbox/settlement, cross-tenant database attack tests, backup restoration, independent penetration testing, qualified legal/regulatory review, insurer/payment partner approval and real pilot acceptance remain blocked or unverified. The current import inventory still reports **208** legacy/non-critical missing local imports (zero on the explicitly audited canonical financial surface); **232** zero-byte files remain for individual disposition. These were not mass-created, deleted or treated as harmless without dependency analysis.
+
+See [`docs/evidence/2026-11-20-e2e-remediation/`](docs/evidence/2026-11-20-e2e-remediation/) for the new test logs, blocker register, change inventory and final release assessment. **Release remains NOT READY; `productionApproved=false`.**
 
 ## 17 November 2026 — Members, member profiles, Loans and Savings remediation
 

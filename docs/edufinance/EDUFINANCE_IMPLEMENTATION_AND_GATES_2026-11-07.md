@@ -1,10 +1,13 @@
 # TITech EduFinance — implementation and evidence boundary
 
+> **Current identity amendment — 20 November 2026:** Use organization **TITECH CAPITAL - SMC LTD**, product **TITech Community Capital**, and official platform tagline **Community Finance. Stronger Together.** The financial principle is **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.** This amendment supersedes older identity/tagline wording in this reusable document.
+
+
 **Organization:** TITECH CAPITAL - SMC LTD  
 **Parent product:** TITech Community Capital  
 **Service:** TITech EduFinance — School Fees Financing Infrastructure Platform  
 **Tagline:** Verified school fees. Responsible financing. Complete reconciliation.  
-**Platform tagline:** BUILD LESS. PROVE MORE.  
+**Platform tagline:** Community Finance. Stronger Together.  
 **Snapshot:** 7 November 2026
 
 ## What this archive now implements

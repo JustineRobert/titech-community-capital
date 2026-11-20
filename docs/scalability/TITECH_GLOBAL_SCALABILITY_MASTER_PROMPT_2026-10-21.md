@@ -1,12 +1,16 @@
 # TITech Community Capital
+> **Current identity amendment — 20 November 2026:** Use organization **TITECH CAPITAL - SMC LTD**, product **TITech Community Capital**, and official platform tagline **Community Finance. Stronger Together.** The financial principle is **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.** This amendment supersedes older identity/tagline wording in this reusable document.
+
+
 # GLOBAL SCALABILITY, 1.5-BILLION-MEMBER ARCHITECTURE, ENTERPRISE REMEDIATION, LOAD TESTING, FINANCIAL CORRECTNESS AND PRODUCTION-READINESS MASTER PROMPT
 
-**Organization:** TITech Capital LTD  
+**Organization:** TITECH CAPITAL - SMC LTD  
 **Product:** TITech Community Capital  
 **Canonical repository:** https://github.com/JustineRobert/titech-community-capital  
 **Primary objective:** Engineer the existing TITech platform toward globally distributed operation, measure its demonstrated capacity, remediate critical bottlenecks, and prove reliability, security, recovery and financial correctness at progressively higher capacity levels.
 
-**Governing principle: BUILD LESS. PROVE MORE. FINANCIAL CORRECTNESS BEFORE CONVENIENCE. CAPACITY CLAIMS MUST BE EVIDENCE-BASED.**
+**Official tagline:** Community Finance. Stronger Together.  
+**Governing financial principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE. Capacity claims must be evidence-based.
 
 ---
 
