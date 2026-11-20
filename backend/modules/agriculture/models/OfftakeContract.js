@@ -8,6 +8,7 @@ const contractSchema = new Schema({
   groupId: { type: Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
   commodityId: { type: Schema.Types.ObjectId, ref: 'AgricultureCommodity', required: true, index: true },
   expectedQuantity: { type: Schema.Types.Decimal128, required: true, min: 0 },
+  fulfilledQuantity: { type: Schema.Types.Decimal128, default: '0', min: 0 },
   unit: { type: String, required: true, trim: true, maxlength: 32 },
   pricingMethod: { type: String, enum: PRICING_METHODS, required: true },
   price: { type: Schema.Types.Decimal128, required: true, min: 0 },
@@ -25,6 +26,6 @@ const contractSchema = new Schema({
   syncStatus: { type: String, enum: OFFLINE_SYNC_STATUSES, default: 'SERVER_ACCEPTED' },
   idempotencyKey: { type: String, trim: true, maxlength: 255, default: null },
   idempotencyFingerprint: { type: String, trim: true, maxlength: 128, default: null },
-}, { timestamps: true, collection: 'agriculture_offtake_contracts', minimize: false });
+}, { timestamps: true, versionKey: '__v', optimisticConcurrency: true, collection: 'agriculture_offtake_contracts', minimize: false });
 contractSchema.index({ tenantId: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 export default mongoose.models.AgricultureOfftakeContract || mongoose.model('AgricultureOfftakeContract', contractSchema);

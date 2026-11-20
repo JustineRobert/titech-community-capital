@@ -135,7 +135,7 @@ function parseCsv(text) {
     }
     seenEmployees.add(employeeId);
 
-    if (!/^\d+(?:\.\d{1,6})?$/.test(amount) || Number(amount) <= 0) {
+    if (!/^\d+(?:\.\d{1,6})?$/.test(amount) || !/[1-9]/.test(amount)) {
       throw new PayrollError('PAYROLL_AMOUNT_INVALID', `Payroll amount is invalid on row ${index + 2}.`, 400, { row: index + 2 });
     }
 

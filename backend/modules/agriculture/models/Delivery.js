@@ -8,6 +8,7 @@ const deliverySchema = new Schema({
   buyerId: { type: Schema.Types.ObjectId, ref: 'AgricultureBuyer', required: true, index: true },
   productionCycleId: { type: Schema.Types.ObjectId, ref: 'AgricultureProductionCycle', required: true, index: true },
   quantity: { type: Schema.Types.Decimal128, required: true, min: 0 },
+  createdBy: { type: String, trim: true, maxlength: 128, default: null, immutable: true },
   unit: { type: String, required: true, trim: true, maxlength: 32 },
   qualityGrade: { type: String, trim: true, maxlength: 64, default: null },
   warehouse: { type: String, trim: true, maxlength: 200, default: null },

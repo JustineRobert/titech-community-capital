@@ -171,6 +171,30 @@ router.post('/uploadPayroll', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLO
  *     tags: [Payroll]
  *     security: [{ BearerAuth: [] }]
  */
+router.post('/submitForApproval', ...payrollAuth, requirePayrollRole('ADMIN', 'EMPLOYER_USER', 'PAYROLL_OFFICER'), idempotency({ operation: 'PAYROLL_SUBMIT_FOR_APPROVAL', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
+  const tenantId = requestTenant(req);
+  const batchId = String(req.body?.batchId || '').trim();
+  if (!batchId) throw new PayrollError('PAYROLL_BATCH_REQUIRED', 'batchId is required.', 400);
+  const result = await getService(req).submitForApproval({ req, tenantId, actorId: String(req.user.id || req.user.userId), batchId });
+  return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
+}));
+
+router.post('/approveBatch', ...payrollAuth, requirePayrollPermission('payroll:batch:approve'), idempotency({ operation: 'PAYROLL_APPROVE_BATCH', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
+  const tenantId = requestTenant(req);
+  const batchId = String(req.body?.batchId || '').trim();
+  if (!batchId) throw new PayrollError('PAYROLL_BATCH_REQUIRED', 'batchId is required.', 400);
+  const result = await getService(req).approveBatch({ req, tenantId, actorId: String(req.user.id || req.user.userId), batchId });
+  return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
+}));
+
+router.post('/rejectBatch', ...payrollAuth, requirePayrollPermission('payroll:batch:approve'), idempotency({ operation: 'PAYROLL_REJECT_BATCH', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
+  const tenantId = requestTenant(req);
+  const batchId = String(req.body?.batchId || '').trim();
+  if (!batchId) throw new PayrollError('PAYROLL_BATCH_REQUIRED', 'batchId is required.', 400);
+  const result = await getService(req).rejectBatch({ req, tenantId, actorId: String(req.user.id || req.user.userId), batchId, reason: req.body?.reason });
+  return sendSuccess(req, res, 200, { success: true, ...result, requestId: req.requestId, correlationId: req.correlationId, timestamp: new Date().toISOString() });
+}));
+
 router.post('/processBatch', ...payrollAuth, requirePayrollRole('ADMIN'), idempotency({ operation: 'PAYROLL_PROCESS_BATCH', resource: 'payroll-batch', required: true }), withErrorHandling(async (req, res) => {
   const tenantId = requestTenant(req);
   const batchId = String(req.body?.batchId || '').trim();
@@ -280,12 +304,12 @@ router.get('/testWebhook/auditLogs', ...payrollAuth, requirePayrollPermission('p
  *     tags: [Payroll]
  *     description: Public provider callback boundary protected by optional TITech provider HMAC when TITECH_PAYROLL_WEBHOOK_REQUIRE_SIGNATURE is enabled.
  */
-webhookRouter.post('/', express.json({ limit: '64kb' }), withErrorHandling(async (req, res) => {
-  const requireSignature = String(process.env.TITECH_PAYROLL_WEBHOOK_REQUIRE_SIGNATURE ?? (process.env.NODE_ENV === 'production' ? 'true' : 'false')).toLowerCase() === 'true';
+webhookRouter.post('/', withErrorHandling(async (req, res) => {
+  const requireSignature = process.env.NODE_ENV === 'production' || String(process.env.TITECH_PAYROLL_WEBHOOK_REQUIRE_SIGNATURE || 'false').toLowerCase() === 'true';
   const secret = process.env.TITECH_PAYROLL_PROVIDER_WEBHOOK_SECRET;
   if (requireSignature) {
     if (!secret) throw new PayrollError('PAYROLL_PROVIDER_WEBHOOK_SECRET_MISSING', 'Provider webhook verification is not configured.', 503);
-    const valid = verifyWebhookSignature(secret, req.get('X-TITech-Provider-Timestamp'), req.body, req.get('X-TITech-Provider-Signature'));
+    const valid = verifyWebhookSignature(secret, req.get('X-TITech-Provider-Timestamp'), req.rawBody, req.get('X-TITech-Provider-Signature'));
     if (!valid) throw new PayrollError('PAYROLL_PROVIDER_WEBHOOK_INVALID', 'Provider webhook signature or timestamp is invalid.', 401);
   }
 

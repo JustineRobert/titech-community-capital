@@ -27,12 +27,20 @@ function context(req) {
 }
 
 function fail(res, req, error) {
-  const status = Number(error?.statusCode) || (error?.name === 'VersionError' ? 409 : error?.name === 'ValidationError' ? 422 : 500);
+  const databaseUnavailable = [
+    'MongooseServerSelectionError', 'MongoServerSelectionError',
+    'MongoNetworkError', 'MongoTopologyClosedError', 'MongoPoolClearedError',
+  ].includes(error?.name)
+    || ['ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNRESET'].includes(error?.code)
+    || /buffering timed out|server selection timed out|topology was destroyed/i.test(String(error?.message || ''));
+  const status = Number(error?.statusCode)
+    || (databaseUnavailable ? 503 : error?.name === 'VersionError' ? 409 : error?.name === 'ValidationError' ? 422 : 500);
+  const unavailable = status >= 500;
   return res.status(status).json({
     success: false,
     error: {
-      code: error?.code || (status === 500 ? 'FAITH_GIVING_UNAVAILABLE' : 'FAITH_GIVING_ERROR'),
-      message: status < 500 ? error.message : 'Faith & Community Giving operation is temporarily unavailable.',
+      code: databaseUnavailable ? 'FAITH_GIVING_DEPENDENCY_UNAVAILABLE' : error?.code || (unavailable ? 'FAITH_GIVING_UNAVAILABLE' : 'FAITH_GIVING_ERROR'),
+      message: unavailable ? 'Faith & Community Giving is temporarily unavailable. Retry after its data service is restored.' : error.message,
     },
     requestId: req.requestId || null,
     correlationId: req.correlationId || req.requestId || null,

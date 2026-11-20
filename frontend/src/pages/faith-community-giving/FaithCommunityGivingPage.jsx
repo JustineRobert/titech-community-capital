@@ -34,7 +34,8 @@ const CATEGORY_LABELS = Object.freeze({
 function campaignData(response) { return response?.data?.data ?? null; }
 function errorMessage(error) {
   const code = error?.response?.data?.error?.code;
-  if (code === 'CAPABILITY_DISABLED') return 'The campaign directory is currently disabled pending partner, financial and release approvals.';
+  if (code === 'CAPABILITY_DISABLED') return 'Campaign administration and contribution recording remain disabled pending partner, financial and release approvals.';
+  if (code === 'FAITH_GIVING_DEPENDENCY_UNAVAILABLE') return 'The public campaign directory is temporarily unavailable because its data service cannot currently be reached. No donation or payment has been initiated.';
   return 'Campaign information could not be loaded. No contribution or payment has been initiated.';
 }
 function money(amountMinor, currency = 'UGX') {
@@ -112,7 +113,9 @@ export default function FaithCommunityGivingPage() {
       const code = caught?.response?.data?.error?.code;
       setPledgeError(code === 'FAITH_GIVING_CAMPAIGN_NOT_FOUND'
         ? 'Pledge registration is limited to authenticated users of the campaign institution. No donation or payment was processed.'
-        : caught?.response?.data?.error?.message || 'The pledge could not be recorded. No money or items have been transferred.');
+        : code === 'CAPABILITY_DISABLED'
+          ? 'Pledge recording is not enabled for this institution yet. You may review published campaign information, but no donation or payment can be submitted here.'
+          : caught?.response?.data?.error?.message || 'The pledge could not be recorded. No money or items have been transferred.');
     } finally { setPledgeBusy(false); }
   }
 

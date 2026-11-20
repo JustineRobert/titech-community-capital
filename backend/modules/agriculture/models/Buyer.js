@@ -12,12 +12,17 @@ const buyerSchema = new Schema({
   locations: { type: [Schema.Types.Mixed], default: [] },
   contractPreferences: { type: Schema.Types.Mixed, default: () => ({}) },
   settlementMethods: { type: [String], default: [] },
+  createdBy: { type: String, trim: true, maxlength: 128, default: null, immutable: true },
+  reviewedBy: { type: String, trim: true, maxlength: 128, default: null },
+  reviewedAt: { type: Date, default: null },
+  reviewReason: { type: String, trim: true, maxlength: 1000, default: null },
+  reviewHistory: { type: [{ verificationStatus: String, complianceStatus: String, actorId: String, reason: String, at: { type: Date, default: Date.now } }], default: [] },
   verificationStatus: { type: String, enum: VERIFICATION_STATUSES, default: 'PENDING', index: true },
   complianceStatus: { type: String, enum: ['PENDING', 'CLEARED', 'REVIEW', 'BLOCKED'], default: 'PENDING', index: true },
-  status: { type: String, enum: RECORD_STATUSES, default: 'ACTIVE', index: true },
+  status: { type: String, enum: RECORD_STATUSES, default: 'INACTIVE', index: true },
   idempotencyKey: { type: String, trim: true, maxlength: 255, default: null },
   idempotencyFingerprint: { type: String, trim: true, maxlength: 128, default: null },
-}, { timestamps: true, collection: 'agriculture_buyers', minimize: false });
+}, { timestamps: true, versionKey: '__v', optimisticConcurrency: true, collection: 'agriculture_buyers', minimize: false });
 buyerSchema.index({ tenantId: 1, organizationId: 1, name: 1 });
 buyerSchema.index({ tenantId: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 export default mongoose.models.AgricultureBuyer || mongoose.model('AgricultureBuyer', buyerSchema);

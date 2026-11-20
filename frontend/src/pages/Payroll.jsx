@@ -12,7 +12,8 @@ import {
   listWebhookSubscriptions,
   processPayrollBatch,
   reconcilePayrollBatch,
-  retryFailedPayroll,
+  submitPayrollForApproval,
+  approvePayrollBatch,
   testWebhook,
   uploadPayroll,
 } from '../features/payroll/payrollApi';
@@ -31,7 +32,9 @@ function getErrorMessage(error) {
 export default function Payroll() {
   const { user } = useAuth();
   const role = normalizeRole(user?.role);
-  const isAdmin = ['admin', 'super_admin', 'platform_admin'].includes(role);
+  const roleSet = [role, ...(Array.isArray(user?.roles) ? user.roles.map(normalizeRole) : [])];
+  const isAdmin = roleSet.some((item) => ['admin', 'super_admin', 'platform_admin'].includes(item));
+  const canApprove = isAdmin || roleSet.includes('payroll_officer') || (Array.isArray(user?.permissions) && user.permissions.includes('payroll:batch:approve'));
   const isTenantAdmin = role === 'tenant_admin';
   const isAuditor = role === 'auditor' || role === 'payroll_auditor';
   const canManage = isAdmin || role === 'employer_user' || role === 'employer' || role === 'payroll_officer';
@@ -218,13 +221,16 @@ export default function Payroll() {
           <section className="titech-payroll__card titech-brand-card">
             <div className="titech-payroll__card-heading"><CheckCircle2 size={22} /><h2>Batch controls</h2></div>
             <p>{selectedBatch ? `${selectedBatch.batchId} · ${selectedBatch.status}` : 'Upload a batch to enable processing controls.'}</p>
-            {isAdmin ? (
+            {selectedBatch && (
               <div className="titech-payroll__actions">
-                <button onClick={() => runAction(processPayrollBatch, 'Batch processing completed.')} disabled={busy || !selectedBatch}>Process batch</button>
-                <button onClick={() => runAction(reconcilePayrollBatch, 'Reconciliation completed.')} disabled={busy || !selectedBatch}>Reconcile</button>
-                <button onClick={() => runAction(retryFailedPayroll, 'Failed transactions retried.')} disabled={busy || !selectedBatch}>Retry failed</button>
+                {selectedBatch.status === 'UPLOADED' && canManage && <button onClick={() => runAction(submitPayrollForApproval, 'Batch submitted for independent approval.')} disabled={busy}>Submit for approval</button>}
+                {selectedBatch.status === 'PENDING_APPROVAL' && canApprove && <button onClick={() => runAction(approvePayrollBatch, 'Batch independently approved.')} disabled={busy}>Approve batch</button>}
+                {selectedBatch.status === 'APPROVED' && isAdmin && <button onClick={() => runAction(processPayrollBatch, 'Approved batch processing started.')} disabled={busy}>Process approved batch</button>}
+                {['PROCESSED', 'PARTIALLY_PROCESSED', 'FAILED', 'PROCESSING'].includes(selectedBatch.status) && isAdmin && <button onClick={() => runAction(reconcilePayrollBatch, 'Reconciliation requested.')} disabled={busy}>Reconcile</button>}
               </div>
-            ) : <span className="titech-payroll__readonly">Payroll officer: processing and retry controls remain administrator-only.</span>}
+            )}
+            {!canApprove && selectedBatch?.status === 'PENDING_APPROVAL' && <span className="titech-payroll__readonly">Independent approval is restricted to an authorized payroll checker.</span>}
+            {selectedBatch && ['UNKNOWN', 'FAILED'].includes(selectedBatch.status) && <p className="titech-payroll__empty" role="status">Do not blindly retry an uncertain payout. Resolve the provider outcome and issue a newly reviewed, independently approved instruction.</p>}
           </section>
         </section>
       )}
@@ -248,8 +254,8 @@ export default function Payroll() {
           <p className="titech-payroll__empty" role="alert">Payroll data unavailable. This is not an empty payroll batch list. {reportError}</p>
         ) : report.batches?.length ? (
           <div className="titech-payroll__table-wrap">
-            <table><thead><tr><th>Batch</th><th>Status</th><th>Rows</th><th>Successful</th><th>Failed</th><th>Total</th></tr></thead>
-              <tbody>{report.batches.map((batch) => <tr key={batch.batchId}><td>{batch.batchId}</td><td><span data-financial-state={batch.status === 'RECONCILED' || batch.status === 'PROCESSED' ? 'positive' : batch.status === 'FAILED' ? 'negative' : 'pending'}>{batch.status}</span></td><td>{batch.rowCount}</td><td>{batch.successCount}</td><td>{batch.failedCount}</td><td>{batch.totalAmount}</td></tr>)}</tbody>
+            <table><thead><tr><th>Batch</th><th>Status</th><th>Rows</th><th>Successful</th><th>Failed</th><th>Total</th><th>Currency</th></tr></thead>
+              <tbody>{report.batches.map((batch) => <tr key={batch.batchId}><td>{batch.batchId}</td><td><span data-financial-state={batch.status === 'RECONCILED' || batch.status === 'PROCESSED' ? 'positive' : batch.status === 'FAILED' ? 'negative' : 'pending'}>{batch.status}</span></td><td>{batch.rowCount}</td><td>{batch.successCount}</td><td>{batch.failedCount}</td><td>{batch.totalAmount}</td><td>{batch.currency || 'Unavailable'}</td></tr>)}</tbody>
             </table>
           </div>
         ) : <p className="titech-payroll__empty">No payroll batches are available for this employer tenant.</p>}

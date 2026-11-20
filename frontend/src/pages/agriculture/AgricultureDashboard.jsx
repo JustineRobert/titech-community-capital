@@ -45,7 +45,7 @@ export default function AgricultureDashboard() {
       responses.forEach((result, index) => {
         const resource = RESOURCES[index][0];
         if (result.status === 'fulfilled') next[resource] = Array.isArray(result.value?.data?.data) ? result.value.data.data : [];
-        else next[resource] = [];
+        else next[resource] = null;
       });
       const failed = responses.some((result) => result.status === 'rejected');
       setData(next);
@@ -57,7 +57,7 @@ export default function AgricultureDashboard() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const metrics = useMemo(() => RESOURCES.map(([resource, label, tone]) => ({ count: data[resource]?.length ?? 0, label, tone })), [data]);
+  const metrics = useMemo(() => RESOURCES.map(([resource, label, tone]) => ({ count: data[resource] === null ? 'Unavailable' : (data[resource]?.length ?? (loading ? '—' : '0')), label, tone })), [data, loading]);
 
   return (
     <main className="agriculture-page" data-brand-surface="surface">

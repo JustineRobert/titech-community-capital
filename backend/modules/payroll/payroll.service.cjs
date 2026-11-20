@@ -1,11 +1,13 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const mongoose = require('mongoose');
 const dns = require('node:dns').promises;
 const net = require('node:net');
 
 const PayrollBatch = require('./models/PayrollBatch.cjs');
 const PayrollTransaction = require('./models/PayrollTransaction.cjs');
+const PayrollApproval = require('./models/PayrollApproval.cjs');
 const WebhookSubscription = require('./models/WebhookSubscription.cjs');
 const { parseCsv } = require('./payroll.csv.cjs');
 const { PayrollError } = require('./payroll.errors.cjs');
@@ -29,6 +31,7 @@ const {
 } = require('./payroll.crypto.cjs');
 
 const { normalizePayrollRole } = require('./payroll.authorization.cjs');
+const { assertTransition, assertRoleForTransition, assertMakerCheckerSeparation } = require('./payroll.stateMachine.cjs');
 
 let auditServicePromise;
 let auditModelPromise;
@@ -90,7 +93,13 @@ function toPublicBatch(batch) {
     fileName: batch.fileName,
     rowCount: batch.rowCount,
     totalAmount: serializeDecimal(batch.totalAmount),
+    currency: batch.currency || null,
     status: batch.status,
+    submittedAt: batch.submittedAt || null,
+    submittedBy: batch.submittedBy || null,
+    approvedAt: batch.approvedAt || null,
+    approvedBy: batch.approvedBy || null,
+    approvalReason: batch.approvalReason || null,
     processedCount: batch.processedCount,
     successCount: batch.successCount,
     failedCount: batch.failedCount,
@@ -113,7 +122,31 @@ async function getAuditModel() {
   return auditModelPromise;
 }
 
-async function writeAudit({ tenantId, action, data, actorId, requestId, correlationId }) {
+async function withPayrollTransaction(operation) {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => { result = await operation(session); });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+function sumPayrollAmounts(rows) {
+  let total = 0n;
+  for (const row of rows) {
+    const [whole, fraction = ''] = String(row.amount).split('.');
+    total += BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, '0'));
+  }
+  return `${total / 1_000_000n}.${String(total % 1_000_000n).padStart(6, '0')}`;
+}
+
+function actorRoles(req) {
+  return [req.user?.role, ...(Array.isArray(req.user?.roles) ? req.user.roles : [])].map(normalizePayrollRole).filter(Boolean);
+}
+
+async function writeAudit({ tenantId, action, data, actorId, requestId, correlationId, session = null }) {
   const audit = await getAuditService();
   return audit.createAuditLog({
     tenantId,
@@ -121,6 +154,7 @@ async function writeAudit({ tenantId, action, data, actorId, requestId, correlat
     actorId,
     requestId,
     correlationId,
+    session,
     data: {
       auditLogId: makeId('audit'),
       employerId: tenantId,
@@ -202,61 +236,99 @@ class PayrollService {
   }
 
   async uploadPayroll({ req, tenantId, actorId, fileName, csvText, idempotencyKey, defaultProvider }) {
-    const existing = await PayrollBatch.findOne({ tenantId, uploadIdempotencyKey: idempotencyKey }).lean();
-    if (existing) return { batch: toPublicBatch(existing), replay: true };
-
+    if (typeof csvText !== 'string') throw new PayrollError('PAYROLL_CSV_REQUIRED', 'CSV payroll content is required.', 400);
+    const uploadFingerprint = crypto.createHash('sha256').update(csvText, 'utf8').digest('hex');
     const rows = parseCsv(csvText);
-    const batchId = makeId('payroll_batch');
-    const batch = await PayrollBatch.create({
-      batchId,
-      tenantId,
-      employerId: tenantId,
-      uploadedBy: actorId,
-      uploadIdempotencyKey: idempotencyKey,
-      fileName: String(fileName || 'payroll.csv').slice(0, 255),
-      rowCount: rows.length,
-      totalAmount: '0',
-      status: BATCH_STATUS.UPLOADED,
+    const currencies = [...new Set(rows.map((row) => row.currency))];
+    if (currencies.length !== 1) throw new PayrollError('PAYROLL_MULTI_CURRENCY_BATCH', 'A single payroll batch must use one currency.', 400);
+    const currency = currencies[0];
+    const totalAmount = sumPayrollAmounts(rows);
+    return withPayrollTransaction(async (session) => {
+      const existing = await PayrollBatch.findOne({ tenantId, uploadIdempotencyKey: idempotencyKey }).session(session).lean();
+      if (existing) {
+        if (existing.uploadFingerprint !== uploadFingerprint) throw new PayrollError('PAYROLL_IDEMPOTENCY_CONFLICT', 'The upload idempotency key was already used with different file content.', 409);
+        return { batch: toPublicBatch(existing), replay: true };
+      }
+      const batchId = makeId('payroll_batch');
+      const batch = (await PayrollBatch.create([{
+        batchId, tenantId, employerId: tenantId, uploadedBy: actorId,
+        uploadIdempotencyKey: idempotencyKey,
+        uploadFingerprint,
+        fileName: String(fileName || 'payroll.csv').slice(0, 255),
+        rowCount: rows.length, totalAmount, currency, status: BATCH_STATUS.UPLOADED,
+      }], { session }))[0];
+      const documents = rows.map((row) => ({
+        transactionId: makeId('payroll_tx'), tenantId, employerId: tenantId, batchId,
+        employeeId: row.employeeId, employeeName: row.employeeName, phoneNumber: row.phoneNumber,
+        amount: row.amount, currency: row.currency, provider: row.provider || defaultProvider || 'MTN_MOMO',
+        status: TRANSACTION_STATUS.PENDING, financialPostingStatus: FINANCIAL_POSTING_STATUS.PENDING,
+        attemptCount: 0, idempotencyKey: `${batchId}:${row.employeeId}`, metadata: {},
+      }));
+      await PayrollTransaction.insertMany(documents, { ordered: true, session });
+      await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId,
+        action: AUDIT_ACTIONS.PAYROLL_UPLOAD,
+        data: { batchId, fileName: batch.fileName, rowCount: rows.length, currency, totalAmount, uploadFingerprint }, session });
+      return { batch: toPublicBatch(batch), replay: false };
     });
+  }
 
-    const documents = rows.map((row) => ({
-      transactionId: makeId('payroll_tx'),
-      tenantId,
-      employerId: tenantId,
-      batchId,
-      employeeId: row.employeeId,
-      employeeName: row.employeeName,
-      phoneNumber: row.phoneNumber,
-      amount: row.amount,
-      currency: row.currency,
-      provider: row.provider || defaultProvider || 'MTN_MOMO',
-      status: TRANSACTION_STATUS.PENDING,
-      financialPostingStatus: FINANCIAL_POSTING_STATUS.PENDING,
-      attemptCount: 0,
-      idempotencyKey: `${batchId}:${row.employeeId}`,
-      metadata: {},
-    }));
-
-    await PayrollTransaction.insertMany(documents, { ordered: true });
-    const totals = await PayrollTransaction.aggregate([
-      { $match: { batchId, tenantId } },
-      { $group: { _id: '$currency', totalAmount: { $sum: '$amount' } } },
-    ]);
-    if (totals.length === 1) {
-      await PayrollBatch.updateOne({ batchId, tenantId }, { $set: { totalAmount: totals[0].totalAmount } });
-    }
-
-    await writeAudit({
-      tenantId,
-      actorId,
-      requestId: req.requestId,
-      correlationId: req.correlationId,
-      action: AUDIT_ACTIONS.PAYROLL_UPLOAD,
-      data: { batchId, fileName: batch.fileName, rowCount: rows.length },
+  async submitForApproval({ req, tenantId, actorId, batchId }) {
+    const roles = actorRoles(req);
+    assertRoleForTransition('submit', roles);
+    return withPayrollTransaction(async (session) => {
+      const batch = await PayrollBatch.findOne({ tenantId, batchId }).session(session);
+      if (!batch) throw new PayrollError('PAYROLL_BATCH_NOT_FOUND', 'Payroll batch was not found.', 404);
+      if (batch.status === BATCH_STATUS.PENDING_APPROVAL) return { batch: toPublicBatch(batch), replay: true };
+      assertTransition(batch.status, BATCH_STATUS.PENDING_APPROVAL);
+      const count = await PayrollTransaction.countDocuments({ tenantId, batchId }).session(session);
+      if (!count || count !== batch.rowCount) throw new PayrollError('PAYROLL_BATCH_INCOMPLETE', 'Payroll batch rows are incomplete and cannot be submitted.', 409);
+      const previousState = batch.status;
+      batch.status = BATCH_STATUS.PENDING_APPROVAL;
+      batch.submittedBy = actorId;
+      batch.submittedAt = new Date();
+      await batch.save({ session });
+      await PayrollApproval.create([{ approvalId: makeId('payroll_approval'), tenantId, batchId, action: 'SUBMITTED', actorId, actorRole: roles.join(',') || 'UNKNOWN', previousState, nextState: batch.status, requestId: req.requestId || null, correlationId: req.correlationId || null }], { session });
+      await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: 'PAYROLL_BATCH_SUBMITTED_FOR_APPROVAL', data: { batchId, previousState, nextState: batch.status, rowCount: count, currency: batch.currency, totalAmount: serializeDecimal(batch.totalAmount) }, session });
+      return { batch: toPublicBatch(batch), replay: false };
     });
+  }
 
-    const current = await PayrollBatch.findOne({ batchId, tenantId }).lean();
-    return { batch: toPublicBatch(current), replay: false };
+  async approveBatch({ req, tenantId, actorId, batchId }) {
+    const roles = actorRoles(req);
+    assertRoleForTransition('approve', roles);
+    return withPayrollTransaction(async (session) => {
+      const batch = await PayrollBatch.findOne({ tenantId, batchId }).session(session);
+      if (!batch) throw new PayrollError('PAYROLL_BATCH_NOT_FOUND', 'Payroll batch was not found.', 404);
+      assertMakerCheckerSeparation(batch.uploadedBy, actorId);
+      if (batch.status === BATCH_STATUS.APPROVED && String(batch.approvedBy) === String(actorId)) return { batch: toPublicBatch(batch), replay: true };
+      assertTransition(batch.status, BATCH_STATUS.APPROVED);
+      if (batch.status !== BATCH_STATUS.PENDING_APPROVAL || !batch.submittedAt) throw new PayrollError('PAYROLL_BATCH_NOT_SUBMITTED', 'A submitted payroll batch is required before approval.', 409);
+      const previousState = batch.status;
+      batch.status = BATCH_STATUS.APPROVED; batch.approvedBy = actorId; batch.approvedAt = new Date(); batch.approvalReason = null;
+      await batch.save({ session });
+      await PayrollApproval.create([{ approvalId: makeId('payroll_approval'), tenantId, batchId, action: 'APPROVED', actorId, actorRole: roles.join(',') || 'UNKNOWN', previousState, nextState: batch.status, requestId: req.requestId || null, correlationId: req.correlationId || null }], { session });
+      await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: 'PAYROLL_BATCH_APPROVED', data: { batchId, previousState, nextState: batch.status, submittedBy: batch.submittedBy, approvedBy: actorId }, session });
+      return { batch: toPublicBatch(batch), replay: false };
+    });
+  }
+
+  async rejectBatch({ req, tenantId, actorId, batchId, reason }) {
+    const roles = actorRoles(req);
+    assertRoleForTransition('reject', roles);
+    const normalizedReason = String(reason || '').trim();
+    if (normalizedReason.length < 5 || normalizedReason.length > 1000) throw new PayrollError('PAYROLL_REJECTION_REASON_REQUIRED', 'A rejection reason between 5 and 1000 characters is required.', 422);
+    return withPayrollTransaction(async (session) => {
+      const batch = await PayrollBatch.findOne({ tenantId, batchId }).session(session);
+      if (!batch) throw new PayrollError('PAYROLL_BATCH_NOT_FOUND', 'Payroll batch was not found.', 404);
+      assertMakerCheckerSeparation(batch.uploadedBy, actorId);
+      assertTransition(batch.status, BATCH_STATUS.REJECTED);
+      const previousState = batch.status;
+      batch.status = BATCH_STATUS.REJECTED; batch.rejectedBy = actorId; batch.rejectedAt = new Date(); batch.approvalReason = normalizedReason;
+      await batch.save({ session });
+      await PayrollApproval.create([{ approvalId: makeId('payroll_approval'), tenantId, batchId, action: 'REJECTED', actorId, actorRole: roles.join(',') || 'UNKNOWN', reason: normalizedReason, previousState, nextState: batch.status, requestId: req.requestId || null, correlationId: req.correlationId || null }], { session });
+      await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: 'PAYROLL_BATCH_REJECTED', data: { batchId, previousState, nextState: batch.status, reason: normalizedReason }, session });
+      return { batch: toPublicBatch(batch), replay: false };
+    });
   }
 
   async refreshBatchStats(tenantId, batchId) {
@@ -338,8 +410,10 @@ class PayrollService {
     if (!batch) throw new PayrollError('PAYROLL_BATCH_NOT_FOUND', 'Payroll batch was not found.', 404);
     if (batch.status === BATCH_STATUS.PROCESSING) throw new PayrollError('PAYROLL_BATCH_ALREADY_PROCESSING', 'Payroll batch is already processing.', 409);
     if (batch.status === BATCH_STATUS.RECONCILED) throw new PayrollError('PAYROLL_BATCH_FINAL', 'Reconciled payroll batches cannot be reprocessed.', 409);
+    if (batch.status !== BATCH_STATUS.APPROVED || !batch.approvedAt || !batch.approvedBy) throw new PayrollError('PAYROLL_BATCH_NOT_APPROVED', 'Payroll processing requires a recorded independent approval.', 409);
 
-    await PayrollBatch.updateOne({ tenantId, batchId, status: { $in: [BATCH_STATUS.UPLOADED, BATCH_STATUS.PARTIALLY_PROCESSED, BATCH_STATUS.FAILED] } }, { $set: { status: BATCH_STATUS.PROCESSING } });
+    const claim = await PayrollBatch.updateOne({ tenantId, batchId, status: BATCH_STATUS.APPROVED, approvedAt: { $ne: null } }, { $set: { status: BATCH_STATUS.PROCESSING } });
+    if (!claim.modifiedCount) throw new PayrollError('PAYROLL_BATCH_ALREADY_CLAIMED', 'Payroll batch was concurrently claimed or its approval is no longer valid.', 409);
     const transactions = await PayrollTransaction.find({ tenantId, batchId, status: { $in: [TRANSACTION_STATUS.PENDING, TRANSACTION_STATUS.RETRYING] } }).lean();
 
     for (const tx of transactions) {
@@ -511,85 +585,12 @@ class PayrollService {
   }
 
   async retryFailed({ req, tenantId, actorId, batchId }) {
-    const filter = { tenantId, status: TRANSACTION_STATUS.FAILED };
-    if (batchId) filter.batchId = batchId;
-    const transactions = await PayrollTransaction.find(filter).lean();
-    const results = [];
-
-    for (const tx of transactions) {
-      const nextIdempotencyKey = `${tx.idempotencyKey}:retry:${tx.attemptCount + 1}`;
-      await PayrollTransaction.updateOne({ tenantId, transactionId: tx.transactionId, status: TRANSACTION_STATUS.FAILED }, { $set: { status: TRANSACTION_STATUS.RETRYING, lastAttemptIdempotencyKey: nextIdempotencyKey, retryOf: tx.transactionId }, $inc: { attemptCount: 1 }, });
-      const result = await this.providerGateway.disburse({ provider: tx.provider, tenantId, amount: serializeDecimal(tx.amount), currency: tx.currency, phoneNumber: tx.phoneNumber, idempotencyKey: nextIdempotencyKey, transactionId: tx.transactionId, employeeId: tx.employeeId, employeeName: tx.employeeName, correlationId: req.correlationId });
-      const nextStatus = result.status === 'SUCCESS' ? TRANSACTION_STATUS.SUCCESS : result.status === 'FAILED' ? TRANSACTION_STATUS.FAILED : TRANSACTION_STATUS.UNKNOWN;
-      await PayrollTransaction.updateOne({ tenantId, transactionId: tx.transactionId }, { $set: { status: nextStatus, providerTransactionId: result.providerTransactionId || tx.providerTransactionId, providerRef: result.providerRef || tx.providerRef, errorCode: result.errorCode || null, message: result.message || null, lastProviderUpdateAt: new Date() } });
-      if (nextStatus === TRANSACTION_STATUS.SUCCESS) {
-        await this.finalizeFinancialPosting({
-          tenantId,
-          batchId: tx.batchId,
-          transaction: {
-            ...tx,
-            status: nextStatus,
-            providerTransactionId: result.providerTransactionId || tx.providerTransactionId,
-            providerRef: result.providerRef || tx.providerRef,
-          },
-        });
-      }
-      results.push({ transactionId: tx.transactionId, status: nextStatus, attemptCount: tx.attemptCount + 1 });
-    }
-
-    await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: AUDIT_ACTIONS.PAYROLL_RETRY_ATTEMPTED, data: { batchId: batchId || null, attempted: results.length } });
-    if (results.length) await this.dispatchEvent(tenantId, WEBHOOK_EVENTS.RETRY_ATTEMPTED, { batchId: batchId || null, results }, req);
-    const updated = batchId ? await this.refreshBatchStats(tenantId, batchId) : null;
-    return { attempted: results.length, results, batch: updated ? toPublicBatch(updated) : null };
-  }
-
-  async report({ tenantId, batchId, status, page = 1, pageSize = 20 }) {
-    const safePage = Math.max(1, Number(page) || 1);
-    const safePageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(pageSize) || 20));
-    const filter = { tenantId };
-    if (batchId) filter.batchId = batchId;
-    if (status) filter.status = String(status).toUpperCase();
-    const [transactions, total] = await Promise.all([
-      PayrollTransaction.find(filter).sort({ createdAt: -1 }).skip((safePage - 1) * safePageSize).limit(safePageSize).lean(),
-      PayrollTransaction.countDocuments(filter),
-    ]);
-    const batches = await PayrollBatch.find(batchId ? { tenantId, batchId } : { tenantId }).sort({ createdAt: -1 }).limit(50).lean();
-    return {
-      page: safePage,
-      pageSize: safePageSize,
-      total,
-      batches: batches.map(toPublicBatch),
-      transactions: transactions.map(toPublicTransaction),
-    };
-  }
-
-  async createSubscription({ req, tenantId, actorId, callbackUrl, events }) {
-    await callbackUrlIsPublic(callbackUrl);
-    const allowedEvents = Object.values(WEBHOOK_EVENTS);
-    const normalizedEvents = [...new Set((events || []).map((event) => String(event).toUpperCase()))];
-    if (!normalizedEvents.length || normalizedEvents.some((event) => !allowedEvents.includes(event))) {
-      throw new PayrollError('PAYROLL_SUBSCRIPTION_EVENTS_INVALID', 'Subscription events are invalid.', 400, { allowedEvents });
-    }
-    const existing = await WebhookSubscription.findOne({ tenantId, callbackUrl }).lean();
-    if (existing) throw new PayrollError('PAYROLL_SUBSCRIPTION_EXISTS', 'A subscription already exists for this callback URL.', 409);
-
-    const secret = generateWebhookSecret();
-    const subscription = await WebhookSubscription.create({ subscriptionId: makeId('sub'), tenantId, employerId: tenantId, callbackUrl, events: normalizedEvents, encryptedSecret: encryptSecret(secret), createdBy: actorId, active: true });
-    await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: AUDIT_ACTIONS.PAYROLL_SUBSCRIPTION_CREATED, data: { subscriptionId: subscription.subscriptionId, callbackUrl, events: normalizedEvents } });
-    return { subscription: { subscriptionId: subscription.subscriptionId, callbackUrl: subscription.callbackUrl, events: subscription.events, active: subscription.active, createdAt: subscription.createdAt }, secret };
-  }
-
-  async listSubscriptions({ tenantId }) {
-    const items = await WebhookSubscription.find({ tenantId }).sort({ createdAt: -1 }).lean();
-    return items.map((item) => ({ subscriptionId: item.subscriptionId, callbackUrl: item.callbackUrl, events: item.events, active: item.active, secretConfigured: Boolean(item.encryptedSecret), lastDeliveryAt: item.lastDeliveryAt, failureCount: item.failureCount, createdAt: item.createdAt }));
-  }
-
-  async deleteSubscription({ req, tenantId, actorId, subscriptionId }) {
-    const subscription = await WebhookSubscription.findOne({ tenantId, subscriptionId }).lean();
-    if (!subscription) throw new PayrollError('PAYROLL_SUBSCRIPTION_NOT_FOUND', 'Webhook subscription was not found.', 404);
-    await WebhookSubscription.deleteOne({ tenantId, subscriptionId });
-    await writeAudit({ tenantId, actorId, requestId: req.requestId, correlationId: req.correlationId, action: AUDIT_ACTIONS.PAYROLL_SUBSCRIPTION_DELETED, data: { subscriptionId } });
-    return { deleted: true, subscriptionId };
+    throw new PayrollError(
+      'PAYROLL_RETRY_APPROVAL_UNAVAILABLE',
+      'A failed or uncertain payout cannot be retried with a new provider reference automatically. Create a reviewed replacement instruction and obtain fresh independent approval.',
+      409,
+      { batchId: batchId || null, retryDisabled: true },
+    );
   }
 
   async dispatchEvent(tenantId, eventType, payload, req) {

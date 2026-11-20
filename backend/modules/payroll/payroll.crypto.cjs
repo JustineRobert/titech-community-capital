@@ -86,7 +86,8 @@ function generateWebhookSecret() {
 }
 
 function signWebhookPayload(secret, timestamp, payload) {
-  const body = `${timestamp}.${JSON.stringify(payload)}`;
+  const prefix = Buffer.from(`${timestamp}.`, 'utf8');
+  const body = Buffer.isBuffer(payload) ? Buffer.concat([prefix, payload]) : Buffer.concat([prefix, Buffer.from(JSON.stringify(payload), 'utf8')]);
   return `sha256=${crypto.createHmac('sha256', secret).update(body).digest('hex')}`;
 }
 

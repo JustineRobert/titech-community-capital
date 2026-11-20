@@ -1208,6 +1208,15 @@ function registerBodyParsers(
             strict:
                 true,
 
+            verify: (req, _res, buffer) => {
+                // The payroll provider callback signs the exact wire bytes, not a
+                // re-serialized JavaScript object. Keep raw bytes only for webhook
+                // requests; never expose them in logs.
+                if (String(req.originalUrl || req.url || '').startsWith('/webhooks')) {
+                    req.rawBody = Buffer.from(buffer);
+                }
+            },
+
             type:
                 [
                     "application/json",

@@ -1204,8 +1204,8 @@ router.use(
 );
 
 // Faith & Community Giving public pages expose only published, allow-listed
-// campaign information. The capability remains disabled unless explicitly
-// enabled after partner, privacy, financial and release review.
+// campaign information. Public reads are separate from the capability-gated
+// tenant administration and pledge/write routes.
 router.use(
     `${API_PREFIX}/faith-giving/public`,
     faithGivingPublicRoutes,

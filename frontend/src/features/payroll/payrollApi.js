@@ -26,8 +26,16 @@ export function reconcilePayrollBatch(batchId) {
   return api.post(`${PAYROLL_BASE}/reconcile`, { batchId }, { headers: { 'Idempotency-Key': generateIdempotencyKey() } });
 }
 
-export function retryFailedPayroll(batchId) {
-  return api.post(`${PAYROLL_BASE}/retryFailed`, { batchId: batchId || undefined }, { headers: { 'Idempotency-Key': generateIdempotencyKey() } });
+export function submitPayrollForApproval(batchId) {
+  return api.post(`${PAYROLL_BASE}/submitForApproval`, { batchId }, { headers: { 'Idempotency-Key': generateIdempotencyKey() } });
+}
+
+export function approvePayrollBatch(batchId) {
+  return api.post(`${PAYROLL_BASE}/approveBatch`, { batchId }, { headers: { 'Idempotency-Key': generateIdempotencyKey() } });
+}
+
+export function rejectPayrollBatch(batchId, reason) {
+  return api.post(`${PAYROLL_BASE}/rejectBatch`, { batchId, reason }, { headers: { 'Idempotency-Key': generateIdempotencyKey() } });
 }
 
 export function listWebhookSubscriptions() {

@@ -75,10 +75,17 @@ export function normalizeQuantity(value, field = 'quantity') {
   return `${BigInt(whole)}.${fraction.padEnd(6, '0')}`;
 }
 
+function normalizeQuantityAllowZero(value) {
+  const raw = normalizeString(value, 'quantity', { max: 48 });
+  if (!/^\d+(?:\.\d{1,6})?$/.test(raw)) throw new AgricultureDomainError('quantity must be a non-negative decimal with at most 6 decimal places.', 'AGRICULTURE_QUANTITY_INVALID');
+  const [whole, fraction = ''] = raw.split('.');
+  return `${BigInt(whole)}.${fraction.padEnd(6, '0')}`;
+}
+
 export function addQuantity(...values) {
   let total = 0n;
   for (const value of values) {
-    const normalized = normalizeQuantity(value);
+    const normalized = normalizeQuantityAllowZero(value);
     const [whole, fraction] = normalized.split('.');
     total += BigInt(whole) * 1_000_000n + BigInt(fraction);
   }
@@ -87,7 +94,7 @@ export function addQuantity(...values) {
 
 export function compareQuantity(left, right) {
   const toScaled = (value) => {
-    const normalized = normalizeQuantity(value);
+    const normalized = normalizeQuantityAllowZero(value);
     const [whole, fraction] = normalized.split('.');
     return BigInt(whole) * 1_000_000n + BigInt(fraction);
   };
@@ -199,4 +206,66 @@ export function normalizeOfflineSyncStatus(value) {
     throw new AgricultureDomainError('Invalid offline synchronization status.', 'AGRICULTURE_SYNC_STATUS_INVALID');
   }
   return status;
+}
+
+
+function canonicalize(value, path = '$') {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new AgricultureDomainError(`Non-finite number at ${path}.`, 'AGRICULTURE_IDEMPOTENCY_PAYLOAD_INVALID');
+    return value;
+  }
+  if (typeof value === 'bigint' || typeof value === 'function' || typeof value === 'symbol' || value === undefined) {
+    throw new AgricultureDomainError(`Unsupported value at ${path}.`, 'AGRICULTURE_IDEMPOTENCY_PAYLOAD_INVALID');
+  }
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw new AgricultureDomainError(`Invalid date at ${path}.`, 'AGRICULTURE_IDEMPOTENCY_PAYLOAD_INVALID');
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) return value.map((item, index) => canonicalize(item, `${path}[${index}]`));
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new AgricultureDomainError(`Unsupported object at ${path}.`, 'AGRICULTURE_IDEMPOTENCY_PAYLOAD_INVALID');
+  }
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key], `${path}.${key}`)]));
+}
+
+export function stableStringifyPayload(value) {
+  return JSON.stringify(canonicalize(value));
+}
+
+const PRODUCER_ONBOARDING_TRANSITIONS = Object.freeze({
+  NOT_STARTED: ['IN_PROGRESS'],
+  IN_PROGRESS: ['SUBMITTED', 'WITHDRAWN'],
+  VERIFICATION_REQUIRED: ['SUBMITTED', 'WITHDRAWN'],
+  SUBMITTED: ['APPROVED', 'VERIFICATION_REQUIRED', 'REJECTED', 'WITHDRAWN'],
+  APPROVED: ['SUSPENDED'],
+  COMPLETED: ['SUSPENDED'],
+  REJECTED: [],
+  SUSPENDED: ['APPROVED'],
+  WITHDRAWN: [],
+});
+
+export function canTransitionProducerOnboarding(from, to) {
+  return (PRODUCER_ONBOARDING_TRANSITIONS[String(from || '').toUpperCase()] || []).includes(String(to || '').toUpperCase());
+}
+
+export function assertProducerOnboardingTransition(from, to) {
+  if (!canTransitionProducerOnboarding(from, to)) {
+    throw new AgricultureDomainError(`Producer onboarding cannot transition from ${from} to ${to}.`, 'AGRICULTURE_PRODUCER_TRANSITION_INVALID', 409);
+  }
+  return String(to).toUpperCase();
+}
+
+export function normalizeProducerReview(input = {}) {
+  const decision = String(input.decision || '').trim().toUpperCase();
+  const reason = String(input.reason || '').trim();
+  if (!['APPROVED', 'VERIFICATION_REQUIRED', 'REJECTED'].includes(decision)) {
+    throw new AgricultureDomainError('Producer review decision is invalid.', 'AGRICULTURE_PRODUCER_REVIEW_DECISION_INVALID', 422);
+  }
+  if (decision !== 'APPROVED' && reason.length < 5) {
+    throw new AgricultureDomainError('A reason is required for correction or rejection.', 'AGRICULTURE_PRODUCER_REVIEW_REASON_REQUIRED', 422);
+  }
+  if (reason.length > 1000) throw new AgricultureDomainError('Review reason is too long.', 'AGRICULTURE_PRODUCER_REVIEW_REASON_INVALID', 422);
+  return { decision, reason: reason || null };
 }

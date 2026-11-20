@@ -21,16 +21,21 @@ function requestContext(req, res, next) {
 function body(req, res, next) { return express.json({ limit: process.env.TITECH_AGRICULTURE_BODY_LIMIT || '512kb', strict: true })(req, res, next); }
 router.use(requestContext, body, authenticate);
 router.get('/health', controller.health);
-router.get('/:resource', requirePermission('agriculture:read'), controller.listResource);
 router.get('/producers/:producerId/financial-history', requirePermission('agriculture:read'), controller.producerFinancialHistory);
+router.get('/:resource', requirePermission('agriculture:read'), controller.listResource);
 
 router.post('/groups/:groupId/enable', requirePermission('agriculture:manage'), controller.enableGroupAgriculture);
 router.post('/producers', requirePermission('agriculture:write'), controller.createProducer);
+router.post('/producers/:producerId/submit', requirePermission('agriculture:write'), controller.submitProducerOnboarding);
+router.post('/producers/:producerId/resubmit', requirePermission('agriculture:write'), controller.resubmitProducerOnboarding);
+router.post('/producers/:producerId/review', requirePermission('agriculture:verify'), controller.reviewProducerOnboarding);
 router.post('/farms', requirePermission('agriculture:write'), controller.createFarm);
+router.post('/farms/:farmId/verify', requirePermission('agriculture:verify'), controller.verifyFarm);
 router.post('/commodities', requirePermission('agriculture:manage'), controller.createCommodity);
 router.post('/production-cycles', requirePermission('agriculture:write'), controller.createProductionCycle);
 router.post('/production-cycles/:productionCycleId/activities', requirePermission('agriculture:write'), controller.recordProductionActivity);
 router.post('/buyers', requirePermission('agriculture:write'), controller.createBuyer);
+router.post('/buyers/:buyerId/review', requirePermission('agriculture:verify'), controller.reviewBuyer);
 router.post('/offtake-contracts', requirePermission('agriculture:write'), controller.createContract);
 router.post('/deliveries', requirePermission('agriculture:write'), controller.createDelivery);
 router.post('/deliveries/:deliveryId/verify', requirePermission('agriculture:verify'), controller.verifyDelivery);
