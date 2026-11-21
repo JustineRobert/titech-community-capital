@@ -10,6 +10,8 @@ import {
   getLocaleDirection,
   normalizeLocale,
   resolveLocale,
+  resolveTranslation,
+  selectPluralCategory,
   translateResource,
 } from '../frontend/src/i18n/i18nCore.mjs';
 
@@ -94,4 +96,26 @@ test('every bundled namespace has matching non-empty keys and interpolation vari
       }
     }
   }
+});
+
+
+test('translation resolution reports English fallback instead of concealing missing target language content', () => {
+  const result = resolveTranslation({ en: { common: { ready: 'Ready' } }, sw: { common: {} } }, 'sw', 'common', 'ready');
+  assert.equal(result.value, 'Ready');
+  assert.equal(result.status, 'ENGLISH_FALLBACK');
+  assert.equal(result.usedFallback, true);
+  assert.equal(result.resolvedLocale, 'en');
+  const missing = resolveTranslation({ en: { common: {} }, sw: { common: {} } }, 'sw', 'common', 'missing');
+  assert.equal(missing.status, 'MISSING');
+  assert.equal(missing.value, '');
+});
+
+test('Arabic interpolation isolates mixed-direction identifiers without reversing their content', () => {
+  const result = translateResource({ ar: { common: { transaction: 'مرجع المعاملة {{transactionId}}' } } }, 'ar', 'common', 'transaction', { transactionId: 'TX-UG-2026-001' });
+  assert.equal(result, 'مرجع المعاملة \u2068TX-UG-2026-001\u2069');
+});
+
+test('Arabic plural rules expose zero, one, two, few, many and other categories', () => {
+  const categories = [0, 1, 2, 3, 11, 100].map((count) => selectPluralCategory(count, 'ar'));
+  assert.deepEqual(categories, ['zero', 'one', 'two', 'few', 'many', 'other']);
 });

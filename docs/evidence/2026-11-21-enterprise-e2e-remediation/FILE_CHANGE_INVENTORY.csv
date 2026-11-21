@@ -1,0 +1,38 @@
+status,path,purpose
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/BASELINE_ASSESSMENT.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/DASHBOARD_BRAND_THEME_REPORT.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/FILE_CHANGE_DISCOVERY.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/FILE_CHANGE_INVENTORY.csv,This exact source-archive comparison inventory; this file is not self-hashed.
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/FINAL_RELEASE_ASSESSMENT.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/IMPLEMENTATION_REPORT.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/INCLUSIVE_PARTNER_SAFETY.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/MULTILINGUAL_REPORT.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/README.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/REFERRAL_TITECHCHAT_REPORT.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/RELEASE_BLOCKER_REGISTER.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/SHA256_MANIFEST.txt,SHA-256 manifest for all changed/added files except the manifest itself.
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/TENANCY_FINANCIAL_REPORT.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/TEST_EXECUTION_RESULTS.md,"21 Nov 2026 implementation, safety, verification or file-discovery evidence."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/approval.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/critical.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/financial.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/i18n.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/imports.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/npm-dashboard-test.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/organization.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/rbac.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/release_strict.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/selected-native-tests.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/syntax.log,"Raw output from the named verification command, retained for auditability."
+ADDED,docs/evidence/2026-11-21-enterprise-e2e-remediation/logs/theme.log,"Raw output from the named verification command, retained for auditability."
+ADDED,frontend/src/pages/onboarding/OnboardingDashboard.css,"New responsive, accessible semantic-token styling for onboarding dashboard."
+ADDED,reports/i18n-coverage-2026-11-21.json,Machine-readable 4-locale translation coverage and review status.
+ADDED,reports/official-theme-audit.json,Machine-readable central palette/theme coverage audit.
+ADDED,reports/rbac-security-gate.json,Machine-readable static RBAC gate output.
+ADDED,reports/release-readiness.json,Machine-readable strict release readiness gate result.
+ADDED,reports/runtime-import-audit.json,Backend import inventory and canonical financial surface audit.
+MODIFIED,TITECH_PLATFORM_TRUTH.md,Updated current as-of date and linked 21 Nov remediation findings/release status.
+MODIFIED,frontend/src/branding/dashboard-theme.css,Adds onboarding dashboard to centralized dashboard theme selectors.
+MODIFIED,frontend/src/pages/onboarding/OnboardingDashboard.jsx,Canonical brand lockup and removal of inline styling; preserves current read API/filter logic.
+MODIFIED,package.json,Registers onboarding dashboard brand contract test and includes it in test:ci.
+MODIFIED,scripts/tests/core-dashboard-brand-contract.test.mjs,"Adds onboarding dashboard identity, responsive styling and theme-token contract coverage."

@@ -23,32 +23,64 @@ export function getLocaleDirection(locale) {
   return RTL_LOCALES.has(normalized) ? 'rtl' : 'ltr';
 }
 
-function interpolate(template, values) {
+function isolateBidiValue(value) {
+  return `\u2068${String(value)}\u2069`;
+}
+
+function interpolate(template, values, locale) {
   return String(template).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, key) => {
     const value = values && Object.prototype.hasOwnProperty.call(values, key)
       ? values[key]
       : undefined;
-    return value === undefined || value === null ? match : String(value);
+    if (value === undefined || value === null) return match;
+    return locale === 'ar' ? isolateBidiValue(value) : String(value);
   });
 }
 
 /**
- * Translate a dotted resource key from a plain locale/namespace map.
- * English is the final fallback; unknown keys return an empty string rather
- * than exposing raw resource identifiers to end users. The static validator
- * scans literal component calls and fails CI for unresolved references.
+ * Resolve a translation while exposing whether an English fallback was used.
+ * Existing callers may keep using translateResource(), while diagnostics and
+ * strict release tooling can inspect usedFallback/status instead of treating
+ * an English fallback as an approved target-language translation.
  */
-export function translateResource(resources, locale, namespace, key, values = {}) {
+export function resolveTranslation(resources, locale, namespace, key, values = {}) {
   const normalized = normalizeLocale(locale) || 'en';
   const keyPath = String(key || '');
   const localValue = resources?.[normalized]?.[namespace]?.[keyPath];
   const fallbackValue = resources?.en?.[namespace]?.[keyPath];
-  const value = typeof localValue === 'string' && localValue.length > 0
-    ? localValue
-    : typeof fallbackValue === 'string' && fallbackValue.length > 0
-      ? fallbackValue
-      : '';
-  return interpolate(value, values);
+  const hasLocalValue = typeof localValue === 'string' && localValue.length > 0;
+  const hasFallbackValue = typeof fallbackValue === 'string' && fallbackValue.length > 0;
+  const resolvedValue = hasLocalValue ? localValue : hasFallbackValue ? fallbackValue : '';
+  return {
+    value: interpolate(resolvedValue, values, normalized),
+    requestedLocale: normalized,
+    resolvedLocale: hasLocalValue ? normalized : hasFallbackValue ? 'en' : null,
+    usedFallback: !hasLocalValue && hasFallbackValue,
+    status: hasLocalValue ? 'LOCALE_RESOURCE' : hasFallbackValue ? 'ENGLISH_FALLBACK' : 'MISSING',
+    namespace,
+    key: keyPath,
+  };
+}
+
+/**
+ * Translate a dotted resource key. English fallback behavior is retained for
+ * compatibility; callers responsible for release governance should use
+ * resolveTranslation() and must not treat ENGLISH_FALLBACK as human-approved.
+ */
+export function translateResource(resources, locale, namespace, key, values = {}) {
+  return resolveTranslation(resources, locale, namespace, key, values).value;
+}
+
+/**
+ * Use ICU/ECMA-402 plural rules, including the six CLDR categories supported
+ * by Modern Standard Arabic. Never implement language plural rules with
+ * hand-written count comparisons in UI components.
+ */
+export function selectPluralCategory(count, locale = 'en', options = {}) {
+  const numeric = Number(count);
+  if (!Number.isFinite(numeric)) return 'other';
+  const safeLocale = normalizeLocale(locale) || 'en';
+  return new Intl.PluralRules(safeLocale, options).select(numeric);
 }
 
 export function formatNumber(value, locale = 'en', options = {}) {

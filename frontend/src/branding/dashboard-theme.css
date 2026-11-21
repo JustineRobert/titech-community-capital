@@ -56,7 +56,8 @@
   .risk-dashboard,
   .executive-dashboard,
   .system-health-page,
-  .agriculture-page
+  .agriculture-page,
+  .onboarding-dashboard
 ) {
   color: var(--titech-color-text);
   background-color: var(--titech-color-background);
@@ -102,7 +103,8 @@
   .risk-dashboard,
   .executive-dashboard,
   .system-health-page,
-  .agriculture-page
+  .agriculture-page,
+  .onboarding-dashboard
 ) :is(
   .stat-card,
   .dashboard-stat-card,
@@ -130,7 +132,8 @@
   .risk-dashboard,
   .executive-dashboard,
   .system-health-page,
-  .agriculture-page
+  .agriculture-page,
+  .onboarding-dashboard
 ) :is(button, a, input, select, textarea, [role="button"]):focus-visible {
   outline: 2px solid var(--titech-focus-color);
   outline-offset: 2px;
@@ -144,7 +147,8 @@
   .risk-dashboard,
   .executive-dashboard,
   .system-health-page,
-  .agriculture-page
+  .agriculture-page,
+  .onboarding-dashboard
 ) :is(table, .data-table, .recharts-default-tooltip) {
   color: var(--titech-color-text);
   border-color: var(--titech-color-border);
@@ -157,7 +161,8 @@
   .risk-dashboard,
   .executive-dashboard,
   .system-health-page,
-  .agriculture-page
+  .agriculture-page,
+  .onboarding-dashboard
 ) :is(.dashboard-widget-card, .chart-card, .admin-chart-card, .risk-card, .system-health-card) {
   background-color: var(--titech-color-surface);
   color: var(--titech-color-text);
@@ -171,7 +176,8 @@
     .risk-dashboard,
     .executive-dashboard,
     .system-health-page,
-    .agriculture-page
+    .agriculture-page,
+  .onboarding-dashboard
   ) {
     min-width: 0;
     max-width: 100%;
@@ -184,7 +190,8 @@
     .risk-dashboard,
     .executive-dashboard,
     .system-health-page,
-    .agriculture-page
+    .agriculture-page,
+  .onboarding-dashboard
   ) :is(.stats-grid, .risk-kpis, .admin-kpi-grid, .admin-metrics-grid) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -198,7 +205,8 @@
     .risk-dashboard,
     .executive-dashboard,
     .system-health-page,
-    .agriculture-page
+    .agriculture-page,
+  .onboarding-dashboard
   ) :is(.stats-grid, .risk-kpis, .admin-kpi-grid, .admin-metrics-grid) {
     grid-template-columns: minmax(0, 1fr);
   }

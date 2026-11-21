@@ -1,6 +1,6 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 20 November 2026
+**As of:** 21 November 2026
 **Organization:** TITECH CAPITAL - SMC LTD
 **Entity Registration Number (ERN):** 80049233029029 (stated on user-uploaded Certificate of Incorporation; authenticity/current registry status not independently verified)
 **Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
@@ -12,6 +12,19 @@
 **`productionApproved`: `false`**
 
 This root-level document is an index to the current machine-generated evidence and the detailed historical/platform narrative. It is not a substitute for running the gates against the precise commit or deployment being assessed.
+
+
+## 21 November 2026 — dashboard theme remediation and enterprise E2E reassessment
+
+The 21 November execution used the user-supplied `titech-community-capital-main.zip` archive (SHA-256 `4e11865e29dce1379105a5eba5208ae56395da77974e6382b281c7c1a2575222`). The archive contains 4,581 entries and passed ZIP integrity validation, but has no `.git` metadata. Its ZIP comment is not independently verified as a Git commit; current GitHub branch/HEAD, synchronization, commit, push and deployment are not claimed.
+
+The canonical identity remains **TITech Community Capital**, **TITECH CAPITAL - SMC LTD**, and **Community Finance. Stronger Together.** The nine official palette values, circular logo and centralized light/dark theme remain unchanged. The existing SACCO onboarding dashboard component was refactored from extensive inline presentation styling to `frontend/src/pages/onboarding/OnboardingDashboard.css`, using official semantic theme tokens and the canonical organization/product/tagline contract. `frontend/src/branding/dashboard-theme.css` now includes its root selector. A source-contract test covers this component and is included in the root CI test chain. Existing metrics API calls, status filters and displayed SACCO records were retained. The component was not found registered in frontend route/navigation; it is not claimed to be an active reachable route.
+
+The post-change official theme audit passes across **78 non-brand frontend CSS files** with zero hard-coded official palette literals. The syntax gate parses 2,581 JS/TS-family files; organization identity gate passes 14 checks; canonical financial static gate passes 12 files; RBAC static gate passes; and the selected dependency-free native test run passes **87/87** (0 failed, 0 skipped). Multilingual validation reports 602/602 keys per locale across English, Kiswahili, French and Arabic, but Kiswahili/French/Arabic remain `PENDING_HUMAN_REVIEW`. Runtime import audit reports 208 missing local imports repo-wide and zero on the canonical financial surface.
+
+The environment is Node **22.16.0** / npm **10.9.2**, below the repository Node **24.15.0** / npm **11.0.0** requirement; root/backend/frontend dependencies, MongoDB, Redis, Docker and browser E2E services are unavailable. Therefore clean installation, full build/CI, application health, live tenant API isolation, transaction-capable ledger replay, provider settlement/UNKNOWN recovery, backup restore, measured RTO/RPO and browser E2E were not verified. The eight P0/P1 release gates remain open. Refugee/host onboarding and insurance feature flags remain disabled by default in the supplied environment template; no partner, insurer, regulator or pilot approvals were enabled or invented. Referral/TITechChat route and service code remains disconnected/legacy-incompatible and was not mounted into the canonical ESM route registry. **`productionApproved=false`; release remains NOT READY.**
+
+Detailed current evidence is in [`docs/evidence/2026-11-21-enterprise-e2e-remediation/`](docs/evidence/2026-11-21-enterprise-e2e-remediation/).
 
 ## 20 November 2026 — Agriculture, Payroll and Community Giving remediation
 

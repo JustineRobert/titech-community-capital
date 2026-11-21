@@ -36,6 +36,12 @@ const surfaces = [
     stylesheet: 'frontend/src/pages/agriculture/AgricultureDashboard.css',
     className: 'agriculture-eyebrow',
   },
+  {
+    name: 'SACCO onboarding dashboard',
+    component: 'frontend/src/pages/onboarding/OnboardingDashboard.jsx',
+    stylesheet: 'frontend/src/pages/onboarding/OnboardingDashboard.css',
+    className: 'onboarding-dashboard__identity',
+  },
 ];
 
 function read(relativePath) {
@@ -71,6 +77,18 @@ test('core dashboard brand eyebrows wrap safely on narrow screens', () => {
       `${surface.name} must prevent the longer organization lockup from overflowing`,
     );
   }
+});
+
+test('the onboarding dashboard uses the centralized responsive light/dark dashboard theme', () => {
+  const sharedTheme = read('frontend/src/branding/dashboard-theme.css');
+  const onboardingStyles = read('frontend/src/pages/onboarding/OnboardingDashboard.css');
+  assert.match(sharedTheme, /\.onboarding-dashboard/);
+  assert.match(onboardingStyles, /var\(--titech-color-surface\)/);
+  assert.match(onboardingStyles, /var\(--titech-color-background\)/);
+  assert.match(onboardingStyles, /var\(--titech-official-electric-blue\)/);
+  assert.match(onboardingStyles, /@media \(max-width:\s*720px\)/);
+  assert.match(onboardingStyles, /prefers-reduced-motion/);
+  assert.doesNotMatch(onboardingStyles, /#[0-9a-f]{3,8}\b/i, 'dashboard styling must use centralized theme tokens instead of hard-coded palette literals');
 });
 
 test('brand identity remains centralized in the official platform contract', () => {

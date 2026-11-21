@@ -17,7 +17,7 @@ import {
   getLocaleDirection,
   normalizeLocale,
   resolveLocale,
-  translateResource,
+  resolveTranslation as resolveTranslationCore,
 } from './i18nCore.mjs';
 import { RESOURCES } from './resources';
 import {
@@ -295,13 +295,21 @@ export function I18nProvider({ children }) {
     }
   }, [accountLocale, authReady, authenticated, queuePreferenceSync, userId]);
 
-  const t = useCallback((qualifiedKey, values = {}) => {
+  const resolve = useCallback((qualifiedKey, values = {}) => {
     const separator = String(qualifiedKey || '').indexOf('.');
-    if (separator < 1) return String(qualifiedKey || '');
+    if (separator < 1) {
+      return {
+        value: '', requestedLocale: locale, resolvedLocale: null,
+        usedFallback: false, status: 'MISSING', namespace: null,
+        key: String(qualifiedKey || ''),
+      };
+    }
     const namespace = qualifiedKey.slice(0, separator);
     const key = qualifiedKey.slice(separator + 1);
-    return translateResource(RESOURCES, locale, namespace, key, values);
+    return resolveTranslationCore(RESOURCES, locale, namespace, key, values);
   }, [locale]);
+
+  const t = useCallback((qualifiedKey, values = {}) => resolve(qualifiedKey, values).value, [resolve]);
 
   const value = useMemo(() => ({
     locale,
@@ -310,11 +318,12 @@ export function I18nProvider({ children }) {
     setLocale,
     retryLocaleSync,
     t,
+    resolveTranslation: resolve,
     formatNumber: (number, options) => formatNumberCore(number, locale, options),
     formatCurrency: (amount, currency = 'UGX', options) => formatCurrencyCore(amount, currency, locale, options),
     formatDate: (date, options) => formatDateCore(date, locale, options),
     persistLocale,
-  }), [locale, retryLocaleSync, setLocale, syncStatus, t]);
+  }), [locale, retryLocaleSync, resolve, setLocale, syncStatus, t]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
@@ -326,6 +335,7 @@ const DEFAULT_CONTEXT = Object.freeze({
   setLocale: () => false,
   retryLocaleSync: () => Promise.resolve(false),
   t: (key) => String(key || ''),
+  resolveTranslation: (key) => ({ value: '', requestedLocale: 'en', resolvedLocale: null, usedFallback: false, status: 'MISSING', namespace: null, key: String(key || '') }),
   formatNumber: (value) => String(value ?? ''),
   formatCurrency: (value) => String(value ?? ''),
   formatDate: (value) => String(value ?? ''),
