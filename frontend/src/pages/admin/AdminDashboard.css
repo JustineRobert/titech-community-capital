@@ -26,38 +26,38 @@
 .admin-dashboard {
   --admin-primary: var(--titech-brand-electric-blue);
   --admin-primary-hover: var(--titech-brand-deep-blue);
-  --admin-primary-soft: #EAF2FF;
+  --admin-primary-soft: rgb(0 88 216 / .10);
 
-  --admin-success: #16834A;
-  --admin-success-soft: #E9F7EF;
+  --admin-success: var(--titech-state-success);
+  --admin-success-soft: var(--titech-success-surface);
 
-  --admin-warning: #B7791F;
-  --admin-warning-soft: #FFF5DF;
+  --admin-warning: var(--titech-state-warning);
+  --admin-warning-soft: var(--titech-warning-surface);
 
-  --admin-danger: #C53030;
-  --admin-danger-soft: #FFF0F0;
+  --admin-danger: var(--titech-state-danger);
+  --admin-danger-soft: var(--titech-danger-surface);
 
-  --admin-purple: #7048BB;
-  --admin-purple-soft: #F2EDFF;
+  --admin-purple: var(--titech-official-bright-blue);
+  --admin-purple-soft: rgb(0 102 232 / .10);
 
-  --admin-teal: #087F8C;
-  --admin-teal-soft: #E5F7F7;
+  --admin-teal: var(--titech-official-cyan);
+  --admin-teal-soft: rgb(0 184 248 / .12);
 
-  --admin-gold: #A66A00;
-  --admin-gold-soft: #FFF5DC;
+  --admin-gold: var(--titech-official-gold);
+  --admin-gold-soft: rgb(248 216 0 / .16);
 
-  --admin-orange: #C45B16;
-  --admin-orange-soft: #FFF0E5;
+  --admin-orange: var(--titech-state-warning);
+  --admin-orange-soft: var(--titech-warning-surface);
 
-  --admin-background: #F5F7FB;
-  --admin-surface: var(--titech-brand-white);
+  --admin-background: var(--titech-color-background);
+  --admin-surface: var(--titech-color-surface);
 
-  --admin-text: #17243A;
-  --admin-text-secondary: #64748B;
-  --admin-text-muted: #94A3B8;
+  --admin-text: var(--titech-color-text);
+  --admin-text-secondary: var(--titech-color-text-muted);
+  --admin-text-muted: var(--titech-color-text-subtle);
 
-  --admin-border: #E2E8F0;
-  --admin-border-strong: #CBD5E1;
+  --admin-border: var(--titech-color-border);
+  --admin-border-strong: var(--titech-color-border-strong);
 
   --admin-radius-sm: 8px;
   --admin-radius-md: 12px;
@@ -1196,3 +1196,5 @@
 /* ==========================================================================
    END: TITech Community Capital AdminDashboard.css
    ========================================================================== */
+.admin-dashboard .activity-context { display: block; margin-top: 0.35rem; color: var(--admin-text-secondary); overflow-wrap: anywhere; }
+.admin-dashboard .admin-activity-empty { margin: 0; padding: 1.25rem; color: var(--admin-text-secondary); }

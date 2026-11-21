@@ -7,6 +7,13 @@
 
 ---
 
+## 21 November 2026 — focused Administration, group dashboard and refresh remediation
+
+- [Execution report](./evidence/2026-11-21-titech-platform-remediation/EXECUTION_REPORT.md) — implemented source corrections, root causes, current limitations and release decision.
+- [File change discovery](./evidence/2026-11-21-titech-platform-remediation/FILE_CHANGE_DISCOVERY.md) — exact archive-to-working-copy modified/added paths and their purpose.
+- [Test results](./evidence/2026-11-21-titech-platform-remediation/TEST_RESULTS.md) — executed native tests, static gates, blocked runtime checks and commands.
+- [Blocker register](./evidence/2026-11-21-titech-platform-remediation/BLOCKER_REGISTER.json) — machine-readable P0/P1, partner, Chat and runtime blockers.
+
 ## 17 November 2026 — current module remediation evidence
 
 - [Members, Loans and Savings read API architecture](./architecture/MEMBERS_LOANS_SAVINGS_READ_APIS.md) — canonical protected routes, backend contracts, permissions, tenant filtering, error behavior and financial boundaries.

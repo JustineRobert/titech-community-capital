@@ -11,6 +11,21 @@
 **PRODUCTION_APPROVED: NO**  
 **`productionApproved`: `false`**
 
+## 21 November 2026 — focused dashboard, group UI and refresh remediation (current archive execution)
+
+This execution uses the archive file whose measured SHA-256 is `c223ce37deb9f4e5a3439db1a5614b833d2bc246797290fb8d44a50b93d5abe3` (4621 ZIP entries; ZIP integrity PASS). This value supersedes earlier archive digests and entry counts in prior run notes for this particular upload. The ZIP contains no `.git` metadata; GitHub HEAD, branch, synchronization, commit, push and deployment remain unverified.
+
+The active Platform Administration router now includes a platform-admin-protected, paginated `/activity` endpoint backed by the append-only AuditLog, and `/stats` returns a stable `data` envelope with a backward-compatible `stats` alias. Administrative activity DTOs do not expose raw audit metadata. The active AdminDashboard normalizes both legacy/current envelopes, does not render objects as `[object Object]`, and distinguishes empty/unavailable states. `totalSavings` and `pendingApprovals` remain explicitly unavailable until canonical account aggregation and a single governed approval queue exist; they are not rendered as false zeroes.
+
+The active community Dashboard and Groups directory now present group type and explicit data with missing values left unavailable; generic savings fields are not mislabeled as contribution totals and meeting dates are not used as contribution schedules. Group details distinguish wallet authorization denial from the existing missing canonical financial-account mapping status. Group-wallet RBAC is unchanged. The API client adds Web Locks cross-tab refresh serialization where the browser supports it; real two-tab behavior has not yet been verified.
+
+A Node-native admin-dashboard contract suite (9/9), group-wallet policy suite (10/10), Faith-Giving policy suite (18/18), inclusive-onboarding/insurance policy suite (27/27), organization/financial-metric tests (4/4), Chat readiness regression suite (2/2) and selected Chat permission/validation suites (2/2) passed: 72 unique selected tests, zero failures. Enterprise syntax, official theme, organization, Faith-Giving contract, RBAC and financial static gates passed. The theme audit scanned 78 non-brand CSS files with zero hard-coded official palette values. The runtime import audit still reports 208 legacy/non-critical missing local imports and zero on the canonical financial surface.
+
+The supported-runtime gate remains BLOCKED (observed Node 22.16.0/npm 10.9.2 vs required Node 24.15.0/npm 11+). No clean install, full build/CI, live backend health/API call, MongoDB/Redis integration, database-backed tenant attack test, browser E2E, visual regression or backup restore was performed. The Chat gate remains BLOCKED on eight integration/E2E conditions. Faith Giving remains safely disabled; group balances remain unavailable where canonical group-account mapping is absent; inclusive insurance remains subject to authorized insurers/partners and external approvals. The eight P0/P1 critical release gates remain open, and **`productionApproved=false`**.
+
+Detailed execution, paths, test evidence and blockers: [`docs/evidence/2026-11-21-titech-platform-remediation/`](docs/evidence/2026-11-21-titech-platform-remediation/).
+
+
 This root-level document is an index to the current machine-generated evidence and the detailed historical/platform narrative. It is not a substitute for running the gates against the precise commit or deployment being assessed.
 
 

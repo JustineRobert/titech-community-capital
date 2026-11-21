@@ -2,6 +2,9 @@ import express from 'express';
 import authModule from '../middleware/auth.js';
 import User from '../models/User.js';
 import Group from '../models/Group.js';
+import Loan from '../models/Loan.js';
+import AuditLog from '../models/AuditLog.js';
+import { buildAdminActivityItem } from '../utils/adminDashboardPresentation.js';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 
@@ -31,28 +34,85 @@ async function countModel(model, filter = {}) {
 router.use(authenticate, platformAdmin);
 
 router.get('/stats', asyncHandler(async (_req, res) => {
-  const [users, groups, activeUsers] = await Promise.all([
+  const [totalUsers, activeUsers, totalGroups, activeGroups, activeLoans] = await Promise.all([
     countModel(User),
+    countModel(User, { status: 'active' }),
     countModel(Group),
-    countModel(User, { $or: [{ status: 'active' }, { isActive: true }] }),
+    countModel(Group, { status: 'active' }),
+    countModel(Loan, { status: { $in: ['disbursed', 'active', 'restructured'] } }),
   ]);
+
+  // Savings totals must come from the canonical ledger/account mapping, not
+  // from denormalized group or member fields. Approval counts also remain
+  // unavailable until a single governed queue contract is defined.
+  const data = {
+    totalUsers,
+    activeUsers,
+    totalGroups,
+    activeGroups,
+    activeLoans,
+    pendingApprovals: null,
+    totalSavings: null,
+    generatedAt: new Date().toISOString(),
+    dataAvailability: {
+      pendingApprovals: {
+        status: 'unavailable',
+        reason: 'Approval work is distributed across governed domain workflows; no single authoritative platform-wide queue is configured.',
+      },
+      totalSavings: {
+        status: 'unavailable',
+        reason: 'A verified platform-wide ledger account aggregation is not configured for this dashboard.',
+      },
+    },
+  };
+
+  // `stats` is retained as a compatibility alias for older admin clients.
+  return res.json({ success: true, data, stats: data });
+}));
+
+router.get('/activity', asyncHandler(async (req, res) => {
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+  const skip = (page - 1) * limit;
+  const filter = {};
+
+  const [events, total] = await Promise.all([
+    AuditLog.find(filter)
+      .select('_id action userId tenantId entityType entityId createdAt')
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    AuditLog.countDocuments(filter),
+  ]);
+
+  const actorIds = [...new Set(events.map((event) => event.userId).filter(Boolean).map(String))];
+  const groupIds = [...new Set(events
+    .filter((event) => ['group', 'groups'].includes(String(event.entityType || '').toLowerCase()) && event.entityId)
+    .map((event) => String(event.entityId)))];
+
+  const [actors, groups] = await Promise.all([
+    actorIds.length
+      ? User.find({ _id: { $in: actorIds } }).select('_id name').lean()
+      : Promise.resolve([]),
+    groupIds.length
+      ? Group.find({ _id: { $in: groupIds } }).select('_id name').lean()
+      : Promise.resolve([]),
+  ]);
+
+  const actorNames = new Map(actors.map((actor) => [String(actor._id), actor.name]));
+  const groupNames = new Map(groups.map((group) => [String(group._id), group.name]));
+  const items = events.map((event) => buildAdminActivityItem(
+    event,
+    event.userId ? actorNames.get(String(event.userId)) || 'Former or unavailable user' : 'System',
+    ['group', 'groups'].includes(String(event.entityType || '').toLowerCase())
+      ? groupNames.get(String(event.entityId)) || null
+      : null,
+  ));
 
   return res.json({
     success: true,
-    stats: {
-      totalUsers: users,
-      totalMembers: users,
-      activeUsers,
-      activeMembers: activeUsers,
-      totalGroups: groups,
-      totalTransactions: null,
-      totalSavings: null,
-      pendingApprovals: null,
-      dataAvailability: {
-        financialMetrics: 'unavailable',
-        approvalMetrics: 'unavailable',
-      },
-    },
+    data: { items, total, page, limit, pages: Math.ceil(total / limit) },
   });
 }));
 

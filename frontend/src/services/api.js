@@ -1147,8 +1147,7 @@ async function refreshAccessToken() {
     return refreshPromise;
   }
 
-  refreshPromise =
-    authApi
+  const performRefresh = () => authApi
       .post(REFRESH_ENDPOINT)
       .then(response => {
         const token =
@@ -1203,10 +1202,20 @@ async function refreshAccessToken() {
         }
 
         throw error;
-      })
-      .finally(() => {
-        refreshPromise = null;
       });
+
+  // A module-level promise protects requests inside one tab. Web Locks adds
+  // same-origin coordination across tabs so two contexts do not concurrently
+  // rotate the same HttpOnly refresh cookie and trigger legitimate replay
+  // detection. Tokens remain in memory and are never broadcast or persisted.
+  const lockManager = typeof navigator !== 'undefined' ? navigator.locks : null;
+  const refreshOperation = lockManager?.request
+    ? lockManager.request('titech-auth-refresh', { mode: 'exclusive' }, performRefresh)
+    : performRefresh();
+
+  refreshPromise = Promise.resolve(refreshOperation).finally(() => {
+    refreshPromise = null;
+  });
 
   return refreshPromise;
 }

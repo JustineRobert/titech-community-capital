@@ -539,9 +539,18 @@ export default function GroupDetails() {
         });
       } catch (balanceError) {
         if (signal?.aborted || balanceError?.code === 'ERR_CANCELED') return;
+        const responseStatus = balanceError?.response?.status;
+        const responseCode = balanceError?.response?.data?.code
+          || balanceError?.response?.data?.error?.code;
+        const financialStatus = responseStatus === 403
+          ? 'restricted'
+          : responseCode === 'GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED'
+            ? 'unconfigured'
+            : 'unavailable';
 
         setFinancialPosition({
-          status: 'unavailable',
+          status: financialStatus,
+          reasonCode: responseCode || null,
           balance: null,
           currency: null,
           entryCount: null,
@@ -1405,7 +1414,11 @@ export default function GroupDetails() {
                   ? `Source: authoritative ledger · ${financialPosition.entryCount ?? 'Entry count unavailable'} entries`
                   : financialPosition.status === 'loading'
                     ? 'Retrieving the tenant- and group-authorized ledger position…'
-                    : 'The authoritative ledger position could not be retrieved. No zero balance is assumed.'}
+                    : financialPosition.status === 'restricted'
+                      ? 'Access is restricted for your current role or group membership. An authorised institution finance officer can review the group financial permission.'
+                      : financialPosition.status === 'unconfigured'
+                        ? 'This group does not yet have a verified canonical financial-account mapping. No balance is inferred or created.'
+                        : 'The authoritative ledger position could not be retrieved. No zero balance is assumed.'}
               </p>
 
               <div className="financial-divider" />

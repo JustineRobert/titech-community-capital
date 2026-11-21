@@ -1,0 +1,145 @@
+{
+  "asOf": "2026-11-21",
+  "overallStatus": "NOT_READY",
+  "productionApproved": false,
+  "sourceSnapshot": {
+    "archive": "titech-community-capital-main.zip",
+    "sha256": "c223ce37deb9f4e5a3439db1a5614b833d2bc246797290fb8d44a50b93d5abe3",
+    "zipEntries": 4621,
+    "zipIntegrity": "PASS",
+    "gitMetadataPresent": false,
+    "githubRemoteVerified": false
+  },
+  "blockers": [
+    {
+      "id": "P0_RUNTIME_INSTALL",
+      "severity": "P0",
+      "status": "BLOCKED",
+      "module": "toolchain/install",
+      "rootCause": "Observed Node v22.16.0 and npm 10.9.2 are below Node 24.15.0 and npm >=11.0.0; dependencies are not installed.",
+      "remediation": "Run under the pinned supported runtime, then perform deterministic root/backend/frontend npm ci and full package validation.",
+      "testEvidence": "scripts/titech-supported-runtime-gate.mjs reports BLOCKED.",
+      "remainingDependency": "Node 24.15.0+ and npm 11+ runtime."
+    },
+    {
+      "id": "P0_BOOTSTRAP_HEALTH",
+      "severity": "P0",
+      "status": "NOT_RUN",
+      "module": "backend/bootstrap",
+      "rootCause": "No installed backend dependencies, MongoDB or Redis in this execution environment.",
+      "remediation": "Start actual backend under supported runtime and verify health/readiness dependency states and canonical route registration.",
+      "testEvidence": "Syntax/static checks only; no live health/readiness request.",
+      "remainingDependency": "Installed dependencies, MongoDB, Redis, supported environment."
+    },
+    {
+      "id": "P0_LEDGER_REPLAY",
+      "severity": "P0",
+      "status": "BLOCKED",
+      "module": "financial-accounts/ledger/reconciliation",
+      "rootCause": "Canonical group-to-financial-account mapping and live replica-set financial replay have not been demonstrated; Group wallet correctly returns GROUP_FINANCIAL_ACCOUNT_NOT_CONFIGURED where mapping is absent.",
+      "remediation": "Inventory real accounts, propose and review tenant/institution/group mappings, migrate idempotently, then test balanced postings, idempotency, settlement and reconciliation against a replica set.",
+      "testEvidence": "Financial static gate PASS for 12 canonical files; group-wallet policy unit suite 10/10 PASS; no database/ledger replay.",
+      "remainingDependency": "Approved mapping evidence, MongoDB replica set, provider sandbox/settlement fixtures."
+    },
+    {
+      "id": "P0_PROVIDER_FAILURES",
+      "severity": "P0",
+      "status": "NOT_RUN",
+      "module": "payments/provider-adapters",
+      "rootCause": "Provider credentials, callbacks, sandbox evidence and settlement recovery are not configured/available in this environment.",
+      "remediation": "Configure approved provider sandbox credentials and test timeout UNKNOWN, verified callbacks, duplicate replay, settlement and reconciliation.",
+      "testEvidence": "No provider integration was run.",
+      "remainingDependency": "Authorized provider configuration and sandbox."
+    },
+    {
+      "id": "P0_TENANT_PERMISSIONS",
+      "severity": "P0",
+      "status": "PARTIALLY_VERIFIED",
+      "module": "tenant-isolation/RBAC",
+      "rootCause": "Static policies pass and group-wallet role policies are unit-tested, but real two-tenant database/API attacks were not run.",
+      "remediation": "Execute two-tenant API/database E2E with real roles and verify resource hiding, background jobs and callback scope.",
+      "testEvidence": "RBAC static gate PASS; group-wallet unit tests 10/10 PASS.",
+      "remainingDependency": "MongoDB test replica set, authenticated server and two test tenants."
+    },
+    {
+      "id": "P1_SECURITY_RECOVERY",
+      "severity": "P1",
+      "status": "PARTIALLY_VERIFIED",
+      "module": "authentication/session-recovery",
+      "rootCause": "Refresh coordination previously relied on per-tab single-flight; cross-tab requests were not serialized by the client. Runtime behavior has not been reproduced in browser.",
+      "remediation": "Web Locks serialization is implemented where supported; verify two-tab refresh rotation, genuine replay detection, logout, revocation and fallback browsers.",
+      "testEvidence": "Changed API client passes node --check; no live multi-tab browser test.",
+      "remainingDependency": "Two-browser/tab E2E and real backend session store."
+    },
+    {
+      "id": "P1_REGULATORY_PARTNER",
+      "severity": "P1",
+      "status": "BLOCKED",
+      "module": "institutional-onboarding/inclusive-insurance",
+      "rootCause": "Software tests do not constitute institution, insurer, distribution-partner, safeguarding or regulator approvals; no live insurer partner authorization was presented for this run.",
+      "remediation": "Obtain and verify applicable institutional/insurer/partner authority, contracts, consent, data-protection and regulatory evidence before activation.",
+      "testEvidence": "Inclusive onboarding test suite 27/27 PASS; insurance policy subset 8/8 PASS; no live partner/insurer processing.",
+      "remainingDependency": "Authorized partners, insurer agreements, legal/regulatory review and approval."
+    },
+    {
+      "id": "P1_COMMERCIAL_PILOT",
+      "severity": "P1",
+      "status": "BLOCKED",
+      "module": "pilot-management",
+      "rootCause": "No complete database-backed institution-to-tenant-to-group/member-to-financial-cycle-to-reconciliation-to-pilot activation and acceptance evidence is available.",
+      "remediation": "Complete the authorized institutional workflow, financial proof, training, incident process and pilot approval with institution/partner acceptance.",
+      "testEvidence": "No controlled real pilot journey executed.",
+      "remainingDependency": "Institution partner, operational evidence, legal/regulatory clearance and authorized pilot approval."
+    },
+    {
+      "id": "FAITH_GIVING_DISABLED",
+      "severity": "P1",
+      "status": "SAFE_DISABLED",
+      "module": "faith-community-giving",
+      "rootCause": "TITECH_FAITH_GIVING_ENABLED capability flag is disabled; the 503 is the deliberate fail-closed boundary.",
+      "remediation": "Keep disabled until actual provider, authorization, settlement, canonical ledger and product approvals are in place; do not convert to synthetic success.",
+      "testEvidence": "Faith-Giving policy 18/18 PASS; static contract gate 22 contracts PASS.",
+      "remainingDependency": "Approved capability enablement, provider and finance integration."
+    },
+    {
+      "id": "ADMIN_DASHBOARD_RUNTIME",
+      "severity": "P1",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_NOT_VERIFIED",
+      "module": "platform-administration",
+      "rootCause": "Missing /activity route and stats response-contract mismatch; object-shaped audit data lacked a safe display contract.",
+      "remediation": "Route, DTO, normalized response and display states implemented; verify live requests and actual database counts.",
+      "testEvidence": "Admin contract tests 9/9 PASS; static syntax PASS.",
+      "remainingDependency": "Installed server dependencies and live MongoDB."
+    },
+    {
+      "id": "CHAT_INTEGRATION",
+      "severity": "P1",
+      "status": "BLOCKED",
+      "module": "TITechChat",
+      "rootCause": "Canonical Chat API and protected workspace are unmounted; Socket.IO handlers and Redis adapter are absent; legacy room authorization and tenant persistence need repair; CJS/ESM mismatch; no multi-user E2E.",
+      "remediation": "Consolidate onto canonical ESM route registry, authentication, tenant and RBAC context, the existing Socket.IO server and Redis adapter; add database, socket and Playwright two-user proof.",
+      "testEvidence": "Chat readiness regression 2/2 PASS; selected Chat permission/validation tests 2/2 PASS; chat-production-gate reports 8 blockers.",
+      "remainingDependency": "Code integration plus MongoDB, Redis, browsers and multi-user E2E."
+    },
+    {
+      "id": "GITHUB_SYNC",
+      "severity": "P1",
+      "status": "BLOCKED",
+      "module": "repository-delivery",
+      "rootCause": "Supplied ZIP has no .git metadata and remote DNS/network lookup did not complete.",
+      "remediation": "Unpack the delivered source into the authenticated local Git checkout, review the full diff, commit and push from that environment.",
+      "testEvidence": "Archive SHA-256 and ZIP integrity recorded; no GitHub state verified.",
+      "remainingDependency": "Authenticated Git checkout and network access."
+    },
+    {
+      "id": "I18N_HUMAN_REVIEW",
+      "severity": "P2",
+      "status": "PENDING_HUMAN_REVIEW",
+      "module": "localization",
+      "rootCause": "Existing locale translation completeness does not replace human linguistic review.",
+      "remediation": "Complete qualified Kiswahili, French and Arabic human review as specified by the platform i18n evidence.",
+      "testEvidence": "Existing platform truth records human review as pending; not revalidated as part of this focused execution.",
+      "remainingDependency": "Qualified human language reviewers."
+    }
+  ]
+}

@@ -197,19 +197,14 @@ function getUserDisplayName(user) {
 }
 
 function getGroupMemberCount(group) {
-  if (!group || typeof group !== "object") {
-    return 0;
+  if (!group || typeof group !== "object") return null;
+  const rawCount = group.activeMemberCount ?? group.memberCount;
+  if (rawCount !== null && rawCount !== undefined && rawCount !== "") {
+    const count = Number(rawCount);
+    if (Number.isSafeInteger(count) && count >= 0) return count;
   }
-
-  if (Number.isFinite(Number(group.memberCount))) {
-    return Number(group.memberCount);
-  }
-
-  if (Array.isArray(group.members)) {
-    return group.members.length;
-  }
-
-  return 0;
+  if (Array.isArray(group.members)) return group.members.length;
+  return null;
 }
 
 // ============================================================================
@@ -560,13 +555,11 @@ function GroupCard({
   const memberCount =
     getGroupMemberCount(group);
 
-  const contribution =
-    Number(
-      group?.totalContributions ??
-        group?.contributions ??
-        group?.totalSavings ??
-        0
-    );
+  const contribution = group?.totalContributions ?? null;
+  const nextContribution = group?.nextContributionDate ?? group?.nextContribution ?? null;
+  const groupType = group?.type
+    ? String(group.type).replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase())
+    : "Group type unavailable";
 
   return (
     <article
@@ -601,11 +594,9 @@ function GroupCard({
               "Unnamed Group"}
           </h3>
 
-          {group?.type && (
-            <span className="group-type">
-              {String(group.type)}
-            </span>
-          )}
+          <span className="group-type">
+            {groupType}
+          </span>
         </div>
 
         {groupId && (
@@ -626,7 +617,7 @@ function GroupCard({
           <span>Members</span>
 
           <strong>
-            {memberCount}
+            {memberCount === null ? "Unavailable" : memberCount}
           </strong>
         </div>
 
@@ -648,7 +639,7 @@ function GroupCard({
 
         <strong>
           {formatDate(
-            group?.nextContributionDate
+            nextContribution
           )}
         </strong>
       </div>

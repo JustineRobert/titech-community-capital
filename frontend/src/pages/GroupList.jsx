@@ -372,22 +372,43 @@ function truncateDescription(value) {
  * Resolve group member count.
  */
 function getMemberCount(group) {
-  const count = group?.memberCount;
+  const count = group?.activeMemberCount ?? group?.memberCount;
 
-  if (
-    count !== null &&
-    count !== undefined &&
-    count !== "" &&
-    Number.isFinite(Number(count))
-  ) {
-    return Math.max(0, Number(count));
+  if (count !== null && count !== undefined && count !== "") {
+    const numericCount = Number(count);
+    if (Number.isSafeInteger(numericCount) && numericCount >= 0) return numericCount;
   }
 
-  if (Array.isArray(group?.members)) {
-    return group.members.length;
-  }
+  if (Array.isArray(group?.members)) return group.members.length;
+  return null;
+}
 
-  return 0;
+function formatGroupType(value) {
+  if (typeof value !== "string" || !value.trim()) return "Group type unavailable";
+  return value.trim().replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function getContributionAmount(group) {
+  const rawValue = group?.totalContributions;
+  if (rawValue === null || rawValue === undefined || rawValue === "") return null;
+  const amount = Number(rawValue);
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+
+function formatContributionAmount(value) {
+  if (value === null || value === undefined) return "Unavailable";
+  return new Intl.NumberFormat("en-UG", {
+    style: "currency",
+    currency: "UGX",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatContributionDate(value) {
+  if (!value) return "Not scheduled";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not scheduled";
+  return new Intl.DateTimeFormat("en-UG", { dateStyle: "medium" }).format(date);
 }
 
 /**
@@ -547,8 +568,10 @@ function GroupCard({
   const hasPendingMembership =
     membershipStatus === "pending";
 
-  const memberCount =
-    getMemberCount(group);
+  const memberCount = getMemberCount(group);
+  const contributionAmount = getContributionAmount(group);
+  const nextContributionDate = group?.nextContributionDate ?? group?.nextContribution ?? null;
+  const groupType = formatGroupType(group?.type);
 
   const groupName = String(
     group?.name ||
@@ -597,6 +620,8 @@ function GroupCard({
                 {groupName}
               </h3>
 
+              <span className="group-list-card__type">{groupType}</span>
+
               <span
                 className={`group-list-card__status ${
                   alreadyMember
@@ -623,20 +648,25 @@ function GroupCard({
             <dt>Members</dt>
 
             <dd>
-              {memberCount.toLocaleString()}
+              {memberCount === null ? "Unavailable" : memberCount.toLocaleString("en-UG")}
             </dd>
 
           </div>
 
+          <div className="group-list-card__metadata-item">
+            <dt>Total contributions</dt>
+            <dd>{formatContributionAmount(contributionAmount)}</dd>
+          </div>
+
+          <div className="group-list-card__metadata-item">
+            <dt>Next contribution</dt>
+            <dd>{formatContributionDate(nextContributionDate)}</dd>
+          </div>
+
           {group?.frequency && (
             <div className="group-list-card__metadata-item">
-
-              <dt>Contribution</dt>
-
-              <dd>
-                {String(group.frequency)}
-              </dd>
-
+              <dt>Contribution cycle</dt>
+              <dd>{String(group.frequency)}</dd>
             </div>
           )}
 

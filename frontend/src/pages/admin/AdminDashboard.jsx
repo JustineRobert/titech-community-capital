@@ -52,6 +52,12 @@ import { useAuth } from "../../context/AuthContext";
 import { normalizeTitechRole, TITECH_ROLES } from "../../security/rbacPolicy";
 import api from "../../services/api";
 import TITECH_BRAND from "../../branding/brand";
+import {
+  getAdminDashboardErrorMessage,
+  normalizeAdminActivity,
+  normalizeAdminStats,
+  unwrapAdminDashboardResponse,
+} from "./adminDashboardData.mjs";
 
 import "./AdminDashboard.css";
 
@@ -61,9 +67,10 @@ import "./AdminDashboard.css";
 
 const DASHBOARD_REFRESH_INTERVAL = 60_000;
 
+// This is a platform-wide administration centre. Tenant administrators use
+// their tenant-scoped workspace and are not granted global activity access.
 const ADMIN_ROLES = new Set([
   TITECH_ROLES.PLATFORM_ADMIN,
-  TITECH_ROLES.TENANT_ADMIN,
 ]);
 
 // `null` means the backend has not supplied a trustworthy metric. An actual
@@ -105,206 +112,33 @@ const QUICK_ACTIONS = Object.freeze([
 // Utility Helpers
 // ============================================================================
 
-function isObject(value) {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value)
-  );
-}
-
-function toSafeNonNegativeNumberOrNull(value) {
-  let parsed = null;
-
-  if (typeof value === "number" && Number.isFinite(value)) {
-    parsed = value;
-  } else if (typeof value === "string" && value.trim() !== "") {
-    const numericValue = Number(value);
-    if (Number.isFinite(numericValue)) parsed = numericValue;
-  }
-
-  // Negative values are invalid for these aggregate counters and should not
-  // be silently clamped to zero, because zero is a meaningful business value.
-  return parsed !== null && parsed >= 0 ? parsed : null;
-}
-
 function normalizeRole(role) {
   return normalizeTitechRole(role) || "";
 }
 
-function unwrapResponseData(response) {
-  const responseData =
-    response?.data;
-
-  if (
-    isObject(responseData) &&
-    isObject(responseData.data)
-  ) {
-    return responseData.data;
-  }
-
-  return responseData;
-}
-
-function normalizeStats(payload) {
-  const source =
-    isObject(payload)
-      ? payload
-      : {};
-
-  return {
-    totalUsers:
-      toSafeNonNegativeNumberOrNull(
-        source.totalUsers
-      ),
-
-    activeUsers:
-      toSafeNonNegativeNumberOrNull(
-        source.activeUsers
-      ),
-
-    activeGroups:
-      toSafeNonNegativeNumberOrNull(
-        source.activeGroups
-      ),
-
-    pendingApprovals:
-      toSafeNonNegativeNumberOrNull(
-        source.pendingApprovals
-      ),
-
-    activeLoans:
-      toSafeNonNegativeNumberOrNull(
-        source.activeLoans
-      ),
-
-    totalSavings:
-      toSafeNonNegativeNumberOrNull(
-        source.totalSavings
-      ),
-  };
-}
-
-function normalizeActivity(payload) {
-  if (
-    Array.isArray(payload)
-  ) {
-    return payload
-      .filter(isObject)
-      .map(
-        (
-          event,
-          index
-        ) => ({
-          ...event,
-
-          _id:
-            event._id ||
-            event.id ||
-            `activity-${index}`,
-
-          action:
-            typeof event.action ===
-            "string"
-              ? event.action
-              : "Administrative event",
-
-          description:
-            typeof event.description ===
-            "string"
-              ? event.description
-              : "No additional details available.",
-
-          createdAt:
-            event.createdAt ||
-            event.timestamp ||
-            event.updatedAt ||
-            null,
-        })
-      );
-  }
-
-  if (
-    isObject(payload) &&
-    Array.isArray(
-      payload.items
-    )
-  ) {
-    return normalizeActivity(
-      payload.items
-    );
-  }
-
-  if (
-    isObject(payload) &&
-    Array.isArray(
-      payload.events
-    )
-  ) {
-    return normalizeActivity(
-      payload.events
-    );
-  }
-
-  return [];
-}
-
 function formatInteger(value) {
-  const safeValue = toSafeNonNegativeNumberOrNull(value);
-  if (safeValue === null) return "Unavailable";
-
-  return new Intl.NumberFormat("en-UG", {
-    maximumFractionDigits: 0,
-  }).format(safeValue);
+  if (value === null || value === undefined) return "Unavailable";
+  return new Intl.NumberFormat("en-UG", { maximumFractionDigits: 0 }).format(value);
 }
 
 function formatCurrency(value) {
-  const safeValue = toSafeNonNegativeNumberOrNull(value);
-  if (safeValue === null) return "Unavailable";
-
+  if (value === null || value === undefined) return "Unavailable";
   return new Intl.NumberFormat("en-UG", {
     style: "currency",
     currency: "UGX",
     currencyDisplay: "symbol",
     maximumFractionDigits: 0,
-  }).format(safeValue);
+  }).format(value);
 }
 
 function formatDate(value) {
-  if (!value) {
-    return "Date unavailable";
-  }
-
-  const date =
-    new Date(value);
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return "Date unavailable";
-  }
-
-  return new Intl.DateTimeFormat(
-    "en-UG",
-    {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }
-  ).format(date);
+  if (!value) return "Date unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  return new Intl.DateTimeFormat("en-UG", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-function getErrorMessage(error) {
-  return (
-    error?.response?.data
-      ?.message ||
-    error?.response?.data
-      ?.error ||
-    error?.message ||
-    "Unable to load dashboard data."
-  );
-}
+const getErrorMessage = getAdminDashboardErrorMessage;
 
 // ============================================================================
 // Stat Card
@@ -416,6 +250,14 @@ const ActivityItem = memo(
         <p>
           {event.description}
         </p>
+
+        {(event.actor || event.resource) && (
+          <small className="activity-context">
+            {event.actor ? `By ${event.actor}` : ""}
+            {event.actor && event.resource ? " · " : ""}
+            {event.resource ? `On ${event.resource}` : ""}
+          </small>
+        )}
 
         <time
           dateTime={
@@ -556,6 +398,8 @@ function AdminDashboard() {
     DEFAULT_ACTIVITY
   );
 
+  const [activityError, setActivityError] = useState("");
+
   const [
     dashboardError,
     setDashboardError,
@@ -570,17 +414,12 @@ function AdminDashboard() {
   // Authorization
   // ==========================================================================
 
-  const isAdmin =
-    useMemo(() => {
-      const role =
-        normalizeRole(
-          user?.role
-        );
-
-      return ADMIN_ROLES.has(
-        role
-      );
-    }, [user?.role]);
+  const isAdmin = useMemo(() => {
+    const roles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
+      .map(normalizeRole)
+      .filter(Boolean);
+    return roles.some((role) => ADMIN_ROLES.has(role));
+  }, [user?.role, user?.roles]);
 
   // ==========================================================================
   // Dashboard Loader
@@ -661,8 +500,8 @@ function AdminDashboard() {
             "fulfilled"
           ) {
             setStats(
-              normalizeStats(
-                unwrapResponseData(
+              normalizeAdminStats(
+                unwrapAdminDashboardResponse(
                   statsResult.value
                 )
               )
@@ -686,20 +525,19 @@ function AdminDashboard() {
             "fulfilled"
           ) {
             setRecentEvents(
-              normalizeActivity(
-                unwrapResponseData(
+              normalizeAdminActivity(
+                unwrapAdminDashboardResponse(
                   activityResult.value
                 )
               )
             );
+            setActivityError("");
           } else {
             hasFailure = true;
 
-            failureMessages.push(
-              `Activity: ${getErrorMessage(
-                activityResult.reason
-              )}`
-            );
+            const message = getErrorMessage(activityResult.reason);
+            setActivityError(message);
+            failureMessages.push(`Activity: ${message}`);
           }
 
           if (
@@ -716,9 +554,9 @@ function AdminDashboard() {
             );
           }
 
-          setLastUpdated(
-            new Date()
-          );
+          if (!hasFailure) {
+            setLastUpdated(new Date());
+          }
         } catch (
           error
         ) {
@@ -1209,41 +1047,23 @@ function AdminDashboard() {
           </span>
         </div>
 
-        {recentEvents.length ===
-        0 ? (
-          <div
-            className="empty-state"
-            role="status"
-          >
-            <CheckCircle2
-              size={28}
-              aria-hidden="true"
-            />
-
-            <strong>
-              No recent activity
-            </strong>
-
-            <span>
-              There are no recent
-              administrative events
-              to display.
-            </span>
+        {activityError ? (
+          <div className="empty-state" role="status">
+            <AlertTriangle size={24} aria-hidden="true" />
+            <strong>Activity unavailable</strong>
+            <span>{activityError}</span>
+          </div>
+        ) : recentEvents.length === 0 ? (
+          <div className="empty-state" role="status">
+            <CheckCircle2 size={28} aria-hidden="true" />
+            <strong>No recent activity</strong>
+            <span>There are no audit events available for this view.</span>
           </div>
         ) : (
           <div className="activity-list">
-            {recentEvents.map(
-              (event) => (
-                <ActivityItem
-                  key={
-                    event._id
-                  }
-                  event={
-                    event
-                  }
-                />
-              )
-            )}
+            {recentEvents.map((event) => (
+              <ActivityItem key={event.id} event={event} />
+            ))}
           </div>
         )}
       </section>
