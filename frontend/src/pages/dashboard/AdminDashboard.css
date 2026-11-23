@@ -1086,3 +1086,14 @@
 
   border: 0;
 }
+
+.admin-dashboard-brand-lockup {
+  max-width: 100%;
+  margin: 0 0 0.4rem;
+  color: var(--titech-color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}

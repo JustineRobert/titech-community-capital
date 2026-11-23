@@ -42,6 +42,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { useAuth } from "../../context/AuthContext";
+import ProfileAvatar from "../../components/ui/ProfileAvatar";
 import useRealtimeDashboard from "../../hooks/useRealtimeDashboard";
 import {
   applyTheme,
@@ -894,9 +895,11 @@ function DashboardHeader({
             aria-label={`User menu for ${displayName}`}
             title="Open user menu"
           >
-            <User
-              size={18}
-              aria-hidden="true"
+            <ProfileAvatar
+              user={user}
+              name={displayName}
+              size="sm"
+              className="dashboard-user-avatar"
             />
 
             <span className="dashboard-user-name">

@@ -1,0 +1,11 @@
+{
+  "filesScanned": 2096,
+  "esm": 464,
+  "commonjs": 1361,
+  "mixed": 45,
+  "neutral": 226,
+  "unresolvedRelativeRequireReferences": 207,
+  "commonjsToEsmRelativeBoundaries": 351,
+  "auditExitCode": 2,
+  "note": "Current archive static audit only; boundary counts are candidate debt and require runtime/consumer verification before source migrations."
+}

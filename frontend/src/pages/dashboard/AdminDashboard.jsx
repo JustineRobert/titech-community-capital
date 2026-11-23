@@ -618,6 +618,9 @@ function AdminDashboard({
 
       <header className="admin-dashboard-header">
         <div>
+          <p className="admin-dashboard-brand-lockup">
+            {TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}
+          </p>
           <h1
             id="admin-dashboard-title"
           >

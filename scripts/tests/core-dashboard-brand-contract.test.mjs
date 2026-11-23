@@ -42,6 +42,30 @@ const surfaces = [
     stylesheet: 'frontend/src/pages/onboarding/OnboardingDashboard.css',
     className: 'onboarding-dashboard__identity',
   },
+  {
+    name: 'executive dashboard',
+    component: 'frontend/src/pages/dashboard/ExecutiveDashboard.jsx',
+    stylesheet: 'frontend/src/pages/dashboard/ExecutiveDashboard.css',
+    className: 'executive-eyebrow',
+  },
+  {
+    name: 'risk intelligence dashboard',
+    component: 'frontend/src/pages/AdminRiskDashboard.jsx',
+    stylesheet: 'frontend/src/pages/AdminRiskDashboard.css',
+    className: 'risk-header-brand',
+  },
+  {
+    name: 'system health dashboard',
+    component: 'frontend/src/pages/dashboard/SystemHealth.jsx',
+    stylesheet: 'frontend/src/pages/dashboard/SystemHealth.css',
+    className: 'system-health-brand-lockup',
+  },
+  {
+    name: 'enterprise admin dashboard',
+    component: 'frontend/src/pages/dashboard/AdminDashboard.jsx',
+    stylesheet: 'frontend/src/pages/dashboard/AdminDashboard.css',
+    className: 'admin-dashboard-brand-lockup',
+  },
 ];
 
 function read(relativePath) {
@@ -53,7 +77,7 @@ test('core dashboard headers render the canonical organization, product and tagl
     const source = read(surface.component);
     assert.match(
       source,
-      /import\s+TITECH_BRAND\s+from\s+['"][^'"]*branding\/brand['"]/,
+      /import\s+(?:\{\s*TITECH_BRAND\s*\}|TITECH_BRAND)\s+from\s+['"][^'"]*branding\/brand['"]/,
       `${surface.name} must import the canonical brand contract`,
     );
     assert.match(

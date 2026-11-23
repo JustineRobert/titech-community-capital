@@ -1,0 +1,226 @@
+{
+  "executionDate": "2026-11-22",
+  "sourceArchive": "titech-community-capital-main.zip",
+  "sourceArchiveSha256": "cab1fc10b31f2c6592f36c6474560290716f8f7b5dce06dec3eb963c6a3c10c4",
+  "zipEntries": 4673,
+  "gitMetadataPresent": false,
+  "applicationSourceFilesChanged": 0,
+  "removedFiles": [],
+  "files": [
+    {
+      "path": "README.md",
+      "change": "MODIFIED",
+      "purpose": "Add archive-specific execution pointer / current-source truth supplement."
+    },
+    {
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "change": "MODIFIED",
+      "purpose": "Add archive-specific execution pointer / current-source truth supplement."
+    },
+    {
+      "path": "TITECH_IMPLEMENTATION_INVENTORY.md",
+      "change": "MODIFIED",
+      "purpose": "Add archive-specific execution pointer / current-source truth supplement."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/BILLING_E2E_EVIDENCE.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/CHANGESET_FILE_DISCOVERY.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/CHAT_E2E_EVIDENCE.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/EXECUTION_REPORT.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/FINANCIAL_E2E_EVIDENCE.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/PRODUCTION_READINESS_REPORT.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/README.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/REFUGEE_PARTNER_INSURANCE_EVIDENCE.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/SECURITY_ASSESSMENT.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/TEST_MATRIX.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/TRACEABILITY_MATRIX.md",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/backend-build.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/backend-jest.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/chat-gate.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/chat-readiness-tests.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/chat-unit-tests.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/commercial-gate.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/commercial-tests.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/conflict-scan.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/cross-domain-tests.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/exit-codes.txt",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/financial-static.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/frontend-build.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/frontend-vitest.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/i18n-check.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/i18n-production-gate.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/inclusive-tests.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/mongoose-version-key.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/organization-tests.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/organization.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/performance-contract.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/production-approval.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/rbac.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/release-gate.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/root-check.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/root-e2e.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/runtime-gate.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/runtime-imports.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/syntax.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    },
+    {
+      "path": "docs/evidence/2026-11-22-archive-refresh-cab1fc1/logs/theme.log",
+      "change": "ADDED",
+      "purpose": "Execution evidence, traceability, test results or captured command log."
+    }
+  ]
+}

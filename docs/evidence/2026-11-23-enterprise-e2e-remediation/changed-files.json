@@ -1,0 +1,542 @@
+{
+  "executionDate": "2026-11-23",
+  "baselineArchive": "titech-community-capital-main.zip",
+  "baselineArchiveSha256": "964900189d2b8f1bd34edb915a5f4a76f82cc07635d16c5015b70f4d10aec603",
+  "comparisonMethod": "Per-file SHA-256 comparison of the original ZIP entries to the final extracted repository. No Git metadata was present in the source archive.",
+  "summary": {
+    "ADDED": 69,
+    "MODIFIED": 19,
+    "DELETED": 0
+  },
+  "selfReferentialManifestHashes": "currentSha256 is null for this manifest and CHANGED_FILES.md because each describes the other and cannot carry a stable self checksum.",
+  "files": [
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/AUTHENTICATION_REGRESSION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "3efcadb16bc60facf6972d43ca4922a2bb37e0359fbaa3eb55ef99013518c2e9"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/BROWSER_E2E_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "ed02132a0cca8b82f6f872843bd837c87aca273ef17b0f8575fcff76bba74f56"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/CHANGED_FILES.md",
+      "baselineSha256": null,
+      "currentSha256": null
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/CI_CD_VERIFICATION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "e1fafd3cd17af5563435d5bffb495ca5aee7456dd718362de2e25ba4e66d118a"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/CI_EXECUTION_GUIDE.md",
+      "baselineSha256": null,
+      "currentSha256": "04a8675d6a230ee67ca38672effe993145fcc1ee1a6ded7acb03ede8ece06fcf"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/COVERAGE_REMEDIATION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "f0f6fa05b1efd5856d67a6e6f9f55302aaa1998ffc418db1f995866cb9cc0b66"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/DATABASE_REDIS_LIFECYCLE_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "fcb930a7adc8b34d43b7363c7df6e22a06ccfe643d5dc53546ac048957e80d3d"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/E2E_EXECUTION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "fc77f1fa336363a34285ac81a17722261450ca06d40ebfb5bc72f075ceba2445"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/E2E_FAILURE_ROOT_CAUSE_REGISTER.md",
+      "baselineSha256": null,
+      "currentSha256": "6208c19f81bc5b387a000cc30a9e041ceaca66249df547381ae01306b8f15ad0"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/E2E_REMEDIATION_MATRIX.md",
+      "baselineSha256": null,
+      "currentSha256": "60da59403e5515fa1647e29fa793e1b7d2e7fbab71938ea2039fd06738d34971"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/E2E_TEST_COVERAGE_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "49e5e9c0322d078749c4b3823565e19bf402fced8f420406c30cd523cad3164a"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/ENTERPRISE_RELEASE_READINESS.md",
+      "baselineSha256": null,
+      "currentSha256": "dffeac1c26733311634bd29e6ca1c0040f0e3b671dcf3f474fdb794e95d79f08"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/ENVIRONMENT_BLOCKERS.md",
+      "baselineSha256": null,
+      "currentSha256": "de5667a4508a1930d6f09fc89a7ffb80e9133c1ab4c2a4f3fa3030f6e6f66650"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/ESM_COMMONJS_REMEDIATION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "6c59a301797c1b6962aa1d19e0a1e24e4e84950bb9ceb3b30265f917fd968b53"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/EXECUTION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "75bdeb4947c315d076e0fc52b4641cf26698cc31d59b2d456a3d7f9585dc2b83"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/FINANCIAL_E2E_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "57915841b8e3b19213acf0d3e81086ed7784d4f98544ac32a520a21829b978a6"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/IMPLEMENTATION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "fd3c2bb6bfe2a0b8563a79cb3aa13e561380879d9e940aabe82909d2d859e397"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/JEST_VITEST_CONFIGURATION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "2e9e74cbd56aecc7fb48da265745468070ad6c3cebb47771d0016f664cf1cba1"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/LOAN_FINANCIAL_VALIDATION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "ad8cde71a32a37f63f5adba30090cf40ccaf696ac49c51751abc7340bf9e31d0"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/MODULE_COMPATIBILITY_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "ac8969e3c2a234fddf0b4667e15c1e3bfd41a3aeffaf657a0f06c56e3eeb84f9"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/OPEN_HANDLES_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "53025ed67148cb2d14823c10bdb8cfa9d1a1fb6283f4781cb34103e577698d44"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/PAYMENT_PROVIDER_E2E_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "f94b7e4f7f0ae9323bca3f0e5bd20f0cce76690d7465b4bf8d634479961f26b0"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/RATE_LIMITER_VERIFICATION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "0fffe564bcf1cb8d426d8869a20cc8ecbefe7ecb4373c4104e075a72b4c7449a"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/RELEASE_READINESS_ASSESSMENT.md",
+      "baselineSha256": null,
+      "currentSha256": "ece5b0517afe798f30fdcf5e13f666590ad6e5deea1065a2d83deedc1209111e"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/SECURITY_E2E_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "91c3b42fa13263cf5a5c32cd06222e63452593ad7520eae769e3e11e5db9b7ff"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/SOURCE_ARCHIVE_SHA256.txt",
+      "baselineSha256": null,
+      "currentSha256": "43ea2dd4859a4dc6364b0a96f881e1a485b71c018fa7cd3744cfc3d80b95fc32"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/TENANT_ISOLATION_REPORT.md",
+      "baselineSha256": null,
+      "currentSha256": "a8e8e538ed53d3c58d7e9384be82b9aa12271a2f9469937dd49573a8e02f63a1"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/TESTING_BASELINE.md",
+      "baselineSha256": null,
+      "currentSha256": "a7f39de7610f8786efd43a3f2cde99903a453e864f527dbbb12e3656dcc5227b"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/TEST_DISCOVERY_INVENTORY.md",
+      "baselineSha256": null,
+      "currentSha256": "6d2ee0ace1c00a7f52aa362c581dca405370fbd489fca47f02453c3e8527e6d4"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/TEST_FAILURE_ROOT_CAUSE_MATRIX.md",
+      "baselineSha256": null,
+      "currentSha256": "c64c5e07d72f62581ad1a03b6afb4863752deae242112bb256a906b4a916f25b"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/TEST_RUNNER_ARCHITECTURE.md",
+      "baselineSha256": null,
+      "currentSha256": "4ab08944faf1d79915bd1553429dab6c3c9b67c84df47504e57c7c089d640b69"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/TITech_EXECUTION_CHANGED_FILES.md",
+      "baselineSha256": null,
+      "currentSha256": "1edb1f7e76ef44679b34f6beac39c60fd034949533b520af2ba508517e65b8a0"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/changed-files.json",
+      "baselineSha256": null,
+      "currentSha256": null
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/git_ls_remote.log",
+      "baselineSha256": null,
+      "currentSha256": "8f7fecc93c17d4cc51591d327b196eab2e8c43f82d49546e817ee1d6a8c18887"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_audit_frontend_runtime.log",
+      "baselineSha256": null,
+      "currentSha256": "b921d1f0dc5f5ec97bdc53fdba60f34d069c3bb63973db2e07514caa844943f0"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_audit_modules.log",
+      "baselineSha256": null,
+      "currentSha256": "0ba739ecec33a983f13578fcb3bb176949c5ff8ad368037859792a4fa3a4f284"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_audit_organization.log",
+      "baselineSha256": null,
+      "currentSha256": "a9d8b47a961dbfd0357bcf362a0d6e3fde2462630df6d377fc07468e76f56e79"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_audit_test_discovery.log",
+      "baselineSha256": null,
+      "currentSha256": "b65cd9477d455824f33d39598545a100f139e90d8f30d107a88745402cac20d8"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_audit_theme.log",
+      "baselineSha256": null,
+      "currentSha256": "781a2de32b676b2bb4d5887dc9bf2766b9b58796841cfa88b7a883b1f6b28f67"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_check_conflicts.log",
+      "baselineSha256": null,
+      "currentSha256": "23f172280d4bdb87fedc8f210aeb80daed062d269bf4c32a6334240856e29489"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_check_financial.log",
+      "baselineSha256": null,
+      "currentSha256": "6cf056b6c32e462667224f2aacafc3cdbec41706a5942d25dfbd48fb08e60398"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_check_rbac.log",
+      "baselineSha256": null,
+      "currentSha256": "5eda0ed6e5cd28a7293222b4ad1d7f356a34c921f39fdc48d256172e889b9f93"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_check_runtime.log",
+      "baselineSha256": null,
+      "currentSha256": "5f0a4ce01d81cac43cd61a82dfe0d59eeafe061fe1d63ddbd552d1c29bc3ea68"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_production_approval_gate.log",
+      "baselineSha256": null,
+      "currentSha256": "cecc4a57c860bb462ac48a4f2ecfbe47ac3803e3f2a11163202ff175fcf1b913"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_release_gate_strict.log",
+      "baselineSha256": null,
+      "currentSha256": "2e1d15158b3e63e528488e9e765fc0962e3ac2b24af2297b3dac64e81f7cb0fb"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_test_ci_final.log",
+      "baselineSha256": null,
+      "currentSha256": "c1a5b88c3faf0573f2a3cc58f276ea137efdb643438f3c75ec59dbe200b98bad"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_test_dashboard-brand.log",
+      "baselineSha256": null,
+      "currentSha256": "a95c77e9caaa1331e0839ccdd73e07bc81a30d7842bc22c0a2cca249790f2fc2"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_test_profile-avatar.log",
+      "baselineSha256": null,
+      "currentSha256": "4c14aa8479e7b3b8f1105c1b352ee57cc7e803764e1297bebc9fc7a3b20179f2"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-logs/npm_run_validate_syntax.log",
+      "baselineSha256": null,
+      "currentSha256": "7c1c819b9942147cb65fc08bb3e2d42b1c009e0e8a164d5ca309cf14dec06bba"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/execution-matrix.json",
+      "baselineSha256": null,
+      "currentSha256": "6869194fb5ffbc9f2bedd2cb9c0a829e1dc60af107f0eb3392f47a749d73fadb"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/failure-matrix.json",
+      "baselineSha256": null,
+      "currentSha256": "14b84207b3c83f68c468453e4d953521f69e2c1cf7bd90a3b2cd62a5004faff7"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/machine-results/frontend-runtime-audit.json",
+      "baselineSha256": null,
+      "currentSha256": "1917df4f36886dd99d29a89ceb11a7dfefb0f29ccf34382ea2fd47b7d32daad6"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/machine-results/official-theme-audit.json",
+      "baselineSha256": null,
+      "currentSha256": "24ad7fcdd7f5b87df10b17e7d57c116df453f6151862849523d99b684e5a0c6b"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/machine-results/rbac-security-gate.json",
+      "baselineSha256": null,
+      "currentSha256": "af7d410e1969891500c474569b01b31be4bba7b97757c98d12bb31ba0e5610df"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/machine-results/release-readiness.json",
+      "baselineSha256": null,
+      "currentSha256": "3d119455011fd17aeb75773fc08017eeedf6c20852acc804dedad247e63918b5"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/machine-results/runtime-import-audit.json",
+      "baselineSha256": null,
+      "currentSha256": "bd09fabc4853650b2ca13190a2446ed4fa68468e2cf05da4d29e86b30a24a7d7"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/machine-results/test-discovery-audit.json",
+      "baselineSha256": null,
+      "currentSha256": "99a135ef9d9470b22e00031041de7c8aac8b31058588bda7b65ead3e05ab3596"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/evidence/2026-11-23-enterprise-e2e-remediation/module-audit-summary.json",
+      "baselineSha256": null,
+      "currentSha256": "3e3428277f9299f3f52773d1f6474749ff1f9576fcaea6490f28eeefa0b3298f"
+    },
+    {
+      "status": "ADDED",
+      "path": "frontend/src/components/ui/ProfileAvatar.css",
+      "baselineSha256": null,
+      "currentSha256": "ccea5294c5b918359a1c1a07e4ecff2295110a07d1b18791ce4d4af0dc792102"
+    },
+    {
+      "status": "ADDED",
+      "path": "frontend/src/components/ui/ProfileAvatar.jsx",
+      "baselineSha256": null,
+      "currentSha256": "6adef665eacf7c27d41f4f65c5f2273cfe61fb144faab015c0fa3c779ad3555d"
+    },
+    {
+      "status": "ADDED",
+      "path": "frontend/src/pages/dashboard/DashboardHeader.css",
+      "baselineSha256": null,
+      "currentSha256": "8efa9f1895427fe11f4267cd0cbd6e355efbb11771f7960090224723169b03ce"
+    },
+    {
+      "status": "ADDED",
+      "path": "frontend/src/utils/userAvatar.mjs",
+      "baselineSha256": null,
+      "currentSha256": "8741a537473f2627dda18d87ac6c6173aa70e23d477c5119f74d17e52836eaf9"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/frontend-runtime-audit.json",
+      "baselineSha256": null,
+      "currentSha256": "1917df4f36886dd99d29a89ceb11a7dfefb0f29ccf34382ea2fd47b7d32daad6"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/official-theme-audit.json",
+      "baselineSha256": null,
+      "currentSha256": "24ad7fcdd7f5b87df10b17e7d57c116df453f6151862849523d99b684e5a0c6b"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/rbac-security-gate.json",
+      "baselineSha256": null,
+      "currentSha256": "af7d410e1969891500c474569b01b31be4bba7b97757c98d12bb31ba0e5610df"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/release-readiness.json",
+      "baselineSha256": null,
+      "currentSha256": "3d119455011fd17aeb75773fc08017eeedf6c20852acc804dedad247e63918b5"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/runtime-import-audit.json",
+      "baselineSha256": null,
+      "currentSha256": "bd09fabc4853650b2ca13190a2446ed4fa68468e2cf05da4d29e86b30a24a7d7"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/test-discovery-audit.json",
+      "baselineSha256": null,
+      "currentSha256": "99a135ef9d9470b22e00031041de7c8aac8b31058588bda7b65ead3e05ab3596"
+    },
+    {
+      "status": "ADDED",
+      "path": "scripts/tests/profile-avatar-contract.test.mjs",
+      "baselineSha256": null,
+      "currentSha256": "664c79d089fbcf135896a624db6d3c348620367cbc103733dbe45ccd54fa7f5a"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "README.md",
+      "baselineSha256": "3c5b30434d3f9afa187b3753412bec631552e46218570def9dd7d0925b985201",
+      "currentSha256": "e1f8320b5433a22d60bfb964569d15c4270c3e4c61be65d99d4be903c1533628"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "TITECH_PLATFORM_TRUTH.md",
+      "baselineSha256": "fbfad3d95a07843c7fd7fe0fb6bd98428e000d6f2368beaed6e04a9d20f1dfc8",
+      "currentSha256": "85e1a1e5619e79a8f351dce7fc8628bb748e7a7cb3b7788fe426501972d0d3ad"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "TITech_EXECUTION_CHANGED_FILES.md",
+      "baselineSha256": "aeff2b27e6daff392ff1c42e971d6031d5d53f49010605c5e3d71dc58bb403c6",
+      "currentSha256": "e56b9146154c513e0e11968daed0da6f7c57819d28954f8f0c3b9d7892ba934b"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/branding/dashboard-theme.css",
+      "baselineSha256": "7812a61e6bfeff095c0b9943d8ac5a8ba2d7ff0a7d5e7f7d66d7cb59ffdfcf1c",
+      "currentSha256": "1c23e7846c85a0a58f65adfe64e1bbcc5e496591bf7cb6c7296d89c085f8d0a0"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/components/Navbar.css",
+      "baselineSha256": "f8b16c6fdfee68a39f9ca100c84dc83729eedcb80e89b3db01396c80d041414d",
+      "currentSha256": "e09d78dc533037833e687aa761a93cb4f24d388898dad3a395f5d12fdbd30709"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/components/Navbar.jsx",
+      "baselineSha256": "8c72fddc307098f86108a5e4b544559b275d4abf2dc9eba5ca84c9ffccc937ef",
+      "currentSha256": "6ac3e03e2839cf61ce5677398002129554034cd6be9c6313ba8f4426ac0b5ca0"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/AdminRiskDashboard.css",
+      "baselineSha256": "ccf3995cca78c55514785a6e98caef503a0cfb63c220c376fd6c2b33b1d2da95",
+      "currentSha256": "7d77ccb6f5b524ea0afdd2124779f74e382e22cd3e146e7e321800c9870ffa91"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/AdminRiskDashboard.jsx",
+      "baselineSha256": "d0d5edb8445aafcfc6e8ec3a01055bd823031f147887971c67b870d00486404b",
+      "currentSha256": "07e42cb2b89d6df89db329da67ae3f539c555ba2ac54732ad85a6aa373203f23"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/Settings.css",
+      "baselineSha256": "0cff77863c4a302bb3d43d091af41b485fe75bdd78df5823ba968c0840ab0e89",
+      "currentSha256": "507fad3dce765df20f03f74bd4deeab32a7af46cf3ed0bda6fef66e81ca528d6"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/Settings.jsx",
+      "baselineSha256": "9186afa54f3164d169cfb0057c7ecafa3bca3bbf2418ca287082734b21578366",
+      "currentSha256": "e8a64dd258230a7114f008f7f37c2a3634a01aca4f1fa82a44b3861b6cedef18"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/dashboard/AdminDashboard.css",
+      "baselineSha256": "3b53cb33d955be3361d7d55af8fca883d9d18be5e55f546e87a94955f6752a44",
+      "currentSha256": "022a3fbf139601f445dc34c52bee93c2b870a3969426669307b28d47849ca399"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/dashboard/AdminDashboard.jsx",
+      "baselineSha256": "e88b914ba9b36e0f58582e6b1cc471769128ec877a5352f065f1dc61394f1f40",
+      "currentSha256": "ef70777fbd7ea4afecc7599d7b594f7d239bea1333f5e9eb9f16668ceff48053"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/dashboard/DashboardHeader.jsx",
+      "baselineSha256": "3b8f044a0eb16e545d7f13d90b0ad83d469dd0008d3cff1a203c70a6a6fbac50",
+      "currentSha256": "3d43a2ffc0e977a378562c74b7755bc7a5ae5cfae8163fe62cff503e000a8e6b"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/dashboard/ExecutiveDashboard.css",
+      "baselineSha256": "791428f82f82e4a60742204c876c084c0fe274923a2c5aff6ed53e3516bd7419",
+      "currentSha256": "de1e95e25c1d798b208ad51a1b77d032f6eef43c9d4bfd1aa02b49684f4cec88"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/dashboard/ExecutiveDashboard.jsx",
+      "baselineSha256": "e379827da1754586e99d64cd8f547a5c6f08144bf932d38885803289e28d05bf",
+      "currentSha256": "4ec2b4cbfbeb8b9f798cf69f1e8d9ee2add81d6bfb9bcf8657b9e5cc1278cf76"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/dashboard/SystemHealth.css",
+      "baselineSha256": "eab70e5812ec9f268a123f222de0898f913d992e0ca38fbae7c39cd174d92da5",
+      "currentSha256": "ae8c0d54b87756cbec5f19248c8afb3d71e110d831c5e5b68a59ba21ddfdba15"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/dashboard/SystemHealth.jsx",
+      "baselineSha256": "fc2af37ef91aa287c11d15befb386c65da624954314f0c50ce763f8b3f475d69",
+      "currentSha256": "f9f845a9d11765ced9b0751b9ae5df4610f3be2e7c5a8f8383f9b735df7bedcf"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "package.json",
+      "baselineSha256": "0927a7c811726571f7d44ab194ac33f822bf65eac6c2ca90e075fc535add9531",
+      "currentSha256": "424ebf4808604c37ab5b60d9e643cb8695d2fde23fcdc05bf1b2f1f43ce2cec1"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "scripts/tests/core-dashboard-brand-contract.test.mjs",
+      "baselineSha256": "9aafba90887336972f19e4ba02d309096a290239a62f287c0934ce32ec56de9a",
+      "currentSha256": "1d090e1683586f5d8bcda7694b74c80fc07c4f242dfe6167e1e16bdd42883f70"
+    }
+  ]
+}

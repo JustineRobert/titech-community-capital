@@ -1,0 +1,82 @@
+[
+  {
+    "command": "npm run check:runtime",
+    "exitCode": 1,
+    "result": "Runtime below declared Node/npm minimums"
+  },
+  {
+    "command": "npm run audit:modules",
+    "exitCode": 2,
+    "result": "207 unresolved relative require references; 351 CJS to ESM boundaries"
+  },
+  {
+    "command": "npm run audit:test-discovery",
+    "exitCode": 0,
+    "result": "197 files; 26 empty; zero duplicate groups; 33 planned specs"
+  },
+  {
+    "command": "npm run validate:syntax",
+    "exitCode": 0,
+    "result": "2,592 JS/TS files parsed"
+  },
+  {
+    "command": "npm run audit:theme",
+    "exitCode": 0,
+    "result": "80 CSS files; zero hard-coded official palette literals"
+  },
+  {
+    "command": "npm run audit:organization",
+    "exitCode": 0,
+    "result": "Official company identity/contact contract passed"
+  },
+  {
+    "command": "npm run check:financial",
+    "exitCode": 0,
+    "result": "12 canonical financial files statically checked"
+  },
+  {
+    "command": "npm run check:rbac",
+    "exitCode": 0,
+    "result": "Static RBAC gate passed"
+  },
+  {
+    "command": "npm run check:conflicts",
+    "exitCode": 0,
+    "result": "3,986 files scanned; no conflict markers"
+  },
+  {
+    "command": "npm run audit:frontend-runtime",
+    "exitCode": 0,
+    "result": "11 pass, one warning (no frontend/dist)"
+  },
+  {
+    "command": "npm run test:profile-avatar",
+    "exitCode": 0,
+    "result": "6 passed, 0 failed, 0 skipped"
+  },
+  {
+    "command": "npm run test:dashboard-brand",
+    "exitCode": 0,
+    "result": "4 passed, 0 failed, 0 skipped; 10 dashboard surfaces"
+  },
+  {
+    "command": "npm run test:ci",
+    "exitCode": 1,
+    "result": "292 native tests passed; backend Jest binary missing"
+  },
+  {
+    "command": "npm run release:gate:strict",
+    "exitCode": 1,
+    "result": "Runtime pin blocker; 208 missing imports reported"
+  },
+  {
+    "command": "npm run production:approval-gate",
+    "exitCode": 1,
+    "result": "Missing protected approval evidence variables"
+  },
+  {
+    "command": "git ls-remote origin HEAD",
+    "exitCode": 128,
+    "result": "GitHub DNS resolution failed"
+  }
+]

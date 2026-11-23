@@ -1,6 +1,6 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 21 November 2026
+**As of:** 23 November 2026
 **Organization:** TITECH CAPITAL - SMC LTD
 **Entity Registration Number (ERN):** 80049233029029 (stated on user-uploaded Certificate of Incorporation; authenticity/current registry status not independently verified)
 **Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
@@ -10,6 +10,20 @@
 **Production approval | NO**
 **PRODUCTION_APPROVED: NO**  
 **`productionApproved`: `false`**
+
+## 23 November 2026 — profile avatars, dashboard identity and enterprise E2E reassessment
+
+This archive-local execution uses `titech-community-capital-main.zip` (SHA-256 `964900189d2b8f1bd34edb915a5f4a76f82cc07635d16c5015b70f4d10aec603`; 4,630 ZIP entries; ZIP integrity PASS). The supplied archive contains no `.git` metadata. Remote GitHub access could not be resolved from this execution environment, so the checked-out branch/HEAD, remote synchronization, commit, push and deployment are not verified or claimed.
+
+The canonical identity remains **TITech Community Capital**, **TITECH CAPITAL - SMC LTD**, ERN **80049233029029**, and **Community Finance. Stronger Together.** The official circular mark and existing nine-colour light/dark palette were preserved. The shared `ProfileAvatar` component now displays a valid HTTP(S) profile image when returned in the authenticated user profile (including the canonical `avatar` field) across the main navigation account menu, mobile account panel, dashboard header and Settings account summary; invalid, unsafe, missing or failed images fall back to deterministic initials. This is display-only and does not alter authentication tokens, refresh-cookie handling, roles, tenant scope or authorization.
+
+Dashboard identity lockups now use the canonical brand contract on the executive, risk intelligence, system health and enterprise admin dashboard components. Their identity text wraps on narrow screens. The dashboard theme bridge maps existing domain/dashboard aliases to official semantic tokens while preserving semantic success/warning/danger status colours and explicit light/dark mode. A missing imported `DashboardHeader.css` source file was added using the existing semantic theme tokens. Regression tests cover profile URL validation, name/initial handling, avatar component wiring, dashboard header styles and 10 core dashboard identity surfaces.
+
+Local verification on the supplied archive: profile-avatar tests **6/6 PASS**; dashboard-brand contract tests **4/4 PASS** (10 dashboard surfaces exercised by the contract assertions); the root dependency-free CI preflight executed **292 tests across 24 native test groups, 292 passed, 0 failed, 0 skipped**, then stopped at the backend Jest phase because backend dependencies are not installed (`backend/node_modules/jest/bin/jest.js` is absent). Syntax validation parsed **2,592** JS/TS-family files; official-theme, organization, financial-static (12 canonical files), RBAC-static and conflict checks passed. The theme audit scanned **80** non-brand frontend CSS files with zero hard-coded official palette values. Test discovery finds **197** backend test files, including **26 zero-byte test files** (tracked non-blocking by the current audit, but still genuine coverage debt), zero case-insensitive duplicate groups and 33 planned-but-not-executable specifications. The module audit reports 207 unresolved relative `require()` references and 351 CJS-to-ESM relative boundaries; strict release readiness additionally reports 208 missing local imports.
+
+The observed environment remains Node **22.16.0** / npm **10.9.2**, below the declared Node **24.15.0** / npm **11.0.0** floor. Dependencies were not installed; MongoDB, Redis and Docker executables are unavailable. Consequently backend Jest, frontend Vitest/build, database-backed tests, Redis integration, Playwright/browser E2E, real HTTP tenant-isolation tests, provider sandbox/settlement, full coverage, performance/load tests, backup/restore, independent security assessment and external partner/regulatory review were not performed. Strict release readiness is **BLOCKED** by the runtime pin; protected production-approval evidence is absent. No payment or production capability was enabled. **`productionApproved=false` remains unchanged.**
+
+Detailed files, commands, outputs, root causes and blockers: [`docs/evidence/2026-11-23-enterprise-e2e-remediation/`](docs/evidence/2026-11-23-enterprise-e2e-remediation/).
 
 ## 21 November 2026 — focused dashboard, group UI and refresh remediation (current archive execution)
 

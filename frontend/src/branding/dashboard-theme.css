@@ -94,6 +94,46 @@
   --widget-border: var(--titech-color-border);
   --widget-text: var(--titech-color-text);
   --widget-muted: var(--titech-color-text-muted);
+
+  /* Domain dashboard styles inherit the same official brand/state contract. */
+  --titech-primary: var(--titech-official-deep-blue);
+  --titech-primary-hover: var(--titech-official-electric-blue);
+  --titech-primary-soft: rgb(0 88 216 / .10);
+  --titech-success: var(--titech-state-success);
+  --titech-success-hover: var(--titech-state-success);
+  --titech-success-soft: var(--titech-success-surface);
+  --titech-warning: var(--titech-state-warning);
+  --titech-warning-hover: var(--titech-state-warning);
+  --titech-warning-soft: var(--titech-warning-surface);
+  --titech-danger: var(--titech-state-danger);
+  --titech-danger-hover: var(--titech-state-danger);
+  --titech-danger-soft: var(--titech-danger-surface);
+  --titech-info: var(--titech-state-info);
+  --titech-info-soft: rgb(0 184 248 / .12);
+  --titech-purple: var(--titech-official-bright-blue);
+  --titech-purple-soft: rgb(0 102 232 / .10);
+  --admin-primary: var(--titech-official-electric-blue);
+  --admin-primary-hover: var(--titech-official-deep-blue);
+  --admin-primary-soft: rgb(0 88 216 / .10);
+  --widget-primary: var(--titech-official-electric-blue);
+  --widget-primary-soft: rgb(0 88 216 / .10);
+  --widget-success: var(--titech-state-success);
+  --widget-success-soft: var(--titech-success-surface);
+  --widget-warning: var(--titech-state-warning);
+  --widget-warning-soft: var(--titech-warning-surface);
+  --widget-danger: var(--titech-state-danger);
+  --widget-danger-soft: var(--titech-danger-surface);
+  --widget-info: var(--titech-state-info);
+  --widget-info-soft: rgb(0 184 248 / .12);
+  --health-primary: var(--titech-official-electric-blue);
+  --health-success: var(--titech-state-success);
+  --health-warning: var(--titech-state-warning);
+  --health-danger: var(--titech-state-danger);
+  --health-info: var(--titech-state-info);
+  --executive-primary: var(--titech-official-electric-blue);
+  --executive-success: var(--titech-state-success);
+  --executive-warning: var(--titech-state-warning);
+  --executive-danger: var(--titech-state-danger);
 }
 
 :root[data-titech-brand="official"] :is(

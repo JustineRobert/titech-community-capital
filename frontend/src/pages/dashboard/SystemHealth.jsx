@@ -914,6 +914,10 @@ function SystemHealth() {
       className="system-health-page"
       aria-labelledby="system-health-title"
     >
+      <p className="system-health-brand-lockup">
+        {TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}
+      </p>
+
       <PageHeader
         title="System Health"
         subtitle="Monitor infrastructure, services and platform availability."

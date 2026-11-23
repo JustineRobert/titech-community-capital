@@ -464,7 +464,7 @@ function ExecutiveDashboard({
       >
         <div className="executive-header-content">
           <span className="executive-eyebrow">
-            TITech Community Capital
+            {TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}
           </span>
 
           <h1 id="executive-dashboard-title">

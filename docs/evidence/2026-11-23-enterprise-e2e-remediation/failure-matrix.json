@@ -1,0 +1,50 @@
+[
+  {
+    "id": "runtime-version",
+    "category": "ENVIRONMENT_BLOCKER",
+    "evidence": "Node 22.16.0 / npm 10.9.2 vs Node >=24.15.0 / npm >=11.0.0",
+    "status": "BLOCKED"
+  },
+  {
+    "id": "backend-jest-missing",
+    "category": "ENVIRONMENT_BLOCKER",
+    "evidence": "backend/node_modules/jest/bin/jest.js absent; backend dependencies are not installed",
+    "status": "BLOCKED"
+  },
+  {
+    "id": "module-audit",
+    "category": "MODULE_SYSTEM_FAILURE",
+    "evidence": "207 unresolved relative require references; 351 CJS-to-ESM boundaries",
+    "status": "OPEN"
+  },
+  {
+    "id": "runtime-import-audit",
+    "category": "APPLICATION_IMPORT_FAILURE",
+    "evidence": "strict release gate warns 208 missing local imports",
+    "status": "OPEN"
+  },
+  {
+    "id": "empty-test-suites",
+    "category": "EMPTY_TEST_SUITE",
+    "evidence": "26 zero-byte suites with paired planned specifications",
+    "status": "OPEN"
+  },
+  {
+    "id": "profile-avatar",
+    "category": "APPLICATION_LOGIC_FAILURE",
+    "evidence": "6 regression tests passed after shared component implementation",
+    "status": "VERIFIED_SOURCE_TEST"
+  },
+  {
+    "id": "dashboard-brand",
+    "category": "APPLICATION_LOGIC_FAILURE",
+    "evidence": "4 contract tests passed across 10 dashboard components",
+    "status": "VERIFIED_SOURCE_TEST"
+  },
+  {
+    "id": "production-approval",
+    "category": "EXTERNAL_APPROVAL_BLOCKER",
+    "evidence": "Protected production approval evidence absent",
+    "status": "BLOCKED"
+  }
+]

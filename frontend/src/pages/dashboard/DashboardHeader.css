@@ -1,0 +1,261 @@
+/* TITech Community Capital — shared responsive dashboard header. */
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  padding: 1rem 1.25rem;
+  color: var(--titech-color-text);
+  background: var(--titech-color-surface);
+  border: 1px solid var(--titech-color-border);
+  border-radius: 1rem;
+  box-shadow: 0 8px 28px rgb(8 43 103 / 0.07);
+}
+
+.dashboard-header-left,
+.dashboard-header-title,
+.dashboard-header-actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.dashboard-header-left {
+  flex: 1 1 auto;
+  gap: 0.875rem;
+}
+
+.dashboard-header-title {
+  display: block;
+}
+
+.dashboard-header-title h1 {
+  margin: 0;
+  color: var(--titech-color-text);
+  font-size: clamp(1.125rem, 2vw, 1.5rem);
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.dashboard-header-title p {
+  margin: 0.25rem 0 0;
+  color: var(--titech-color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.dashboard-header-search {
+  flex: 0 1 22rem;
+  min-width: 12rem;
+}
+
+.dashboard-search-fallback {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  padding: 0 0.875rem;
+  color: var(--titech-color-text-muted);
+  background: var(--titech-color-surface-muted);
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.75rem;
+}
+
+.dashboard-search-fallback input {
+  width: 100%;
+  min-width: 0;
+  color: var(--titech-color-text);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+}
+
+.dashboard-header-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dashboard-header-actions > button,
+.dashboard-header-actions > [role='button'] {
+  min-width: 2.625rem;
+  min-height: 2.625rem;
+}
+
+.dashboard-tenant {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 16rem;
+  min-height: 2.5rem;
+  padding: 0.375rem 0.75rem;
+  color: var(--titech-color-text);
+  background: var(--titech-color-surface-muted);
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.dashboard-tenant span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-user-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dashboard-user-menu > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.625rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--titech-color-text);
+  background: var(--titech-color-surface);
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.75rem;
+}
+
+.dashboard-user-menu > button:hover {
+  background: var(--titech-color-surface-muted);
+  border-color: var(--titech-color-border-strong);
+}
+
+.dashboard-user-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.dashboard-user-menu-chevron-open {
+  transform: rotate(180deg);
+}
+
+.dashboard-user-dropdown {
+  position: absolute;
+  z-index: 100;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  display: grid;
+  min-width: 12rem;
+  padding: 0.375rem;
+  background: var(--titech-color-surface);
+  border: 1px solid var(--titech-color-border);
+  border-radius: 0.875rem;
+  box-shadow: 0 16px 40px rgb(8 43 103 / 0.16);
+}
+
+.dashboard-user-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 2.625rem;
+  padding: 0.625rem 0.75rem;
+  color: var(--titech-color-text);
+  background: transparent;
+  border: 0;
+  border-radius: 0.5rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-user-dropdown button:hover {
+  background: var(--titech-color-surface-muted);
+}
+
+.dashboard-user-dropdown-divider {
+  height: 1px;
+  margin: 0.25rem 0;
+  background: var(--titech-color-border);
+}
+
+.notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  color: var(--titech-official-white);
+  background: var(--titech-official-electric-blue);
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+.dashboard-header :is(button, a, input, select):focus-visible {
+  outline: 2px solid var(--titech-focus-color);
+  outline-offset: 2px;
+  box-shadow: var(--titech-focus-ring);
+}
+
+.dashboard-header .spin {
+  animation: titech-dashboard-spin 1s linear infinite;
+}
+
+@keyframes titech-dashboard-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 960px) {
+  .dashboard-header {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-header-search {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .dashboard-header-actions {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard-header {
+    align-items: flex-start;
+    padding: 0.875rem;
+  }
+
+  .dashboard-header-left {
+    flex-basis: 100%;
+  }
+
+  .dashboard-header-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .dashboard-tenant {
+    max-width: 100%;
+  }
+
+  .dashboard-user-name {
+    max-width: 7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-header *,
+  .dashboard-header *::before,
+  .dashboard-header *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

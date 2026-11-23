@@ -76,6 +76,7 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "./BrandLogo";
+import ProfileAvatar from "./ui/ProfileAvatar";
 import LanguageSelector from "../i18n/LanguageSelector";
 import { useI18n } from "../i18n/I18nProvider";
 import { getNavigationItems, PUBLIC_PRODUCT_DISCOVERY } from "../navigation/navigationRegistry";
@@ -137,28 +138,6 @@ function getUserDisplayName(user) {
       user.email,
     "Account",
   );
-}
-
-function getUserInitials(user) {
-  const displayName = getUserDisplayName(user);
-
-  if (!displayName || displayName === "Account") {
-    return "AC";
-  }
-
-  const parts = displayName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-
-  return parts
-    .map((part) => part.charAt(0))
-    .join("")
-    .toUpperCase();
 }
 
 function isRouteActive(pathname, route) {
@@ -277,11 +256,6 @@ function Navbar({
 
   const userDisplayName = useMemo(
     () => getUserDisplayName(user),
-    [user],
-  );
-
-  const userInitials = useMemo(
-    () => getUserInitials(user),
     [user],
   );
 
@@ -794,12 +768,12 @@ function Navbar({
                     }}
                     data-testid={`${testId}-user-menu-button`}
                   >
-                    <span
+                    <ProfileAvatar
+                      user={user}
+                      name={userDisplayName}
+                      size="sm"
                       className="titech-navbar__avatar"
-                      aria-hidden="true"
-                    >
-                      {userInitials}
-                    </span>
+                    />
 
                     <span className="titech-navbar__user-name">
                       {userDisplayName}
@@ -828,12 +802,12 @@ function Navbar({
                       data-testid={`${testId}-user-menu`}
                     >
                       <div className="titech-navbar__user-menu-header">
-                        <span
+                        <ProfileAvatar
+                          user={user}
+                          name={userDisplayName}
+                          size="lg"
                           className="titech-navbar__avatar titech-navbar__avatar--large"
-                          aria-hidden="true"
-                        >
-                          {userInitials}
-                        </span>
+                        />
 
                         <div className="titech-navbar__user-meta">
                           <strong>
@@ -1091,12 +1065,12 @@ function Navbar({
           {isAuthenticated ? (
             <div className="titech-navbar__mobile-account">
               <div className="titech-navbar__mobile-user">
-                <span
+                <ProfileAvatar
+                  user={user}
+                  name={userDisplayName}
+                  size="lg"
                   className="titech-navbar__avatar titech-navbar__avatar--large"
-                  aria-hidden="true"
-                >
-                  {userInitials}
-                </span>
+                />
 
                 <div className="titech-navbar__user-meta">
                   <strong>

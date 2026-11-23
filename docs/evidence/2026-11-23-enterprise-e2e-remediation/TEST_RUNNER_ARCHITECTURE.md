@@ -1,0 +1,3 @@
+# Test runner architecture
+
+The backend Jest configuration is `backend/jest.config.cjs` (CommonJS config), runs native module sources with Node VM modules and `transform: {}`, discovers `.test.js`/`.test.cjs`, and excludes `.mjs` for Node-native `node:test` scripts. Frontend testing is configured separately with Vitest. Root `test:ci` orchestrates the native preflight, backend Jest and frontend CI. This run passed the first 24 Node test groups (292/292) and stopped at backend Jest because its installed binary was absent; frontend Vitest was not reached. See [`JEST_VITEST_CONFIGURATION_REPORT.md`](JEST_VITEST_CONFIGURATION_REPORT.md).

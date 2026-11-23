@@ -827,31 +827,9 @@
 
 
 .settings-sidebar__account-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 34px;
-  height: 34px;
-
+  width: 2rem;
+  height: 2rem;
   flex: 0 0 auto;
-
-  color:
-    var(
-      --titech-settings-primary
-    );
-
-  background:
-    var(
-      --titech-settings-primary-soft
-    );
-
-  border-radius: 999px;
-
-  font-size:
-    0.75rem;
-
-  font-weight: 800;
 }
 
 

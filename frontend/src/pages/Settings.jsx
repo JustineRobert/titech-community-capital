@@ -82,6 +82,7 @@ import {
 } from 'react-toastify';
 
 import api from '../services/api';
+import ProfileAvatar from '../components/ui/ProfileAvatar';
 
 import {
   useAuth,
@@ -2305,19 +2306,12 @@ function Settings() {
 
           <div className="settings-sidebar__account">
 
-            <div className="settings-sidebar__account-avatar">
-              {
-                getDisplayName(
-                  settings.profile,
-                  user,
-                )
-                  .slice(
-                    0,
-                    1,
-                  )
-                  .toUpperCase()
-              }
-            </div>
+            <ProfileAvatar
+              user={user}
+              name={getDisplayName(settings.profile, user)}
+              size="sm"
+              className="settings-sidebar__account-avatar"
+            />
 
             <div className="settings-sidebar__account-copy">
               <strong>

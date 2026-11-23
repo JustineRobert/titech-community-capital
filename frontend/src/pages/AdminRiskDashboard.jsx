@@ -1366,6 +1366,10 @@ export default function AdminRiskDashboard() {
           </div>
 
           <div>
+            <span className="risk-header-brand">
+              {TITECH_BRAND.organizationName} · {TITECH_BRAND.fullName} · {TITECH_BRAND.tagline}
+            </span>
+
             <h1 id="risk-dashboard-title">
               Risk Intelligence Dashboard
             </h1>

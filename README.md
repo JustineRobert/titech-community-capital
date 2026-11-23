@@ -103,13 +103,18 @@ The product intent remains infrastructure-first: TITech connects savings groups,
 **Version:** 2.1
 **Organization:** TITECH CAPITAL - SMC LTD
 **Product:** TITech Community Capital
-**Last Updated:** 17 November 2026
+**Last Updated:** 23 November 2026
 
 TITech has evolved beyond a basic community savings application toward a broader financial infrastructure platform incorporating:
 
 **Community Finance + Financial Events + Ledger + Reconciliation + Payments + Consent + KYC/AML + Risk + Observability + Capital Connectivity**
 
 Individual capabilities can have different implementation, testing, operational, security, and regulatory maturity. Repository implementation and verification artifacts remain the source of truth for actual production readiness.
+
+
+### 23 November 2026 — profile-avatar and dashboard identity remediation
+
+The active authenticated navigation and Settings surfaces now display the authenticated profile avatar when a valid profile image URL is available, and consistently fall back to initials. The shared avatar component validates HTTP(S) URLs and does not change auth/session storage or backend authorization. Executive, risk, system-health and enterprise-admin dashboard headers use the canonical organization/product/tagline identity lockup. Dashboard styling continues to use the preserved official nine-colour semantic light/dark theme. The archive-local implementation and verification remain **BLOCKED for full release validation**: this environment is below the declared Node/npm versions, dependency-backed Jest/Vitest/builds and MongoDB/Redis/browser E2E infrastructure are unavailable, and zero-byte test suites and module/import debt remain. No production/provider/regulatory approval is inferred; `productionApproved=false`. See [`docs/evidence/2026-11-23-enterprise-e2e-remediation/`](docs/evidence/2026-11-23-enterprise-e2e-remediation/) and [`TITECH_PLATFORM_TRUTH.md`](TITECH_PLATFORM_TRUTH.md).
 
 ### Multilingual status (17 October 2026)
 
