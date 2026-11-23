@@ -16,6 +16,7 @@ import logger from '../utils/logger.js';
 import { User } from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
 import TenantInvitation from '../models/TenantInvitation.js';
+import Tenant from '../models/Tenant.js';
 import { normalizeRole as normalizeCanonicalRole } from '../security/rbacPolicy.js';
 import { createAuditLog } from '../models/audit/audit.service.js';
 import { normalizeDisplayLocale, SUPPORTED_DISPLAY_LOCALES } from '../utils/localePreferences.js';
@@ -457,6 +458,181 @@ async function register(req, res) {
       success: false,
       message: 'Registration failed',
     });
+  }
+}
+
+async function redeemTenantInvitation(req, res) {
+  const userId = req.user?._id || req.user?.id;
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(401).json({
+      success: false,
+      code: 'TENANT_JOIN_AUTHENTICATION_REQUIRED',
+      message: 'Sign in with an active TITech account before joining a tenant.',
+    });
+  }
+
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+    ? req.body
+    : {};
+  const keys = Object.keys(body);
+  const code = typeof body.code === 'string' ? body.code.trim() : '';
+  if (keys.length !== 1 || keys[0] !== 'code' || code.length < 16 || code.length > 256 || /[\s\u0000-\u001f]/.test(code)) {
+    return res.status(400).json({
+      success: false,
+      code: 'TENANT_JOIN_INVITATION_INPUT_INVALID',
+      message: 'Provide one valid tenant invitation code.',
+    });
+  }
+
+  if (!isMongoConnected()) {
+    return res.status(503).json({
+      success: false,
+      code: 'TENANT_JOIN_STORE_UNAVAILABLE',
+      message: 'Tenant invitation redemption is temporarily unavailable. Please try again when the institution service is available.',
+    });
+  }
+
+  if (req.user?.tenantId) {
+    return res.status(409).json({
+      success: false,
+      code: 'TENANT_MEMBERSHIP_ALREADY_EXISTS',
+      message: 'This account is already associated with a tenant. Contact an administrator if the association needs to change.',
+    });
+  }
+
+  let session;
+  let joinedTenant = null;
+  try {
+    session = await User.startSession();
+    await session.withTransaction(async () => {
+      const invitation = await TenantInvitation.findOneAndUpdate(
+        {
+          codeHash: hashToken(code),
+          revokedAt: null,
+          expiresAt: { $gt: new Date() },
+          $expr: { $lt: ['$uses', '$maxUses'] },
+        },
+        { $inc: { uses: 1 } },
+        { new: true, session },
+      );
+
+      if (!invitation) {
+        const error = new Error('The tenant invitation is invalid or unavailable.');
+        error.code = 'TENANT_JOIN_INVITATION_INVALID';
+        throw error;
+      }
+
+      const tenant = await Tenant.findById(invitation.tenantId)
+        .select('_id name status isSuspended isDeleted deletedAt')
+        .session(session)
+        .lean()
+        .exec();
+      if (!tenant || tenant.status !== 'ACTIVE' || tenant.isSuspended || tenant.isDeleted || tenant.deletedAt) {
+        const error = new Error('The tenant linked to this invitation is not active.');
+        error.code = 'TENANT_JOIN_TARGET_INACTIVE';
+        throw error;
+      }
+
+      const updatedUser = await User.findOneAndUpdate(
+        {
+          _id: userId,
+          status: 'active',
+          isActive: { $ne: false },
+          deletedAt: null,
+          $or: [{ tenantId: null }, { tenantId: { $exists: false } }],
+        },
+        { $set: { tenantId: tenant._id } },
+        { new: true, session, runValidators: true },
+      ).select('_id tenantId').exec();
+
+      if (!updatedUser) {
+        const error = new Error('The account is inactive or already belongs to a tenant.');
+        error.code = 'TENANT_MEMBERSHIP_ALREADY_EXISTS';
+        throw error;
+      }
+
+      await createAuditLog({
+        action: 'TENANT.MEMBERSHIP_JOINED_BY_INVITATION',
+        userId: String(userId),
+        tenantId: String(tenant._id),
+        scope: 'tenant',
+        entityType: 'TENANT_MEMBERSHIP',
+        entityId: String(userId),
+        outcome: 'success',
+        metadata: {
+          invitationId: String(invitation._id),
+          membershipStatus: 'active',
+          enrollmentMethod: 'tenant_invitation_code',
+        },
+        requestId: req.requestId,
+        correlationId: req.correlationId,
+        session,
+      });
+
+      joinedTenant = {
+        id: String(tenant._id),
+        name: tenant.name,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      code: 'TENANT_MEMBERSHIP_ACTIVATED',
+      message: 'Tenant membership activated successfully.',
+      data: {
+        tenant: joinedTenant,
+        membershipStatus: 'active',
+        auditRecorded: true,
+      },
+    });
+  } catch (error) {
+    if (error?.code === 'TENANT_JOIN_INVITATION_INVALID') {
+      return res.status(400).json({
+        success: false,
+        code: 'TENANT_INVITATION_INVALID_OR_UNAVAILABLE',
+        message: 'The tenant invitation code is invalid, expired, revoked, or exhausted.',
+      });
+    }
+    if (error?.code === 'TENANT_JOIN_TARGET_INACTIVE') {
+      return res.status(403).json({
+        success: false,
+        code: error.code,
+        message: 'The tenant linked to this invitation is not currently eligible for membership.',
+      });
+    }
+    if (error?.code === 'TENANT_MEMBERSHIP_ALREADY_EXISTS') {
+      return res.status(409).json({
+        success: false,
+        code: error.code,
+        message: 'This account is already associated with a tenant. The invitation was not consumed.',
+      });
+    }
+    if (isTransactionUnavailableError(error)) {
+      return res.status(503).json({
+        success: false,
+        code: 'TENANT_JOIN_TRANSACTION_UNAVAILABLE',
+        message: 'Secure tenant invitation redemption requires MongoDB transaction support. No membership was activated.',
+      });
+    }
+    logger.error('[AuthController] Tenant invitation redemption failed.', {
+      code: error?.code || 'TENANT_JOIN_FAILED',
+      requestId: req.requestId,
+    });
+    return res.status(503).json({
+      success: false,
+      code: 'TENANT_JOIN_UNAVAILABLE',
+      message: 'Tenant invitation redemption could not be completed. Please retry safely or contact the tenant administrator.',
+    });
+  } finally {
+    if (session) {
+      try {
+        await session.endSession();
+      } catch (sessionCleanupError) {
+        logger.warn('[AuthController] Tenant invitation session cleanup failed.', {
+          code: sessionCleanupError?.code || 'TENANT_JOIN_SESSION_CLEANUP_FAILED',
+        });
+      }
+    }
   }
 }
 
@@ -1622,6 +1798,7 @@ export {
   adminListSessions,
   adminRevokeSession,
   createTenantInvitation,
+  redeemTenantInvitation,
 
   // helpers
   findUserByEmail,

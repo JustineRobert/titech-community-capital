@@ -260,6 +260,14 @@ export async function transitionMembership({ actor, groupId, memberUserId, actio
         details: { memberUserId: String(targetId), decision: 'rejected' },
       });
       break;
+    case 'revoke':
+      group.revokeInvitation(targetId, actor?.id || actor?._id || null);
+      group.appendAudit({
+        action: 'invitation_revoked',
+        userId: actor?.id || actor?._id || null,
+        details: { memberUserId: String(targetId), decision: 'revoked' },
+      });
+      break;
     case 'suspend':
       group.suspendMember(targetId, actor?.id || actor?._id);
       break;

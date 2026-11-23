@@ -134,6 +134,7 @@ const REQUIRED_AUTH_HANDLERS =
     'adminListSessions',
     'adminRevokeSession',
     'createTenantInvitation',
+    'redeemTenantInvitation',
   ]);
 
 for (
@@ -571,6 +572,14 @@ const sessionLimiter =
       'SESSION_RATE_LIMITED',
   });
 
+const tenantInvitationRedeemLimiter =
+  createLimiter({
+    windowMs: 60 * 1000,
+    max: 10,
+    message: 'Too many tenant invitation attempts. Please try again later.',
+    code: 'TENANT_INVITATION_REDEEM_RATE_LIMITED',
+  });
+
 /**
  * ============================================================================
  * SESSION ID VALIDATION
@@ -781,6 +790,13 @@ router.post(
   authenticate,
   requirePermission('TENANT_INVITE_USER'),
   asyncHandler(authController.createTenantInvitation),
+);
+
+router.post(
+  '/tenant-invitations/redeem',
+  tenantInvitationRedeemLimiter,
+  authenticate,
+  asyncHandler(authController.redeemTenantInvitation),
 );
 
 /**

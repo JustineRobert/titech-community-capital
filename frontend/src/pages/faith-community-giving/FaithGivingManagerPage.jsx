@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { get, post, patch } from '../../services/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -49,6 +49,7 @@ export default function FaithGivingManagerPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const initialLoadStartedRef = useRef(false);
 
   const userRoles = useMemo(() => [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])].filter(Boolean), [user]);
   const hasPermissionHint = userRoles.join(', ');
@@ -66,7 +67,11 @@ export default function FaithGivingManagerPage() {
     } finally { setBusy(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (initialLoadStartedRef.current) return;
+    initialLoadStartedRef.current = true;
+    void load();
+  }, [load]);
 
   function update(field, value) { setForm((current) => ({ ...current, [field]: value })); }
   function startEdit(campaign) {

@@ -5,6 +5,9 @@ export function normalizeInvitationEmail(value) {
 
 export function classifyExistingGroupMembership(membership) {
   if (!membership) return null;
+  // Managers may safely reissue an expired or revoked invitation. The canonical
+  // Group.addMember method updates the existing embedded history record.
+  if (['expired', 'revoked'].includes(membership.invitationStatus) || ['expired', 'revoked'].includes(membership.membershipStatus) || (membership.invitationStatus === 'pending' && membership.invitationExpiresAt && new Date(membership.invitationExpiresAt).getTime() <= Date.now())) return null;
   if (membership.removedAt || membership.membershipStatus === 'removed') {
     return { success: false, status: 'REMOVED_MEMBERSHIP_REVIEW_REQUIRED', code: 'GROUP_MEMBER_PREVIOUSLY_REMOVED', retryable: false, message: 'This person’s previous group membership requires administrator review before another invitation.' };
   }

@@ -29,3 +29,9 @@ test('suspended, rejected and removed membership states fail closed', () => {
   assert.equal(classifyExistingGroupMembership({ membershipStatus: 'rejected', invitationStatus: 'rejected' }).code, 'GROUP_MEMBER_PREVIOUSLY_REJECTED');
   assert.equal(classifyExistingGroupMembership({ membershipStatus: 'removed', removedAt: new Date() }).code, 'GROUP_MEMBER_PREVIOUSLY_REMOVED');
 });
+
+
+test('expired and revoked invitations can be safely reissued through the canonical membership record', () => {
+  assert.equal(classifyExistingGroupMembership({ membershipStatus: 'expired', invitationStatus: 'expired' }), null);
+  assert.equal(classifyExistingGroupMembership({ membershipStatus: 'revoked', invitationStatus: 'revoked' }), null);
+});

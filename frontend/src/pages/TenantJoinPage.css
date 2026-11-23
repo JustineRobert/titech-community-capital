@@ -1,0 +1,53 @@
+.tenant-join-page {
+  --tenant-join-primary: var(--titech-official-electric-blue, var(--titech-brand-electric-blue));
+  --tenant-join-deep: var(--titech-official-deep-blue, var(--titech-brand-deep-blue));
+  --tenant-join-text: var(--titech-official-navy, var(--titech-brand-navy));
+  --tenant-join-muted: var(--titech-color-text-muted, #52627a);
+  --tenant-join-border: var(--titech-color-border, #dbe3ec);
+  --tenant-join-surface: var(--titech-color-surface, #fff);
+  --tenant-join-background: var(--titech-color-background, #f5f8fc);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  color: var(--tenant-join-text);
+  background: var(--tenant-join-background);
+}
+
+.tenant-join-card {
+  width: min(100%, 38rem);
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border: 1px solid var(--tenant-join-border);
+  border-radius: 1.25rem;
+  background: var(--tenant-join-surface);
+  box-shadow: 0 22px 60px rgb(8 43 103 / 9%);
+}
+
+.tenant-join-brand { display: flex; align-items: center; gap: .9rem; margin-bottom: 2rem; }
+.tenant-join-icon { display: grid; place-items: center; width: 2.9rem; height: 2.9rem; flex: 0 0 auto; border-radius: .9rem; color: #fff; background: var(--tenant-join-deep); }
+.tenant-join-eyebrow { margin: 0; font-weight: 800; letter-spacing: .01em; }
+.tenant-join-tagline { margin: .15rem 0 0; color: var(--tenant-join-muted); font-size: .875rem; }
+.tenant-join-card h1 { margin: 0 0 .55rem; font-size: clamp(1.65rem, 4vw, 2.1rem); letter-spacing: -.03em; }
+.tenant-join-intro { margin: 0 0 1.25rem; color: var(--tenant-join-muted); line-height: 1.65; }
+.tenant-join-security { display: flex; align-items: flex-start; gap: .65rem; margin: 1.25rem 0 1.5rem; padding: .9rem 1rem; border: 1px solid color-mix(in srgb, var(--tenant-join-primary) 28%, var(--tenant-join-border)); border-radius: .8rem; background: color-mix(in srgb, var(--tenant-join-primary) 6%, var(--tenant-join-surface)); font-size: .9rem; line-height: 1.5; }
+.tenant-join-security svg { flex: 0 0 auto; color: var(--tenant-join-primary); }
+.tenant-join-card form { display: grid; gap: .65rem; }
+.tenant-join-card label { font-weight: 700; font-size: .92rem; }
+.tenant-join-card input { width: 100%; min-height: 3.1rem; padding: .8rem .9rem; border: 1px solid var(--tenant-join-border); border-radius: .7rem; color: inherit; background: var(--tenant-join-surface); font: inherit; }
+.tenant-join-card input:focus-visible { outline: 3px solid color-mix(in srgb, var(--tenant-join-primary) 30%, transparent); outline-offset: 2px; border-color: var(--tenant-join-primary); }
+.tenant-join-card button { display: inline-flex; align-items: center; justify-content: center; gap: .65rem; min-height: 3.1rem; margin-top: .6rem; padding: .75rem 1rem; border: 0; border-radius: .7rem; color: #fff; background: var(--tenant-join-primary); font: inherit; font-weight: 750; cursor: pointer; }
+.tenant-join-card button:disabled { opacity: .55; cursor: not-allowed; }
+.tenant-join-error, .tenant-join-success { margin: .35rem 0; line-height: 1.5; }
+.tenant-join-error { color: #b42318; }
+.tenant-join-success { color: #15803d; }
+.tenant-join-account { margin: 1.5rem 0 0; color: var(--tenant-join-muted); font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.tenant-join-account a { color: var(--tenant-join-primary); font-weight: 700; }
+
+:root[data-theme='dark'] .tenant-join-card { box-shadow: 0 24px 64px rgb(0 0 0 / 25%); }
+:root[data-theme='dark'] .tenant-join-security { background: color-mix(in srgb, var(--tenant-join-primary) 13%, var(--tenant-join-surface)); }
+
+@media (max-width: 480px) {
+  .tenant-join-page { padding: .75rem; }
+  .tenant-join-card { border-radius: .95rem; }
+}

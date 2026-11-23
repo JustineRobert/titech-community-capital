@@ -6,18 +6,25 @@ import { normalizeRole } from '../../backend/security/rbacPolicy.js';
 
 const read = (relativePath) => readFile(new URL(relativePath, import.meta.url), 'utf8');
 
-test('Create Group uses the canonical route and preserves the optional-invitation path', async () => {
+test('Create Group confirms four stages and persists the group with invitations in one idempotent request', async () => {
   const dashboard = await read('../../frontend/src/pages/Dashboard.jsx');
   const groupList = await read('../../frontend/src/pages/GroupList.jsx');
   const form = await read('../../frontend/src/pages/CreateGroupV2.jsx');
+  const routes = await read('../../frontend/src/routes/AppRoutes.jsx');
   assert.doesNotMatch(dashboard, /\/groups\/create/);
   assert.doesNotMatch(groupList, /\/groups\/create/);
-  assert.match(form, /members:\s*\[\]/, 'group creation must not create invitations before the durable group exists');
-  assert.match(form, /\/groups\/\$\{encodeURIComponent\(groupId\)\}\/send-invitations/);
-  assert.match(form, /members:\s*batch\.map\(\(member\) =>/);
+  assert.match(form, /members:\s*validMembers\.map\(\(\{ email, role \}\) => \(\{ email, role \}\)\)/);
+  assert.match(form, /'Idempotency-Key': idempotencyKeyRef\.current/);
+  assert.doesNotMatch(form, /\/send-invitations/);
+  assert.doesNotMatch(form, /batch\.map\(\(member\) =>/);
+  assert.match(form, /labels = \[\s*'Information',\s*'Members',\s*'Preview',\s*'Confirmation'/);
+  assert.match(form, /if \(step !== 4\)/, 'submission must require the explicit confirmation step');
+  assert.match(form, /Join an Existing Tenant/);
+  assert.match(form, /pending in-app group invitations/);
+  assert.match(routes, /TENANT_JOIN:\s*'\/tenant\/join'/);
+  assert.match(form, /type="email"/);
   assert.doesNotMatch(form, /Please add at least one valid member/);
   assert.doesNotMatch(form, /disabled=\{[\s\S]{0,80}validMembers\.length === 0/);
-  assert.match(form, /invitations can be added later/);
   assert.match(dashboard, /dashboardNavigation\.map\(\(item\) =>/);
   assert.match(dashboard, /getNavigationItems\(true, userRoles\)/);
   assert.match(groupList, /canCreateGroup && \(/);
@@ -85,7 +92,7 @@ test('frontend legacy admin alias matches the authoritative backend role contrac
 test('group creation explains ambiguous network outcomes without encouraging blind duplicate retries', async () => {
   const form = await read('../../frontend/src/pages/CreateGroupV2.jsx');
   assert.match(form, /ERR_NETWORK/);
-  assert.match(form, /refresh Group Management before retrying/);
-  assert.match(form, /check whether the group exists before submitting again/);
+  assert.match(form, /retrying the same details uses the same idempotency key/);
+  assert.match(form, /Check Group Management first/);
 });
 

@@ -106,6 +106,8 @@ const MEMBERSHIP_STATUSES = Object.freeze([
   "pending",
   "active",
   "rejected",
+  "expired",
+  "revoked",
   "suspended",
   "removed",
   "reinstated",
@@ -115,7 +117,22 @@ const INVITATION_STATUSES = Object.freeze([
   "pending",
   "accepted",
   "rejected",
+  "expired",
+  "revoked",
 ]);
+
+const configuredInvitationValidityDays = Number.parseInt(
+  process.env.TITECH_GROUP_INVITATION_VALIDITY_DAYS || "7",
+  10,
+);
+const GROUP_INVITATION_VALIDITY_DAYS =
+  Number.isInteger(configuredInvitationValidityDays) &&
+  configuredInvitationValidityDays >= 1 &&
+  configuredInvitationValidityDays <= 90
+    ? configuredInvitationValidityDays
+    : 7;
+const GROUP_INVITATION_VALIDITY_MS =
+  GROUP_INVITATION_VALIDITY_DAYS * 24 * 60 * 60 * 1000;
 
 const GROUP_STATUSES = Object.freeze([
   "active",
@@ -133,8 +150,11 @@ const AUDIT_ACTIONS = Object.freeze([
   "member_removed",
   "member_role_changed",
   "invitation_sent",
+  "invitation_created",
   "invitation_accepted",
   "invitation_rejected",
+  "invitation_expired",
+  "invitation_revoked",
   "suspended",
   "reinstated",
   "archived",
@@ -368,6 +388,23 @@ const memberRoleSchema = new Schema(
 
     acceptedAt: {
       type: Date,
+      default: null,
+    },
+
+    invitationExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    invitationRevokedAt: {
+      type: Date,
+      default: null,
+    },
+
+    invitationRevokedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
       default: null,
     },
 
@@ -653,6 +690,24 @@ const groupSchema = new Schema(
       required: true,
       immutable: true,
       index: true,
+    },
+
+    // Request-scoped idempotency data. The hash is internal and excluded from
+    // ordinary API projections; it lets a retry recover the original result.
+    creationRequestId: {
+      type: String,
+      trim: true,
+      maxlength: 128,
+      immutable: true,
+      default: null,
+    },
+
+    creationPayloadHash: {
+      type: String,
+      match: /^[a-f0-9]{64}$/i,
+      immutable: true,
+      default: null,
+      select: false,
     },
 
     managedBy: {
@@ -1087,6 +1142,9 @@ groupSchema.methods.addMember =
       joinedAt = new Date(),
       acceptedAt = null,
       membershipOrigin = invitationStatus === "accepted" ? "owner" : "invited",
+      invitationExpiresAt = invitationStatus === "pending" && membershipOrigin === "invited"
+        ? new Date(Date.now() + GROUP_INVITATION_VALIDITY_MS)
+        : null,
     } = {}
   ) {
     const normalizedUserId =
@@ -1128,6 +1186,27 @@ groupSchema.methods.addMember =
       );
 
     if (existing) {
+      // An expired or explicitly revoked invitation may be reissued by an
+      // authorized group manager. Keep the same membership history record.
+      if (
+        existing.membershipOrigin === "invited" &&
+        (["expired", "revoked"].includes(existing.invitationStatus) ||
+          ["expired", "revoked"].includes(existing.membershipStatus) ||
+          (existing.invitationStatus === "pending" && existing.invitationExpiresAt && existing.invitationExpiresAt <= new Date())) &&
+        invitationStatus === "pending"
+      ) {
+        existing.role = role;
+        existing.joinedAt = joinedAt;
+        existing.invitationStatus = "pending";
+        existing.membershipStatus = "pending";
+        existing.invitationExpiresAt = invitationExpiresAt;
+        existing.invitationRevokedAt = null;
+        existing.invitationRevokedBy = null;
+        existing.acceptedAt = null;
+        existing.rejectedAt = null;
+        return this;
+      }
+
       if (
         existing.removedAt &&
         invitationStatus ===
@@ -1187,6 +1266,9 @@ groupSchema.methods.addMember =
               : "pending",
 
         membershipOrigin,
+        invitationExpiresAt,
+        invitationRevokedAt: null,
+        invitationRevokedBy: null,
         suspendedAt: null,
         suspendedBy: null,
         lastReinstatedAt: null,
@@ -1221,6 +1303,20 @@ groupSchema.methods.acceptInvitation =
       throw new Error(
         "Removed membership cannot accept an invitation."
       );
+    }
+
+    if (membership.invitationStatus === "revoked" || membership.invitationRevokedAt) {
+      const error = new Error("This group invitation has been revoked.");
+      error.code = "GROUP_INVITATION_REVOKED";
+      throw error;
+    }
+
+    if (membership.invitationExpiresAt && membership.invitationExpiresAt <= acceptedAt) {
+      membership.invitationStatus = "expired";
+      membership.membershipStatus = "expired";
+      const error = new Error("This group invitation has expired.");
+      error.code = "GROUP_INVITATION_EXPIRED";
+      throw error;
     }
 
     if (
@@ -1274,6 +1370,31 @@ groupSchema.methods.approveMembership =
     membership.rejectedAt = null;
     membership.suspendedAt = null;
     membership.suspendedBy = null;
+    return this;
+  };
+
+groupSchema.methods.revokeInvitation =
+  function revokeInvitation(
+    userId,
+    revokedBy = null,
+    revokedAt = new Date()
+  ) {
+    const membership = this.getMembership(userId);
+    if (!membership) {
+      throw new Error("Invitation/membership record not found.");
+    }
+    if (
+      membership.membershipOrigin !== "invited" ||
+      membership.invitationStatus !== "pending" ||
+      membership.membershipStatus !== "pending"
+    ) {
+      throw new Error("Only a pending group invitation can be revoked.");
+    }
+
+    membership.invitationStatus = "revoked";
+    membership.membershipStatus = "revoked";
+    membership.invitationRevokedAt = revokedAt;
+    membership.invitationRevokedBy = toObjectId(revokedBy);
     return this;
   };
 
@@ -1927,6 +2048,21 @@ groupSchema.statics.countActiveMembers =
 groupSchema.index(
   {
     tenantId: 1,
+    createdBy: 1,
+    creationRequestId: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      creationRequestId: { $type: "string" },
+    },
+    name: "uq_group_creation_idempotency_key",
+  }
+);
+
+groupSchema.index(
+  {
+    tenantId: 1,
     name: 1,
   },
   {
@@ -2075,4 +2211,6 @@ export const GROUP_MODEL_METADATA =
 
     maxMembers:
       MAX_MEMBER_COUNT,
+    invitationValidityDays:
+      GROUP_INVITATION_VALIDITY_DAYS,
   });

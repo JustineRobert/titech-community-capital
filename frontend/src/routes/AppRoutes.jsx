@@ -119,6 +119,7 @@ const ROUTES = Object.freeze({
   GROUP_DETAILS: '/groups/:groupId',
   CREATE_GROUP: '/create-group',
   LEGACY_CREATE_GROUP: '/groups/create',
+  TENANT_JOIN: '/tenant/join',
   MEETINGS: '/meetings',
   INCLUSIVE_ONBOARDING: '/inclusive-onboarding',
   RETIREMENT_SUPPORT: '/retirement-support',
@@ -296,6 +297,7 @@ const Payroll = lazyWithRecovery(
 const GroupList = lazyWithRecovery(() => import('../pages/GroupList'), 'GroupList');
 const GroupDetails = lazyWithRecovery(() => import('../pages/GroupDetails'), 'GroupDetails');
 const CreateGroup = lazyWithRecovery(() => import('../pages/CreateGroupV2'), 'CreateGroup');
+const TenantJoinPage = lazyWithRecovery(() => import('../pages/TenantJoinPage'), 'TenantJoinPage');
 const Meetings = lazyWithRecovery(() => import('../pages/meetings/Meetings'), 'Meetings');
 const InclusiveOnboardingPage = lazyWithRecovery(() => import('../pages/inclusive-onboarding/InclusiveOnboardingPage'), 'InclusiveOnboardingPage');
 const RetirementSupportPage = lazyWithRecovery(() => import('../pages/retirement-support/RetirementSupportPage'), 'RetirementSupportPage');
@@ -737,6 +739,7 @@ function ApplicationRouteTree() {
           <Route path={ROUTES.GROUP_DETAILS} element={<GroupDetails />} />
           <Route path={ROUTES.CREATE_GROUP} element={<CreateGroup />} />
           <Route path={ROUTES.LEGACY_CREATE_GROUP} element={<Navigate to={ROUTES.CREATE_GROUP} replace />} />
+          <Route path={ROUTES.TENANT_JOIN} element={<TenantJoinPage />} />
           <Route path={ROUTES.MEETINGS} element={<Meetings />} />
           <Route path={ROUTES.INCLUSIVE_ONBOARDING} element={<InclusiveOnboardingPage />} />
           <Route path={ROUTES.RETIREMENT_SUPPORT} element={<RetirementSupportPage />} />

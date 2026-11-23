@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import mongoose from "mongoose";
+import Tenant from "../models/Tenant.js";
 import { param, validationResult } from "express-validator";
 import authMiddleware from "../middleware/auth.js";
 import groupController from "../controllers/groupController.js";
@@ -85,6 +87,7 @@ function requireMembershipActionPermission(req, res, next) {
   const permissionByAction = {
     approve: "MEMBERSHIP_APPROVE",
     reject: "MEMBERSHIP_REJECT",
+    revoke: "MEMBERSHIP_REVOKE",
     suspend: "MEMBERSHIP_SUSPEND",
     remove: "MEMBERSHIP_REMOVE",
     reinstate: "MEMBERSHIP_REINSTATE",
@@ -105,24 +108,41 @@ function requireMembershipActionPermission(req, res, next) {
   return requirePermission(permission)(req, res, next);
 }
 
-function requireTenantContext(req, res, next) {
-  const tenantId =
-    req.authenticatedTenantId ||
-    req.auth?.tenantId ||
-    req.user?.tenantId;
+async function requireTenantContext(req, res, next) {
+  const authenticatedUserId = req.user?._id || req.user?.id;
+  const tenantId = req.user?.tenantId;
 
-  if (!tenantId) {
+  if (
+    !mongoose.Types.ObjectId.isValid(authenticatedUserId) ||
+    !mongoose.Types.ObjectId.isValid(tenantId)
+  ) {
     return res.status(403).json({
       success: false,
       code: "GROUP_TENANT_CONTEXT_REQUIRED",
-      message:
-        "Join an existing tenant with an invitation code before using groups.",
+      message: "Join an existing tenant with a valid invitation code before using groups.",
       requestId: req.requestId,
       correlationId: req.correlationId,
     });
   }
 
-  req.tenantId = tenantId;
+  // A tenant membership is the authenticated user's persisted tenantId, but
+  // a suspended/deleted tenant must not continue to access group operations.
+  const tenant = await Tenant.findById(tenantId)
+    .select("status isSuspended isDeleted deletedAt")
+    .lean()
+    .exec();
+
+  if (!tenant || tenant.status !== "ACTIVE" || tenant.isSuspended || tenant.isDeleted || tenant.deletedAt) {
+    return res.status(403).json({
+      success: false,
+      code: "GROUP_TENANT_NOT_ACTIVE",
+      message: "This tenant is not currently eligible for group management. Contact its administrator.",
+      requestId: req.requestId,
+      correlationId: req.correlationId,
+    });
+  }
+
+  req.tenantId = String(tenant._id);
   return next();
 }
 
@@ -150,7 +170,7 @@ router.use(
   })
 );
 router.use(authenticate);
-router.use(requireTenantContext);
+router.use(asyncHandler(requireTenantContext));
 
 router.get(
   "/health",

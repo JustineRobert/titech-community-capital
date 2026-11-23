@@ -107,10 +107,11 @@ export const FOOTER_CONSTANTS = Object.freeze({
     TITECH_BRAND.organization.officialContacts.whatsapp,
 
 
-  // Preserve the pre-existing additional address as a separately labelled
-  // record; the new postal address is represented by distinct fields below.
+  // No physical office address has been independently verified. Keep this
+  // optional field empty; the registered postal correspondence address below
+  // is not represented as a physical office or registered office.
   COMPANY_ADDRESS:
-    'Plot 69-71 Jinja Road, Kampala, Uganda',
+    null,
 
   COMPANY_POSTAL_ADDRESS:
     TITECH_BRAND.organization.postalAddress,

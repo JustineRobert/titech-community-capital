@@ -13,9 +13,8 @@
 // - Preview before submission
 // - Abortable network requests
 // - Request correlation and duplicate-name conflict handling
-// - Batched invitation processing
-// - Partial-failure handling
-// - Retry failed invitation batches
+// - Single aggregate persistence for the group and pending invitations
+// - Idempotent retry using a stable request key
 // - Accessible progress reporting
 // - Defensive API response normalization
 // - Safe unmount handling
@@ -29,7 +28,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   AlertCircle,
@@ -57,11 +56,7 @@ const MAX_GROUP_NAME_LENGTH = 100;
 const MAX_DESCRIPTION_LENGTH = 500;
 
 const MAX_CSV_SIZE_BYTES = 2 * 1024 * 1024;
-const MAX_MEMBERS = 500;
-
-const INVITATION_BATCH_SIZE = 5;
-
-const NAVIGATION_DELAY_MS = 1800;
+const MAX_MEMBERS = 499; // The canonical Group aggregate also contains the creator.
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 
@@ -140,7 +135,7 @@ const getErrorMessage = (error, fallback = 'An unexpected error occurred.') => {
     error?.message === 'Network Error' ||
     (!error?.response && Boolean(error?.request))
   ) {
-    return 'TITech could not confirm the server response. Check your connection, then refresh Group Management before retrying so an already-created group is not duplicated.';
+    return 'TITech could not confirm the server response. Check your connection. Retrying the unchanged request uses the same idempotency key so an already-created group can be recovered without duplication.';
   }
 
   if (
@@ -148,7 +143,7 @@ const getErrorMessage = (error, fallback = 'An unexpected error occurred.') => {
     error?.code === 'ETIMEDOUT' ||
     error?.name === 'TimeoutError'
   ) {
-    return 'The group request timed out and its result is not yet confirmed. Refresh Group Management and check whether the group exists before submitting again.';
+    return 'The group request timed out and its result is not yet confirmed. Retrying the unchanged request uses the same idempotency key to recover the authoritative result safely.';
   }
 
   return error?.message || fallback;
@@ -238,7 +233,7 @@ const parseCsvLine = (line) => {
 // ============================================================================
 
 export default function CreateGroupV2() {
-  const { user } = useAuth();
+  const { user, tenantId } = useAuth();
   const navigate = useNavigate();
 
   // --------------------------------------------------------------------------
@@ -247,7 +242,7 @@ export default function CreateGroupV2() {
 
   const mountedRef = useRef(false);
   const submitAbortRef = useRef(null);
-  const navigationTimerRef = useRef(null);
+  const idempotencyKeyRef = useRef(createClientRequestId());
 
   useEffect(() => {
     mountedRef.current = true;
@@ -263,9 +258,6 @@ export default function CreateGroupV2() {
         }
       }
 
-      if (navigationTimerRef.current) {
-        clearTimeout(navigationTimerRef.current);
-      }
     };
   }, []);
 
@@ -278,15 +270,6 @@ export default function CreateGroupV2() {
     [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN],
   );
 
-  useEffect(() => {
-    if (user && !canCreateGroup) {
-      toast.error('Only administrators can create groups.');
-
-      navigate('/dashboard', {
-        replace: true,
-      });
-    }
-  }, [user, canCreateGroup, navigate]);
 
   // --------------------------------------------------------------------------
   // Form state
@@ -320,11 +303,11 @@ export default function CreateGroupV2() {
     current: 0,
     total: 0,
     message: '',
-    failures: [],
     successCount: 0,
   });
 
   const [createdGroupId, setCreatedGroupId] = useState(null);
+  const [creationComplete, setCreationComplete] = useState(false);
 
   // ==========================================================================
   // Validation
@@ -356,6 +339,10 @@ export default function CreateGroupV2() {
       return 'Please select a valid group type.';
     }
 
+    if (!descriptionValue) {
+      return 'Group description is required.';
+    }
+
     if (descriptionValue.length > MAX_DESCRIPTION_LENGTH) {
       return `Description cannot exceed ${MAX_DESCRIPTION_LENGTH} characters.`;
     }
@@ -379,11 +366,10 @@ export default function CreateGroupV2() {
 
       seen.add(normalizedEmail);
 
-      const role = MEMBER_ROLES.some(
-        (candidate) => candidate.value === memberRoles[index]
-      )
-        ? memberRoles[index]
-        : 'member';
+      const role = memberRoles[index];
+      if (!MEMBER_ROLES.some((candidate) => candidate.value === role)) {
+        return members;
+      }
 
       members.push({
         email: normalizedEmail,
@@ -411,6 +397,22 @@ export default function CreateGroupV2() {
       }, []),
     [memberEmails, validateEmail]
   );
+
+  const invalidRoles = useMemo(
+    () => memberEmails.reduce((invalid, email, index) => {
+      if (!normalizeEmail(email)) return invalid;
+      if (!MEMBER_ROLES.some((candidate) => candidate.value === memberRoles[index])) {
+        invalid.push({ email, index });
+      }
+      return invalid;
+    }, []),
+    [memberEmails, memberRoles]
+  );
+
+  const invitesCreator = useMemo(() => {
+    const ownEmail = normalizeEmail(user?.email);
+    return Boolean(ownEmail) && memberEmails.some((email) => normalizeEmail(email) === ownEmail);
+  }, [memberEmails, user?.email]);
 
   const duplicateEmails = useMemo(() => {
     const counts = new Map();
@@ -720,13 +722,7 @@ export default function CreateGroupV2() {
       seen.add(normalized);
 
       emails.push(normalized);
-      roles.push(
-        MEMBER_ROLES.some(
-          (candidate) => candidate.value === memberRoles[index]
-        )
-          ? memberRoles[index]
-          : 'member'
-      );
+      roles.push(memberRoles[index]);
       rowIds.push(memberRowIds[index] || createMemberRowId());
     });
 
@@ -775,6 +771,16 @@ export default function CreateGroupV2() {
         return false;
       }
 
+      if (invalidRoles.length > 0) {
+        setError('Select a supported group role for every proposed member.');
+        return false;
+      }
+
+      if (invitesCreator) {
+        setError('You are already added as the group creator and cannot invite your own account.');
+        return false;
+      }
+
       if (duplicateEmails.length > 0) {
         setError(
           `Duplicate email addresses found: ${duplicateEmails.join(', ')}`
@@ -794,13 +800,15 @@ export default function CreateGroupV2() {
     validateGroupDetails,
     validMembers,
     invalidMembers,
+    invalidRoles,
+    invitesCreator,
     duplicateEmails,
   ]);
 
   const handleNext = useCallback(() => {
     if (!validateCurrentStep()) return;
 
-    setStep((currentStep) => Math.min(3, currentStep + 1));
+    setStep((currentStep) => Math.min(4, currentStep + 1));
   }, [validateCurrentStep]);
 
   const handleBack = useCallback(() => {
@@ -810,66 +818,45 @@ export default function CreateGroupV2() {
   }, []);
 
   // ==========================================================================
-  // API helpers
+  // Canonical atomic group-creation request
   // ==========================================================================
 
   const createGroup = useCallback(
-    async (signal, requestId) => {
+    async (signal) => {
       const payload = {
         name: groupName.trim(),
         type: groupType,
         description: description.trim(),
-        // Invitations are processed only after durable group creation by the
-        // explicit invitation endpoint below. Do not create them twice.
-        members: [],
+        members: validMembers.map(({ email, role }) => ({ email, role })),
       };
 
       return api.post('/groups', payload, {
         signal,
         headers: {
-          'X-Request-ID': requestId,
+          'Idempotency-Key': idempotencyKeyRef.current,
+          'X-Request-ID': idempotencyKeyRef.current,
         },
       });
     },
     [groupName, groupType, description, validMembers]
   );
 
-  const sendInvitationBatch = useCallback(
-    async (groupId, batch, batchIndex, signal, requestId) => {
-      return api.post(
-        `/groups/${encodeURIComponent(groupId)}/send-invitations`,
-        {
-          members: batch.map((member) => ({
-            email: member.email,
-            role: member.role,
-          })),
-          batchIndex,
-        },
-        {
-          signal,
-          headers: {
-            'X-Request-ID': `${requestId}-batch-${batchIndex}`,
-          },
-        }
-      );
-    },
-    []
-  );
-
   // ==========================================================================
-  // Group creation
+  // Group creation (only from the fourth, explicit confirmation step)
   // ==========================================================================
 
   const handleSubmit = useCallback(
     async (event) => {
       event?.preventDefault?.();
-
-      if (loading) return;
-
+      if (loading || creationComplete) return;
       setError('');
 
-      const detailsError = validateGroupDetails();
+      if (step !== 4) {
+        setError('Review the group preview and proceed to Confirmation before creating the group.');
+        return;
+      }
 
+      const detailsError = validateGroupDetails();
       if (detailsError) {
         setStep(1);
         setError(detailsError);
@@ -881,447 +868,72 @@ export default function CreateGroupV2() {
         return;
       }
 
+      if (!tenantId) {
+        toast.error('Join an existing tenant before creating a group.');
+        return;
+      }
       if (!canCreateGroup) {
         toast.error('You are not authorized to create groups.');
         return;
       }
-
       if (!user) {
-        toast.error('Your session could not be verified.');
+        toast.error('Your authenticated session could not be verified.');
         return;
-      }
-
-      // Cancel any stale request.
-      if (submitAbortRef.current) {
-        try {
-          submitAbortRef.current.abort();
-        } catch (_) {
-          // Ignore.
-        }
       }
 
       const controller = new AbortController();
       submitAbortRef.current = controller;
-
-      const requestId = createClientRequestId();
-
       setLoading(true);
-      setProgress({
-        current: 0,
-        total: 1 + Math.ceil(validMembers.length / INVITATION_BATCH_SIZE),
-        message: 'Preparing group creation...',
-        failures: [],
-        successCount: 0,
-      });
+      setProgress({ current: 0, total: 1, message: 'Submitting the confirmed group and pending in-app invitations…', successCount: 0 });
 
       try {
-        // --------------------------------------------------------------------
-        // Phase 1: Create group
-        // --------------------------------------------------------------------
-
-        setProgress((previous) => ({
-          ...previous,
-          current: 0,
-          message: 'Creating TITech Community Capital group...',
-        }));
-
-        const groupResponse = await createGroup(
-          controller.signal,
-          requestId
-        );
-
+        const response = await createGroup(controller.signal);
         if (controller.signal.aborted) {
           throw new DOMException('Request aborted.', 'AbortError');
         }
-
-        const groupId = getGroupId(groupResponse);
-
+        const groupId = getGroupId(response);
         if (!groupId) {
-          throw new Error(
-            'The server did not return a valid group identifier.'
-          );
+          throw new Error('The server did not return a persisted group identifier.');
         }
-
         if (!mountedRef.current) return;
+
+        const data = getApiData(response);
+        const invitationSummary = data?.invitationSummary || data?.data?.invitationSummary || {};
+        const pendingCount = Number(invitationSummary.pending ?? data?.invitedCount ?? 0);
+        const requestedCount = Number(invitationSummary.requested ?? pendingCount);
 
         setCreatedGroupId(groupId);
-
-        setProgress((previous) => ({
-          ...previous,
-          current: 1,
-          message: validMembers.length > 0
-            ? 'Group created. Preparing in-app membership invitations...'
-            : 'Group created. Preparing your group workspace...',
-        }));
-
-        // --------------------------------------------------------------------
-        // Phase 2: Record in-app membership invitations
-        // --------------------------------------------------------------------
-
-        const batches = [];
-
-        for (
-          let index = 0;
-          index < validMembers.length;
-          index += INVITATION_BATCH_SIZE
-        ) {
-          batches.push(
-            validMembers.slice(index, index + INVITATION_BATCH_SIZE)
-          );
-        }
-
-        const failures = [];
-        let successCount = 0;
-
-        for (let index = 0; index < batches.length; index += 1) {
-          const batch = batches[index];
-          const batchNumber = index + 1;
-
-          if (controller.signal.aborted) {
-            throw new DOMException(
-              'Request aborted.',
-              'AbortError'
-            );
-          }
-
-          setProgress((previous) => ({
-            ...previous,
-            current: batchNumber,
-            message: `Recording member invitations (${Math.min(
-              batchNumber * INVITATION_BATCH_SIZE,
-              validMembers.length
-            )}/${validMembers.length})...`,
-          }));
-
-          try {
-            const response = await sendInvitationBatch(
-              groupId,
-              batch,
-              batchNumber,
-              controller.signal,
-              requestId
-            );
-
-            const responseData = getApiData(response);
-            const reportedSuccess = Number(
-              responseData?.invitedCount ??
-                responseData?.successCount ??
-                responseData?.successful ??
-                responseData?.sentCount ??
-                0
-            );
-
-            successCount += Math.min(Math.max(reportedSuccess, 0), batch.length);
-
-            if (Array.isArray(responseData?.results)) {
-              const unsuccessful = responseData.results.filter((result) => result?.success !== true);
-              if (unsuccessful.length > 0) {
-                failures.push({
-                  batch: batchNumber,
-                  error: 'The server returned individual invitation outcomes. Review each member and complete any stated prerequisite.',
-                  members: unsuccessful
-                    .filter((result) => result?.retryable === true && typeof result?.email === 'string')
-                    .map((result) => result.email),
-                  results: unsuccessful,
-                  count: unsuccessful.length,
-                });
-              }
-            }
-          } catch (batchError) {
-            if (isAbortError(batchError)) {
-              throw batchError;
-            }
-
-            failures.push({
-              batch: batchNumber,
-              error: getErrorMessage(
-                batchError,
-                'Failed to record the invitation batch.'
-              ),
-              members: batch.map((member) => member.email),
-              count: batch.length,
-            });
-          }
-
-          if (mountedRef.current) {
-            setProgress((previous) => ({
-              ...previous,
-              current: batchNumber + 1,
-              successCount,
-              failures: [...failures],
-            }));
-          }
-        }
-
-        // --------------------------------------------------------------------
-        // Phase 3: Completion
-        // --------------------------------------------------------------------
-
-        if (!mountedRef.current) return;
-
-        const completedSteps = batches.length + 1;
-
-        const finalMessage =
-          failures.length === 0
-            ? (validMembers.length === 0
-              ? 'Group created successfully. You are its administrator; invitations can be added later.'
-              : `${successCount} new in-app invitation${successCount === 1 ? '' : 's'} recorded. No external email was sent by this workflow.`)
-            : `Group created. ${failures.length} invitation batch${
-                failures.length === 1 ? '' : 'es'
-              } require attention.`;
-
+        setCreationComplete(true);
         setProgress({
-          current: completedSteps,
-          total: completedSteps,
-          message: finalMessage,
-          failures,
-          successCount,
+          current: 1,
+          total: 1,
+          message: 'The group record and its pending in-app invitations were persisted successfully.',
+                successCount: pendingCount,
+          requestedCount,
+          acceptedCount: Number(invitationSummary.accepted ?? 0),
+          externalNotificationsSent: Number(invitationSummary.externalNotificationsSent ?? 0),
         });
-
-        setStep(4);
-
-        if (failures.length === 0) {
-          toast.success(
-            validMembers.length === 0
-              ? `TITech Community Capital group "${groupName.trim()}" created successfully. You are its administrator.`
-              : `TITech Community Capital group "${groupName.trim()}" created successfully.`
-          );
-
-          navigationTimerRef.current = setTimeout(() => {
-            if (!mountedRef.current) return;
-
-            navigate(`/groups/${encodeURIComponent(groupId)}`, {
-              replace: true,
-            });
-          }, NAVIGATION_DELAY_MS);
-        } else {
-          toast.warning(
-            'Group created, but some member invitations require attention.'
-          );
-        }
+        toast.success(`TITech Community Capital group “${groupName.trim()}” created successfully.`);
       } catch (submitError) {
         if (!mountedRef.current) return;
-
         if (isAbortError(submitError)) {
-          setError('Group creation was cancelled.');
-
-          toast.info('Group creation cancelled.');
-
-          setProgress((previous) => ({
-            ...previous,
-            message: 'Group creation cancelled.',
-          }));
-
+          const message = 'The browser stopped waiting for this request. The server may still have completed it. Check Group Management first; retrying the same details uses the same idempotency key.';
+          setError(message);
+          setProgress((previous) => ({ ...previous, message }));
+          toast.info('The request outcome is not yet confirmed.');
           return;
         }
-
-        const message = getErrorMessage(
-          submitError,
-          'Failed to create the group.'
-        );
-
+        const message = getErrorMessage(submitError, 'Failed to create the group.');
         setError(message);
-
-        setProgress({
-          current: 0,
-          total: 0,
-          message: '',
-          failures: [],
-          successCount: 0,
-        });
-
+        setProgress({ current: 0, total: 0, message: '', successCount: 0 });
         toast.error(message);
       } finally {
-        if (mountedRef.current) {
-          setLoading(false);
-        }
-
-        if (submitAbortRef.current === controller) {
-          submitAbortRef.current = null;
-        }
+        if (mountedRef.current) setLoading(false);
+        if (submitAbortRef.current === controller) submitAbortRef.current = null;
       }
     },
-    [
-      loading,
-      validateGroupDetails,
-      validateCurrentStep,
-      canCreateGroup,
-      user,
-      validMembers,
-      createGroup,
-      sendInvitationBatch,
-      groupName,
-      navigate,
-    ]
+    [loading, creationComplete, step, validateGroupDetails, validateCurrentStep, tenantId, canCreateGroup, user, createGroup, groupName]
   );
-
-  // ==========================================================================
-  // Retry failed invitations
-  // ==========================================================================
-
-  const handleRetryFailures = useCallback(async () => {
-    if (!createdGroupId || loading) return;
-
-    const failedBatches = progress.failures.filter((failure) => failure.members?.length > 0);
-
-    if (!failedBatches.length) return;
-
-    if (submitAbortRef.current) {
-      try {
-        submitAbortRef.current.abort();
-      } catch (_) {
-        // Ignore.
-      }
-    }
-
-    const controller = new AbortController();
-    submitAbortRef.current = controller;
-
-    const requestId = createClientRequestId();
-
-    setLoading(true);
-    setError('');
-
-    const retryFailures = progress.failures.filter((failure) => !failure.members?.length);
-    let recoveredCount = progress.successCount;
-
-    try {
-      for (let index = 0; index < failedBatches.length; index += 1) {
-        const failure = failedBatches[index];
-
-        const members = failure.members.map((email) => ({
-          email,
-          role:
-            validMembers.find((member) => member.email === email)?.role ||
-            'member',
-        }));
-
-        setProgress((previous) => ({
-          ...previous,
-          message: `Retrying invitation batch ${index + 1} of ${
-            failedBatches.length
-          }...`,
-        }));
-
-        try {
-          const response = await sendInvitationBatch(
-            createdGroupId,
-            members,
-            failure.batch,
-            controller.signal,
-            requestId
-          );
-
-          const data = getApiData(response);
-
-          const successCount = Number(
-            data?.invitedCount ??
-              data?.successCount ??
-              data?.successful ??
-              data?.sentCount ??
-              0
-          );
-
-          recoveredCount += Math.min(
-            Math.max(successCount, 0),
-            members.length
-          );
-
-          if (Array.isArray(data?.results)) {
-            const unsuccessful = data.results.filter((result) => result?.success !== true);
-            if (unsuccessful.length > 0) {
-              retryFailures.push({
-                ...failure,
-                error: 'Some invitation outcomes still require action.',
-                members: unsuccessful
-                  .filter((result) => result?.retryable === true && typeof result?.email === 'string')
-                  .map((result) => result.email),
-                results: unsuccessful,
-                count: unsuccessful.length,
-              });
-            }
-          }
-        } catch (retryError) {
-          if (isAbortError(retryError)) {
-            throw retryError;
-          }
-
-          retryFailures.push({
-            ...failure,
-            error: getErrorMessage(
-              retryError,
-              'Retry failed.'
-            ),
-          });
-        }
-      }
-
-      if (!mountedRef.current) return;
-
-      const completed =
-        retryFailures.length === 0;
-
-      setProgress((previous) => ({
-        ...previous,
-        current: previous.total,
-        message: completed
-          ? 'All pending in-app invitations have been recorded. No external email was sent by this workflow.'
-          : 'Some invitations still require attention.',
-        failures: retryFailures,
-        successCount: recoveredCount,
-      }));
-
-      if (completed) {
-        toast.success('All pending in-app invitations have been recorded.');
-
-        navigationTimerRef.current = setTimeout(() => {
-          if (!mountedRef.current) return;
-
-          navigate(
-            `/groups/${encodeURIComponent(createdGroupId)}`,
-            {
-              replace: true,
-            }
-          );
-        }, NAVIGATION_DELAY_MS);
-      } else {
-        toast.warning(
-          'Some in-app invitation records still could not be created.'
-        );
-      }
-    } catch (retryError) {
-      if (!mountedRef.current) return;
-
-      if (isAbortError(retryError)) {
-        toast.info('Invitation retry cancelled.');
-        return;
-      }
-
-      const message = getErrorMessage(
-        retryError,
-        'Failed to retry invitations.'
-      );
-
-      setError(message);
-      toast.error(message);
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-      }
-
-      if (submitAbortRef.current === controller) {
-        submitAbortRef.current = null;
-      }
-    }
-  }, [
-    createdGroupId,
-    loading,
-    progress.failures,
-    progress.successCount,
-    validMembers,
-    sendInvitationBatch,
-    navigate,
-  ]);
 
   // ==========================================================================
   // Cancel active submission
@@ -1417,7 +1029,7 @@ export default function CreateGroupV2() {
 
       <div className="form-group">
         <label htmlFor="description" className="form-label">
-          Description <span className="optional">(Optional)</span>
+          Description <span className="required">*</span>
         </label>
 
         <textarea
@@ -1642,6 +1254,12 @@ export default function CreateGroupV2() {
           </div>
         )}
 
+        {invalidRoles.length > 0 && (
+          <div className="form-help error-text" role="alert">
+            {invalidRoles.length} proposed member role{invalidRoles.length === 1 ? '' : 's'} need attention.
+          </div>
+        )}
+
         {duplicateEmails.length > 0 && (
           <div className="form-help error-text" role="alert">
             Duplicate email
@@ -1694,8 +1312,8 @@ export default function CreateGroupV2() {
         </div>
 
         <div>
-          <h2 id="preview-heading">Review & Confirm</h2>
-          <p>Verify the group details before creation.</p>
+          <h2 id="preview-heading">Preview</h2>
+          <p>Check the complete group and proposed invitation details before confirmation.</p>
         </div>
       </div>
 
@@ -1736,13 +1354,13 @@ export default function CreateGroupV2() {
           )}
 
           <div className="preview-item">
-            <span className="preview-label">
-              Members
-            </span>
+            <span className="preview-label">Active tenant (resolved by the server)</span>
+            <span className="preview-value">{user?.tenantName || user?.tenant?.name || tenantId}</span>
+          </div>
 
-            <span className="preview-value badge">
-              {validMembers.length}
-            </span>
+          <div className="preview-item">
+            <span className="preview-label">Proposed invitations</span>
+            <span className="preview-value badge">{validMembers.length}</span>
           </div>
         </div>
       </div>
@@ -1750,7 +1368,7 @@ export default function CreateGroupV2() {
       <div className="members-preview">
         <div className="members-preview-header">
           <h3>
-            Members to Add ({validMembers.length})
+            Proposed Group Invitations ({validMembers.length})
           </h3>
         </div>
 
@@ -1769,12 +1387,10 @@ export default function CreateGroupV2() {
                   {member.email}
                 </div>
 
-                <div
-                  className="member-role-badge"
-                  title={roleInfo?.description}
-                >
+                <div className="member-role-badge" title={roleInfo?.description}>
                   {roleInfo?.label || 'Member'}
                 </div>
+                <small className="form-help">Pending invitation · acceptance required</small>
               </article>
             );
           })}
@@ -1789,8 +1405,6 @@ export default function CreateGroupV2() {
             (member) => member.role === role.value
           ).length;
 
-          if (!count) return null;
-
           return (
             <div
               key={role.value}
@@ -1803,54 +1417,52 @@ export default function CreateGroupV2() {
         })}
       </div>
 
+      <div className="role-stat">
+        <span>Total proposed invitations</span>
+        <strong>{validMembers.length}</strong>
+      </div>
+
       <div className="info-box" role="note">
         <AlertCircle size={16} aria-hidden="true" />
-
-        <span>
-          Creating this group will create the group record
-          and initiate member invitations.
-        </span>
+        <span>These are pending in-app group invitations for existing active members of this tenant. An invitation is not an accepted membership, does not create a user account, and does not send an external email or SMS.</span>
       </div>
     </section>
   );
 
-  const renderStep4 = () => {
-    const hasFailures = progress.failures.length > 0;
-    const completed =
-      progress.total > 0 &&
-      progress.current >= progress.total;
+  const renderConfirmation = () => (
+    <section className="step-container" aria-labelledby="confirmation-heading">
+      <div className="step-header">
+        <div className="step-icon" aria-hidden="true"><CheckCircle size={20} /></div>
+        <div>
+          <h2 id="confirmation-heading">Confirmation</h2>
+          <p>Confirm that this group and its pending in-app invitations should be created in the active tenant.</p>
+        </div>
+      </div>
+      <div className="preview-section">
+        <h3>Final confirmation</h3>
+        <div className="preview-grid">
+          <div className="preview-item"><span className="preview-label">Group</span><span className="preview-value">{groupName.trim()}</span></div>
+          <div className="preview-item"><span className="preview-label">Tenant</span><span className="preview-value">{user?.tenantName || user?.tenant?.name || tenantId}</span></div>
+          <div className="preview-item"><span className="preview-label">Proposed invitations</span><span className="preview-value">{validMembers.length}</span></div>
+          <div className="preview-item"><span className="preview-label">Accepted memberships</span><span className="preview-value">0 at creation</span></div>
+        </div>
+      </div>
+      <div className="info-box" role="note"><AlertCircle size={16} aria-hidden="true" /><span>Selecting Create Group persists the canonical group and its pending invitations together. Invitees become members only after they authenticate as the intended account and accept. This workflow does not send external email or SMS notifications.</span></div>
+      {createdGroupId ? <p className="form-help">Persisted group reference: {createdGroupId}</p> : null}
+    </section>
+  );
 
-    const percentage =
-      progress.total > 0
-        ? Math.min(
-            100,
-            Math.round(
-              (progress.current / progress.total) * 100
-            )
-          )
-        : 0;
+  const renderStep4 = () => {
+    const percentage = progress.total > 0
+      ? Math.min(100, Math.round((progress.current / progress.total) * 100))
+      : 0;
 
     return (
-      <section
-        className="step-container"
-        aria-labelledby="completion-heading"
-      >
+      <section className="step-container" aria-labelledby="completion-heading">
         <div className="step-header">
-          <div className="step-icon" aria-hidden="true">
-            {hasFailures ? (
-              <AlertCircle size={20} />
-            ) : (
-              <CheckCircle size={20} />
-            )}
-          </div>
-
+          <div className="step-icon" aria-hidden="true"><CheckCircle size={20} /></div>
           <div>
-            <h2 id="completion-heading">
-              {hasFailures
-                ? 'Completed with Issues'
-                : 'Group Creation Complete'}
-            </h2>
-
+            <h2 id="completion-heading">Group Creation Complete</h2>
             <p>{progress.message}</p>
           </div>
         </div>
@@ -1864,98 +1476,27 @@ export default function CreateGroupV2() {
             aria-valuemax={progress.total || 1}
             aria-label="Group creation progress"
           >
-            <div
-              className="progress-bar"
-              style={{
-                width: `${percentage}%`,
-              }}
-            />
+            <div className="progress-bar" style={{ width: `${percentage}%` }} />
           </div>
-
           <div className="progress-text">
-            {progress.current} of {progress.total}{' '}
-            steps completed ({percentage}%)
+            {progress.current} of {progress.total} steps completed ({percentage}%)
           </div>
         </div>
 
         {progress.successCount > 0 && (
           <div className="success-box" role="status">
-            <CheckCircle
-              size={16}
-              aria-hidden="true"
-            />
-
+            <CheckCircle size={16} aria-hidden="true" />
             <span>
-              {progress.successCount} new in-app group invitation
-              {progress.successCount === 1 ? '' : 's'} recorded successfully. No external email was sent.
+              {progress.successCount} pending in-app group invitation{progress.successCount === 1 ? '' : 's'} recorded. No external email or SMS was sent.
             </span>
           </div>
         )}
 
-        {hasFailures && (
-          <div className="error-box" role="alert">
-            <AlertCircle
-              size={16}
-              aria-hidden="true"
-            />
-
-            <div>
-              <strong>
-                Some in-app invitation records could not be created.
-              </strong>
-
-              <ul className="failure-list">
-                {progress.failures.map((failure) => (
-                  <li
-                    key={`failure-${failure.batch}-${failure.error}`}
-                  >
-                    <strong>
-                      Batch {failure.batch}:
-                    </strong>{' '}
-                    {failure.error} ({failure.count}{' '}
-                    member
-                    {failure.count === 1 ? '' : 's'}).
-                    {Array.isArray(failure.results) && failure.results.length > 0 && (
-                      <ul className="failure-member-results">
-                        {failure.results.map((result, resultIndex) => (
-                          <li key={`${failure.batch}-${result.email || resultIndex}-${result.code || resultIndex}`}>
-                            <strong>{result.email || `Member ${result.index + 1}`}:</strong>{' '}
-                            {result.message || result.code || result.status || 'Invitation requires attention.'}
-                            {result.nextAction ? ` Next action: ${String(result.nextAction).replace(/_/g, ' ')}.` : ''}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {completed && !hasFailures && (
-          <div className="completion-message">
-            <p>
-              <strong>
-                "{groupName.trim()}"
-              </strong>{' '}
-              has been created successfully.
-            </p>
-
-            <p className="redirecting">
-              Redirecting to group details...
-            </p>
-          </div>
-        )}
-
-        {completed && hasFailures && (
-          <div className="completion-message">
-            <p>
-              The group was created, but some invitations
-              need to be retried.
-            </p>
-          </div>
-        )}
+        <div className="completion-message">
+          <p><strong>“{groupName.trim()}”</strong> has been persisted successfully.</p>
+          <p>Group created: Yes · Pending invitations: {progress.successCount} · Accepted memberships: {progress.acceptedCount ?? 0} · External notifications delivered: {progress.externalNotificationsSent ?? 0}.</p>
+          {createdGroupId ? <p><Link to={`/groups/${encodeURIComponent(createdGroupId)}`} className="btn-primary">Open Group Dashboard</Link></p> : null}
+        </div>
       </section>
     );
   };
@@ -1964,24 +1505,26 @@ export default function CreateGroupV2() {
   // Unauthorized fallback
   // ==========================================================================
 
-  if (!user || !canCreateGroup) {
-    return (
-      <main className="create-group-wrapper">
-        <div
-          className="create-group-container"
-          role="status"
-          aria-live="polite"
-        >
-          <Loader2
-            className="animate-spin"
-            size={24}
-            aria-hidden="true"
-          />
+  if (!user) {
+    return <main className="create-group-wrapper"><div className="create-group-container" role="status"><Loader2 className="animate-spin" size={24} aria-hidden="true" /><p>Verifying your authenticated session…</p></div></main>;
+  }
 
-          <p>Verifying group creation permissions...</p>
-        </div>
-      </main>
+  if (!tenantId) {
+    return (
+      <main className="create-group-wrapper"><div className="create-group-container">
+        <header className="create-group-header"><p className="eyebrow">TITech Community Capital</p><h1>Tenant membership required</h1>
+          <p>Join an existing tenant with a valid invitation code before creating or joining community groups. No tenant or group will be created automatically.</p></header>
+        <div className="info-box" role="alert"><AlertCircle size={18} aria-hidden="true" /><span>Your account does not currently have an active tenant association.</span></div>
+        <Link to="/tenant/join" className="btn-primary">Join an Existing Tenant</Link>
+      </div></main>
     );
+  }
+
+  if (!canCreateGroup) {
+    return <main className="create-group-wrapper"><div className="create-group-container">
+      <header className="create-group-header"><p className="eyebrow">TITech Community Capital</p><h1>Group creation unavailable</h1><p>Your account is associated with a tenant, but its current role does not have group-creation permission. Contact your tenant administrator.</p></header>
+      <Link to="/groups" className="btn-secondary">Return to Groups</Link>
+    </div></main>;
   }
 
   // ==========================================================================
@@ -2027,8 +1570,8 @@ export default function CreateGroupV2() {
               'Confirmation',
             ];
 
-            const isCurrent = step === currentStep;
-            const isComplete = step > currentStep;
+            const isCurrent = !creationComplete && step === currentStep;
+            const isComplete = creationComplete || step > currentStep;
 
             return (
               <div
@@ -2089,14 +1632,15 @@ export default function CreateGroupV2() {
         >
           {step === 1 && renderStep1()}
           {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
-          {step === 4 && renderStep4()}
+          {!creationComplete && step === 3 && renderStep3()}
+          {!creationComplete && step === 4 && renderConfirmation()}
+          {creationComplete && renderStep4()}
 
           {/* --------------------------------------------------------------- */}
           {/* Navigation                                                      */}
           {/* --------------------------------------------------------------- */}
 
-          {step < 4 && (
+          {!creationComplete && step < 5 && (
             <div className="button-group">
               {step > 1 && (
                 <button
@@ -2121,29 +1665,12 @@ export default function CreateGroupV2() {
               )}
 
               {step === 3 && (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary btn-submit"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2
-                        size={16}
-                        className="animate-spin"
-                        aria-hidden="true"
-                      />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Send
-                        size={16}
-                        aria-hidden="true"
-                      />
-                      Create Group
-                    </>
-                  )}
+                <button type="button" onClick={handleNext} className="btn-primary" disabled={loading}>Continue to Confirmation →</button>
+              )}
+
+              {step === 4 && (
+                <button type="submit" disabled={loading} className="btn-primary btn-submit">
+                  {loading ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Creating…</> : <><Send size={16} aria-hidden="true" /> Create Group</>}
                 </button>
               )}
             </div>
@@ -2153,7 +1680,7 @@ export default function CreateGroupV2() {
           {/* Active submission controls                                     */}
           {/* --------------------------------------------------------------- */}
 
-          {loading && step >= 3 && (
+          {loading && !creationComplete && step === 4 && (
             <div className="submission-controls">
               <button
                 type="button"
@@ -2169,51 +1696,13 @@ export default function CreateGroupV2() {
           {/* Completion controls                                            */}
           {/* --------------------------------------------------------------- */}
 
-          {step === 4 && (
+          {creationComplete && createdGroupId && (
             <div className="button-group">
-              {progress.failures.some((failure) => failure.members?.length > 0) && (
-                <button
-                  type="button"
-                  onClick={handleRetryFailures}
-                  className="btn-secondary"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2
-                        size={16}
-                        className="animate-spin"
-                        aria-hidden="true"
-                      />
-                      Retrying...
-                    </>
-                  ) : (
-                    '↻ Retry Failed Invitations'
-                  )}
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    progress.failures.length === 0
-                      ? '/dashboard'
-                      : '/groups',
-                    {
-                      replace: true,
-                    }
-                  )
-                }
-                className="btn-primary"
-                disabled={loading}
-              >
-                {progress.failures.length === 0
-                  ? 'Return to Dashboard'
-                  : 'View Groups'}
-              </button>
+              <Link to={`/groups/${encodeURIComponent(createdGroupId)}`} className="btn-primary">Open Group Dashboard</Link>
+              <button type="button" onClick={() => navigate('/groups', { replace: true })} className="btn-secondary">View All Groups</button>
             </div>
           )}
+
         </form>
       </div>
     </main>

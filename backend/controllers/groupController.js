@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import mongoose from "mongoose";
 import { User } from "../models/User.js";
 import Group, { GROUP_MODEL_METADATA, GROUP_TYPES as SUPPORTED_GROUP_TYPES } from "../models/Group.js";
@@ -15,11 +16,14 @@ import { evaluateGroupContributionCapability } from "../services/groupContributi
 import { classifyExistingGroupMembership } from "../security/groupInvitationPolicy.js";
 
 const GROUP_TYPES = new Set(SUPPORTED_GROUP_TYPES);
-const MEMBER_ROLES = new Set(["member", "group_admin", "treasurer", "secretary"]);
+const INVITABLE_MEMBER_ROLES = new Set(["member", "treasurer", "secretary"]);
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
 
 function getIdentity(req) {
-  const userId = req.user?._id || req.user?.id || req.auth?.userId;
-  const tenantId = req.authenticatedTenantId || req.auth?.tenantId || req.user?.tenantId;
+  // authMiddleware.authenticate loads req.user from the authoritative user
+  // record. Never fall back to a request/header/JWT-context tenant value.
+  const userId = req.user?._id || req.user?.id;
+  const tenantId = req.user?.tenantId;
   if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(tenantId)) return null;
   return { userId: new mongoose.Types.ObjectId(userId), tenantId: new mongoose.Types.ObjectId(tenantId) };
 }
@@ -28,7 +32,7 @@ function actor(req) {
   return {
     id: req.user?._id || req.user?.id,
     _id: req.user?._id || req.user?.id,
-    tenantId: req.authenticatedTenantId || req.user?.tenantId || req.auth?.tenantId,
+    tenantId: req.user?.tenantId || null,
     role: normalizeRole(req.user?.role),
     roles: req.user?.roles || [],
   };
@@ -47,11 +51,14 @@ function sendError(res, statusCode, code, message, details = undefined) {
 
 function validateMemberEntries(members) {
   if (!Array.isArray(members) || members.length > 1000) return false;
+  const seen = new Set();
   return members.every((entry) => {
     const rawEmail = typeof entry === "string" ? entry : entry?.email;
     const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
     const role = typeof entry === "string" ? "member" : entry?.role || "member";
-    return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && MEMBER_ROLES.has(role);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !INVITABLE_MEMBER_ROLES.has(role) || seen.has(email)) return false;
+    seen.add(email);
+    return true;
   });
 }
 
@@ -59,8 +66,52 @@ function activeTenantUserQuery(tenantId, emails) {
   return User.find({
     email: { $in: emails },
     tenantId,
+    status: "active",
+    isActive: { $ne: false },
     deletedAt: null,
   }).select("_id email status isActive");
+}
+
+function normalizeCreationRequestId(req) {
+  const supplied = req.get?.("Idempotency-Key") || req.get?.("X-Request-ID") ||
+    req.headers?.["idempotency-key"] || req.headers?.["x-request-id"];
+  if (supplied === undefined || supplied === null || String(supplied).trim() === "") return null;
+  const value = String(supplied).trim();
+  return IDEMPOTENCY_KEY_PATTERN.test(value) ? value : false;
+}
+
+function creationPayloadHash({ name, type, description, members }) {
+  const canonical = {
+    name,
+    type,
+    description,
+    members: [...members].map((member) => ({ email: member.email, role: member.role }))
+      .sort((left, right) => left.email.localeCompare(right.email)),
+  };
+  return crypto.createHash("sha256").update(JSON.stringify(canonical), "utf8").digest("hex");
+}
+
+function groupCreationResponse(group, invitedCount, { replay = false, status = 201 } = {}) {
+  const data = group.toObject ? group.toObject() : group;
+  if (data && Object.prototype.hasOwnProperty.call(data, "creationPayloadHash")) delete data.creationPayloadHash;
+  return {
+    status,
+    body: {
+      success: true,
+      message: replay ? "The previously created group was recovered for this request." : "Group created successfully.",
+      groupId: String(group._id),
+      invitedCount,
+      invitationSummary: {
+        requested: invitedCount,
+        created: invitedCount,
+        pending: invitedCount,
+        accepted: 0,
+        externalNotificationsSent: 0,
+      },
+      idempotentReplay: replay,
+      data,
+    },
+  };
 }
 
 async function resolveGroupForContribution(req, res) {
@@ -80,58 +131,107 @@ async function resolveGroupForContribution(req, res) {
 
 export async function createGroup(req, res) {
   const identity = getIdentity(req);
-  if (!identity) return sendError(res, 403, "GROUP_TENANT_CONTEXT_REQUIRED", "Join an existing tenant before creating a group.");
+  if (!identity) return sendError(res, 403, "GROUP_TENANT_CONTEXT_REQUIRED", "Join an existing tenant with an invitation code before creating a group.");
 
   const currentActor = actor(req);
   if (!canManageGroup(currentActor, { tenantId: identity.tenantId, createdBy: identity.userId, memberRoles: [{ userId: identity.userId, role: currentActor.role, membershipStatus: "active" }] })) {
-    return sendError(res, 403, "GROUP_CREATE_FORBIDDEN", "Only a tenant or group administrator may create a group.");
+    return sendError(res, 403, "GROUP_CREATE_FORBIDDEN", "You are not authorized to create a group in this tenant.");
   }
-  if (!["tenant_admin", "platform_admin"].includes(normalizeRole(currentActor.role))) {
-    return sendError(res, 403, "GROUP_CREATE_FORBIDDEN", "Only a tenant administrator may create a group.");
+  if (!new Set(["tenant_admin", "platform_admin"]).has(normalizeRole(currentActor.role))) {
+    return sendError(res, 403, "GROUP_CREATE_FORBIDDEN", "Only an authorized tenant or platform administrator may create a group.");
   }
 
   const { name, type = "savings", description = "", members = [] } = req.body || {};
-  if (typeof name !== "string" || name.trim().length < 3 || name.trim().length > 100 || typeof description !== "string" || description.length > 500 || !GROUP_TYPES.has(type) || !Array.isArray(members) || members.length > 10000) {
-    return sendError(res, 400, "GROUP_INPUT_INVALID", "Provide a valid group name, type, description, and member list.");
+  if (typeof name !== "string" || name.trim().length < 3 || name.trim().length > 100 || typeof description !== "string" || !description.trim() || description.trim().length > 500 || !GROUP_TYPES.has(type) || !Array.isArray(members) || members.length > GROUP_MODEL_METADATA.maxMembers - 1) {
+    return sendError(res, 400, "GROUP_INPUT_INVALID", "Provide a valid group name, supported group type, description, and member list.");
   }
-  if (!validateMemberEntries(members)) return sendError(res, 400, "GROUP_MEMBER_INPUT_INVALID", "Each invited member must have a valid email address and role.");
-  if (members.length + 1 > GROUP_MODEL_METADATA.maxMembers) {
-    return sendError(res, 400, "GROUP_MEMBER_LIMIT_EXCEEDED", "The creator and invited members exceed the group membership-record limit.");
-  }
+  if (!validateMemberEntries(members)) return sendError(res, 400, "GROUP_MEMBER_INPUT_INVALID", "Each invitee must have a unique valid email address and an assignable group role (Member, Treasurer, or Secretary).");
 
+  const normalizedName = name.trim();
+  const normalizedType = String(type).trim().toLowerCase();
+  const normalizedDescription = description.trim();
   const inviteEntries = members.map((entry) => ({
     email: typeof entry === "string" ? entry.trim().toLowerCase() : entry.email.trim().toLowerCase(),
     role: typeof entry === "string" ? "member" : entry.role || "member",
   }));
-  const uniqueEmails = [...new Set(inviteEntries.map(({ email }) => email))];
-  const inviteUsers = uniqueEmails.length ? await User.find({ email: { $in: uniqueEmails }, tenantId: identity.tenantId, status: "active", deletedAt: null }).select("_id email") : [];
-  const usersByEmail = new Map(inviteUsers.map((user) => [user.email.toLowerCase(), user]));
-  if (uniqueEmails.some((email) => !usersByEmail.has(email))) return sendError(res, 400, "GROUP_INVITE_MEMBER_UNAVAILABLE", "Invitees must have active accounts in this tenant.");
+  const key = normalizeCreationRequestId(req);
+  if (key === false) return sendError(res, 400, "GROUP_IDEMPOTENCY_KEY_INVALID", "The idempotency key must contain 8 to 128 safe characters.");
+  const payloadHash = creationPayloadHash({ name: normalizedName, type: normalizedType, description: normalizedDescription, members: inviteEntries });
 
-  const group = new Group({ tenantId: identity.tenantId, name: name.trim(), type, description: description.trim(), createdBy: identity.userId, managedBy: identity.userId });
+  // A retry with the same key and exact payload recovers the authoritative
+  // saved group. Reusing a key for different input is rejected, never replayed.
+  if (key) {
+    const existing = await Group.findOne({ tenantId: identity.tenantId, createdBy: identity.userId, creationRequestId: key })
+      .select("+creationPayloadHash")
+      .exec();
+    if (existing) {
+      if (existing.creationPayloadHash !== payloadHash) {
+        return sendError(res, 409, "GROUP_IDEMPOTENCY_CONFLICT", "This idempotency key was already used with different group details. Review Group Management before starting a new request.");
+      }
+      const invitedCount = (existing.memberRoles || []).filter((entry) => entry.membershipOrigin === "invited" && entry.invitationStatus === "pending").length;
+      const replay = groupCreationResponse(existing, invitedCount, { replay: true, status: 200 });
+      return res.status(replay.status).json(replay.body);
+    }
+  }
+
+  const uniqueEmails = inviteEntries.map(({ email }) => email);
+  const creatorRecord = await User.findById(identity.userId).select('email').lean().exec();
+  if (creatorRecord?.email && uniqueEmails.includes(String(creatorRecord.email).trim().toLowerCase())) {
+    return sendError(res, 400, "GROUP_CREATOR_ALREADY_MEMBER", "The group creator is added automatically and must not also appear in the proposed invitation list.");
+  }
+  const inviteUsers = uniqueEmails.length
+    ? await activeTenantUserQuery(identity.tenantId, uniqueEmails)
+    : [];
+  const usersByEmail = new Map(inviteUsers.map((user) => [user.email.toLowerCase(), user]));
+  if (uniqueEmails.some((email) => !usersByEmail.has(email))) {
+    return sendError(res, 400, "GROUP_INVITE_MEMBER_UNAVAILABLE", "Every invitee must already have an active account in this tenant. Complete institution onboarding before issuing a group invitation. No user accounts are created by this workflow.");
+  }
+
+  const group = new Group({
+    tenantId: identity.tenantId,
+    name: normalizedName,
+    type: normalizedType,
+    description: normalizedDescription,
+    createdBy: identity.userId,
+    managedBy: identity.userId,
+    ...(key ? { creationRequestId: key, creationPayloadHash: payloadHash } : {}),
+  });
   group.addMember(identity.userId, { role: "group_admin", invitationStatus: "accepted", membershipOrigin: "owner" });
   group.appendAudit({ action: "created", userId: identity.userId });
+  let invitedCount = 0;
   for (const invite of inviteEntries) {
     const invitee = usersByEmail.get(invite.email);
     if (String(invitee._id) === String(identity.userId) || group.getMembership(invitee._id)) continue;
     group.addMember(invitee._id, { role: invite.role, invitationStatus: "pending", membershipOrigin: "invited" });
-    group.appendAudit({ action: "invitation_sent", userId: identity.userId });
+    group.appendAudit({ action: "invitation_created", userId: identity.userId, details: { inviteeUserId: String(invitee._id), channel: "in_app" } });
+    invitedCount += 1;
   }
+
   try {
     await group.save();
   } catch (error) {
     if (error?.code === 11000) {
-      return sendError(
-        res,
-        409,
-        "GROUP_NAME_ALREADY_EXISTS",
-        "A group with this name already exists in your organization."
-      );
+      if (key) {
+        const concurrent = await Group.findOne({ tenantId: identity.tenantId, createdBy: identity.userId, creationRequestId: key })
+          .select("+creationPayloadHash")
+          .exec();
+        if (concurrent) {
+          if (concurrent.creationPayloadHash !== payloadHash) {
+            return sendError(res, 409, "GROUP_IDEMPOTENCY_CONFLICT", "This idempotency key was already used with different group details.");
+          }
+          const count = (concurrent.memberRoles || []).filter((entry) => entry.membershipOrigin === "invited" && entry.invitationStatus === "pending").length;
+          const replay = groupCreationResponse(concurrent, count, { replay: true, status: 200 });
+          return res.status(replay.status).json(replay.body);
+        }
+      }
+      return sendError(res, 409, "GROUP_NAME_ALREADY_EXISTS", "A group with this name already exists in your organization.");
     }
     throw error;
   }
-  logger.info("GROUP_CREATED", { tenantId: identity.tenantId, groupId: group._id, userId: identity.userId });
-  return res.status(201).json({ success: true, message: "Group created successfully", groupId: group._id, invitedCount: group.memberRoles.filter((member) => member.membershipStatus === "pending").length, data: group });
+
+  logger.info("GROUP_CREATED", { tenantId: identity.tenantId, groupId: group._id, userId: identity.userId, invitationCount: invitedCount });
+  const result = groupCreationResponse(group, invitedCount, { status: 201 });
+  return res.status(result.status).json(result.body);
 }
 
 export async function requestJoinGroup(req, res) {
@@ -141,6 +241,19 @@ export async function requestJoinGroup(req, res) {
   if (!group || group.status !== "active") return sendError(res, 404, "GROUP_NOT_FOUND", "Group not found.");
   if (group.hasMember(identity.userId)) return sendError(res, 409, "GROUP_ALREADY_MEMBER", "You are already a member of this group.");
   const existing = group.getMembership(identity.userId);
+  const invitationNow = new Date();
+  if (existing?.membershipOrigin === "invited" && (existing.invitationStatus === "revoked" || existing.invitationRevokedAt)) {
+    return sendError(res, 409, "GROUP_INVITATION_REVOKED", "This group invitation has been revoked.");
+  }
+  if (existing?.membershipOrigin === "invited" && (existing.invitationStatus === "expired" || existing.membershipStatus === "expired" || (existing.invitationStatus === "pending" && existing.invitationExpiresAt && existing.invitationExpiresAt <= invitationNow))) {
+    if (existing.invitationStatus === "pending") {
+      existing.invitationStatus = "expired";
+      existing.membershipStatus = "expired";
+      group.appendAudit({ action: "invitation_expired", userId: identity.userId });
+      await group.save();
+    }
+    return sendError(res, 410, "GROUP_INVITATION_EXPIRED", "This group invitation has expired. Ask a group administrator to issue a new invitation.");
+  }
   if (existing && existing.membershipStatus === "pending" && existing.membershipOrigin === "invited") {
     const institutionUser = await User.findOne({
       _id: identity.userId,
@@ -150,7 +263,7 @@ export async function requestJoinGroup(req, res) {
       deletedAt: null,
     }).select("_id").lean();
     if (!institutionUser) return sendError(res, 403, "GROUP_INVITATION_INSTITUTION_MEMBERSHIP_REQUIRED", "An active institution account is required before accepting this group invitation.");
-    group.acceptInvitation(identity.userId);
+    group.acceptInvitation(identity.userId, invitationNow);
     group.appendAudit({ action: "invitation_accepted", userId: identity.userId });
     group.appendAudit({ action: "member_added", userId: identity.userId });
     await group.save();
@@ -203,6 +316,12 @@ export async function acceptInvitation(req, res) {
   const group = await Group.findTenantGroup(identity.tenantId, req.params.id);
   if (!group || group.status !== "active") return sendError(res, 404, "GROUP_NOT_FOUND", "Group not found.");
   const membership = group.getMembership(identity.userId);
+  if (membership?.invitationStatus === "revoked" || membership?.invitationRevokedAt) {
+    return sendError(res, 409, "GROUP_INVITATION_REVOKED", "This group invitation has been revoked.");
+  }
+  if (membership?.invitationStatus === "expired" || membership?.membershipStatus === "expired") {
+    return sendError(res, 410, "GROUP_INVITATION_EXPIRED", "This group invitation has expired. Ask a group administrator to issue a new invitation.");
+  }
   if (!membership || membership.membershipStatus !== "pending" || membership.membershipOrigin !== "invited") {
     return sendError(res, 409, "GROUP_INVITATION_NOT_FOUND", "No pending invitation is available for this account.");
   }
@@ -214,7 +333,18 @@ export async function acceptInvitation(req, res) {
     deletedAt: null,
   }).select("_id").lean();
   if (!institutionUser) return sendError(res, 403, "GROUP_INVITATION_INSTITUTION_MEMBERSHIP_REQUIRED", "An active institution account is required before accepting this group invitation.");
-  group.acceptInvitation(identity.userId);
+  const invitationNow = new Date();
+  if (membership.invitationStatus === "revoked" || membership.invitationRevokedAt) {
+    return sendError(res, 409, "GROUP_INVITATION_REVOKED", "This group invitation has been revoked.");
+  }
+  if (membership.invitationExpiresAt && membership.invitationExpiresAt <= invitationNow) {
+    membership.invitationStatus = "expired";
+    membership.membershipStatus = "expired";
+    group.appendAudit({ action: "invitation_expired", userId: identity.userId });
+    await group.save();
+    return sendError(res, 410, "GROUP_INVITATION_EXPIRED", "This group invitation has expired. Ask a group administrator to issue a new invitation.");
+  }
+  group.acceptInvitation(identity.userId, invitationNow);
   group.appendAudit({ action: "member_added", userId: identity.userId });
   await group.save();
   return res.status(200).json({ success: true, message: "Invitation accepted.", status: "active", data: group });

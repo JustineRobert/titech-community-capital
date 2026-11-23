@@ -4,8 +4,11 @@ import userEvent from '@testing-library/user-event';
 
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
+    tenantId: 'tenant-test-id',
     user: {
       id: 'tenant-admin-test-user',
+      email: 'admin@example.org',
+      tenantId: 'tenant-test-id',
       role: 'tenant_admin',
       roles: ['tenant_admin'],
     },
@@ -13,6 +16,7 @@ vi.mock('../../context/AuthContext', () => ({
 }));
 
 vi.mock('react-router-dom', () => ({
+  Link: ({ to, children }) => <a href={to}>{children}</a>,
   useNavigate: () => vi.fn(),
 }));
 
@@ -51,6 +55,7 @@ describe('CreateGroupV2 member email entry', () => {
       screen.getByLabelText(/Group Name/i),
       'North Kampala Community Group',
     );
+    await user.type(screen.getByLabelText(/Description/i), 'A community group supporting shared savings and mutual development.');
     await user.click(screen.getByRole('button', { name: /Next/i }));
 
     const firstEmailInput = screen.getByLabelText('Member 1 email address');
