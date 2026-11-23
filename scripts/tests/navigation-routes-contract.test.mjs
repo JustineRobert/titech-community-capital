@@ -15,6 +15,7 @@ test('the actual mounted router registers every navigation destination', () => {
     ['/retirement-support', 'RETIREMENT_SUPPORT'], ['/education-support', 'EDUCATION_SUPPORT'],
     ['/edufinance', 'EDUFINANCE'], ['/agriculture', 'AGRICULTURE'],
     ['/ubuntu-float', 'UBUNTU_FLOAT'], ['/partner-support', 'PARTNER_SUPPORT'],
+    ['/bankconnect', 'BANKCONNECT'],
     ['/donations', 'DONATIONS'],
     ['/faith-community-giving/manage', 'FAITH_GIVING_MANAGE'],
   ]);

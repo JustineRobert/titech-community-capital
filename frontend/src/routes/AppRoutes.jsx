@@ -125,6 +125,7 @@ const ROUTES = Object.freeze({
   AGRICULTURE: '/agriculture',
   UBUNTU_FLOAT: '/ubuntu-float',
   PARTNER_SUPPORT: '/partner-support',
+  BANKCONNECT: '/bankconnect',
   EDUCATION_CAMPAIGN_MANAGER: '/education-support/manage',
   DONATIONS: '/donations',
   FAITH_GIVING: '/faith-community-giving',
@@ -303,6 +304,7 @@ const EduFinancePage = lazyWithRecovery(() => import('../pages/edufinance/EduFin
 const AgriculturePage = lazyWithRecovery(() => import('../pages/agriculture/AgricultureDashboard'), 'AgriculturePage');
 const UbuntuFloatPage = lazyWithRecovery(() => import('../pages/ubuntu-float/UbuntuFloatPage'), 'UbuntuFloatPage');
 const PartnerSupportPage = lazyWithRecovery(() => import('../pages/PartnerPortal'), 'PartnerSupportPage');
+const BankConnectPage = lazyWithRecovery(() => import('../pages/bankconnect/BankConnectPage'), 'BankConnectPage');
 const EducationCampaignManagerPage = lazyWithRecovery(() => import('../pages/education-support/EducationCampaignManagerPage'), 'EducationCampaignManagerPage');
 const FaithCommunityGivingPage = lazyWithRecovery(() => import('../pages/faith-community-giving/FaithCommunityGivingPage'), 'FaithCommunityGivingPage');
 const FaithGivingManagerPage = lazyWithRecovery(() => import('../pages/faith-community-giving/FaithGivingManagerPage'), 'FaithGivingManagerPage');
@@ -730,6 +732,7 @@ function ApplicationRouteTree() {
             }
           />
 
+          <Route path={ROUTES.BANKCONNECT} element={<BankConnectPage />} />
           <Route path={ROUTES.GROUPS} element={<GroupList />} />
           <Route path={ROUTES.GROUP_DETAILS} element={<GroupDetails />} />
           <Route path={ROUTES.CREATE_GROUP} element={<CreateGroup />} />

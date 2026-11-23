@@ -61,6 +61,7 @@ import { useAuth } from "../context/AuthContext";
 import { hasTitechRole, TITECH_ROLES } from "../security/rbacPolicy";
 import { getNavigationItems } from "../navigation/navigationRegistry.js";
 import TITECH_BRAND from "../branding/brand";
+import { getGroupMemberCount, getGroupTypeLabel, getNextContributionDate } from "./groupDashboardPresentation.mjs";
 
 import "./Dashboard.css";
 
@@ -196,16 +197,6 @@ function getUserDisplayName(user) {
   );
 }
 
-function getGroupMemberCount(group) {
-  if (!group || typeof group !== "object") return null;
-  const rawCount = group.activeMemberCount ?? group.memberCount;
-  if (rawCount !== null && rawCount !== undefined && rawCount !== "") {
-    const count = Number(rawCount);
-    if (Number.isSafeInteger(count) && count >= 0) return count;
-  }
-  if (Array.isArray(group.members)) return group.members.length;
-  return null;
-}
 
 // ============================================================================
 // Skeleton
@@ -556,10 +547,8 @@ function GroupCard({
     getGroupMemberCount(group);
 
   const contribution = group?.totalContributions ?? null;
-  const nextContribution = group?.nextContributionDate ?? group?.nextContribution ?? null;
-  const groupType = group?.type
-    ? String(group.type).replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase())
-    : "Group type unavailable";
+  const nextContribution = getNextContributionDate(group);
+  const groupType = getGroupTypeLabel(group);
 
   return (
     <article

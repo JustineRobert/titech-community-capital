@@ -11,7 +11,7 @@ test('Products and Services are derived from the canonical registry and have rea
   const products = PUBLIC_PRODUCT_DISCOVERY.filter((item) => item.discoveryType === 'product');
   const services = PUBLIC_PRODUCT_DISCOVERY.filter((item) => item.discoveryType === 'service');
   assert.deepEqual(products.map((item) => item.id), ['eduFinance', 'agriculture', 'ubuntuFloat']);
-  assert.deepEqual(services.map((item) => item.id), ['groups', 'inclusiveOnboarding', 'retirementSupport', 'educationSupport', 'partnerSupport', 'donations']);
+  assert.deepEqual(services.map((item) => item.id), ['bankConnect', 'groups', 'inclusiveOnboarding', 'retirementSupport', 'educationSupport', 'partnerSupport', 'donations']);
   assert.equal(products.length + services.length, NAVIGATION_REGISTRY.filter((item) => item.discovery).length);
   for (const item of PUBLIC_PRODUCT_DISCOVERY) {
     assert.ok(item.to.startsWith('/'), `${item.id} should use an application route`);
@@ -20,6 +20,7 @@ test('Products and Services are derived from the canonical registry and have rea
   assert.match(routes, /path=\{ROUTES\.EDUFINANCE\}/);
   assert.match(routes, /path=\{ROUTES\.AGRICULTURE\}/);
   assert.match(routes, /path=\{ROUTES\.UBUNTU_FLOAT\}/);
+  assert.match(routes, /path=\{ROUTES\.BANKCONNECT\}/);
   assert.match(routes, /path=\{ROUTES\.GROUPS\}/);
   assert.match(routes, /path=\{ROUTES\.INCLUSIVE_ONBOARDING\}/);
   assert.match(routes, /path=\{ROUTES\.RETIREMENT_SUPPORT\}/);

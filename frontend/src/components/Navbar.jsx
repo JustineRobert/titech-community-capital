@@ -72,6 +72,7 @@ import {
   LifeBuoy,
   UserPlus,
   HeartHandshake,
+  Landmark,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -95,6 +96,7 @@ const NAVIGATION_ICONS = Object.freeze({
   Users,
   UserPlus,
   HeartHandshake,
+  Landmark,
   CalendarDays,
   ShieldCheck,
   GraduationCap,

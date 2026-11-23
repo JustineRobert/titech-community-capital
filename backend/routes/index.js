@@ -40,6 +40,7 @@ import ussdGatewayRoutes from '../modules/ussd/ussd.routes.js';
 import memberReadRoutes from './member-read.routes.js';
 import loanReadRoutes from './loan-read.routes.js';
 import savingsReadRoutes from './savings-read.routes.js';
+import bankConnectRoutes from '../modules/bankconnect/bankConnect.routes.js';
 
 /**
  * =============================================================================
@@ -1841,6 +1842,10 @@ function registerRoutes(
     app.use('/api/v1/members', authenticate, tenantAuthorization, memberReadRoutes);
     app.use('/api/v1/loans', authenticate, tenantAuthorization, loanReadRoutes);
     app.use('/api/v1/savings', authenticate, tenantAuthorization, savingsReadRoutes);
+
+    // BankConnect is an evidence and reconciliation boundary inside the existing
+    // application. Its routes inherit canonical authentication and tenant scope.
+    app.use(`${API_PREFIX}/bankconnect`, authenticate, tenantAuthorization, bankConnectRoutes);
 
     app.use(
         '/api/email',
