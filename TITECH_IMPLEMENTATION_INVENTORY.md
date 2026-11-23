@@ -1,5 +1,7 @@
 # TITech implementation inventory — 2026-11-07
 
+> **Current execution overlay — 23 November 2026:** The 7 November inventory below remains a historical implementation snapshot. Current registered identity is **TITECH CAPITAL - SMC LTD.**, product **TITech Community Capital**, official tagline **Community Finance. Stronger Together.**, and operating principle **FINANCIAL CORRECTNESS BEFORE CONVENIENCE.** The latest archive-local remediation additionally addresses ESM migration/index tooling, lease/batch handling, syntax parser mapping, guarded `npm ci` installation and API transport verification; focused remediation tests pass 29/29. The official nine-colour theme and organization profile audits pass. This does not establish live migration/index execution, runtime startup, ledger/provider/tenant E2E, build, deploy or production approval; Node/npm are below the repository engine contract and live services/dependencies are unavailable. **Release remains NOT READY; `productionApproved=false`.** See `docs/evidence/2026-11-23-enterprise-e2e-remediation/reexecution-2026-11-23-1624-UGT/CHANGED_FILES.md`.
+
 **Historical organization label (snapshot dated 7 November 2026):** TITech Capital LTD  
 **Product:** TITech Community Capital  
 **Repository target:** `https://github.com/JustineRobert/titech-community-capital`  

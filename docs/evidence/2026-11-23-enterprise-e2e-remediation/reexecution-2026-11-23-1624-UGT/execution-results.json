@@ -1,0 +1,140 @@
+{
+  "generatedAt": "2026-11-23T16:24:00+03:00",
+  "artifactSha256": "7c52234346c1ef2d2de7e9671ef86e968c653363959cac9857b307c75742bf7f",
+  "runtime": {
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "requiredNode": ">=24.15.0",
+    "requiredNpm": ">=11.0.0",
+    "runtimeGate": "BLOCKED"
+  },
+  "commands": [
+    {
+      "command": "npm run test:remediation:unit",
+      "exitCode": 0,
+      "status": "PASS",
+      "detail": "29 passed, 0 failed"
+    },
+    {
+      "command": "node scripts/enterprise-gate.mjs --syntax",
+      "exitCode": 0,
+      "status": "PASS",
+      "detail": "2,613 files parsed"
+    },
+    {
+      "command": "node scripts/official-theme-audit.mjs",
+      "exitCode": 0,
+      "status": "PASS",
+      "detail": "9-color system; 81 CSS files"
+    },
+    {
+      "command": "node scripts/organization-profile-gate.mjs",
+      "exitCode": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "node scripts/financial-static-gate.mjs",
+      "exitCode": 0,
+      "status": "PASS",
+      "detail": "12 canonical financial source files"
+    },
+    {
+      "command": "node scripts/rbac-security-gate.mjs",
+      "exitCode": 0,
+      "status": "PASS",
+      "detail": "static gate only"
+    },
+    {
+      "command": "node scripts/check-conflicts.js",
+      "exitCode": 0,
+      "status": "PASS",
+      "detail": "4,098 files scanned"
+    },
+    {
+      "command": "node backend/scripts/migrate.js help",
+      "exitCode": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "node backend/scripts/migrate.js status",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "Required backend module dotenv is unavailable; suggested npm --prefix backend ci"
+    },
+    {
+      "command": "node backend/scripts/createIndexes.js",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "Required backend module dotenv is unavailable; suggested npm --prefix backend ci"
+    },
+    {
+      "command": "node scripts/titech-supported-runtime-gate.mjs",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "Node 22.16.0/npm 10.9.2 below required versions"
+    },
+    {
+      "command": "npm run install:all",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "safe installer stopped before npm ci"
+    },
+    {
+      "command": "make install",
+      "exitCode": 2,
+      "status": "BLOCKED",
+      "detail": "Make propagated install failure"
+    },
+    {
+      "command": "npm run check",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "runtime gate is first command in chain"
+    },
+    {
+      "command": "npm run ci",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "runtime gate is first command in chain"
+    },
+    {
+      "command": "npm --prefix frontend run build",
+      "exitCode": 127,
+      "status": "BLOCKED",
+      "detail": "vite: not found"
+    },
+    {
+      "command": "npm --prefix backend run check:esm",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "pino is not installed"
+    },
+    {
+      "command": "node scripts/verify-production-contract.mjs",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "API_ORIGIN_MISSING"
+    },
+    {
+      "command": "node scripts/production-approval-gate.mjs",
+      "exitCode": 1,
+      "status": "BLOCKED",
+      "detail": "missing protected approval evidence"
+    }
+  ],
+  "infrastructure": {
+    "mongodb": false,
+    "redis": false,
+    "docker": false,
+    "vercelCli": false,
+    "providerSandbox": false,
+    "liveApiOrigin": false
+  },
+  "git": {
+    "metadataPresent": false,
+    "commitMade": false,
+    "pushMade": false,
+    "deploymentMade": false
+  },
+  "productionApproved": false
+}

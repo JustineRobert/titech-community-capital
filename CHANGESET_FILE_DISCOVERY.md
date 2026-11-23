@@ -1,5 +1,9 @@
 # TITech Community Capital — File Change Discovery
 
+> **Newer execution overlay — 23 November 2026:** The dated 20 November comparison below is retained without modification as a historical snapshot. The latest archive-local run made an additional set of ESM migration/index, dependency-safe installation, syntax parser and API transport verifier changes and generated a new file inventory. The authoritative current delta is [`docs/evidence/2026-11-23-enterprise-e2e-remediation/reexecution-2026-11-23-1624-UGT/CHANGED_FILES.md`](docs/evidence/2026-11-23-enterprise-e2e-remediation/reexecution-2026-11-23-1624-UGT/CHANGED_FILES.md); 29/29 focused tests pass, no original source files were removed, and current runtime/security/operational blockers are listed in that evidence folder.
+
+---
+
 **Compared against:** the untouched source archive extracted from `titech-community-capital-main.zip`  
 **Assessment date:** 20 November 2026  
 **Product identity:** TITech Community Capital  

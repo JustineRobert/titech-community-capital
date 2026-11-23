@@ -77,7 +77,7 @@
     "frontend": "npm run dev:frontend",
     "health": "npm --prefix backend run health",
     "health:backend": "npm --prefix backend run health",
-    "install:all": "npm ci && npm --prefix backend ci && npm --prefix frontend ci",
+    "install:all": "node scripts/safe-install.mjs",
     "install:script": "bash scripts/setup.sh",
     "lint": "npm run lint:backend && npm run lint:frontend",
     "lint:backend": "npm --prefix backend run lint",
@@ -93,7 +93,7 @@
     "quality": "npm run check:all",
     "release:gate": "node scripts/release-readiness-gate.mjs --audit",
     "release:gate:strict": "node scripts/release-readiness-gate.mjs --strict",
-    "security:audit": "npm audit --prefix backend --audit-level=high && npm audit --prefix frontend --audit-level=high",
+    "security:audit": "node scripts/security-audit.mjs",
     "security:audit:fix": "npm audit fix --prefix backend && npm audit fix --prefix frontend",
     "seed-admin": "npm --prefix backend run seed-admin",
     "seed-admin-cli": "node scripts/seed-admin-cli.js",
@@ -107,7 +107,7 @@
     "test:backend:ci": "npm --prefix backend run test:ci",
     "test:backend:coverage": "npm --prefix backend run test:coverage",
     "test:backend:watch": "npm --prefix backend test -- --watch",
-    "test:ci": "npm run test:pilot-readiness && npm run test:dashboard-brand && npm run test:profile-avatar && npm run test:admin-dashboard-contract && npm run test:navigation-menu-placement && npm run test:mongoose-version-key && npm run test:critical-gates && npm run test:bootstrap:contract && npm run test:commercial:core && npm run test:faith-giving && npm run test:faith-giving-donations && npm run test:bankconnect && npm run test:group-presentation && npm run test:navigation-groups && npm run test:ussd && npm run test:organization && npm run test:institutional-leads && npm run test:i18n:native && npm run test:document-malware-scan && npm run test:ubuntu-float && npm run test:inclusive-onboarding && npm run test:education-campaigns && npm run test:edufinance && npm run test:performance-contract && npm run test:retirement-support && npm run test:groups:policies && npm run test:backend:ci && npm run test:frontend:ci && npm run test:chat:readiness && npm run test:i18n:human-review",
+    "test:ci": "npm run test:pilot-readiness && npm run test:dashboard-brand && npm run test:profile-avatar && npm run test:admin-dashboard-contract && npm run test:navigation-menu-placement && npm run test:mongoose-version-key && npm run test:critical-gates && npm run test:remediation:unit && npm run test:bootstrap:contract && npm run test:commercial:core && npm run test:faith-giving && npm run test:faith-giving-donations && npm run test:bankconnect && npm run test:group-presentation && npm run test:navigation-groups && npm run test:ussd && npm run test:organization && npm run test:institutional-leads && npm run test:i18n:native && npm run test:document-malware-scan && npm run test:ubuntu-float && npm run test:inclusive-onboarding && npm run test:education-campaigns && npm run test:edufinance && npm run test:performance-contract && npm run test:retirement-support && npm run test:groups:policies && npm run test:backend:ci && npm run test:frontend:ci && npm run test:chat:readiness && npm run test:i18n:human-review",
     "test:control-plane": "npm --prefix backend run test:control-plane",
     "test:coverage": "npm run test:backend:coverage && npm run test:frontend:coverage",
     "test:e2e": "npm --prefix frontend run test:e2e",
@@ -198,7 +198,10 @@
     "test:i18n:human-review": "node --test scripts/i18n-human-review.test.mjs",
     "test:admin-dashboard-contract": "node --test scripts/admin-dashboard-contract.test.mjs",
     "test:bankconnect": "node --test backend/modules/bankconnect/tests/*.test.mjs",
-    "test:group-presentation": "node --test frontend/src/pages/groupDashboardPresentation.test.mjs"
+    "test:group-presentation": "node --test frontend/src/pages/groupDashboardPresentation.test.mjs",
+    "install:backend": "node scripts/safe-install.mjs --backend",
+    "install:frontend": "node scripts/safe-install.mjs --frontend",
+    "test:remediation:unit": "node --test scripts/lib/syntax-parser.test.mjs scripts/lib/production-contract.test.mjs scripts/lib/security-audit.test.mjs backend/tests/unit/platform/migration-and-index-tooling.test.mjs"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

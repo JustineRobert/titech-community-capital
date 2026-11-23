@@ -1,0 +1,67 @@
+{
+  "generatedAt": "2026-11-23T16:24:00+03:00",
+  "productionApproved": false,
+  "releaseDecision": "NOT_READY",
+  "gates": [
+    {
+      "id": "P0_RUNTIME_INSTALL",
+      "status": "BLOCKED",
+      "evidence": "Runtime gate fails: Node 22.16.0/npm 10.9.2; safe installer stopped before npm ci.",
+      "nextAction": "Use Node >=24.15.0/npm >=11 and run clean root/backend/frontend installs."
+    },
+    {
+      "id": "P0_BOOTSTRAP_HEALTH",
+      "status": "BLOCKED",
+      "evidence": "Backend deps/services unavailable; no real startup or health/readiness HTTP request.",
+      "nextAction": "Install under supported runtime; run MongoDB/Redis-backed startup/shutdown tests."
+    },
+    {
+      "id": "P0_LEDGER_REPLAY",
+      "status": "BLOCKED",
+      "evidence": "Financial static gate passes for 12 files only; no replica-set/Redis E2E.",
+      "nextAction": "Run deterministic concurrency/replay/reversal/reconciliation tests on isolated transaction-capable DB."
+    },
+    {
+      "id": "P0_PROVIDER_FAILURES",
+      "status": "BLOCKED",
+      "evidence": "No provider sandbox or authorized credentials; no callbacks or settlement evidence.",
+      "nextAction": "Run provider simulator and authorized sandbox tests; keep live flags disabled."
+    },
+    {
+      "id": "P0_TENANT_PERMISSIONS",
+      "status": "BLOCKED",
+      "evidence": "RBAC static gate passes; runtime cross-tenant API E2E not run.",
+      "nextAction": "Run two-tenant API/browser negative and positive authorization tests."
+    },
+    {
+      "id": "P1_SECURITY_RECOVERY",
+      "status": "BLOCKED",
+      "evidence": "Six dependency audit attempts blocked; no backup restore or independent pen test.",
+      "nextAction": "Complete npm audits, secrets review, security assessment and measured restore drill."
+    },
+    {
+      "id": "P1_REGULATORY_PARTNER",
+      "status": "BLOCKED",
+      "evidence": "No externally authenticated approval evidence supplied in this run.",
+      "nextAction": "Obtain genuine regulator, institution, insurer and payment provider permissions."
+    },
+    {
+      "id": "P1_COMMERCIAL_PILOT",
+      "status": "BLOCKED",
+      "evidence": "No institutional pilot outcome/acceptance data verified.",
+      "nextAction": "Run controlled partner pilot after all safety and approval gates pass."
+    },
+    {
+      "id": "P0_DEPLOYMENT_TRANSPORT",
+      "status": "BLOCKED",
+      "evidence": "API origin missing; no Vercel CLI/project link/live endpoint.",
+      "nextAction": "Configure actual approved preview origin and verify health/readiness through real transport."
+    },
+    {
+      "id": "P0_CONTAINER_BUILD",
+      "status": "BLOCKED",
+      "evidence": "Docker CLI/daemon unavailable.",
+      "nextAction": "Build and test images using authorized Docker-enabled CI runner."
+    }
+  ]
+}

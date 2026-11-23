@@ -1,0 +1,35 @@
+{
+  "artifact": "titech-community-capital-main.zip",
+  "sha256": "7c52234346c1ef2d2de7e9671ef86e968c653363959cac9857b307c75742bf7f",
+  "extractedFiles": 4054,
+  "zipEntriesIncludingDirectories": 4718,
+  "gitMetadataPresent": false,
+  "runtime": {
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "make": "4.4.1",
+    "requiredNode": ">=24.15.0",
+    "requiredNpm": ">=11.0.0",
+    "status": "BLOCKED"
+  },
+  "dependenciesInstalled": false,
+  "mongoAvailable": false,
+  "redisAvailable": false,
+  "dockerAvailable": false,
+  "vercelCliAvailable": false,
+  "npmRegistryAccess": "BLOCKED_EAI_AGAIN_OR_TIMEOUT",
+  "noListeningPorts": [
+    3000,
+    5000,
+    9090,
+    27017,
+    6379
+  ],
+  "packageLockfiles": [
+    "package-lock.json",
+    "backend/package-lock.json",
+    "frontend/package-lock.json"
+  ],
+  "dependenciesChanged": false,
+  "productionApproved": false
+}

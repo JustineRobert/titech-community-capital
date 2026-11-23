@@ -883,6 +883,7 @@ MigrationSchema.methods.markRunning =
     runnerId = null,
     hostname = null,
     processId = null,
+    batch = undefined,
     leaseMs = DEFAULT_MIGRATION_LEASE_MS,
   } = {}) {
     if (!this.isRunnable()) {
@@ -1012,7 +1013,13 @@ MigrationSchema.methods.markCompleted =
     this.lockAcquiredAt = null;
     this.lockExpiresAt = null;
 
-    await this.save();
+    // The checksum becomes immutable after this first completed transition.
+    this.$locals.allowChecksumUpdate = true;
+    try {
+      await this.save();
+    } finally {
+      delete this.$locals.allowChecksumUpdate;
+    }
 
     return this;
   };
@@ -1302,6 +1309,7 @@ MigrationSchema.statics.claimMigration =
     executedBy = 'system',
     hostname = null,
     processId = null,
+    batch = undefined,
     leaseMs = DEFAULT_MIGRATION_LEASE_MS,
   } = {}) {
     const normalizedVersion =
@@ -1359,8 +1367,13 @@ MigrationSchema.statics.claimMigration =
       ],
     };
 
+    if (batch !== undefined && (!Number.isSafeInteger(batch) || batch < 0)) {
+      throw new TypeError('batch must be a non-negative safe integer when supplied.');
+    }
+
     const update = {
       $set: {
+        ...(batch === undefined ? {} : { batch }),
         status: 'running',
 
         startedAt: now,
@@ -1415,6 +1428,7 @@ MigrationSchema.statics.claimMigration =
           new: true,
           runValidators: true,
           returnDocument: 'after',
+          allowMigrationMutation: true,
         },
       ).exec();
 
@@ -1474,6 +1488,7 @@ MigrationSchema.statics.renewMigrationLease =
       {
         new: true,
         runValidators: true,
+        allowMigrationMutation: true,
       },
     ).exec();
   };
@@ -1487,6 +1502,7 @@ MigrationSchema.statics.completeMigration =
     environment = DEFAULT_ENVIRONMENT,
     runnerId,
     checksum = undefined,
+    startedAt = null,
   } = {}) {
     const normalizedVersion =
       normalizeVersion(version);
@@ -1527,13 +1543,12 @@ MigrationSchema.statics.completeMigration =
           MAX_CHECKSUM_LENGTH,
         );
     }
+    if (startedAt) {
+      update.$set.durationMs = calculateDurationMs(startedAt, now);
+    }
 
-    /**
-     * Duration is calculated using the stored startedAt value through a
-     * pipeline-free two-step pattern in the runner. The model therefore
-     * retains startedAt and the completion timestamp; a subsequent read
-     * can derive duration precisely if needed.
-     */
+    // Persist state, checksum and elapsed duration atomically under the
+    // runner-ownership and unexpired-lease filter.
     const migration =
       await this.findOneAndUpdate(
         {
@@ -1551,18 +1566,9 @@ MigrationSchema.statics.completeMigration =
         {
           new: true,
           runValidators: true,
+          allowMigrationMutation: true,
         },
       ).exec();
-
-    if (migration?.startedAt) {
-      migration.durationMs =
-        calculateDurationMs(
-          migration.startedAt,
-          migration.completedAt,
-        );
-
-      await migration.save();
-    }
 
     return migration;
   };
@@ -1578,6 +1584,7 @@ MigrationSchema.statics.failMigration =
     error = null,
     errorCode = null,
     nextRetryAt = null,
+    startedAt = null,
   } = {}) {
     const normalizedVersion =
       normalizeVersion(version);
@@ -1620,23 +1627,15 @@ MigrationSchema.statics.failMigration =
             lockOwner: null,
             lockAcquiredAt: null,
             lockExpiresAt: null,
+            ...(startedAt ? { durationMs: calculateDurationMs(startedAt, failedAt) } : {}),
           },
         },
         {
           new: true,
           runValidators: true,
+          allowMigrationMutation: true,
         },
       ).exec();
-
-    if (migration?.startedAt) {
-      migration.durationMs =
-        calculateDurationMs(
-          migration.startedAt,
-          failedAt,
-        );
-
-      await migration.save();
-    }
 
     return migration;
   };
@@ -1698,6 +1697,7 @@ MigrationSchema.statics.rollbackMigration =
       {
         new: true,
         runValidators: true,
+        allowMigrationMutation: true,
       },
     ).exec();
   };
@@ -1764,6 +1764,7 @@ MigrationSchema.statics.adminSoftDelete =
       },
       {
         new: true,
+        allowMigrationMutation: true,
       },
     ).exec();
   };
@@ -1860,7 +1861,8 @@ MigrationSchema.pre(
       if (
         !this.isNew &&
         this.status === 'completed' &&
-        this.isModified('checksum')
+        this.isModified('checksum') &&
+        this.$locals.allowChecksumUpdate !== true
       ) {
         this.invalidate(
           'checksum',

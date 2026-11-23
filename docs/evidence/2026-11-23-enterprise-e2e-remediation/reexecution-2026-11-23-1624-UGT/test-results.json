@@ -1,0 +1,90 @@
+{
+  "generatedAt": "2026-11-23T16:24:00+03:00",
+  "status": "PARTIAL",
+  "unit": {
+    "command": "npm run test:remediation:unit",
+    "status": "PASS",
+    "passed": 29,
+    "failed": 0,
+    "skipped": 0
+  },
+  "syntax": {
+    "command": "node scripts/enterprise-gate.mjs --syntax",
+    "status": "PASS",
+    "filesParsed": 2613
+  },
+  "theme": {
+    "command": "node scripts/official-theme-audit.mjs",
+    "status": "PASS",
+    "paletteColors": 9,
+    "frontendCssFiles": 81
+  },
+  "organization": {
+    "command": "node scripts/organization-profile-gate.mjs",
+    "status": "PASS",
+    "productionApproved": false
+  },
+  "financialStatic": {
+    "command": "node scripts/financial-static-gate.mjs",
+    "status": "PASS",
+    "canonicalFiles": 12
+  },
+  "rbacStatic": {
+    "command": "node scripts/rbac-security-gate.mjs",
+    "status": "PASS"
+  },
+  "conflicts": {
+    "command": "node scripts/check-conflicts.js",
+    "status": "PASS",
+    "filesScanned": 4098
+  },
+  "implementationGate": {
+    "status": "PASS"
+  },
+  "hostingGate": {
+    "status": "PASS"
+  },
+  "runtime": {
+    "status": "BLOCKED",
+    "node": "v22.16.0",
+    "npm": "10.9.2"
+  },
+  "install": {
+    "status": "BLOCKED",
+    "npmCiExecuted": false
+  },
+  "integration": {
+    "status": "NOT_RUN"
+  },
+  "databaseMigration": {
+    "status": "BLOCKED"
+  },
+  "indexCreation": {
+    "status": "BLOCKED"
+  },
+  "backendBuild": {
+    "status": "BLOCKED"
+  },
+  "frontendBuild": {
+    "status": "BLOCKED",
+    "reason": "vite: not found"
+  },
+  "financialE2E": {
+    "status": "NOT_RUN"
+  },
+  "tenantApiE2E": {
+    "status": "NOT_RUN"
+  },
+  "browserE2E": {
+    "status": "NOT_RUN"
+  },
+  "docker": {
+    "status": "BLOCKED"
+  },
+  "vercelTransport": {
+    "status": "BLOCKED"
+  },
+  "productionApproval": {
+    "status": "BLOCKED"
+  }
+}

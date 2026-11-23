@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-11-23T16:24:00+03:00",
+  "status": "BLOCKED",
+  "policy": "Production dependencies must have zero known critical/high findings; valid npm audit metadata is required before any audit can be marked PASS.",
+  "note": "All six independent audit scopes were attempted; DNS failure/timeouts prevented valid audit metadata. Null counts mean unknown, not zero.",
+  "packages": {
+    "root": {
+      "allDependencies": {
+        "execution": "BLOCKED",
+        "exitCode": 1,
+        "counts": null,
+        "error": null,
+        "diagnostic": "npm audit could not retrieve registry metadata: DNS lookup failed (EAI_AGAIN registry.npmjs.org). No valid metadata.vulnerabilities object was returned.",
+        "advisories": []
+      },
+      "productionDependencies": {
+        "execution": "BLOCKED",
+        "exitCode": 1,
+        "counts": null,
+        "error": null,
+        "diagnostic": "npm audit could not retrieve registry metadata: DNS lookup failed (EAI_AGAIN registry.npmjs.org). No valid metadata.vulnerabilities object was returned.",
+        "advisories": []
+      }
+    },
+    "backend": {
+      "allDependencies": {
+        "execution": "BLOCKED",
+        "exitCode": 124,
+        "counts": null,
+        "error": null,
+        "diagnostic": "npm audit request timed out before a valid npm audit report was returned; no vulnerability counts are available.",
+        "advisories": []
+      },
+      "productionDependencies": {
+        "execution": "BLOCKED",
+        "exitCode": 124,
+        "counts": null,
+        "error": null,
+        "diagnostic": "npm audit request timed out before a valid npm audit report was returned; no vulnerability counts are available.",
+        "advisories": []
+      }
+    },
+    "frontend": {
+      "allDependencies": {
+        "execution": "BLOCKED",
+        "exitCode": 124,
+        "counts": null,
+        "error": null,
+        "diagnostic": "npm audit request timed out before a valid npm audit report was returned; no vulnerability counts are available.",
+        "advisories": []
+      },
+      "productionDependencies": {
+        "execution": "BLOCKED",
+        "exitCode": 124,
+        "counts": null,
+        "error": null,
+        "diagnostic": "npm audit request timed out before a valid npm audit report was returned; no vulnerability counts are available.",
+        "advisories": []
+      }
+    }
+  }
+}

@@ -1,51 +1,40 @@
-'use strict';
-
 /**
- * ============================================================================
- * CREATE DATABASE INDEXES
- * ============================================================================
- * TITech Community Capital
- * SACCO Core Banking Platform
- *
- * PURPOSE
- * ----------------------------------------------------------------------------
- * Creates all required MongoDB indexes for:
- *
- * ✅ Loans
- * ✅ Members
- * ✅ Users
- * ✅ Accounts
- * ✅ Savings
- * ✅ Transactions
- *
- * FEATURES
- * ----------------------------------------------------------------------------
- * ✅ Idempotent
- * ✅ Production Safe
- * ✅ Multi-Tenant Optimized
- * ✅ Analytics Optimized
- * ✅ Risk Engine Ready
- * ✅ Board Dashboard Ready
- * ✅ BoU Reporting Ready
- *
- * RUN:
- *
- * npm run create:indexes
- *
- * ============================================================================
+ * TITech Community Capital — safe, idempotent MongoDB index creation.
+ * Existing schema/model definitions remain authoritative; this utility only
+ * adds declared indexes and propagates every conflict/failure to the caller.
  */
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { importBackendDependency, loadBackendEnvironment } from '../utils/backendDependencyLoader.js';
+import { ensureIndex } from '../utils/indexCreation.js';
 
-require('dotenv').config();
-
-const mongoose = require('mongoose');
-
-const Loan = require('../models/Loan');
-const Member = require('../models/Member');
-const User = require('../models/User');
-
+const CURRENT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
+let mongoose;
+let Loan;
+let Member;
+let User;
 let Account;
 let Savings;
 let Transaction;
+
+async function loadDependencies() {
+    const [mongooseModule, loanModule, memberModule, userModule, accountModule, savingsModule, transactionModule] = await Promise.all([
+        importBackendDependency('mongoose'),
+        importBackendDependency('../models/Loan.js'),
+        importBackendDependency('../models/Member.js'),
+        importBackendDependency('../models/User.js'),
+        importBackendDependency('../models/Account.js'),
+        importBackendDependency('../models/Savings.js'),
+        importBackendDependency('../models/Transaction.js'),
+    ]);
+    mongoose = mongooseModule.default;
+    Loan = loanModule.default;
+    Member = memberModule.default;
+    User = userModule.default;
+    Account = accountModule.default;
+    Savings = savingsModule.default;
+    Transaction = transactionModule.default;
+}
 
 /**
  * ============================================================================
@@ -56,6 +45,7 @@ let Transaction;
 async function connectDB() {
 
     const uri =
+        process.env.TITECH_MONGODB_URI ||
         process.env.MONGODB_URI ||
         process.env.MONGO_URI;
 
@@ -84,28 +74,9 @@ async function createIndex(
     options = {}
 ) {
 
-    try {
-
-        await collection.createIndex(
-            index,
-            options
-        );
-
-        console.log(
-            `✅ ${collection.collectionName}`,
-            JSON.stringify(index)
-        );
-
-    } catch (error) {
-
-        console.error(
-            `❌ Failed ${collection.collectionName}`
-        );
-
-        console.error(
-            error.message
-        );
-    }
+    const indexName = await ensureIndex(collection, index, options);
+    console.log(`✅ ${collection.collectionName}`, JSON.stringify(index), indexName);
+    return indexName;
 }
 
 /**
@@ -379,30 +350,6 @@ async function createUserIndexes() {
  * ============================================================================
  */
 
-async function loadOptionalModels() {
-
-    try {
-        Account =
-            require('../models/Account');
-    } catch (_) {
-        // Intentional empty catch: best-effort fallback or cleanup path.
-    }
-
-    try {
-        Savings =
-            require('../models/Savings');
-    } catch (_) {
-        // Intentional empty catch: best-effort fallback or cleanup path.
-    }
-
-    try {
-        Transaction =
-            require('../models/Transaction');
-    } catch (_) {
-        // Intentional empty catch: best-effort fallback or cleanup path.
-    }
-}
-
 async function createAccountIndexes() {
 
     if (!Account) return;
@@ -515,65 +462,49 @@ async function createTransactionIndexes() {
  * ============================================================================
  */
 
-async function run() {
-
+export async function run() {
+    let primaryError = null;
     try {
-
-        console.log('');
-        console.log(
-            '========================================='
-        );
-        console.log(
-            '🚀 TITech Database Index Creator'
-        );
-        console.log(
-            '========================================='
-        );
-
+        console.log('TITech Community Capital database index creation starting.');
+        await loadBackendEnvironment({ backendDirectory: path.resolve(CURRENT_DIRECTORY, '..') });
+        await loadDependencies();
         await connectDB();
 
-        await loadOptionalModels();
-
         await createLoanIndexes();
-
         await createMemberIndexes();
-
         await createUserIndexes();
-
         await createAccountIndexes();
-
         await createSavingsIndexes();
-
         await createTransactionIndexes();
 
-        console.log('');
-        console.log(
-            '========================================='
-        );
-        console.log(
-            '✅ INDEX CREATION COMPLETE'
-        );
-        console.log(
-            '========================================='
-        );
-
-        await mongoose.disconnect();
-
-        process.exit(0);
-
+        console.log('TITech database index creation completed successfully.');
+        return { success: true };
     } catch (error) {
-
-        console.error('');
-        console.error(
-            '❌ INDEX CREATION FAILED'
-        );
-
+        primaryError = error;
+        console.error('TITech database index creation failed.');
         console.error(error);
-
-        await mongoose.disconnect();
-
-        process.exit(1);
+        throw error;
+    } finally {
+        if (mongoose?.connection && mongoose.connection.readyState !== 0) {
+            try {
+                await mongoose.disconnect();
+            } catch (disconnectError) {
+                if (primaryError) {
+                    primaryError.cleanupError = disconnectError;
+                } else {
+                    throw disconnectError;
+                }
+            }
+        }
     }
 }
 
-run();
+export { createIndex };
+
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+if (invokedPath && pathToFileURL(invokedPath).href === import.meta.url) {
+    run().catch((error) => {
+        console.error(`Index creation terminated with a non-zero result: ${error.message}`);
+        process.exitCode = 1;
+    });
+}

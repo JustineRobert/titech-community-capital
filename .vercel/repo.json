@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_nORYQxv9ghlMUpxAXnb5qGryTs9S",
+      "name": "titech-community-capital-platform",
+      "directory": ".",
+      "orgId": "team_xVuj1lSzUzNHdrJnCtJJzFDg"
+    }
+  ]
+}

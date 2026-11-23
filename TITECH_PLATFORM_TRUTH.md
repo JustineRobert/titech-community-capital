@@ -11,6 +11,14 @@
 **PRODUCTION_APPROVED: NO**  
 **`productionApproved`: `false`**
 
+## 23 November 2026 — Migration/index tooling, install safety and API transport re-execution
+
+The later 23 November archive-local pass adds a native-ESM migration/index CLI path, compatibility loading for historical CommonJS migration source, controlled migration claim/lease/heartbeat/checksum updates (including an explicit batch argument), a validated index-creation primitive that propagates MongoDB errors, an explicit TypeScript/JSX syntax parser, guarded sequential `npm ci` orchestration, independent dependency audit reporting, and a strict health/readiness/API transport verifier. Its focused suite passes **29/29**, the repository syntax gate parses **2,613** JS/TS-family files, the nine-colour theme audit passes across 81 frontend CSS files, the organization profile and RBAC static gates pass, the financial static gate passes for 12 canonical files, and the merge-conflict scan passes across 4,098 files.
+
+This newer execution is a source-level/tooling remediation, not live operational verification. The exact uploaded source ZIP has SHA-256 `7c52234346c1ef2d2de7e9671ef86e968c653363959cac9857b307c75742bf7f` and no `.git` directory. Available Node `22.16.0` / npm `10.9.2` are below the repository requirement; the safe installer stopped before `npm ci`. npm audits are blocked by registry DNS/timeouts. No database migrations/index creation, backend startup/health/readiness, front-end production build, ledger/provider/tenant/browser E2E, Docker/Vercel transport, backup/restore, independent security assessment or external regulatory/partner approval was established. The production approval gate remains blocked and `productionApproved=false`. See [`docs/evidence/2026-11-23-enterprise-e2e-remediation/reexecution-2026-11-23-1624-UGT/`](docs/evidence/2026-11-23-enterprise-e2e-remediation/reexecution-2026-11-23-1624-UGT/).
+
+---
+
 ## 23 November 2026 — BankConnect local evidence capability and verification update
 
 The current uploaded archive for this execution has SHA-256 `c028dfc6d2044c3c097778368aacf2ca6f741974fde56dfeabd62718c25ef779`, passes `unzip -t`, and contains no `.git` directory. This execution added a first tenant-scoped **TITech BankConnect** capability inside the existing application. It reuses the current Express route tree, tenant authorization, RBAC, MongoDB/Mongoose, append-oriented tenant AuditLog, existing theme/navigation and standard dashboard shell. It does not add a second database, authentication system, payment processor or ledger.

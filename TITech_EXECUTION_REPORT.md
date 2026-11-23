@@ -1,5 +1,13 @@
 # TITech Community Capital — archive-local engineering execution report
 
+## Current execution update — 23 November 2026: ESM tooling, install safety and API transport
+
+A subsequent archive-local remediation fixed the ESM/CommonJS mismatch in the canonical migration/index command path, added a historical CommonJS migration loader, made index errors propagate, strengthened migration claim/lease/checksum handling (including explicit batch parameter validation), repaired the enterprise syntax parser mapping, unified installation around guarded sequential `npm ci`, and hardened the production transport verifier to reject unhealthy/unready HTTP 200 payloads and SPA fallback HTML. The focused regression suite passes **29/29**, the syntax gate parses **2,613** JS/TS-family files, the theme audit passes across 81 CSS files, the organization-profile gate passes, financial static gate passes for 12 canonical files, RBAC static check passes, and 4,098 files pass conflict-marker scanning.
+
+The complete CI chain remains blocked at the runtime gate (Node 22.16.0/npm 10.9.2 versus required Node >=24.15.0/npm >=11.0.0); the safe installer therefore did not execute `npm ci`. Dependency audits are blocked by npm registry DNS/timeouts; builds, actual MongoDB migration/index operations, backend health/readiness, real ledger/provider/tenant/browser E2E, Docker/Vercel transport and release approval were not established. The archive lacks `.git` metadata. The production approval gate remains BLOCKED and `productionApproved=false`. Detailed outcomes and exact changes are in `docs/evidence/2026-11-23-enterprise-e2e-remediation/reexecution-2026-11-23-1624-UGT/`.
+
+---
+
 **Execution date:** 23 November 2026  
 **Product:** TITech Community Capital  
 **Registered organization:** TITECH CAPITAL - SMC LTD.  

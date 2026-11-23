@@ -3,7 +3,7 @@
 # Unified commands for development, testing, and deployment
 # ============================================================================
 
-.PHONY: help install dev test lint format build clean docker-build docker-up
+.PHONY: help install install-backend install-frontend dev test lint format build verify clean docker-build docker-up
 
 help:
 	@echo "======================================================================"
@@ -39,6 +39,7 @@ help:
 	@echo ""
 	@echo "BUILD & DEPLOYMENT"
 	@echo "  make build             Build production assets"
+	@echo "  make verify            Run the complete CI check, test and build chain"
 	@echo "  make docker-build      Build Docker images"
 	@echo "  make docker-up         Start Docker containers"
 	@echo "  make docker-down       Stop Docker containers"
@@ -56,19 +57,13 @@ help:
 # ============================================================================
 
 install:
-	@echo "Installing all dependencies..."
-	npm run install:all
-	@echo "✅ Installation complete"
+	@npm run install:all && echo "TITech root, backend and frontend dependency installation passed."
 
 install-backend:
-	@echo "Installing backend dependencies..."
-	cd backend && npm install
-	@echo "✅ Backend installation complete"
+	@npm run install:backend && echo "TITech backend dependency installation passed."
 
 install-frontend:
-	@echo "Installing frontend dependencies..."
-	cd frontend && npm install
-	@echo "✅ Frontend installation complete"
+	@npm run install:frontend && echo "TITech frontend dependency installation passed."
 
 # ============================================================================
 # DEVELOPMENT
@@ -154,6 +149,9 @@ quality:
 build:
 	@echo "Building for production..."
 	npm run build
+
+verify:
+	@npm run ci
 
 docker-build:
 	@echo "Building Docker images..."

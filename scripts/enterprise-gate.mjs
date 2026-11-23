@@ -14,6 +14,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseSourceFile } from './lib/syntax-parser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = new Set(process.argv.slice(2));
@@ -184,56 +185,54 @@ function validateConflicts() {
 }
 
 function validateSyntax() {
-  let ts = null;
+  let typescript;
   try {
     const backendRequire = createRequire(path.join(ROOT, 'backend', 'package.json'));
-    ts = backendRequire('typescript');
-  } catch {
-    warn('TypeScript parser is not installed locally; running dependency-free Node syntax checks for JS/MJS/CJS and recording TS/JSX as NOT VERIFIED.');
-  }
-
-  const files = walk(ROOT).filter((file) => EXECUTABLE_EXTENSIONS.has(path.extname(file)));
-
-  if (ts) {
-    const syntaxErrors = [];
-    for (const file of files) {
-      const source = fs.readFileSync(file, 'utf8');
-      const ext = path.extname(file);
-      const scriptKind = ext === '.tsx' ? ts.ScriptKind.TSX : ext === '.jsx' ? ts.ScriptKind.JSX : ts.ScriptKind.JS;
-      const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKind);
-      for (const diagnostic of sf.parseDiagnostics) {
-        const start = diagnostic.start ?? 0;
-        const lc = sf.getLineAndCharacterOfPosition(start);
-        syntaxErrors.push(`${rel(file)}:${lc.line + 1}:${lc.character + 1} ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`);
-      }
-    }
-    if (syntaxErrors.length) {
-      fail(`${syntaxErrors.length} syntax diagnostics found:\n${syntaxErrors.slice(0, 100).join('\n')}`);
-    } else {
-      console.log(`Syntax gate: PASS (${files.length} executable JS/TS-family files parsed).`);
-    }
+    typescript = backendRequire('typescript');
+  } catch (error) {
+    fail(
+      `TypeScript parser is unavailable; syntax validation cannot skip TS/JSX files. ` +
+      `Run the supported clean installation (npm run install:all). Cause: ${error.message}`,
+    );
     return;
   }
 
-  const nodeFiles = files.filter((file) => ['.js', '.mjs', '.cjs'].includes(path.extname(file)));
-  const notVerified = files.filter((file) => ['.jsx', '.ts', '.tsx'].includes(path.extname(file)));
+  if (typeof typescript?.createSourceFile !== 'function') {
+    fail('The resolved TypeScript package does not expose the required compiler parser API (createSourceFile).');
+    return;
+  }
+
+  const files = walk(ROOT).filter((file) => EXECUTABLE_EXTENSIONS.has(path.extname(file).toLowerCase()));
   const syntaxErrors = [];
 
-  for (const file of nodeFiles) {
-    const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
-    if (result.status !== 0) {
-      const detail = (result.stderr || result.stdout || 'unknown syntax error').trim();
-      syntaxErrors.push(`${rel(file)}: ${detail}`);
+  for (const file of files) {
+    let source;
+    try {
+      source = fs.readFileSync(file, 'utf8');
+    } catch (error) {
+      syntaxErrors.push(`${rel(file)}: unable to read source file: ${error.message}`);
+      continue;
+    }
+
+    try {
+      const sourceFile = parseSourceFile(typescript, file, source);
+      for (const diagnostic of sourceFile.parseDiagnostics || []) {
+        const start = diagnostic.start ?? 0;
+        const location = sourceFile.getLineAndCharacterOfPosition(start);
+        syntaxErrors.push(
+          `${rel(file)}:${location.line + 1}:${location.character + 1} ` +
+          typescript.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+        );
+      }
+    } catch (error) {
+      syntaxErrors.push(`${rel(file)}: parser failed: ${error.message}`);
     }
   }
 
   if (syntaxErrors.length) {
-    fail(`${syntaxErrors.length} JavaScript syntax errors found:\n${syntaxErrors.slice(0, 100).join('\n')}`);
+    fail(`${syntaxErrors.length} syntax/read/parser diagnostic(s) found:\n${syntaxErrors.slice(0, 100).join('\n')}`);
   } else {
-    console.log(`Dependency-free syntax gate: PASS (${nodeFiles.length} JS/MJS/CJS files checked).`);
-  }
-  if (notVerified.length) {
-    warn(`TypeScript/JSX syntax not verified without TypeScript dependency: ${notVerified.length} file(s).`);
+    console.log(`Syntax gate: PASS (${files.length} executable JS/TS-family files parsed).`);
   }
 }
 

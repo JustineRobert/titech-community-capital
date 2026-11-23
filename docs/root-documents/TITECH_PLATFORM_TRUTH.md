@@ -1,3 +1,21 @@
+# Current platform truth — 23 November 2026 (supersedes older identity snapshots)
+
+**Product:** TITech Community Capital  
+**Registered organization:** TITECH CAPITAL - SMC LTD.  
+**Official tagline:** Community Finance. Stronger Together.  
+**Operating principle:** FINANCIAL CORRECTNESS BEFORE CONVENIENCE.  
+**Entity Registration Number:** 80049233029029  
+**Official email:** titechcapital@gmail.com  
+**Telephone:** +256782397907  
+**WhatsApp:** +256772123546  
+**Postal correspondence:** P.O. Box 601200 (user-supplied administrative record; not represented as a registered office)
+
+The active tagline is **Community Finance. Stronger Together.** The phrase **BUILD LESS. PROVE MORE.** is historical wording only and must not be rendered as the current product tagline. Preserve the existing circular logo, official nine-colour palette, centralized semantic tokens, and explicit light/dark theme system. Do not replace the existing authentication, tenant/RBAC, JWT/HttpOnly refresh-cookie, Redis, audit, payment, ledger, reconciliation, refugee/host-community inclusion, or partner-insurer architectures.
+
+**Current execution status — 23 November 2026 re-execution:** native-ESM migration/index tooling, historic CommonJS migration loading, migration claim/lease/checksum handling, source-safe index creation, the enterprise syntax parser, guarded reproducible installation commands, and API transport verification were improved in the uploaded archive copy. Focused regression tests pass **29/29**; the repository syntax gate parses **2,613** JS/TS-family files; the nine-colour theme audit (81 frontend CSS files), organization-profile audit, canonical financial static gate (12 files), RBAC static gate, and merge-conflict scan (4,098 files) pass. These are source/static or unit-level checks only. The ZIP has no `.git` metadata. Node 22.16.0/npm 10.9.2 are below Node >=24.15.0/npm >=11.0.0; installation was stopped before `npm ci`; required dependencies, MongoDB, Redis, Docker, Vercel CLI and a configured live API origin are unavailable. Six independent npm audit attempts are blocked by registry DNS/timeouts, so no current vulnerability count is claimed. Migration/index execution against MongoDB, backend/frontend builds, live health/readiness, database-backed ledger replay, provider sandbox settlement, browser E2E, backup/restore, deployment transport, independent security assessment, regulatory/partner approval, and a commercial pilot remain blocked or unverified. **Release remains NOT READY; `productionApproved=false`.** Older dated sections below are retained as historical evidence and must not override this current identity and release decision.
+
+---
+
 ## 29 October 2026 — institutional conversion workflow implementation slice
 
 **Current decision: `NOT_READY`; `productionApproved=false`.** This section records source changes made to the uploaded archive snapshot `titech-community-capital-main.zip`. The archive has no `.git` directory; no commit, branch, push, remote CI result, or clean-clone result is claimed.

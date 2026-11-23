@@ -1,242 +1,138 @@
-// scripts/migrate.js
-// ============================================================================
-// Database Migration CLI
-// Usage: node scripts/migrate.js <command> [options]
-// Commands: up, down, status, list, verify
-// ============================================================================
+#!/usr/bin/env node
+/** TITech Community Capital — database migration CLI (native ESM). */
 
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { importBackendDependency, loadBackendEnvironment } from '../utils/backendDependencyLoader.js';
 
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
-const MigrationRunner = require('../utils/migrationRunner');
+const CURRENT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 
-const MIGRATIONS_DIR = path.join(__dirname, '../migrations');
+let mongoose;
+let logger;
+let MigrationRunner;
 
-/**
- * Connect to database
- */
-async function connectDB() {
-  try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 10000,
-    });
-    logger.info('✓ Connected to MongoDB');
-  } catch (error) {
-    logger.error('✗ Failed to connect to MongoDB', error);
-    process.exit(1);
-  }
+async function loadCliDependencies() {
+  const [mongooseModule, loggerModule, runnerModule] = await Promise.all([
+    importBackendDependency('mongoose'),
+    importBackendDependency('../utils/logger.js'),
+    importBackendDependency('../utils/migrationRunner.js'),
+  ]);
+  mongoose = mongooseModule.default;
+  logger = loggerModule.default;
+  MigrationRunner = runnerModule.default;
 }
 
-/**
- * Disconnect from database
- */
-async function disconnectDB() {
-  try {
-    await mongoose.disconnect();
-    logger.info('✓ Disconnected from MongoDB');
-  } catch (error) {
-    logger.error('Error disconnecting from MongoDB', error);
-  }
-}
+const MIGRATIONS_DIR = path.resolve(CURRENT_DIRECTORY, '../migrations');
 
-/**
- * Print help message
- */
-function printHelp() {
-  console.log(`
-Database Migration CLI
-======================
-
-Usage: node scripts/migrate.js <command> [options]
-
-Commands:
-  up                Run pending migrations
-  down              Rollback last batch of migrations
-  status            Show migration status
-  list              List all migrations
-  verify            Verify migration integrity
-  help              Show this help message
-
-Options:
-  --batch <number>  Specific batch to rollback
-  --dry-run         Don't actually run migrations
-  --environment     Override NODE_ENV
-
-Examples:
-  node scripts/migrate.js up
-  node scripts/migrate.js down --batch 1
-  node scripts/migrate.js status
-  node scripts/migrate.js up --dry-run
-  `);
-}
-
-/**
- * Parse command line arguments
- */
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const command = args[0] || 'help';
+function parseArgs(argv = process.argv.slice(2)) {
+  const [command = 'help', ...rest] = argv;
   const options = {};
-
-  for (let i = 1; i < args.length; i++) {
-    if (args[i] === '--batch' && args[i + 1]) {
-      options.batch = parseInt(args[i + 1], 10);
-      i++;
-    } else if (args[i] === '--dry-run') {
-      options.dryRun = true;
-    } else if (args[i] === '--environment' && args[i + 1]) {
-      options.environment = args[i + 1];
-      i++;
+  for (let index = 0; index < rest.length; index += 1) {
+    const item = rest[index];
+    if (item === '--dry-run') options.dryRun = true;
+    else if (item === '--batch') {
+      const value = Number(rest[index + 1]);
+      if (!Number.isSafeInteger(value) || value < 0) throw new TypeError('--batch must be a non-negative safe integer.');
+      options.batch = value;
+      index += 1;
+    } else if (item === '--environment') {
+      options.environment = rest[index + 1];
+      if (!options.environment) throw new TypeError('--environment requires a value.');
+      index += 1;
+    } else {
+      throw new TypeError(`Unknown migration option: ${item}`);
     }
   }
-
   return { command, options };
 }
 
-/**
- * Format table output
- */
+function printHelp() {
+  console.log(`\nTITech Community Capital database migrations\n\nUsage: npm --prefix backend run migrate:<status|verify|up>\n       node scripts/migrate.js <up|down|status|list|verify|help> [options]\n\nOptions:\n  --batch <number>       Select a rollback batch\n  --dry-run              Report the proposed change without executing it\n  --environment <name>   development, test, staging or production\n`);
+}
+
 function printTable(migrations) {
-  if (migrations.length === 0) {
-    console.log('No migrations found');
+  if (!migrations.length) {
+    console.log('No migration files found.');
     return;
   }
-
-  console.log(
-    '\n┌─────────────────────────────────────────────────────┬───────────────┬──────────────────┬──────────┐'
-  );
-  console.log(
-    '│ Version                                             │ Status        │ Duration         │ Batch    │'
-  );
-  console.log(
-    '├─────────────────────────────────────────────────────┼───────────────┼──────────────────┼──────────┤'
-  );
-
-  for (const m of migrations) {
-    const version = (m.version || '').padEnd(53);
-    const status = (m.status || 'pending').padEnd(15);
-    const duration = (m.duration ? `${m.duration}ms` : '-').padEnd(18);
-    const batch = (m.batch || '-').toString().padEnd(8);
-
-    console.log(`│ ${version} │ ${status} │ ${duration} │ ${batch} │`);
-  }
-
-  console.log(
-    '└─────────────────────────────────────────────────────┴───────────────┴──────────────────┴──────────┘'
-  );
+  console.table(migrations.map((migration) => ({
+    version: migration.version,
+    status: migration.status,
+    batch: migration.batch ?? '',
+    durationMs: migration.durationMs ?? '',
+    checksumPresent: migration.checksumPresent ?? '',
+  })));
 }
 
-/**
- * Main CLI execution
- */
+async function connectDB() {
+  const uri = process.env.TITECH_MONGODB_URI || process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (!uri) throw new Error('Database URI is not configured. Set MONGO_URI or MONGODB_URI in backend/.env.');
+  await mongoose.connect(uri, { maxPoolSize: 10, serverSelectionTimeoutMS: 10_000 });
+  logger.info('Migration CLI connected to MongoDB', { database: mongoose.connection.name });
+}
+
+async function disconnectDB() {
+  if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
+}
+
 async function main() {
-  const { command, options } = parseArgs();
-
+  let exitCode = 0;
   try {
-    await connectDB();
-
-    const runner = new MigrationRunner(MIGRATIONS_DIR);
-
-    switch (command) {
-      case 'up': {
-        console.log('\n📦 Running pending migrations...\n');
-        const result = await runner.runPending({
-          dryRun: options.dryRun,
-          environment: options.environment || process.env.NODE_ENV,
-        });
-
-        if (options.dryRun) {
-          console.log(`\n[DRY RUN] Would have run ${result.migrationsRun} migration(s)`);
-        } else {
-          const status = result.success ? '✓ SUCCESS' : '✗ FAILED';
-          console.log(`\n${status}: ${result.migrationsRun} migration(s) executed`);
-
-          if (result.results) {
-            for (const res of result.results) {
-              const icon = res.success ? '✓' : '✗';
-              console.log(`${icon} ${res.version} (${res.duration || 'error'}ms)`);
-            }
-          }
-        }
-        break;
-      }
-
-      case 'down': {
-        console.log('\n📦 Rolling back migrations...\n');
-        const result = await runner.rollbackBatch({
-          batch: options.batch,
-          dryRun: options.dryRun,
-        });
-
-        if (options.dryRun) {
-          console.log(`\n[DRY RUN] Would have rolled back ${result.rolledBack} migration(s)`);
-        } else {
-          const status = result.success ? '✓ SUCCESS' : '✗ FAILED';
-          console.log(`\n${status}: ${result.rolledBack} migration(s) rolled back`);
-
-          if (result.results) {
-            for (const res of result.results) {
-              const icon = res.success ? '✓' : '✗';
-              console.log(`${icon} ${res.version} (${res.duration || 'error'}ms)`);
-            }
-          }
-        }
-        break;
-      }
-
-      case 'status': {
-        console.log('\n📊 Migration Status\n');
-        const status = await runner.getStatus();
-
-        console.log(`Total Migrations: ${status.total}`);
-        console.log(`Completed: ${status.completed}`);
-        console.log(`Pending: ${status.pending}`);
-        console.log(`Failed: ${status.failed}`);
-
-        printTable(status.migrations);
-        break;
-      }
-
-      case 'list': {
-        console.log('\n📋 All Migrations\n');
-        const migrations = await runner.listMigrations();
-        printTable(migrations);
-        break;
-      }
-
-      case 'verify': {
-        console.log('\n🔍 Verifying migrations...\n');
-        const verify = await runner.verify();
-
-        if (verify.isHealthy) {
-          console.log('✓ All migrations are healthy');
-        } else {
-          console.log('✗ Issues found:');
-          for (const issue of verify.issues) {
-            console.log(`  - ${issue}`);
-          }
-        }
-
-        console.log('\nSummary:');
-        printTable(verify.summary);
-        break;
-      }
-
-      case 'help':
-      default:
-        printHelp();
-        break;
+    const { command, options } = parseArgs();
+    if (command === 'help') {
+      printHelp();
+      return 0;
     }
 
-    await disconnectDB();
+    await loadBackendEnvironment({ backendDirectory: path.resolve(CURRENT_DIRECTORY, '..') });
+    await loadCliDependencies();
+    const environment = options.environment || process.env.NODE_ENV || 'development';
+    const runner = new MigrationRunner(MIGRATIONS_DIR, { environment });
+    await connectDB();
+    if (command === 'up') {
+      const result = await runner.runPending(options);
+      console.log(options.dryRun ? `DRY RUN: ${result.migrationsRun} migration(s) are pending.` : `Migration run: ${result.success ? 'PASS' : 'FAIL'} (${result.migrationsRun} attempted).`);
+      if (result.results?.length) console.table(result.results);
+      if (!result.success) exitCode = 1;
+    } else if (command === 'down') {
+      const result = await runner.rollbackBatch(options);
+      console.log(options.dryRun ? `DRY RUN: ${result.rolledBack} migration(s) would be rolled back.` : `Rollback: ${result.success ? 'PASS' : 'FAIL'} (${result.rolledBack} completed).`);
+      if (result.results?.length) console.table(result.results);
+      if (!result.success) exitCode = 1;
+    } else if (command === 'status') {
+      const result = await runner.getStatus();
+      console.log(`Environment: ${result.environment}`);
+      console.log(`Total: ${result.total}; pending: ${result.pending}; running: ${result.running}; completed: ${result.completed}; failed: ${result.failed}; rolled back: ${result.rolled_back}`);
+      printTable(result.migrations);
+    } else if (command === 'list') {
+      printTable(await runner.listMigrations());
+    } else if (command === 'verify') {
+      const result = await runner.verify();
+      console.log(`Migration verification: ${result.isHealthy ? 'PASS' : 'FAIL'}`);
+      for (const issue of result.issues) console.error(`- ${issue}`);
+      printTable(result.summary);
+      if (!result.isHealthy) exitCode = 1;
+    } else {
+      throw new TypeError(`Unknown migration command: ${command}`);
+    }
   } catch (error) {
-    logger.error('Migration failed', error);
-    await disconnectDB();
-    process.exit(1);
+    logger?.error?.('Migration CLI failed', error);
+    console.error(`Migration CLI failed: ${error.message}`);
+    exitCode = 1;
+  } finally {
+    if (mongoose && mongoose.connection.readyState !== 0) {
+      try {
+        await disconnectDB();
+        logger?.info?.('Migration CLI disconnected from MongoDB');
+      } catch (error) {
+        logger?.error?.('Migration CLI database disconnect failed', error);
+        console.error(`Migration CLI disconnect failed: ${error.message}`);
+        exitCode = 1;
+      }
+    }
   }
+
+  return exitCode;
 }
 
-main();
+process.exitCode = await main();

@@ -1,5 +1,7 @@
 # TITech Community Capital — changed-file discovery
 
+> **Additional 23 November 2026 re-execution:** This document's earlier BankConnect/dashboard change discovery is preserved as a historical snapshot. A subsequent run added/changed migration/index ESM tools, syntax/transport verification, safe installation, tests and evidence. The exact latest archive-to-worktree delta is separately recorded in [`docs/evidence/2026-11-23-enterprise-e2e-remediation/reexecution-2026-11-23-1624-UGT/CHANGED_FILES.md`](docs/evidence/2026-11-23-enterprise-e2e-remediation/reexecution-2026-11-23-1624-UGT/CHANGED_FILES.md). The latest focused suite passed 29/29; runtime/install/audit/live database/E2E/deployment/approval remain blocked as detailed there.
+
 Compared the unpacked working tree against the uploaded ZIP file contents. The exact delta at report generation is listed below. No unrelated existing financial engine or auth subsystem was deleted.
 
 ## New files
