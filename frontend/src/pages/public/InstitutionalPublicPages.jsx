@@ -153,7 +153,8 @@ function PublicLeadForm({ type }) {
   }
 
   return (
-    <form className="titech-public-form" onSubmit={handleSubmit} noValidate={false}>
+    <form className="titech-public-form" aria-labelledby="institutional-lead-title" onSubmit={handleSubmit} noValidate={false}>
+      <h2 id="institutional-lead-title" className="titech-public-form__title">{title}</h2>
       <div className="titech-public-form__grid">
         <Field label="Full name" name="name" required>
           {(props) => <input {...props} type="text" autoComplete="name" maxLength={120} required />}

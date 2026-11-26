@@ -89,3 +89,6 @@ Community Savings App Book/*.png
 # Enterprise validation and deployment reports
 reports/
 postman/reports/
+
+# Local bootstrap recovery snapshots
+/backend/bootstrap/ApplicationBootstrap.js.pre-runtime-ready-fix-*.bak

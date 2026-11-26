@@ -106,6 +106,9 @@ jobs:
       - name: Frontend runtime regression tests
         run: npm run test:frontend-runtime
 
+      - name: Public-site browser E2E (Chrome/Chromium required)
+        run: npm run test:e2e
+
       - name: Exact-money unit tests (sanity)
         run: node --test backend/tests/unit/financial/money.test.js
 

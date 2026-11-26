@@ -1,0 +1,87 @@
+{
+  "assessmentDate": "2026-11-24",
+  "baselineArchive": "titech-community-capital-main.zip",
+  "baselineFileCount": 4101,
+  "updatedFileCount": 4111,
+  "addedFileCountIncludingManifests": 10,
+  "modifiedFileCount": 4,
+  "deletedFileCount": 0,
+  "manifestSelfExclusion": [
+    "docs/assurance/2026-11-24/changed-files.csv",
+    "docs/assurance/2026-11-24/changed-files.json"
+  ],
+  "files": [
+    {
+      "status": "ADDED",
+      "path": "docs/assurance/2026-11-24/CHANGE_DISCOVERY.md",
+      "baseline_sha256": "",
+      "updated_sha256": "9d5f09dd8ba99213b7ea711f3beb568861ee9a864d333c23aafea155e4df12b4"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/assurance/2026-11-24/EXECUTION_REPORT.md",
+      "baseline_sha256": "",
+      "updated_sha256": "305083b19a5333523ded8f0d869fd9bda2a3c455359871ef77be5323185a9010"
+    },
+    {
+      "status": "ADDED",
+      "path": "docs/assurance/2026-11-24/TEST_RESULTS.json",
+      "baseline_sha256": "",
+      "updated_sha256": "2e731c636ed13fa1f802c21265dd5ca8606b30bfcb1d406307d6d83eedbd04b0"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/official-theme-audit.json",
+      "baseline_sha256": "",
+      "updated_sha256": "29cb22cdd67ecb0a1f2eff6af46eb06fe0efc45655bb260031c1e546c9346c00"
+    },
+    {
+      "status": "ADDED",
+      "path": "reports/rbac-security-gate.json",
+      "baseline_sha256": "",
+      "updated_sha256": "5376f4c545fcf01944ba396925514358be4e57898b9aa7a0e94b9d4c3fa4ee0c"
+    },
+    {
+      "status": "ADDED",
+      "path": "scripts/lib/publicHomepageE2eContract.mjs",
+      "baseline_sha256": "",
+      "updated_sha256": "df4e968d2c5b151194805cf6ecca078f96d631ec5e669efc67df3fd75c1ce5ae"
+    },
+    {
+      "status": "ADDED",
+      "path": "scripts/public-homepage-browser-e2e.mjs",
+      "baseline_sha256": "",
+      "updated_sha256": "6a9e157cd405f9ffbc0f23629246954874c95cb0b509d5e574eddc41ca6caa22"
+    },
+    {
+      "status": "ADDED",
+      "path": "scripts/public-homepage-browser-e2e.test.mjs",
+      "baseline_sha256": "",
+      "updated_sha256": "d3fdd5ec08545f7b0ed5000f6006017fe75d82069d3914c9d73391e0117efa0e"
+    },
+    {
+      "status": "MODIFIED",
+      "path": ".github/workflows/ci.yml",
+      "baseline_sha256": "d6d0dbd4c4e8d98f39cea940a79495540485ec61f53aac382358903528ab5413",
+      "updated_sha256": "a814e3e69aaacd73df0189bf20dd8f506e986f814283694027ba1fd21875a461"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/package.json",
+      "baseline_sha256": "3de8ab6e53b491d5929f2b6d9f5b8f081b634d66662b2032e9ef904ca1ed799c",
+      "updated_sha256": "59cda5a01dfa6c16afc5be139be5e45f4a57a9908fde9b2b696f679c7145059d"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/public/InstitutionalPublicPages.css",
+      "baseline_sha256": "e239fa8a5169b22114cb60b5c9c37618982b5ff51ef793cdc75ff3a9ebcc708a",
+      "updated_sha256": "ab953599882a80781ea5bd9e7640c6bd58a16411f8cca977a7a869746a54a8ae"
+    },
+    {
+      "status": "MODIFIED",
+      "path": "frontend/src/pages/public/InstitutionalPublicPages.jsx",
+      "baseline_sha256": "4747196cd06e75f9f4dd8c55b307721650a2457ac7ee97c4931755444d6bb9af",
+      "updated_sha256": "675aac25780cd3eef9d3c91b636c39d1d0fde876fb7b7059359f32f552ab1b4d"
+    }
+  ]
+}

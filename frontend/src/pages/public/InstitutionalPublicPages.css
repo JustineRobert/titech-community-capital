@@ -380,6 +380,13 @@
   gap: 1.25rem;
 }
 
+.titech-public-form__title {
+  margin: 0;
+  color: var(--titech-color-text);
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+  line-height: 1.25;
+}
+
 .titech-public-form__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

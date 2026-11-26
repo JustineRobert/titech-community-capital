@@ -26,7 +26,8 @@
         "quality": "npm run check && npm test",
         "security:audit": "npm audit --audit-level=high",
         "security:audit:fix": "npm audit fix",
-        "outdated": "npm outdated"
+        "outdated": "npm outdated",
+        "test:e2e": "node ../scripts/public-homepage-browser-e2e.mjs"
     },
     "dependencies": {
         "@reduxjs/toolkit": "^2.12.0",

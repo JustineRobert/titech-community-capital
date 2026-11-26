@@ -1,0 +1,47 @@
+{
+  "assessmentDate": "2026-11-24",
+  "sourceArchive": "titech-community-capital-main.zip",
+  "sourceArchiveSha256": "59613fecaf27d752398c3dc346c2c37652650c875ba24ea678ffaee2e815aa60",
+  "sourceCommitDeclaredByArchive": "bc33ec1ac183ab3fb103e9b2affb1d7316d13a36",
+  "releaseDecision": "BLOCKED_NOT_PRODUCTION_APPROVED",
+  "runtime": {
+    "nodeObserved": "v22.16.0",
+    "nodeRequired": ">=24.15.0",
+    "npmObserved": "10.9.2",
+    "npmRequired": ">=11.0.0",
+    "supportedRuntimeGate": "BLOCKED"
+  },
+  "selectedNativeTests": {
+    "uniqueTestsPassed": 81,
+    "failed": 0,
+    "suites": [
+      { "name": "education", "passed": 15, "failed": 0, "status": "PASS" },
+      { "name": "meetings-and-daily-provider", "passed": 9, "failed": 0, "status": "PASS" },
+      { "name": "group-wallet-and-contribution-policy", "passed": 12, "failed": 0, "status": "PASS" },
+      { "name": "bankconnect", "passed": 9, "failed": 0, "status": "PASS" },
+      { "name": "i18n-core-and-locale-preferences", "passed": 27, "failed": 0, "status": "PASS" },
+      { "name": "public-site-browser-e2e-contract", "passed": 5, "failed": 0, "status": "PASS" },
+      { "name": "organization-profile-gate", "passed": 1, "failed": 0, "status": "PASS" },
+      { "name": "financial-metric-display", "passed": 3, "failed": 0, "status": "PASS" }
+    ]
+  },
+  "staticGates": {
+    "enterpriseSyntax": { "status": "PASS", "filesParsed": 2620 },
+    "officialTheme": "PASS",
+    "organizationProfile": { "status": "PASS", "checks": 14 },
+    "financialStatic": { "status": "PASS", "canonicalFilesChecked": 12 },
+    "rbacSecurity": "PASS",
+    "deploymentContract": "PASS",
+    "criticalGateContract": "PASS_WITH_RELEASE_BLOCKERS"
+  },
+  "executionBlocks": [
+    { "gate": "dependency-install-and-build", "status": "BLOCKED", "reason": "No node_modules and unsupported Node/npm runtime" },
+    { "gate": "public-browser-e2e", "status": "BLOCKED", "reason": "Chromium available but Vite is not installed" },
+    { "gate": "mongodb-transaction-tests", "status": "BLOCKED", "reason": "MongoDB and Docker unavailable" },
+    { "gate": "redis-integration-tests", "status": "BLOCKED", "reason": "Redis server and Docker unavailable" },
+    { "gate": "provider-sandbox-tests", "status": "NOT_RUN", "reason": "No approved provider credentials/sandbox supplied" },
+    { "gate": "vercel-deployment", "status": "NOT_RUN", "reason": "No Vercel project access or deployment evidence" },
+    { "gate": "remote-git-provenance", "status": "NOT_VERIFIED", "reason": "Source ZIP contains no .git directory" }
+  ],
+  "productionApproved": false
+}
