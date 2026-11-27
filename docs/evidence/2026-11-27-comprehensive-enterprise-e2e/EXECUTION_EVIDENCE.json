@@ -1,0 +1,72 @@
+{
+  "executionDate": "2026-11-27",
+  "timezone": "Africa/Kampala",
+  "source": {
+    "uploadedArchive": "titech-community-capital-main.zip",
+    "sha256": "1dd9d88a91532b3b6447bc8e815b62fafb3e9fd60fd372fa57b497c8c2ffb1a6",
+    "gitMetadataPresent": false,
+    "remoteHeadVerified": false,
+    "remoteFailure": "DNS resolution to github.com failed in execution container"
+  },
+  "runtime": {
+    "node": "22.16.0",
+    "npm": "10.9.2",
+    "requiredNode": ">=24.15.0",
+    "requiredNpm": ">=11.0.0",
+    "supportedRuntime": "BLOCKED"
+  },
+  "checks": {
+    "theme": "PASS",
+    "organization": "PASS",
+    "financialStatic": "PASS",
+    "rbacStatic": "PASS",
+    "syntax": "PASS",
+    "enterpriseContracts": "PASS",
+    "runtimeImportsCanonicalSurface": "PASS",
+    "esmCjsAudit": "FAIL",
+    "releaseAuditMode": "PASS",
+    "releaseStrictMode": "BLOCKED",
+    "goldenMoneyPathReferenceHarness": "PASS",
+    "productionApproved": false
+  },
+  "tests": {
+    "rootPreflightBatches": 27,
+    "rootPreflightPassed": 343,
+    "rootPreflightFailed": 0,
+    "rootPreflightSkipped": 0,
+    "fullCi": "FAIL_AT_MISSING_BACKEND_JEST",
+    "frontendBuild": "FAIL_VITE_NOT_FOUND",
+    "frontendCi": "FAIL_VITEST_NOT_FOUND"
+  },
+  "infrastructure": {
+    "mongodb": "NOT_AVAILABLE",
+    "redis": "NOT_AVAILABLE",
+    "docker": "NOT_AVAILABLE",
+    "browserE2E": "NOT_RUN",
+    "backupRestore": "NOT_RUN"
+  },
+  "implementationScope": "Documentation/evidence update only; no backend or frontend business-logic source files changed in this execution.",
+  "checkDetails": {
+    "runtimeImportsCanonicalSurface": "PASS applies only to the canonical financial surface (0 missing local imports and 0 mixed-module violations); repository-wide import audit reports 208 missing local imports.",
+    "esmCjsAudit": "FAIL: 207 unresolved relative require() references, 345 CommonJS-to-ESM boundaries and 45 mixed-module files were reported by the full audit.",
+    "releaseAuditMode": "Non-strict audit command completed with exit code 0; warnings remain and strict release gate is BLOCKED.",
+    "goldenMoneyPathReferenceHarness": "PASS for dependency-free reference harness only; not database/provider/browser E2E.",
+    "productionApproved": "false; no production approval was performed."
+  },
+  "financialHarness": {
+    "command": "node scripts/golden-money-path-proof.mjs",
+    "result": "PASS",
+    "evidence": "reports/evidence/golden-money-path-proof.json",
+    "scope": "dependency-free reference harness",
+    "databaseBacked": false,
+    "providerBacked": false,
+    "settlementEvidenceExternal": false,
+    "guaranteesReportedTrue": 11
+  },
+  "builds": {
+    "backend": "NOT RUN",
+    "backendNote": "build:backend returns zero but is an informational no-compilation script, not an actual build.",
+    "frontend": "FAIL",
+    "frontendNote": "vite executable unavailable because dependencies were not installed under the unsupported runtime."
+  }
+}

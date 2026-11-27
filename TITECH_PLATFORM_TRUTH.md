@@ -1,6 +1,6 @@
 # TITech Community Capital — Current Platform Truth Index
 
-**As of:** 23 November 2026
+**As of:** 27 November 2026
 **Organization:** TITECH CAPITAL - SMC LTD
 **Entity Registration Number (ERN):** 80049233029029 (stated on user-uploaded Certificate of Incorporation; authenticity/current registry status not independently verified)
 **Postal correspondence:** P.O. Box 601200, Clock Tower, Uganda (owner-supplied)  
@@ -10,6 +10,28 @@
 **Production approval | NO**
 **PRODUCTION_APPROVED: NO**  
 **`productionApproved`: `false`**
+
+
+## 27 November 2026 — comprehensive archive reassessment and release evidence refresh
+
+The exact owner-uploaded source archive for this reassessment is `titech-community-capital-main.zip`, SHA-256 `1dd9d88a91532b3b6447bc8e815b62fafb3e9fd60fd372fa57b497c8c2ffb1a6` (4,802 ZIP entries; `unzip -t` passed). It contains no `.git` directory. `git ls-remote` could not resolve `github.com` from the execution environment; the remote default branch/HEAD and the 26–27 November GitHub commits were therefore **not verified**. Earlier archive hashes in historical records do not identify this exact upload.
+
+The local runner is Node `22.16.0` / npm `10.9.2`, below the declared Node `>=24.15.0` / npm `>=11.0.0` contract. The safe installer refused before `npm ci`; `node_modules` are absent. MongoDB/replica-set (27017), Redis (6379) and Docker are unavailable. `npm run build:frontend` fails because Vite is absent; frontend CI cannot find Vitest; backend CI cannot find Jest. No application startup, browser E2E, database-backed ledger replay, provider settlement, restore drill, deployment or production runtime is claimed.
+
+Current re-execution evidence:
+
+- Official product/organization identity and owner-supplied profile: `TITech Community Capital`; `TITECH CAPITAL - SMC LTD`; ERN `80049233029029`; email `titechcapital@gmail.com`; telephone/WhatsApp `+256782397907` / `+256772123546`; P.O. Box `601200`. The company profile intentionally records the incorporation evidence as provided and not independently verified.
+- Active tagline `Community Finance. Stronger Together.` and financial principle `FINANCIAL CORRECTNESS BEFORE CONVENIENCE.` remain canonical. The previous phrase “BUILD LESS. PROVE MORE.” is not active UI branding; dated historical reports retain their original language as historical evidence.
+- Nine-colour official theme, light/dark contract and centralized theme tokens pass; 82 non-brand frontend CSS files are covered by the current theme audit.
+- Organization, financial static (12 canonical files), RBAC static, syntax (2,622 JS/TS-family files), enterprise contract (11 contracts), commercial-core, USSD and Faith & Community Giving contract gates pass.
+- Root `test:ci` completed 27 dependency-free test batches: 343 passed, 0 failed, 0 skipped, then stopped at the unavailable backend Jest entry point. Selected BankConnect 9/9, EduFinance 16/16, UbuntuFloat 13/13, commercial-core 37/37 and other focused tests are recorded in `docs/evidence/2026-11-27-comprehensive-enterprise-e2e/TEST_RESULTS.md`.
+- Runtime import audit reports zero missing imports/mixed-module violations on the canonical financial surface, but 208 missing local imports overall. The broader ESM/CJS audit exits non-zero with 207 unresolved relative `require()` references, 345 CJS→ESM boundaries and 45 mixed-module files; do not bulk rewrite without reachability analysis.
+- BankConnect remains local statement evidence intake: 9 parser tests pass, but bank API connections remain unconnected/not approved and the canonical matching/ledger integration is not complete.
+
+**Current release status: NOT READY; `productionApproved=false`.** The critical-gate register retains eight open P0/P1 items (runtime/install, bootstrap/health, ledger replay, provider failures, tenant permissions, security/recovery, regulatory/partner and commercial pilot). The complete gate matrix, risk register, file discovery and raw command outputs are in [`docs/evidence/2026-11-27-comprehensive-enterprise-e2e/`](docs/evidence/2026-11-27-comprehensive-enterprise-e2e/). This archive-local evidence refresh does not claim a current GitHub checkout, production deployment, customer pilot or external approval.
+
+---
+
 
 ## 23 November 2026 — Migration/index tooling, install safety and API transport re-execution
 
