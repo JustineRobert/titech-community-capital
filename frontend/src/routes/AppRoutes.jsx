@@ -91,6 +91,9 @@ const ROUTES = Object.freeze({
   RESET_PASSWORD: '/reset-password',
   VERIFY_EMAIL: '/verify-email',
   ACCESS_GOVERNANCE: '/admin/access',
+  PLATFORM_BILLING: '/platform/billing',
+  MY_BILLING: '/settings/billing',
+  FINANCE_BILLING: '/finance/billing-operations',
 
   LEGAL: '/legal',
   TERMS: '/terms',
@@ -175,6 +178,11 @@ function lazyWithRecovery(importer, name) {
 const Dashboard = lazyWithRecovery(
   () => import('../pages/Dashboard'),
   'Dashboard'
+);
+
+const BillingDashboardPage = lazyWithRecovery(
+  () => import('../pages/billing/BillingDashboardPage'),
+  'BillingDashboardPage'
 );
 
 const EnterpriseAdminDashboard = lazyWithRecovery(
@@ -472,6 +480,19 @@ function AdminRoute() {
   );
 }
 
+function BillingRoleRoute({ allowedRoles = [] }) {
+  const { user, loading } = useAuthentication();
+  if (loading) return <RouteLoader />;
+  if (!user) return <Navigate to={ROUTES.LOGIN} replace />;
+  const actualRoles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])]
+    .map(normalizeRole)
+    .filter(Boolean);
+  if (!actualRoles.some((role) => allowedRoles.includes(role))) {
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
+  }
+  return <Outlet />;
+}
+
 // ============================================================================
 // Public authentication route
 // ============================================================================
@@ -675,6 +696,14 @@ function ApplicationRouteTree() {
               <Dashboard />
             }
           />
+
+          <Route element={<BillingRoleRoute allowedRoles={[TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.FINANCE_OFFICER, TITECH_ROLES.FINANCE_AUDITOR]} />}>
+            <Route path={ROUTES.PLATFORM_BILLING} element={<BillingDashboardPage />} />
+            <Route path={ROUTES.FINANCE_BILLING} element={<BillingDashboardPage />} />
+          </Route>
+          <Route element={<BillingRoleRoute allowedRoles={[TITECH_ROLES.TENANT_ADMIN]} />}>
+            <Route path={ROUTES.MY_BILLING} element={<BillingDashboardPage />} />
+          </Route>
 
           <Route
             path={ROUTES.MEMBERS}

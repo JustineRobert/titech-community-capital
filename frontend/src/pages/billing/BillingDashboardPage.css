@@ -1,0 +1,139 @@
+.titech-billing-page {
+  width: min(100%, 1500px);
+  margin: 0 auto;
+  padding: clamp(18px, 2.5vw, 34px);
+  color: var(--titech-color-text);
+}
+
+.billing-page-header,
+.billing-page-brand,
+.billing-title-row,
+.billing-section__heading,
+.billing-page-footer,
+.billing-page-footer > div,
+.billing-refresh,
+.billing-readonly-chip {
+  display: flex;
+  align-items: center;
+}
+
+.billing-page-header,
+.billing-title-row,
+.billing-section__heading,
+.billing-page-footer {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.billing-page-header { padding-bottom: 20px; border-bottom: 1px solid var(--titech-color-border); }
+.billing-page-brand { gap: 12px; min-width: 0; }
+.billing-page-brand img { flex: 0 0 auto; }
+.billing-brand-name { font-weight: 800; letter-spacing: -.02em; }
+.billing-brand-org { margin-top: 2px; color: var(--titech-color-text-muted); font-size: .78rem; }
+.billing-refresh { gap: 8px; border: 1px solid var(--titech-color-border-strong); border-radius: 10px; background: var(--titech-color-surface); color: var(--titech-color-text); padding: 10px 14px; font: inherit; font-weight: 700; cursor: pointer; }
+.billing-refresh:hover:not(:disabled) { border-color: var(--titech-brand-electric-blue); color: var(--titech-brand-electric-blue); }
+.billing-refresh:disabled { cursor: wait; opacity: .65; }
+.billing-title-row { align-items: flex-end; margin: 28px 0 20px; }
+.billing-title-row h1 { margin: 4px 0 6px; font-size: clamp(1.7rem, 3vw, 2.45rem); letter-spacing: -.04em; }
+.billing-title-row p:last-child { margin: 0; color: var(--titech-color-text-muted); }
+.billing-eyebrow { margin: 0; color: var(--titech-brand-electric-blue); font-size: .72rem; font-weight: 800; letter-spacing: .13em; }
+.billing-readonly-chip { flex: 0 0 auto; gap: 7px; border: 1px solid var(--titech-color-border); border-radius: 999px; padding: 8px 12px; color: var(--titech-brand-green); background: var(--titech-color-surface); font-size: .78rem; font-weight: 750; }
+.billing-safety-note { display: flex; align-items: flex-start; gap: 12px; border: 1px solid color-mix(in srgb, var(--titech-brand-gold) 48%, var(--titech-color-border)); border-left: 4px solid var(--titech-brand-gold); border-radius: 12px; padding: 14px 16px; margin: 0 0 22px; background: var(--titech-color-surface); color: var(--titech-color-text-muted); line-height: 1.55; font-size: .9rem; }
+.billing-safety-note svg { color: var(--titech-brand-deep-blue); flex: 0 0 auto; margin-top: 2px; }
+.billing-safety-note strong { color: var(--titech-color-text); }
+.billing-error { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; margin-bottom: 18px; border: 1px solid #c94a4a; border-radius: 10px; color: #a52d2d; background: var(--titech-color-surface); }
+.billing-loading { display: flex; align-items: center; gap: 12px; padding: 45px 10px; color: var(--titech-color-text-muted); }
+.billing-loader { width: 20px; height: 20px; border: 2px solid var(--titech-color-border); border-top-color: var(--titech-brand-electric-blue); border-radius: 50%; animation: billing-spin .8s linear infinite; }
+.is-spinning { animation: billing-spin .8s linear infinite; }
+@keyframes billing-spin { to { transform: rotate(360deg); } }
+.billing-metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+.billing-metric { min-width: 0; padding: 18px; border: 1px solid var(--titech-color-border); border-top: 3px solid var(--titech-brand-electric-blue); border-radius: 14px; background: var(--titech-color-surface); box-shadow: 0 5px 20px rgb(0 48 160 / 5%); }
+.billing-metric__icon { display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 14px; border-radius: 10px; color: var(--titech-brand-electric-blue); background: var(--titech-color-surface-muted); }
+.billing-metric--cyan { border-top-color: var(--titech-brand-cyan); }
+.billing-metric--cyan .billing-metric__icon { color: var(--titech-brand-cyan); }
+.billing-metric--green { border-top-color: var(--titech-brand-green); }
+.billing-metric--green .billing-metric__icon { color: var(--titech-brand-green); }
+.billing-metric--gold { border-top-color: var(--titech-brand-gold); }
+.billing-metric--gold .billing-metric__icon { color: var(--titech-brand-deep-blue); background: color-mix(in srgb, var(--titech-brand-gold) 26%, var(--titech-color-surface)); }
+.billing-metric--risk { border-top-color: var(--titech-brand-lime); }
+.billing-metric--risk .billing-metric__icon { color: #b43c3c; }
+.billing-metric__label { color: var(--titech-color-text-muted); font-size: .82rem; font-weight: 650; }
+.billing-metric__value { overflow-wrap: anywhere; margin-top: 6px; font-size: clamp(1.35rem, 2.3vw, 1.9rem); font-weight: 850; letter-spacing: -.04em; }
+.billing-metric__detail { margin-top: 4px; color: var(--titech-color-text-subtle); font-size: .75rem; }
+.billing-section { margin: 0 0 22px; padding: 20px; border: 1px solid var(--titech-color-border); border-radius: 14px; background: var(--titech-color-surface); box-shadow: 0 4px 18px rgb(0 48 160 / 4%); }
+.billing-section__heading { align-items: flex-start; margin-bottom: 15px; }
+.billing-section__heading h2 { margin: 0; font-size: 1.05rem; letter-spacing: -.02em; }
+.billing-section__heading p { margin: 5px 0 0; color: var(--titech-color-text-muted); font-size: .82rem; line-height: 1.5; }
+.billing-table-wrap { width: 100%; overflow-x: auto; }
+.billing-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .84rem; }
+.billing-table th { padding: 12px 10px; color: var(--titech-color-text-muted); background: var(--titech-color-surface-muted); font-size: .73rem; font-weight: 750; white-space: nowrap; }
+.billing-table td { padding: 13px 10px; border-bottom: 1px solid var(--titech-color-border); white-space: nowrap; }
+.billing-table tr:last-child td { border-bottom: 0; }
+.billing-table td strong { font-weight: 750; }
+.billing-status { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; font-size: .7rem; font-weight: 800; text-transform: capitalize; background: var(--titech-color-surface-muted); color: var(--titech-color-text-muted); }
+.billing-status.is-positive { background: color-mix(in srgb, var(--titech-brand-green) 13%, var(--titech-color-surface)); color: var(--titech-brand-green); }
+.billing-status.is-risk { background: #fbe9e9; color: #a52d2d; }
+.billing-status.is-pending { background: color-mix(in srgb, var(--titech-brand-gold) 20%, var(--titech-color-surface)); color: var(--titech-brand-navy); }
+.billing-status.is-neutral { background: var(--titech-color-surface-muted); color: var(--titech-color-text-muted); }
+.billing-empty { padding: 22px 12px; text-align: center; color: var(--titech-color-text-muted); font-size: .86rem; }
+.billing-currency-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.billing-currency-row { padding: 14px; border: 1px solid var(--titech-color-border); border-radius: 10px; background: var(--titech-color-surface-muted); }
+.billing-currency-row > div:first-child { display: flex; justify-content: space-between; gap: 12px; font-size: .8rem; }
+.billing-currency-row > div:first-child span { color: var(--titech-color-text-muted); }
+.billing-currency-row__amount { margin-top: 7px; font-weight: 850; font-size: 1.08rem; overflow-wrap: anywhere; }
+.billing-currency-row__muted { margin-top: 5px; color: var(--titech-color-text-muted); font-size: .75rem; }
+.billing-aging-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.billing-aging-item { display: flex; flex-direction: column; gap: 10px; padding: 15px; border-left: 3px solid var(--titech-brand-lime); border-radius: 10px; background: var(--titech-color-surface-muted); }
+.billing-aging-item span { color: var(--titech-color-text-muted); font-size: .78rem; }
+.billing-aging-item strong { font-size: 1.5rem; }
+.billing-table-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin: 0 0 12px; color: var(--titech-color-text-muted); font-size: .78rem; }
+.billing-table-toolbar input { width: min(100%, 300px); border: 1px solid var(--titech-color-border-strong); border-radius: 8px; padding: 9px 11px; color: var(--titech-color-text); background: var(--titech-color-background); font: inherit; }
+.billing-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 4px 2px; color: var(--titech-color-text-muted); font-size: .76rem; }
+.billing-pagination > div { display: flex; gap: 8px; }
+.billing-pagination button { border: 1px solid var(--titech-color-border-strong); border-radius: 7px; padding: 7px 10px; background: var(--titech-color-surface); color: var(--titech-color-text); font: inherit; cursor: pointer; }
+.billing-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+.billing-unavailable-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.billing-unavailable-item { display: flex; flex-direction: column; gap: 9px; padding: 13px; border: 1px dashed var(--titech-color-border-strong); border-radius: 10px; }
+.billing-unavailable-item span { font-size: .76rem; color: var(--titech-color-text-muted); }
+.billing-unavailable-item strong { font-size: .85rem; }
+.billing-footnote { margin: 13px 0 0; color: var(--titech-color-text-muted); font-size: .76rem; line-height: 1.5; }
+.billing-page-footer { flex-wrap: wrap; padding: 18px 2px; border-top: 1px solid var(--titech-color-border); color: var(--titech-color-text-muted); font-size: .73rem; }
+.billing-page-footer > div { gap: 7px; }
+.billing-page-footer img { flex: 0 0 auto; }
+.billing-page-footer strong { color: var(--titech-brand-deep-blue); }
+.billing-page-footer a { color: var(--titech-brand-electric-blue); text-decoration: none; }
+
+@media (max-width: 980px) {
+  .billing-metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .billing-aging-grid, .billing-unavailable-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .titech-billing-page { padding: 14px; }
+  .billing-page-header, .billing-title-row { align-items: flex-start; flex-direction: column; }
+  .billing-refresh { align-self: flex-start; }
+  .billing-title-row { gap: 12px; }
+  .billing-readonly-chip { align-self: flex-start; }
+  .billing-metrics-grid { grid-template-columns: 1fr 1fr; gap: 9px; }
+  .billing-metric { padding: 13px; }
+  .billing-metric__value { font-size: 1.35rem; }
+  .billing-section { padding: 14px; }
+  .billing-aging-grid, .billing-unavailable-grid { grid-template-columns: 1fr 1fr; }
+  .billing-page-footer { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .billing-table-toolbar { justify-content: flex-start; align-items: flex-start; flex-direction: column; }
+  .billing-table-toolbar input { width: 100%; }
+}
+
+.billing-distribution-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.billing-distribution-grid h3 { margin: 0 0 14px; font-size: .84rem; }
+.billing-distribution { display: grid; gap: 13px; }
+.billing-distribution-row__heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: .75rem; text-transform: capitalize; }
+.billing-distribution-row__heading span { color: var(--titech-color-text-muted); }
+.billing-distribution-row__heading strong { color: var(--titech-color-text); }
+.billing-distribution-track, .billing-aging-track { overflow: hidden; width: 100%; height: 8px; border-radius: 999px; background: var(--titech-color-surface-muted); }
+.billing-distribution-fill, .billing-aging-track > div { height: 100%; min-width: 0; border-radius: inherit; background: var(--titech-brand-electric-blue); transition: width .25s ease; }
+.billing-distribution-fill--1 { background: var(--titech-brand-cyan); }
+.billing-distribution-fill--2 { background: var(--titech-brand-green); }
+.billing-distribution-fill--3 { background: var(--titech-brand-gold); }
+.billing-distribution-fill--4 { background: var(--titech-brand-lime); }
+.billing-aging-track > div { background: var(--titech-brand-electric-blue); }
+@media (max-width: 640px) { .billing-distribution-grid { grid-template-columns: 1fr; } }

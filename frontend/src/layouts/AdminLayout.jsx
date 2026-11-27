@@ -256,6 +256,9 @@ export default function AdminLayout() {
       Sprout,
       Network,
       LifeBuoy,
+      CreditCard,
+      Receipt,
+      FileText,
     };
 
     // Use the existing TITech navigation registry.

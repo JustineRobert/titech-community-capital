@@ -41,6 +41,7 @@ import memberReadRoutes from './member-read.routes.js';
 import loanReadRoutes from './loan-read.routes.js';
 import savingsReadRoutes from './savings-read.routes.js';
 import bankConnectRoutes from '../modules/bankconnect/bankConnect.routes.js';
+import billingReadRoutes from '../commercial/api/billingRead.routes.js';
 
 /**
  * =============================================================================
@@ -434,6 +435,9 @@ function requestMetadata(
 router.use(
     requestMetadata,
 );
+
+// Read-only SaaS billing dashboards; write and money-moving capabilities remain disabled.
+router.use(`${API_PREFIX}/billing`, billingReadRoutes);
 
 /**
  * =============================================================================

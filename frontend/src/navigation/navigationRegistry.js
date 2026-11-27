@@ -6,6 +6,9 @@ import { hasTitechRole, TITECH_ROLES } from '../security/rbacPolicy.js';
 
 export const NAVIGATION_REGISTRY = Object.freeze([
   { id: 'dashboard', label: 'Dashboard', to: '/dashboard', icon: 'LayoutDashboard', access: 'authenticated' },
+  { id: 'platformBilling', label: 'Billing Control Centre', to: '/platform/billing', icon: 'CreditCard', access: 'authenticated', roles: [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.FINANCE_OFFICER, TITECH_ROLES.FINANCE_AUDITOR] },
+  { id: 'institutionBilling', label: 'My Billing', to: '/settings/billing', icon: 'Receipt', access: 'authenticated', roles: [TITECH_ROLES.TENANT_ADMIN] },
+  { id: 'financeBilling', label: 'Finance & Collections', to: '/finance/billing-operations', icon: 'FileText', access: 'authenticated', roles: [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.FINANCE_OFFICER, TITECH_ROLES.FINANCE_AUDITOR] },
   { id: 'bankConnect', label: 'BankConnect', to: '/bankconnect', icon: 'Landmark', access: 'authenticated', roles: [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN], discovery: { discoveryType: 'service', category: 'Bank connectivity and reconciliation', description: 'Institution-scoped bank-account authorization, encrypted statement evidence and reconciliation investigation. Bank API connections and payment execution require formal external approval.', accessLabel: 'Authenticated · institution-admin workspace', requiresAuthentication: true } },
   { id: 'groups', label: 'Groups', to: '/groups', icon: 'Users', access: 'authenticated', discovery: { discoveryType: 'service', category: 'Community finance', description: 'Manage institution-scoped groups and membership. Financial actions remain subject to tenant permissions and the canonical ledger.', accessLabel: 'Authenticated workspace', requiresAuthentication: true } },
   { id: 'createGroup', label: 'Create Group', to: '/create-group', icon: 'UserPlus', access: 'authenticated', roles: [TITECH_ROLES.PLATFORM_ADMIN, TITECH_ROLES.TENANT_ADMIN] },

@@ -86,6 +86,8 @@ export const USER_ROLES = Object.freeze([
   "tenant_admin",
   "payroll_officer",
   "payroll_auditor",
+  "finance_officer",
+  "finance_auditor",
   "platform_admin",
   "user",
   "admin",

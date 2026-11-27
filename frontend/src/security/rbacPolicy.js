@@ -6,6 +6,8 @@
 export const TITECH_ROLES = Object.freeze({
   PLATFORM_ADMIN: 'platform_admin',
   TENANT_ADMIN: 'tenant_admin',
+  FINANCE_OFFICER: 'finance_officer',
+  FINANCE_AUDITOR: 'finance_auditor',
   GROUP_ADMIN: 'group_admin',
   MEMBER: 'member',
   GUEST: 'guest',
@@ -18,6 +20,9 @@ const ROLE_ALIASES = Object.freeze({
   // role; UI normalization must never downgrade or upgrade server authority.
   admin: TITECH_ROLES.PLATFORM_ADMIN,
   tenantadmin: TITECH_ROLES.TENANT_ADMIN,
+  finance: TITECH_ROLES.FINANCE_OFFICER,
+  financeofficer: TITECH_ROLES.FINANCE_OFFICER,
+  financeauditor: TITECH_ROLES.FINANCE_AUDITOR,
   groupadmin: TITECH_ROLES.GROUP_ADMIN,
   user: TITECH_ROLES.MEMBER,
 });
@@ -42,6 +47,8 @@ export function roleDashboard(role) {
   switch (normalizeTitechRole(role)) {
     case TITECH_ROLES.PLATFORM_ADMIN: return '/platform';
     case TITECH_ROLES.TENANT_ADMIN: return '/admin';
+    case TITECH_ROLES.FINANCE_OFFICER:
+    case TITECH_ROLES.FINANCE_AUDITOR: return '/finance/billing-operations';
     case TITECH_ROLES.GROUP_ADMIN: return '/groups';
     case TITECH_ROLES.MEMBER: return '/dashboard';
     default: return '/';
